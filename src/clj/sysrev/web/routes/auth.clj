@@ -140,9 +140,9 @@
                  :as session} :session} request
                verified (users/primary-email-verified? user-id)]
            (if user-id
-             (-> (merge
-                  {:identity (users/user-identity-info user-id true)}
-                  (users/user-self-info user-id))
+             (-> (merge {:identity (users/user-identity-info user-id true)}
+                        (users/user-self-info user-id)
+                        (:result (api/read-orgs user-id)))
                  (assoc-in [:identity :verified] verified))
              {:identity {:settings (:settings session)}}))))
 
@@ -167,13 +167,10 @@
                 {:keys [user-id]
                  :as user} (users/get-user-by-email email)]
             (if (nil? user)
-              {:result
-               {:success false
-                :exists false}}
+              {:success false, :exists false}
               (do
                 (send-password-reset-email user-id :url-base url-base)
-                {:success true
-                 :exists true})))))
+                {:success true, :exists true})))))
 
 (dr (POST "/api/auth/reset-password" request
           (let [{{:keys [reset-code password] :as body}

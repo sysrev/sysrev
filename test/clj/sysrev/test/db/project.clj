@@ -31,8 +31,7 @@
 
 (deftest project-sources-creation-deletion
   ;; Create Project
-  (let [{:keys [project-id] :as new-project} (project/create-project "Grault's
-Corge")
+  (let [{:keys [project-id] :as new-project} (project/create-project "Grault's Corge")
         search-term "foo bar"
         ;; import articles to this project
         pmids (pubmed/get-all-pmids-for-query search-term)
@@ -45,9 +44,9 @@ Corge")
         (->> project-sources
              (filter #(= (get-in % [:meta :search-term]) search-term))
              first)
-        source-article-ids (map :article-id (-> (select :article_id)
-                                                (from :article_source)
-                                                (where [:= :source_id source-id])
+        source-article-ids (map :article-id (-> (select :article-id)
+                                                (from :article-source)
+                                                (where [:= :source-id source-id])
                                                 do-query))]
     ;; The amount of PMIDs returned by the search term query is the same as
     ;; the total amount of articles in the project
@@ -55,26 +54,24 @@ Corge")
            (project/project-article-count project-id)))
     ;; ... and the amount of PMIDs is the same as the amount of articles in the project source
     (is (= article-count
-           (count (-> (select :article_id)
-                      (from :article_source)
-                      (where [:= :source_id source-id])
+           (count (-> (select :article-id)
+                      (from :article-source)
+                      (where [:= :source-id source-id])
                       do-query))))
     ;; .. check the article table as well
     (is (= article-count
-           (count (-> (select :article_id)
+           (count (-> (select :article-id)
                       (from :article)
-                      (where [:in :article_id source-article-ids])
+                      (where [:in :article-id source-article-ids])
                       do-query))))
-    ;; When the project is deleted, entries in the article / project_source tables are deleted
+    ;; When the project is deleted, entries in the article / project-source tables are deleted
     ;; as well
     (source/delete-source source-id)
-    (is (= 0
-           (count (-> (select :article_id)
-                      (from :article_source)
-                      (where [:= :source_id source-id])
-                      do-query))))
-    (is (= 0
-           (count (-> (select :article_id)
-                      (from :article)
-                      (where [:in :article_id source-article-ids])
-                      do-query))))))
+    (is (= 0 (count (-> (select :article-id)
+                        (from :article-source)
+                        (where [:= :source-id source-id])
+                        do-query))))
+    (is (= 0 (count (-> (select :article-id)
+                        (from :article)
+                        (where [:in :article-id source-article-ids])
+                        do-query))))))

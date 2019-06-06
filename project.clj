@@ -75,11 +75,11 @@
                  [gravatar "1.1.1"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
-             "-Xms800m"
-             "-Xmx1500m"
+             "-Xms600m"
+             "-Xmx1600m"
              #_ "-XX:+UseParallelGC"
              "-XX:+TieredCompilation"
-             "-XX:+AggressiveOpts"
+             #_ "-XX:+AggressiveOpts"
              "-Xverify:none"]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
@@ -158,7 +158,7 @@
               :aot [sysrev.spark.core
                     sysrev.spark.similarity]}
              :test
-             {:jvm-opts [#_ "-server" "-client"
+             {:jvm-opts ["-server" #_ "-client"
                          "-XX:TieredStopAtLevel=1" #_ "-XX:+UseConcMarkSweepGC"]
               :resource-paths ["config/test" "resources/test"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]

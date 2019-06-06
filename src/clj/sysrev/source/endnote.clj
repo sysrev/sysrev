@@ -1,6 +1,5 @@
 (ns sysrev.source.endnote
   (:require [clojure.java.io :as io]
-            [clojure.xml :as xml]
             [clojure.data.xml :as dxml]
             [clojure.tools.logging :as log]
             [clojure.string :as str]

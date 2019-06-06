@@ -24,17 +24,24 @@
 (defroutes user-routes
   (context
    "/api" []
-   (context "/users/group" []
-            (GET "/public-reviewer" request
+   (context "/users" []
+            (context "/group" []
+                     (GET "/public-reviewer" request
+                          (wrap-authorize
+                           request
+                           {:logged-in true}
+                           (api/users-in-group "public-reviewer")))
+                     (GET "/public-reviewer/:user-id" [user-id :<< as-int :as request]
+                          (wrap-authorize
+                           request
+                           {:authorize-fn (user-in-group? user-id "public-reviewer")}
+                           (api/read-user-public-info user-id))))
+            (GET "/search" request
                  (wrap-authorize
                   request
                   {:logged-in true}
-                  (api/users-in-group "public-reviewer")))
-            (GET "/public-reviewer/:user-id" [user-id :<< as-int :as request]
-                 (wrap-authorize
-                  request
-                  {:authorize-fn (user-in-group? user-id "public-reviewer")}
-                  (api/read-user-public-info user-id))))
+                  (let [{:keys [term]} (-> :params request)]
+                    (api/search-users term)))))
    (GET "/user/:user-id" [user-id :<< as-int :as request]
         (wrap-authorize
          request
@@ -47,6 +54,11 @@
           request
           {:authorize-fn (constantly true)}
           (api/user-projects user-id (= (current-user-id request) user-id))))
+    (GET "/orgs" request
+         (wrap-authorize
+          request
+          {:authorize-fn (constantly true)}
+          (api/read-orgs user-id)))
     (GET "/payments-owed" request
          (wrap-authorize
           request
@@ -97,28 +109,28 @@
              (api/create-avatar! user-id (:tempfile file) filename meta))))
     (GET "/avatar" request
          (api/read-avatar user-id))
-    (context "/groups/:group-name" [group-name]
-             (GET "/active" [user-id :<< as-int group-name :as request]
+    (context "/groups/public-reviewer" []
+             (GET "/active" [user-id :<< as-int :as request]
                   (wrap-authorize
                    request
                    {:authorize-fn (user-authd? user-id)}
-                   (api/user-group-name-active? user-id group-name)))
+                   (api/user-in-group-name? user-id "public-reviewer")))
              (PUT "/active" request
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
-                   (let [{:keys [active]} (:body request)]
-                     (api/set-web-user-group! user-id group-name active)))))
+                   (let [{:keys [enabled]} (:body request)]
+                     (api/set-user-group! user-id "public-reviewer" enabled)))))
     (context "/stripe" []
              (GET "/default-source" request
                   (wrap-authorize
                    request
                    {:authorize-fn (user-authd? user-id)}
-                   (api/stripe-default-source user-id)))
+                   (api/user-stripe-default-source user-id)))
              (POST "/payment-method" request
                    (wrap-authorize
                     request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [token]} (:body request)]
-                      (api/stripe-payment-method user-id token))))
+                      (api/update-user-stripe-payment-method! user-id token))))
              (GET "/current-plan" request
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}

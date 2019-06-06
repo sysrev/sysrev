@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer
-             [subscribe dispatch reg-sub]]
+             [subscribe dispatch reg-sub reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
@@ -22,6 +22,12 @@
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
+
+(reg-event-fx :project-settings/reset-state!
+              [trim-v]
+              (fn [db _]
+                (reset! state initial-state)
+                {}))
 
 (defn- parse-input [skey input]
   (case skey
@@ -136,8 +142,17 @@
   :uri (fn [project-id changes] "/api/change-project-settings")
   :content (fn [project-id changes]
              {:project-id project-id :changes changes})
-  :process (fn [{:keys [db]} [project-id _] {:keys [settings]}]
-             {:db (assoc-in db [:data :project project-id :settings] settings)}))
+  :process (fn [{:keys [db]} [project-id changes] {:keys [settings]}]
+             ;; if project is owned by an org, also reload that orgs projects
+             ;; this is hacky, need a keyword to [:action [...] :on-success #(do something)]
+             ;; because this can't just be handled by sysrev.views.panels.user.projects/set-public!
+             (let [project-owner @(subscribe [:project/owner project-id])
+                   owner-key (-> project-owner keys first)
+                   owner-id (-> project-owner vals first)]
+               (when (= :group-id owner-key)
+                 (dispatch [:org/get-projects! owner-id])))
+             {:db (cond-> (assoc-in db [:data :project project-id :settings] settings))
+              :dispatch [:user/get-projects! @(subscribe [:self/user-id])]}))
 
 (def-action :project/change-name
   :uri (fn [project-id project-name] "/api/change-project-name")
@@ -212,23 +227,26 @@
     :value 1.0
     :tooltip "Prioritize fully reviewed articles"}])
 
-(defn- SettingsButton [{:keys [setting key label value tooltip]}]
+(defn- SettingsButton [{:keys [setting key label value tooltip disabled?]}]
   (let [active? (= (render-setting setting)
                    (render-setting-value setting value))
         admin? (admin?)]
     (ui/FixedTooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
-       :class (if active? "active" "")
+       :class (cond-> " "
+                active? (str "active")
+                disabled? (str " disabled"))
        :on-click (if admin? #(edit-setting setting value) nil)}
       label]
      [:p tooltip]
      "20em"
      :props {:style {:text-align "center"}})))
 
-(defn- SettingsField [{:keys [setting label entries]} entries]
+(defn- SettingsField [{:keys [setting label entries disabled?]} entries]
   (let [elements (->> entries
-                      (map #(SettingsButton (merge % {:setting setting}))))]
+                      (map #(SettingsButton (merge % {:setting setting
+                                                      :disabled? disabled?}))))]
     [:div.field {:id (str "project-setting_" (name setting))
                  :class (input-field-class setting)}
      [:label label]
@@ -256,11 +274,27 @@
     :value false
     :tooltip "Allow access only for project members"}])
 
-(defn- PublicAccessField []
-  [SettingsField
-   {:setting :public-access
-    :label "Project Visibility"
-    :entries public-access-buttons}])
+(defn- PublicAccessField [project-id]
+  (let [project-owner @(subscribe [:project/owner project-id])
+        owner-key (-> project-owner keys first)
+        owner-id (-> project-owner vals first)
+        project-plan @(subscribe [:project/plan project-id])
+        project-url @(subscribe [:project/uri project-id])]
+    [:div [SettingsField
+           {:setting :public-access
+            :label "Project Visibility"
+            :entries public-access-buttons
+            :disabled? (= project-plan "Basic")}]
+     (when (= project-plan
+              "Basic")
+       [:p [:a {:href (if (= owner-key :user-id)
+                        (str "/user/plans")
+                        (str "/org/" owner-id "/plans"))
+                :on-click (fn [e]
+                            (if (= owner-key :user-id)
+                              (dispatch [:plans/set-on-subscribe-nav-to-url! (str project-url "/settings")])
+                              (dispatch [:org/set-on-subscribe-nav-to-url! (str project-url "/settings")])))}
+            "Upgrade"] (str (if (= owner-key :user-id) " your " " the organization's ") "plan to make this project private")])]))
 
 (def unlimited-reviews-buttons
   [{:key :false
@@ -390,7 +424,7 @@
          [:h4.ui.dividing.header "Options"]
          [:div.ui.form {:class (if valid? "" "warning")}
           [:div.two.fields
-           [PublicAccessField]
+           [PublicAccessField project-id]
            [DoubleReviewPriorityField]]
           [:div.two.fields
            [UnlimitedReviewsField]]]
@@ -404,7 +438,8 @@
                            (save-changes project-id))
              :on-reset #(do (reset! saving? false)
                             (reset-fields))
-             :saving? @saving?]])]))))
+             :saving? @saving?
+             :id "save-options"]])]))))
 
 (defonce members-state (r/cursor state [:members]))
 

@@ -16,7 +16,7 @@
             [sysrev.views.panels.project.add-articles :as source]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer
-             [in? map-values css space-join wrap-parens parse-integer parse-number ensure-value]]))
+             [in? map-values css space-join wrap-parens parse-integer parse-number ensure-pred]]))
 
 (reg-sub
  ::inputs
@@ -255,7 +255,7 @@
   (let [user-ids @(subscribe [:project/member-user-ids nil true])
         self-id @(subscribe [:self/user-id])
         value (-> (if (= value :self) self-id value)
-                  ((ensure-value (in? user-ids))))]
+                  ((ensure-pred (in? user-ids))))]
     [FilterDropdown
      (concat [nil] user-ids)
      #(if (or (nil? %) (= :any %))

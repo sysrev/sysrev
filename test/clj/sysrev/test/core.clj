@@ -14,13 +14,14 @@
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
             [sysrev.db.users :as users]
-            [sysrev.label.core :as labels]
             [sysrev.db.migration :as migrate]
+            [sysrev.label.core :as labels]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [shell]]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (def test-dbname "sysrev_auto_test")
+(def test-db-host (get-in env [:postgres :host]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
@@ -95,7 +96,8 @@
 
 (defn init-test-db []
   (when (db-connected?)
-    (let [config {:dbname test-dbname}]
+    (let [config {:dbname test-dbname
+                  :host test-db-host}]
       (if @db-initialized?
         (do (start-app config nil true)
             (let [{:keys [host port dbname]}
@@ -111,10 +113,13 @@
                 nil))
             (db-shell "createdb" [] config)
             (log/info "Applying Flyway schema...")
-            (shell "./scripts/install-flyway")
+            (when-not (util/ms-windows?)
+              (shell "./scripts/install-flyway"))
             (with-flyway-config config
               (log/info (str "\n" (slurp "flyway.conf")))
-              (-> (shell "./flyway" "migrate")
+              (-> (if (util/ms-windows?)
+                    (shell "flyway-5.2.4/flyway.cmd" "migrate")
+                    (shell "./flyway" "migrate"))
                   :out log/info))
             (start-app config nil true)
             (log/info "Applying Clojure DB migrations...")
@@ -129,14 +134,7 @@
   (case (:profile env)
     :test
     (let [{{postgres-port :port
-            dbname :dbname} :postgres} env
-          validators [#_ ["Cannot run tests with pg on port 5432"
-                          #(not (= postgres-port 5432))]
-                      ["Db name must include _test in configuration"
-                       #(str/includes? dbname "_test")]]
-          validates #(-> % second (apply []))
-          error (->> validators (remove validates) first first)]
-      (assert (not error) error)
+            dbname :dbname} :postgres} env]
       (t/instrument)
       (set-web-asset-path "/out-production")
       #_ (start-app nil nil true)
@@ -144,14 +142,13 @@
         (init-test-db)
         (db/close-active-db))
       (f)
+      (Thread/sleep 150)
       (when (db-connected?)
         (db/close-active-db)
         (db/terminate-db-connections {:dbname test-dbname})))
     :remote-test
-    (let [{{postgres-port :port
-            dbname :dbname} :postgres
-           {selenium-host :host
-            protocol :protocol} :selenium} env]
+    (let [{{postgres-port :port dbname :dbname}     :postgres
+           {selenium-host :host protocol :protocol} :selenium} env]
       (when (or (= selenium-host "sysrev.com")
                 (= postgres-port 5470))
         (assert (str/includes? dbname "_test")
@@ -161,6 +158,7 @@
         (db/set-active-db! (db/make-db-config (:postgres env)) true)
         (db/close-active-db))
       (f)
+      (Thread/sleep 150)
       (db/close-active-db))
     :dev
     (do (t/instrument)
@@ -170,6 +168,7 @@
           (init-test-db)
           (db/close-active-db))
         (f)
+        (Thread/sleep 150)
         (when (db-connected?)
           (db/close-active-db)
           (db/terminate-db-connections {:dbname test-dbname})))

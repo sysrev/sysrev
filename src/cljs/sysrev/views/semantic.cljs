@@ -5,52 +5,78 @@
 
 (def semantic-ui js/semanticUIReact)
 
-(defn adapt [class & [subclass-fn]]
+;; from https://gist.github.com/TimoKramer/7e93758afb81dcad985fafccc613153a
+(defn component
+  "Get a component from sematic-ui-react:
+    (component \"Button\")
+    (component \"Menu\" \"Item\")"
+  [k & ks]
   (r/adapt-react-class
-   (cond-> (goog.object/get semantic-ui (name class))
-     subclass-fn (subclass-fn))))
+   (if (seq ks)
+     (apply goog.object/getValueByKeys semantic-ui k ks)
+     (goog.object/get semantic-ui k))))
 
 ;; general
-(def Segment (adapt :Segment))
-(def Header (adapt :Header))
-(def Icon (adapt :Icon))
-(def Loader (adapt :Loader))
-(def Image (adapt :Image))
-(def Divider (adapt :Divider))
+(def Segment (component "Segment"))
+(def Header (component "Header"))
+(def Icon (component "Icon"))
+(def Loader (component "Loader"))
+(def Image (component "Image"))
+(def Divider (component "Divider"))
 
 ;; form
-(def Form (adapt :Form))
-(def FormButton (adapt :Form #($ % :Button)))
-(def FormField (adapt :Form #($ % :Field)))
-(def FormGroup (adapt :Form #($ % :Group)))
-(def FormInput (adapt :Form #($ % :Input)))
-(def FormRadio (adapt :Form #($ % :Radio)))
-(def TextArea (adapt :TextArea))
+(def Form (component "Form"))
+(def FormButton (component "Form" "Button"))
+(def FormField (component "Form" "Field"))
+(def FormGroup (component "Form" "Group"))
+(def FormInput (component "Form" "Input"))
+(def FormRadio (component "Form" "Radio"))
+(def TextArea (component "TextArea"))
+(def Checkbox (component "Checkbox"))
 
+;; input
+(def Input (component "Input"))
 ;; components
-(def Label (adapt :Label))
-(def Button (adapt :Button))
-(def Dropdown (adapt :Dropdown))
-(def Message (adapt :Message))
-(def MessageHeader (adapt :Message #($ % :Header)))
-(def Radio (adapt :Radio))
-(def Select (adapt :Select))
+(def Label (component "Label"))
+(def Button (component "Button"))
+(def Dropdown (component "Dropdown"))
+(def Message (component "Message"))
+(def MessageHeader (component "Message" "Header"))
+(def Radio (component "Radio"))
+(def Select (component "Select"))
 
 ;; grid
-(def Grid (adapt :Grid))
-(def Row (adapt :Grid #($ % :Row)))
-(def Column (adapt :Grid #($ % :Column)))
+(def Grid (component "Grid"))
+(def Row (component "Grid" "Row"))
+(def Column (component "Grid" "Column"))
 
 ;; list
-(def ListUI (adapt :List))
-(def ListItem (adapt :List #($ % :Item)))
+(def ListUI (component "List"))
+(def ListItem (component "List" "Item"))
 
 ;; popup
-(def Popup (adapt :Popup))
-(def PopupHeader (adapt :Popup #($ % :Header)))
+(def Popup (component "Popup"))
+(def PopupHeader (component "Popup" "Header"))
 
 ;; modal
-(def Modal (adapt :Modal))
-(def ModalHeader (adapt :Modal #($ % :Header)))
-(def ModalContent (adapt :Modal #($ % :Content)))
-(def ModalDescription (adapt :Modal #($ % :Description)))
+(def Modal (component "Modal"))
+(def ModalHeader (component "Modal" "Header"))
+(def ModalContent (component "Modal" "Content"))
+(def ModalDescription (component "Modal" "Description"))
+
+;; menu
+(def Menu (component "Menu"))
+(def MenuItem (component "Menu" "Item"))
+
+;; tables
+(def Table (component "Table"))
+(def TableHeader (component "Table" "Header"))
+(def TableHeaderCell (component "Table" "HeaderCell"))
+(def TableRow (component "Table" "Row"))
+(def TableBody (component "Table" "Body"))
+(def TableCell (component "Table" "Cell"))
+
+;; search
+(def Search (component "Search"))
+(def SearchResults (component "Search" "Results"))
+

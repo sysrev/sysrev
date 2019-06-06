@@ -7,6 +7,7 @@
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [clojure.walk :refer [keywordize-keys]]
+            [clj-time.core :as t]
             [me.raynes.fs :as fs]
             [ring.util.response :as response]
             [sysrev.biosource.annotations :as annotations]
@@ -15,11 +16,13 @@
             [sysrev.charts :as charts]
             [sysrev.config.core :refer [env]]
             [sysrev.article.core :as article]
+            [sysrev.db.queries :as q]
             [sysrev.db.annotations :as db-annotations]
             [sysrev.db.compensation :as compensation]
-            [sysrev.db.core :as db]
+            [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.files :as files]
             [sysrev.db.funds :as funds]
+            [sysrev.db.groups :as groups]
             [sysrev.db.invitation :as invitation]
             [sysrev.label.core :as labels]
             [sysrev.label.define :as ldefine]
@@ -40,21 +43,26 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
             [sysrev.biosource.predict :as predict-api])
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
 
-(def default-plan "Basic")
-;; Error code used
+
+;; HTTP error codes
 (def payment-required 402)
 (def forbidden 403)
 (def not-found 404)
 (def precondition-failed 412)
 (def internal-server-error 500)
 (def bad-request 400)
-
+(def conflict 409)
+;; server settings
+(def minimum-support-level 100)
 (def max-import-articles (:max-import-articles env))
+(defn paywall-grandfather-date
+  []
+  "2019-06-09 23:56:00")
 
 (defmacro try-catch-response
   [body]
@@ -68,12 +76,12 @@
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
   [project-name user-id]
-  (db/with-transaction
+  (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (labels/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (project/add-project-member project-id user-id
-                                  :permissions ["member" "admin"])
+                                  :permissions ["member" "admin" "owner"])
       {:result
        {:success true
         :project (select-keys project [:project-id :name])}})))
@@ -82,6 +90,31 @@
   :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id)
   :ret ::sp/project)
 
+(defn create-project-for-org!
+  "Create a new project for org-id using project-name and insert a
+  minimum label, returning the project in a response map"
+  [project-name user-id group-id]
+  (with-transaction
+    (let [{:keys [project-id] :as project} (project/create-project project-name)]
+      (labels/add-label-overall-include project-id)
+      (project/add-project-note project-id {})
+      (groups/create-project-group! project-id group-id)
+      (project/add-project-member project-id user-id
+                                  ;; NOT owner, create-project-group!
+                                  ;; makes the group the owner of this project
+                                  ;; group projects shouldn't have
+                                  ;; a project_member entry with
+                                  ;; an "owner" permission
+                                  :permissions ["member" "admin"])
+      {:success true
+       :project (select-keys project [:project-id :name])})))
+;;;
+;; not pulling in ::sc/org-id for some reason, skipping
+#_ (s/fdef create-project-for-org!
+  :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id, :org-id ::sc/org-id)
+  :ret ::sp/project)
+
+;; this needs modified (maybe?) to also check 
 (defn delete-project!
   "Delete a project with project-id by user-id. Checks to ensure the
   user is an admin of that project. If there are reviewed articles in
@@ -91,24 +124,21 @@
               (in? (:permissions (users/get-user-by-id user-id)) "admin")))
   (if (project/project-has-labeled-articles? project-id)
     (do (project/disable-project! project-id)
-        {:result {:success true
-                  :project-id project-id}})
+        {:result {:success true, :project-id project-id}})
     (do (project/delete-project project-id)
-        {:result {:success true
-                  :project-id project-id}})))
+        {:result {:success true, :project-id project-id}})))
 ;;;
 (s/fdef delete-project!
   :args (s/cat :project-id int?, :user-id int?)
   :ret map?)
 
 (defn wrap-import-api [f]
-  (let [{:keys [error]}
-        (try (f)
-             (catch Throwable e
-               (log/warn "wrap-import-handler - unexpected error -"
-                         (.getMessage e))
-               (.printStackTrace e)
-               {:error {:message "Import error"}}))]
+  (let [{:keys [error]} (try (f)
+                             (catch Throwable e
+                               (log/warn "wrap-import-handler - unexpected error -"
+                                         (.getMessage e))
+                               (.printStackTrace e)
+                               {:error {:message "Import error"}}))]
     (if error
       {:error error}
       {:result {:success true}})))
@@ -147,8 +177,7 @@
 (defn project-sources
   "Return sources for project-id"
   [project-id]
-  {:result {:success true
-            :sources (source/project-sources project-id)}})
+  {:success true, :sources (source/project-sources project-id)})
 ;;;
 (s/fdef project-sources
   :args (s/cat :project-id int?)
@@ -167,7 +196,7 @@
                 (source/delete-source source-id)
                 (predict-api/schedule-predict-update project-id)
                 (importance/schedule-important-terms-update project-id)
-                {:result {:success true}})))
+                {:success true})))
 ;;;
 (s/fdef delete-source!
   :args (s/cat :source-id int?)
@@ -181,7 +210,7 @@
       (source/toggle-source source-id enabled?)
       (predict-api/schedule-predict-update project-id)
       (importance/schedule-important-terms-update project-id)
-      {:result {:success true}})
+      {:success true})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 ;;;
@@ -205,31 +234,25 @@
     (sendgrid/send-template-email
      email "Verify Your Email"
      (str "Verify your email by clicking <a href='" (sysrev-base-url)
-          "/user/settings/email/" verify-code "'>here</a>."))
-    {:result {:success true}}))
+          "/user/" user-id "/email/" verify-code "'>here</a>."))
+    {:success true}))
 
 (defn register-user!
   "Register a user and add them as a stripe customer"
   [email password project-id]
   (assert (string? email))
   (let [user (users/get-user-by-email email)
-        db-result
-        (when-not user
-          (try
-            (users/create-user email password :project-id project-id)
-            true
-            (catch Throwable e
-              e)))]
+        db-result (when-not user
+                    (try (users/create-user email password :project-id project-id)
+                         true
+                         (catch Throwable e e)))]
     (cond
       user
-      {:result
-       {:success false
-        :message "Account already exists for this email address"}}
+      {:success false, :message "Account already exists for this email address"}
       (isa? (type db-result) Throwable)
-      {:error
-       {:status 500
-        :message "Exception occurred while creating account"
-        :exception db-result}}
+      {:error {:status 500
+               :message "Exception occurred while creating account"
+               :exception db-result}}
       (true? db-result)
       (let [new-user (users/get-user-by-email email)]
         ;; create-sysrev-stripe-customer! will handle
@@ -238,55 +261,122 @@
         ;; user
         (users/create-sysrev-stripe-customer!
          new-user)
-        ;; subscribe the customer to the basic plan, by default
-        (stripe/subscribe-customer! (users/get-user-by-email email)
-                                    default-plan)
+        ;; create a subscription for the user. Uses default plan
+        (stripe/create-subscription-user! (users/get-user-by-email email))
         ;; add email verification entry for email
         (users/create-email-verification! (:user-id new-user) email :principal true)
         ;; send verification email
         (send-verification-email (:user-id new-user) email)
-        {:result
-         {:success true}})
+        {:success true})
       :else (throw (util/should-never-happen-exception)))))
 
-(defn stripe-payment-method
+(defn update-user-stripe-payment-method!
   "Using a stripe token, update the payment method for user-id"
   [user-id token]
-  (let [stripe-response (stripe/update-customer-card!
-                         (users/get-user-by-id user-id)
-                         token)]
+  (let [{:keys [stripe-id]} (users/get-user-by-id user-id)
+        stripe-response (stripe/update-customer-card! stripe-id token)]
     (if (:error stripe-response)
       stripe-response
       {:success true})))
 
+(defn update-org-stripe-payment-method!
+  "Using a stripe token, update the payment method for org-id"
+  [org-id token]
+  (let [stripe-id (groups/get-stripe-id org-id)
+        stripe-response (stripe/update-customer-card! stripe-id token)]
+    (if (:error stripe-response)
+      stripe-response
+      {:success true})))
+
+#_
 (defn plans
   "Get available plans"
   []
-  {:result {:success true
-            :plans (->> (stripe/get-plans)
-                        :data
-                        (filter #(not= (:name %) "ProjectSupport"))
-                        (mapv #(select-keys % [:name :amount :product])))}})
+  {:success true, :plans (->> (:data (stripe/get-plans))
+                              (filter #(not= (:name %) "ProjectSupport"))
+                              (mapv #(select-keys % [:name :amount :product])))})
 
 (defn current-plan
   "Get the plan for user-id"
   [user-id]
   {:result {:success true
-            :plan (plans/get-current-plan (users/get-user-by-id user-id))}})
+            :plan (plans/get-current-plan user-id)}})
+
+(defn current-group-plan
+  "Get the plan for group-id"
+  [group-id]
+  {:success true, :plan (plans/get-current-plan-group group-id)})
 
 (defn subscribe-to-plan
   "Subscribe user to plan-name"
   [user-id plan-name]
-  (let [user (users/get-user-by-id user-id)
-        stripe-response (stripe/subscribe-customer! user plan-name)]
-    (if (:error stripe-response)
-      (assoc stripe-response
-             :error
-             (merge (:error stripe-response)
-                    {:status not-found}))
-      stripe-response)))
+  (let [{:keys [stripe-id]} (users/get-user-by-id user-id)
+        {:keys [sub-id]} (plans/get-current-plan user-id)
+        sub-item-id (stripe/get-subscription-item sub-id)
+        plan (stripe/get-plan-id plan-name)
+        {:keys [body] :as stripe-response} (stripe/update-subscription-item!
+                                            {:id sub-item-id
+                                             :plan plan})]
+    (when-not (:error body)
+      (plans/add-user-to-plan! {:user-id user-id
+                                :plan plan
+                                :created (util/now-unix-seconds)
+                                :sub-id sub-id})
+      ;; clear the project caches
+      (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
+        (db/clear-project-cache project-id)))
+    (cond-> body
+      (:error body) (update :error #(merge % {:status not-found})))))
 
-(def minimum-support-level 100)
+(defn subscribe-org-to-plan
+  "Subscribe the group to plan."
+  [group-id plan-name]
+  (let [stripe-id (groups/get-stripe-id group-id)
+        {:keys [sub-id]} (plans/get-current-plan-group group-id)
+        sub-item-id (stripe/get-subscription-item sub-id)
+        plan (stripe/get-plan-id plan-name)
+        {:keys [body] :as stripe-response} (stripe/update-subscription-item!
+                                            {:id sub-item-id
+                                             :plan plan
+                                             :quantity (count (groups/read-users-in-group (groups/group-id->group-name group-id)))})]
+    (when-not (:error body)
+      (plans/add-group-to-plan! {:group-id group-id
+                                 :plan plan
+                                 :created (util/now-unix-seconds)
+                                 :sub-id sub-id})
+      ;; clear the project caches
+      (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
+        (db/clear-project-cache project-id)))
+    (cond-> body
+      (:error body) (update :error #(merge % {:status not-found})))))
+
+(defn project-owner-plan
+  "Return the plan name for the project owner of project-id"
+  [project-id]
+  (let [project-owner (project/get-project-owner project-id)
+        owner-type (-> project-owner keys first)]
+    (condp = owner-type
+      :user-id (:name (plans/get-current-plan (:user-id project-owner)))
+      :group-id (:name (plans/get-current-plan-group (:group-id project-owner)))
+      ;; default
+      "Basic")))
+
+(defn change-project-settings
+  [project-id changes]
+  (with-transaction
+    (doseq [{:keys [setting value]} changes]
+      (cond (and (= setting :public-access)
+                 ;; owner has Unlimited plan
+                 (some #{"Unlimited_Org" "Unlimited_User"} [(project-owner-plan project-id)]))
+            (project/change-project-setting project-id (keyword setting) value)
+            (and (= setting :public-access)
+                 (= value false)
+                 (= "Basic" (project-owner-plan project-id)))
+            nil
+            ;; change option
+            :else
+            (project/change-project-setting project-id (keyword setting) value)))
+    {:success true, :settings (project/project-settings project-id)}))
 
 (defn support-project-monthly
   "User supports project"
@@ -359,7 +449,7 @@
               :transaction-source (:paypal-payment funds/transaction-source-descriptor)
               :status "pending"
               :created created})
-            {:result {:success true}})
+            {:success true})
           :else {:error {:status internal-server-error
                          :message "The PayPal response has an error"}})))
 
@@ -380,7 +470,7 @@
   [user project-id]
   (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
     (stripe/cancel-subscription! id)
-    {:result {:success true}}))
+    {:success true}))
 
 (defn finalize-stripe-user!
   "Save a stripe user in our database for payouts"
@@ -388,8 +478,8 @@
   (let [{:keys [body] :as finalize-response} (stripe/finalize-stripe-user! stripe-code)]
     (if-let [stripe-user-id (:stripe_user_id body)]
       ;; save the user information
-      (try (users/create-web-user-stripe-acct stripe-user-id user-id)
-           {:result {:success true}}
+      (try (users/create-user-stripe stripe-user-id user-id)
+           {:success true}
            (catch Throwable e
              {:error {:status internal-server-error
                       :message (.getMessage e)}}))
@@ -397,25 +487,27 @@
       {:error {:status (:status finalize-response)
                :message (:error_description body)}})))
 
-(defn stripe-default-source
+(defn user-stripe-default-source
   [user-id]
-  {:result
-   {:default-source (or (-> (users/get-user-by-id user-id)
-                            (stripe/read-default-customer-source))
-                        [])}})
+  {:default-source (or (some-> (:stripe-id (users/get-user-by-id user-id))
+                               (stripe/read-default-customer-source))
+                       [])})
+
+(defn org-stripe-default-source
+  [org-id]
+  {:default-source (or (some-> (groups/get-stripe-id org-id)
+                               (stripe/read-default-customer-source))
+                       [])})
 
 (defn user-has-stripe-account?
   "Does the user have a stripe account associated with the platform?"
   [user-id]
-  {:connected
-   (boolean (users/user-stripe-account user-id))})
+  {:connected (boolean (users/user-stripe-account user-id))})
 
 (defn read-project-compensations
   "Return all project compensations for project-id"
   [project-id]
-  (let [compensations (compensation/read-project-compensations project-id)]
-    {:result {:success true
-              :compensations compensations}}))
+  {:compensations (compensation/read-project-compensations project-id)})
 
 (defn compensation-amount-exists?
   [project-id rate]
@@ -429,11 +521,9 @@
   "Create a compensation for project-id with rate"
   [project-id rate]
   (if (compensation-amount-exists? project-id rate)
-    {:error {:status bad-request
-             :message "That compensation already exists"}}
+    {:error {:status bad-request, :message "That compensation already exists"}}
     (do (compensation/create-project-compensation! project-id rate)
-        {:result {:success true
-                  :rate rate}})))
+        {:success true, :rate rate})))
 
 (defn project-compensation-for-users
   "Return all compensations owed for project-id using start-date and
@@ -442,113 +532,107 @@
   the day (12:00:00AM) and end-date is until the end of the
   day (11:59:59AM)."
   [project-id start-date end-date]
-  (try {:result {:amount-owed (compensation/project-compensation-for-users
-                               project-id start-date end-date)}}
+  (try {:amount-owed (compensation/project-compensation-for-users
+                      project-id start-date end-date)}
        (catch Throwable e
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
 
 (defn compensation-owed
-  "Return compensations owed for all users"
+  "Return compensations owed for all users by project-id"
   [project-id]
-  (try-catch-response
-   {:result {:compensation-owed (compensation/compensation-owed-by-project project-id)}}))
+  (let [public-info (->> (project/project-user-ids project-id)
+                         (users/get-users-public-info)
+                         (->map-with-key :user-id))
+        compensation-owed-by-project (compensation/compensation-owed-by-project project-id)]
+    {:compensation-owed (map #(merge % (get public-info (:user-id %)))
+                             compensation-owed-by-project)}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
   [project-id]
   (try-catch-response
-   {:result {:project-users-current-compensation
-             (compensation/project-users-current-compensation project-id)}}))
+   {:project-users-current-compensation
+    (compensation/project-users-current-compensation project-id)}))
 
-(defn toggle-compensation-active!
-  [project-id compensation-id active?]
+(defn toggle-compensation-enabled! [project-id compensation-id enabled]
   (try-catch-response
    (let [current-compensation (->> (compensation/read-project-compensations project-id)
-                                   (filterv #(= (:id %) compensation-id))
+                                   (filterv #(= (:compensation-id %) compensation-id))
                                    first)]
      (cond
        ;; this compensation doesn't even exist
        (nil? current-compensation)
        {:error {:status not-found}}
        ;; nothing changed, do nothing
-       (= active? (:active current-compensation))
-       {:result {:success true
-                 :message (str "compensation-id " compensation-id
-                               " already has active set to " active?)}}
+       (= enabled (:enabled current-compensation))
+       {:success true
+        :message (str "compensation-id " compensation-id
+                      " already has enabled = " enabled)}
        ;; this compensation is being deactivated, so also disable all other compensations for users
-       (= active? false)
-       (do
-         (compensation/toggle-active-project-compensation! project-id compensation-id active?)
-         (compensation/end-compensation-period-for-all-users! project-id compensation-id)
-         {:result {:success true}})
-       (= active? true)
-       (do (compensation/toggle-active-project-compensation! project-id compensation-id active?)
-           {:result {:success true}})
-       :else
-       {:error {:status precondition-failed
-                :message "An unknown error occurred"}}))))
+       (false? enabled)
+       (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
+           (compensation/end-compensation-period-for-all-users! project-id compensation-id)
+           {:success true})
+       (true? enabled)
+       (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
+           {:success true})))))
 
 (defn get-default-compensation
   "Get the default compensation-id for project-id"
   [project-id]
   (try-catch-response
-   {:result {:success true
-             :compensation-id (compensation/get-default-project-compensation project-id)}}))
+   {:success true, :compensation-id (compensation/get-default-project-compensation project-id)}))
 
 (defn set-default-compensation!
   "Set the compensation-id to the default for project-id "
   [project-id compensation-id]
   (try-catch-response
-   (do
-     (if (= compensation-id nil)
-       (compensation/delete-default-project-compensation! project-id)
-       (compensation/set-default-project-compensation! project-id compensation-id))
-     {:result {:success true}})))
+   (do (if (nil? compensation-id)
+         (compensation/delete-default-project-compensation! project-id)
+         (compensation/set-default-project-compensation! project-id compensation-id))
+       {:success true})))
 
 (defn set-user-compensation!
   "Set the compensation-id for user-id in project-id"
   [project-id user-id compensation-id]
   (try-catch-response
-   (let [project-compensations (->> (compensation/read-project-compensations project-id)
-                                    (filter :active)
-                                    (mapv :id)
-                                    set)
+   (let [project-compensations (set (->> (compensation/read-project-compensations project-id)
+                                         (filter :enabled)
+                                         (map :compensation-id)))
          current-compensation-id (compensation/user-compensation project-id user-id)]
      (cond
        ;; compensation is set to none for user and they don't have a current compensation
        (and (= compensation-id "none")
             (nil? (project-compensations current-compensation-id)))
-       {:result {:success true
-                 :message "Compensation is already set to none for this user, no changes made"}}
+       {:success true
+        :message "Compensation is already set to none for this user, no changes made"}
        ;; compensation is set to none and they have a current compensation
        (and (= compensation-id "none")
             (not (nil? (project-compensations current-compensation-id))))
        (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
-           {:result {:success true}})
-       ;; there wasn't a compensation id found for the project, or it isn't active
+           {:success true})
+       ;; there wasn't a compensation id found for the project, or it isn't enabled
        (nil? (project-compensations compensation-id))
        {:error {:status not-found
                 :message (str "compensation-id " compensation-id
-                              " is not active or doesn't exist for project-id " project-id)}}
+                              " is not enabled or doesn't exist for project-id " project-id)}}
        ;; this is the same compensation-id as the user already has
        (= current-compensation-id compensation-id)
-       {:result {:success true
-                 :message "Compensation is already set to this value for the user, no changes made."}}
+       {:success true
+        :message "Compensation is already set to this value for the user, no changes made."}
        ;; the user is going from having no compensation-id set to having a new one
        (nil? current-compensation-id)
-       (do
-         (compensation/start-compensation-period-for-user! compensation-id user-id)
-         {:result {:success true}})
+       (do (compensation/start-compensation-period-for-user! compensation-id user-id)
+           {:success true})
        ;; the user is switching compensations
        (and (project-compensations compensation-id)
             current-compensation-id)
        (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
            (compensation/start-compensation-period-for-user! compensation-id user-id)
-           {:result {:success true}})
-       :else
-       {:error {:status precondition-failed
-                :message "An unknown error occurred"}}))))
+           {:success true})
+       :else {:error {:status precondition-failed
+                      :message "An unknown error occurred"}}))))
 
 (defn calculate-project-funds
   [project-id]
@@ -565,16 +649,15 @@
      :available-funds available-funds
      :pending-funds pending-funds}))
 
-(defn project-funds
-  [project-id]
-  {:result {:project-funds (calculate-project-funds project-id)}})
+(defn project-funds [project-id]
+  {:project-funds (calculate-project-funds project-id)})
 
 (defn check-pending-project-transactions!
   "Check the pending project transactions and update them accordingly"
   [project-id]
   (doseq [{:keys [transaction-id]} (funds/pending-funds project-id)]
     (paypal/check-transaction! transaction-id))
-  {:result {:success true}})
+  {:success true})
 
 ;; to manually add funds:
 ;;  (funds/create-project-fund-entry! {:project-id <project-id> :user-id <user-id> :transaction-id (str (UUID/randomUUID)) :transaction-source "Manual Entry" :amount 20000 :created (util/now-unix-seconds)})
@@ -619,21 +702,19 @@
 (defn payments-owed
   "A list of of payments owed by all projects to user-id that are compensating user-id"
   [user-id]
-  {:result {:payments-owed (compensation/payments-owed-user user-id)}})
+  {:payments-owed (compensation/payments-owed-user user-id)})
 
 (defn payments-paid
   "A list of all payments made to user-id by project"
   [user-id]
-  {:result {:payments-paid (map #(assoc %
-                                        :total-paid
-                                        (* -1 (:total-paid %)))
-                                (compensation/payments-paid-user user-id))}})
+  {:payments-paid (->> (compensation/payments-paid-user user-id)
+                       (map #(update % :total-paid (partial * -1))))})
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
   [project-id labels-map]
   ;; first let's convert the labels to a set
-  (db/with-transaction
+  (with-transaction
     (let [client-labels (set (vals labels-map))
           all-labels-valid? (->> client-labels
                                  (map #(b/valid? % (ldefine/label-validations %)))
@@ -665,45 +746,40 @@
             (labels/add-label-entry project-id label))
           (doseq [{:keys [label-id] :as label} modified-client-labels]
             (labels/alter-label-entry project-id label-id label))
-          {:result {:valid? true
-                    :labels (project/project-labels project-id true)}})
+          {:valid? true
+           :labels (project/project-labels project-id true)})
         ;; labels are invalid
-        {:result {:valid? false
-                  :labels (->> client-labels
-                               ;; validate each label
-                               (map #(b/validate % (ldefine/label-validations %)))
-                               ;; get the label map with attached errors
-                               (map second)
-                               ;; rename bouncer.core/errors -> errors
-                               (map #(set/rename-keys % {:bouncer.core/errors :errors}))
-                               ;; create a new hash map of labels which include
-                               ;; errors
-                               (map #(hash-map (:label-id %) %))
-                               ;; finally, return a map
-                               (apply merge))}}))))
+        {:valid? false
+         :labels (->> client-labels
+                      ;; validate each label
+                      (map #(b/validate % (ldefine/label-validations %)))
+                      ;; get the label map with attached errors
+                      (map second)
+                      ;; rename bouncer.core/errors -> errors
+                      (map #(set/rename-keys % {:bouncer.core/errors :errors}))
+                      ;; create a new hash map of labels which include
+                      ;; errors
+                      (map #(hash-map (:label-id %) %))
+                      ;; finally, return a map
+                      (apply merge))}))))
 
 (defn important-terms
   "Given a project-id, return the term counts for the top n most used terms"
   [project-id & [n]]
   (let [n (or n 20)
         terms (importance/project-important-terms project-id)]
-    {:result
-     {:terms
-      (->> terms (map-values
-                  #(->> %
-                        (sort-by :instance-score >)
-                        (take n)
-                        (map (fn [term] (set/rename-keys
-                                         term {:instance-score :tfidf})))
-                        (into []))))
-      :loading
-      (importance/project-importance-loading? project-id)}}))
+    {:terms (->> terms (map-values #(->> %
+                                         (sort-by :instance-score >)
+                                         (take n)
+                                         (map (fn [term] (set/rename-keys
+                                                          term {:instance-score :tfidf})))
+                                         (into []))))
+     :loading (importance/project-importance-loading? project-id)}))
 
 (defn prediction-histogram
   "Given a project-id, return a vector of {:count <int> :score <float>}"
   [project-id]
-  (db/with-project-cache
-    project-id [:prediction-histogram]
+  (db/with-project-cache project-id [:prediction-histogram]
     (let [all-score-vals (->> (range 0 1 0.02)
                               (mapv #(util/round-to % 0.02 2 :op :floor)))
           prediction-scores
@@ -748,21 +824,17 @@
                                 reverse
                                 vec)))]
       (if-not (empty? prediction-scores)
-        {:result
-         {:prediction-histograms
-          {:reviewed-include-histogram
-           (histogram-fn (filterv #(true? (:answer %))
-                                  reviewed-articles-scores))
-           :reviewed-exclude-histogram
-           (histogram-fn (filterv #(false? (:answer %))
-                                  reviewed-articles-scores))
-           :unreviewed-histogram
-           (histogram-fn unreviewed-articles-scores)}}}
-        {:result
-         {:prediction-histograms
-          {:reviewed-include-histogram []
-           :reviewed-exclude-histogram []
-           :unreviewed-histogram []}}}))))
+        {:prediction-histograms {:reviewed-include-histogram
+                                 (histogram-fn (filterv #(true? (:answer %))
+                                                        reviewed-articles-scores))
+                                 :reviewed-exclude-histogram
+                                 (histogram-fn (filterv #(false? (:answer %))
+                                                        reviewed-articles-scores))
+                                 :unreviewed-histogram
+                                 (histogram-fn unreviewed-articles-scores)}}
+        {:prediction-histograms {:reviewed-include-histogram []
+                                 :reviewed-exclude-histogram []
+                                 :unreviewed-histogram []}}))))
 
 (def annotations-atom (atom {}))
 
@@ -794,15 +866,12 @@
   "Given an article-id, return a vector of annotation maps for that
   articles abstract"
   [article-id]
-  {:result {:annotations (-> article-id
-                             article/get-article
-                             :abstract
-                             annotations-wrapper!)}})
+  {:annotations (annotations-wrapper! (:abstract (article/get-article article-id)))})
 
 (defn label-count-data
   "Given a project-id, return data for the label counts chart"
   [project-id]
-  {:result {:data (charts/process-label-counts project-id)}})
+  {:data (charts/process-label-counts project-id)})
 
 (defn save-article-pdf
   "Handle saving a file on S3 and the associated accounting with it"
@@ -814,29 +883,24 @@
     (cond
       ;; there is a file and it is already associated with this article
       associated?
-      {:result {:success true
-                :key hash}}
+      {:success true, :key hash}
       ;; there is a file, but it is not associated with this article
       (not (nil? s3-id))
       (try (do (files/associate-s3-file-with-article s3-id article-id)
-               {:result {:success true, :key hash}})
+               {:success true, :key hash})
            (catch Throwable e
-             {:error {:message "error (associate article file)"
-                      :exception e}}))
+             {:error {:exception e, :message "error (associate article file)"}}))
       ;; there is a file. but not with this filename
       (and (nil? s3-id)
            (files/s3-has-key? hash))
-      (try
-        (let [ ;; create the association between this file name and
-              ;; the hash
-              _ (files/insert-file-hash-s3-record filename hash)
-              ;; get the new association's id
-              s3-id (files/s3-id-from-filename-key filename hash)]
-          (files/associate-s3-file-with-article s3-id article-id)
-          {:result {:success true, :key hash}})
-        (catch Throwable e
-          {:error {:message "error (associate filename)"
-                   :exception e}}))
+      (try (let [ ;; create association between filename and hash
+                 _ (files/insert-file-hash-s3-record filename hash)
+                 ;; get the new association's id
+                 s3-id (files/s3-id-from-filename-key filename hash)]
+             (files/associate-s3-file-with-article s3-id article-id)
+             {:success true, :key hash})
+           (catch Throwable e
+             {:error {:exception e, :message "error (associate filename)"}}))
       ;; the file does not exist in our s3 store
       (and (nil? s3-id)
            (not (files/s3-has-key? hash)))
@@ -849,10 +913,9 @@
               ;; get the new association's id
               s3-id (files/s3-id-from-filename-key filename hash)]
           (files/associate-s3-file-with-article s3-id article-id)
-          {:result {:success true, :key hash}})
+          {:success true, :key hash})
         (catch Throwable e
-          {:error {:message "error (store file)"
-                   :exception e}}))
+          {:error {:exception e, :message "error (store file)"}}))
       :else
       {:error {:message "error (unexpected event)"}})))
 
@@ -862,8 +925,7 @@
     (cond
       ;; the pdf exists in the store already
       (article/pmcid-in-s3store? pmcid)
-      {:result {:available? true
-                :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}}
+      {:available? true, :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
@@ -873,39 +935,35 @@
               file (java.io.File. filename)
               bytes (util/slurp-bytes file)
               save-article-result (save-article-pdf article-id file filename)
-              key (get-in save-article-result [:result :key])
-              s3store-id (files/s3-id-from-filename-key filename key)]
+              key (:key save-article-result)
+              s3-id (files/s3-id-from-filename-key filename key)]
           ;; delete the temporary file
           (fs/delete filename)
           ;; associate the pmcid with the s3store item
-          (article/associate-pmcid-s3store
-           pmcid s3store-id)
+          (article/associate-pmcid-s3store pmcid s3-id)
           ;; finally, return the pdf from our own archive
-          {:result {:available? true
-                    :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}})
+          {:available? true, :key (-> pmcid article/pmcid->s3-id files/s3-id->key)})
         (catch Throwable e
           {:error {:message (str "open-access-available?: " (type e))}}))
 
       ;; there was nothing available
-      :else
-      {:result {:available? false}})))
+      :else {:available? false})))
 
 (defn article-pdfs
   "Given an article-id, return a vector of maps that correspond to the
   files associated with article-id"
   [article-id]
   (let [pmcid-s3-id (some-> article-id article/article-pmcid article/pmcid->s3-id)]
-    {:result {:success true
-              :files (->> (files/get-article-file-maps article-id)
-                          (mapv #(assoc % :open-access?
-                                        (= (:id %) pmcid-s3-id))))}}))
+    {:success true, :files (->> (files/get-article-file-maps article-id)
+                                (mapv #(assoc % :open-access?
+                                              (= (:s3-id %) pmcid-s3-id))))}))
 
 (defn dissociate-article-pdf
   "Remove the association between an article and PDF file."
   [article-id key filename]
   (try (if-let [s3-id (files/s3-id-from-filename-key filename key)]
          (do (files/dissociate-s3-file-from-article s3-id article-id)
-             {:result {:success true}})
+             {:success true})
          {:error {:status not-found
                   :message (str "No file found: " (pr-str [filename key]))}})
        (catch Throwable e
@@ -927,81 +985,58 @@
 (defn save-article-annotation
   [project-id article-id user-id selection annotation & {:keys [pdf-key context]}]
   (try
-    (let [annotation-id
-          (db-annotations/create-annotation!
-           selection annotation
-           (process-annotation-context context article-id)
-           article-id)]
+    (let [annotation-id (db-annotations/create-annotation!
+                         selection annotation
+                         (process-annotation-context context article-id)
+                         article-id)]
       (db-annotations/associate-annotation-article! annotation-id article-id)
       (db-annotations/associate-annotation-user! annotation-id user-id)
       (when pdf-key
-        (let [s3store-id (files/s3-id-from-article-key article-id pdf-key)]
-          (db-annotations/associate-annotation-s3store! annotation-id s3store-id)))
-      {:result {:success true
-                :annotation-id annotation-id}})
+        (let [s3-id (files/s3-id-from-article-key article-id pdf-key)]
+          (db-annotations/associate-annotation-s3! annotation-id s3-id)))
+      {:success true, :annotation-id annotation-id})
     (catch Throwable e
       {:error {:message "Exception in save-article-annotation"
                :exception e}})
-    (finally
-      (db/clear-project-cache project-id))))
+    (finally (db/clear-project-cache project-id))))
 
 (defn user-defined-annotations
   [article-id]
-  (try
-    (let [annotations (db-annotations/user-defined-article-annotations article-id)]
-      {:result {:success true
-                :annotations annotations}})
-    (catch Throwable e
-      {:error {:message "Exception in user-defined-annotations"
-               :exception e}})))
+  (try {:success true, :annotations (db-annotations/user-defined-article-annotations article-id)}
+       (catch Throwable e
+         {:error {:exception e, :message "Exception in user-defined-annotations"}})))
 
 (defn user-defined-pdf-annotations
   [article-id pdf-key]
-  (try (let [s3store-id (files/s3-id-from-article-key article-id pdf-key)
+  (try (let [s3-id (files/s3-id-from-article-key article-id pdf-key)
              annotations (db-annotations/user-defined-article-pdf-annotations
-                          article-id s3store-id)]
-         {:result {:success true
-                   :annotations annotations}})
+                          article-id s3-id)]
+         {:success true, :annotations annotations})
        (catch Throwable e
-         {:error {:message "Exception in user-defined-pdf-annotations"
-                  :exception e}})))
+         {:error {:exception e, :message "Exception in user-defined-pdf-annotations"}})))
 
-(defn delete-annotation!
-  [annotation-id]
-  (let [project-id (db-annotations/annotation-id->project-id annotation-id)]
-    (try
-      (do
-        (db-annotations/delete-annotation! annotation-id)
-        {:result {:success true
-                  :annotation-id annotation-id}})
-      (catch Throwable e
-        {:error {:message "Exception in delete-annotation!"
-                 :exception e}})
-      (finally
-        (when project-id
-          (db/clear-project-cache project-id))))))
+(defn delete-annotation! [annotation-id]
+  (try (db-annotations/delete-annotation! annotation-id)
+       {:success true, :annotation-id annotation-id}
+       (catch Throwable e
+         {:error {:exception e, :message "Exception in delete-annotation!"}})))
 
 (defn update-annotation!
   "Update the annotation for user-id. Only users can edit their own annotations"
   [annotation-id annotation semantic-class user-id]
-  (try
-    (if (= user-id (db-annotations/annotation-id->user-id annotation-id))
-      (do
-        (db-annotations/update-annotation! annotation-id annotation semantic-class)
-        {:result {:success true
-                  :annotation-id annotation-id
-                  :annotation annotation
-                  :semantic-class semantic-class}})
-      {:result {:success false
+  (try (with-transaction
+         (if (= user-id (db-annotations/annotation-id->user-id annotation-id))
+           (do (db-annotations/update-annotation! annotation-id annotation semantic-class)
+               {:success true
                 :annotation-id annotation-id
                 :annotation annotation
-                :semantic-class semantic-class}})
-    (catch Throwable e
-      {:error {:message "Exception in update-annotation!"
-               :exception e}})
-    (finally
-      (when-let [project-id (db-annotations/annotation-id->project-id annotation-id)]
-        (db/clear-project-cache project-id)))))
+                :semantic-class semantic-class})
+           {:success false
+            :annotation-id annotation-id
+            :annotation annotation
+            :semantic-class semantic-class}))
+       (catch Throwable e
+         {:error {:exception e, :message "Exception in update-annotation!"}})))
 
 (defn pdf-download-url [article-id filename key]
   (str "/api/files/article/" article-id "/download/" key "/" filename))
@@ -1032,78 +1067,60 @@
                                 :pmid :article-id :pdf-source :context :user-id])))))
 
 (defn project-annotation-status [project-id & {:keys [user-id]}]
-  (db/with-transaction
+  (with-transaction
     (let [member? (and user-id (project/member-has-permission?
                                 project-id user-id "member"))]
-      {:result
-       {:status
-        (cond-> {:project (db-annotations/project-annotation-status project-id)}
-          member? (merge {:member (db-annotations/project-annotation-status
-                                   project-id :user-id user-id)}))}})))
+      {:status (cond-> {:project (db-annotations/project-annotation-status project-id)}
+                 member? (assoc :member (db-annotations/project-annotation-status
+                                         project-id :user-id user-id)))})))
 
 (defn change-project-permissions [project-id users-map]
-  (try
-    (assert project-id)
-    (db/with-transaction
-      (doseq [[user-id perms] (vec users-map)]
-        (project/set-member-permissions project-id user-id perms))
-      {:result {:success true}})
-    (catch Throwable e
-      {:error {:message "Exception in change-project-permissions"
-               :exception e}})))
+  (try (assert project-id)
+       (with-transaction
+         (doseq [[user-id perms] (vec users-map)]
+           (project/set-member-permissions project-id user-id perms))
+         {:success true})
+       (catch Throwable e
+         {:error {:exception e, :message "Exception in change-project-permissions"}})))
 
 (defn read-project-description
   "Read project description of project-id"
   [project-id]
-  (let [project-description (markdown/read-project-description project-id)]
-    {:result {:success true
-              :project-description project-description}}))
+  {:success true, :project-description (markdown/read-project-description project-id)})
 
 (defn set-project-description!
   "Set value for markdown description of project-id"
   [project-id markdown]
   (markdown/set-project-description! project-id markdown)
-  {:result {:success true
-            :project-description markdown}})
+  {:success true, :project-description markdown})
 
 (defn public-projects []
-  {:result {:projects (project/all-public-projects)}})
+  {:projects (project/all-public-projects)})
 
-(defn user-group-name-active?
-  "What is the opt-in value of opt-in-type for user-id"
+(defn user-in-group-name?
   [user-id group-name]
-  {:result {:active (boolean (:active (users/read-web-user-group-name user-id group-name)))}})
+  {:enabled (boolean (:enabled (groups/read-user-group-name user-id group-name)))})
 
-(defn set-web-user-group!
-  "Set with opt-in-type for user-id"
-  [user-id group-name active?]
-  (condp = group-name
-    "public-reviewer"
-    (if-let [web-user-group-id (:id (users/read-web-user-group-name user-id group-name))]
-      (users/update-web-user-group! web-user-group-id active?)
-      (users/create-web-user-group! user-id group-name))
-    {:error {:message "That group can't be modified"}})
-  {:result {:active (:active (users/read-web-user-group-name user-id group-name))}})
+(defn set-user-group! [user-id group-name enabled]
+  (if-let [user-group-id (:id (groups/read-user-group-name user-id group-name))]
+    (groups/set-user-group-enabled! user-group-id enabled)
+    (groups/add-user-to-group! user-id (groups/group-name->group-id group-name)))
+  ;; change any existing permissions to default permission of "member"
+  (let [user-group (groups/read-user-group-name user-id group-name)]
+    (groups/set-user-group-permissions! (:id user-group) ["member"])
+    {:enabled (:enabled user-group)}))
 
-(defn users-in-group
-  "Get the users in group-name"
-  [group-name]
-  (condp = group-name
-    "public-reviewer"
-    {:result {:users (users/read-users-in-group group-name)}}
-    {:error {:status 403
-             :message "That group's users can not viewed"}}))
+(defn users-in-group [group-name]
+  {:users (groups/read-users-in-group group-name)})
 
-(defn user-active-in-group?
-  "Is the user-id active in group-name?"
-  [user-id group-name]
-  (users/user-active-in-group? user-id group-name))
+(defn user-active-in-group? [user-id group-name]
+  (groups/user-active-in-group? user-id group-name))
 
 (defn read-user-public-info
   "Get the users public info"
   [user-id]
   (if-let [user (first (users/get-users-public-info [user-id]))]
-    {:result {:user user}}
+    {:user user}
     {:error {:status not-found
              :message "That user does not exist"}}))
 
@@ -1132,20 +1149,19 @@
         ;; send invitation email
         (send-invitation-email email project-id)
         ;; create invitation
-        {:result {:invitation-id (invitation/create-invitation!
-                                  invitee project-id inviter description)}})
+        {:invitation-id (invitation/create-invitation! invitee project-id inviter description)})
       {:error {:status bad-request
                :message "You can only send one invitation to a user per project"}})))
 
 (defn read-invitations-for-admined-projects
   "Return all invitations for projects admined by user-id"
   [user-id]
-  {:result {:invitations (invitation/invitations-for-admined-projects user-id)}})
+  {:invitations (invitation/invitations-for-admined-projects user-id)})
 
 (defn read-user-invitations
   "Return all invitations for user-id"
   [user-id]
-  {:result {:invitations (invitation/invitations-for-user user-id)}})
+  {:invitations (invitation/invitations-for-user user-id)})
 
 (defn update-invitation!
   "Update invitation-id with accepted? value"
@@ -1156,18 +1172,18 @@
       (when (nil? (project/project-member project-id user-id))
         (project/add-project-member project-id user-id))))
   (invitation/update-invitation-accepted! invitation-id accepted?)
-  {:result {:success true}})
+  {:success true})
 
 (defn read-email-addresses
   "Given a user-id, return all email addresses associated with it"
   [user-id]
-  {:result {:addresses (users/read-email-addresses user-id)}})
+  {:addresses (users/read-email-addresses user-id)})
 
 (defn verify-email!
   "Verify the email for user-id with code"
   [user-id code]
   ;; does the code match the one associated with user?
-  (let [{:keys [verify-code verified email]} (users/web-user-email user-id code)]
+  (let [{:keys [verify-code verified email]} (users/user-email-status user-id code)]
     (cond
       ;; this email is already verified and set as primary, for this account or another
       (users/verified-primary-email? email)
@@ -1189,7 +1205,7 @@
                         count)
                    1)
             (users/set-primary-email! user-id email))
-          {:result {:success true}})
+          {:success true})
       :else
       {:error {:status internal-server-error
                :message "An unknown condition occured"}})))
@@ -1207,16 +1223,16 @@
       (not current-email-entry)
       (do (users/create-email-verification! user-id new-email)
           (send-verification-email user-id new-email)
-          {:result {:success true}})
+          {:success true})
       ;; this email address has already been entered for this user
-      ;; but it is not active, reactivate it
-      (not (:active current-email-entry))
-      (do (users/set-active-field-email! user-id new-email true)
+      ;; but it is not enabled, re-enable it
+      (not (:enabled current-email-entry))
+      (do (users/set-user-email-enabled! user-id new-email true)
           (when-not (:verified current-email-entry)
             (send-verification-email user-id new-email))
-          {:result {:success true}})
-      ;; this email address is already active
-      (:active current-email-entry)
+          {:success true})
+      ;; this email address is already enabled
+      (:enabled current-email-entry)
       {:error {:status bad-request
                :message "That email is already associated with an account."}}
       :else
@@ -1233,8 +1249,8 @@
           {:error {:status forbidden
                    :message "Primary email addresses can not be deleted"}}
           (not (:principal current-email-entry))
-          (do (users/set-active-field-email! user-id email false)
-              {:result {:success true}})
+          (do (users/set-user-email-enabled! user-id email false)
+              {:success true})
           :else
           {:error {:status bad-request
                    :messasge "An unkown error occured."}})))
@@ -1259,34 +1275,32 @@
                :message "This email address has not been verified. Only verified email addresses can be set as primary"}}
       (:verified current-email-entry)
       (do (users/set-primary-email! user-id email)
-          {:result {:success true}})
+          {:success true})
       :else
       {:error {:status internal-server-error
                :message "An unknown condition occured"}})))
 
 (defn update-project-predictions [project-id]
   (future (predict-api/update-project-predictions project-id))
-  {:result {:success true}})
+  {:success true})
 
 (defn user-projects
   "Return a list of user projects for user-id, including non-public projects when self? is true"
   [user-id self?]
-  (let [projects (if self?
-                   (users/projects-member user-id)
-                   (users/public-projects-member user-id))
+  (let [projects ((if self? users/user-projects users/user-public-projects)
+                  user-id [:p.name :p.settings])
         labeled-summary (users/projects-labeled-summary user-id)
         annotations-summary (users/projects-annotated-summary user-id)]
-    {:result {:projects (->> (merge-with merge
-                                         (util/vector->hash-map projects :project-id)
-                                         (util/vector->hash-map labeled-summary :project-id)
-                                         (util/vector->hash-map annotations-summary :project-id))
-                             vals)}}))
+    {:projects (vals (merge-with merge
+                                 (->map-with-key :project-id projects)
+                                 (->map-with-key :project-id labeled-summary)
+                                 (->map-with-key :project-id annotations-summary)))}))
 
 (defn update-user-introduction!
   "Change the introduction for user-id"
   [user-id introduction]
   (users/update-user-introduction! user-id introduction)
-  {:result {:success true}})
+  {:success true})
 
 (defn create-profile-image!
   [user-id file filename]
@@ -1300,8 +1314,7 @@
       ;; there is a file and it is already associated with this user
       (not (nil? profile-s3-association))
       (do (files/activate-profile-image s3-id user-id)
-          {:result {:success true
-                    :key hash}})
+          {:success true, :key hash})
       ;; there is a file, but it is not associated with this user
       (not (nil? s3-id))
       (do
@@ -1309,22 +1322,18 @@
         (files/associate-profile-image-s3-with-user s3-id user-id)
         ;; activate this image
         (files/activate-profile-image s3-id user-id)
-        {:result {:success true
-                  :key hash}})
+        {:success true, :key hash})
       ;; there is a file, but not with this filename
-      (and (nil? s3-id)
-           (files/s3-has-key? hash))
+      (and (nil? s3-id) (files/s3-has-key? hash))
       (let [;; create the association between this file name and the hash
             _ (files/insert-file-hash-s3-record filename hash)
             ;; get the new associations's id
             s3-id (files/s3-id-from-filename-key filename hash)]
         (files/associate-profile-image-s3-with-user s3-id user-id)
         (files/activate-profile-image user-id s3-id)
-        {:result {:success true
-                  :key hash}})
+        {:success true, :key hash})
       ;; the file does not exist in our s3 store
-      (and (nil? s3-id)
-           (not (files/s3-has-key? hash)))
+      (and (nil? s3-id) (not (files/s3-has-key? hash)))
       (let [;; create a new file on the s3 store
             _ (fstore/save-file file :image)
             ;; create a new association between the file name and the hash
@@ -1333,8 +1342,7 @@
             s3-id (files/s3-id-from-filename-key filename hash)]
         (files/associate-profile-image-s3-with-user s3-id user-id)
         (files/activate-profile-image s3-id user-id)
-        {:result {:success true
-                  :key hash}})
+        {:success true, :key hash})
       :else
       {:error {:message "Unexpected Event"}})))
 
@@ -1343,7 +1351,7 @@
   [user-id]
   (let [{:keys [key filename]} (files/active-profile-image-key-filename user-id)]
     (if-not (empty? key)
-      (-> (response/response (fstore/get-file key :image))
+      (-> (response/response (fstore/get-file-stream key :image))
           (response/header "Content-Disposition"
                            (format "attachment: filename=\"" filename "\"")))
       {:error {:status not-found
@@ -1352,11 +1360,11 @@
 (defn read-profile-image-meta
   "Read the current profile image meta data"
   [user-id]
-  {:result {:success true
-            :meta (json/read-json (or (files/active-profile-image-meta user-id) "{}"))}})
+  {:success true
+   :meta (json/read-json (or (files/active-profile-image-meta user-id) "{}"))})
 
 (defn create-avatar! [user-id file filename meta]
-  (db/with-transaction
+  (with-transaction
     (let [hash (util/file->sha-1-hash file)
           {:keys [s3-id]} (files/read-avatar user-id)
           current-hash (files/s3-id->key s3-id)]
@@ -1372,18 +1380,18 @@
       (-> (files/s3-id-from-filename-key filename hash)
           (files/associate-avatar-image-with-user user-id))
       ;; change the coords on active profile img
-      (-> (:id (files/active-profile-image-key-filename user-id))
+      (-> (:s3-id (files/active-profile-image-key-filename user-id))
           (files/update-profile-image-meta! meta))
-      {:result {:success true}})))
+      {:success true})))
 
 (defn delete-avatar! [user-id]
-  (db/with-transaction
+  (with-transaction
     (let [{:keys [s3-id]} (files/read-avatar user-id)
           current-hash (files/s3-id->key s3-id)]
       (if s3-id
         (do (fstore/delete-file current-hash :image)
             (files/delete-file! s3-id)
-            {:result {:success true}})
+            {:success true})
         {:error {:status internal-server-error}}))))
 
 (defn read-avatar
@@ -1393,7 +1401,7 @@
         gravatar-img (files/gravatar-link email)
         {:keys [key filename]} (files/avatar-image-key-filename user-id)]
     (cond (not (empty? key))
-          (-> (response/response (fstore/get-file key :image))
+          (-> (response/response (fstore/get-file-stream key :image))
               (response/header "Content-Disposition"
                                (format "attachment: filename=\"" filename "\"")))
           (not (nil? gravatar-img))
@@ -1405,3 +1413,60 @@
           (-> (response/response (-> "public/default_profile.jpeg" io/resource io/input-stream))
               (response/header "Content-Disposition"
                                (format "attachment: filename=\"" "default-profile.jpeg" "\""))))))
+
+(defn read-orgs
+  "Return all organzations user-id is a member of"
+  [user-id]
+  {:result {:orgs
+            (->> (groups/read-groups user-id)
+                 (filterv #(not= (:group-name %) "public-reviewer"))
+                 (mapv #(assoc % :member-count (-> (groups/group-id->group-name (:id %))
+                                                   (groups/read-users-in-group)
+                                                   count))))}})
+
+(defn create-org! [user-id org-name]
+  ;; check to see if group already exists
+  (if (groups/group-name->group-id org-name)
+    ;; alredy exists
+    {:error {:status conflict
+             :message (str "An organization with the name '" org-name "' already exists")}}
+    (with-transaction
+      ;; create the group
+      (let [new-org-id (groups/create-group! org-name)
+            user (users/get-user-by-id user-id)
+            _ (groups/create-sysrev-stripe-customer! new-org-id)
+            stripe-id (groups/get-stripe-id new-org-id)]
+        ;; set the user as group admin
+        (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
+        (stripe/create-subscription-org! new-org-id stripe-id)
+        {:result {:success true
+                  :id new-org-id}}))))
+
+
+(defn search-users [term]
+  {:success true, :users (users/search-users term)})
+
+(defn set-user-group-permissions! [user-id org-id permissions]
+  (with-transaction
+    (if-let [user-group-id (:id (groups/read-user-group-name
+                                 user-id (groups/group-id->group-name org-id)))]
+      {:group-perm-id (groups/set-user-group-permissions! user-group-id permissions)}
+      {:error {:message (str "user-id: " user-id " is not part of org-id: " org-id)}})))
+
+(defn group-projects [group-id & {:keys [private-projects?]}]
+  {:projects (groups/group-projects group-id :private-projects? private-projects?)})
+
+(defn subscription-lapsed?
+  "Is the project private with a lapsed subscription?"
+  [project-id]
+  (if (nil? project-id)
+    false
+    (let [public-access? (get-in (project/project-settings project-id) [:public-access])
+          created-clj-time (-> project-id project/get-project-by-id :date-created db/time-to-string util/sql-date->clj-time)
+          plan (project-owner-plan project-id)]
+      (if (and (not public-access?)
+               (t/after? created-clj-time
+                         (util/sql-date->clj-time (paywall-grandfather-date)))
+               (not (some #{"Unlimited_Org" "Unlimited_User"} [plan])))
+        true
+        false))))

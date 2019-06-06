@@ -5,7 +5,7 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
             [re-frame.db :refer [app-db]]
-            [sysrev.util :refer [vector->hash-map]]
+            [sysrev.shared.util :refer [->map-with-key space-join]]
             [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -25,8 +25,8 @@
     (reset! getting-invitations? true)
     (GET (str "/api/user/" user-id "/invitations")
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! invitations (-> response :result :invitations (vector->hash-map :id)))
+          :handler (fn [{:keys [result]}]
+                     (reset! invitations (->map-with-key :id (:invitations result)))
                      (reset! getting-invitations? false))
           :error-handler (fn [error]
                            (reset! getting-invitations? false)
@@ -43,37 +43,35 @@
   [{:keys [id project-id project-name description accepted active created updated]}]
   (let [putting-invitation? (r/cursor state [:invitation id :putting?])
         error-message (r/atom "")
-        put-invitation! (fn [id accepted?]
-                          (reset! putting-invitation? true)
-                          (PUT (str "/api/user/" @(subscribe [:self/user-id]) "/invitation/" id)
-                               {:params {:accepted accepted?}
-                                :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                :handler (fn [response]
-                                           (reset! putting-invitation? false)
-                                           (reset! (r/cursor state [:invitations id :accepted]) accepted?)
-                                           (get-invitations!))
-                                :error-handler (fn [error-response]
-                                                 (reset! putting-invitation? false)
-                                                 (reset! error-message (get-in error-response [:response :error :message])))}))]
-    
+        put-invitation!
+        (fn [id accepted?]
+          (reset! putting-invitation? true)
+          (PUT (str "/api/user/" @(subscribe [:self/user-id]) "/invitation/" id)
+               {:params {:accepted accepted?}
+                :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                :handler
+                (fn [response]
+                  (reset! putting-invitation? false)
+                  (reset! (r/cursor state [:invitations id :accepted]) accepted?)
+                  (get-invitations!))
+                :error-handler
+                (fn [response]
+                  (reset! putting-invitation? false)
+                  (reset! error-message (get-in response [:response :error :message])))}))]
     [Segment
      [Grid
       [Row
        [Column {:width 8}
         [:h3 project-name]]
        [Column {:width 8}
-        [:h5 {:style {:text-align "right"}} (-> created js/moment ($ format "YYYY-MM-DD h:mm A"))]]]
+        [:h5 {:style {:text-align "right"}}
+         (-> created js/moment ($ format "YYYY-MM-DD h:mm A"))]]]
       [Row
        [Column {:width 16}
         (when-not (nil? accepted)
-          [:div (str "You "
-                     (if accepted
-                       "accepted "
-                       "declined ")
-                     "this invitation on "
-                     (-> updated js/moment ($ format "YYYY-MM-DD"))
-                     " at "
-                     (-> updated js/moment ($ format "h:mm A")))])]]]
+          [:div (space-join ["You" (if accepted "accepted" "declined")
+                             "this invitation on" (-> updated js/moment ($ format "YYYY-MM-DD"))
+                             "at" (-> updated js/moment ($ format "h:mm A"))])])]]]
      (when (nil? accepted)
        [:div
         [:h3 (str "You've been invited as a " description ".")]

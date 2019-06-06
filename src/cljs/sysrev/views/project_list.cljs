@@ -27,12 +27,15 @@
        {:on-click #(dispatch [:action [:join-project project-id]])}
        "Join"]]]))
 
-(defn- ProjectsListSegment [title projects member?]
+(defn ProjectsListSegment [title projects member? & {:keys [id]}]
   (with-loader [[:identity]] {}
     (when (or (not-empty projects) (true? member?))
       [:div.ui.segments.projects-list
        {:class (if member? "member" "non-member")
-        :id (if member? "your-projects" "available-projects")}
+        :id (if (nil? id)
+              (if member?
+                "your-projects" "available-projects")
+              id)}
        (when (loading/item-loading? [:identity])
          [:div.ui.active.inverted.dimmer
           [:div.ui.loader]])

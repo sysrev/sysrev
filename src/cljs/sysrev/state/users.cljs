@@ -1,9 +1,8 @@
 (ns sysrev.state.users
-  (:require
-   [re-frame.core :refer
-    [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-   [sysrev.shared.util :refer [in?]]
-   [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [re-frame.core :refer
+             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+            [sysrev.shared.util :refer [in?]]))
 
 (reg-sub
  ::users
@@ -40,12 +39,9 @@
  (fn [[user]]
    (:email user)))
 
-(reg-sub
- :user/display
- (fn [[_ user-id]]
-   [(subscribe [:user/email user-id])])
- (fn [[email]]
-   (first (str/split email #"@"))))
+(reg-sub :user/display
+         (fn [[_ user-id]] (subscribe [:user/email user-id]))
+         (fn [email] (first (str/split email #"@"))))
 
 (reg-sub
  :user/permissions
@@ -70,8 +66,18 @@
        (and include-self-admin?
             (= user-id self-id)))))
 
-(reg-sub
- :user/project-ids
- (fn [[_ user-id]]
-   [(subscribe [::user user-id])])
- (fn [[user]] (:projects user)))
+(reg-sub :user/project-ids
+         (fn [[_ user-id]] (subscribe [::user user-id]))
+         (fn [user] (:projects user)))
+
+;; Hacky detection of real (not browser test) admin users based on email
+(reg-sub :user/actual-admin?
+         (fn [[_ user-id]]
+           [(subscribe [:user/admin? user-id])
+            (subscribe [:user/email user-id])])
+         (fn [[admin? email]]
+           (and admin? email
+                (not (or (str/includes? email "browser")
+                         (str/includes? email "test")))
+                (or (str/includes? email "insilica.co")
+                    (str/includes? email "tomluec")))))

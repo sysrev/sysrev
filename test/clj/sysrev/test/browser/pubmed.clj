@@ -159,7 +159,7 @@
     (b/click import-button-xpath)
     (Thread/sleep 250)
     (check-source-count (inc initial-count))
-    (b/wait-until-loading-completes :pre-wait 500)
+    (b/wait-until-loading-completes :pre-wait 500 :timeout 10000)
     (nav/go-project-route "")
     (nav/wait-until-overview-ready)))
 

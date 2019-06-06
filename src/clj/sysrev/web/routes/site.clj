@@ -6,14 +6,13 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer
-             [do-query clear-query-cache with-query-cache sql-now]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.shared.util :refer [map-values in?]]
-            [sysrev.util :refer [should-never-happen-exception]]
+            [sysrev.db.queries :as q]
             [sysrev.web.app :refer [wrap-authorize current-user-id]]
-            [sysrev.db.queries :as q]))
+            [sysrev.util :refer [should-never-happen-exception]]
+            [sysrev.shared.util :refer [in? map-values ->map-with-key]]))
 
 ;; Functions defined after defroutes form
 (declare public-project-summaries)
@@ -124,7 +123,7 @@
 
 (defroutes site-routes
   (GET "/api/global-stats" request
-       {:result {:stats (sysrev-global-stats)}})
+       {:stats (sysrev-global-stats)})
 
   (POST "/api/delete-user" request
         (wrap-authorize
@@ -144,7 +143,7 @@
   (POST "/api/clear-query-cache" request
         (wrap-authorize
          request {:developer true}
-         (clear-query-cache)
+         (db/clear-query-cache)
          {:success true}))
 
   (POST "/api/change-user-settings" request
@@ -155,32 +154,22 @@
            (doseq [{:keys [setting value]} changes]
              (users/change-user-setting
               user-id (keyword setting) value))
-           {:result
-            {:success true
-             :settings (users/user-settings user-id)}}))))
+           {:success true, :settings (users/user-settings user-id)}))))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."
   []
-  (let [projects
-        (->> (-> (select :*)
-                 (from :project)
-                 do-query)
-             (group-by :project-id)
-             (map-values first))
-        admins
-        (->> (-> (select :u.user-id :u.email :m.permissions :m.project-id)
-                 (from [:project-member :m])
-                 (join [:web-user :u]
-                       [:= :u.user-id :m.user-id])
-                 do-query)
-             (group-by :project-id)
-             (map-values
-              (fn [pmembers]
-                (->> pmembers
-                     (filter #(in? (:permissions %) "admin"))
-                     (mapv #(dissoc % :project-id))))))]
-    (->> projects
-         (map-values
-          #(assoc % :admins
-                  (get admins (:project-id %) []))))))
+  (let [admins (-> (select :u.user-id :u.email :m.permissions :m.project-id)
+                   (from [:project-member :m])
+                   (join [:web-user :u] [:= :u.user-id :m.user-id])
+                   (->> do-query
+                        (group-by :project-id)
+                        (map-values (fn [members]
+                                      (->> members
+                                           (filter #(in? (:permissions %) "admin"))
+                                           (mapv #(dissoc % :project-id)))))))]
+    (-> (select :*)
+        (from :project)
+        (->> do-query
+             (->map-with-key :project-id)
+             (map-values #(assoc % :admins (get admins (:project-id %) [])))))))

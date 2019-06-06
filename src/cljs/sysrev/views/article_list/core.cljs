@@ -18,7 +18,7 @@
             [sysrev.views.article-list.filters :as f]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values css]])
+            [sysrev.shared.util :as sutil :refer [in? map-values css ->map-with-key]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (reg-sub-raw
@@ -151,12 +151,9 @@
                           (keys users-notes)]
                          (apply concat) distinct)]
         (let [user-labels (if show-labels
-                            (->> (get users-labels user-id)
-                                 (group-by :label-id)
-                                 (map-values first))
+                            (->map-with-key :label-id (get users-labels user-id))
                             {})
-              user-note (when show-notes
-                          (->> (get users-notes user-id) first))
+              user-note (when show-notes (first (get users-notes user-id)))
               user-name @(subscribe [:user/display user-id])
               resolved? (= user-id resolver-id)]
           (when (or user-note (not-empty user-labels))
@@ -164,8 +161,7 @@
             [labels/LabelValuesView
              user-labels
              :user-name user-name
-             :notes (when user-note
-                      {(:name user-note) (:content user-note)})
+             :notes (when user-note {(:name user-note) (:content user-note)})
              :resolved? resolved?]))))]))
 
 (defn- ArticleListEntry

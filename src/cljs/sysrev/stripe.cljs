@@ -3,10 +3,11 @@
             [cljs-http.client :refer [generate-query-string]]
             [cljsjs.react-stripe-elements]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-event-fx trim-v]]
+            [re-frame.core :refer [reg-sub subscribe dispatch reg-event-db trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :refer [nav-redirect get-url-params nav-scroll-top]]
+            [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.semantic :as s]
             [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]))
@@ -16,7 +17,8 @@
 
 (def ^:private panel [:stripe])
 
-(def default-redirect-uri "/user/settings/billing")
+(defn default-redirect-uri [db]
+  (str "/user/" (current-user-id db) "/billing"))
 
 (def initial-state {:error-message nil
                     :need-card? false
@@ -53,7 +55,7 @@
                            "::placeholder" {:color "#aab7c4"}}
                     :invalid {:color "#9e2146"}}) 
 
-(def-action :payments/stripe-token
+(def-action :stripe/add-payment-user
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id])  "/stripe/payment-method"))
   :content (fn [token] {:token token})
   :process
@@ -62,7 +64,7 @@
           ;; this is just in case it wasn't set
           ;; e.g. user went directly to /payment route
           calling-route (or (get-in db [:state :stripe :calling-route])
-                            default-redirect-uri)
+                            (default-redirect-uri db))
           need-card? (r/cursor state [:need-card?])]
       ;; don't need to ask for a card anymore
       ;;(dispatch [:stripe/set-need-card? false])
@@ -78,81 +80,137 @@
   :on-error
   (fn [{:keys [db error]} _]
     ;; we have an error message, set it so that it can be display to the user
-    (reset! (r/cursor state [:error-message])
-            (-> error :message))
+    (reset! (r/cursor state [:error-message]) (:message error))
     {}))
 
-(def StripeForm
-  (r/adapt-react-class
-   (js/ReactStripeElements.injectStripe
-    (r/reactify-component
-     (r/create-class
-      {:display-name "stripe-reagent-form"
-       :render
-       (fn [this]
-         (ensure-state)
-         (let [error-message (r/cursor state [:error-message])
-               element-on-change
-               (fn [e]
-                 (let [e (js->clj e :keywordize-keys true)
-                       error (:error e)]
-                   ;; keeping the error for each element in the state atom
-                   (swap! (r/state-atom this)
-                          assoc (keyword (:elementType e))
-                          error)))
-               errors?
-               (fn []
-                 ;; we're only putting errors in the state-atom,
-                 ;; so this should be true only when there are errors
-                 (not (every? nil? (vals @(r/state-atom this)))))]
-           [:form
-            {:on-submit
-             (util/wrap-prevent-default
-              #(when-not (errors?)
-                 (-> (this.props.stripe.createToken)
-                     (.then (fn [payload]
-                              (when-not (:error (js->clj payload :keywordize-keys true))
-                                (dispatch [:action [:payments/stripe-token payload]])))))))
-             :class "StripeForm"}
-            ;; In the case where the form elements themselves catch errors,
-            ;; they are displayed below the input. Errors returned from the
-            ;; server are shown below the submit button.
-            [:label "Card Number"
-             [CardNumberElement {:style element-style
-                                 :on-change element-on-change}]]
-            [:div.ui.red.header
-             @(r/cursor (r/state-atom this) [:cardNumber :message])]
-            [:label "Expiration date"
-             [CardExpiryElement {:style element-style
-                                 :on-change element-on-change}]]
-            [:div.ui.red.header
-             @(r/cursor (r/state-atom this) [:cardExpiry :message])]
-            [:label "CVC"
-             [CardCVCElement {:style element-style
-                              :on-change element-on-change}]]
-            ;; this might not ever even generate an error, included here
-            ;; for consistency
-            [:div.ui.red.header
-             @(r/cursor (r/state-atom this) [:cardCvc :message])]
-            ;; unexplained behavior: Why do you need a minimum of
-            ;; 6 digits to be entered in the cardNumber input for
-            ;; in order for this to start checking input?
-            [:label "Postal code"
-             [PostalCodeElement {:style element-style
-                                 :on-change element-on-change}]]
-            [:div.ui.red.header
-             @(r/cursor (r/state-atom this) [:postalCode :message])]
-            [:button.ui.primary.button.use-card {:class (when (errors?) "disabled")}
-             "Use Card"]
-            ;; shows the errors returned from the server (our own, or stripe.com)
-            (when @error-message
-              [:div.ui.red.header @error-message])]))})))))
+(def-action :stripe/add-payment-org
+  :uri (fn [org-id] (str "/api/org/" org-id  "/stripe/payment-method"))
+  :content (fn [org-id token] {:token token})
+  :process
+  (fn [{:keys [db]} [org-id] _]
+    (let [;; calling-route should be set by the :payment/set-calling-route! event
+          ;; this is just in case it wasn't set
+          ;; e.g. user went directly to /payment route
+          calling-route (or (get-in db [:state :stripe :calling-route])
+                            (default-redirect-uri db))
+          need-card? (r/cursor state [:need-card?])]
+      ;; don't need to ask for a card anymore
+      ;;(dispatch [:stripe/set-need-card? false])
+      (reset! need-card? false)
+      ;; clear any error message that was present in plans
+      ;;(dispatch [:plans/clear-error-message!])
+      ;; go back to where this panel was called from
+      (if (string? calling-route)
+        (nav-scroll-top calling-route)
+        (dispatch [:navigate calling-route]))
+      ;; empty map, just interested in causing side effects
+      {}))
+  :on-error
+  (fn [{:keys [db error]} _]
+    ;; we have an error message, set it so that it can be display to the user
+    (reset! (r/cursor state [:error-message]) (:message error))
+    {}))
 
-(defn StripeCardInfo []
+(reg-sub :stripe/default-source
+         (fn [db [_ id-type id]]
+           (get-in db [:state :stripe :default-source id-type id])))
+
+(reg-event-db :stripe/set-default-source!
+              (fn [db [_ id-type id source-id]]
+                (assoc-in db [:state :stripe :default-source id-type id] source-id)))
+
+(defn get-user-default-source []
+  (let [default-source-error (r/cursor state [:default-source-error])
+        user-id @(subscribe [:self/user-id])]
+    (GET (str "/api/user/" user-id "/stripe/default-source")
+         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :handler (fn [{:keys [result]}]
+                     (dispatch [:stripe/set-default-source!
+                                "user" user-id (:default-source result)]))
+          :error-handler (fn [{:keys [error]}]
+                           (reset! default-source-error (:message error)))})))
+
+(defn get-org-default-source [current-org-id]
+  (let [default-source-error (r/cursor state [:default-source-error])]
+    (GET (str "/api/org/" current-org-id "/stripe/default-source")
+         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :handler (fn [{:keys [result]}]
+                     (dispatch [:stripe/set-default-source!
+                                "org" current-org-id (:default-source result)]))
+          :error-handler (fn [{:keys [error]}]
+                           (reset! default-source-error (:message error)))})))
+
+(defn inject-stripe [comp]
+  (-> comp
+      (r/reactify-component)
+      (js/ReactStripeElements.injectStripe)
+      (r/adapt-react-class)))
+
+(defn StripeForm [{:keys [add-payment-fn]}]
+  (inject-stripe
+   (r/create-class
+    {:display-name "stripe-reagent-form"
+     :render
+     (fn [this]
+       (ensure-state)
+       (let [error-message (r/cursor state [:error-message])
+             element-on-change #(let [{:keys [elementType error]}
+                                      (js->clj % :keywordize-keys true)]
+                                  ;; keeping the error for each element in the state atom
+                                  (swap! (r/state-atom this)
+                                         assoc (keyword elementType) error))
+             errors? (fn []
+                       ;; we're only putting errors in the state-atom,
+                       ;; so this should be true only when there are errors
+                       (not (every? nil? (vals @(r/state-atom this)))))]
+         [:form
+          {:class "StripeForm"
+           :on-submit (util/wrap-prevent-default
+                       #(when-not (errors?)
+                          (-> (this.props.stripe.createToken)
+                              (.then (fn [payload]
+                                       (when-not (:error (js->clj payload :keywordize-keys true))
+                                         (add-payment-fn payload)))))))}
+          ;; In the case where the form elements themselves catch errors,
+          ;; they are displayed below the input. Errors returned from the
+          ;; server are shown below the submit button.
+          [:label "Card Number"
+           [CardNumberElement {:style element-style
+                               :on-change element-on-change}]]
+          [:div.ui.red.header
+           @(r/cursor (r/state-atom this) [:cardNumber :message])]
+          [:label "Expiration date"
+           [CardExpiryElement {:style element-style
+                               :on-change element-on-change}]]
+          [:div.ui.red.header
+           @(r/cursor (r/state-atom this) [:cardExpiry :message])]
+          [:label "CVC"
+           [CardCVCElement {:style element-style
+                            :on-change element-on-change}]]
+          ;; this might not ever even generate an error, included here
+          ;; for consistency
+          [:div.ui.red.header
+           @(r/cursor (r/state-atom this) [:cardCvc :message])]
+          ;; unexplained behavior: Why do you need a minimum of
+          ;; 6 digits to be entered in the cardNumber input for
+          ;; in order for this to start checking input?
+          [:label "Postal code"
+           [PostalCodeElement {:style element-style
+                               :on-change element-on-change}]]
+          [:div.ui.red.header
+           @(r/cursor (r/state-atom this) [:postalCode :message])]
+          [:button.ui.primary.button.use-card {:class (when (errors?) "disabled")}
+           "Use Card"]
+          ;; shows the errors returned from the server (our own, or stripe.com)
+          (when @error-message
+            [:div.ui.red.header @error-message])]))})))
+
+(defn StripeCardInfo
+  "add-payment-fn is a fn of payload returned by Stripe"
+  [{:keys [add-payment-fn]}]
   (ensure-state)
   [StripeProvider {:apiKey stripe-public-key}
-   [Elements
-    [StripeForm]]])
+   [Elements [(StripeForm {:add-payment-fn add-payment-fn})]]])
 
 ;; https://stripe.com/docs/connect/quickstart
 ;; use: phone number: 000-000-0000
@@ -174,19 +232,16 @@
     (reset! retrieving-connected? true)
     (GET (str "/api/stripe/connected/" user-id)
          {:response :json
-          :handler (fn [response]
+          :handler (fn [{:keys [result]}]
                      (reset! retrieving-connected? false)
-                     (reset! connected?
-                             (get-in response [:result :connected])))
-          :error-handler (fn [error]
+                     (reset! connected? (:connected result)))
+          :error-handler (fn [{:keys [error]}]
                            (reset! retrieving-connected? false)
                            ($ js/console log "[[sysrev.strip/check-if-stripe-user!]] error"))})))
 
-(defn save-stripe-user!
-  [user-id stripe-code]
+(defn save-stripe-user! [user-id stripe-code]
   (POST "/api/stripe/finalize-user"
-        {:params {:user-id user-id
-                  :stripe-code stripe-code}
+        {:params {:user-id user-id, :stripe-code stripe-code}
          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-         :handler (fn [] (check-if-stripe-user!))
-         :error-handler (fn [error] ($ js/console log "[[sysrev.stripe/save-stripe-user]] error"))}))
+         :handler (fn [_] (check-if-stripe-user!))
+         :error-handler (fn [_] ($ js/console log "[[sysrev.stripe/save-stripe-user]] error"))}))

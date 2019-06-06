@@ -1,6 +1,7 @@
 (ns sysrev.test.browser.stripe
   (:require [clj-webdriver.taxi :as taxi]
-            [sysrev.test.browser.core :as b]))
+            [sysrev.test.browser.core :as b]
+            [clojure.tools.logging :as log]))
 
 ;; for manual testing purposes, this is handy:
 ;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
@@ -40,9 +41,9 @@
 
 (defn get-stripe-frame-names
   []
+  (log/info "querying stripe iframes")
   (->> (b/current-frame-names)
-       (filter #(re-matches #".*StripeFrame.*" %))
-       sort))
+       (filter #(re-matches #".*StripeFrame.*" %))))
 
 (defn enter-cc-number
   [cc-number]
@@ -58,6 +59,7 @@
 
 (defn enter-cc-information
   [{:keys [cardnumber exp-date cvc postal]}]
+  (log/info "entering stripe card information")
   (let [ ;; note: stripe could change the frame names
         frame-names (get-stripe-frame-names)
         exp-date-iframe {:xpath (str "//iframe[@name='" (nth frame-names 1) "']")}
@@ -68,20 +70,25 @@
         postal-input "input[name~='postal']"]
     ;; let's reset to be sure we are in the default iframe
     (taxi/switch-to-default)
+    (log/info "entering card number")
     (enter-cc-number cardnumber)
     ;; switch to month input iframe
+    (log/info "entering expiration date")
     (taxi/switch-to-frame exp-date-iframe)
     (b/set-input-text-per-char exp-date-input exp-date)
     ;; swtich back to default
     (taxi/switch-to-default)
     ;; switch to cvc iframe
+    (log/info "entering cvc")
     (taxi/switch-to-frame cvc-iframe)
     (b/set-input-text-per-char cvc-input cvc)
     ;; switch back to default frame
     (taxi/switch-to-default)
     ;; switch to post code frame
+    (log/info "entering zip code")
     (taxi/switch-to-frame postal-iframe)
     (b/set-input-text-per-char postal-input postal)
     ;; we're done, return back to default
-    (taxi/switch-to-default)))
+    (taxi/switch-to-default)
+    (log/info "finished entering cc info")))
 

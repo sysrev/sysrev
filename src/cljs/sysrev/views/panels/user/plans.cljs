@@ -1,7 +1,9 @@
 (ns sysrev.views.panels.user.plans
-  (:require [reagent.core :as r]
-            [re-frame.core :refer [dispatch subscribe reg-event-fx trim-v reg-sub]]
+  (:require [ajax.core :refer [GET]]
+            [reagent.core :as r]
+            [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub reg-event-fx]]
             [re-frame.db :refer [app-db]]
+            [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.stripe :as stripe]
@@ -16,36 +18,47 @@
 
 (def ^:private panel [:plans])
 
-(def initial-state {:selected-plan nil
-                    :changing-plan? false
-                    ;;:need-card? false
-                    ;;:updating-card? false
-                    :error-message nil})
 (defonce state (r/cursor app-db [:state :panels panel]))
-(defn ensure-state []
-  (when (nil? @state)
-    (reset! state initial-state)))
-
-(def-data :plans
-  :loaded? (fn [db] (contains? @state :plans))
-  :uri (fn [] "/api/plans")
-  :prereqs (fn [] [[:identity]])
-  :process (fn [_ _ result]
-             (ensure-state)
-             (reset! (r/cursor state [:plans]) (:plans result))
-             {}))
 
 (def-data :current-plan
-  :loaded? (fn [db] (contains? @state :current-plan))
-  :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/current-plan"))
-  :prereqs (fn [] [[:identity]])
-  :process (fn [_ _ result]
-             (ensure-state)
-             (reset! (r/cursor state [:current-plan]) (:plan result))
-             {}))
+  :loaded? (fn [db user-id]
+             (contains? (get-in db [:state :panels panel])
+                        :current-plan))
+  :uri (fn [user-id]
+         ;; (.log js/console ":current-plan called")
+         ;; (.log js/console ":current-plan think user-id: " user-id)
+         (str "/api/user/" user-id "/stripe/current-plan"))
+  :prereqs (fn [user-id] [[:identity]])
+  :process (fn [{:keys [db]} _ result]
+             ;;(.log js/console ":current-plan processed and had a result: " (get-in result [:plan :name]))
+             {:db (assoc-in db [:state :panels panel :current-plan] (:plan result))}))
+
+(defn get-current-plan
+  [user-id]
+  (GET (str "/api/user/" user-id "/stripe/current-plan")
+       {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+        :handler (fn [{:keys [result]}]
+                   ;;(.log js/console "get-current-plan had a result: " (get-in result [:plan :name]))
+                   (reset! (r/cursor state [:current-plan]) (:plan result)))}))
+
+(reg-event-fx
+ :user/get-current-plan
+ []
+ (fn [_ [_ user-id]]
+   (get-current-plan user-id)
+   {}))
 
 (reg-sub :plans/current-plan
-         (fn [db] @(r/cursor state [:current-plan])))
+         (fn [db] (get-in db [:state :panels panel :current-plan])))
+
+(reg-sub :plans/on-subscribe-nav-to-url
+         (fn [db] (get-in db [:state :panels panel :on-subscribe-nav-to-url])))
+
+(reg-event-db
+ :plans/set-on-subscribe-nav-to-url!
+ [trim-v]
+ (fn [db [url]]
+   (assoc-in db [:state :panels panel :on-subscribe-nav-to-url] url)))
 
 (def-action :subscribe-plan
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/subscribe-plan"))
@@ -53,12 +66,19 @@
              {:plan-name plan-name})
   :process
   (fn [{:keys [db]} _ result]
-    (cond (:created result)
-          (do
-            (reset! (r/cursor state [:changing-plan?]) false)
-            (reset! (r/cursor state [:error-messsage]) nil)
-            (nav-scroll-top "/user/settings/billing")            
-            {:dispatch [:fetch [:current-plan]]})))
+    (let [on-subscribe-nav-to-url (subscribe [:plans/on-subscribe-nav-to-url])]
+      (cond (:created result)
+            (do
+              (reset! (r/cursor state [:changing-plan?]) false)
+              (reset! (r/cursor state [:error-messsage]) nil)
+              ;; need to download all projects associated with the user
+              ;; to update [:project/subscription-lapsed?] for MakePublic
+              (dispatch [:project/fetch-all-projects])
+              (nav-scroll-top @on-subscribe-nav-to-url)
+              ;;{:dispatch [:fetch [:current-plan @(subscribe [:self/user-id])]]}
+              (get-current-plan @(subscribe [:self/user-id]))
+              {}
+              ))))
   :on-error
   (fn [{:keys [db error]} _ _]
     (cond
@@ -76,9 +96,65 @@
   [cents]
   (str (-> cents (/ 100) (.toFixed 2))))
 
-(defn DowngradePlan []
-  (let [default-source (subscribe [:billing/default-source])
-        error-message (r/cursor state [:error-message])
+(defn price-summary
+  [{:keys [tiers member-count]}]
+  (let [base (->> tiers (map :flat_amount) (filter int?) (apply +))
+        per-user (->> tiers (map :unit_amount) (filter int?) (apply +))
+        up-to (->> tiers (map :up_to) (filter int?) first)
+        monthly-bill (+ base (* (max 0 (- member-count 5)) per-user))]
+    {:base base
+     :per-user per-user
+     :up-to up-to
+     :monthly-bill monthly-bill}))
+
+(defn Unlimited
+  [{:keys [unlimited-plan-price
+           unlimited-plan-name]}]
+  [Segment
+   [Grid {:stackable true}
+    [Row
+     [Column {:width 6}
+      [:b unlimited-plan-name]
+      [ListUI
+       [ListItem "Unlimited public projects"]
+       [ListItem "Unlimited private projects"]]]
+     [Column {:width 10 :align "right"}
+      (if (map? unlimited-plan-price)
+        (let [{:keys [base per-user up-to monthly-bill]} (price-summary unlimited-plan-price)]
+          [:div
+           [Row [:h3 "$" (cents->dollars base) " / month"]]
+           [Row [:h3 "up to 5 org members"]]
+           [:br]
+           [Row [:h3 "$ " (cents->dollars per-user) " / month"]]
+           [Row [:h3 "per additional member"]]])
+        [Row [:h3 (str "$" (cents->dollars unlimited-plan-price) " / month")] ])]]]])
+
+(defn BasicPlan []
+  [Segment
+   [Grid {:stackable true}
+    [Row
+     [Column {:width 8}
+      [:b "Basic"]
+      [ListUI
+       [ListItem "Unlimited public projects"]]]
+     [Column {:width 8 :align "right"}
+      [:h2 "$0 / month"]]]]])
+
+(defn TogglePlanButton
+  [{:keys [disabled on-click class]} & [text]]
+  [Button
+   {:class class
+    :color "green"
+    :on-click
+    on-click
+    :disabled disabled}
+   text])
+
+(defn DowngradePlan [{:keys [billing-settings-uri
+                             on-downgrade
+                             unlimited-plan-price
+                             unlimited-plan-name]}]
+  (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
      {:reagent-render
@@ -90,62 +166,40 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe from"]
-                        [Segment
-                         [Grid {:stackable true}
-                          [Row
-                           [Column {:width 8}
-                            [:b "Business Unlimited"]
-                            [ListUI
-                             [ListItem "Unlimited public projects"]
-                             [ListItem "Unlimited private projects"]]]
-                           [Column {:width 8 :align "right"}
-                            [:h2 "$30 / month"]]]]]]]]
+                        [Unlimited {:unlimited-plan-price unlimited-plan-price
+                                    :unlimited-plan-name unlimited-plan-name}]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
-                        [Segment
-                         [Grid {:stackable true}
-                          [Row
-                           [Column {:width 8}
-                            [:b "Basic"]
-                            [ListUI
-                             [ListItem "Unlimited public projects"]]]
-                           [Column {:width 8 :align "right"}
-                            [:h2 "$0 / month"]]]]]
-                        [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
+                        [BasicPlan]
+                        [:a {:href billing-settings-uri} "Billing Settings"]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]
                         [ListUI {:divided true}
                          [:h4 "New Monthly Bill"]
                          [ListItem [:p "Basic plan ($0 / month)"]]
-                         (when (empty? @default-source)
-                           [:a.add-payment-method
-                            {:style {:cursor "pointer"}
-                             :on-click
-                             (util/wrap-prevent-default
-                              #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                                   (nav-scroll-top "/user/payment")))}
-                            "Add a payment method"])
                          [:div {:style {:margin-top "1em" :width "100%"}}
-                          [Button
-                           {:class "unsubscribe-plan"
-                            :color "green"
-                            :on-click #(do (reset! changing-plan? true)
-                                           (dispatch [:action [:subscribe-plan "Basic"]]))
-                            :disabled (or (empty? @default-source) @changing-plan?)}
-                           "Unsubscribe"]]
+                          [TogglePlanButton {:disabled (or @changing-plan?)
+                                             :on-click #(do (reset! changing-plan? true)
+                                                            (on-downgrade))
+                                             :class "unsubscribe-plan"} "Unsubscribe"]]
                          (when @error-message
                            [s/Message {:negative true}
-                            [s/MessageHeader "Upgrade Plan Error"]
+                            [s/MessageHeader "Change Plan Error"]
                             [:p @error-message]])]]]]]]]])
       :get-initial-state
       (fn [this]
         (reset! changing-plan? false)
         (reset! error-message nil))})))
 
-(defn UpgradePlan []
-  (let [default-source (subscribe [:billing/default-source])
-        error-message (r/cursor state [:error-message])
+(defn UpgradePlan [{:keys [billing-settings-uri
+                           on-upgrade
+                           default-source-atom
+                           get-default-source
+                           on-add-payment-method
+                           unlimited-plan-price
+                           unlimited-plan-name]}]
+  (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
      {:reagent-render
@@ -157,52 +211,48 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "UPGRADING TO"]
-                        [Segment
-                         [Grid {:stackable true}
-                          [Row
-                           [Column {:width 8}
-                            [:b "Business Unlimited"]
-                            [ListUI
-                             [ListItem "Unlimited public projects"]
-                             [ListItem "Unlimited private projects"]]]
-                           [Column {:width 8 :align "right"}
-                            [:h2 "$30 / month"]]]]]
-                        [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
+                        [Unlimited {:unlimited-plan-price unlimited-plan-price
+                                    :unlimited-plan-name unlimited-plan-name}]
+                        [:a {:href billing-settings-uri} "Billing Settings"]]]]]
            [Column {:width 8}
-            (let [no-default? (empty? @default-source)]
+            (let [no-default? (empty? @default-source-atom)]
               [Grid
                [Row
                 [Column
                  [:h3 "Upgrade Summary"]
                  [ListUI {:divided true}
                   [:h4 "New Monthly Bill"]
-                  [ListItem [:p "Unlimited plan ($30 / month)"]]
+                  [ListItem [:p (str "Unlimited plan ("
+                                     (if (map? unlimited-plan-price)
+                                       (str "$" (-> unlimited-plan-price
+                                                    price-summary
+                                                    :monthly-bill
+                                                    cents->dollars)
+                                            " / month")
+                                       (str "$" (cents->dollars unlimited-plan-price) " / month"))
+                                     ")")]]
                   [:h4 "Billing Information"]
-                  [ListItem [DefaultSource]]
-                  (when (or no-default?
-                            ((comp not nil?) @error-message))
+                  [ListItem [DefaultSource {:get-default-source get-default-source
+                                            :default-source-atom default-source-atom}]]
+                  (when (empty? @error-message)
                     [:a.payment-method
                      {:class (if no-default? "add-method" "change-method")
                       :style {:cursor "pointer"}
-                      :on-click
-                      (util/wrap-prevent-default
-                       #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                            (reset! error-message nil)
-                            (nav-scroll-top "/user/payment")))}
+                      :on-click (util/wrap-prevent-default
+                                 #(do (reset! error-message nil)
+                                      (on-add-payment-method)))}
                      (if no-default?
                        "Add a payment method"
                        "Change payment method")])
                   [:div {:style {:margin-top "1em" :width "100%"}}
-                   [Button
-                    {:class "upgrade-plan"
-                     :color "green"
-                     :on-click #(do (reset! changing-plan? true)
-                                    (dispatch [:action [:subscribe-plan "Unlimited"]]))
-                     :disabled (or no-default? @changing-plan?)}
+                   [TogglePlanButton {:disabled (or no-default? @changing-plan?)
+                                      :on-click #(do (reset! changing-plan? true)
+                                                     (on-upgrade))
+                                      :class "upgrade-plan"}
                     "Upgrade Plan"]]
                   (when @error-message
                     [s/Message {:negative true}
-                     [s/MessageHeader "Upgrade Plan Error"]
+                     [s/MessageHeader "Change Plan Error"]
                      [:p @error-message]])]]]])]]]])
       :get-initial-state
       (fn [this]
@@ -212,19 +262,46 @@
 (defmethod logged-out-content [:plans] []
   (logged-out-content :logged-out))
 
+(defn UserPlans []
+  (let [changing-plan? (r/cursor state [:changing-plan?])
+        updating-card? (r/cursor state [:updating-card?])
+        need-card? (r/cursor stripe/state [:need-card?])
+        error-message (r/cursor state [:error-message])
+        current-plan (subscribe [:plans/current-plan])
+        self-id (subscribe [:self/user-id])]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (condp = (:name @current-plan)
+          "Basic"
+          [UpgradePlan {:billing-settings-uri (str "/user/" @self-id "/billing")
+                        :default-source-atom (subscribe [:stripe/default-source "user" @self-id])
+                        :get-default-source stripe/get-user-default-source
+                        :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
+                        :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                                                    (dispatch [:navigate [:payment]]))
+                        :unlimited-plan-price 1000
+                        :unlimited-plan-name "Pro Plan"}]
+          "Unlimited_User"
+          [DowngradePlan {:billing-settings-uri (str "/user/" @self-id "/billing")
+                          :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
+                          :unlimited-plan-name "Pro Plan"
+                          :unlimited-plan-price 1000}]
+          [s/Message {:negative true}
+           [s/MessageHeader "User Plans Error"]
+           [:div
+            [:p]
+            [:p (str "Plan (" (:name @current-plan) ") is not recognized for user-id: " @self-id)]
+            [:p (str "Active route: " @active-route)]]]))
+      :component-did-mount (fn [this]
+                             ;;(.log js/console "component did mount")
+                             ;;(stripe/ensure-state)
+                             ;;(dispatch [:fetch [:identity]])
+                             ;;(.log js/console "self-id: " @self-id)
+                             ;;(dispatch [:require [:current-plan @self-id]])
+                             ;;(dispatch [:reload [:current-plan @self-id]])
+                             (get-current-plan @self-id))})))
+
 (defmethod panel-content [:plans] []
   (fn [child]
-    (ensure-state)
-    (stripe/ensure-state)
-    (with-loader [[:identity]
-                  [:current-plan]] {}
-      (let [changing-plan? (r/cursor state [:changing-plan?])
-            updating-card? (r/cursor state [:updating-card?])
-            need-card? (r/cursor stripe/state [:need-card?])
-            error-message (r/cursor state [:error-message])
-            current-plan (:name @(subscribe [:plans/current-plan]))]
-        [:div
-         (when (= current-plan "Basic")
-           [UpgradePlan])
-         (when (= current-plan "Unlimited")
-           [DowngradePlan])]))))
+    [UserPlans]))

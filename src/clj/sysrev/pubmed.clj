@@ -15,34 +15,29 @@
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil
-             :refer [in? map-values parse-integer]]))
+             :refer [in? map-values parse-integer ensure-pred]]))
 
 (def use-cassandra-pubmed? true)
 
 (def e-util-api-key (:e-util-api-key config/env))
 
 (defn extract-wrapped-text [x]
-  (cond (string? x) x
-
-        (and (map? x) (contains? x :tag) (contains? x :content)
-             (-> x :content first string?))
-        (-> x :content first)
-
-        :else nil))
+  (if (and (map? x) (contains? x :tag) (contains? x :content)
+           (-> x :content first string?))
+    (-> x :content first)
+    (ensure-pred string? x)))
 
 (defn parse-pubmed-author-names [authors]
-  (when-not (empty? authors)
-    (->> authors
-         (mapv
-          (fn [entry]
-            (let [last-name (xml-find-value entry [:LastName])
-                  initials (xml-find-value entry [:Initials])]
-              (if (string? initials)
-                (str last-name ", " (->> initials
-                                         (#(str/split % #" "))
-                                         (map #(str % "."))
-                                         (str/join " ")))
-                last-name))))
+  (when (seq authors)
+    (->> (for [entry authors]
+           (let [last-name (xml-find-value entry [:LastName])
+                 initials (xml-find-value entry [:Initials])]
+             (if (string? initials)
+               (str last-name ", " (->> initials
+                                        (#(str/split % #" "))
+                                        (map #(str % "."))
+                                        (str/join " ")))
+               last-name)))
          (filterv string?))))
 
 (defn extract-article-location-entries
@@ -51,34 +46,24 @@
   (distinct
    (concat
     (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
-         (map (fn [{tag :tag
-                    {source :EIdType} :attrs
-                    content :content}]
-                (map #(do {:source source
-                           :external-id %})
-                     content)))
+         (map (fn [{tag :tag, {source :EIdType} :attrs, content :content}]
+                (map #(hash-map :source source, :external-id %) content)))
          (apply concat))
     (->> (xml-find pxml [:PubmedData :ArticleIdList :ArticleId])
-         (map (fn [{tag :tag
-                    {source :IdType} :attrs
-                    content :content}]
-                (map #(do {:source source
-                           :external-id %})
-                     content)))
+         (map (fn [{tag :tag, {source :IdType} :attrs, content :content}]
+                (map #(hash-map :source source, :external-id %) content)))
          (apply concat)))))
 
 (defn parse-html-text-content [content]
-  (when content
-    (->> content
-         (map
-          (fn [txt]
-            (if (and (map? txt) (:tag txt))
-              ;; Handle embedded HTML
-              (when (:content txt)
-                (str "<" (name (:tag txt)) ">"
-                     (str/join (:content txt))
-                     "</" (name (:tag txt)) ">"))
-              txt)))
+  (when (or (string? content) (seq content))
+    (->> (for [txt content]
+           (if (and (map? txt) (:tag txt))
+             ;; Handle embedded HTML
+             (when (:content txt)
+               (str "<" (name (:tag txt)) ">"
+                    (str/join (:content txt))
+                    "</" (name (:tag txt)) ">"))
+             txt))
          (filter string?)
          (map str/trim)
          (str/join))))
@@ -177,8 +162,7 @@
    :fname "fetch-pmids-xml" :throttle-delay 100))
 
 (defn fetch-pmid-entries [pmids]
-  (->> (fetch-pmids-xml pmids)
-       parse-xml-str :content
+  (->> (:content (parse-xml-str (fetch-pmids-xml pmids)))
        (mapv parse-pmid-xml)
        (remove nil?)))
 
@@ -229,13 +213,9 @@
   (let [retmax 20
         esearch-result (:esearchresult (get-search-query query retmax (* (- page-number 1) retmax)))]
     (if (:ERROR esearch-result)
-      {:pmids []
-       :count 0}
-      {:pmids (mapv #(Integer/parseInt %)
-                    (-> esearch-result
-                        :idlist))
-       :count (Integer/parseInt (-> esearch-result
-                                    :count))})))
+      {:pmids [] :count 0}
+      {:pmids (mapv parse-integer (:idlist esearch-result))
+       :count (parse-integer (:count esearch-result))})))
 
 (defn get-pmids-summary
   "Given a vector of PMIDs, return the summaries as a map"
@@ -248,9 +228,7 @@
                                    "id" (str/join "," pmids)
                                    "api_key" e-util-api-key}})
          :body
-         (json/read-str :key-fn (fn [item] (if (int? (read-string item))
-                                             (read-string item)
-                                             (keyword item))))
+         (json/read-str :key-fn #(or (parse-integer %) (keyword %)))
          :result))
    :fname "get-pmids-summary"))
 
@@ -260,12 +238,10 @@
   (let [total-pmids (:count (get-search-query-response query 1))
         retmax (:max-import-articles config/env)
         max-pages (int (Math/ceil (/ total-pmids retmax)))]
-    (->> (range 0 max-pages)
-         (mapv
-          (fn [page]
-            (mapv #(Integer/parseInt %)
-                  (get-in (get-search-query query retmax (* page retmax))
-                          [:esearchresult :idlist]))))
+    (->> (for [page (range 0 max-pages)]
+           (->> (get-in (get-search-query query retmax (* page retmax))
+                        [:esearchresult :idlist])
+                (map parse-integer)))
          (apply concat)
          vec)))
 
@@ -301,8 +277,7 @@
   (when pmcid
     (util/wrap-retry
      (fn []
-       (let [parsed-html (-> (http/get oa-root-link
-                                       {:query-params {"id" pmcid}})
+       (let [parsed-html (-> (http/get oa-root-link {:query-params {"id" pmcid}})
                              :body
                              hickory/parse
                              hickory/as-hickory)]
@@ -313,7 +288,7 @@
      :fname "pdf-ftp-link" :max-retries 5 :retry-delay 1000)))
 
 (defn article-pmcid-pdf-filename
-  "Given a pmcid (PMC*), return the filename of the pdf returned for that pmcid, if it exists, nil otherwise"
+  "Return filename of the pdf for a pmcid (\"PMC*\") if exists."
   [pmcid]
   (when-let [pdf-link (pdf-ftp-link pmcid)]
     (let [filename (fs/base-name pdf-link)

@@ -136,22 +136,22 @@
           "string" input-string-with-label-name
           "categorical" select-with-text-label-name) f
     (f short-label value)
-    (Thread/sleep 50)))
+    (Thread/sleep 100)))
 
 (defn set-article-answers
   "Set and save answers on current article for a sequence of labels."
   [label-settings]
   (log/info "setting article labels")
   (nav/go-project-route "/review")
-  (Thread/sleep 200)
+  (Thread/sleep 300)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click x/review-labels-tab :delay 100 :displayed? true)
   (doseq [x label-settings] (set-label-answer x))
-  (Thread/sleep 200)
+  (Thread/sleep 300)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click ".button.save-labels" :delay 100 :displayed? true)
   (when (test/remote-test?) (Thread/sleep 500))
-  (b/wait-until-loading-completes :pre-wait 200)
+  (b/wait-until-loading-completes :pre-wait 300)
   (db/clear-query-cache))
 
 (defn randomly-set-article-labels
@@ -190,7 +190,6 @@
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
-      (nav/go-project-route "/add-articles")
       (pm/add-articles-from-search-term search-term-first)
 
 ;;; create new labels
@@ -292,8 +291,7 @@
         (is (= categorical-label-value
                (label-button-value (:short-label categorical-label-definition))))))
 
-  :cleanup
-  (when @project-id (project/delete-project @project-id)))
+  :cleanup (some-> @project-id (project/delete-project)))
 
 (defn randomly-review-all-articles
   "Randomly sets labels for articles until all have been reviewed"

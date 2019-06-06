@@ -144,6 +144,14 @@
            {:identifiers sql-identifier-to-clj
             :result-set-fn vec}))
 
+(defn raw-query
+  "Run a raw sql query for when there is no HoneySQL implementation of a SQL feature"
+  [raw-sql & [conn]]
+  (j/query (or conn *conn* @active-db)
+           raw-sql
+           {:identifiers sql-identifier-to-clj
+            :result-set-fn vec}))
+
 (defmacro with-debug-sql
   "Runs body with exception handler to print SQL error details."
   [& body]
@@ -289,12 +297,8 @@
           (swap! *transaction-query-cache* update-cache)))))
   nil)
 
-(defn clear-global-cache []
-  (clear-query-cache [:all-labels]))
-
 (defn clear-project-cache [& [project-id field-path clear-protected?]]
   (let [in-transaction (and *conn* *transaction-query-cache*)]
-    (clear-global-cache)
     (cond
       (and project-id field-path)
       (clear-query-cache (concat [:project project-id] field-path))
@@ -341,7 +345,7 @@
                           (merge {:dbname "postgres"})
                           make-db-config))
       (try
-        (-> (select (sql/call :pg_terminate_backend :pid))
+        (-> (select (sql/call "pg_terminate_backend" :pid))
             (from :pg-stat-activity)
             (where [:= :datname dbname])
             do-query

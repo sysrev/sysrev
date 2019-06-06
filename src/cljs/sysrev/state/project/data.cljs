@@ -11,7 +11,7 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.shared.transit :as sr-transit]
             [sysrev.util :refer [dissoc-in]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in? ->map-with-key]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))
@@ -26,12 +26,9 @@
                  (contains? :public-projects)))
   :uri (fn [] "/api/public-projects")
   :prereqs (fn [] [[:identity]])
-  :process
-  (fn [{:keys [db]} [] {:keys [projects]}]
-    (let [projects-map (->> projects
-                            (group-by :project-id)
-                            (sutil/map-values first))]
-      {:db (-> db (assoc-in [:data :public-projects] projects-map))})))
+  :process (fn [{:keys [db]} [] {:keys [projects]}]
+             {:db (assoc-in db [:data :public-projects]
+                            (->map-with-key :project-id projects))}))
 
 (def-data :project
   :loaded? project-loaded?
@@ -58,10 +55,8 @@
   :process
   (fn [{:keys [db]} [project-id] {:keys [settings project-name]}]
     {:db (cond-> db
-           settings
-           (assoc-in [:data :project project-id :settings] settings)
-           project-name
-           (assoc-in [:data :project project-id :name] project-name))}))
+           settings      (assoc-in [:data :project project-id :settings] settings)
+           project-name  (assoc-in [:data :project project-id :name] project-name))}))
 
 (def-data :project/files
   :loaded? project-loaded?
@@ -79,7 +74,8 @@
                  (contains? args)))
   :uri (fn [project-id] "/api/project-articles")
   :content (fn [project-id args]
-             (merge {:project-id project-id} args
+             (merge {:project-id project-id}
+                    args
                     {:lookup-count true}))
   :prereqs (fn [project-id]
              [[:identity]
@@ -172,3 +168,11 @@
    (->> (vals projects)
         (sort-by :project-id <)
         (map :project-id))))
+
+(reg-event-fx :project/fetch-all-projects
+              [trim-v]
+              (fn []
+                (let [projects @(subscribe [:self/projects])
+                      project-ids (map :project-id projects)]
+                  (doall (map #(dispatch [:fetch [:project %]]) project-ids)))
+                {}))

@@ -11,24 +11,22 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]
+            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
 
 (defn query-assignment-articles [project-id & [predict-run-id]]
-  (with-project-cache
-    project-id [:label-values :saved :articles predict-run-id]
+  (with-project-cache project-id [:label-values :saved :articles predict-run-id]
     (let [predict-run-id (or predict-run-id (q/project-latest-predict-run-id project-id))
           [articles labels]
           (pvalues
            (-> (q/select-project-articles project-id [:a.article-id])
                (q/with-article-predict-score predict-run-id)
                (->> do-query
-                    (group-by :article-id)
-                    (map-values first)
-                    (map-values #(-> % (assoc :users [] :score (or (:score %) 0.0))))))
+                    (->map-with-key :article-id)
+                    (map-values #(assoc % :users [] :score (or (:score %) 0.0)))))
            (-> (q/select-project-articles project-id [:a.article-id :al.user-id :al.confirm-time])
                (q/join-article-labels)
                (q/filter-valid-article-label nil)
@@ -42,8 +40,7 @@
       (merge-with merge articles labels))))
 
 (defn unlabeled-articles [project-id & [predict-run-id articles]]
-  (with-project-cache
-    project-id [:label-values :saved :unlabeled-articles predict-run-id]
+  (with-project-cache project-id [:label-values :saved :unlabeled-articles predict-run-id]
     (->> (vals (or articles (query-assignment-articles project-id predict-run-id)))
          (filter #(= 0 (count (:users-confirmed %))))
          (map #(dissoc % :users-confirmed)))))
@@ -136,8 +133,8 @@
   (-> (q/select-project-article-labels project-id true [:al.article-id])
       (q/filter-label-user user-id)
       (merge-where [:=
-                    (sql/call :date_trunc "day" :al.confirm-time)
-                    (sql/call :date_trunc "day" :%now)])
+                    (sql/call "date_trunc" "day" :al.confirm-time)
+                    (sql/call "date_trunc" "day" :%now)])
       (->> do-query (map :article-id) distinct count)))
 
 (defn get-user-label-task [project-id user-id]

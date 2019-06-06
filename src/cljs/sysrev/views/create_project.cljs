@@ -1,23 +1,70 @@
 (ns sysrev.views.create-project
-  (:require [re-frame.core :refer [subscribe dispatch dispatch-sync]]
-            [sysrev.util :as util]))
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync]]
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.util :as util]
+            [sysrev.views.semantic :refer
+             [Form FormField Input Message MessageHeader Segment Header Button Dropdown]])
+  (:require-macros [reagent.interop :refer [$]]))
 
 (def view :create-project)
+(defn field [path] (subscribe [:view-field view path]))
+(defn set-field-now [path val] (dispatch-sync [:set-view-field view path val]))
 
-(defn- CreateProjectForm []
-  (let [project-name (subscribe [:view-field view [:project-name]])
-        create-project #(dispatch [:action [:create-project @project-name]])]
-    [:form.create-project {:on-submit (util/wrap-prevent-default create-project)}
-     [:div.ui.action.input.fluid
-      [:input.project-name
-       {:type "text"
-        :placeholder "Project Name"
-        :on-change (util/wrap-prevent-default
-                    #(dispatch-sync [:set-view-field view [:project-name]
-                                     (-> % .-target .-value)]))}]
-      [:button.ui.primary.button.create-project "Create"]]]))
+(def-action :create-project
+  :uri (fn [_] "/api/create-project")
+  :content (fn [project-name] {:project-name project-name})
+  :process (fn [_ _ {:keys [success message project] :as result}]
+             (if success
+               {:dispatch-n
+                (list [:reload [:identity]]
+                      [:project/navigate (:project-id project)])}
+               ;; TODO: do something on error
+               {})))
 
-(defn CreateProject []
-  [:div.ui.secondary.segment.create-project
-   [:h4.ui.dividing.header "Create a New Project"]
-   [CreateProjectForm]])
+(def-action :create-org-project
+  :uri (fn [project-name org-id] (str "/api/org/" org-id "/project"))
+  :content (fn [project-name org-id] {:project-name project-name})
+  :process (fn [_ _ {:keys [success message project] :as result}]
+             (if success
+               {:dispatch-n
+                (list [:reload [:identity]]
+                      [:project/navigate (:project-id project)])}
+               ;; TODO: do something on error
+               {})))
+
+(defn- CreateProjectForm [& [initial-org-id]]
+  (let [project-name (field [:project-name])
+        orgs (subscribe [:self/orgs])
+        current-org-id (r/atom (or initial-org-id "current-user"))
+        create-project #(if (= @current-org-id "current-user")
+                          (dispatch [:action [:create-project @project-name]])
+                          (dispatch [:action [:create-org-project @project-name @current-org-id]]))]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        [Form {:class "create-project"
+               :on-submit (util/wrap-prevent-default create-project)}
+         [Input {:placeholder "Project Name"
+                 :class "project-name"
+                 :fluid true
+                 :action (r/as-element [Button {:primary true
+                                                :class "create-project"} "Create"])
+                 :on-change (util/on-event-value #(set-field-now [:project-name] %))}]
+         (when (and (not (empty? (->> @orgs
+                                      (filter #(some #{"owner" "admin"} (:permissions %))))))
+                    (nil? initial-org-id))
+           [:div {:style {:margin-top "0.5em"}} "Owner "
+            [Dropdown {:options (-> (map #(hash-map :text (:group-name %)
+                                                    :value (:group-id %)) @orgs)
+                                    (conj {:text @(subscribe [:user/display])
+                                           :value "current-user"}))
+                       :value @current-org-id
+                       :on-change (fn [event data]
+                                    (reset! current-org-id ($ data :value)))}]])])
+      :component-did-mount (fn [this] (dispatch [:read-orgs!]))})))
+
+(defn CreateProject [& [initial-org-id]]
+  [Segment {:secondary true}
+   [Header {:as "h4" :dividing true} "Create a New Project"]
+   [CreateProjectForm initial-org-id]])

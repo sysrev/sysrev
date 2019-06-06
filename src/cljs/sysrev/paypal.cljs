@@ -11,7 +11,7 @@
 
 (def panel [:project :project :paypal])
 
-(def state (r/cursor app-db [:state :panel panel]))
+(def state (r/cursor app-db [:state :panels panel]))
 
 (def minimum-amount "10.00")
 

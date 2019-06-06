@@ -13,7 +13,7 @@
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.views.panels.project.support :as support]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in? ->map-with-key]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:project :project :compensation])
@@ -55,10 +55,10 @@
     (GET "/api/project-compensations"
          {:params {:project-id project-id}
           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
+          :handler (fn [{:keys [result]}]
                      (reset! loading? false)
                      (reset! project-compensations
-                             (util/vector->hash-map (get-in response [:result :compensations]) :id)))
+                             (->map-with-key :compensation-id (:compensations result))))
           :error-handler (fn [response]
                            (reset! loading? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
@@ -72,15 +72,13 @@
      "/api/project-users-current-compensation"
      {:params {:project-id project-id}
       :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-      :handler (fn [response]
+      :handler (fn [{:keys [result]}]
                  (reset! loading? false)
                  (reset! users-current-comp
-                         (util/vector->hash-map
-                          (->> (get-in response [:result :project-users-current-compensation])
-                               (map #(update % :compensation-id
-                                             (fn [x] (if (nil? x) "none" x)))))
-                          :user-id)))
-      :error-handler (fn [error-response]
+                         (->> (:project-users-current-compensation result)
+                              (map #(update % :compensation-id (fn [x] (or x "none"))))
+                              (->map-with-key :user-id))))
+      :error-handler (fn [response]
                        (reset! loading? false)
                        ($ js/console log
                           "[Error] retrieving project-users-current-compensation for project-id: "
@@ -246,21 +244,21 @@
                                                               (constantly nil)
                                                               check-pending-interval)))})))
 
-(defn ToggleCompensationActive [{:keys [id] :as compensation}]
+(defn ToggleCompensationEnabled [{:keys [compensation-id] :as compensation}]
   (let [project-id @(subscribe [:active-project-id])
-        compensation-atom (r/cursor state [:project-compensations id])
-        active? (r/cursor compensation-atom [:active])
+        compensation-atom (r/cursor state [:project-compensations compensation-id])
+        enabled (r/cursor compensation-atom [:enabled])
         updating? (r/cursor compensation-atom [:updating?])]
     [Button {:toggle true
-             :active @active?
+             :active @enabled
              :disabled @updating?
              :on-click (fn [_]
-                         (swap! active? not)
+                         (swap! enabled not)
                          (reset! updating? true)
-                         (PUT "/api/toggle-compensation-active"
+                         (PUT "/api/toggle-compensation-enabled"
                               {:params {:project-id project-id
-                                        :compensation-id id
-                                        :active @active?}
+                                        :compensation-id compensation-id
+                                        :enabled @enabled}
                                :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                :handler (fn [response]
                                           (reset! updating? false)
@@ -269,7 +267,7 @@
                                                 ($ js/console log
                                                    (str "[Error] " "update-compensation!"))
                                                 (reset! updating? false))}))}
-     (if @active? "Active" "Disabled")]))
+     (if @enabled "Active" "Disabled")]))
 
 (defn CreateCompensationForm []
   (let [project-id @(subscribe [:active-project-id])
@@ -350,9 +348,9 @@
              [:div.ui.relaxed.divided.list
               (doall
                (for [c project-compensations]
-                 [:div.item {:key (:id c)}
+                 [:div.item {:key (:compensation-id c)}
                   [:div.right.floated.content
-                   [ToggleCompensationActive c]]
+                   [ToggleCompensationEnabled c]]
                   [:div.content {:style {:padding-top "4px"
                                          :padding-bottom "4px"}}
                    [CompensationAmount c admin-fee]]]))])
@@ -411,14 +409,13 @@
             (doall
              (map
               (fn [user-owed]
-                (let [user-name (-> (:email user-owed) (str/split #"@") first)
-                      {:keys [email compensation-owed last-payment connected
-                              user-id admin-fee]} user-owed
+                (let [{:keys [compensation-owed last-payment connected
+                              user-id admin-fee username]} user-owed
                       retrieving-amount-owed? @(r/cursor state [:loading :compensation-owed])
                       confirming? (r/cursor state [:confirming? user-id])
                       retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
                       error-message (r/cursor state [:pay-error user-id])]
-                  [:div.item {:key user-name}
+                  [:div.item {:key username}
                    (when @confirming?
                      [:div.ui.message {:position "absolute"}
                       [:div.ui.grid
@@ -457,7 +454,7 @@
                    [:div.ui.grid
                     [:div.five.wide.column
                      [:i.user.icon]
-                     email]
+                     username]
                     [:div.two.wide.column
                      (acct/cents->string compensation-owed)]
                     [:div.four.wide.column
@@ -479,10 +476,10 @@
   [project-compensations]
   (conj (->> (vals project-compensations)
              (sort-by #(get-in % [:rate :amount]))
-             (filter :active)
+             (filter :enabled)
              (map (fn [compensation]
                     {:text (rate->string (:rate compensation))
-                     :value (:id compensation)})))
+                     :value (:compensation-id compensation)})))
         {:text "No Compensation"
          :value "none"}))
 

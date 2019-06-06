@@ -120,13 +120,10 @@
           processed-label-counts)))
 
 (defn process-label-counts [project-id]
-  (with-project-cache
-    project-id [:member-label-counts]
+  (with-project-cache project-id [:member-label-counts]
     (let [article-labels (vals (labels/query-public-article-labels project-id))
           labels (project/project-labels project-id)
-          label-ids (->> labels
-                         keys
-                         (into []))]
+          label-ids (into [] (keys labels))]
       (->>
        ;; get the counts of the label's values
        (process-label-count article-labels labels)

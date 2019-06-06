@@ -11,6 +11,7 @@
             sysrev.test.browser.annotator
             sysrev.test.browser.simple
             sysrev.test.browser.sources
+            sysrev.test.browser.orgs
             sysrev.test.browser.plans
             sysrev.test.browser.project-compensation
             sysrev.test.browser.project-support
@@ -21,6 +22,5 @@
             sysrev.test.browser.review-settings
             sysrev.test.browser.label-settings
             sysrev.test.browser.user-profiles
-            sysrev.test.stripe
             sysrev.test.web.routes.api.handlers
             sysrev.test.web.routes.project))

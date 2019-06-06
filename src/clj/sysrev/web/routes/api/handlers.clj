@@ -491,9 +491,7 @@
     There are currently only two types of annotations for article, those which label an abstract or label a pdf. If an annotation has a pdf-source, it can be assumed the selection comes from a pdf. Otherwise, if there is no pdf-source the selection is associated with just the title, author or abstract of an article"}
   (fn [request]
     (let [{:keys [project-id] :as body}
-          (-> request
-              :query-params
-              walk/keywordize-keys)]
+          (walk/keywordize-keys (:query-params request))]
       {:result (api/project-annotations (parse-integer project-id))})))
 
 (def-webapi
@@ -568,26 +566,22 @@
          500 :api "Only one of admin-members-only, user-names-only, user-ids-only may be used")
 
         :else
-        (let [to-user-ids
-              (fn [user-names]
-                ;; TODO: will need to update this for customizable user names
-                (->> (q/select-project-members project-id [:u.user-id :u.email])
-                     do-query
-                     (filter
-                      #(and (-> % :email string?)
-                            (in? user-names
-                                 (-> % :email (str/split #"@") first))))
-                     (map :user-id)))
-              user-ids
-              (or user-ids-only
-                  (and user-names-only (to-user-ids user-names-only)))
-              new-project-id (clone/clone-project
-                              new-project-name project-id
-                              :articles articles
-                              :labels labels
-                              :answers answers
-                              :members members
-                              :user-ids-only user-ids)]
+        (let [to-user-ids (fn [user-names]
+                            ;; TODO: will need to update this for customizable user names
+                            (->> (do-query (q/select-project-members
+                                            project-id [:u.user-id :u.email]))
+                                 (filter #(and (-> % :email string?)
+                                               (in? user-names
+                                                    (-> % :email (str/split #"@") first))))
+                                 (map :user-id)))
+              user-ids (or user-ids-only
+                           (and user-names-only (to-user-ids user-names-only)))
+              new-project-id (clone/clone-project new-project-name project-id
+                                                  :articles articles
+                                                  :labels labels
+                                                  :answers answers
+                                                  :members members
+                                                  :user-ids-only user-ids)]
           {:result {:success true
                     :new-project {:project-id new-project-id
                                   :name new-project-name

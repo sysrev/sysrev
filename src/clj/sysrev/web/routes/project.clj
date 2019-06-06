@@ -11,8 +11,7 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
-            [sysrev.web.app :as web :refer
-             [wrap-authorize current-user-id active-project]]
+            [sysrev.web.app :as web :refer [wrap-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction with-project-cache]]
@@ -20,6 +19,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.export :as export]
+            [sysrev.db.groups :as groups]
             [sysrev.article.core :as article]
             [sysrev.db.documents :as docs]
             [sysrev.label.core :as labels]
@@ -86,16 +86,15 @@
                        (labels/article-resolved-status project-id article-id)
                        (labels/article-resolved-labels project-id article-id)))]
     {:article (merge (prepare-article-response article)
-                     {:pdfs (-> article-pdfs :result :files)}
+                     {:pdfs (:files article-pdfs)}
                      {:review-status consensus}
                      {:resolve (merge resolve {:labels resolve-labels})})
      :labels user-labels
      :notes user-notes}))
 
 (defn project-info [project-id]
-  (with-project-cache
-    project-id [:project-info]
-    (let [[[fields users labels keywords notes members predict importance url-ids files documents]
+  (with-project-cache project-id [:project-info]
+    (let [[[fields users labels keywords notes members predict importance url-ids files documents owner plan subscription-lapsed?]
            [_ [status-counts progress]]
            [articles sources]]
           (pvalues [(q/query-project-by-id project-id [:*])
@@ -106,14 +105,17 @@
                     (labels/project-members-info project-id)
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
-                    (:result (api/important-terms project-id))
+                    (api/important-terms project-id)
                     (try
                       (project/project-url-ids project-id)
                       (catch Throwable e
                         (log/info "exception in project-url-ids")
                         []))
                     (files/list-document-files-for-project project-id)
-                    (docs/all-article-document-paths project-id)]
+                    (docs/all-article-document-paths project-id)
+                    (project/get-project-owner project-id)
+                    (api/project-owner-plan project-id)
+                    (api/subscription-lapsed? project-id)]
                    [(labels/query-public-article-labels project-id)
                     (pvalues (labels/project-article-status-counts project-id)
                              (labels/query-progress-over-time project-id 30))]
@@ -136,7 +138,10 @@
                  :documents documents
                  :sources sources
                  :importance importance
-                 :url-ids url-ids}
+                 :url-ids url-ids
+                 :owner owner
+                 :plan plan
+                 :subscription-lapsed? subscription-lapsed?}
        :users users})))
 
 ;;;
@@ -179,7 +184,8 @@
 
 (dr (GET "/api/project-info" request
          (wrap-authorize
-          request {:allow-public true}
+          request {:allow-public true
+                   :bypass-subscription-lapsed? true}
           (let [project-id (active-project request)
                 valid-project
                 (and (integer? project-id)
@@ -226,20 +232,38 @@
 (dr (GET "/api/lookup-project-url" request
          (wrap-authorize
           request {}
-          {:result (when-let [project-id (try (some-> request :params :url-id
-                                                      project/project-id-from-url-id)
-                                              (catch Throwable e nil))]
-                     {:project-id project-id})})))
+          {:result (let [url-id (-> request :params :url-id sutil/read-transit-str)
+                         self-id (current-user-id request)
+                         [project-url-id {:keys [user-url-id org-url-id]}] url-id
+                         ;; TODO: lookup project-id from combination of owner/project names
+                         project-id (project/project-id-from-url-id project-url-id)
+                         owner (some-> project-id project/get-project-owner)
+                         user-id (some-> user-url-id users/user-id-from-url-id)
+                         org-id (some-> org-url-id groups/group-id-from-url-id)
+                         user-match? (and user-id (= user-id (:user-id owner)))
+                         org-match? (and org-id (= org-id (:group-id owner)))
+                         owner-url? (boolean (or user-url-id org-url-id))
+                         user-redirect? (and (not owner-url?) (:user-id owner))
+                         org-redirect? (and (not owner-url?) (:group-id owner))
+                         no-owner? (and (nil? owner) project-id)]
+                     (cond
+                       ;; TODO: remove this after migration to set owners
+                       no-owner?       {:project-id project-id}
+                       user-match?     {:project-id project-id :user-id user-id}
+                       org-match?      {:project-id project-id :org-id org-id}
+                       user-redirect?  {:project-id project-id :user-id (:user-id owner)}
+                       org-redirect?   {:project-id project-id :org-id (:group-id owner)}
+                       project-id      {:project-id project-id}
+                       :else        nil))})))
 
 (dr (GET "/api/query-register-project" request
          (wrap-authorize
           request {}
           (let [register-hash (-> request :params :register-hash)
                 project-id (project/project-id-from-register-hash register-hash)]
-            (if (nil? project-id)
-              {:result {:project nil}}
-              (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-                {:result {:project {:project-id project-id :name name}}}))))))
+            {:project (when project-id
+                        (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
+                          {:project-id project-id :name name}))}))))
 
 ;; Returns map with full information on an article
 (dr (GET "/api/article-info/:article-id" request
@@ -411,25 +435,19 @@
 
 (dr (GET "/api/project-settings" request
          (wrap-authorize
-          request {:allow-public true}
+          request {:allow-public true
+                   :bypass-subscription-lapsed? true}
           (let [project-id (active-project request)]
-            {:result {:settings (project/project-settings project-id)
-                      :project-name (-> (q/select-project-where
-                                         [:= :project-id project-id]
-                                         [:name])
-                                        do-query first :name)}}))))
+            {:settings (project/project-settings project-id)
+             :project-name (-> (q/select-project-where [:= :project-id project-id] [:name])
+                               do-query first :name)}))))
 
 (dr (POST "/api/change-project-settings" request
           (wrap-authorize
            request {:roles ["admin"]}
            (let [project-id (active-project request)
                  {:keys [changes]} (:body request)]
-             (doseq [{:keys [setting value]} changes]
-               (project/change-project-setting
-                project-id (keyword setting) value))
-             {:result
-              {:success true
-               :settings (project/project-settings project-id)}}))))
+             (api/change-project-settings project-id changes)))))
 
 (dr (POST "/api/change-project-name" request
           (wrap-authorize
@@ -437,9 +455,7 @@
            (let [project-id (active-project request)
                  {:keys [project-name]} (:body request)]
              (project/change-project-name project-id project-name)
-             {:result
-              {:success true
-               :project-name project-name}}))))
+             {:success true, :project-name project-name}))))
 
 (dr (POST "/api/change-project-permissions" request
           (wrap-authorize
@@ -490,17 +506,15 @@
                  user-id (current-user-id request)]
              (api/toggle-source source-id enabled?)))))
 
-(dr (GET "/api/sources/download/:project-id/:source-id/:key/:filename" request
+(dr (GET "/api/sources/download/:project-id/:source-id" request
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                key (-> request :params :key)
-                filename (-> request :params :filename)
-                data (fstore/get-file key :import)]
-            (-> (response/response data)
-                (response/header
-                 "Content-Disposition"
-                 (format "attachment; filename=\"%s\"" filename)))))))
+                source-id (parse-integer (-> request :params :source-id))
+                {:keys [key filename]} (source/source-upload-file source-id)]
+            (-> (response/response (fstore/get-file-stream key :import))
+                (response/header "Content-Disposition"
+                                 (format "attachment; filename=\"%s\"" filename)))))))
 
 ;;;
 ;;; Project document files
@@ -513,12 +527,15 @@
                 files (files/list-document-files-for-project project-id)]
             {:result (vec files)}))))
 
-(dr (GET "/api/files/:project-id/download/:file-key/:filename" request
+(dr (GET "/api/files/:project-id/download/:file-key" request
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                {:keys [file-key filename]} (:params request)]
-            (-> (response/response (fstore/get-file file-key :document))
+                {:keys [file-key]} (:params request)
+                filename (:name (->> (files/list-document-files-for-project project-id)
+                                     (filter #(= file-key (str (:file-id %))))
+                                     first))]
+            (-> (response/response (fstore/get-file-stream file-key :document))
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
 
@@ -676,7 +693,7 @@
 
 ;; TODO: article-id is ignored; check value or remove
 (dr (GET "/api/open-access/:article-id/view/:key" [article-id key]
-         (-> (response/response (fstore/get-file key :pdf))
+         (-> (response/response (fstore/get-file-stream key :pdf))
              (response/header "Content-Type" "application/pdf"))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
@@ -694,27 +711,38 @@
           (let [{:keys [article-id]} (:params request)]
             (api/article-pdfs (parse-integer article-id))))))
 
-(dr (GET "/api/files/:project-id/article/:article-id/download/:key/:filename" request
+(dr (GET "/api/files/:project-id/article/:article-id/download/:key" request
          (wrap-authorize
           request {:roles ["member"]}
-          (let [{:keys [key filename]} (:params request)]
-            (-> (response/response (fstore/get-file key :pdf))
+          (let [key (-> request :params :key)
+                article-id (parse-integer (-> request :params :article-id))
+                {:keys [filename]} (->> (files/get-article-file-maps article-id)
+                                        (filter #(= key (str (:key %))))
+                                        first)]
+            (-> (response/response (fstore/get-file-stream key :pdf))
                 (response/header "Content-Type" "application/pdf")
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
 
-(dr (GET "/api/files/:project-id/article/:article-id/view/:key/:filename" request
+(dr (GET "/api/files/:project-id/article/:article-id/view/:key" request
          (wrap-authorize
           request {:roles ["member"]}
           (let [{:keys [key]} (:params request)]
-            (-> (response/response (fstore/get-file key :pdf))
+            (-> (response/response (fstore/get-file-stream key :pdf))
                 (response/header "Content-Type" "application/pdf"))))))
 
-(dr (POST "/api/files/:project-id/article/:article-id/delete/:key/:filename" request
+(dr (POST "/api/files/:project-id/article/:article-id/delete/:key" request
           (wrap-authorize
-           request {:roles ["member"]}
-           (let [{:keys [article-id key filename]} (:params request)]
-             (api/dissociate-article-pdf article-id key filename)))))
+           request {:roles ["admin"]}
+           (let [key (-> request :params :key)
+                 article-id (parse-integer (-> request :params :article-id))
+                 {:keys [filename]} (->> (files/get-article-file-maps article-id)
+                                         (filter #(= key (str (:key %))))
+                                         first)]
+             (if (not= (article/article-project-id article-id) (active-project request))
+               {:error {:status api/not-found
+                        :message (str "Article " article-id " not found in project")}}
+               (api/dissociate-article-pdf article-id key filename))))))
 
 ;;;
 ;;; Article annotations
@@ -742,8 +770,8 @@
                                  :context (:context annotation-map) :pdf-key pdf-key)))]
                (when (and (string? semantic-class)
                           (not-empty semantic-class)
-                          (-> result :result :annotation-id))
-                 (api/update-annotation! (-> result :result :annotation-id)
+                          (:annotation-id result))
+                 (api/update-annotation! (:annotation-id result)
                                          annotation semantic-class user-id))
                result)))))
 
@@ -808,12 +836,12 @@
           (let [project-id (active-project request)]
             (api/read-project-compensations project-id)))))
 
-(dr (PUT "/api/toggle-compensation-active" request
+(dr (PUT "/api/toggle-compensation-enabled" request
          (wrap-authorize
           request {:roles ["admin"]}
           (let [project-id (active-project request)
-                {:keys [compensation-id active]} (:body request)]
-            (api/toggle-compensation-active! project-id compensation-id active)))))
+                {:keys [compensation-id enabled]} (:body request)]
+            (api/toggle-compensation-enabled! project-id compensation-id enabled)))))
 
 (dr (GET "/api/get-default-compensation" request
          (wrap-authorize
@@ -874,7 +902,7 @@
                  {:keys [verify-user-id]} (:body request)]
              (assert (= user-id verify-user-id) "verify-user-id mismatch")
              (project/delete-member-labels-notes project-id user-id)
-             {:result {:success true}}))))
+             {:success true}))))
 
 (dr (POST "/api/update-project-predictions" request
           (wrap-authorize

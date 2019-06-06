@@ -6,24 +6,26 @@
   #?(:clj (:import java.util.UUID
                    (java.io ByteArrayOutputStream ByteArrayInputStream))))
 
+(defn ensure-pred
+  "Returns value if (pred value) returns logical true, otherwise
+  returns nil. With one argument, returns a function using pred that
+  can be applied to a value."
+  ([pred] #(ensure-pred pred %))
+  ([pred value] (when (pred value) value)))
+
 (defn parse-integer
   "Reads a number from a string. Returns nil if not a number."
   [s]
   (if (integer? s) s
       (when (and (string? s) (re-find #"^ *\d+ *$" s))
         #?(:clj
-           (try
-             (Integer/parseInt s)
-             (catch Throwable e
-               (try
-                 (read-string s)
-                 (catch Throwable e2
-                   nil))))
-
+           (try (Integer/parseInt s)
+                (catch Throwable e
+                  (try (->> (read-string s) (ensure-pred integer?))
+                       (catch Throwable e2 nil))))
            :cljs
-           (let [val (js/parseInt s)]
-             (when (and (integer? val) (not= val ##NaN) (not (js/isNaN val)))
-               val))))))
+           (->> (js/parseInt s)
+                (ensure-pred #(and (integer? %) (not= % ##NaN) (not (js/isNaN %)))))))))
 
 (defn parse-number
   "Reads a number from a string. Returns nil if not a number."
@@ -60,9 +62,12 @@
            res)))))
 
 (defn in?
-  "Tests if `coll` contains an element equal to `x`.
-  With one argument `coll`, returns the function #(in? coll %)."
-  ([coll x] (some #(= x %) coll))
+  "Tests if `coll` contains an element equal to `x`. With one argument `coll`,
+  returns the function #(in? coll %). Delegates to `contains?` for
+  efficiency if `coll` is a set."
+  ([coll x] (if (set? coll)
+              (contains? coll x)
+              (some #(= x %) coll)))
   ([coll] #(in? coll %)))
 
 (defn map-values
@@ -74,17 +79,15 @@
    (map-values f {} m)))
 
 (defn check
-  "Returns val after running an assertion on `(f val)`.
-  If `f` is not specified, checks that `(not (nil? val))`."
+  "Returns val after running an assertion on (f val).
+  If f is not specified, checks that (not (nil? val))."
   [val & [f]]
-  (let [f (or f (comp not nil?))]
-    (assert (f val))
-    val))
+  (assert ((or f (comp not nil?)) val))
+  val)
 
 (defn conform-map [spec x]
   (and (s/valid? spec x)
-       (->> (s/conform spec x)
-            (apply hash-map))))
+       (apply hash-map (s/conform spec x))))
 
 (s/def ::uuid uuid?)
 
@@ -92,18 +95,14 @@
 
 (defn to-uuid [uuid-or-str]
   (let [in (conform-map ::uuid-or-str uuid-or-str)]
-    (cond
-      (contains? in :uuid) (:uuid in)
-      (contains? in :str)
-      #?(:clj (UUID/fromString (:str in))
-         :cljs (uuid (:str in)))
-      :else nil)))
+    (cond (contains? in :uuid)  (:uuid in)
+          (contains? in :str)   #?(:clj (UUID/fromString (:str in))
+                                   :cljs (uuid (:str in))))))
 
 (defn num-to-english [n]
-  (get ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight"
-        "nine" "ten" "eleven" "twelve" "thirteen" "fourteen" "fifteen"
-        "sixteen"]
-       n))
+  (-> ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"
+       "eleven" "twelve" "thirteen" "fourteen" "fifteen" "sixteen"]
+      (get n)))
 
 (defn short-uuid [uuid]
   (last (str/split (str uuid) #"\-")))
@@ -122,8 +121,7 @@
 (defn pluralize
   "Add an 's' to end of string depending on count."
   [item-count string]
-  (when string
-    (cond-> string (not= item-count 1) (str "s"))))
+  (when string (cond-> string (not= item-count 1) (str "s"))))
 
 (defn string-ellipsis
   "Shorten s using ellipsis in the middle when length is >= max-length."
@@ -214,18 +212,12 @@
   [s & {:keys [parens] :or {parens "()"}}]
   (when s (str (subs parens 0 1) s (subs parens 1 2))))
 
-(defn ensure-value
-  "Returns value if (test value) evaluates as logical true, otherwise
-  returns nil. With one argument, returns a function using test that
-  can be applied to a value."
-  ([test] #(ensure-value test %))
-  ([test value] (when (test value) value)))
-
 (defn filter-values
-  "Filters map key-value entries by testing values against f."
-  [f m]
+  "Returns a map of the entries in m for which (pred value) returns
+  logical true."
+  [pred m]
   (->> (seq m)
-       (filter (fn [[k v]] (f v)))
+       (filter (fn [[k v]] (pred v)))
        (apply concat)
        (apply hash-map)))
 
@@ -243,3 +235,20 @@
                (transit/read))
      :cljs (-> (transit/reader :json)
                (transit/read s))))
+
+;; Slightly modified from clojure.core/group-by
+(defn ->map-with-key [keyfn coll]
+  "Variant of clojure.core/group-by for unique key values.
+
+  Returns a map of the elements of coll keyed by the result of keyfn
+  on each element. The elements of coll must all have a unique value
+  for keyfn. The value at each key will be the single corresponding
+  element."
+  (persistent!
+   (reduce
+    (fn [ret x]
+      (let [k (keyfn x)]
+        (assert (= ::not-found (get ret k ::not-found))
+                (str "->map-with-key: duplicate key value (" k ")"))
+        (assoc! ret k x)))
+    (transient {}) coll)))

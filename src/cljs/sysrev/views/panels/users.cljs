@@ -2,10 +2,10 @@
   (:require [clojure.string :as str]
             [ajax.core :refer [GET]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe]]
+            [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.base]
-            [sysrev.views.panels.user.profile :refer [User Profile]]
+            [sysrev.views.panels.user.profile :refer [User]]
             [sysrev.views.semantic :refer [Segment Message MessageHeader]]
             [sysrev.views.base :refer [panel-content logged-out-content]])
   (:require-macros [reagent.interop :refer [$]]))
@@ -63,8 +63,9 @@
        (cond
          (re-matches #"/users/{0,1}$" @current-path)
          [AllUsers]
-         (re-matches #"/users/\d+" @current-path)
-         [Profile {:user-id (js/parseInt (second (re-matches #"/users/(\d+)" @current-path)))}])])))
+         (re-matches #"/user/(\d+)/.*" @current-path)
+         (dispatch [:set-active-panel [:user-main]])
+         )])))
 
 (defmethod logged-out-content [:users] []
   (logged-out-content :logged-out))

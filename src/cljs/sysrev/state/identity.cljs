@@ -17,7 +17,7 @@
   :loaded? have-identity?
   :uri (fn [] "/api/auth/identity")
   :process
-  (fn [{:keys [db]} _ {:keys [identity projects]}]
+  (fn [{:keys [db]} _ {:keys [identity projects orgs]}]
     (let [have-user? (contains? identity :user-id)
           cur-theme (get-in db [:state :identity :settings :ui-theme])
           new-theme (get-in identity [:settings :ui-theme])
@@ -33,7 +33,8 @@
       (cond->
           {:db (cond-> (-> db
                            (assoc-in [:state :identity] identity)
-                           (assoc-in [:state :self :projects] projects))
+                           (assoc-in [:state :self :projects] projects)
+                           (assoc-in [:state :self :orgs] orgs))
                  have-user? (store-user-map identity))
            :dispatch-n (list [:load-project-url-ids url-ids-map])}
           theme-changed?
@@ -79,29 +80,26 @@
  (fn [db]
    (dissoc-in db [:state :identity])))
 
-(reg-sub
- ::identity
- (fn [db]
-   (get-in db [:state :identity])))
+(reg-sub ::identity #(get-in % [:state :identity]))
 
-(reg-sub
- :self/identity
- (fn [db]
-   (get-in db [:state :identity])))
+(reg-sub :self/email
+         :<- [::identity]
+         (fn [identity] (:email identity)))
+
+(reg-sub :self/verified
+         :<- [::identity]
+         (fn [identity] (:verified identity)))
 
 (defn current-user-id [db]
   (get-in db [:state :identity :user-id]))
 
 (reg-sub :self/user-id current-user-id)
 
-(reg-sub
- :self/logged-in?
- :<- [:self/user-id]
- (fn [user-id] ((comp not nil?) user-id)))
+(reg-sub :self/logged-in?
+         :<- [:self/user-id]
+         (fn [user-id] ((comp not nil?) user-id)))
 
-(reg-sub
- ::self-state
- (fn [db] (get-in db [:state :self])))
+(reg-sub ::self-state #(get-in % [:state :self]))
 
 (defn get-self-projects [db & {:keys [include-available?]}]
   (let [{:keys [projects]} (get-in db [:state :self])]
@@ -109,13 +107,28 @@
       projects
       (->> projects (filterv :member?)))))
 
-(reg-sub
- :self/projects
- :<- [::self-state]
- (fn [{:keys [projects]} [_ include-available?]]
-   (if include-available?
-     projects
-     (->> projects (filterv :member?)))))
+(reg-sub :self/projects
+         :<- [::self-state]
+         (fn [{:keys [projects]} [_ include-available?]]
+           (if include-available?
+             projects
+             (filterv :member? projects))))
+
+(reg-sub :self/orgs
+         :<- [::self-state]
+         (fn [self] (:orgs self)))
+
+(reg-sub :self/org-permissions
+         :<- [:self/orgs]
+         (fn [orgs [_ org-id]]
+           ((comp :permissions first)
+            (filter #(= (:group-id %) org-id) orgs))))
+
+(reg-event-db
+ :self/set-orgs!
+ [trim-v]
+ (fn [db [orgs]]
+   (assoc-in db [:state :self :orgs] orgs)))
 
 (reg-sub
  :self/member?

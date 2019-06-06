@@ -11,12 +11,14 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.core :as db :refer [do-execute with-transaction]]
+            [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
+            [sysrev.db.groups :as groups]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [parse-integer ensure-pred]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
@@ -32,9 +34,7 @@
           (try (taxi/quit) (catch Throwable e nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
-                             (.addArguments
-                              ["window-size=1920,1080"
-                               "headless"]))
+                             (.addArguments ["window-size=1920,1080" "headless" "no-sandbox"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
@@ -67,26 +67,32 @@
     (taxi/quit)
     (reset! active-webdriver nil)))
 
+(defonce webdriver-shutdown-hook (atom nil))
+
+(defn ensure-webdriver-shutdown-hook
+  "Ensures that any chromedriver process is killed when JVM exits."
+  []
+  (when-not @webdriver-shutdown-hook
+    (let [runtime (Runtime/getRuntime)]
+      (.addShutdownHook runtime (Thread. #(stop-webdriver)))
+      (reset! webdriver-shutdown-hook true))))
+
 (def test-login
   {:email "browser+test@insilica.co"
    :password "1234567890"})
 
-(defn delete-test-user [& {:keys [email]
-                           :or {email (:email test-login)}}]
+(defn delete-test-user [& {:keys [email] :or {email (:email test-login)}}]
   (with-transaction
-    (let [{:keys [user-id] :as user}
-          (users/get-user-by-email email)]
-      (when user
-        (try
-          (when (:stripe-id user)
-            (stripe/delete-customer! user))
-          (catch Throwable t
-            nil))
-        (when user-id
-          (-> (delete-from :compensation-user-period)
-              (where [:= :web-user-id user-id])
-              do-execute))
-        (users/delete-user-by-email email)))))
+    (when-let [{:keys [user-id stripe-id] :as user}
+               (users/get-user-by-email email)]
+      (when stripe-id
+        (try (stripe/delete-customer! user)
+             (catch Throwable t nil)))
+      (when user-id
+        (-> (delete-from :compensation-user-period)
+            (where [:= :user-id user-id])
+            do-execute))
+      (users/delete-user-by-email email))))
 
 (defn create-test-user [& {:keys [email password project-id]
                            :or {email (:email test-login)
@@ -102,7 +108,7 @@
   not."
   [q]
   (boolean (some #(boolean (try (and (taxi/exists? %) (taxi/displayed? %))
-                                (catch StaleElementReferenceException e false)))
+                                (catch Throwable e false)))
                  (taxi/elements q))))
 
 (defn try-wait
@@ -121,7 +127,7 @@
   timeout."
   [pred & [timeout interval]]
   (let [timeout (or timeout (if (test/remote-test?) 10000 5000))
-        interval (or interval 20)]
+        interval (or interval 25)]
     (when-not (pred)
       (Thread/sleep interval)
       (taxi/wait-until pred timeout interval))))
@@ -139,14 +145,14 @@
   (wait-until #(displayed-now? q) timeout interval))
 
 (defn wait-until-loading-completes
-  [& {:keys [timeout interval pre-wait]
-      :or {pre-wait false}}]
+  [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
   (let [timeout (if (test/remote-test?) 45000 timeout)]
     (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 75)))
-    (wait-until #(every? (complement displayed-now?) ["div.ui.loader.active"
-                                                      "div.ui.dimmer.active"
-                                                      ".ui.button.loading"])
-                timeout interval)))
+    (is (try-wait wait-until #(every? (complement displayed-now?)
+                                      ["div.ui.loader.active"
+                                       "div.ui.dimmer.active > .ui.loader"
+                                       ".ui.button.loading"])
+                  timeout interval))))
 
 (defn current-project-id
   "Reads project id from current url. Waits a short time before
@@ -167,25 +173,8 @@
   found, unless now is true."
   [& [now]]
   (when-let [project-id (current-project-id now)]
-    (second (re-matches (re-pattern
-                         (format ".*/p/%d(.*)$" project-id))
+    (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
-
-(defn webdriver-fixture-once [f]
-  (f)
-  (stop-webdriver))
-
-(defn webdriver-fixture-each [f]
-  (let [local? (= "localhost" (:host (test/get-selenium-config)))
-        cache? @db/query-cache-enabled]
-    (do (when-not local?
-          (reset! db/query-cache-enabled false))
-        (when (test/db-connected?)
-          (create-test-user))
-        (start-webdriver true)
-        (f)
-        (when-not local?
-          (reset! db/query-cache-enabled cache?)))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
   (wait-until-displayed q)
@@ -245,25 +234,18 @@
   (not-class q "loading"))
 
 (defn click [q & {:keys [if-not-exists delay displayed?]
-                  :or {if-not-exists :wait
-                       delay 25
-                       displayed? false}}]
-  (let [;; Auto-exclude "disabled" class when q is CSS query
-        q (not-disabled q)
+                  :or {if-not-exists :wait, delay 30, displayed? false}}]
+  (let [q (not-disabled q) ; auto-exclude "disabled" class when q is css
         go (fn []
              (when (= if-not-exists :wait)
-               (if displayed?
-                 (wait-until-displayed q)
-                 (wait-until-exists q)))
-             (when-not (and (not (taxi/exists? q))
-                            (= if-not-exists :skip))
+               (if displayed? (wait-until-displayed q) (wait-until-exists q)))
+             (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
                (taxi/click q)))]
-    (try
-      (go)
-      (catch Throwable e
-        (wait-until-loading-completes :pre-wait (+ delay 50))
-        (go)))
-    (Thread/sleep 20)))
+    (try (go)
+         (catch Throwable e
+           (wait-until-loading-completes :pre-wait (+ delay 50))
+           (go)))
+    (Thread/sleep delay)))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -276,10 +258,10 @@
   true)
 
 (defn take-screenshot [& [error?]]
-  (let [filename (str "/tmp/screenshot-" (System/currentTimeMillis) ".png")
+  (let [path (util/tempfile-path (str "screenshot-" (System/currentTimeMillis) ".png"))
         level (if error? :error :info)]
-    (log/logp level "Saving screenshot:" filename)
-    (try (taxi/take-screenshot :file filename)
+    (try (taxi/take-screenshot :file path)
+         (log/logp level "Screenshot saved:" path)
          (catch Throwable e
            (log/error "Screenshot failed:" (type e) (.getMessage e))))))
 
@@ -303,3 +285,127 @@
 (defn current-frame-names []
   (->> (taxi/xpath-finder "//iframe")
        (map #(taxi/attribute % :name))))
+
+(defn get-elements-text
+  "Returns vector of taxi/text values for the elements matching q.
+  Waits until at least one element is displayed unless wait? is
+  logical false."
+  [q & {:keys [wait?] :or {wait? true}}]
+  (when wait? (wait-until-displayed q))
+  (mapv taxi/text (taxi/elements q)))
+
+(defn delete-compensation-by-id [project-id compensation-id]
+  ;; delete from compensation-user-period
+  (-> (delete-from :compensation-user-period)
+      (where [:= :compensation-id compensation-id])
+      do-execute)
+  ;; delete from compensation-project-default
+  (-> (delete-from :compensation-project-default)
+      (where [:= :compensation-id compensation-id])
+      do-execute)
+  ;; delete from compensation-project
+  (-> (delete-from :compensation-project)
+      (where [:= :compensation-id compensation-id])
+      do-execute)
+  ;; delete from compensation
+  (-> (delete-from :compensation)
+      (where [:= :compensation-id compensation-id])
+      do-execute))
+
+(defn delete-project-compensations [project-id]
+  (doseq [{:keys [compensation-id]} (-> (select :compensation-id)
+                                        (from :compensation-project)
+                                        (where [:= :project-id project-id])
+                                        do-query)]
+    (delete-compensation-by-id project-id compensation-id)))
+
+(defn delete-test-user-projects! [user-id & [compensations]]
+  (doseq [{:keys [project-id]} (users/user-projects user-id)]
+    (when compensations (delete-project-compensations project-id))
+    (project/delete-project project-id)))
+
+(defn delete-test-user-groups! [user-id]
+  (doseq [{:keys [group-id]} (groups/read-groups user-id)]
+    (groups/delete-group! group-id)))
+
+(defn cleanup-test-user!
+  "Deletes a test user by user-id or email, along with other entities
+  the user is associated with."
+  [& {:keys [user-id email projects compensations groups]
+      :or {projects true, compensations true, groups false}}]
+  (assert (or (integer? user-id) (string? email)))
+  (assert (not (and (integer? user-id) (string? email))))
+  (let [email (or email (:email (users/get-user-by-id user-id)))
+        user-id (or user-id (:user-id (users/get-user-by-email email)))]
+    (when (and email user-id)
+      (when projects (delete-test-user-projects! user-id compensations))
+      (when groups (delete-test-user-groups! user-id))
+      (delete-test-user :email email))))
+
+(defn url->path
+  "Returns relative path component of URL string."
+  [uri]
+  (.getPath (java.net.URI. uri)))
+
+(defn path->url
+  "Returns full URL from relative path string, based on test config."
+  [path]
+  (let [path (if (empty? path) "/" path)]
+    (str (:url (test/get-selenium-config))
+         (if (= (nth path 0) \/)
+           (subs path 1) path))))
+
+(defmacro is-soon
+  "Runs (is pred-form) after attempting to wait for pred-form to
+  evaluate as logical true."
+  [pred-form & [timeout interval]]
+  `(do (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
+       (is ~pred-form)))
+
+(defn is-current-path
+  "Runs test assertion that current URL matches relative path."
+  [path]
+  (is-soon (= path (url->path (taxi/current-url)))))
+
+(defn init-route [path & {:keys [silent]}]
+  (let [full-url (path->url path)]
+    (when-not silent (log/info "loading" full-url))
+    (taxi/to full-url)
+    (wait-until-loading-completes :pre-wait 100)
+    (wait-until-loading-completes :pre-wait 100)
+    (taxi/execute-script "sysrev.base.toggle_analytics(false);")
+    (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
+      #_ (log/info "instrumented" fn-count "cljs functions")
+      (assert (> fn-count 0) "no spec functions were instrumented")))
+  nil)
+
+(defn- ensure-logged-out []
+  (try (when (taxi/exists? "a#log-out-link")
+         (click "a#log-out-link" :if-not-exists :skip)
+         (Thread/sleep 100))
+       (catch Throwable _ nil)))
+
+(defn webdriver-fixture-once [f]
+  (f))
+
+(defn reuse-webdriver? []
+  (->> (:sysrev-reuse-webdriver env)
+       (ensure-pred (every-pred string? not-empty (partial not= "0")))))
+
+(defn webdriver-fixture-each [f]
+  (let [local? (= "localhost" (:host (test/get-selenium-config)))
+        cache? @db/query-cache-enabled]
+    (do (when-not local? (reset! db/query-cache-enabled false))
+        (when (test/db-connected?) (create-test-user))
+        (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
+        (if (reuse-webdriver?)
+          (do (start-webdriver) ;; use existing webdriver if running
+              (try (ensure-logged-out) (init-route "/")
+                   ;; try restarting webdriver if unable to load page
+                   (catch Throwable _ (start-webdriver true) (init-route "/"))))
+          (start-webdriver true))
+        (f)
+        (when (reuse-webdriver?)
+          ;; log out to set up for next test
+          (ensure-logged-out))
+        (when-not local? (reset! db/query-cache-enabled cache?)))))

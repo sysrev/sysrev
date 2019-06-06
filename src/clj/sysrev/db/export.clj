@@ -9,8 +9,7 @@
             [sysrev.db.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.db.project :as project]
-            [sysrev.shared.util :refer [map-values in?]]
-            [clojure.set :as set]))
+            [sysrev.shared.util :refer [in? map-values ->map-with-key]]))
 
 (def default-csv-separator "|||")
 
@@ -37,7 +36,7 @@
                            (merge-where [:exists (-> (q/select-project-article-labels
                                                       project-id true [:al.*])
                                                      (merge-where [:= :l.enabled true]))])
-                           (->> do-query (group-by :article-id) (map-values first)))
+                           (->> do-query (->map-with-key :article-id)))
           user-answers (-> (q/select-project-articles
                             project-id [:al.article-id :al.label-id :al.user-id :al.answer
                                         :al.resolve :al.updated-time :u.email])
@@ -46,13 +45,15 @@
                            (q/join-article-label-defs)
                            (merge-where [:= :l.enabled true])
                            (q/join-users :al.user-id)
-                           (->> do-query (group-by #(vector (:article-id %) (:user-id %)))
+                           (->> do-query
+                                (group-by #(vector (:article-id %) (:user-id %)))
                                 vec (sort-by first) (mapv second)))
           user-notes (-> (q/select-project-articles
                           project-id [:anote.article-id :anote.user-id :anote.content])
                          (merge-join [:article-note :anote]
                                      [:= :anote.article-id :a.article-id])
-                         (->> do-query (group-by #(vector (:article-id %) (:user-id %)))
+                         (->> do-query
+                              (group-by #(vector (:article-id %) (:user-id %)))
                               (map-values first)))]
       (concat
        [(concat ["Article ID" "User Name" "Resolve?"]
@@ -93,7 +94,7 @@
                            (merge-where [:exists (-> (q/select-project-article-labels
                                                       project-id true [:al.*])
                                                      (merge-where [:= :l.enabled true]))])
-                           (->> do-query (group-by :article-id) (map-values first)))
+                           (->> do-query (->map-with-key :article-id)))
           anotes (-> (q/select-project-articles
                       project-id [:anote.article-id :anote.user-id :anote.content])
                      (merge-join [:article-note :anote]
@@ -150,12 +151,13 @@
   [project-id & {:keys [article-ids separator]}]
   (with-transaction
     (let [project-url (str "https://sysrev.com/p/" project-id)
+          article-ids (or (seq article-ids) (project/project-article-ids project-id))
           all-articles (->> (q/query-multiple-by-id
-                             [:article :a] :article-id (if (seq article-ids) article-ids
-                                                           (project/project-article-ids project-id))
-                             [:a.article-id :a.primary-title :a.secondary-title :a.authors :a.abstract]
-                             :where [:= :a.enabled true])
-                            (group-by :article-id) (map-values first))
+                             :article [:article-id :primary-title :secondary-title
+                                       :authors :abstract]
+                             :article-id article-ids
+                             :where [:= :enabled true])
+                            (->map-with-key :article-id))
           predict-run-id (q/project-latest-predict-run-id project-id)
           predict-label-ids [(project/project-overall-label-id project-id)]
           ;; TODO: select labels by presence of label_predicts entries
@@ -163,7 +165,7 @@
                            (-> (q/select-label-where
                                 project-id [:in :l.label-id predict-label-ids]
                                 [:l.label-id :l.label-id-local :l.short-label])
-                               (->> do-query (group-by :label-id) (map-values first))))
+                               (->> do-query (->map-with-key :label-id))))
           apredicts (when (and predict-run-id (seq predict-label-ids))
                       (-> (q/select-project-articles
                            project-id [:lp.article-id :lp.label-id [:lp.val :score]])

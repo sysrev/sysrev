@@ -2,7 +2,7 @@
   (:require [clj-webdriver.taxi :as taxi]
             [clj-webdriver.core :refer
              [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
-            [clojure.string :as string]
+            [clojure.string :as str]
             [clojure.test :refer :all]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
@@ -59,7 +59,7 @@
       (pm/add-articles-from-search-term "foo bar enthalpic mesoporous")
       ;; This doesn't work against staging.sysrev.com - cache not cleared?
       #_ (import/import-pmid-vector @project-id {:pmids [25215519]} {:use-future? false})
-      #_ (nav/init-route (str "/p/" @project-id "/add-articles"))
+      #_ (b/init-route (str "/p/" @project-id "/add-articles"))
 ;;;; start annotating articles
       ;; review the single article result
       (b/click (x/project-menu-item :review))
@@ -97,7 +97,7 @@
             user-id (:user-id (users/get-user-by-email email))
             project-id (review-articles/get-user-project-id user-id)
             article-id (first (sysrev.db.project/project-article-ids project-id))
-            annotations (get-in (api/user-defined-annotations article-id) [:result :annotations])
+            {:keys [annotations]} (api/user-defined-annotations article-id)
             annotation (first annotations)
             annotations-csv (rest (export/export-annotations-csv project-id))
             [csv-row] annotations-csv]

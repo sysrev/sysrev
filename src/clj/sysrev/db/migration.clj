@@ -15,6 +15,7 @@
             [sysrev.db.project :as project :refer
              [add-project-member set-member-permissions
               default-project-settings]]
+            [sysrev.db.groups :as groups]
             [sysrev.article.core :as article]
             [sysrev.db.users :as users]
             [sysrev.label.core :as label]
@@ -129,43 +130,6 @@
       (log/info
        (str "processed locations for " (count articles) " articles")))))
 
-(defn ensure-label-inclusion-values [& [force?]]
-  (let [project-ids
-        (-> (select :project-id)
-            (from [:project :p])
-            (where
-             [:or
-              (true? force?)
-              [:not
-               [:exists
-                (-> (q/select-project-articles :p.project-id [:*])
-                    (q/join-article-labels)
-                    (merge-where
-                     [:!= :al.inclusion nil]))]]])
-            (->> do-query (map :project-id)))]
-    (doseq [project-id project-ids]
-      (let [alabels
-            (-> (q/select-project-articles
-                 project-id [:al.*])
-                (q/join-article-labels)
-                (merge-where [:= :al.inclusion nil])
-                do-query)]
-        (when (not= 0 (count alabels))
-          (log/info (format "updating inclusion fields for %d rows"
-                            (count alabels))))
-        (doall
-         (->>
-          alabels
-          (pmap
-           (fn [alabel]
-             (let [inclusion (answer/label-answer-inclusion
-                              (:label-id alabel) (:answer alabel))]
-               (-> (sqlh/update [:article-label :al])
-                   (sset {:inclusion inclusion})
-                   (where
-                    [:= :al.article-label-id (:article-label-id alabel)])
-                   do-execute))))))))))
-
 (defn ensure-no-null-authors []
   (let [invalid (-> (q/select-project-articles nil [:a.article-id :a.authors])
                     (->> do-query
@@ -212,11 +176,12 @@
   []
   (let [plans (->> (stripe/get-plans)
                    :data
-                   (mapv #(select-keys % [:name :amount :product :created :id])))]
+                   (mapv #(select-keys % [:nickname :created :id]))
+                   (mapv #(clojure.set/rename-keys % {:nickname :name})))]
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :name)
-                    (do-update-set :product :amount :id :created)))
+                    (do-update-set :id :created)))
         do-execute)))
 
 ;; TODO: has this been run? should it be?
@@ -249,33 +214,23 @@
               do-execute))))
     (log/info "Finished Converting Dates. ")))
 
-(defn ensure-web-user-email-entries
+(defn ensure-user-email-entries
   "Migrate to new email verification system, should only be run when the
-  web_user_email table is essentially empty"
+  user-email table is essentially empty"
   []
-  (when (< (-> (select :%count.*)
-               (from :web-user-email)
-               do-query first :count)
-           1)
-    (let [web-user (-> (select :user-id :email)
-                       (from :web-user)
-                       do-query)]
-      (doall (map #(users/create-email-verification!
-                    (:user-id %)
-                    (:email %)
-                    :principal true) web-user)))))
+  (when (= 0 (-> (select :%count.*)
+                 (from :user-email)
+                 do-query first :count))
+    (doseq [{:keys [user-id email]} (-> (select :user-id :email)
+                                        (from :web-user)
+                                        do-query)]
+      (users/create-email-verification! user-id email :principal true))))
 
 (defn ensure-groups
   "Ensure that there are always the required SysRev groups"
   []
-  (when-not (= (-> (select :group-name)
-                   (from :groups)
-                   (where [:= :group-name "public-reviewer"])
-                   do-query first :group-name)
-               "public-reviewer")
-    (-> (insert-into :groups)
-        (values [{:group-name "public-reviewer"}])
-        do-execute)))
+  (when-not (groups/group-name->group-id "public-reviewer")
+    (groups/create-group! "public-reviewer")))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
@@ -284,12 +239,11 @@
                       #'ensure-entry-uuids
                       #'ensure-permissions-set
                       ;; #'ensure-article-location-entries
-                      ;; #'ensure-label-inclusion-values
                       ;; #'ensure-no-null-authors
                       #'update-stripe-plans-table
                       #'clone/delete-empty-legacy-sources
                       #'ensure-project-sources-exist
-                      #'ensure-web-user-email-entries
+                      #'ensure-user-email-entries
                       #'ensure-groups
                       #'migrate-all-project-article-resolve]]
     (log/info "Running " (str migrate-fn))

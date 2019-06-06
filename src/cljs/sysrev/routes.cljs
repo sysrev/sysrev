@@ -10,22 +10,6 @@
             [sysrev.macros])
   (:require-macros [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
 
-(defn- go-project-panel [project-id]
-  (let [panel [:project :project :overview]
-        prev-panel @(subscribe [:active-panel])
-        diff-panel (and prev-panel (not= panel prev-panel))
-        markdown-item [:project/markdown-description
-                       project-id {:panel panel}]]
-    (dispatch [:set-active-panel panel])
-    (dispatch [:require [:project project-id]])
-    (dispatch [:require markdown-item])
-    (dispatch [:require [:project/label-counts project-id]])
-    (dispatch [:require [:project/important-terms project-id]])
-    (dispatch [:require [:project/prediction-histograms project-id]])
-    (when diff-panel
-      (dispatch [:reload [:project project-id]])
-      (dispatch [:reload markdown-item]))))
-
 (sr-defroute
  home "/" []
  (dispatch [:set-active-panel [:root]])
@@ -39,8 +23,19 @@
 
 (sr-defroute-project
  project "" [project-id]
- (let [project-id @(subscribe [:active-project-id])]
-   (go-project-panel project-id)))
+ (let [project-id @(subscribe [:active-project-id])
+       panel [:project :project :overview]
+       prev-panel @(subscribe [:active-panel])
+       diff-panel (and prev-panel (not= panel prev-panel))
+       all-data-items [[:project project-id]
+                       [:project/markdown-description project-id {:panel panel}]
+                       [:project/label-counts project-id]
+                       [:project/important-terms project-id]
+                       [:project/prediction-histograms project-id]]]
+   (dispatch [:set-active-panel panel])
+   (doseq [item all-data-items] (dispatch [:require item]))
+   (when diff-panel
+     (doseq [item all-data-items] (dispatch [:reload item])))))
 
 (sr-defroute-project
  articles "/articles" [project-id]
@@ -194,79 +189,46 @@
  (dispatch [:set-active-panel [:payment]]))
 
 (sr-defroute
- user-settings "/user/settings*" []
- (dispatch [:set-active-panel [:user-settings]]))
+ org-settings "/org/*" []
+ (dispatch [:set-active-panel [:org-settings]]))
 
 (sr-defroute
- users "/users*" []
+ users "/user*" []
  (dispatch [:set-active-panel [:users]]))
 
 (defn- load-default-panels [db]
-  (->> [[[]
-         "/"]
-
+  (->> [[[] "/"]
         [[:project]
          #(project-uri (:project-id %) "")]
-
         [[:project :project :overview]
          #(project-uri (:project-id %) "")]
-
         [[:project :project :articles]
          #(project-uri (:project-id %) "/articles")]
-
         [[:project :project :single-article]
          #(project-uri (:project-id %) "/article")]
-
         [[:project :project :manage]
          #(project-uri (:project-id %) "/manage")]
-
         [[:project :project :add-articles]
          #(project-uri (:project-id %) "/add-articles")]
-
-        [[:project :user]
-         #(project-uri (:project-id %) "/user")]
-
-        [[:project :user :labels]
-         #(project-uri (:project-id %) "/user")]
-
         [[:project :project :labels :edit]
          #(project-uri (:project-id %) "/labels/edit")]
-
         [[:project :review]
          #(project-uri (:project-id %) "/review")]
-
         [[:project :project :settings]
          #(project-uri (:project-id %) "/settings")]
-
         [[:project :project :compensations]
          #(project-uri (:project-id %) "/compensations")]
-
         [[:project :project :export-data]
          #(project-uri (:project-id %) "/export")]
-
-        [[:login]
-         "/login"]
-
-        [[:request-password-reset]
-         "/request-password-reset"]
-
-        [[:pubmed-search]
-         "/pubmed-search"]
-
-        [[:payment]
-         "/user/payment"]
-
         [[:project :project :support]
          #(project-uri (:project-id %) "/support")]
-
-        [[:plans]
-         "/user/plans"]
-
-        [[:user-settings]
-         "/user/settings*"]
-
-        [[:users]
-         "/users*"]]
+        [[:login] "/login"]
+        [[:request-password-reset] "/request-password-reset"]
+        [[:pubmed-search] "/pubmed-search"]
+        [[:payment] "/user/payment"]
+        [[:plans] "/user/plans"]
+        [[:users] "/users*"]
+        [[:org-settings] "/org/*"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))

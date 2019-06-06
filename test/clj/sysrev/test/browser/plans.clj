@@ -17,6 +17,9 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(def use-card ".button.use-card")
+(def upgrade-link (xpath "//a[text()='Upgrade']"))
+
 (defn get-user-customer [email]
   (some-> email (users/get-user-by-email) :stripe-id
           (customers/get-customer)
@@ -26,10 +29,10 @@
   (some-> customer :subscriptions :data first :items :data first :plan))
 
 (defn user-stripe-plan [email]
-  (some-> (get-user-customer email) (customer-plan) :name))
+  (some-> (get-user-customer email) (customer-plan) :nickname))
 
 (defn user-db-plan [email]
-  (some-> email (users/get-user-by-email) (plans/get-current-plan) :name))
+  (some-> email (users/get-user-by-email) :user-id (plans/get-current-plan) :name))
 
 (defn wait-until-stripe-id
   "Wait until stripe has customer entry for email."
@@ -51,6 +54,30 @@
   [error-msg]
   (xpath "//div[contains(@class,'red') and contains(text(),\"" error-msg "\")]"))
 
+(defn user-subscribe-to-unlimited
+  [email]
+  (when-not (get-user-customer email)
+    (log/info (str "Stripe Customer created for " email))
+    (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
+  (wait-until-stripe-id email)
+  (stripe/create-subscription-user! (users/get-user-by-email email))
+  ;;; go to plans
+  (b/click "#user-name-link")
+  (b/click "#user-billing")
+  (b/click ".button.nav-plans.subscribe" :displayed? true)
+  (b/click "a.payment-method.add-method")
+  ;; enter payment information
+  (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc
+                                 :exp-date "0121"
+                                 :cvc "123"
+                                 :postal "11111"})
+  (b/click use-card)
+  ;; upgrade to unlimited
+  (b/click ".button.upgrade-plan")
+  ;; this time is goes through, confirm we are subscribed to the
+  ;; Unlimited plan now
+  (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000))
+
 ;; need to disable sending emails in this test
 (deftest-browser register-and-check-basic-plan-subscription
   (and (test/db-connected?)
@@ -61,15 +88,17 @@
   (do #_ (b/delete-test-user)
       #_ (nav/register-user)
       (users/create-sysrev-stripe-customer! (get-user))
-      (stripe/subscribe-customer! (get-user) api/default-plan)
+      (stripe/create-subscription-user! (get-user))
       ;; after registering, does the stripe customer exist?
       (wait-until-stripe-id email)
       (is (= email (:email (get-customer))))
       ;; does stripe think the customer is registered to a basic plan?
-      (wait-until-plan email api/default-plan)
-      (is (= api/default-plan (user-stripe-plan email)))
+      (wait-until-plan email stripe/default-plan)
+      (is (= stripe/default-plan (user-stripe-plan email)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan (user-db-plan email)))))
+      (is (= stripe/default-plan (user-db-plan email))))
+  :clean-up
+  (users/delete-sysrev-stripe-customer! (users/get-user-by-email email)))
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
@@ -79,25 +108,23 @@
    get-user #(users/get-user-by-email email)
    get-customer #(get-user-customer email)
    get-stripe-plan #(user-stripe-plan email)
-   get-db-plan #(user-db-plan email)
-   use-card ".button.use-card"]
+   get-db-plan #(user-db-plan email)]
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
-      #_ (b/delete-test-user)
-      #_ (nav/register-user)
       (users/create-sysrev-stripe-customer! (get-user))
-      (stripe/subscribe-customer! (get-user) api/default-plan)
+      (stripe/create-subscription-user! (get-user))
       (nav/log-in)
       (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?
       (is (= email (:email (get-customer))))
       ;; does stripe think the customer is registered to a basic plan?
-      (wait-until-plan email api/default-plan)
-      (is (= api/default-plan (get-stripe-plan)))
+      (wait-until-plan email stripe/default-plan)
+      (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan (get-db-plan)))
+      (is (= stripe/default-plan (get-db-plan)))
 ;;; upgrade plan
-      (nav/go-route "/user/settings/billing")
+      (b/click "#user-name-link")
+      (b/click "#user-billing")
       (b/click ".button.nav-plans.subscribe" :displayed? true)
       (b/click "a.payment-method.add-method")
 ;;; payment method
@@ -182,18 +209,20 @@
       ;; try to subscribe again
       (b/click ".button.upgrade-plan")
       ;; this time is goes through, confirm we are subscribed to the
-      ;; pro plan now
+      ;; Unlimied plan now
       (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000)
       ;; Let's check to see if our db thinks the customer is subscribed to the Unlimited
-      (is (= "Unlimited" (get-db-plan)))
+      (is (= "Unlimited_User" (get-db-plan)))
       ;; Let's check that stripe.com thinks the customer is subscribed to the Unlimited plan
-      (is (= "Unlimited" (get-stripe-plan)))
+      (is (= "Unlimited_User" (get-stripe-plan)))
 ;;; Subscribe back down to the Basic Plan
       (b/click ".button.nav-plans.unsubscribe")
       (b/click ".button.unsubscribe-plan")
       (b/click ".button.nav-plans.subscribe" :displayed? true)
       ;; does stripe think the customer is registered to a basic plan?
-      (wait-until-plan email api/default-plan)
-      (is (= api/default-plan (get-stripe-plan)))
+      (wait-until-plan email stripe/default-plan)
+      (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan (get-db-plan)))))
+      (is (= stripe/default-plan (get-db-plan)))
+      :clean-up
+      (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))))

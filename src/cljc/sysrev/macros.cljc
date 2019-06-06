@@ -1,19 +1,16 @@
 (ns sysrev.macros
-  (:require [cljs.analyzer.api :as ana-api]
+  (:require [clojure.string :as str]
+            [cljs.analyzer.api :as ana-api]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.loading]
             [secretary.core :refer [defroute]]
-            [sysrev.shared.util :refer
-             [map-values parse-integer integer-project-id?]]
-            [clojure.string :as str]))
+            [sysrev.loading]
+            [sysrev.shared.util :refer [map-values parse-integer filter-values ensure-pred]]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]
      (reagent.core/create-class
-      {:component-did-mount
-       ~on-mount
-       :reagent-render
-       (fn [content#] content#)})))
+      {:component-did-mount ~on-mount
+       :reagent-render (fn [content#] content#)})))
 
 (defmacro import-vars [[_quote ns]]
   `(do
@@ -124,67 +121,88 @@
                (go-route-sync-data
                 #(do (dispatch [:set-active-panel nil])
                      (dispatch [:set-active-project-url nil])
-                     (when clear-text#
-                       (sysrev.util/clear-text-selection))
+                     (when clear-text# (sysrev.util/clear-text-selection))
                      ~@body
-                     (when clear-text#
-                       (sysrev.util/clear-text-selection-soon)))))]
+                     (when clear-text# (sysrev.util/clear-text-selection-soon)))))]
          (if use-timeout#
            (js/setTimeout route-fn# 20)
            (route-fn#))))))
 
-(defn lookup-project-url-id [url-id]
-  (cond (integer? url-id)
-        url-id
+(defn lookup-project-url [url-id]
+  @(subscribe [:lookup-project-url url-id]))
 
-        (integer-project-id? url-id)
-        (parse-integer url-id)
-
-        :else
-        @(subscribe [:project-url-id url-id])))
+(defmacro sr-defroute-project--impl
+  [owner-key name uri suburi params & body]
+  `(defroute ~name ~uri ~params
+     (let [clear-text# true
+           use-timeout# false
+           project-url-id# ~(if owner-key (second params) (first params))
+           owner-url-id# ~(when (and owner-key (first params))
+                            {owner-key (first params)})
+           url-id# [project-url-id# owner-url-id#]
+           body-fn# (fn []
+                      (when clear-text# (sysrev.util/clear-text-selection))
+                      ~@body
+                      (when clear-text# (sysrev.util/clear-text-selection-soon)))
+           route-fn# (fn []
+                       (let [cur-id# @(subscribe [:active-project-url])
+                             full-id# @(subscribe [:lookup-project-url url-id#])
+                             project-id# (or (ensure-pred #(= :loading %) full-id#)
+                                             (some->> (ensure-pred map? full-id#)
+                                                      :project-id
+                                                      (ensure-pred integer?))
+                                             :not-found)]
+                         (dispatch [:set-active-project-url url-id#])
+                         (cond
+                           (= project-id# :not-found)
+                           (do (js/console.log "got :not-found")
+                               (body-fn#))
+                           ;; If running lookup on project-id value for url-id,
+                           ;; wait until lookup completes before running route
+                           ;; body function.
+                           (= project-id# :loading)
+                           (do #_ (js/console.log (str "loading for " (pr-str url-id#)))
+                               (dispatch [:data/after-load
+                                          [:lookup-project-url url-id#]
+                                          [:project-url-loader ~uri]
+                                          body-fn#]))
+                           ;; If url-id changed, need to give time for
+                           ;; :set-active-project-url event chain to finish so
+                           ;; :active-project-id is updated before running route
+                           ;; body function (dispatch is asynchronous).
+                           (not= url-id# cur-id#)
+                           (do #_ (js/console.log (str "url-id changed to " (pr-str url-id#)))
+                               (js/setTimeout body-fn# 30))
+                           ;; Otherwise run route body function immediately.
+                           :else (body-fn#))))]
+       (if use-timeout#
+         (js/setTimeout #(go-route-sync-data route-fn#) 20)
+         (go-route-sync-data route-fn#)))))
 
 (defmacro sr-defroute-project
   [name suburi params & body]
-  (assert (or (empty? suburi)
-              (str/starts-with? suburi "/"))
+  (assert (or (empty? suburi) (str/starts-with? suburi "/"))
           (str "sr-defroute-project: suburi must be empty (root) or begin with \"/\"\n"
                "suburi = " (pr-str suburi)))
   (assert (= (first params) 'project-id)
-          (str "sr-defroute-project: params must include 'project-id\n"
+          (str "sr-defroute-project: params must start with project-id\n"
                "params = " (pr-str params)))
-  (let [uri (str "/p/:project-id" suburi)]
-    `(defroute ~name ~uri ~params
-       (let [clear-text# true
-             use-timeout# false
-             body-fn# (fn []
-                        (when clear-text#
-                          (sysrev.util/clear-text-selection))
-                        ~@body
-                        (when clear-text#
-                          (sysrev.util/clear-text-selection-soon)))
-             route-fn#
-             #(let [url-id# ~(first params)
-                    cur-id# @(subscribe [:active-project-url])]
-                (dispatch [:set-active-project-url url-id#])
-                (let [project-id# (lookup-project-url-id url-id#)]
-                  (cond
-                    ;; If running lookup on project-id value for url-id,
-                    ;; wait until lookup completes before running route
-                    ;; body function.
-                    (= project-id# :not-found)
-                    (dispatch [:data/after-load
-                               [:project-url-id url-id#]
-                               [:project-url-loader ~uri]
-                               body-fn#])
-
-                    ;; If url-id changed, need to give time for
-                    ;; :set-active-project-url event chain to finish so
-                    ;; :active-project-id is updated before running route
-                    ;; body function (dispatch is asynchronous).
-                    (not= url-id# cur-id#)
-                    (js/setTimeout body-fn# 50)
-
-                    :else (body-fn#))))]
-         (if use-timeout#
-           (js/setTimeout #(go-route-sync-data route-fn#) 20)
-           (go-route-sync-data route-fn#))))))
+  (let [suffix-name (fn [suffix] (-> name clojure.core/name (str "__" suffix) symbol))]
+    `(do (sr-defroute-project--impl nil
+                                    ~(suffix-name "legacy")
+                                    ~(str "/p/:project-id" suburi)
+                                    ~suburi
+                                    ~params
+                                    ~@body)
+         (sr-defroute-project--impl :user-url-id
+                                    ~(suffix-name "user")
+                                    ~(str "/u/:owner-id/p/:project-id" suburi)
+                                    ~suburi
+                                    ~(vec (concat '(owner-id) params))
+                                    ~@body)
+         (sr-defroute-project--impl :org-url-id
+                                    ~(suffix-name "org")
+                                    ~(str "/o/:owner-id/p/:project-id" suburi)
+                                    ~suburi
+                                    ~(vec (concat '(owner-id) params))
+                                    ~@body))))

@@ -7,7 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.util :as u :refer [in? map-values]]
+            [sysrev.shared.util :as u :refer [in? map-values ->map-with-key]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -25,16 +25,15 @@
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
   [article & [conn]]
-  (try
-    (-> article
-        (update :authors #(db/to-sql-array "text" % conn))
-        (update :keywords #(db/to-sql-array "text" % conn))
-        (update :urls #(db/to-sql-array "text" % conn))
-        (update :document-ids #(db/to-sql-array "text" % conn)))
-    (catch Throwable e
-      (log/warn "article-to-sql: error converting article")
-      (log/warn "article =" (pr-str article))
-      (throw e))))
+  (try (-> article
+           (update :authors #(db/to-sql-array "text" % conn))
+           (update :keywords #(db/to-sql-array "text" % conn))
+           (update :urls #(db/to-sql-array "text" % conn))
+           (update :document-ids #(db/to-sql-array "text" % conn)))
+       (catch Throwable e
+         (log/warn "article-to-sql: error converting article")
+         (log/warn "article =" (pr-str article))
+         (throw e))))
 ;;;
 (s/fdef article-to-sql
   :args (s/cat :article ::sa/article-partial
@@ -42,12 +41,10 @@
   :ret map?)
 
 (defn add-article [article project-id & [conn]]
-  (let [project-id (q/to-project-id project-id)]
-    (-> (insert-into :article)
-        (values [(merge (article-to-sql article conn)
-                        {:project-id project-id})])
-        (returning :article-id)
-        do-query first :article-id)))
+  (-> (insert-into :article)
+      (values [(-> (article-to-sql article conn) (assoc :project-id project-id))])
+      (returning :article-id)
+      do-query first :article-id))
 ;;;
 (s/fdef add-article
   :args (s/cat :article ::sa/article-partial
@@ -56,51 +53,42 @@
   :ret (s/nilable ::sc/article-id))
 
 (defn add-articles [articles project-id & [conn]]
-  (if (empty? articles)
-    []
-    (let [project-id (q/to-project-id project-id)
-          entries (->> articles
-                       (mapv #(merge (article-to-sql % conn)
-                                     {:project-id project-id})))]
+  (if (empty? articles) []
       (-> (insert-into :article)
-          (values entries)
+          (values (->> articles (mapv #(-> (article-to-sql % conn)
+                                           (assoc :project-id project-id)))))
           (returning :article-id)
-          (->> do-query (mapv :article-id))))))
+          (->> do-query (mapv :article-id)))))
 
 (defn set-user-article-note [article-id user-id note-name content]
   (let [article-id (q/to-article-id article-id)
-        user-id (q/to-user-id user-id)
-        pnote (-> (q/select-article-by-id article-id [:pn.*])
-                  (merge-join [:project :p]
-                              [:= :p.project-id :a.project-id])
-                  (q/with-project-note note-name)
-                  do-query first)
+        {:keys [project-id project-note-id] :as pnote}
+        (-> (q/select-article-by-id article-id [:pn.*])
+            (merge-join [:project :p] [:= :p.project-id :a.project-id])
+            (q/with-project-note note-name)
+            do-query first)
         anote (-> (q/select-article-by-id article-id [:an.*])
                   (q/with-article-note note-name user-id)
                   do-query first)]
     (assert pnote "note type not defined in project")
-    (assert (:project-id pnote) "project-id not found")
-    (try
-      (let [fields {:article-id article-id
-                    :user-id user-id
-                    :project-note-id (:project-note-id pnote)
-                    :content content
-                    :updated-time (db/sql-now)}]
-        (if (nil? anote)
-          (-> (sqlh/insert-into :article-note)
-              (values [fields])
-              (returning :*)
-              do-query)
-          (-> (sqlh/update :article-note)
-              (where [:and
-                      [:= :article-id article-id]
-                      [:= :user-id user-id]
-                      [:= :project-note-id (:project-note-id pnote)]])
-              (sset fields)
-              (returning :*)
-              do-query)))
-      (finally
-        (clear-project-cache (:project-id pnote))))))
+    (assert project-id "project-id not found")
+    (try (let [fields {:article-id article-id
+                       :user-id user-id
+                       :project-note-id project-note-id
+                       :content content
+                       :updated-time (db/sql-now)}]
+           (if (nil? anote)
+             (-> (sqlh/insert-into :article-note)
+                 (values [fields])
+                 (returning :*)
+                 do-query)
+             (-> (sqlh/update :article-note)
+                 (where [:and [:= :article-id article-id] [:= :user-id user-id]
+                         [:= :project-note-id project-note-id]])
+                 (sset fields)
+                 (returning :*)
+                 do-query)))
+         (finally (clear-project-cache project-id)))))
 ;;;
 (s/fdef set-user-article-note
   :args (s/cat :article-id ::sc/article-id
@@ -110,20 +98,14 @@
   :ret (s/nilable map?))
 
 (defn article-user-notes-map [project-id article-id]
-  (let [project-id (q/to-project-id project-id)
-        article-id (q/to-article-id article-id)]
-    (with-project-cache
-      project-id [:article article-id :notes :user-notes-map]
-      (->>
-       (-> (q/select-article-by-id article-id [:an.* :pn.name])
-           (q/with-article-note)
-           do-query)
-       (group-by :user-id)
-       (map-values
-        #(->> %
-              (group-by :name)
-              (map-values first)
-              (map-values :content)))))))
+  (let [article-id (q/to-article-id article-id)]
+    (with-project-cache project-id [:article article-id :notes :user-notes-map]
+      (-> (q/select-article-by-id article-id [:an.* :pn.name])
+          (q/with-article-note)
+          (->> do-query
+               (group-by :user-id)
+               (map-values #(->> (->map-with-key :name %)
+                                 (map-values :content))))))))
 ;;;
 (s/fdef article-user-notes-map
   :args (s/cat :project-id ::sc/project-id
@@ -132,9 +114,7 @@
 
 (defn remove-article-flag [article-id flag-name]
   (-> (delete-from :article-flag)
-      (where [:and
-              [:= :article-id article-id]
-              [:= :flag-name flag-name]])
+      (where [:and [:= :article-id article-id] [:= :flag-name flag-name]])
       do-execute))
 ;;;
 (s/fdef remove-article-flag
@@ -143,14 +123,15 @@
   :ret ::sc/sql-execute)
 
 (defn set-article-flag [article-id flag-name disable? & [meta]]
-  (remove-article-flag article-id flag-name)
-  (-> (insert-into :article-flag)
-      (values [{:article-id article-id
-                :flag-name flag-name
-                :disable disable?
-                :meta (when meta (db/to-jsonb meta))}])
-      (returning :*)
-      do-query first))
+  (db/with-transaction
+    (remove-article-flag article-id flag-name)
+    (-> (insert-into :article-flag)
+        (values [{:article-id article-id
+                  :flag-name flag-name
+                  :disable disable?
+                  :meta (some-> meta db/to-jsonb)}])
+        (returning :*)
+        do-query first)))
 ;;;
 (s/fdef set-article-flag
   :args (s/cat :article-id ::sc/article-id
@@ -166,12 +147,10 @@
 
 (defn article-flags-map [article-id]
   (-> (q/select-article-by-id
-       article-id
-       (db/table-fields :aflag [:flag-name :disable :date-created :meta]))
+       article-id (db/table-fields :aflag [:flag-name :disable :date-created :meta]))
       (q/join-article-flags)
       (->> do-query
-           (group-by :flag-name)
-           (map-values first)
+           (->map-with-key :flag-name)
            (map-values #(dissoc % :flag-name)))))
 
 (defn article-sources-list [article-id]
@@ -181,10 +160,11 @@
 
 (defn article-score
   [article-id & {:keys [predict-run-id] :as opts}]
-  (-> (q/select-article-by-id article-id [:a.article-id])
-      (q/with-article-predict-score
-        (or predict-run-id (q/article-latest-predict-run-id article-id)))
-      do-query first :score))
+  (db/with-transaction
+    (-> (q/select-article-by-id article-id [:a.article-id])
+        (q/with-article-predict-score
+          (or predict-run-id (q/article-latest-predict-run-id article-id)))
+        do-query first :score)))
 
 ;; TODO: replace with generic interface for querying db entities with added values
 (defn get-article
@@ -202,46 +182,34 @@
   (let [article (-> (q/query-article-by-id article-id [:a.*])
                     (dissoc :text-search))
         get-item (fn [item-key f] (when (in? items item-key)
-                                    (fn [] {item-key (f)})))
+                                    (constantly {item-key (f)})))
         item-values
         (when (not-empty article)
           ;; For each key in `items` run function to get corresponding value,
           ;; then merge all together into a single map.
           ;; (load items in parallel using `pcalls`)
-          (->> [(get-item :locations
-                          #(article-locations-map article-id))
-                (get-item :score
-                          #(or (article-score
-                                article-id :predict-run-id predict-run-id)
-                               0.0))
-                (get-item :flags
-                          #(article-flags-map article-id))
-                (get-item :sources
-                          #(article-sources-list article-id))]
+          (->> [(get-item :locations #(article-locations-map article-id))
+                (get-item :score #(or (article-score article-id :predict-run-id predict-run-id)
+                                      0.0))
+                (get-item :flags #(article-flags-map article-id))
+                (get-item :sources #(article-sources-list article-id))]
                (remove nil?) (apply pcalls) doall (apply merge {})))]
-    (when (not-empty article)
-      (merge article item-values))))
+    (some-> (not-empty article) (merge item-values))))
 
 ;; TODO: move this to cljc, client project duplicates this function
 (defn article-location-urls [locations]
-  (let [sources [:pubmed :doi :pii :nct]]
-    (->>
-     sources
-     (map
-      (fn [source]
-        (let [entries (get locations (name source))]
-          (->>
-           entries
-           (map
-            (fn [{:keys [external-id]}]
-              (case (keyword source)
-                :pubmed (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" external-id)
-                :doi (str "https://dx.doi.org/" external-id)
-                :pmc (str "https://www.ncbi.nlm.nih.gov/pmc/articles/" external-id "/")
-                :nct (str "https://clinicaltrials.gov/ct2/show/" external-id)
-                nil)))))))
-     (apply concat)
-     (filter identity))))
+  (->> [:pubmed :doi :pii :nct]
+       (map (fn [source]
+              (map #(let [ext-id (:external-id %)]
+                      (case (keyword source)
+                        :pubmed  (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" ext-id)
+                        :doi     (str "https://dx.doi.org/" ext-id)
+                        :pmc     (str "https://www.ncbi.nlm.nih.gov/pmc/articles/" ext-id "/")
+                        :nct     (str "https://clinicaltrials.gov/ct2/show/" ext-id)
+                        nil))
+                   (get locations (name source)))))
+       (apply concat)
+       (filter identity)))
 
 (defn project-prediction-scores
   "Given a project-id, return the prediction scores for all articles"
@@ -252,26 +220,22 @@
                                          (where [:= :pr.project-id project-id])
                                          (order-by [:pr.create-time :desc])
                                          (limit 1)
-                                         do-query
-                                         first
-                                         :predict-run-id)}}]
+                                         do-query first :predict-run-id)}}]
   (-> (select :lp.article-id :lp.val)
       (from [:label-predicts :lp])
       (join [:article :a] [:= :lp.article-id :a.article-id])
-      (where [:and
+      (where [:and (when-not include-disabled? [:= :a.enabled true])
               [:= :a.project-id project-id]
-              [:= :lp.predict-run-id predict-run-id]
-              (when-not include-disabled? [:= :a.enabled true])])
+              [:= :lp.predict-run-id predict-run-id]])
       do-query))
 
 ;; TODO: replace with a generic select-by-field-values function
 (defn article-ids-to-uuids [article-ids]
   (->> (partition-all 500 article-ids)
-       (mapv (fn [article-ids]
-               (-> (select :article-uuid)
-                   (from [:article :a])
-                   (where [:in :article-id article-ids])
-                   (->> do-query (map :article-uuid)))))
+       (mapv #(-> (select :article-uuid)
+                  (from [:article :a])
+                  (where [:in :article-id %])
+                  (->> do-query (map :article-uuid))))
        (apply concat)))
 
 (defn article-pmcid
@@ -300,10 +264,10 @@
       do-query first :s3-id))
 
 (defn associate-pmcid-s3store
-  "Given a pmcid and an s3store-id, associate the two"
-  [pmcid s3store-id]
+  "Given a pmcid and an s3-id, associate the two"
+  [pmcid s3-id]
   (-> (insert-into :pmcid-s3store)
-      (values [{:pmcid pmcid :s3-id s3store-id}])
+      (values [{:pmcid pmcid :s3-id s3-id}])
       do-execute))
 
 ;; TODO: replace with generic function

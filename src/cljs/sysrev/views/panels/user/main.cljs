@@ -2,22 +2,25 @@
   (:require [clojure.string :as str]
             [ajax.core :refer [GET PUT]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.semantic :refer [Segment Header Grid Row Column Radio Message MessageHeader Icon]]
+            [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.billing :refer [Billing]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
-            [sysrev.views.panels.user.email :refer [EmailSettings VerifyEmail]]
             [sysrev.views.panels.user.invitations :refer [Invitations]]
+            [sysrev.views.panels.user.email :refer [EmailSettings VerifyEmail]]
+            [sysrev.views.panels.user.orgs :refer [Orgs]]
             [sysrev.views.panels.user.profile :refer [Profile]]
+            [sysrev.views.panels.user.projects :refer [UserProjects]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :refer [full-size? get-url-path mobile?]]))
 
-(def ^:private panel [:user-settings])
+(def ^:private panel [:user-main])
 
 (def initial-state {})
 (defonce state (r/cursor app-db [:state :panels panel]))
@@ -25,6 +28,14 @@
   (when (nil? @state)
     (reset! state initial-state)))
 
+(reg-sub :users/path-user-id
+         (fn [db _]
+           (-> (re-find #"/user/(\d*)/*" @sysrev.base/active-route) second js/parseInt)))
+
+(reg-sub :users/is-path-user-id-self?
+         (fn [db _]
+           (= @(subscribe [:self/user-id])
+              @(subscribe [:users/path-user-id]))))
 ;;;
 ;;; TODO: refactor to remove this inputs/values/... stuff
 ;;;
@@ -170,36 +181,37 @@
         error-message (r/atom "")
         ;; TODO: get this value from identity request instead (way
         ;; easier, available everywhere)
-        get-opt-in (fn []
-                     (reset! loading? true)
-                     (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
-                          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                           :handler (fn [response]
-                                      (reset! active? (-> response :result :active))
-                                      (reset! loading? false))
-                           :error-handler (fn [error-response]
-                                            (reset! loading? false)
-                                            (reset! error-message "There was an error retrieving opt-in status"))}))
-        put-opt-in! (fn []
-                      (reset! loading? true)
-                      (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
-                           {:params {:active (not @active?)}
-                            :format :transit
-                            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                            :handler (fn [response]
-                                       (reset! active? (-> response :result :active))
-                                       (reset! loading? false))
-                            :error-handler (fn [error-message]
-                                             (reset! loading? false)
-                                             (reset! error-message "There was an error when setting opt-in status"))}))]
+        get-opt-in
+        (fn []
+          (reset! loading? true)
+          (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
+               {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                :handler (fn [{:keys [result]}]
+                           (reset! active? (:enabled result))
+                           (reset! loading? false))
+                :error-handler (fn [_]
+                                 (reset! loading? false)
+                                 (reset! error-message "There was an error retrieving opt-in status"))}))
+        put-opt-in!
+        (fn []
+          (reset! loading? true)
+          (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
+               {:params {:enabled (not @active?)}
+                :format :transit
+                :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                :handler (fn [{:keys [result]}]
+                           (reset! active? (:enabled result))
+                           (reset! loading? false))
+                :error-handler (fn [_]
+                                 (reset! loading? false)
+                                 (reset! error-message "There was an error when setting opt-in status"))}))]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [verified (-> @(subscribe [:self/identity]) :verified)]
+        (let [verified @(subscribe [:self/verified])]
           (when-not (nil? @active?)
             [Segment
-             [Header {:as "h4" :dividing true}
-              "Public Reviewer Opt In"]
+             [Header {:as "h4" :dividing true} "Public Reviewer Opt In"]
              (when-not verified
                [Message {:warning true}
                 [:a {:href "/user/settings/email"}
@@ -208,13 +220,10 @@
                      :id "opt-in-public-reviewer"
                      :label "Publicly Listed as a Paid Reviewer"
                      :checked @active?
-                     :disabled (or (not verified)
-                                   @loading?)
-                     :on-change (fn [e]
-                                  (put-opt-in!))}]
+                     :disabled (or (not verified) @loading?)
+                     :on-change (fn [e] (put-opt-in!))}]
              (when-not (str/blank? @error-message)
-               [Message {:onDismiss #(reset! error-message nil)
-                         :negative true}
+               [Message {:negative true, :onDismiss #(reset! error-message nil)}
                 [MessageHeader "Opt-In Error"]
                 @error-message])])))
       :get-initial-state
@@ -222,94 +231,113 @@
         (reset! loading? true)
         (get-opt-in))})))
 
-(defn UserContent
-  []
+(defn UserContent []
   (let [current-path sysrev.base/active-route
         current-panel (subscribe [:active-panel])
         payments-owed (subscribe [:compensation/payments-owed])
         payments-paid (subscribe [:compensation/payments-paid])
-        invitations (subscribe [:user/invitations])]
+        invitations (subscribe [:user/invitations])
+        active-item (fn [current-path sub-path]
+                      (cond-> "item "
+                        (re-matches (re-pattern (str ".*" sub-path)) current-path) (str " active")))
+        uri-fn (fn [sub-path]
+                 (str "/user/" @(subscribe [:users/path-user-id]) sub-path))]
     (r/create-class
      {:reagent-render
       (fn [this]
         [:div
          [:nav
-          [:div.ui.top.attached.middle.aligned.segment.desktop
-           [:h4.ui.header.title-header "Personal Settings"]]
+          #_[:div.ui.top.attached.middle.aligned.segment.desktop
+             [:h4.ui.header.title-header "Personal Settings"]]
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
-           [:a {:key "#general"
-                :id "user-general"
-                :class (cond-> "item"
-                         (= @current-path "/user/settings") (str " active"))
-                :href "/user/settings"}
-            "General"]
            [:a {:key "#profile"
                 :id "user-profile"
-                :class (cond-> "item"
-                         (= @current-path "/user/settings/profile") (str " active"))
-                :href "/user/settings/profile"}
+                :class (active-item @current-path "/profile")
+                :href (uri-fn "/profile")}
             "Profile"]
-           [:a {:key "#billing"
-                :id "user-billing"
-                :class (cond-> "item"
-                         (= @current-path "/user/settings/billing")
-                         (str " active"))
-                :href "/user/settings/billing"}
-            "Billing"]
-           [:a {:key "#email"
-                :id "user-email"
-                :class (cond-> "item"
-                         (= @current-path "/user/settings/email")
-                         (str " active"))
-                :href "/user/settings/email"}
-            "Email"]
-           (when-not (empty? (or @payments-owed @payments-paid))
-             [:a {:key "#compensation"
-                  :class (cond-> "item"
-                           (= @current-path "/user/settings/compensation")
-                           (str " active"))
-                  :href "/user/settings/compensation"}
-              "Compensation"])
-           (when-not (empty? @invitations)
-             [:a {:key "#invitations"
-                  :class (cond-> "item"
-                           (= @current-path "/user/settings/invitations")
-                           (str " active"))
-                  :href "/user/settings/invitations"}
-              "Invitations" (when-not (empty? (filter #(nil? (:accepted (val %))) @invitations))
-                              [Icon {:name "circle"
-                                     :size "tiny"
-                                     :color "red"
-                                     :style {:margin-left "0.5em"}}])])]]
+           (when @(subscribe [:users/is-path-user-id-self?])
+             [:a {:key "#general"
+                  :id "user-general"
+                  :class (active-item @current-path "/settings")
+                  :href (uri-fn "/settings")}
+              "General"])
+           ;; should check if projects exist
+           [:a {:key "#projects"
+                :id "user-projects"
+                :class (active-item @current-path "/projects")
+                :href (uri-fn "/projects")}
+            "Projects"]
+           ;; should check if orgs exist
+           [:a {:keys "#user-orgs"
+                :id "user-orgs"
+                :class (active-item @current-path "/orgs")
+                :href (uri-fn "/orgs")}
+            "Organizations"]
+           (when @(subscribe [:users/is-path-user-id-self?])
+             [:a {:key "#billing"
+                  :id "user-billing"
+                  :class (active-item @current-path "/billing")
+                  :href (uri-fn "/billing")}
+              "Billing"])
+           (when @(subscribe [:users/is-path-user-id-self?])
+             [:a {:key "#email"
+                  :id "user-email"
+                  :class (active-item @current-path "/email")
+                  :href (uri-fn "/email")}
+              "Email"])
+           (when @(subscribe [:users/is-path-user-id-self?])
+             (when-not (empty? (or @payments-owed @payments-paid))
+               [:a {:key "#compensation"
+                    :id "user-compensation"
+                    :class (active-item @current-path "/compensation")
+                    :href (uri-fn "/compensation")}
+                "Compensation"]))
+           (when @(subscribe [:users/is-path-user-id-self?])
+             (when-not (empty? @invitations)
+               [:a {:key "#invitations"
+                    :id "user-invitations"
+                    :class (active-item @current-path "/invitations")
+                    :href (uri-fn "/invitations")}
+                "Invitations" (when-not (empty? (filter #(nil? (:accepted (val %))) @invitations))
+                                [Icon {:name "circle"
+                                       :size "tiny"
+                                       :color "red"
+                                       :style {:margin-left "0.5em"}}])]))]]
          [:div#user-content
           (condp re-matches @current-path
-            #"/user/settings"
+            #"/user/(\d*)/profile"
+            [Profile {:user-id @(subscribe [:users/path-user-id])}]
+            #"/user/(\d*)/settings" ;; general
             [:div
              [Grid {:stackable true}
               [Row
                [Column {:width 8} [user-options-box]]
-               [Column {:width 8} [user-dev-tools-box]]]
+               [Column {:width 8}
+                [user-dev-tools-box]]]
               [Row
                [Column {:width 8}
-                [PublicReviewerOptIn]]]]]
-            #"/user/settings/compensation"
+                [PublicReviewerOptIn]
+                [CreateOrg]]]]]
+            #"/user/(\d*)/projects"
+            [UserProjects {:user-id @(subscribe [:users/path-user-id])}]
+            #"/user/(\d*)/orgs"
+            [Orgs {:user-id @(subscribe [:users/path-user-id])}]
+            #"/user/(\d*)/billing"
+            [Billing]
+            #"/user/(\d*)/email"
+            [EmailSettings]
+            #"/user/(\d*)/compensation"
             [:div
              [PaymentsOwed]
              [PaymentsPaid]
              [UserSupportSubscriptions]]
-            #"/user/settings/billing"
-            [Billing]
-            #"/user/settings/invitations"
+            #"/user/(\d*)/invitations"
             [Invitations]
-            #"/user/settings/email"
-            [EmailSettings]
-            #"/user/settings/profile"
-            [Profile {:user-id @(subscribe [:self/user-id]) :email @(subscribe [:user/email])}]
+            #"/user/(\d*)/email/(\w+)" :>>
+            (fn [[_ user-id code]] [VerifyEmail code])
             ;; default before the active panel is loaded
             ;; and this component still exists
-            #"/user/settings/email/(\w+)" :>>
-            (fn [[_ code]] [VerifyEmail code])
             [:div {:style {:display "none"}}])]])
       :get-initial-state
       (fn [this]
@@ -317,9 +345,9 @@
         (dispatch [:compensation/get-payments-paid!])
         (dispatch [:user/get-invitations!]))})))
 
-(defmethod logged-out-content [:user-settings] []
+(defmethod logged-out-content [:user-main] []
   (logged-out-content :logged-out))
 
-(defmethod panel-content [:user-settings] []
+(defmethod panel-content [:user-main] []
   (fn [child]
     [UserContent]))

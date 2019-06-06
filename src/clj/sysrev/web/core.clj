@@ -15,6 +15,7 @@
             [sysrev.web.index :as index]
             [sysrev.web.blog :as blog]
             [sysrev.web.routes.auth :refer [auth-routes]]
+            [sysrev.web.routes.org :refer [org-routes]]
             [sysrev.web.routes.site :refer [site-routes]]
             [sysrev.web.routes.project :refer [project-routes]]
             [sysrev.web.routes.user :refer [user-routes]]
@@ -31,7 +32,8 @@
                                 (routes auth-routes
                                         site-routes
                                         project-routes
-                                        user-routes))))
+                                        user-routes
+                                        org-routes))))
 
 (load-app-routes)
 

@@ -5,18 +5,18 @@
             [clojure.main :refer [demunge]]
             [clojure.math.numeric-tower :as math]
             [clojure.tools.logging :as log]
-            [clojure.xml]
+            [clojure.data.xml :as dxml]
             [crypto.random]
             [cognitect.transit :as transit]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [clj-time.format :as tformat]
             [me.raynes.fs :as fs]
-            [sysrev.shared.util :as sutil])
+            [sysrev.config.core :refer [env]]
+            [sysrev.shared.util :as sutil :refer [ensure-pred]])
   (:import java.util.UUID
            (java.io File ByteArrayInputStream ByteArrayOutputStream)
            java.math.BigInteger
-           (javax.xml.parsers SAXParser SAXParserFactory)
            java.security.MessageDigest
            org.apache.commons.lang3.exception.ExceptionUtils))
 
@@ -91,17 +91,7 @@
   (->> (xml-find roots path)
        (mapv #(-> % :content first))))
 
-(defn parse-xml-str [s]
-  (clojure.xml/parse
-   (ByteArrayInputStream. (.getBytes s))
-   ;; Create parser instance with DTD loading disabled.  Without this,
-   ;; parser may make HTTP requests to DTD locations referenced in the
-   ;; XML string.
-   (fn [s ch]
-     (let [^SAXParserFactory factory (SAXParserFactory/newInstance)]
-       (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
-       (let [^SAXParser parser (.newSAXParser factory)]
-         (.parse parser s ch))))))
+(defn parse-xml-str [s] (dxml/parse-str s))
 
 (defn all-project-ns []
   (->> (all-ns)
@@ -185,6 +175,10 @@
 
 (defn now-unix-seconds []
   (-> (t/now) (tc/to-long) (/ 1000) int))
+
+(defn sql-date->clj-time
+  [s]
+  (tformat/parse (tformat/formatter :mysql) s))
 
 ;; see: https://stackoverflow.com/questions/10751638/clojure-rounding-to-decimal-places
 (defn round
@@ -280,13 +274,6 @@
                       (result-fn (inc retry-count)))))))]
     (result-fn 0)))
 
-(defn vector->hash-map
-  "Convert a vector into a hash-map with keys that correspond to the val of kw in each element"
-  [v kw]
-  (->> v
-       (map #(hash-map (kw %) %))
-       (apply merge)))
-
 (defn shell
   "Runs a shell command, throwing exception on non-zero exit."
   [& args]
@@ -365,3 +352,14 @@
        (filter (fn [[changed original]] (not= changed original)))
        sort
        (map (fn [[changed original]] (str/join " " [mv original changed])))))
+
+(defn ms-windows? []
+  (-> (System/getProperty "os.name")
+      (str/includes? "Windows")))
+
+(defn temp-dir []
+  (str (or (:tmpdir env) (:java-io-tmpdir env))
+       (if (ms-windows?) "\\" "/")))
+
+(defn tempfile-path [filename]
+  (str (temp-dir) filename))

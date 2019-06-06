@@ -40,44 +40,6 @@
   :args (s/cat :article-or-id ::sa/article-or-id)
   :ret (s/nilable ::sc/sql-serial-id))
 
-(defn to-user-id
-  "Returns integer user id of argument."
-  [user-id]
-  (let [in (s/conform ::sc/user-id user-id)]
-    (if (= in ::s/invalid)
-      nil
-      (let [[t v] in]
-        (cond
-          (= t :serial) user-id
-          (= t :uuid) (-> (select :user-id)
-                          (from :web-user)
-                          (where [:= :user-uuid user-id])
-                          do-query first :user-id)
-          :else nil)))))
-;;;
-(s/fdef to-user-id
-  :args (s/cat :user-id ::sc/user-id)
-  :ret (s/nilable ::sc/sql-serial-id))
-
-(defn to-project-id
-  "Returns integer project id of argument."
-  [project-id]
-  (let [in (s/conform ::sc/project-id project-id)]
-    (if (= in ::s/invalid)
-      nil
-      (let [[t v] in]
-        (cond
-          (= t :serial) project-id
-          (= t :uuid) (-> (select :project-id)
-                          (from :project)
-                          (where [:= :project-uuid project-id])
-                          do-query first :project-id)
-          :else nil)))))
-;;;
-(s/fdef to-project-id
-  :args (s/cat :project-id (s/nilable ::sc/project-id))
-  :ret (s/nilable ::sc/sql-serial-id))
-
 (defn to-label-id
   "Returns label uuid of argument."
   [label-id]
@@ -438,8 +400,7 @@
 (defn project-latest-predict-run-id
   "Gets the most recent predict-run ID for a project."
   [project-id]
-  (with-project-cache
-    project-id [:predict :latest-predict-run-id]
+  (with-project-cache project-id [:predict :latest-predict-run-id]
     (-> (select-latest-predict-run [:predict-run-id])
         (merge-where [:= :project-id project-id])
         do-query first :predict-run-id)))
@@ -508,8 +469,9 @@
   "Runs query to select fields from table where id-field is any of id-values.
   Allows for unlimited count of id-values by partitioning values into
   groups and running multiple select queries."
-  [table id-field id-values fields & {:keys [where alter-query]}]
-  (apply concat (for [id-group (partition-all 250 id-values)]
+  [table fields id-field id-values & {:keys [where alter-query]}]
+  (apply concat (for [id-group (->> (if (sequential? id-values) id-values [id-values])
+                                    (partition-all 200))]
                   (when (seq id-group)
                     (-> (apply select fields) (from table)
                         (sqlh/where [:in id-field (vec id-group)])

@@ -21,6 +21,7 @@
         sysrev.source.endnote
         sysrev.export.endnote
         sysrev.paypal
+        sysrev.stripe
         sysrev.predict.core
         sysrev.predict.report
         sysrev.biosource.predict
@@ -64,7 +65,6 @@
             [me.raynes.fs :as fs]
             [clojure.test :refer :all]
             [clojure.test.junit :refer :all]
-            [clojure.xml :as xml]
             [clojure.zip :as zip]
             [clojure.data.xml :as dxml]
             [clojure.string :as str]
@@ -87,6 +87,7 @@
             sysrev.test.all
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
+            [sysrev.pubmed :as pubmed]
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])
   (:import java.util.UUID))
 
