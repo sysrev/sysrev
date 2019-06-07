@@ -214,7 +214,7 @@
              [Header {:as "h4" :dividing true} "Public Reviewer Opt In"]
              (when-not verified
                [Message {:warning true}
-                [:a {:href "/user/settings/email"}
+                [:a {:href (str "/user/" @(subscribe [:self/user-id]) "/email")}
                  "Your email address is not yet verified."]])
              [Radio {:toggle true
                      :id "opt-in-public-reviewer"

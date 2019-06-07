@@ -309,7 +309,7 @@
                 :on-open #(reset! modal-open true)
                 :on-close #(reset! modal-open false)
                 :close-icon true}
-         [ModalHeader (str "Invite Member to " org-id)]
+         [ModalHeader (str "Invite Member to " @(subscribe [:orgs/org-name org-id]))]
          [ModalContent
           [ModalDescription
            [Form {:id "invite-member-form"

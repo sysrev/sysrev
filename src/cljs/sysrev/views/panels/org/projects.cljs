@@ -94,8 +94,8 @@
                         private]
                     ^{:key (:project-id project)}
                     [OrgProject project]))]])]
-      [Segment
-       [:h3 "This organization doesn't have public projects"]])))
+      [Message
+       [:h4 "This organization doesn't have any public projects"]])))
 
 (defn OrgProjects [{:keys [org-id]}]
   (let [error (r/cursor state [:retrieving-projects-error])]
