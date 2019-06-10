@@ -284,9 +284,12 @@
            {:setting :public-access
             :label "Project Visibility"
             :entries public-access-buttons
-            :disabled? (= project-plan "Basic")}]
-     (when (= project-plan
-              "Basic")
+            :disabled? (and (= project-plan "Basic")
+                            (not @(subscribe [:user/actual-admin?]))
+                            @(subscribe [:project/public-access? project-id]))}]
+     (when (and (= project-plan
+                   "Basic")
+                @(subscribe [:project/controlled-by? project-id @(subscribe [:self/user-id])]))
        [:p [:a {:href (if (= owner-key :user-id)
                         (str "/user/plans")
                         (str "/org/" owner-id "/plans"))

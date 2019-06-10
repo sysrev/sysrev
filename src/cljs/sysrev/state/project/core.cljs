@@ -149,3 +149,24 @@
       {:dispatch-n
        (list [:reload [:project project-id]]
              [:reload [:project/sources project-id]])})))
+
+(reg-sub
+ :project/controlled-by?
+ (fn [[_ project-id user-id]]
+   [(subscribe [:member/admin? user-id project-id])
+    (subscribe [:self/orgs user-id])
+    (subscribe [:project/owner project-id])])
+ (fn [[admin? orgs project-owner]]
+   (let [project-owner-type (-> project-owner keys first)
+         project-owner-id (-> project-owner vals first)
+         org-permissions (when (= :group-id project-owner-type)
+                           (->> orgs (filter #(= (:group-id %) project-owner-id))
+                                first :permissions))]
+     (or
+      ;; user is an admin of this project
+      (and (= :user-id project-owner-type)
+           admin?)
+      ;; user is an admin or owner of the org this project belongs to
+      (and (= :group-id project-owner-type)
+           (some #{"admin" "owner"}
+                 org-permissions))))))

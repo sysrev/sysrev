@@ -60,9 +60,7 @@
 ;; server settings
 (def minimum-support-level 100)
 (def max-import-articles (:max-import-articles env))
-(defn paywall-grandfather-date
-  []
-  "2019-06-09 23:56:00")
+(def paywall-grandfather-date "2019-06-09 23:56:00")
 
 (defmacro try-catch-response
   [body]
@@ -361,13 +359,24 @@
       ;; default
       "Basic")))
 
+(defn- project-grandfathered?
+  "Is the project grandfathered in?"
+  [project-id]
+  (let [created-clj-time (-> project-id project/get-project-by-id :date-created db/time-to-string util/sql-date->clj-time)]
+    (t/before? created-clj-time
+               (util/sql-date->clj-time paywall-grandfather-date))))
+
+(defn project-unlimited-access?
+  [project-id]
+  (or (project-grandfathered? project-id)
+      (contains? #{"Unlimited_Org" "Unlimited_User"} (project-owner-plan project-id))))
+
 (defn change-project-settings
   [project-id changes]
   (with-transaction
     (doseq [{:keys [setting value]} changes]
       (cond (and (= setting :public-access)
-                 ;; owner has Unlimited plan
-                 (some #{"Unlimited_Org" "Unlimited_User"} [(project-owner-plan project-id)]))
+                 (project-unlimited-access? project-id))
             (project/change-project-setting project-id (keyword setting) value)
             (and (= setting :public-access)
                  (= value false)
@@ -1461,12 +1470,6 @@
   [project-id]
   (if (nil? project-id)
     false
-    (let [public-access? (get-in (project/project-settings project-id) [:public-access])
-          created-clj-time (-> project-id project/get-project-by-id :date-created db/time-to-string util/sql-date->clj-time)
-          plan (project-owner-plan project-id)]
-      (if (and (not public-access?)
-               (t/after? created-clj-time
-                         (util/sql-date->clj-time (paywall-grandfather-date)))
-               (not (some #{"Unlimited_Org" "Unlimited_User"} [plan])))
-        true
-        false))))
+    (let [public-access? (get-in (project/project-settings project-id) [:public-access])]
+      (and (not public-access?)
+           (not (project-unlimited-access? project-id))))))
