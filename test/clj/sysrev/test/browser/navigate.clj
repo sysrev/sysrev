@@ -48,19 +48,19 @@
     (b/click "button[name='submit']")
     (Thread/sleep 100)
     (go-route "/" :silent true)
-    (log/info "login successful")))
+    #_ (log/info "login successful")))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
     (log/info "registering user"  (str "(" email ")"))
     (log-out :silent true)
-    (go-route "/register")
+    (go-route "/register" :silent true)
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
     (b/wait-until-exists "form.create-project")
-    (log/info "register successful")))
+    #_ (log/info "register successful")))
 
 (defn wait-until-overview-ready []
   (-> (b/not-disabled (x/project-menu-item :overview))
@@ -77,7 +77,7 @@
   (b/wait-until-exists
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
           "//ancestor::div[@id='project']"))
-  (log/info "project created")
+  #_ (log/info "project created")
   (b/wait-until-loading-completes :pre-wait 200))
 
 (defn open-project [name]

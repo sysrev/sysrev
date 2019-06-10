@@ -53,7 +53,8 @@
   (cond-> default/site-defaults
     session        (-> (assoc-in [:session :store] (sysrev-session-store))
                        (assoc-in [:session :cookie-attrs :max-age] (* 60 60 24 365 2)))
-    (not session)  (assoc-in [:session :cookie-name] "ring-session-temp")
+    (not session)  (-> (assoc-in [:session :cookie-name] "ring-session-temp")
+                       (assoc-in [:session :cookie-attrs :max-age] (* 60 60 24 2)))
     true           (assoc-in [:security :anti-forgery] (boolean anti-forgery))))
 
 (defn wrap-sysrev-html

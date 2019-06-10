@@ -189,8 +189,7 @@
 #_(let [stripe-id (-> email users/get-user-by-email :stripe-id)
         source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
     source-id
-    ;;(stripe/delete-customer-card! stripe-id source-id)
-    )
+    #_ (stripe/delete-customer-card! stripe-id source-id))
 
 ;; delete a org's card:
 #_(let [group-id (-> (groups/read-groups user-id) first :id)
@@ -366,3 +365,10 @@
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]"))))
   :cleanup (do (some-> email (users/get-user-by-email) (users/delete-sysrev-stripe-customer!))
                (b/cleanup-test-user! :email email :groups true)))
+
+;; from repl in sysrev.user ns:
+#_ (let [email (:email test-login)]
+     (some-> email (get-user-by-email) (delete-sysrev-stripe-customer!))
+     (cleanup-test-user! :email email :groups true)
+     (create-test-user)
+     (sysrev.test.browser.orgs/org-plans))

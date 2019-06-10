@@ -1,23 +1,94 @@
 (ns sysrev.data.core
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe dispatch reg-sub
-              reg-event-db reg-event-fx trim-v reg-fx]]
+  (:require [clojure.spec.alpha :as s]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx
+                                   trim-v reg-fx]]
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
-            [sysrev.ajax :refer
-             [reg-event-ajax reg-event-ajax-fx run-ajax]]
-            [sysrev.util :refer [dissoc-in]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.ajax :refer [reg-event-ajax reg-event-ajax-fx run-ajax]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defonce
   ^{:doc "Holds static definitions for data items fetched from server"}
   data-defs (atom {}))
 
+;; re-frame db value
+(s/def ::db map?)
+
+;; data item vector
+(s/def ::item-name keyword?) ; keyword name for item
+(s/def ::item-arg (constantly true)) ; any value
+;; ex: [:project 100]
+(s/def ::item (s/and vector? (s/cat :name ::item-name :args (s/* ::item-arg))))
+
+;; item value formats
+(s/def ::item-args (s/coll-of ::item-arg))
+(s/def ::db-item-args (s/cat :db ::db :args (s/* ::item-arg)))
+
+;; def-data arguments
+(doseq [arg [::loaded? ::uri ::process ::prereqs ::content ::on-error]]
+  (s/def arg ifn?))
+(s/def ::content-type string?)
+
 (defn def-data
-  "Create definition for a data item to fetch from server."
+  "Create definition for a data item to fetch from server.
+
+  Required parameters:
+
+  `:loaded?` - fn taking `::db-item-args`, returns boolean indicating
+  whether item is already loaded. Should check db for the presence of
+  entries stored by the `:process` or `:on-error` handlers. This
+  affects the behavior of `:require` and `:reload`; `:require` will
+  fetch only when item is not loaded, and `:reload` will fetch only
+  when item is loaded. Items will be loaded again automatically if the
+  item becomes not-loaded (data entry removed from db) after
+  `:require` was called previously.
+
+  `:uri` - fn taking `::item-args`, returns url string for request.
+
+  `:process` - (fn [cofx item-args result] ...)
+  `cofx` is normal re-frame cofx map for reg-event-fx
+  (ex: {:keys [db]}).
+  `item-args` provides the `::item-args` from the item vector passed to
+  one of `:require` `:reload` `:fetch`.
+  `result` provides the value returned from server on HTTP success.
+  The value is unwrapped, having already been extracted from the raw
+  {:result value, ...} returned by the server.
+
+  Optional parameters:
+
+  `:prereqs` - fn taking `::item-args`, returns vector of `::item`
+  entries. The prereq items must be loaded before this item will be
+  fetched; if loading an item is prevented due to missing prereqs, it
+  will be loaded automatically when the prereqs are satisfied. If not
+  specified, [[:identity]] will be used as default value.
+
+  `:content` - fn taking `::item-args`, returns request content
+  (normally a map of request parameter values).
+
+  `:content-type` - string value for HTTP Content-Type header
+
+  `:on-error` - Similar to `:process` but called on HTTP error
+  status. cofx value includes an `:error` key, which is taken from
+  the `:error` field of the server response."
   [name & {:keys [prereqs loaded? uri content content-type process on-error]
+           :or {prereqs (constantly [[:identity]])}
            :as fields}]
+  (s/assert ::item-name name)
+  (s/assert ::loaded? loaded?)
+  (s/assert ::uri uri)
+  (s/assert ::process process)
+  (when prereqs (s/assert ::prereqs prereqs))
+  (when content (s/assert ::content content))
+  (when content-type (s/assert ::content-type content-type))
+  (when on-error (s/assert ::on-error on-error))
   (swap! data-defs assoc name fields))
+
+(s/fdef def-data
+  :args (s/cat :name ::item-name
+               :keys (s/keys* :req-un [::loaded? ::uri ::process]
+                              :opt-un [::prereqs ::content ::content-type ::on-error]))
+  :ret map?)
 
 ;; Gets raw list of data requirements
 (defn- get-needed-raw [db] (get db :needed []))
@@ -50,7 +121,7 @@
   (assoc-in db [:on-load item trigger-id] action))
 
 (defn- remove-load-triggers [db item]
-  (dissoc-in db [:on-load item]))
+  (util/dissoc-in db [:on-load item]))
 
 (defn- lookup-load-triggers [db item]
   (get-in db [:on-load item]))

@@ -25,6 +25,7 @@
            [java.util.logging Level]))
 
 (defonce active-webdriver (atom nil))
+(defonce active-webdriver-config (atom nil))
 
 (defn start-webdriver [& [restart?]]
   (if (and @active-webdriver (not restart?))
@@ -38,7 +39,9 @@
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
                       driver (driver/init-driver {:webdriver chromedriver})]
-                  (taxi/set-driver! driver))))))
+                  (taxi/set-driver! driver)))
+        (reset! active-webdriver-config {:visual false})
+        @active-webdriver)))
 
 (defn start-visual-webdriver
   "Starts a visible Chrome webdriver instance for taxi interaction.
@@ -59,12 +62,21 @@
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
                       driver (driver/init-driver {:webdriver chromedriver})]
-                  (taxi/set-driver! driver))))))
+                  (taxi/set-driver! driver)))
+        (reset! active-webdriver-config {:visual true})
+        @active-webdriver)))
 
 (defn stop-webdriver []
   (when @active-webdriver
     (taxi/quit)
-    (reset! active-webdriver nil)))
+    (reset! active-webdriver nil)
+    (reset! active-webdriver-config nil)))
+
+(defn visual-webdriver? []
+  (and @active-webdriver (true? (:visual @active-webdriver-config))))
+
+(defn standard-webdriver? []
+  (and @active-webdriver (not (visual-webdriver?))))
 
 (defonce webdriver-shutdown-hook (atom nil))
 
@@ -75,6 +87,16 @@
     (let [runtime (Runtime/getRuntime)]
       (.addShutdownHook runtime (Thread. #(stop-webdriver)))
       (reset! webdriver-shutdown-hook true))))
+
+(defn take-screenshot [& [error?]]
+  (if (standard-webdriver?)
+    (let [path (util/tempfile-path (str "screenshot-" (System/currentTimeMillis) ".png"))
+          level (if error? :error :info)]
+      (try (taxi/take-screenshot :file path)
+           (log/logp level "Screenshot saved:" path)
+           (catch Throwable e
+             (log/error "Screenshot failed:" (type e) (.getMessage e)))))
+    (log/info "Skipping take-screenshot (visual webdriver)")))
 
 (def test-login
   {:email "browser+test@insilica.co"
@@ -99,7 +121,9 @@
                                 project-id nil}}]
   (with-transaction
     (delete-test-user :email email)
-    (users/create-user email password :project-id project-id)))
+    (let [{:keys [user-id] :as user} (users/create-user email password :project-id project-id)]
+      (users/change-user-setting user-id :ui-theme "Dark")
+      user)))
 
 (defn displayed-now?
   "Wrapper for taxi/displayed? to handle common exceptions. Returns true
@@ -256,14 +280,6 @@
     (Thread/sleep 20))
   true)
 
-(defn take-screenshot [& [error?]]
-  (let [path (util/tempfile-path (str "screenshot-" (System/currentTimeMillis) ".png"))
-        level (if error? :error :info)]
-    (try (taxi/take-screenshot :file path)
-         (log/logp level "Screenshot saved:" path)
-         (catch Throwable e
-           (log/error "Screenshot failed:" (type e) (.getMessage e))))))
-
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)]
     `(deftest ~name
@@ -284,15 +300,19 @@
 
 (defn current-frame-names []
   (->> (taxi/xpath-finder "//iframe")
-       (map #(taxi/attribute % :name))))
+       (mapv #(when (taxi/exists? %) (taxi/attribute % :name)))
+       (filterv identity)))
 
 (defn get-elements-text
   "Returns vector of taxi/text values for the elements matching q.
   Waits until at least one element is displayed unless wait? is
   logical false."
-  [q & {:keys [wait?] :or {wait? true}}]
-  (when wait? (wait-until-displayed q))
-  (mapv taxi/text (taxi/elements q)))
+  [q & {:keys [wait? timeout] :or {wait? true timeout 1000}}]
+  (when wait? (try (wait-until #(taxi/exists? q) :timeout timeout)
+                   (catch Throwable e nil)))
+  (if (taxi/exists? q)
+    (mapv taxi/text (taxi/elements q))
+    []))
 
 (defn delete-compensation-by-id [project-id compensation-id]
   ;; delete from compensation-user-period

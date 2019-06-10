@@ -93,12 +93,18 @@
 (defn change-project-public-access
   "Change public access setting for current project."
   [public?]
-  (let [q (str "button#public-access_" (if public? "public" "private"))]
+  (let [status-q #(str "button#public-access_" (if % "public" "private"))
+        q (status-q public?)]
     (nav/go-project-route "/settings")
     (b/wait-until-exists (-> q b/not-disabled))
-    (when (taxi/exists? (-> q b/not-disabled (b/not-class "active")))
-      (b/click q)
-      (b/click "div.project-options button.save-changes"))))
+    (log/infof "changing project access to %s" (if public? "public" "private"))
+    (if (taxi/exists? (-> q b/not-disabled (b/not-class "active")))
+      (do (b/click q)
+          (b/click "div.project-options button.save-changes"))
+      (do (log/warn "change-project-public-access: already set to" (str public? "?")
+                    (pr-str [(taxi/attribute (status-q true) "class")
+                             (taxi/attribute (status-q false) "class")]))
+          (b/take-screenshot)))))
 
 (deftest-browser correct-project-activity
   (test/db-connected?)

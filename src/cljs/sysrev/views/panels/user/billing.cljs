@@ -80,14 +80,13 @@
 (defn Billing []
   (let [self-id @(subscribe [:self/user-id])
         billing-url (str "/user/" self-id "/billing")]
-    (dispatch [:plans/set-on-subscribe-nav-to-url! billing-url])
+    (dispatch [:user/set-on-subscribe-nav-to-url! billing-url])
     [Segment
      [Header {:as "h4" :dividing true} "Billing"]
      [ListUI {:divided true :relaxed true}
       [ListItem [Plan {:plans-route "/user/plans"
-                       :current-plan-atom (subscribe [:plans/current-plan])
-                       :fetch-current-plan #(dispatch ;;[:fetch [:current-plan self-id]]
-                                             [:user/get-current-plan self-id])}]]
+                       :current-plan-atom (subscribe [:user/current-plan])
+                       :fetch-current-plan #(dispatch [:fetch [:user/current-plan self-id]])}]]
       [ListItem [PaymentSource
                  {:get-default-source stripe/get-user-default-source
                   :default-source-atom (subscribe [:stripe/default-source "user" self-id])

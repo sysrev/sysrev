@@ -73,9 +73,8 @@
       (is (b/exists? (x/match-text "span" (:short-label label1))))
       ;; create users
       (doseq [email test-users]
-        (let [{:keys [user-id]}
-              (b/create-test-user :email email :project-id @project-id)]
-          (assert user-id)
+        (let [{:keys [user-id]} (b/create-test-user :email email :project-id @project-id)]
+          (assert (integer? user-id))
           ;; set "admin" on user1 for editing labels
           (when (in? [user1] email)
             (project/set-member-permissions

@@ -124,12 +124,6 @@
            ((comp :permissions first)
             (filter #(= (:group-id %) org-id) orgs))))
 
-(reg-event-db
- :self/set-orgs!
- [trim-v]
- (fn [db [orgs]]
-   (assoc-in db [:state :self :orgs] orgs)))
-
 (reg-sub
  :self/member?
  :<- [:self/user-id]

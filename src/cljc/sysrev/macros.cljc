@@ -1,7 +1,9 @@
 (ns sysrev.macros
   (:require [clojure.string :as str]
             [cljs.analyzer.api :as ana-api]
-            [re-frame.core :refer [subscribe dispatch]]
+            [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
+            [re-frame.db :refer [app-db]]
             [secretary.core :refer [defroute]]
             [sysrev.loading]
             [sysrev.shared.util :refer [map-values parse-integer filter-values ensure-pred]]))
@@ -206,3 +208,32 @@
                                     ~suburi
                                     ~(vec (concat '(owner-id) params))
                                     ~@body))))
+
+(defmacro setup-panel-state
+  [{:keys [path panel-var state-var get-fn set-fn get-sub set-event]}]
+  ;; TODO: check that all these argument values are valid
+  (assert (and (vector? path) (every? keyword? path) (not-empty path)))
+  `(do
+     ;; define var with panel key vector
+     (def ~panel-var ~path)
+     ;; define cursor to provide direct access to panel state map
+     (defonce ~state-var (r/cursor app-db [:state :panels ~panel-var]))
+     ;; define function for reading panel state from db value
+     (defn ~get-fn [db# & [path#]]
+       (sysrev.state.ui/get-panel-field db# path# ~panel-var))
+     ;; define function for updating db value to set panel state
+     (defn ~set-fn [db# path# val#]
+       (sysrev.state.ui/set-panel-field db# path# val# ~panel-var))
+     ;; define re-frame sub for reading panel state.
+     ;; behavior should be equivalent to :panel-field.
+     (reg-sub ~get-sub
+              :<- [:panel-field nil ~panel-var]
+              (fn [panel-state# [_ path#]]
+                (if (or (sequential? path#) (nil? path#))
+                  (get-in panel-state# path#)
+                  (get panel-state# path#))))
+     ;; define re-frame event for setting panel state.
+     ;; behavior should be equivalent to :set-panel-field.
+     (reg-event-db ~set-event
+                   (fn [{:keys [db#]} [_ path# val#]]
+                     {:db (~set-fn db# path# val#)}))))

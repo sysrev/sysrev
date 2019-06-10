@@ -71,7 +71,7 @@
             :on-open #(reset! modal-open true)
             :on-close #(reset! modal-open false)
             :close-icon true}
-     [ModalHeader (str "Removing 1 member from " @(subscribe [:orgs/org-name org-id]))]
+     [ModalHeader (str "Removing 1 member from " @(subscribe [:org/name org-id]))]
      [ModalContent
       [ModalDescription
        [Form {:on-submit #(remove-from-org! {:user-id @user-id
@@ -177,7 +177,7 @@
         current-user-id (r/cursor state [:current-user-id])
         current-username (r/cursor state [:current-username])
         self-user-id @(subscribe [:self/user-id])
-        self-permissions @(subscribe [:orgs/org-permissions org-id])]
+        self-permissions @(subscribe [:org/permissions org-id])]
     [TableRow
      [TableCell
       [Avatar {:user-id user-id}]
@@ -309,7 +309,7 @@
                 :on-open #(reset! modal-open true)
                 :on-close #(reset! modal-open false)
                 :close-icon true}
-         [ModalHeader (str "Invite Member to " @(subscribe [:orgs/org-name org-id]))]
+         [ModalHeader (str "Invite Member to " @(subscribe [:org/name org-id]))]
          [ModalContent
           [ModalDescription
            [Form {:id "invite-member-form"
@@ -363,7 +363,7 @@
 
 (defn OrgUsers [{:keys [org-id]}]
   (let [org-users (subscribe [:org/users org-id])
-        org-permissions (subscribe [:orgs/org-permissions org-id])]
+        org-permissions (subscribe [:org/permissions org-id])]
     (r/create-class
      {:reagent-render
       (fn [this]

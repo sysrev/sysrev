@@ -169,10 +169,8 @@
         (sort-by :project-id <)
         (map :project-id))))
 
+;; TODO: remove this, potentially very expensive
 (reg-event-fx :project/fetch-all-projects
-              [trim-v]
               (fn []
-                (let [projects @(subscribe [:self/projects])
-                      project-ids (map :project-id projects)]
-                  (doall (map #(dispatch [:fetch [:project %]]) project-ids)))
-                {}))
+                {:dispatch-n (doall (map (fn [p] [:fetch [:project (:project-id p)]])
+                                         @(subscribe [:self/projects])))}))

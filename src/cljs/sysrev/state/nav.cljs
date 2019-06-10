@@ -178,7 +178,7 @@
               :set-page-title (some->> new-active (get-project-raw new-db) :name)}
        ;; reset data if this changes to a new active project
        (and (not= cur-active new-active) recent-url-id url-id (not= recent-url-id url-id))
-       (merge {:reset-ui true, :reset-needed true})
+       (merge {:reset-project-ui true, :reset-needed true})
        ;; look up project id from server
        url-id
        (merge {:dispatch [:require [:lookup-project-url url-id]]})))))

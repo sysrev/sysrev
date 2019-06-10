@@ -212,6 +212,15 @@
   [s & {:keys [parens] :or {parens "()"}}]
   (when s (str (subs parens 0 1) s (subs parens 1 2))))
 
+(defn filter-keys
+  "Returns a map of the entries in m for which (pred key) returns
+  logical true."
+  [pred m]
+  (->> (seq m)
+       (filter (fn [[k v]] (pred k)))
+       (apply concat)
+       (apply hash-map)))
+
 (defn filter-values
   "Returns a map of the entries in m for which (pred value) returns
   logical true."
