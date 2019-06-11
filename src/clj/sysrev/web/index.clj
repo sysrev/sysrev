@@ -55,7 +55,7 @@
 (def google-oauth-id-browser
   "663198182926-2scj6i34qibj3fjfrtkmphktk9vo23u5.apps.googleusercontent.com")
 
-(defn index [& [request]]
+(defn index [& [request maintainence-msg]]
   (page/html5
    [:head
     [:title "Sysrev"]
@@ -103,10 +103,15 @@
            :id "paypal-client-id"
            :data-paypal-client-id paypal-client-id}]
     [:div {:id "app"} (loading-content)]
-    (let [js-name (if (= (:profile env) :prod)
-                    (str "sysrev-" res/build-id ".js")
-                    "sysrev.js")]
-      (page/include-js (str @web-asset-path "/" js-name)))]))
+    (if maintainence-msg
+      [:div.ui.container
+       [:div.ui.negative.icon.message
+        [:i.warning.icon]
+        [:div.content maintainence-msg]]]
+      (let [js-name (if (= (:profile env) :prod)
+                      (str "sysrev-" res/build-id ".js")
+                      "sysrev.js")]
+        (page/include-js (str @web-asset-path "/" js-name))))]))
 
 (defn not-found [& [request]]
   (page/html5
