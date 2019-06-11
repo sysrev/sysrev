@@ -105,6 +105,7 @@
                   (GET "*" [] (wrap-routes html-routes wrap-sysrev-html)))
     (in? [:dev :test] (:profile env)) (wrap-no-cache)))
 
+#_
 (defn blog-handler
   "Root handler for blog web server"
   []
@@ -135,7 +136,7 @@
       (stop-web-server)
       (reset! web-servers
               {:main (aleph/start-server (sysrev-handler) {:port port})
-               :blog (aleph/start-server (blog-handler) {:port (inc port)})})
+               #_ :blog #_ (aleph/start-server (blog-handler) {:port (inc port)})})
       (log/info (format "web server started (port %d)" port))
-      (log/info (format "web server started (port %d) (blog)" (inc port)))
+      #_ (log/info (format "web server started (port %d) (blog)" (inc port)))
       @web-servers)))

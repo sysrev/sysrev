@@ -18,7 +18,7 @@
             sysrev.test.browser.pubmed
             sysrev.test.browser.review-articles
             sysrev.test.browser.markdown
-            sysrev.test.browser.blog
+            #_ sysrev.test.browser.blog
             sysrev.test.browser.review-settings
             sysrev.test.browser.label-settings
             sysrev.test.browser.user-profiles

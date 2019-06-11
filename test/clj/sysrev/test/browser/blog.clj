@@ -11,6 +11,7 @@
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+#_
 (deftest-browser blog-pages
   (:blog-url (test/get-selenium-config))
   [{:keys [blog-url]} (test/get-selenium-config)
