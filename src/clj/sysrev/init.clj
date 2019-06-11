@@ -1,21 +1,13 @@
 (ns sysrev.init
-  (:require [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
+  (:require sysrev.logging
+            sysrev.stacktrace
             sysrev.all-entities
+            [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.cassandra :as cdb]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config.core :refer [env]]
             [sysrev.web.routes.site :as site]
-            [clojure.tools.logging :as log])
-  (:import [org.slf4j.bridge SLF4JBridgeHandler]))
-
-(defn init-logging []
-  (SLF4JBridgeHandler/removeHandlersForRootLogger)
-  (SLF4JBridgeHandler/install)
-  (log/info "installed SLF4JBridgeHandler")
-  true)
-
-(defonce logging-initialized
-  (init-logging))
+            [clojure.tools.logging :as log]))
 
 (defn start-db [& [postgres-overrides only-if-new]]
   (let [db-config (make-db-config

@@ -96,36 +96,31 @@
 
 (defn init-test-db []
   (when (db-connected?)
-    (let [config {:dbname test-dbname
-                  :host test-db-host}]
+    (let [config {:dbname test-dbname :host test-db-host}]
       (if @db-initialized?
         (do (start-app config nil true)
-            (let [{:keys [host port dbname]}
-                  (-> @db/active-db :config)]
-              (log/info (format "connected to postgres (%s:%d/%s)"
-                                host port dbname))))
-        (do (log/info "Initializing test DB...")
-            (db/close-active-db)
-            (db/terminate-db-connections config)
-            (try
-              (db-shell "dropdb" [] config)
-              (catch Throwable e
-                nil))
-            (db-shell "createdb" [] config)
-            (log/info "Applying Flyway schema...")
-            (when-not (util/ms-windows?)
-              (shell "./scripts/install-flyway"))
-            (with-flyway-config config
-              (log/info (str "\n" (slurp "flyway.conf")))
-              (-> (if (util/ms-windows?)
-                    (shell "flyway-5.2.4/flyway.cmd" "migrate")
-                    (shell "./flyway" "migrate"))
-                  :out log/info))
-            (start-app config nil true)
-            (log/info "Applying Clojure DB migrations...")
-            (migrate/ensure-updated-db)
-            (reset! db-initialized? true)
-            (log/info "Test DB ready"))))))
+            (let [{:keys [host port dbname]} (:config @db/active-db)]
+              (log/infof "connected to postgres (%s:%d/%s)" host port dbname)))
+        (util/with-print-time-elapsed "Initialize test DB"
+          (log/info "Initializing test DB...")
+          (db/close-active-db)
+          (db/terminate-db-connections config)
+          (try (db-shell "dropdb" [] config)
+               (catch Throwable e nil))
+          (db-shell "createdb" [] config)
+          (log/info "Applying Flyway schema...")
+          (when-not (util/ms-windows?)
+            (shell "./scripts/install-flyway"))
+          (with-flyway-config config
+            (log/info (str "\n" (slurp "flyway.conf")))
+            (-> (if (util/ms-windows?)
+                  (shell "flyway-5.2.4/flyway.cmd" "migrate")
+                  (shell "./flyway" "migrate"))
+                :out log/info))
+          (start-app config nil true)
+          (log/info "Applying Clojure DB migrations...")
+          (migrate/ensure-updated-db)
+          (reset! db-initialized? true))))))
 
 (defn default-fixture
   "Validates configuration, tries to ensure we're running

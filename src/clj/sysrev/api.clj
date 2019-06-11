@@ -8,6 +8,7 @@
             [clojure.tools.logging :as log]
             [clojure.walk :refer [keywordize-keys]]
             [clj-time.core :as t]
+            [clj-time.coerce :as tc]
             [me.raynes.fs :as fs]
             [ring.util.response :as response]
             [sysrev.biosource.annotations :as annotations]
@@ -362,9 +363,8 @@
 (defn- project-grandfathered?
   "Is the project grandfathered in?"
   [project-id]
-  (let [created-clj-time (-> project-id project/get-project-by-id :date-created db/time-to-string util/sql-date->clj-time)]
-    (t/before? created-clj-time
-               (util/sql-date->clj-time paywall-grandfather-date))))
+  (let [created-clj-time (-> (project/get-project-by-id project-id) :date-created tc/from-sql-time)]
+    (t/before? created-clj-time (util/parse-time-string paywall-grandfather-date))))
 
 (defn project-unlimited-access?
   [project-id]

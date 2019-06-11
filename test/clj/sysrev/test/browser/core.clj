@@ -1,7 +1,6 @@
 (ns sysrev.test.browser.core
   (:require [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
-            [clojure.spec.test.alpha :as t]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [cljs.build.api :as cljs]
@@ -269,13 +268,14 @@
   (let [name-str (clojure.core/name name)]
     `(deftest ~name
        (when ~enable
-         (let ~bindings
-           (try (log/info "running" ~name-str)
-                ~body
-                (catch Throwable e#
-                  (take-screenshot true)
-                  (throw e#))
-                (finally ~cleanup)))))))
+         (util/with-print-time-elapsed ~name-str
+           (let ~bindings
+             (try (log/info "running" ~name-str)
+                  ~body
+                  (catch Throwable e#
+                    (take-screenshot true)
+                    (throw e#))
+                  (finally ~cleanup))))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")

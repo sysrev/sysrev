@@ -624,10 +624,7 @@
                users/get-user-by-email
                :user-id)]
   (do (alter-var-root #'sysrev.sendgrid/send-template-email
-                      (fn [send-template-email]
-                        (fn [to subject message
-                             & {:keys [from template-id substitutions]}]
-                          (println "No email was actually sent"))))
+                      (constantly (fn [& _] (log/info "No email sent"))))
       (b/create-test-user)
       (nav/register-user (:email user1) (:password user1))
       ;; the user can't be listed as a public reviewer
@@ -706,5 +703,4 @@
         ;; are we now a member of at least one project?
         (nav/go-route "/")
         (is (= 1 (your-projects-count)))))
-  :cleanup
-  (do (b/delete-test-user :email (:email user1))))
+  :cleanup (b/cleanup-test-user! :email (:email user1)))
