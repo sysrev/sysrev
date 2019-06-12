@@ -21,51 +21,6 @@
            java.security.MessageDigest
            org.apache.commons.lang3.exception.ExceptionUtils))
 
-(defn integerify-map-keys
-  "Maps parsed from JSON with integer keys will have the integers changed
-  to keywords. This converts any integer keywords back to integers, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-int (and (keyword? k)
-                                  (re-matches #"^\d+$" (name k))
-                                  (sutil/parse-number (name k)))
-                       k-new (if (integer? k-int) k-int k)
-                       ;; integerify sub-maps recursively
-                       v-new (if (map? v)
-                               (integerify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
-
-(defn uuidify-map-keys
-  "Maps parsed from JSON with UUID keys will have the UUID values changed
-  to keywords. This converts any UUID keywords back to UUID values, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-uuid
-                       (and (keyword? k)
-                            (re-matches
-                             #"^[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+$"
-                             (name k))
-                            (UUID/fromString (name k)))
-                       k-new (if (= UUID (type k-uuid)) k-uuid k)
-                       ;; uuidify sub-maps recursively
-                       v-new (if (map? v)
-                               (uuidify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
-
 (defn should-never-happen-exception []
   (ex-info "this should never happen" {:type :should-never-happen}))
 

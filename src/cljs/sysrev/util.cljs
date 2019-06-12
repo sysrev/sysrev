@@ -9,50 +9,6 @@
             [sysrev.shared.util :refer [parse-integer ensure-pred]])
   (:require-macros [reagent.interop :refer [$]]))
 
-(defn integerify-map-keys
-  "Maps parsed from JSON with integer keys will have the integers changed 
-  to keywords. This converts any integer keywords back to integers, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-int (and (re-matches #"^\d+$" (name k))
-                                  (parse-integer (name k)))
-                       k-new (if (integer? k-int) k-int k)
-                       ;; integerify sub-maps recursively
-                       v-new (if (map? v)
-                               (integerify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
-
-(defn uuidify-map-keys
-  "Maps parsed from JSON with UUID keys will have the UUID string values changed
-  to keywords. This converts any UUID keywords to string values, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-uuid
-                       (and (keyword? k)
-                            (re-matches
-                             #"^[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+$"
-                             (name k))
-                            (name k))
-                       k-new (if (string? k-uuid) k-uuid k)
-                       ;; uuidify sub-maps recursively
-                       v-new (if (map? v)
-                               (uuidify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
-
 (defn scroll-top []
   (. js/window (scrollTo 0 0)))
 
