@@ -630,3 +630,22 @@
                   [:= :project-id project-id]
                   [:= "owner" :%any.permissions]])
           do-query first))))
+
+(defn search-projects
+  [q]
+  "Return a list of projects using the search query q"
+  (with-transaction
+    (let [project-ids (->> ["SELECT project_id,date_created FROM project WHERE (name ilike ?) AND enabled = true AND settings->>'public-access' = 'true' ORDER BY date_created LIMIT ?"
+                            (str "%" q "%")
+                            5]
+                           db/raw-query
+                           (map :project-id))]
+      (if (empty? project-ids)
+        project-ids
+        (-> (select [:md.string :description] :p.project-id :p.name)
+            (from [:project-description :pd])
+            (right-join [:project :p] [:= :p.project-id :pd.project-id])
+            (left-join [:markdown :md] [:= :md.markdown-id :pd.markdown-id])
+            (where [:in :p.project-id
+                    project-ids])
+            do-query)))))

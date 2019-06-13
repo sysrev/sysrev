@@ -6,6 +6,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
@@ -154,7 +155,11 @@
            (doseq [{:keys [setting value]} changes]
              (users/change-user-setting
               user-id (keyword setting) value))
-           {:success true, :settings (users/user-settings user-id)}))))
+           {:success true, :settings (users/user-settings user-id)})))
+
+  (GET "/api/search" request
+       (let [{:keys [q]} (-> :params request)]
+         (api/search-site q))))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."

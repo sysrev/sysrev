@@ -1473,3 +1473,8 @@
     (let [public-access? (get-in (project/project-settings project-id) [:public-access])]
       (and (not public-access?)
            (not (project-unlimited-access? project-id))))))
+
+(defn search-site
+  "Search the site with query q"
+  [q]
+  {:results {:projects (project/search-projects q)}})

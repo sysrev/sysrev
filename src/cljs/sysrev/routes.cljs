@@ -196,6 +196,10 @@
  users "/user*" []
  (dispatch [:set-active-panel [:users]]))
 
+(sr-defroute
+ search "/search" []
+ (dispatch [:set-active-panel [:search]]))
+
 (defn- load-default-panels [db]
   (->> [[[] "/"]
         [[:project]
@@ -228,6 +232,7 @@
         [[:payment] "/user/payment"]
         [[:plans] "/user/plans"]
         [[:users] "/users*"]
+        [[:search] "/search"]
         [[:org-settings] "/org/*"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))

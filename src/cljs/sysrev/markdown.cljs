@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [cljsjs.showdown]
             [clojure.spec.alpha :as s]
+            [goog.dom :as gdom]
             [reagent.core :as r]
             [sysrev.views.semantic :refer [Segment TextArea]]
             [sysrev.shared.util :as sutil :refer [css]])
@@ -33,6 +34,12 @@
        (fn [node] (when ($ node hasAttribute "href")
                     ($ node setAttribute "target" "_blank"))))
     (->> markdown ($ converter makeHtml) ($ js/DOMPurify sanitize))))
+
+(defn html->string
+  [s]
+  (let [div-container (.createElement js/document "div")]
+    (set! (.-innerHTML div-container) s)
+    (gdom/getTextContent div-container)))
 
 (defn RenderMarkdown [markdown]
   [:div {:style {:word-wrap "break-word"}

@@ -4,6 +4,7 @@
              [sysrev.nav :refer [nav nav-scroll-top]]
              [sysrev.views.components :refer [dropdown-menu with-tooltip]]
              [sysrev.views.panels.user.profile :refer [Avatar]]
+             [sysrev.views.search.core :refer [SiteSearch]]
              [sysrev.util :as util])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
@@ -55,6 +56,7 @@
        (merge {:src "/SysRev_header_2.png" :alt "SysRev"}
               (if mobile? {:width "80" :height "25"} {:width "90" :height "28"}))]]
      (when-not full? dev-menu)
+     [SiteSearch]
      [loading-indicator]
      (if logged-in?
        [:div.right.menu

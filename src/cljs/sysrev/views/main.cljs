@@ -40,6 +40,7 @@
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components :as ui]
             [sysrev.views.review :as review]
+            [sysrev.views.search.core]
             [sysrev.util :as util]
             [sysrev.shared.components :refer [loading-content]]))
 
