@@ -341,7 +341,7 @@
                  (contains? :importance)))
   :uri (fn [project-id] "/api/important-terms")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :process
   (fn [{:keys [db]} [project-id] result]
     {:db (assoc-in db [:data :project project-id :importance] result)}))
@@ -464,7 +464,7 @@
         (contains? :label-counts)))
   :uri (fn [] "/api/charts/label-count-data")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :process
   (fn [{:keys [db]} [project-id] {:keys [data]}]
     {:db (assoc-in db [:data :project project-id :label-counts]
@@ -596,7 +596,7 @@
         (contains? :histograms)))
   :uri (fn [] "/api/prediction-histograms")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :process
   (fn [{:keys [db]} [project-id] {:keys [prediction-histograms]}]
     {:db (assoc-in db [:data :project project-id :histograms]

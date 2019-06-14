@@ -112,7 +112,7 @@
                         :open-access-available?))
   :uri (fn [_ article-id] (str "/api/open-access/" article-id "/availability"))
   :prereqs (fn [project-id article-id]
-             [[:identity] [:article project-id article-id]])
+             [[:article project-id article-id]])
   :process (fn [{:keys [db]} [_ article-id] {:keys [available? key]}]
              {:db (articles/update-article
                    db article-id {:open-access-available? available?
@@ -125,7 +125,7 @@
   :uri (fn [project-id article-id]
          (str "/api/files/" project-id "/article/" article-id "/article-pdfs"))
   :prereqs (fn [project-id article-id]
-             [[:identity] [:article project-id article-id]])
+             [[:article project-id article-id]])
   :process (fn [{:keys [db]} [_ article-id] {:keys [files]}]
              {:db (articles/update-article
                    db article-id {:pdfs files})}))

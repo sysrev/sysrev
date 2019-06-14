@@ -27,6 +27,25 @@
 (defonce active-webdriver (atom nil))
 (defonce active-webdriver-config (atom nil))
 
+(defn browser-console-logs []
+  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_logs();"))
+       (catch Throwable e
+         (log/warn "unable to read console logs"))))
+
+(defn browser-console-errors []
+  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_errors();"))
+       (catch Throwable e
+         (log/warn "unable to read console errors"))))
+
+(defn log-console-messages [& [error?]]
+  (let [level (if error? :error :info)]
+    (if-let [logs (browser-console-logs)]
+      (log/logf level "browser console logs:\n\n%s" logs)
+      (log/logp level "browser console logs: (none)"))
+    (if-let [errors (browser-console-errors)]
+      (log/logf level "browser console errors:\n\n%s" errors)
+      (log/logp level "browser console errors: (none)"))))
+
 (defn start-webdriver [& [restart?]]
   (if (and @active-webdriver (not restart?))
     @active-webdriver
@@ -150,7 +169,7 @@
   timeout."
   [pred & [timeout interval]]
   (let [timeout (or timeout (if (test/remote-test?) 10000 5000))
-        interval (or interval 25)]
+        interval (or interval 20)]
     (when-not (pred)
       (Thread/sleep interval)
       (taxi/wait-until pred timeout interval))))
@@ -214,7 +233,7 @@
   (let [e (taxi/element q)]
     (doseq [c text]
       (taxi/input-text e (str c))
-      (Thread/sleep 20)))
+      (Thread/sleep 10)))
   (Thread/sleep delay))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
@@ -224,7 +243,7 @@
 (defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
   (when wait? (wait-until-exists q timeout interval))
   (let [result (taxi/exists? q)]
-    (when wait? (wait-until-loading-completes :pre-wait true))
+    (when wait? (wait-until-loading-completes :pre-wait 30))
     result))
 
 (defn is-xpath?
@@ -258,17 +277,14 @@
 
 (defn click [q & {:keys [if-not-exists delay displayed?]
                   :or {if-not-exists :wait, delay 30, displayed? false}}]
-  (let [q (not-disabled q) ; auto-exclude "disabled" class when q is css
-        go (fn []
-             (when (= if-not-exists :wait)
-               (if displayed? (wait-until-displayed q) (wait-until-exists q)))
-             (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
-               (taxi/click q)))]
-    (try (go)
-         (catch Throwable e
-           (wait-until-loading-completes :pre-wait (+ delay 50))
-           (go)))
-    (Thread/sleep delay)))
+  ;; auto-exclude "disabled" class when q is css
+  (let [q (not-disabled q)]
+    (wait-until-loading-completes :pre-wait delay)
+    (when (= if-not-exists :wait)
+      (if displayed? (wait-until-displayed q) (wait-until-exists q)))
+    (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
+      (taxi/click q))
+    (wait-until-loading-completes :pre-wait delay)))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -277,7 +293,7 @@
   (wait-until-displayed input-element)
   (dotimes [_ length]
     (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-    (Thread/sleep 20))
+    (Thread/sleep 10))
   true)
 
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
@@ -289,9 +305,20 @@
              (try (log/info "running" ~name-str)
                   ~body
                   (catch Throwable e#
+                    (log/error "current-url:" (try (taxi/current-url)
+                                                   (catch Throwable e2# nil)))
+                    (log-console-messages true)
                     (take-screenshot true)
                     (throw e#))
-                  (finally ~cleanup))))))))
+                  (finally
+                    (let [failed# (and (instance? clojure.lang.IDeref *report-counters*)
+                                       (map? @*report-counters*)
+                                       (or (pos? (:fail @*report-counters*))
+                                           (pos? (:error @*report-counters*))))]
+                      (when (or (not-empty (browser-console-logs))
+                                (not-empty (browser-console-errors)))
+                        (log-console-messages failed#)))
+                    ~cleanup))))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")

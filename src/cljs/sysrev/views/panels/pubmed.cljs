@@ -50,10 +50,6 @@
   ;; uri is a function that returns a uri string
   (fn [] "/api/pubmed/search")
 
-  :prereqs
-  ;; a fn that returns a vector of def-data entries
-  (fn [] [[:identity]])
-
   :content
   ;; a fn that returns a map of http parameters (in a GET context)
   ;; the parameters passed to this function are the same like in
@@ -89,9 +85,6 @@
 
   :uri
   (fn [] "/api/pubmed/summaries")
-
-  :prereqs
-  (fn [] [[:identity]])
 
   :content
   (fn [search-term page-number pmids]

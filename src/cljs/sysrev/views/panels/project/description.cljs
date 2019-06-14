@@ -36,7 +36,7 @@
                  (contains? :markdown-description)))
   :uri (fn [_ _] "/api/project-description")
   :content (fn [project-id _] {:project-id project-id})
-  :prereqs (fn [project-id _] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id _] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id context] {:keys [project-description]}]
              {:db (-> (assoc-in db [:data :project project-id :markdown-description]
                                 project-description)

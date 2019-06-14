@@ -13,9 +13,10 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.nav :refer [nav nav-scroll-top]]
-            [sysrev.util :as util])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [with-loader setup-panel-state]]))
+                   [sysrev.macros :refer [with-loader setup-panel-state sr-defroute]]))
 
 (setup-panel-state {:path [:plans]
                     :panel-var panel
@@ -47,16 +48,17 @@
                {:db (-> (panel-set db :changing-plan? false)
                         (panel-set :error-message nil))
                 :dispatch-n (list
+                             [:fetch [:user/current-plan (current-user-id db)]]
                              ;; need to download all projects associated with the user
                              ;; to update [:project/subscription-lapsed?] for MakePublic
-                             [:project/fetch-all-projects]
-                             [:fetch [:user/current-plan (current-user-id db)]])
+                             [:project/fetch-all-projects])
                 :nav-scroll-top @(subscribe [:user/on-subscribe-nav-to-url])}))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"
                           (:message error))]
-                {:db (-> (panel-set db :error-message msg)
+                {:db (-> (panel-set db :changing-plan? false)
+                         (panel-set :error-message msg)
                          (stripe/panel-set :need-card? true))})))
 
 (defn cents->dollars
@@ -108,17 +110,11 @@
      [Column {:width 8 :align "right"}
       [:h2 "$0 / month"]]]]])
 
-(defn TogglePlanButton
-  [{:keys [disabled on-click class]} & [text]]
-  [Button
-   {:class class
-    :color "green"
-    :on-click
-    on-click
-    :disabled disabled}
-   text])
+(defn TogglePlanButton [{:keys [on-click class loading disabled] :as attrs} text]
+  [Button (merge {:color "green"} attrs) text])
 
-(defn DowngradePlan [{:keys [billing-settings-uri
+(defn DowngradePlan [{:keys [state
+                             billing-settings-uri
                              on-downgrade
                              unlimited-plan-price
                              unlimited-plan-name]}]
@@ -147,10 +143,12 @@
                          [:h4 "New Monthly Bill"]
                          [ListItem [:p "Basic plan ($0 / month)"]]
                          [:div {:style {:margin-top "1em" :width "100%"}}
-                          [TogglePlanButton {:disabled (or @changing-plan?)
+                          [TogglePlanButton {:disabled @changing-plan?
                                              :on-click #(do (reset! changing-plan? true)
                                                             (on-downgrade))
-                                             :class "unsubscribe-plan"} "Unsubscribe"]]
+                                             :class "unsubscribe-plan"
+                                             :loading @changing-plan?}
+                           "Unsubscribe"]]
                          (when @error-message
                            [s/Message {:negative true}
                             [s/MessageHeader "Change Plan Error"]
@@ -160,7 +158,8 @@
         (reset! changing-plan? false)
         (reset! error-message nil))})))
 
-(defn UpgradePlan [{:keys [billing-settings-uri
+(defn UpgradePlan [{:keys [state
+                           billing-settings-uri
                            on-upgrade
                            default-source-atom
                            get-default-source
@@ -216,7 +215,8 @@
                    [TogglePlanButton {:disabled (or no-default? @changing-plan?)
                                       :on-click #(do (reset! changing-plan? true)
                                                      (on-upgrade))
-                                      :class "upgrade-plan"}
+                                      :class "upgrade-plan"
+                                      :loading @changing-plan?}
                     "Upgrade Plan"]]
                   (when @error-message
                     [s/Message {:negative true}
@@ -231,35 +231,38 @@
   (logged-out-content :logged-out))
 
 (defn UserPlans []
-  (let [self-id (subscribe [:self/user-id])]
-    ;; this seems to work as a replacement for :component-did-mount
-    (when @self-id (dispatch [:reload [:user/current-plan @self-id]]))
-    (fn []
-      (when @self-id
-        (with-loader [[:user/current-plan @self-id]] {}
-          (let [current-plan @(subscribe [:user/current-plan])]
-            (condp = (:name current-plan)
-              "Basic"
-              [UpgradePlan {:billing-settings-uri (str "/user/" @self-id "/billing")
-                            :default-source-atom (subscribe [:stripe/default-source "user" @self-id])
-                            :get-default-source stripe/get-user-default-source
-                            :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
-                            :on-add-payment-method
-                            #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                                 (dispatch [:navigate [:payment]]))
-                            :unlimited-plan-price 1000
-                            :unlimited-plan-name "Pro Plan"}]
-              "Unlimited_User"
-              [DowngradePlan {:billing-settings-uri (str "/user/" @self-id "/billing")
-                              :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
-                              :unlimited-plan-name "Pro Plan"
-                              :unlimited-plan-price 1000}]
-              [s/Message {:negative true}
-               [s/MessageHeader "User Plans Error"]
-               [:div.content
-                [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " @self-id)]
-                [:p (str "Active route: " @active-route)]]])))))))
+  (when-let [self-id @(subscribe [:self/user-id])]
+    (with-loader [[:user/current-plan self-id]] {}
+      (let [current-plan @(subscribe [:user/current-plan])]
+        (condp = (:name current-plan)
+          "Basic"
+          [UpgradePlan {:state state
+                        :billing-settings-uri (str "/user/" self-id "/billing")
+                        :default-source-atom (subscribe [:stripe/default-source "user" self-id])
+                        :get-default-source stripe/get-user-default-source
+                        :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
+                        :on-add-payment-method
+                        #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                             (dispatch [:navigate [:payment]]))
+                        :unlimited-plan-price 1000
+                        :unlimited-plan-name "Pro Plan"}]
+          "Unlimited_User"
+          [DowngradePlan {:state state
+                          :billing-settings-uri (str "/user/" self-id "/billing")
+                          :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
+                          :unlimited-plan-name "Pro Plan"
+                          :unlimited-plan-price 1000}]
+          [s/Message {:negative true}
+           [s/MessageHeader "User Plans Error"]
+           [:div.content
+            [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " self-id)]
+            [:p (str "Active route: " @active-route)]]])))))
 
 (defmethod panel-content [:plans] []
   (fn [child]
     [UserPlans]))
+
+(sr-defroute user-plans "/user/plans" []
+             (let [self-id @(subscribe [:self/user-id])]
+               (dispatch [:set-active-panel [:plans]])
+               (when self-id (dispatch [:load [:user/current-plan self-id]]))))

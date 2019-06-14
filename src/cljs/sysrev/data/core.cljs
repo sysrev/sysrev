@@ -78,11 +78,12 @@
   (s/assert ::loaded? loaded?)
   (s/assert ::uri uri)
   (s/assert ::process process)
-  (when prereqs (s/assert ::prereqs prereqs))
+  (s/assert ::prereqs prereqs)
   (when content (s/assert ::content content))
   (when content-type (s/assert ::content-type content-type))
   (when on-error (s/assert ::on-error on-error))
-  (swap! data-defs assoc name fields))
+  (swap! data-defs assoc name
+         (merge fields {:prereqs prereqs})))
 
 (s/fdef def-data
   :args (s/cat :name ::item-name
@@ -286,6 +287,11 @@
                   (loading/item-failed? item))
               (not (loading/item-loading? item)))
      {:dispatch [:fetch item]})))
+
+;; Dispatch both `:require` and `:reload`
+(reg-event-fx :load [trim-v]
+              (fn [_ [item]]
+                {:dispatch-n (list [:require item] [:reload item])}))
 
 ;; Fetches any missing required data
 (reg-event-fx

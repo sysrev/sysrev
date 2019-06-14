@@ -23,7 +23,6 @@
         (contains? article-id)))
   :uri (fn [project-id article-id _]
          (str "/api/annotations/" article-id))
-  :prereqs (fn [_ _ _] [[:identity]])
   :content (fn [project-id _ _] {:project-id project-id})
   :process
   (fn [{:keys [db]} [project-id article-id _] {:keys [annotations]}]

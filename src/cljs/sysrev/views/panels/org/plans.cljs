@@ -60,7 +60,8 @@
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"
                           (:message error))]
-                {:db (-> (panel-set db :error-message msg)
+                {:db (-> (panel-set db :changing-plan? false)
+                         (panel-set :error-message msg)
                          (stripe/panel-set :need-card? true))})))
 
 (defn OrgPlans
@@ -77,7 +78,8 @@
            (condp = (:name @current-plan)
              "Basic"
              [UpgradePlan
-              {:billing-settings-uri (str "/org/" org-id "/billing")
+              {:state state
+               :billing-settings-uri (str "/org/" org-id "/billing")
                :default-source-atom (subscribe [:stripe/default-source "org" org-id])
                :get-default-source (partial stripe/get-org-default-source org-id)
                :on-upgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Unlimited_Org"]]))
@@ -91,7 +93,8 @@
                                       :member-count @(subscribe [:org/member-count org-id])}}]
              "Unlimited_Org"
              [DowngradePlan
-              {:billing-settings-uri (str "/org/" org-id "/billing")
+              {:state state
+               :billing-settings-uri (str "/org/" org-id "/billing")
                :on-downgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Basic"]]))
                :unlimited-plan-name "Team Pro Plan"
                :unlimited-plan-price {:tiers

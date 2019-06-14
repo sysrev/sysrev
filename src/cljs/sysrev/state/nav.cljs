@@ -225,7 +225,6 @@
 (def-data :lookup-project-url
   :loaded? (fn [db url-id] (-> (get-in db [:data :project-lookups])
                                (contains? url-id)))
-  :prereqs (fn [_] [[:identity]])
   :uri (fn [url-id] "/api/lookup-project-url")
   :content (fn [url-id] {:url-id (sutil/write-transit-str url-id)})
   :process (fn [_ [url-id] project-full-id]
