@@ -110,7 +110,6 @@
   (test/db-connected?)
   [project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"
-   search-term "foo bar"
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))
    click-project-link #(b/click (xpath "//a[contains(text(),'" % "')]"))]
@@ -122,11 +121,12 @@
       (nav/new-project project-name-1)
       ;; set the project to private
       (change-project-public-access false)
-      (pm/add-articles-from-search-term search-term)
+      #_ (pm/add-articles-from-search-term "foo bar")
+      (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the user profile
       (b/click user-name-link)
       (b/click "#user-projects")
-      (Thread/sleep 250)
+      (Thread/sleep 150)
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-1))
       ;; do some work to see if it shows up in the user profile
@@ -139,7 +139,7 @@
       (b/click user-name-link)
       (b/click "#user-projects")
       ;; is the user's overall activity correct?
-      (Thread/sleep 500)
+      (Thread/sleep 150)
       (b/is-soon (= (select-keys (user-activity-summary)
                                  [:articles-reviewed :labels-contributed])
                     {:articles-reviewed 3 :labels-contributed 3}))
@@ -155,7 +155,7 @@
       ;; return to the profile, the user should have one annotation
       (b/click user-name-link)
       (b/click "#user-projects")
-      (Thread/sleep 500)
+      (Thread/sleep 150)
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 3
                                              :labels-contributed 3
@@ -167,11 +167,12 @@
       ;; add another project
       (nav/new-project project-name-2)
       (change-project-public-access false)
-      (pm/add-articles-from-search-term search-term)
+      #_ (pm/add-articles-from-search-term "foo bar")
+      (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the profile
       (b/click user-name-link)
       (b/click "#user-projects")
-      (Thread/sleep 300)
+      (Thread/sleep 150)
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-2))
       ;; do some work to see if it shows up in the user profile
@@ -186,7 +187,7 @@
       ;; go back and check activity
       (b/click user-name-link)
       (b/click "#user-projects")
-      (Thread/sleep 500)
+      (Thread/sleep 150)
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 5
                                              :labels-contributed 5
@@ -204,7 +205,7 @@
       (change-project-public-access true)
       (b/click user-name-link)
       (b/click "#user-projects")
-      (Thread/sleep 500)
+      (Thread/sleep 150)
       (b/is-soon (and (in? (public-project-names) project-name-1)
                       (not (in? (private-project-names) project-name-1))))
       (b/is-soon (and (in? (private-project-names) project-name-2)
@@ -250,14 +251,14 @@
   [{:keys [user-id]} (users/get-user-by-email (:email b/test-login))]
   (do (nav/log-in)
       ;; go to the user profile
-      (b/click "#user-name-link" :delay 250)
-      (b/click "#user-profile" :delay 250)
+      (b/click "#user-name-link" :delay 100)
+      (b/click "#user-profile" :delay 100)
       ;; click the user profile avatar
-      (b/click avatar :delay 250)
+      (b/click avatar :delay 150)
+      (Thread/sleep 100)
       ;; "upload" file
       (log/info "uploading image")
       (taxi/execute-script upload-image-blob-js)
-      (Thread/sleep 250)
       (log/info "waiting until displayed")
       ;; set position of avatar
       (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]") 30000)
@@ -271,16 +272,16 @@
       ;; set avatar
       (log/info "setting avatar")
       (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
-      (Thread/sleep 1500)
       ;; check manually that the avatar matches what we would expect
       ;; (two possible values for some reason, depending on system)
-      (is (contains? #{;; original test value (james mac)
-                       "52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
-                       ;; second test value (jeff/james mac, jenkins linux)
-                       "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
-                       ;; another value (jeff chromium linux)
-                       "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
-                     (:key (files/avatar-image-key-filename user-id))))
+      (b/is-soon (contains? #{;; original test value (james mac)
+                              "52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
+                              ;; second test value (jeff/james mac, jenkins linux)
+                              "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
+                              ;; another value (jeff chromium linux)
+                              "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
+                            (:key (files/avatar-image-key-filename user-id)))
+                 3000 300)
       (log/info "got file key")
       (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
@@ -290,6 +291,9 @@
               :object-content))
       (log/info "found file on s3"))
   :cleanup
-  (do (Thread/sleep 1000)
-      ;; sleep again before disconnecting db in case server handler (create-avatar!) is still running
-      (api/delete-avatar! user-id)))
+  (do (let [{:keys [success]} (api/delete-avatar! user-id)]
+        (when-not success
+          ;; try again in case server handler (create-avatar!) was still running
+          (log/warn "api/delete-avatar! failed on first attempt")
+          (Thread/sleep 1500)
+          (api/delete-avatar! user-id)))))

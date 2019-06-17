@@ -55,7 +55,7 @@
   (b/click (xpath (label-div-with-name name)
                   "/descendant::div[contains(text(),'"
                   (if select? "Yes" "No") "')]"))
-  (Thread/sleep 25))
+  (Thread/sleep 50))
 
 (defn input-string-with-label-name
   "Input string into label with name"
@@ -72,9 +72,9 @@
         entry-div (xpath (label-div-with-name name)
                          "/descendant::div[contains(text(),'" text "')]")]
     (b/click dropdown-div :displayed? true)
-    (Thread/sleep 400)
+    (Thread/sleep 300)
     (b/click entry-div :displayed? true)
-    (Thread/sleep 200)))
+    (Thread/sleep 100)))
 
 (defn article-title-div [title]
   (xpath "//div[contains(@class,'article-title') and contains(text(),'" title "')]"))
@@ -135,23 +135,23 @@
           "boolean" select-boolean-with-label-name
           "string" input-string-with-label-name
           "categorical" select-with-text-label-name) f
-    (f short-label value)
-    (Thread/sleep 100)))
+    (f short-label value)))
 
 (defn set-article-answers
   "Set and save answers on current article for a sequence of labels."
   [label-settings]
   (log/info "setting article labels")
+  (b/wait-until-loading-completes :pre-wait 150)
   (nav/go-project-route "/review")
-  (Thread/sleep 300)
+  (b/wait-until-loading-completes :pre-wait 150)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click x/review-labels-tab :delay 100 :displayed? true)
   (doseq [x label-settings] (set-label-answer x))
-  (Thread/sleep 300)
+  (Thread/sleep 100)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click ".button.save-labels" :delay 100 :displayed? true)
   (when (test/remote-test?) (Thread/sleep 500))
-  (b/wait-until-loading-completes :pre-wait 300)
+  (b/wait-until-loading-completes :pre-wait 100)
   (db/clear-query-cache))
 
 (defn randomly-set-article-labels
@@ -173,7 +173,6 @@
   (test/db-connected?)
   [project-id (atom nil)
    project-name "Sysrev Browser Test (create-project-and-review-article)"
-   search-term-first "foo bar"
    no-display "Display name must be provided"
    no-question "Question text must be provided"
    no-max-length "Max length must be provided"
@@ -190,7 +189,8 @@
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
-      (pm/add-articles-from-search-term search-term-first)
+      #_ (pm/add-articles-from-search-term "foo bar")
+      (pm/import-pubmed-search-via-db "foo bar")
 
 ;;; create new labels
       (log/info "creating label definitions")

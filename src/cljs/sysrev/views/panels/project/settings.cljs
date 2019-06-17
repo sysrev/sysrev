@@ -234,7 +234,8 @@
     (ui/FixedTooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
-       :class (css [active? "active" disabled? "disabled"])
+       :class (css [active? "active"]
+                   [disabled? "disabled"])
        :on-click (if admin? #(edit-setting setting value) nil)}
       label]
      [:p tooltip]

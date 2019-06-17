@@ -169,7 +169,7 @@
   timeout."
   [pred & [timeout interval]]
   (let [timeout (or timeout (if (test/remote-test?) 10000 5000))
-        interval (or interval 20)]
+        interval (or interval 15)]
     (when-not (pred)
       (Thread/sleep interval)
       (taxi/wait-until pred timeout interval))))
@@ -185,66 +185,6 @@
   exception on timeout."
   [q & [timeout interval]]
   (wait-until #(displayed-now? q) timeout interval))
-
-(defn wait-until-loading-completes
-  [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
-  (let [timeout (if (test/remote-test?) 45000 timeout)]
-    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 75)))
-    (is (try-wait wait-until #(every? (complement displayed-now?)
-                                      ["div.ui.loader.active"
-                                       "div.ui.dimmer.active > .ui.loader"
-                                       ".ui.button.loading"])
-                  timeout interval))))
-
-(defn current-project-id
-  "Reads project id from current url. Waits a short time before
-  returning nil if no project id is immediately found, unless now is
-  true."
-  [& [now]]
-  (letfn [(lookup-id []
-            (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
-              (some-> id-str parse-integer)))]
-    (if now
-      (lookup-id)
-      (when (try-wait wait-until #(integer? (lookup-id)) 2500 50)
-        (lookup-id)))))
-
-(defn current-project-route
-  "Returns substring of current url after base url for project. Waits a
-  short time before returning nil if no project id is immediately
-  found, unless now is true."
-  [& [now]]
-  (when-let [project-id (current-project-id now)]
-    (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
-                        (taxi/current-url)))))
-
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
-  (wait-until-displayed q)
-  (when clear? (taxi/clear q))
-  (Thread/sleep delay)
-  (taxi/input-text q text)
-  (Thread/sleep delay))
-
-(defn set-input-text-per-char
-  [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
-  (wait-until-displayed q)
-  (when clear? (taxi/clear q))
-  (Thread/sleep delay)
-  (let [e (taxi/element q)]
-    (doseq [c text]
-      (taxi/input-text e (str c))
-      (Thread/sleep 10)))
-  (Thread/sleep delay))
-
-(defn input-text [q text & {:keys [delay] :as opts}]
-  (sutil/apply-keyargs set-input-text
-                       q text (merge opts {:clear? false})))
-
-(defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
-  (when wait? (wait-until-exists q timeout interval))
-  (let [result (taxi/exists? q)]
-    (when wait? (wait-until-loading-completes :pre-wait 30))
-    result))
 
 (defn is-xpath?
   "Test whether q is taxi query in xpath form."
@@ -275,15 +215,92 @@
   [q]
   (not-class q "loading"))
 
+(defn ajax-activity-duration
+  "Query browser for duration in milliseconds that ajax requests have
+  been active (positive) or inactive (negative)."
+  []
+  (taxi/execute-script "return sysrev.loading.ajax_status();"))
+
+(defn ajax-inactive?
+  "Returns true if no ajax requests in browser have been active for
+  duration milliseconds (default 20)."
+  [& [duration]]
+  (< (ajax-activity-duration) (- (or duration 20))))
+
+(defn wait-until-loading-completes
+  [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
+  (let [timeout (if (test/remote-test?) 45000 timeout)]
+    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
+    (assert (try-wait wait-until #(and (ajax-inactive?)
+                                       (every? (complement displayed-now?)
+                                               [(not-class "div.ui.loader.active"
+                                                           "loading-indicator")
+                                                "div.ui.dimmer.active > .ui.loader"
+                                                ".ui.button.loading"]))
+                      timeout interval))))
+
+(defn current-project-id
+  "Reads project id from current url. Waits a short time before
+  returning nil if no project id is immediately found, unless now is
+  true."
+  [& [now]]
+  (letfn [(lookup-id []
+            (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
+              (some-> id-str parse-integer)))]
+    (if now
+      (lookup-id)
+      (when (try-wait wait-until #(integer? (lookup-id)) 2500)
+        (lookup-id)))))
+
+(defn current-project-route
+  "Returns substring of current url after base url for project. Waits a
+  short time before returning nil if no project id is immediately
+  found, unless now is true."
+  [& [now]]
+  (when-let [project-id (current-project-id now)]
+    (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
+                        (taxi/current-url)))))
+
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 10 clear? true}}]
+  (wait-until-displayed q)
+  (when clear? (taxi/clear q))
+  (Thread/sleep delay)
+  (taxi/input-text q text)
+  (Thread/sleep delay))
+
+(defn set-input-text-per-char
+  [q text & {:keys [delay clear?] :or {delay 10 clear? true}}]
+  (wait-until-displayed q)
+  (when clear? (taxi/clear q))
+  (Thread/sleep delay)
+  (let [e (taxi/element q)]
+    (doseq [c text]
+      (taxi/input-text e (str c))
+      (Thread/sleep 10)))
+  (Thread/sleep delay))
+
+(defn input-text [q text & {:keys [delay] :as opts}]
+  (sutil/apply-keyargs set-input-text
+                       q text (merge opts {:clear? false})))
+
+(defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
+  (when wait? (wait-until-exists q timeout interval))
+  (let [result (taxi/exists? q)]
+    (when wait? (wait-until-loading-completes))
+    result))
+
 (defn click [q & {:keys [if-not-exists delay displayed?]
-                  :or {if-not-exists :wait, delay 30, displayed? false}}]
+                  :or {if-not-exists :wait, delay 20, displayed? false}}]
   ;; auto-exclude "disabled" class when q is css
   (let [q (not-disabled q)]
-    (wait-until-loading-completes :pre-wait delay)
     (when (= if-not-exists :wait)
       (if displayed? (wait-until-displayed q) (wait-until-exists q)))
     (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
-      (taxi/click q))
+      (try (taxi/click q)
+           (catch Throwable e
+             (log/warnf "got exception clicking %s, trying again..." (pr-str q))
+             (wait-until-loading-completes :pre-wait (+ delay 100))
+             (taxi/click q))))
     (wait-until-loading-completes :pre-wait delay)))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
@@ -334,7 +351,7 @@
   "Returns vector of taxi/text values for the elements matching q.
   Waits until at least one element is displayed unless wait? is
   logical false."
-  [q & {:keys [wait? timeout] :or {wait? true timeout 1000}}]
+  [q & {:keys [wait? timeout] :or {wait? true timeout 2000}}]
   (when wait? (try (wait-until #(taxi/exists? q) :timeout timeout)
                    (catch Throwable e nil)))
   (if (taxi/exists? q)
@@ -418,8 +435,8 @@
   (let [full-url (path->url path)]
     (when-not silent (log/info "loading" full-url))
     (taxi/to full-url)
-    (wait-until-loading-completes :pre-wait 100)
-    (wait-until-loading-completes :pre-wait 100)
+    (wait-until-loading-completes :pre-wait true)
+    (wait-until-loading-completes :pre-wait true)
     (taxi/execute-script "sysrev.base.toggle_analytics(false);")
     (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
       #_ (log/info "instrumented" fn-count "cljs functions")
@@ -429,15 +446,14 @@
 (defn- ensure-logged-out []
   (try (when (taxi/exists? "a#log-out-link")
          (click "a#log-out-link" :if-not-exists :skip)
-         (Thread/sleep 100))
+         (wait-until-loading-completes :pre-wait true))
        (catch Throwable _ nil)))
 
 (defn webdriver-fixture-once [f]
   (f))
 
 (defn reuse-webdriver? []
-  (->> (:sysrev-reuse-webdriver env)
-       (ensure-pred (every-pred string? not-empty (partial not= "0")))))
+  (contains? #{true 1 "true" "1"} (:sysrev-reuse-webdriver env) ))
 
 (defn webdriver-fixture-each [f]
   (let [local? (= "localhost" (:host (test/get-selenium-config)))

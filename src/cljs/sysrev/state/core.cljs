@@ -88,6 +88,5 @@
 
 (def-action :dev/clear-query-cache
   :uri (fn [] "/api/clear-query-cache")
-  :process
-  (fn [_ _ result]
-    {:reset-data true}))
+  :process (fn [_ _ result]
+             {:reset-data true}))

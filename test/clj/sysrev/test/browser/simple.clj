@@ -23,7 +23,9 @@
   (do (nav/log-in)
       (nav/new-project "Simple Test")
       (let [project-id (b/current-project-id)]
-        (pm/add-articles-from-search-term "foo bar")
+        #_ (pm/add-articles-from-search-term "foo bar")
+        (pm/import-pubmed-search-via-db "foo bar")
+        (nav/go-project-route "")
         (is (nav/panel-exists? [:project]))
         (root-panel-exists?)
         (is (not (nav/panel-exists? [:project :project :fake-panel]

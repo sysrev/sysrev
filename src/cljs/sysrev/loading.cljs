@@ -2,7 +2,7 @@
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-fx]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defonce ajax-db (r/atom {}))
 
@@ -125,9 +125,9 @@
         new-status
         (cond
           ;; enable indicator when ajax active for >= minimum time
-          (>= (- time-active time-inactive) 50) true
+          (>= (- time-active time-inactive) 75) true
           ;; disable indicator when ajax inactive for >= minimum time
-          (>= (- time-inactive time-active) 125) false
+          (>= (- time-inactive time-active) 175) false
           ;; otherwise maintain existing indicator status
           :else cur-status)]
     (swap! ajax-db (fn [db]
@@ -141,14 +141,19 @@
                          ;; update indicator status
                          (assoc-in [:ajax :loading-status] new-status))))))
 
-(defn schedule-loading-update [& [times]]
-  (let [times (if (vector? times) times
-                  [5 15 30 45 60 80 100 125 150 175 250 350 500])]
-    (doseq [ms times]
-      (js/setTimeout #(update-loading-status) ms))))
+(defn schedule-loading-update []
+  (update-loading-status)
+  (doseq [ms [80 200 400]]
+    (js/setTimeout update-loading-status ms)))
 
 (defn loading-indicator []
   (r/cursor ajax-db [:ajax :loading-status]))
+
+(defn ^:export ajax-status []
+  (update-loading-status)
+  (let [db @ajax-db]
+    (- (get-in db [:ajax :time-active])
+       (get-in db [:ajax :time-inactive]))))
 
 ;;;
 ;;; Events for start/completion of AJAX requests
@@ -158,23 +163,16 @@
   (let [time-ms (js/Date.now)
         loading? (any-loading-for-indicator?)]
     (swap! ajax-db (fn [db]
-                     (-> db
-                         (update-in [:ajax :data :sent item]
-                                    #(-> % (or 0) inc))
-                         (update-in [:ajax :data :timings item]
-                                    #(->> (concat [time-ms] %)
-                                          (take 10)))
+                     (-> (update-in db [:ajax :data :sent item] #(inc (or % 0)))
+                         (update-in [:ajax :data :timings item] #(take 10 (concat [time-ms] %)))
                          (assoc-in [:ajax :time-active] time-ms)
-                         (update-in [:ajax :time-inactive]
-                                    #(if (not loading?) time-ms %)))))
+                         (update-in [:ajax :time-inactive] #(if loading? % time-ms)))))
     (schedule-loading-update)))
 
 (reg-fx :data-sent (fn [item] (data-sent item)))
 
 (defn data-returned [item]
-  (swap! ajax-db update-in
-         [:ajax :data :returned item]
-         #(-> % (or 0) inc))
+  (swap! ajax-db update-in [:ajax :data :returned item] #(inc (or % 0)))
   (schedule-loading-update))
 
 (reg-fx :data-returned (fn [item] (data-returned item)))

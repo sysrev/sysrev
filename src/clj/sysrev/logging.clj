@@ -73,7 +73,6 @@
                          (default-impl logger level throwable message))))
   (alter-var-root #'clojure.tools.logging/*logger-factory*
                   (constantly (slf4j-factory-custom)))
-  (alter-var-root #'log/*force* (constantly :direct))
   (log/info "logging initialized")
   true)
 

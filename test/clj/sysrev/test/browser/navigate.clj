@@ -15,8 +15,7 @@
               (not (str/includes? current (:url (test/get-selenium-config)))))
           (b/init-route path)
           (not= current (b/path->url path))
-          (do (b/wait-until-loading-completes :pre-wait 50)
-              (when-not silent (log/info "navigating to" path))
+          (do (when-not silent (log/info "navigating to" path))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or wait-ms true))))
     nil))
@@ -28,13 +27,17 @@
         base-uri (or (second (re-matches #"(.*/p/[\d]+)(.*)" current))
                      (str "/p/" project-id))]
     (assert (integer? project-id))
+    ;; TODO: fix issue with /review where clicking it too quickly can
+    ;;       prevent it from working (happens outside tests)
+    (when (= suburi "/review")
+      (b/wait-until-loading-completes :pre-wait 100))
     (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent)))
 
 (defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")
     (when-not silent (log/info "logging out"))
     (b/click "a#log-out-link" :if-not-exists :skip)
-    (Thread/sleep 100)))
+    (b/wait-until-loading-completes :pre-wait true)))
 
 (defn log-in [& [email password]]
   (let [email (or email (:email b/test-login))
@@ -46,7 +49,7 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (Thread/sleep 100)
+    (Thread/sleep 50)
     (go-route "/" :silent true)
     #_ (log/info "login successful")))
 
@@ -72,13 +75,13 @@
   (b/wait-until-exists "form.create-project")
   (b/set-input-text "form.create-project div.project-name input" project-name)
   (b/click "form.create-project .button.create-project")
-  (Thread/sleep 100)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
           "//ancestor::div[@id='project']"))
   #_ (log/info "project created")
-  (b/wait-until-loading-completes :pre-wait 200))
+  (b/wait-until-loading-completes :pre-wait true)
+  (b/wait-until-loading-completes :pre-wait true))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
