@@ -27,25 +27,32 @@
                            (swap! search-results assoc q "There was an error retrieving results, please try again"))})))
 
 (defn SiteSearch []
-  (let [search-value (r/cursor state [:search-value])]
+  (let [search-value (r/cursor state [:search-value])
+        cleared? (r/atom false)]
     (r/create-class
      {:reagent-render
       (fn [args]
-        #_(when (and (nil? (uri-utils/getParamValue @active-route "q"))
-                   (not (empty? @search-value)))
-          (.log js/console "not empty search-value: " (not (empty? @search-value)))
-          (reset! search-value ""))
-        [Form {:on-submit (fn [e]
-                            (project-search @search-value)
-                            (nav-scroll-top "/search" :params {:q @search-value}))}
-         [Input {:placeholder "Search Sysrev"
-                 :on-change (fn [e value]
-                              (let [input-value (-> value
-                                                     (js->clj :keywordize-keys true)
-                                                     :value)]
-                                 (reset! search-value input-value)))
-                 :id "search-sysrev-bar"
-                 :value @search-value}]])})))
+        (let [route-search-term (uri-utils/getParamValue @active-route "q")]
+          ;; when the route-search-term is empty, clear the search value
+          (when (and (empty? route-search-term)
+                     (not @cleared?))
+            (reset! cleared? true)
+            (reset! search-value ""))
+          ;; when the route-search-term is present, reset the fact that the searh value
+          ;; has been cleared
+          (when (not (empty? route-search-term))
+            (reset! cleared? false))
+          [Form {:on-submit (fn [e]
+                              (project-search @search-value)
+                              (nav-scroll-top "/search" :params {:q @search-value}))}
+           [Input {:placeholder "Search Sysrev"
+                   :on-change (fn [e value]
+                                (let [input-value (-> value
+                                                      (js->clj :keywordize-keys true)
+                                                      :value)]
+                                  (reset! search-value input-value)))
+                   :id "search-sysrev-bar"
+                   :value @search-value}]]))})))
 
 (defn ProjectSearchResult
   [{:keys [project-id description name]}]
