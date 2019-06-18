@@ -15,6 +15,7 @@
 
 (def-data :identity
   :loaded? have-identity?
+  :prereqs (constantly nil)
   :uri (fn [] "/api/auth/identity")
   :process
   (fn [{:keys [db]} _ {:keys [identity projects orgs]}]
@@ -37,8 +38,7 @@
                            (assoc-in [:state :self :orgs] orgs))
                  have-user? (store-user-map identity))
            :dispatch-n (list [:load-project-url-ids url-ids-map])}
-          theme-changed?
-          (merge {:reload-page [true]})))))
+        theme-changed? (merge {:reload-page [true]})))))
 
 (def-action :auth/log-in
   :uri (fn [_ _] "/api/auth/login")
@@ -123,12 +123,6 @@
          (fn [orgs [_ org-id]]
            ((comp :permissions first)
             (filter #(= (:group-id %) org-id) orgs))))
-
-(reg-event-db
- :self/set-orgs!
- [trim-v]
- (fn [db [orgs]]
-   (assoc-in db [:state :self :orgs] orgs)))
 
 (reg-sub
  :self/member?

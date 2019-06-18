@@ -112,6 +112,7 @@
   (case (base/app-id)
     :main (do (when base/debug?
                 (enable-console-print!))
+              (base/setup-console-hooks)
               (pushy/start! base/history)
               (re-frame/dispatch-sync [:initialize-db])
               (data/init-data)

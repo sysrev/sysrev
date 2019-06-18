@@ -33,6 +33,7 @@
      (list [:register/project-id register-hash (:project-id project)]
            [:register/project-name register-hash (:name project)])}))
 
+;; TODO: change this to def-action, doesn't using loaded concept
 (def-data :nav-google-login
   :loaded? false
   :uri (fn [] "/api/auth/google-oauth-url")

@@ -4,6 +4,8 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.core :refer [default-fixture]]
+            [sysrev.db.core :as db]
+            [sysrev.source.import :as import]
             [sysrev.pubmed :as pubmed]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
@@ -23,8 +25,7 @@
       (b/click :if-not-exists :skip))
   (b/set-input-text x/pubmed-search-input query)
   (taxi/submit x/pubmed-search-form)
-  (b/wait-until-loading-completes
-   :pre-wait 100 :timeout 20000))
+  (b/wait-until-loading-completes :pre-wait 200 :timeout 20000))
 
 (defn search-count
   "Return an integer item count of search results"
@@ -148,8 +149,7 @@
   (count (taxi/find-elements x/project-source)))
 
 (defn check-source-count [n]
-  (b/wait-until #(= n (get-source-count)) 15000)
-  (is (= n (get-source-count))))
+  (b/is-soon (= n (get-source-count)) 15000 100))
 
 (defn add-articles-from-search-term [search-term]
   (nav/go-project-route "/add-articles")
@@ -160,15 +160,42 @@
     (Thread/sleep 250)
     (check-source-count (inc initial-count))
     (b/wait-until-loading-completes :pre-wait 500 :timeout 10000)
-    (nav/go-project-route "")
+    #_ (nav/go-project-route "" :silent true)
     (nav/wait-until-overview-ready)))
+
+(defn import-pmids-via-db
+  "Use direct database connection to import articles by PMID, getting
+  project from current browser URL."
+  [pmids]
+  (assert pmids)
+  (let [project-id (b/current-project-id)]
+    (assert project-id)
+    (log/infof "importing (%d) pmid articles to project (#%d)"
+               (count pmids) project-id)
+    (import/import-pmid-vector project-id {:pmids pmids} {:use-future? false})
+    (Thread/sleep 200)
+    (b/init-route (str "/p/" project-id "/add-articles") :silent true)
+    (b/wait-until-loading-completes :pre-wait 100)))
+
+(def test-search-pmids
+  {"foo bar" [25706626 25215519 23790141 22716928 19505094 9656183]})
+
+(defn import-pubmed-search-via-db
+  "Use direct database connection to import articles corresponding to a
+  pre-defined PubMed search, or if db is not connected fall back to
+  importing by PubMed search through web interface."
+  [search-term]
+  (let [pmids (test-search-pmids search-term)]
+    (if (and pmids @db/active-db)
+      (import-pmids-via-db pmids)
+      (add-articles-from-search-term search-term))))
 
 (defn delete-search-term-source [search-term]
   (b/wait-until-loading-completes :pre-wait 200)
   (log/info "deleting article source")
   (b/click (x/search-term-delete search-term))
-  (b/wait-until-loading-completes :pre-wait 500)
-  (b/wait-until-loading-completes :pre-wait 500))
+  (b/wait-until-loading-completes :pre-wait 200)
+  (b/wait-until-loading-completes :pre-wait 200))
 
 (deftest-browser pubmed-search
   true []

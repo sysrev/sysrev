@@ -96,56 +96,60 @@
 
 (defn init-test-db []
   (when (db-connected?)
-    (let [config {:dbname test-dbname
-                  :host test-db-host}]
+    (let [config {:dbname test-dbname :host test-db-host}]
       (if @db-initialized?
         (do (start-app config nil true)
-            (let [{:keys [host port dbname]}
-                  (-> @db/active-db :config)]
-              (log/info (format "connected to postgres (%s:%d/%s)"
-                                host port dbname))))
-        (do (log/info "Initializing test DB...")
-            (db/close-active-db)
-            (db/terminate-db-connections config)
-            (try
-              (db-shell "dropdb" [] config)
-              (catch Throwable e
-                nil))
-            (db-shell "createdb" [] config)
-            (log/info "Applying Flyway schema...")
-            (when-not (util/ms-windows?)
-              (shell "./scripts/install-flyway"))
-            (with-flyway-config config
-              (log/info (str "\n" (slurp "flyway.conf")))
-              (-> (if (util/ms-windows?)
-                    (shell "flyway-5.2.4/flyway.cmd" "migrate")
-                    (shell "./flyway" "migrate"))
-                  :out log/info))
-            (start-app config nil true)
-            (log/info "Applying Clojure DB migrations...")
-            (migrate/ensure-updated-db)
-            (reset! db-initialized? true)
-            (log/info "Test DB ready"))))))
+            (let [{:keys [host port dbname]} (:config @db/active-db)]
+              (log/infof "connected to postgres (%s:%d/%s)" host port dbname)))
+        (util/with-print-time-elapsed "Initialize test DB"
+          (log/info "Initializing test DB...")
+          (db/close-active-db)
+          (db/terminate-db-connections config)
+          (try (db-shell "dropdb" [] config)
+               (catch Throwable e nil))
+          (db-shell "createdb" [] config)
+          (log/info "Applying Flyway schema...")
+          (when-not (util/ms-windows?)
+            (shell "./scripts/install-flyway"))
+          (with-flyway-config config
+            (log/info (str "\n" (slurp "flyway.conf")))
+            (-> (if (util/ms-windows?)
+                  (shell "flyway-5.2.4/flyway.cmd" "migrate")
+                  (shell "./flyway" "migrate"))
+                :out log/info))
+          (start-app config nil true)
+          (log/info "Applying Clojure DB migrations...")
+          (migrate/ensure-updated-db)
+          (reset! db-initialized? true))))))
+
+(defonce db-shutdown-hook (atom nil))
+
+(defn close-db-resources []
+  (when (db-connected?)
+    (db/close-active-db)
+    (db/terminate-db-connections {:dbname test-dbname})))
+
+(defn ensure-db-shutdown-hook
+  "Ensures that any db connections are closed when JVM exits."
+  []
+  (when-not @db-shutdown-hook
+    (.addShutdownHook (Runtime/getRuntime) (Thread. close-db-resources))
+    (reset! db-shutdown-hook true)))
 
 (defn default-fixture
-  "Validates configuration, tries to ensure we're running
-   the tests on a test database"
+  "Basic setup for all tests (db, web server, clojure.spec)."
   [f]
   (case (:profile env)
     :test
     (let [{{postgres-port :port
             dbname :dbname} :postgres} env]
+      (ensure-db-shutdown-hook)
       (t/instrument)
       (set-web-asset-path "/out-production")
-      #_ (start-app nil nil true)
       (if (db-connected?)
         (init-test-db)
         (db/close-active-db))
-      (f)
-      (Thread/sleep 150)
-      (when (db-connected?)
-        (db/close-active-db)
-        (db/terminate-db-connections {:dbname test-dbname})))
+      (f))
     :remote-test
     (let [{{postgres-port :port dbname :dbname}     :postgres
            {selenium-host :host protocol :protocol} :selenium} env]
@@ -153,25 +157,19 @@
                 (= postgres-port 5470))
         (assert (str/includes? dbname "_test")
                 "Connecting to 'sysrev' db on production server is not allowed"))
+      (ensure-db-shutdown-hook)
       (t/instrument)
       (if (db-connected?)
         (db/set-active-db! (db/make-db-config (:postgres env)) true)
         (db/close-active-db))
-      (f)
-      (Thread/sleep 150)
-      (db/close-active-db))
+      (f))
     :dev
     (do (t/instrument)
         (set-web-asset-path "/out")
-        #_ (start-app {:dbname "sysrev_test"} nil true)
         (if (db-connected?)
           (init-test-db)
           (db/close-active-db))
-        (f)
-        (Thread/sleep 150)
-        (when (db-connected?)
-          (db/close-active-db)
-          (db/terminate-db-connections {:dbname test-dbname})))
+        (f))
     (assert false "default-fixture: invalid profile value")))
 
 ;; note: If there is a field (e.g. id) that is auto-incremented

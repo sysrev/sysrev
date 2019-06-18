@@ -328,8 +328,7 @@
         introduction (r/cursor state [:user :introduction])
         error-message (r/cursor state [:user :error-message])
         ;;projects (r/cursor state [:projects])
-        mutable? (= user-id @(subscribe [:self/user-id]))
-        orgs (subscribe [:orgs])]
+        mutable? (= user-id @(subscribe [:self/user-id]))]
     (r/create-class
      {:reagent-render
       (fn [this]

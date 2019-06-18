@@ -1,21 +1,21 @@
 (ns sysrev.db.core
   (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [sysrev.shared.util :refer [map-values in?]]
-            [sysrev.util :refer [map-to-arglist]]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
-            [clojure.java.jdbc :as j]
+            [clojure.string :as str]
             [clojure.data.json :as json]
-            [clj-postgresql.core]
-            [hikari-cp.core :refer [make-datasource close-datasource]]
-            [postgre-types.json :refer [add-jsonb-type]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [clojure.java.jdbc :as j]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
+            clj-postgresql.core
+            [hikari-cp.core :refer [make-datasource close-datasource]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config.core :refer [env]]
-            [clojure.string :as str])
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.util :as util :refer [map-to-arglist]]
+            [sysrev.shared.util :as sutil :refer [map-values in?]])
   (:import (java.sql Timestamp Date Connection)
            java.util.UUID))
 
@@ -211,23 +211,12 @@
   (-> (j/query (or conn *conn* @active-db) "SELECT LOCALTIMESTAMP AS TIMESTAMP")
       first :timestamp))
 
-(defn time-to-string
-  "Print time object to formatted time string."
-  [t & [formatter]]
-  (let [t (cond (= (type t) java.sql.Timestamp)
-                (tc/from-sql-time t)
-                (= (type t) java.sql.Date)
-                (tc/from-sql-date t)
-                :else t)
-        formatter (or formatter :mysql)]
-    (tf/unparse (tf/formatters formatter) t)))
-
 ;;
 ;; Add missing JSON write methods for some types.
 ;;
 
 (defn- write-timestamp [x out]
-  (json/write (time-to-string x) out))
+  (json/write (util/write-time-string x) out))
 
 (defn- write-object-str [x out]
   (json/write (str x) out))

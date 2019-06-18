@@ -18,7 +18,8 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
             [sysrev.test.browser.semantic :as s]
-            [sysrev.test.browser.pubmed :as pm])
+            [sysrev.test.browser.pubmed :as pm]
+            [sysrev.stacktrace :as stack])
   (:import clojure.lang.ExceptionInfo))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -83,13 +84,16 @@
         amount-input {:xpath "//input[@id='create-compensation-amount' and @type='text']"}
         amount-create {:xpath "//button[contains(text(),'Create')]"}]
     (log/info "creating compensation:" amount "cents")
-    (nav/go-project-route "/compensations")
+    (b/wait-until-loading-completes :pre-wait 100)
+    (nav/go-project-route "/compensations" :wait-ms 100)
     (b/wait-until-exists create-new-compensation)
-    (b/set-input-text-per-char amount-input (subs (cents->string amount) 1))
-    (b/click amount-create)
+    (b/set-input-text-per-char amount-input (subs (cents->string amount) 1)
+                               :delay 50)
+    (b/click amount-create :delay 50)
     (b/wait-until-exists
      (xpath "//div[@id='project-compensations']"
-            "/descendant::span[contains(text(),'" (cents->string amount) "')]"))))
+            "/descendant::span[contains(text(),'" (cents->string amount) "')]"))
+    (b/wait-until-loading-completes :pre-wait 100)))
 
 (defn compensation-select [user]
   (xpath "//div[contains(text(),'" user "')]"
@@ -196,7 +200,9 @@
   (let [paypal-frame-name (first (b/current-frame-names))]
     (taxi/switch-to-default)
     (taxi/switch-to-frame (xpath (str "//iframe[@name='" paypal-frame-name "']")))
-    (b/click {:css "div.paypal-button-card-visa"})))
+    (Thread/sleep 50)
+    (taxi/click "div.paypal-button-card-visa")
+    (Thread/sleep 50)))
 
 ;; this function is incomplete as it only handles the case of boolean labels
 ;; this can only create, not update labels
@@ -270,8 +276,8 @@
   (b/set-input-text-per-char billing-postal-code-input "21209")
   (b/set-input-text-per-char telephone-input "222-333-4444")
   (b/set-input-text-per-char email-input "browser+test@insilica.co")
-  (b/click guest-signup-2-radio)
-  (b/click pay-now-button)
+  (taxi/click guest-signup-2-radio)
+  (taxi/click pay-now-button)
   (taxi/switch-to-window 0)
   (taxi/switch-to-default)
   (log/info "finished paypal interaction"))
@@ -288,7 +294,6 @@
   ;; skip this from `lein test` etc, redundant with larger test
   (and (test/db-connected?) (not (test/test-profile?)))
   [project-name "Sysrev Compensation Test"
-   search-term "foo create"
    amount 100
    test-user {:name "foo", :email "foo@bar.com", :password "foobar"}
    n-articles 3
@@ -298,7 +303,8 @@
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       ;; import sources
-      (pm/add-articles-from-search-term search-term)
+      #_ (pm/add-articles-from-search-term "foo create")
+      (pm/import-pubmed-search-via-db "foo bar")
       ;; create a compensation level
       (create-compensation amount)
       ;; set it to default
@@ -324,11 +330,9 @@
   [projects
    (->> [{:name "Sysrev Compensation Test 1"
           :amounts [100 10 110]
-          :search "foo create"
           :funds "$20.00"}
          {:name "Sysrev Compensation Test 2"
           :amounts [100 20 330]
-          :search "foo create"
           :funds "$15.00"}]
         (mapv #(assoc % :project-id (atom nil))))
    [project1 project2] projects
@@ -384,7 +388,8 @@
     ;; create the first project
     (nav/new-project (:name project1))
     (reset! (:project-id project1) (b/current-project-id))
-    (pm/add-articles-from-search-term (:search project1))
+    #_ (pm/add-articles-from-search-term "foo create")
+    (pm/import-pubmed-search-via-db "foo bar")
     #_ (create-labels @(:project-id project1))
     ;; create three compensations
     (doseq [amt (:amounts project1)] (create-compensation amt))
@@ -423,8 +428,9 @@
       (nav/new-project (:name project2))
       (reset! (:project-id project2) (b/current-project-id))
       ;; import sources
-      (pm/add-articles-from-search-term (:search project2))
-      (create-labels @(:project-id project2))
+      #_ (pm/add-articles-from-search-term "foo create")
+      (pm/import-pubmed-search-via-db "foo bar")
+      #_ (create-labels @(:project-id project2))
       ;; create three compensations
       (doseq [amt (:amounts project2)] (create-compensation amt))
       ;; set the first compensation amount to the default
@@ -576,7 +582,9 @@
       (correct-payments-owed? user2 project2))
     (catch Throwable e
       (if (= :paypal (:type (ex-data e)))
-        (do (dotimes [i 3] (log/warn "*****************************"))
+        (do (log/warnf "*** Exception in PayPal interaction ***\n%s"
+                       (with-out-str (stack/print-cause-trace-custom e)))
+            (dotimes [i 3] (log/warn "*****************************"))
             (log/warn                "*** Ignoring PayPal Error ***")
             (dotimes [i 3] (log/warn "*****************************")))
         (throw e))))
@@ -624,10 +632,7 @@
                users/get-user-by-email
                :user-id)]
   (do (alter-var-root #'sysrev.sendgrid/send-template-email
-                      (fn [send-template-email]
-                        (fn [to subject message
-                             & {:keys [from template-id substitutions]}]
-                          (println "No email was actually sent"))))
+                      (constantly (fn [& _] (log/info "No email sent"))))
       (b/create-test-user)
       (nav/register-user (:email user1) (:password user1))
       ;; the user can't be listed as a public reviewer
@@ -706,5 +711,4 @@
         ;; are we now a member of at least one project?
         (nav/go-route "/")
         (is (= 1 (your-projects-count)))))
-  :cleanup
-  (do (b/delete-test-user :email (:email user1))))
+  :cleanup (b/cleanup-test-user! :email (:email user1)))

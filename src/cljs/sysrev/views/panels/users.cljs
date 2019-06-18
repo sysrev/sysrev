@@ -14,8 +14,7 @@
 
 (def state (r/cursor app-db [:state :panels panel]))
 
-(defn AllUsers
-  []
+(defn AllUsers []
   (let [users (r/cursor state [:users])
         error-message (r/atom "")
         retrieving-users? (r/atom false)
@@ -50,21 +49,7 @@
                    @users))
            [Message
             "There currently are no public reviewers"])])
-      :get-initial-state
-      (fn [this]
-        (get-users!))
-      })))
-
-(defn Users
-  []
-  (let [current-path sysrev.base/active-route]
-    (fn []
-      [:div#users-content
-       (cond
-         (re-matches #"/users/{0,1}$" @current-path)
-         [AllUsers]
-         (re-matches #"/user/(\d+)/.*" @current-path)
-         (dispatch [:set-active-panel [:user-main]]))])))
+      :get-initial-state (fn [this] (get-users!))})))
 
 (defmethod logged-out-content [:users] []
   (fn [child]
@@ -72,4 +57,4 @@
 
 (defmethod panel-content [:users] []
   (fn [child]
-    [Users]))
+    [:div#users-content [AllUsers]]))

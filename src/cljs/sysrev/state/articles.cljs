@@ -24,7 +24,7 @@
                  (contains? article-id)))
   :uri (fn [project-id article-id]
          (str "/api/article-info/" article-id))
-  :prereqs (fn [project-id article-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id article-id] [[:project project-id]])
   :content (fn [project-id article-id] {:project-id project-id})
   :process
   (fn [{:keys [db]} [project-id article-id] {:keys [article labels notes]}]

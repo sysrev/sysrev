@@ -10,7 +10,8 @@
 
 (defn loading-indicator []
   (if @(loading/loading-indicator)
-    [:div.item.loading-indicator>div.ui.small.active.inline.loader]
+    [:div.item.loading-indicator
+     [:div.ui.small.active.inline.loader.loading-indicator]]
     [:div.item.loading-indicator-disabled]))
 
 (defn toggle-ui-theme [logged-in? settings]

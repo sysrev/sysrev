@@ -1,9 +1,11 @@
 (ns sysrev.views.panels.org.main
-  (:require [ajax.core :refer [GET]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
+            [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field set-panel-field]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.org.billing :refer [OrgBilling]]
@@ -23,121 +25,88 @@
 (defn get-field [db path] (get-panel-field db path panel))
 (defn set-field [db path val] (set-panel-field db path val panel))
 
-(reg-sub :orgs #(get-field % [:orgs]))
+(reg-sub ::orgs #(get-field % [:orgs]))
 
-(reg-event-db :set-orgs! (fn [db [_ orgs]]
-                           (set-field db [:orgs] orgs)))
+(def-data :self-orgs
+  ;; TODO: don't keep this data in 2 places?
+  :loaded?  (fn [db] (and (-> (get-in db [:state :self])  (contains? :orgs))
+                          (-> (get-field db nil)          (contains? :orgs))))
+  :uri      (fn [] "/api/orgs")
+  :process  (fn [{:keys [db]} [] {:keys [orgs] :as result}]
+              {:db (-> (assoc-in db [:state :self :orgs] orgs)
+                       (set-field [:orgs] orgs))})
+  :on-error (fn [{:keys [db error]} [] _]
+              {:db (set-field db [:orgs-error] (:message error))}))
 
-(defn read-orgs! []
-  (let [retrieving-orgs? (r/cursor state [:retrieving-orgs?])
-        orgs-error (r/cursor state [:orgs-error])]
-    (reset! retrieving-orgs? true)
-    (GET "/api/orgs"
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! retrieving-orgs? false)
-                     (dispatch [:self/set-orgs! (get-in response [:result :orgs])])
-                     (dispatch [:set-orgs! (get-in response [:result :orgs])]))
-          :error-handler (fn [error-response]
-                           (reset! retrieving-orgs? false)
-                           (reset! orgs-error (get-in error-response
-                                                      [:response :error :message])))})))
-
-(reg-event-fx :read-orgs! (fn [_ _] (read-orgs!) {}))
-
-(reg-sub :orgs/get
-         (fn [[_ org-id]] (subscribe [:orgs]))
+(reg-sub ::org
+         (fn [[_ org-id]] (subscribe [::orgs]))
          (fn [orgs [_ org-id]] (first (->> orgs (filter #(= (:group-id %) org-id))))))
 
-(reg-sub :orgs/org-name
-         (fn [[_ org-id]] (subscribe [:orgs/get org-id]))
+(reg-sub :org/name
+         (fn [[_ org-id]] (subscribe [::org org-id]))
          (fn [org] (:group-name org)))
 
-(reg-sub :orgs/org-permissions
-         (fn [[_ org-id]] (subscribe [:orgs/get org-id]))
+(reg-sub :org/permissions
+         (fn [[_ org-id]] (subscribe [::org org-id]))
          (fn [org] (:permissions org)))
 
-(reg-sub :orgs/member-count
-         (fn [[_ org-id]]
-           [(subscribe [:orgs])])
-         (fn [[orgs] [_ org-id]]
-           (->> orgs
-                (filter #(= (:id %) org-id))
-                first
-                :member-count)))
+(reg-sub :org/member-count
+         (fn [[_ org-id]] [(subscribe [::org org-id])])
+         (fn [org] (:member-count org)))
 
-(reg-sub :orgs/org-id-from-url
-         (fn [db _]
-           (some->> (second (re-find #"/org/(\d*)/*" @active-route))
-                    (parse-integer))))
+(defn org-id-from-url []
+  (parse-integer (second (re-find #"/org/(\d+)" @active-route))))
 
 (defn OrgContent []
-  (let [current-path active-route
-        orgs (subscribe [:self/orgs])
-        current-org-id (subscribe [:orgs/org-id-from-url])
-        active-item (fn [current-path sub-path]
-                      (let [url-match? (re-matches (re-pattern (str ".*" sub-path))
-                                                   current-path)]
-                        (css "item" [url-match? "active"])))
-        uri-fn (fn [sub-path] (str "/org/" @current-org-id sub-path))]
+  (let [orgs (subscribe [:self/orgs])
+        uri-fn (fn [sub-path] (str "/org/" (org-id-from-url) "/" sub-path))
+        active? (fn [sub-path] (str/includes? @active-route (uri-fn sub-path)))]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (if false ; a check for org existance should be implemented here
-          [Message {:negative true}
-           [MessageHeader {:as "h4"}
-            "Organizations Error"]
-           [:p "There isn't an org here."]]
-          [:div
-           (when-not (re-matches #"/org/(\d*)/plans" @current-path)
-             [:nav
-              [Menu {:pointing true
-                     :secondary true
-                     :attached "bottom"
-                     :class "primary-menu"}
-               [MenuItem {:name "Members"
-                          :id "org-members"
-                          :href (uri-fn "/users")
-                          :class (active-item @current-path "/users")}
-                "Members"]
-               [MenuItem {:name "Projects"
-                          :id "org-projects"
-                          :href (uri-fn "/projects")
-                          :class (active-item @current-path "/projects")}]
-               #_[MenuItem {:name "Profile"
-                            :id "org-profile"
-                            :href "/org/profile"
-                            :class (cond-> "item"
-                                     (= @current-path "/org/profile") (str " active"))}
+        (when-let [org-id (org-id-from-url)]
+          (if false ; a check for org existance should be implemented here
+            [Message {:negative true}
+             [MessageHeader {:as "h4"} "Organizations Error"]
+             [:p "There isn't an org here."]]
+            [:div
+             (when-not (active? "plans")
+               [:nav
+                [Menu {:class "primary-menu" :pointing true :secondary true :attached "bottom"}
+                 [MenuItem {:id "org-members" :href (uri-fn "users")
+                            :name "Members" :class (css [(active? "users") "active"])}
+                  "Members"]
+                 [MenuItem {:id "org-projects" :href (uri-fn "projects")
+                            :name "Projects" :class (css [(active? "projects") "active"])}]
+                 #_
+                 [MenuItem {:id "org-profile" :href "/org/profile"
+                            :name "Profile" :class (css [(= @active-route "/org/profile") "active"])}
                   "Profile"]
-               (when (some #{"admin" "owner"} @(subscribe [:orgs/org-permissions @current-org-id]))
-                 [MenuItem {:name "Billing"
-                            :id "org-billing"
-                            :href (uri-fn "/billing")
-                            :class (active-item @current-path "/billing")}
-                  "Billing"])]])
-           [:div {:id "org-content"}
-            (condp re-matches @current-path
-              #"/org/(\d*)/users"
-              [OrgUsers {:org-id @current-org-id}]
-              #"/org/(\d*)/projects"
-              [OrgProjects {:org-id @current-org-id}]
-              ;; #"/org/profile"
-              ;; [:div
-              ;;  (when-not (empty? @orgs)
-              ;;    [:h1 (str (->> @orgs (filter #(= (:group-id %) @current-org-id)) first))])
-              ;;  [:h1 "Profile settings go here"]]
-              #"/org/(\d*)/billing"
-              [OrgBilling {:org-id @current-org-id}]
-              #"/org/(\d*)/plans"
-              [OrgPlans {:org-id @current-org-id}]
-              #"/org/(\d*)/payment"
-              [OrgPayment {:org-id @current-org-id}]
-              ;; default
-              [Message {:negative true}
-               [MessageHeader {:as "h4"} "Organizations Error"]
-               [:p "This page does not exist."]])]]))
-      :component-did-mount (fn [] (dispatch [:read-orgs!]))})))
+                 (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
+                   [MenuItem {:id "org-billing" :href (uri-fn "billing")
+                              :name "Billing" :class (css [(active? "billing") "active"])}
+                    "Billing"])]])
+             [:div {:id "org-content"}
+              (condp re-matches @active-route
+                #"/org/(\d*)/users"     [OrgUsers {:org-id org-id}]
+                #"/org/(\d*)/projects"  [OrgProjects {:org-id org-id}]
+                #"/org/(\d*)/billing"   [OrgBilling {:org-id org-id}]
+                #"/org/(\d*)/plans"     [OrgPlans {:org-id org-id}]
+                #"/org/(\d*)/payment"   [OrgPayment {:org-id org-id}]
+                #_
+                #"/org/profile"
+                #_
+                [:div
+                 (when-not (empty? @orgs)
+                   [:h1 (str (->> @orgs (filter #(= (:group-id %) @current-org-id)) first))])
+                 [:h1 "Profile settings go here"]]
+                ;; default
+                [Message {:negative true}
+                 [MessageHeader {:as "h4"} "Organizations Error"]
+                 [:p "This page does not exist."]])]])))
+      :component-did-mount (fn []
+                             (dispatch [:require [:self-orgs]])
+                             (dispatch [:reload [:self-orgs]]))})))
 
 (defmethod logged-out-content [:org-settings] []
   (logged-out-content :logged-out))

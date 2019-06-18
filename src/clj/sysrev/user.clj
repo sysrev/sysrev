@@ -58,6 +58,7 @@
             [clojure.java.shell :as shell :refer [sh]]
             [clj-time.core :as time]
             [clj-time.coerce :as tc]
+            [clj-time.format :as tf]
             [clj-http.client :as http]
             [clj-webdriver.taxi :as taxi]
             [clojure.java.io :as io]

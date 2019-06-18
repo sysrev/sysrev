@@ -10,60 +10,16 @@
             [cognitect.transit :as transit]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
-            [clj-time.format :as tformat]
+            [clj-time.format :as tf]
             [me.raynes.fs :as fs]
             [sysrev.config.core :refer [env]]
             [sysrev.shared.util :as sutil :refer [ensure-pred]])
   (:import java.util.UUID
            (java.io File ByteArrayInputStream ByteArrayOutputStream)
+           org.joda.time.DateTime
            java.math.BigInteger
            java.security.MessageDigest
            org.apache.commons.lang3.exception.ExceptionUtils))
-
-(defn integerify-map-keys
-  "Maps parsed from JSON with integer keys will have the integers changed
-  to keywords. This converts any integer keywords back to integers, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-int (and (keyword? k)
-                                  (re-matches #"^\d+$" (name k))
-                                  (sutil/parse-number (name k)))
-                       k-new (if (integer? k-int) k-int k)
-                       ;; integerify sub-maps recursively
-                       v-new (if (map? v)
-                               (integerify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
-
-(defn uuidify-map-keys
-  "Maps parsed from JSON with UUID keys will have the UUID values changed
-  to keywords. This converts any UUID keywords back to UUID values, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-uuid
-                       (and (keyword? k)
-                            (re-matches
-                             #"^[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+$"
-                             (name k))
-                            (UUID/fromString (name k)))
-                       k-new (if (= UUID (type k-uuid)) k-uuid k)
-                       ;; uuidify sub-maps recursively
-                       v-new (if (map? v)
-                               (uuidify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
 
 (defn should-never-happen-exception []
   (ex-info "this should never happen" {:type :should-never-happen}))
@@ -168,17 +124,55 @@
   ([]
    (today-string :basic-date))
   ([time-format]
-   (-> (cond (keyword? time-format) (tformat/formatters time-format)
-             (string? time-format)  (tformat/formatter time-format)
-             :else                  (tformat/formatters :basic-date))
-       (tformat/unparse (t/now)))))
+   (-> (cond (keyword? time-format) (tf/formatters time-format)
+             (string? time-format)  (tf/formatter time-format)
+             :else                  (tf/formatters :basic-date))
+       (tf/unparse (t/now)))))
+
+(defn parse-time-string
+  "Returns DateTime (clj-time) object from :mysql format time
+  string. Compatible with `write-time-string`."
+  [s & [formatter]]
+  (tf/parse (tf/formatter :mysql) s))
+
+(defn to-clj-time
+  "Converts various types to clj-time compatible DateTime. Integer
+  values are treated as Unix epoch seconds. Tries to parse strings
+  as :mysql format using `parse-time-string`."
+  [t]
+  (or (cond (= (type t) DateTime)             t
+            (= (type t) java.sql.Timestamp)   (tc/from-sql-time t)
+            (= (type t) java.sql.Date)        (tc/from-sql-date t)
+            (integer? t)                      (tc/from-epoch t)
+            (string? t)                       (parse-time-string t)
+            :else                             nil)
+      (throw (ex-info "to-clj-time: unable to convert value" {:value t}))))
+
+(defn to-epoch
+  "Converts various types to clj-time compatible Unix epoch seconds. See
+  `to-clj-time`."
+  [t]
+  (-> t (to-clj-time) (tc/to-epoch)))
+
+(defn write-time-string
+  "Returns :mysql format time string from time value. Compatible with
+  `parse-time-string`."
+  [t & [formatter]]
+  (tf/unparse (tf/formatters (or formatter :mysql))
+              (to-clj-time t)))
 
 (defn now-unix-seconds []
   (-> (t/now) (tc/to-long) (/ 1000) int))
 
-(defn sql-date->clj-time
-  [s]
-  (tformat/parse (tformat/formatter :mysql) s))
+(defn now-ms []
+  (-> (t/now) (tc/to-long)))
+
+(defmacro with-print-time-elapsed
+  "Runs `body` and logs elapsed time on completion."
+  [name & body]
+  `(let [start# (now-ms)]
+     (try ~@body (finally (log/infof "%s finished in %.2fs"
+                                     ~name (/ (- (now-ms) start#) 1000.0))))))
 
 ;; see: https://stackoverflow.com/questions/10751638/clojure-rounding-to-decimal-places
 (defn round

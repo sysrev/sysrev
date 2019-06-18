@@ -5,7 +5,8 @@
             [sysrev.base :as base :refer [ga-event]]
             [sysrev.nav :refer [nav-scroll-top force-dispatch]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :refer [dissoc-in]]))
+            [sysrev.util :refer [dissoc-in]]
+            [sysrev.shared.util :as sutil]))
 
 (reg-event-db
  :initialize-db
@@ -15,9 +16,7 @@
 (reg-event-fx
  :reset-data
  (fn [{:keys [db]}]
-   {:db (-> db
-            (assoc :data {}
-                   :needed [])
+   {:db (-> (assoc db :data {} :needed [])
             (dissoc-in [:state :self])
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels])
@@ -30,18 +29,23 @@
  :reset-data
  (fn [reset?] (when reset? (dispatch [:reset-data]))))
 
-(reg-event-fx
- :reset-ui
- (fn [{:keys [db]}]
-   {:db (-> db
-            (dissoc-in [:data :review])
-            (dissoc-in [:state :review])
-            (dissoc-in [:state :panels])
-            (dissoc-in [:state :navigation :subpanels]))}))
+(reg-event-db :reset-project-ui
+              (fn [db]
+                (-> (dissoc-in db [:data :review])
+                    (dissoc-in [:state :review])
+                    (dissoc-in [:state :navigation :subpanels])
+                    (update-in [:state :panels]
+                               (fn [panels-map]
+                                 (sutil/filter-keys
+                                  #(if (sequential? %)
+                                     (not= :project (first %))
+                                     ;; panel key should always be a vector, handling
+                                     ;; case that it isn't just to be safe
+                                     true)
+                                  panels-map))))))
 
-(reg-fx
- :reset-ui
- (fn [reset?] (when reset? (dispatch [:reset-ui]))))
+(reg-fx :reset-project-ui
+        (fn [reset?] (when reset? (dispatch [:reset-project-ui]))))
 
 (reg-event-fx
  :reset-needed
@@ -67,8 +71,8 @@
 (reg-event-db
  :ga-event
  [trim-v]
- (fn [db [category action & [label]]]
-   (ga-event category action label)
+ (fn [db [category action & [label value]]]
+   (ga-event category action label value)
    db))
 
 (defn store-user-map [db umap]
@@ -84,6 +88,5 @@
 
 (def-action :dev/clear-query-cache
   :uri (fn [] "/api/clear-query-cache")
-  :process
-  (fn [_ _ result]
-    {:reset-data true}))
+  :process (fn [_ _ result]
+             {:reset-data true}))

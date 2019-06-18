@@ -10,27 +10,22 @@
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.semantic :as s]
             [sysrev.util :as util])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-;; based on: https://github.com/stripe/react-stripe-elements
-;;           https://jsfiddle.net/g9rm5qkt/
-
-(def ^:private panel [:stripe])
+(setup-panel-state {:path [:stripe]
+                    :panel-var panel
+                    :state-var state
+                    :get-fn panel-get
+                    :set-fn panel-set
+                    :get-sub ::get
+                    :set-event ::set})
 
 (defn default-redirect-uri [db]
   (str "/user/" (current-user-id db) "/billing"))
 
-(def initial-state {:error-message nil
-                    :need-card? false
-                    :updating-card? false
-                    :connected? false
-                    :retrieving-connected? false})
-
-(defonce state (r/cursor app-db [:state :panels panel]))
-
-(defn ensure-state []
-  (when (nil? @state)
-    (reset! state initial-state)))
+;; based on: https://github.com/stripe/react-stripe-elements
+;;           https://jsfiddle.net/g9rm5qkt/
 
 (def stripe-public-key
   (some-> (.getElementById js/document "stripe-public-key")
@@ -152,7 +147,6 @@
     {:display-name "stripe-reagent-form"
      :render
      (fn [this]
-       (ensure-state)
        (let [error-message (r/cursor state [:error-message])
              element-on-change #(let [{:keys [elementType error]}
                                       (js->clj % :keywordize-keys true)]
@@ -208,7 +202,6 @@
 (defn StripeCardInfo
   "add-payment-fn is a fn of payload returned by Stripe"
   [{:keys [add-payment-fn]}]
-  (ensure-state)
   [StripeProvider {:apiKey stripe-public-key}
    [Elements [(StripeForm {:add-payment-fn add-payment-fn})]]])
 

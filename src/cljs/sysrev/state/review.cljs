@@ -23,7 +23,7 @@
 (def-data :review/task
   :loaded? review-task-id
   :uri (fn [project-id] "/api/label-task")
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :content (fn [project-id] {:project-id project-id})
   :process
   (fn [{:keys [db]}
@@ -33,12 +33,10 @@
       {:db (-> db
                (load-review-task :none nil))}
       (let [article (merge article {:labels labels :notes notes})]
-        (cond->
-           {:db (-> db
-                    (load-review-task (:article-id article) today-count)
-                    (articles/load-article article))}
-           (= (active-panel db) [:project :review])
-           (merge {:scroll-top true}))))))
+        (cond-> {:db (-> (load-review-task db (:article-id article) today-count)
+                         (articles/load-article article))}
+          (= (active-panel db) [:project :review])
+          (merge {:scroll-top true}))))))
 
 (def-action :review/send-labels
   :uri (fn [project-id _] "/api/set-labels")

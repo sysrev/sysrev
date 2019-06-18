@@ -1,14 +1,12 @@
 (ns sysrev.predict.report
-  (:require
-   [sysrev.shared.util :refer [map-values]]
-   [sysrev.db.core :refer
-    [do-query do-execute sql-now time-to-string to-jsonb
-     clear-project-cache]]
-   [sysrev.db.queries :as q]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [sysrev.predict.core]
-   [sysrev.db.project :as project]))
+  (:require [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
+            [sysrev.db.queries :as q]
+            [sysrev.db.project :as project]
+            [sysrev.predict.core]
+            [sysrev.util :as util]
+            [sysrev.shared.util :refer [map-values]]))
 
 (defn estimate-articles-with-value
   "Calculates an estimate of the number of project articles for which
@@ -68,7 +66,7 @@
                                  [:!= :al.answer nil]
                                  (if (nil? answer)
                                    true
-                                   [:= :al.answer (to-jsonb answer)])
+                                   [:= :al.answer (db/to-jsonb answer)])
                                  [:!= :al.confirm-time nil]
                                  [:<= :al.confirm-time :pr.input-time]]))]]
                 (case labeled?
@@ -114,7 +112,7 @@
                    (article-count-by-label-prob
                     predict-run-id label-id (- 1.0 prob) false)}))
                (apply merge))})]
-    {:update-time (-> predict-run :create-time time-to-string (str " UTC"))
+    {:update-time (-> predict-run :create-time util/write-time-string (str " UTC"))
      :counts {:total total-count
               :labeled labeled-count
               :include-label include-count
@@ -129,11 +127,11 @@
     (let [label-id (project/project-overall-label-id project-id)
           meta (predict-summary-for-label predict-run-id label-id)]
       (-> (sqlh/update :predict-run)
-          (sset {:meta (to-jsonb meta)})
+          (sset {:meta (db/to-jsonb meta)})
           (where [:= :predict-run-id predict-run-id])
           do-execute))
     (finally
-      (clear-project-cache project-id))))
+      (db/clear-project-cache project-id))))
 
 (defn predict-summary [predict-run-id]
   (:meta (q/query-predict-run-by-id predict-run-id [:meta])))

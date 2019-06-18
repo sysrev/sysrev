@@ -1,7 +1,8 @@
 (ns sysrev.test.browser.markdown
-  (:require [clj-webdriver.taxi :as taxi]
+  (:require [clojure.test :refer :all]
             [clojure.string :as string]
-            [clojure.test :refer :all]
+            [clojure.tools.logging :as log]
+            [clj-webdriver.taxi :as taxi]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
@@ -32,7 +33,6 @@
   true
   [input "textarea"
    project-name "Markdown Test"
-   search-term "foo bar"
    create-project-description
    {:xpath "//div[contains(text(),'Create Project Description')]"}
    edit-markdown-icon {:xpath "//i[contains(@class,'pencil icon')]"}
@@ -43,11 +43,13 @@
         (b/create-test-user))
       (nav/log-in)
       (nav/new-project project-name)
-      (pm/add-articles-from-search-term search-term)
+      #_ (pm/add-articles-from-search-term "foo bar")
+      (pm/import-pubmed-search-via-db "foo bar")
       (Thread/sleep 250)
 ;;; project description
       (b/click overview-tab)
       (b/wait-until-loading-completes :pre-wait 250)
+      (log/info "creating project description")
       (b/click create-project-description)
       ;; enter markdown
       (b/wait-until-displayed input)

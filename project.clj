@@ -113,7 +113,7 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Xms1000m" "-Xmx2000m" "-server" #_ "-client"
+             {:jvm-opts ["-Xms800m" "-Xmx1600m" "-server" #_ "-client"
                          #_ "-XX:TieredStopAtLevel=1" #_ "-XX:+UseConcMarkSweepGC"
                          #_ "-XX:+CMSClassUnloadingEnabled"]
               :resource-paths ["config/dev"]

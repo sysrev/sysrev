@@ -181,10 +181,6 @@
    (dispatch [:set-active-panel [:project :project :support]])))
 
 (sr-defroute
- plans "/user/plans" []
- (dispatch [:set-active-panel [:plans]]))
-
-(sr-defroute
  plans "/user/payment" []
  (dispatch [:set-active-panel [:payment]]))
 
@@ -193,8 +189,12 @@
  (dispatch [:set-active-panel [:org-settings]]))
 
 (sr-defroute
- users "/user*" []
+ users "/users" []
  (dispatch [:set-active-panel [:users]]))
+
+(sr-defroute
+ user-main "/user/:user-id/*" []
+ (dispatch [:set-active-panel [:user-main]]))
 
 (sr-defroute
  search "/search" []
@@ -229,11 +229,7 @@
         [[:login] "/login"]
         [[:request-password-reset] "/request-password-reset"]
         [[:pubmed-search] "/pubmed-search"]
-        [[:payment] "/user/payment"]
-        [[:plans] "/user/plans"]
-        [[:users] "/users*"]
-        [[:search] "/search"]
-        [[:org-settings] "/org/*"]]
+        [[:payment] "/user/payment"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))

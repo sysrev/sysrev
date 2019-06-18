@@ -47,6 +47,6 @@
   (import-vars 'sysrev.nav)
   (import-vars 'sysrev.loading)
   (import-vars 'sysrev.pdf)
-  true)
+  nil)
 
 (populate-user-ns)

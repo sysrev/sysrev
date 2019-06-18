@@ -98,7 +98,7 @@
              (-> (get-in db [:data :project project-id :annotator])
                  (contains? :status)))
   :uri (fn [_] "/api/annotation/status")
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :content (fn [project-id] {:project-id project-id})
   :process (fn [{:keys [db]} [project-id] {:keys [status]}]
              {:db (assoc-in db [:data :project project-id :annotator :status] status)}))
@@ -139,7 +139,7 @@
   :uri (fn [_ article-id]
          (str "/api/annotations/user-defined/" article-id))
   :prereqs (fn [project-id article-id]
-             [[:identity] [:project project-id] [:article project-id article-id]])
+             [[:project project-id] [:article project-id article-id]])
   :content (fn [project-id _] {:project-id project-id})
   :process (fn [{:keys [db]} [project-id article-id] {:keys [annotations]}]
              (when annotations
@@ -159,7 +159,7 @@
   :uri (fn [_ article-id pdf-key]
          (str "/api/annotations/user-defined/" article-id "/pdf/" pdf-key))
   :prereqs (fn [project-id article-id _]
-             [[:identity] [:project project-id] [:article project-id article-id]])
+             [[:project project-id] [:article project-id article-id]])
   :content (fn [project-id _ _] {:project-id project-id})
   :process
   (fn [{:keys [db]} [project-id article-id pdf-key] {:keys [annotations]}]

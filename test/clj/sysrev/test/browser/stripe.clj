@@ -39,9 +39,7 @@
 (def cardnumber-input-iframe {:xpath "//iframe[@name='__privateStripeFrame4']"})
 (def cardnumber-input "input[name~='cardnumber']")
 
-(defn get-stripe-frame-names
-  []
-  (log/info "querying stripe iframes")
+(defn get-stripe-frame-names []
   (->> (b/current-frame-names)
        (filter #(re-matches #".*StripeFrame.*" %))))
 
@@ -70,25 +68,21 @@
         postal-input "input[name~='postal']"]
     ;; let's reset to be sure we are in the default iframe
     (taxi/switch-to-default)
-    (log/info "entering card number")
     (enter-cc-number cardnumber)
     ;; switch to month input iframe
-    (log/info "entering expiration date")
     (taxi/switch-to-frame exp-date-iframe)
     (b/set-input-text-per-char exp-date-input exp-date)
     ;; swtich back to default
     (taxi/switch-to-default)
     ;; switch to cvc iframe
-    (log/info "entering cvc")
     (taxi/switch-to-frame cvc-iframe)
     (b/set-input-text-per-char cvc-input cvc)
     ;; switch back to default frame
     (taxi/switch-to-default)
     ;; switch to post code frame
-    (log/info "entering zip code")
     (taxi/switch-to-frame postal-iframe)
     (b/set-input-text-per-char postal-input postal)
     ;; we're done, return back to default
     (taxi/switch-to-default)
-    (log/info "finished entering cc info")))
+    (log/info "finished entering stripe card")))
 

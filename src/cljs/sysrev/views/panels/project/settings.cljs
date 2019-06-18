@@ -13,7 +13,7 @@
             [sysrev.views.panels.project.compensation
              :refer [ProjectCompensations CompensationSummary UsersCompensations]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in? css]]))
 
 (def ^:private panel [:project :project :settings])
 
@@ -147,9 +147,9 @@
              ;; this is hacky, need a keyword to [:action [...] :on-success #(do something)]
              ;; because this can't just be handled by sysrev.views.panels.user.projects/set-public!
              (let [project-owner @(subscribe [:project/owner project-id])
-                   owner-key (-> project-owner keys first)
+                   owner-type (-> project-owner keys first)
                    owner-id (-> project-owner vals first)]
-               (when (= :group-id owner-key)
+               (when (= :group-id owner-type)
                  (dispatch [:org/get-projects! owner-id])))
              {:db (cond-> (assoc-in db [:data :project project-id :settings] settings))
               :dispatch [:user/get-projects! @(subscribe [:self/user-id])]}))
@@ -234,9 +234,8 @@
     (ui/FixedTooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
-       :class (cond-> " "
-                active? (str "active")
-                disabled? (str " disabled"))
+       :class (css [active? "active"]
+                   [disabled? "disabled"])
        :on-click (if admin? #(edit-setting setting value) nil)}
       label]
      [:p tooltip]
@@ -275,8 +274,9 @@
     :tooltip "Allow access only for project members"}])
 
 (defn- PublicAccessField [project-id]
-  (let [project-owner @(subscribe [:project/owner project-id])
-        owner-key (-> project-owner keys first)
+  (let [self-id @(subscribe [:self/user-id])
+        project-owner @(subscribe [:project/owner project-id])
+        owner-type (-> project-owner keys first)
         owner-id (-> project-owner vals first)
         project-plan @(subscribe [:project/plan project-id])
         project-url @(subscribe [:project/uri project-id])]
@@ -287,17 +287,18 @@
             :disabled? (and (= project-plan "Basic")
                             (not @(subscribe [:user/actual-admin?]))
                             @(subscribe [:project/public-access? project-id]))}]
-     (when (and (= project-plan
-                   "Basic")
-                @(subscribe [:project/controlled-by? project-id @(subscribe [:self/user-id])]))
-       [:p [:a {:href (if (= owner-key :user-id)
-                        (str "/user/plans")
+     (when (and (= project-plan "Basic")
+                @(subscribe [:project/controlled-by? project-id self-id]))
+       [:p [:a {:href (if (= owner-type :user-id)
+                        "/user/plans"
                         (str "/org/" owner-id "/plans"))
-                :on-click (fn [e]
-                            (if (= owner-key :user-id)
-                              (dispatch [:plans/set-on-subscribe-nav-to-url! (str project-url "/settings")])
-                              (dispatch [:org/set-on-subscribe-nav-to-url! (str project-url "/settings")])))}
-            "Upgrade"] (str (if (= owner-key :user-id) " your " " the organization's ") "plan to make this project private")])]))
+                :on-click #(if (= owner-type :user-id)
+                             (dispatch [:user/set-on-subscribe-nav-to-url!
+                                        (str project-url "/settings")])
+                             (dispatch [:org/set-on-subscribe-nav-to-url!
+                                        owner-id (str project-url "/settings")]))}
+            "Upgrade"] (str " " (if (= owner-type :user-id) "your" "the organization's")
+                            " plan to make this project private")])]))
 
 (def unlimited-reviews-buttons
   [{:key :false

@@ -62,7 +62,9 @@
                        :value @current-org-id
                        :on-change (fn [event data]
                                     (reset! current-org-id ($ data :value)))}]])])
-      :component-did-mount (fn [this] (dispatch [:read-orgs!]))})))
+      :component-did-mount (fn [this]
+                             (dispatch [:require [:self-orgs]])
+                             (dispatch [:reload [:self-orgs]]))})))
 
 (defn CreateProject [& [initial-org-id]]
   [Segment {:secondary true}

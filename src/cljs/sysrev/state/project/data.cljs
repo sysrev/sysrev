@@ -21,11 +21,9 @@
              #(merge % project)))
 
 (def-data :public-projects
-  :loaded? (fn [db]
-             (-> (get-in db [:data])
-                 (contains? :public-projects)))
+  :loaded? (fn [db] (-> (get-in db [:data])
+                        (contains? :public-projects)))
   :uri (fn [] "/api/public-projects")
-  :prereqs (fn [] [[:identity]])
   :process (fn [{:keys [db]} [] {:keys [projects]}]
              {:db (assoc-in db [:data :public-projects]
                             (->map-with-key :project-id projects))}))
@@ -34,7 +32,6 @@
   :loaded? project-loaded?
   :uri (fn [project-id] "/api/project-info")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity]])
   :process (fn [{:keys [db]} [project-id] {:keys [project users]}]
              (let [url-ids-map (->> (:url-ids project)
                                     (map (fn [{:keys [url-id]}] {url-id project-id}))
@@ -51,7 +48,7 @@
   :loaded? project-loaded?
   :uri (fn [project-id] "/api/project-settings")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :process
   (fn [{:keys [db]} [project-id] {:keys [settings project-name]}]
     {:db (cond-> db
@@ -61,7 +58,7 @@
 (def-data :project/files
   :loaded? project-loaded?
   :uri (fn [project-id] (str "/api/files/" project-id))
-  :prereqs (fn [project-id] [[:identity]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :process
   (fn [{:keys [db]} [project-id] files]
     (when (vector? files)
@@ -77,13 +74,10 @@
              (merge {:project-id project-id}
                     args
                     {:lookup-count true}))
-  :prereqs (fn [project-id]
-             [[:identity]
-              [:project project-id]])
-  :process
-  (fn [{:keys [db]} [project-id args] result]
-    {:db (assoc-in db [:data :project project-id :article-list-count args]
-                   result)}))
+  :prereqs (fn [project-id] [[:project project-id]])
+  :process (fn [{:keys [db]} [project-id args] result]
+             {:db (assoc-in db [:data :project project-id :article-list-count args]
+                            result)}))
 
 (def-data :project/article-list
   :method :post
@@ -94,10 +88,8 @@
   :content (fn [project-id args]
              (merge {:project-id project-id} args))
   :prereqs (fn [project-id args]
-             [[:identity]
-              [:project project-id]
-              [:project/article-list-count
-               project-id (dissoc args :n-count :n-offset)]])
+             [[:project project-id]
+              [:project/article-list-count project-id (dissoc args :n-count :n-offset)]])
   :process
   (fn [{:keys [db]} [project-id args] result]
     (doseq [panel [[:project :project :articles]]]
@@ -135,7 +127,7 @@
                  (contains? :sources)))
   :uri (fn [project-id] "/api/project-sources")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :prereqs (fn [project-id] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id] {:keys [sources]}]
              {:db (assoc-in db [:data :project project-id :sources] sources)}))
 
@@ -169,10 +161,8 @@
         (sort-by :project-id <)
         (map :project-id))))
 
+;; TODO: remove this, potentially very expensive
 (reg-event-fx :project/fetch-all-projects
-              [trim-v]
               (fn []
-                (let [projects @(subscribe [:self/projects])
-                      project-ids (map :project-id projects)]
-                  (doall (map #(dispatch [:fetch [:project %]]) project-ids)))
-                {}))
+                {:dispatch-n (doall (map (fn [p] [:fetch [:project (:project-id p)]])
+                                         @(subscribe [:self/projects])))}))

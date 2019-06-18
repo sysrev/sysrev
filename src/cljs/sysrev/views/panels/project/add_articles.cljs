@@ -278,7 +278,7 @@
                          (list (fn []
                                  (when (some-> @article-counts :total (> 0))
                                    (nav/nav-scroll-top (project-uri project-id "/articles")))))])))
-       1500))))
+       900))))
 
 (defn ArticleSource [source]
   (let [project-id @(subscribe [:active-project-id])
