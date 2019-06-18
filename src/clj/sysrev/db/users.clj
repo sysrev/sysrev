@@ -451,12 +451,13 @@
       do-execute))
 
 (defn search-users
-  "Return users whose email matches term"
-  [term]
+  "Return users whose email matches q"
+  [q & {:keys [limit]
+        :or {limit 5}}]
   (with-transaction
     (let [user-ids (->> ["SELECT user_id FROM web_user WHERE (email ilike ?) ORDER BY email LIMIT ?"
-                         (str term "%")
-                         5]
+                         (str q "%")
+                         limit]
                         db/raw-query
                         (map :user-id))
           ;; original query, except using ilike instead of like for case insensitivity

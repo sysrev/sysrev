@@ -23,7 +23,9 @@
 (def ^:private panel [:user-main])
 
 (def initial-state {})
+
 (defonce state (r/cursor app-db [:state :panels panel]))
+
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
@@ -339,14 +341,17 @@
             ;; default before the active panel is loaded
             ;; and this component still exists
             [:div {:style {:display "none"}}])]])
-      :get-initial-state
+      :component-did-mount
       (fn [this]
         (dispatch [:compensation/get-payments-owed!])
         (dispatch [:compensation/get-payments-paid!])
         (dispatch [:user/get-invitations!]))})))
 
+;; this is only when the direct link to /user/<uid>/profile is called,
+;; otherwise, the logged-out-content that is defined in
+;; sysrev.views.panels.users is used
 (defmethod logged-out-content [:user-main] []
-  (logged-out-content :logged-out))
+  [UserContent])
 
 (defmethod panel-content [:user-main] []
   (fn [child]

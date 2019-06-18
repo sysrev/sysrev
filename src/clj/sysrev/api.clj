@@ -1477,4 +1477,6 @@
 (defn search-site
   "Search the site with query q"
   [q]
-  {:results {:projects (project/search-projects q)}})
+  {:results {:projects (project/search-projects q)
+             :users (users/search-users q)
+             :orgs (groups/search-groups q)}})

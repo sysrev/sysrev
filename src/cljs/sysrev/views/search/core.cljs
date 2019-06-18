@@ -7,12 +7,14 @@
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.semantic :refer [Form Input Loader Divider]]))
+            [sysrev.views.panels.user.profile :refer [Avatar UserPublicProfileLink]]
+            [sysrev.views.semantic :refer [Form Input Loader Divider Grid Row Column Menu MenuItem Image]]))
 
 (def ^:private panel [:search])
 
 (def state (r/atom {:search-results {}
-                    :search-value ""}))
+                    :search-value ""
+                    :active-search-item :users}))
 
 (defn project-search [q]
   (let [search-results (r/cursor state [:search-results])]
@@ -29,6 +31,10 @@
     (r/create-class
      {:reagent-render
       (fn [args]
+        #_(when (and (nil? (uri-utils/getParamValue @active-route "q"))
+                   (not (empty? @search-value)))
+          (.log js/console "not empty search-value: " (not (empty? @search-value)))
+          (reset! search-value ""))
         [Form {:on-submit (fn [e]
                             (project-search @search-value)
                             (nav-scroll-top "/search" :params {:q @search-value}))}
@@ -38,15 +44,47 @@
                                                      (js->clj :keywordize-keys true)
                                                      :value)]
                                  (reset! search-value input-value)))
-                  :id "search-sysrev-bar"
-                  :value @search-value}]])})))
+                 :id "search-sysrev-bar"
+                 :value @search-value}]])})))
 
 (defn ProjectSearchResult
   [{:keys [project-id description name]}]
   [:div
-   [:a {:href (project-uri project-id)} [:h3 name]]
+   [:a {:href (project-uri project-id)
+        ;; :on-click (fn [e]
+        ;;             (reset! (r/cursor state [:search-value]) ""))
+        } [:h3 name]]
    [:p (-> description markdown/create-markdown-html markdown/html->string)]
    [Divider]])
+
+(defn UserSearchResult
+  [{:keys [user-id username introduction]}]
+  [:div
+   [Grid {:columns "equal"}
+    [Row
+     [Column {:width 1
+              :widescreen 1
+              :tablet 2
+              :mobile 4}
+      [:a {:href (str "/user/" user-id "/profile")}
+       [Image {:src (str "/api/user/" user-id "/avatar")
+               :avatar true
+               :style {:height "4em"
+                       :width "4em"}
+               :alt ""}]]]
+     [Column {:style {:padding-left 0}}
+      [:a {:href (str "/user/" user-id "/profile")}
+       [:h3 {:style {:display "inline"
+                     :vertical-align "top"}} username]]
+      [:p (-> introduction markdown/create-markdown-html markdown/html->string)]]]]
+   [Divider]])
+
+(defn OrgSearchResult
+  [{:keys [group-id group-name]}]
+  [:div
+   [:a {:href (str "/org/" group-id "/projects")}
+    [:h3 group-name]
+    [Divider]]])
 
 (defn SearchResults [{:keys [q]}]
   (reset! (r/cursor state [:search-value]) q)
@@ -55,18 +93,65 @@
    {:reagent-render
     (fn [{:keys [q]}]
       (let [search-results (r/cursor state [:search-results q])
-            projects (r/cursor search-results [:projects])]
-        [:div
-         ;;[:h1 "Results for " q ":"]
-         (if (= @search-results :retrieving)
-           [Loader {:active true}]
-           (if-not (empty? @projects)
-             (doall
-              (for [project @projects]
-                ^{:key (:project-id project)}
-                [ProjectSearchResult project]))
-             [:div
-              [:h3 "No Results Found"]]))]))}))
+            ;;projects (r/cursor search-results [:projects])
+            active (r/cursor state [:active-search-item])]
+        [Grid {:columns "equal"}
+         [Row
+          [Column {:width 2
+                   :widescreen 2
+                   :tablet 3
+                   :mobile 5}
+           [Menu {;;:pointing true
+                  :secondary true
+                  :vertical true
+                  :fluid true}
+            [MenuItem {:name "Projects"
+                       :active (= @active :projects)
+                       :on-click (fn [e]
+                                   (reset! active :projects))
+                       :color "orange"}]
+            [MenuItem {:name "Users"
+                       :active (= @active :users)
+                       :on-click (fn [e]
+                                   (reset! active :users))
+                       :color "orange"}]
+            [MenuItem {:name "Orgs"
+                       :active (= @active :orgs)
+                       :on-click (fn [e]
+                                   (reset! active :orgs))
+                       :color "orange"}]]]
+          [Column #_{:width 14
+                     :tablet 9
+                     :mobile 10
+                     :widescreen 14}
+           [:div
+            ;;[:h1 "Results for " q ":"]
+            (if (= @search-results :retrieving)
+              [Loader {:active true}]
+              #_
+              (if-not (empty? @projects)
+                (doall
+                 (for [project @projects]
+                   ^{:key (:project-id project)}
+                   [ProjectSearchResult project]))
+                [:div
+                 [:h3 "No Results Found"]])
+              (let [results (get @search-results @active)]
+                (if-not (empty? results)
+                  (doall
+                   (for [result results]
+                     (condp = @active
+                       :projects
+                       ^{:key (:project-id result)}
+                       [ProjectSearchResult result]
+                       :users
+                       ^{:key (:user-id result)}
+                       [UserSearchResult result]
+                       :orgs
+                       ^{:key (:group-id result)}
+                       [OrgSearchResult result]
+                       [:h3 "Error: No such key"])))
+                  [:div [:h3 "No Results Found"]])))]]]]))}))
 
 (defmethod panel-content [:search] []
   (fn [child]

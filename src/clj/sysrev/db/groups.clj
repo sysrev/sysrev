@@ -1,7 +1,7 @@
 (ns sysrev.db.groups
   (:require [honeysql-postgres.helpers :refer [returning]]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array with-transaction]]
+            [sysrev.db.core :as db :refer [do-query do-execute sql-now to-sql-array with-transaction]]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util]
@@ -171,3 +171,28 @@
 (defn group-id-from-url-id [url-id]
   ;; TODO: implement url-id strings for groups
   (sutil/parse-integer url-id))
+
+(defn search-groups
+  "Return groups whose name matches search term q"
+  [q & {:keys [limit]
+        :or {limit 5}}]
+  (with-transaction
+    (let [user-ids (->> ["SELECT group_id,group_name FROM groups WHERE (group_name ilike ?) AND group_name != 'public-reviewer' ORDER BY group_name LIMIT ?"
+                         (str "%" q "%")
+                         limit]
+                        db/raw-query
+                        ;;(map :group_id)
+                        )
+          ;; original query, except using ilike instead of like for case insensitivity
+          #_(-> (select :user-id)
+                (from :web-user)
+                (where [:like :email (str term "%")])
+                (order-by :email)
+                ;; don't want to overwhelm with options
+                (limit 5)
+                (sql/format))]
+      ;; check to see if we have results before returning the public info
+      user-ids
+      #_(if (empty? user-ids)
+        user-ids
+        (get-users-public-info user-ids)))))

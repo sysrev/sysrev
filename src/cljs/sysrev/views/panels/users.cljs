@@ -64,11 +64,11 @@
          (re-matches #"/users/{0,1}$" @current-path)
          [AllUsers]
          (re-matches #"/user/(\d+)/.*" @current-path)
-         (dispatch [:set-active-panel [:user-main]])
-         )])))
+         (dispatch [:set-active-panel [:user-main]]))])))
 
 (defmethod logged-out-content [:users] []
-  (logged-out-content :logged-out))
+  (fn [child]
+    [Users]))
 
 (defmethod panel-content [:users] []
   (fn [child]
