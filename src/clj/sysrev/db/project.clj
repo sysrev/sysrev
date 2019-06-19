@@ -631,74 +631,23 @@
                   [:= "owner" :%any.permissions]])
           do-query first))))
 
-(defn search-project-name
-  [q]
-  (->>
-   [(str "SELECT md.string as description, p.project_id, p.name "
-          "FROM project_description pd "
-          "RIGHT JOIN project p on p.project_id = pd.project_id "
-          "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
-          "WHERE (p.name ilike ?) "
-          "AND p.enabled = true AND p.settings->>'public-access' = 'true' "
-          "ORDER BY p.date_created ")
-    (str "%" q "%")]
-   db/raw-query))
-
-(defn search-project-description
-  [q]
-    (->>
-   [(str "SELECT md.string as description, p.project_id, p.name "
-          "FROM project_description pd "
-          "RIGHT JOIN project p on p.project_id = pd.project_id "
-          "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
-          "WHERE (md.string ilike ?) "
-          "AND p.enabled = true AND p.settings->>'public-access' = 'true' "
-          "ORDER BY p.date_created ")
-    (str "%" q "%")]
-   db/raw-query))
-
+;; for future reference:
 ;; https://news.ycombinator.com/item?id=12621950
 ;; http://rachbelaid.com/postgres-full-text-search-is-good-enough/
-
-#_(defn search-projects
-  [q]
-  (merge (search-project-name q)
-         (search-project-description q)))
 (defn search-projects
-  [q]
+  [q  & {:keys [result-limit]
+         :or {result-limit 5}}]
   "Return a list of projects using the search query q"
-  (with-transaction
-    (let [project-ids (->> [#_
-                            (str "SELECT project_id,date_created "
-                                 "FROM project "
-                                 "WHERE (name ilike ?) AND enabled = true AND settings->>'public-access' = 'true' "
-                                 "ORDER BY date_created LIMIT ?")
-                            (str "SELECT md.string as description, p.project_id, p.name, p.settings "
-                                 "FROM project_description pd "
-                                 "RIGHT JOIN project p on p.project_id = pd.project_id "
-                                 "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
-                                 "WHERE (md.string ilike ?)"
-                                 ;;(p.name ilike ?)
-                                 "OR (p.name ilike ?) "
-                                 "AND p.enabled = true AND p.settings->>'public-access' = 'true' "
-                                 "ORDER BY p.date_created "
-                                 "LIMIT ?"
-                                 )
-                            (str "%" q "%")
-                            (str "%" q "%")
-                            10
-                            ]
-                           db/raw-query
-                           ;;(map :project-id)
-                           )]
-      (if (empty? project-ids)
-        []
-        ;;project-ids
-        project-ids
-        #_(-> (select [:md.string :description] :p.project-id :p.name)
-            (from [:project-description :pd])
-            (right-join [:project :p] [:= :p.project-id :pd.project-id])
-            (left-join [:markdown :md] [:= :md.markdown-id :pd.markdown-id])
-            (where [:in :p.project-id
-                    project-ids])
-            do-query)))))
+  (let [pattern (str "%" q "%")]
+    (->> [(str "SELECT md.string as description, p.project_id, p.name, p.settings "
+               "FROM project_description pd "
+               "RIGHT JOIN project p on p.project_id = pd.project_id "
+               "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
+               "WHERE p.enabled = true AND p.settings->>'public-access' = 'true'"
+               "AND ((md.string ilike ?) OR (p.name ilike ?))"
+               "ORDER BY p.date_created "
+               "LIMIT ?")
+          pattern
+          pattern
+          10]
+         db/raw-query)))

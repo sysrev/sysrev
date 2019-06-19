@@ -53,7 +53,7 @@
 
 (defmethod logged-out-content [:users] []
   (fn [child]
-    [Users]))
+    [AllUsers]))
 
 (defmethod panel-content [:users] []
   (fn [child]

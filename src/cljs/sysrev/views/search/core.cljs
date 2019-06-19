@@ -7,14 +7,14 @@
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.user.profile :refer [Avatar UserPublicProfileLink]]
-            [sysrev.views.semantic :refer [Form Input Loader Divider Grid Row Column Menu MenuItem Image]]))
+            [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
+            [sysrev.views.semantic :refer [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label]]))
 
 (def ^:private panel [:search])
 
 (def state (r/atom {:search-results {}
                     :search-value ""
-                    :active-search-item :users}))
+                    :active-search-item :projects}))
 
 (defn project-search [q]
   (let [search-results (r/cursor state [:search-results])]
@@ -28,7 +28,8 @@
 
 (defn SiteSearch []
   (let [search-value (r/cursor state [:search-value])
-        cleared? (r/atom false)]
+        cleared? (r/atom false)
+        active-search-item (r/cursor state [:active-search-item])]
     (r/create-class
      {:reagent-render
       (fn [args]
@@ -44,6 +45,7 @@
             (reset! cleared? false))
           [Form {:on-submit (fn [e]
                               (project-search @search-value)
+                              (reset! active-search-item :projects)
                               (nav-scroll-top "/search" :params {:q @search-value}))}
            [Input {:placeholder "Search Sysrev"
                    :on-change (fn [e value]
@@ -74,11 +76,7 @@
               :tablet 2
               :mobile 4}
       [:a {:href (str "/user/" user-id "/profile")}
-       [Image {:src (str "/api/user/" user-id "/avatar")
-               :avatar true
-               :style {:height "4em"
-                       :width "4em"}
-               :alt ""}]]]
+       [ProfileAvatar {:user-id user-id}]]]
      [Column {:style {:padding-left 0}}
       [:a {:href (str "/user/" user-id "/profile")}
        [:h3 {:style {:display "inline"
@@ -100,14 +98,17 @@
    {:reagent-render
     (fn [{:keys [q]}]
       (let [search-results (r/cursor state [:search-results q])
-            ;;projects (r/cursor search-results [:projects])
-            active (r/cursor state [:active-search-item])]
+            projects (r/cursor search-results [:projects])
+            users (r/cursor search-results [:users])
+            orgs (r/cursor search-results [:orgs])
+            active (r/cursor state [:active-search-item])
+            base-menu-width 3]
         [Grid {:columns "equal"}
          [Row
-          [Column {:width 2
-                   :widescreen 2
-                   :tablet 3
-                   :mobile 5}
+          [Column {:width base-menu-width
+                   :widescreen base-menu-width
+                   :tablet (+ base-menu-width 1)
+                   :mobile (+ base-menu-width 2)}
            [Menu {;;:pointing true
                   :secondary true
                   :vertical true
@@ -116,17 +117,23 @@
                        :active (= @active :projects)
                        :on-click (fn [e]
                                    (reset! active :projects))
-                       :color "orange"}]
+                       :color "orange"}
+             "Projects"
+             [Label {:size "mini"} (count @projects)]]
             [MenuItem {:name "Users"
                        :active (= @active :users)
                        :on-click (fn [e]
                                    (reset! active :users))
-                       :color "orange"}]
+                       :color "orange"}
+             "Users"
+             [Label {:size "mini"} (count @users)]]
             [MenuItem {:name "Orgs"
                        :active (= @active :orgs)
                        :on-click (fn [e]
                                    (reset! active :orgs))
-                       :color "orange"}]]]
+                       :color "orange"}
+             "Orgs"
+             [Label {:size "mini"} (count @orgs)]]]]
           [Column #_{:width 14
                      :tablet 9
                      :mobile 10
@@ -158,7 +165,12 @@
                        ^{:key (:group-id result)}
                        [OrgSearchResult result]
                        [:h3 "Error: No such key"])))
-                  [:div [:h3 "No Results Found"]])))]]]]))}))
+                  [:div [:h3 (str "We couldn't find anything in "
+                                  (condp = @active
+                                    :projects "Public Projects"
+                                    :users "Sysrev Users"
+                                    :orgs "Sysrev Orgs")
+                                  " matching '" q "'")]])))]]]]))}))
 
 (defmethod panel-content [:search] []
   (fn [child]

@@ -179,8 +179,8 @@
               :class "sysrev-avatar"
               :alt ""}])))
 
-(defn- ProfileAvatar
-  [{:keys [user-id modal-open]}]
+(defn ProfileAvatar
+  [{:keys [user-id]}]
   (let [reload-avatar? (r/cursor state [:reload-avatar?])]
     (if @reload-avatar?
       (reset! reload-avatar? false)
