@@ -15,9 +15,10 @@
             [sysrev.db.project :as project]
             [sysrev.db.groups :as groups]
             [sysrev.stripe :as stripe]
-            [sysrev.test.core :as test]
+            [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer ensure-pred]])
+            [sysrev.shared.util :as sutil :refer
+             [parse-integer ensure-pred string-ellipsis wrap-parens]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
@@ -37,14 +38,28 @@
        (catch Throwable e
          (log/warn "unable to read console errors"))))
 
-(defn log-console-messages [& [error?]]
-  (let [level (if error? :error :info)]
+(defn log-console-messages [& [level]]
+  (let [level (or level :info)]
     (if-let [logs (browser-console-logs)]
       (log/logf level "browser console logs:\n\n%s" logs)
       (log/logp level "browser console logs: (none)"))
     (if-let [errors (browser-console-errors)]
       (log/logf level "browser console errors:\n\n%s" errors)
       (log/logp level "browser console errors: (none)"))))
+
+(defn current-windows []
+  (let [active (taxi/window)]
+    (mapv #(assoc % :active (= (:handle %) (:handle active)))
+          (taxi/windows))))
+
+(defmacro log-current-windows []
+  `(if-let [windows# (seq (current-windows))]
+     (do (log/info "current windows:")
+         (doseq [w# windows#]
+           (log/info (str (if (:active w#) "[*]" "[ ]") " "
+                          "(" (string-ellipsis (:url w#) 50 "...") ") "
+                          "\"" (string-ellipsis (:title w#) 40 "...") "\""))))
+     (log/info "current windows: (none found)")))
 
 (defn start-webdriver [& [restart?]]
   (if (and @active-webdriver (not restart?))
@@ -107,10 +122,10 @@
       (.addShutdownHook runtime (Thread. #(stop-webdriver)))
       (reset! webdriver-shutdown-hook true))))
 
-(defn take-screenshot [& [error?]]
+(defn take-screenshot [& [level]]
   (if (standard-webdriver?)
     (let [path (util/tempfile-path (str "screenshot-" (System/currentTimeMillis) ".png"))
-          level (if error? :error :info)]
+          level (or level :info)]
       (try (taxi/take-screenshot :file path)
            (log/logp level "Screenshot saved:" path)
            (catch Throwable e
@@ -149,18 +164,14 @@
   if an element matching q currently exists and is displayed, false if
   not."
   [q]
-  (boolean (some #(boolean (try (and (taxi/exists? %) (taxi/displayed? %))
-                                (catch Throwable e false)))
+  (boolean (some #(succeeds? (and (taxi/exists? %) (taxi/displayed? %)))
                  (taxi/elements q))))
 
 (defn try-wait
   "Runs a wait function in try-catch block to avoid exception on
   timeout; returns true on success, false on timeout."
   [wait-fn & args]
-  (try (apply wait-fn args) true
-       (catch Throwable e
-         (log/info "try-wait" wait-fn "timed out")
-         false)))
+  (succeeds? (do (apply wait-fn args) true)))
 
 (defn wait-until
   "Wrapper for taxi/wait-until with default values for timeout and
@@ -168,7 +179,8 @@
   interval ms until timeout ms have elapsed, or throws exception on
   timeout."
   [pred & [timeout interval]]
-  (let [timeout (or timeout (if (test/remote-test?) 10000 5000))
+  (let [remote? (test/remote-test?)
+        timeout (or timeout (if remote? 10000 5000))
         interval (or interval 15)]
     (when-not (pred)
       (Thread/sleep interval)
@@ -229,9 +241,13 @@
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
-  (let [timeout (if (test/remote-test?) 45000 timeout)]
-    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
-    (assert (try-wait wait-until #(and (ajax-inactive?)
+  (let [remote? (test/remote-test?)
+        timeout (if remote? 45000 timeout)
+        inactive-duration nil #_ (if remote? 40 25)]
+    (when pre-wait (Thread/sleep (cond (integer? pre-wait) pre-wait
+                                       ;; remote?             35
+                                       :else               25)))
+    (assert (try-wait wait-until #(and (ajax-inactive? inactive-duration)
                                        (every? (complement displayed-now?)
                                                [(not-class "div.ui.loader.active"
                                                            "loading-indicator")
@@ -261,30 +277,43 @@
     (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 10 clear? true}}]
-  (wait-until-displayed q)
-  (when clear? (taxi/clear q))
-  (Thread/sleep delay)
-  (taxi/input-text q text)
-  (Thread/sleep delay))
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 15 clear? true}}]
+  (let [;; remote? (test/remote-test?)
+        ;; delay (if remote? (* 2 delay) delay)
+        ]
+    (wait-until-displayed q)
+    (when clear? (taxi/clear q))
+    (Thread/sleep delay)
+    (taxi/input-text q text)
+    (Thread/sleep delay)))
 
 (defn set-input-text-per-char
-  [q text & {:keys [delay clear?] :or {delay 10 clear? true}}]
-  (wait-until-displayed q)
-  (when clear? (taxi/clear q))
-  (Thread/sleep delay)
-  (let [e (taxi/element q)]
-    (doseq [c text]
-      (taxi/input-text e (str c))
-      (Thread/sleep 10)))
-  (Thread/sleep delay))
+  [q text & {:keys [delay char-delay clear?]
+             :or {delay 15 char-delay 10 clear? true}}]
+  (let [;; remote? (test/remote-test?)
+        ;; delay (if remote? (* 2 delay) delay)
+        ;; char-delay (if remote? (* 2 char-delay) char-delay)
+        ]
+    (wait-until-displayed q)
+    (when clear? (taxi/clear q))
+    (Thread/sleep delay)
+    (let [e (taxi/element q)]
+      (doseq [c text]
+        (taxi/input-text e (str c))
+        (Thread/sleep char-delay)))
+    (Thread/sleep delay)))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
   (sutil/apply-keyargs set-input-text
                        q text (merge opts {:clear? false})))
 
 (defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
-  (when wait? (wait-until-exists q timeout interval))
+  (when wait?
+    (try (wait-until-exists q timeout interval)
+         (catch Throwable e
+           (log/warnf "%s not found" (pr-str q))
+           (take-screenshot :warn)
+           (throw e))))
   (let [result (taxi/exists? q)]
     (when wait? (wait-until-loading-completes))
     result))
@@ -292,7 +321,10 @@
 (defn click [q & {:keys [if-not-exists delay displayed?]
                   :or {if-not-exists :wait, delay 20, displayed? false}}]
   ;; auto-exclude "disabled" class when q is css
-  (let [q (not-disabled q)]
+  (let [q (-> q (not-disabled) (not-loading))
+        #_ delay #_ (if (test/remote-test?)
+                      (int (* delay 1.5))
+                      delay)]
     (when (= if-not-exists :wait)
       (if displayed? (wait-until-displayed q) (wait-until-exists q)))
     (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
@@ -307,11 +339,12 @@
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
-  (wait-until-displayed input-element)
-  (dotimes [_ length]
-    (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-    (Thread/sleep 10))
-  true)
+  (let [delay 10 #_ (if (test/remote-test?) 15 10)]
+    (wait-until-displayed input-element)
+    (dotimes [_ length]
+      (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
+      (Thread/sleep delay))
+    true))
 
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)]
@@ -324,8 +357,8 @@
                   (catch Throwable e#
                     (log/error "current-url:" (try (taxi/current-url)
                                                    (catch Throwable e2# nil)))
-                    (log-console-messages true)
-                    (take-screenshot true)
+                    (log-console-messages :error)
+                    (take-screenshot :error)
                     (throw e#))
                   (finally
                     (let [failed# (and (instance? clojure.lang.IDeref *report-counters*)
@@ -334,7 +367,7 @@
                                            (pos? (:error @*report-counters*))))]
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
-                        (log-console-messages failed#)))
+                        (log-console-messages (if failed# :error :info))))
                     ~cleanup))))))))
 
 (defn cleanup-browser-test-projects []

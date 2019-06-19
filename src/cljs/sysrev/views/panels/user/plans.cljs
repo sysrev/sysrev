@@ -265,4 +265,4 @@
 (sr-defroute user-plans "/user/plans" []
              (let [self-id @(subscribe [:self/user-id])]
                (dispatch [:set-active-panel [:plans]])
-               (when self-id (dispatch [:load [:user/current-plan self-id]]))))
+               (when self-id (dispatch [:data/load [:user/current-plan self-id]]))))

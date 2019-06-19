@@ -34,7 +34,8 @@
 (defn nav
   "Change the current route."
   [route & {:keys [params]}]
-  (pushy/set-token! history (make-url route params)))
+  (pushy/set-token! history (make-url route params))
+  nil)
 
 (defn nav-redirect
   "Change the current route and replace its entry in HTML5 history stack."

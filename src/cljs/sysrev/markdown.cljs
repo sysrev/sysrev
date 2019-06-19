@@ -86,11 +86,11 @@
                  :target "_blank" :rel "noopener noreferrer"}
                 "Markdown Cheatsheet"]]
               [:div.right.aligned.column.form-buttons
-               [:button.ui.tiny.positive.icon.labeled.button
+               [:button.ui.tiny.positive.icon.labeled.button.save-button
                 {:class (css [(not changed?) "disabled"] [loading? "loading"])
                  :on-click #(set-content! @draft-content)}
                 [:i.circle.check.icon] "Save"]
-               [:button.ui.tiny.icon.labeled.button
+               [:button.ui.tiny.icon.labeled.button.cancel-button
                 {:on-click #(do (reset! editing? false)
                                 (reset! draft-content nil))
                  :class (css [loading? "disabled"])

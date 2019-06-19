@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
-            [sysrev.test.core :refer [default-fixture]]
+            [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.db.core :as db]
             [sysrev.source.import :as import]
             [sysrev.pubmed :as pubmed]
@@ -163,6 +163,7 @@
     #_ (nav/go-project-route "" :silent true)
     (nav/wait-until-overview-ready)))
 
+;; This doesn't work against staging.sysrev.com - cache not cleared?
 (defn import-pmids-via-db
   "Use direct database connection to import articles by PMID, getting
   project from current browser URL."
@@ -178,7 +179,8 @@
     (b/wait-until-loading-completes :pre-wait 100)))
 
 (def test-search-pmids
-  {"foo bar" [25706626 25215519 23790141 22716928 19505094 9656183]})
+  {"foo bar" [25706626 25215519 23790141 22716928 19505094 9656183]
+   "foo bar enthalpic mesoporous" [25215519]})
 
 (defn import-pubmed-search-via-db
   "Use direct database connection to import articles corresponding to a
@@ -186,7 +188,7 @@
   importing by PubMed search through web interface."
   [search-term]
   (let [pmids (test-search-pmids search-term)]
-    (if (and pmids @db/active-db)
+    (if (and pmids @db/active-db (not (test/remote-test?)))
       (import-pmids-via-db pmids)
       (add-articles-from-search-term search-term))))
 

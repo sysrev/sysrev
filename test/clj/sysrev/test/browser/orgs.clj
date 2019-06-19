@@ -15,7 +15,7 @@
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.core :as test]
             [sysrev.stripe :as stripe]
-            [sysrev.shared.util :refer [->map-with-key]]))
+            [sysrev.shared.util :as sutil :refer [->map-with-key]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -63,7 +63,7 @@
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"
   [username]
-  (b/click org-users)
+  (b/click org-users :delay 50)
   (b/click "#add-member-button" :delay 200)
   (b/set-input-text-per-char "#org-search-users-input" username)
   (b/click "#submit-add-member" :delay 200))
@@ -76,22 +76,22 @@
   (b/click (change-user-permission-dropdown username))
   (b/click change-role)
   (b/click (xpath "//label[contains(text(),'" permission "')]" "/ancestor::h4" "//label"))
-  (b/click org-change-role-button))
+  (b/click org-change-role-button :delay 50))
 
 (defn create-org [org-name]
-  (b/click user-profiles/user-name-link)
-  (b/click user-orgs)
+  (b/click user-profiles/user-name-link :delay 50)
+  (b/click user-orgs :delay 50)
   (b/set-input-text-per-char create-org-input org-name)
   (b/click create-org-button)
-  (b/wait-until-exists "#add-member-button"))
+  (b/wait-until-exists "#add-member-button")
+  (b/wait-until-loading-completes :pre-wait 50))
 
 (defn create-project-org
   "Must be in the Organization Settings for the org for which the project is being created"
   [project-name]
   (b/wait-until-exists "form.create-project")
   (b/set-input-text "form.create-project div.project-name input" project-name)
-  (b/click "form.create-project .button.create-project")
-  (Thread/sleep 100)
+  (b/click "form.create-project .button.create-project" :delay 100)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
@@ -101,8 +101,8 @@
 (defn switch-to-org
   "switch to org-name, must be in Organization Settings"
   [org-name]
-  (b/click user-profiles/user-name-link)
-  (b/click "#user-orgs")
+  (b/click user-profiles/user-name-link :delay 50)
+  (b/click "#user-orgs" :delay 50)
   (b/click (xpath "//a[text()='" org-name "']"))
   (b/wait-until-exists org-users)
   (b/wait-until-loading-completes :pre-wait 100))
@@ -114,74 +114,72 @@
    org-name-1-project "Foo Bar Article Reviews"
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))
-   test-user {:name "foo", :email "foo@bar.com", :password "foobar"}
+   user1 {:name "foo", :email "foo@bar.com", :password "foobar"}
    user-role #(get-in (org-user-table-entries) [% :permission])]
   (do
     (nav/log-in)
     ;; a person can create a org and they are automatically made owners
     (create-org org-name-1)
-    (is (some (set ["owner"]) (user-group-permission user-id org-name-1)))
+    (is (some #{"owner"} (user-group-permission user-id org-name-1)))
 ;;; an owner can add a user to the org
     ;; add a user
-    (b/create-test-user :name (:name test-user)
-                        :email (:email test-user)
-                        :password (:password test-user))
-    (add-user-to-org (:name test-user))
+    (sutil/apply-keyargs b/create-test-user user1)
+    (add-user-to-org (:name user1))
     (b/is-soon (= "member" (user-role "foo")) 2000 100)
     ;;an owner can change permissions of a member
-    (change-user-permission (:name test-user) "Owner")
+    (change-user-permission (:name user1) "Owner")
     (b/is-soon (= "owner" (user-role "foo")) 2000 100)
     ;; only an owner can change permissions, not a member
-    (change-user-permission (:name test-user) "Member")
-    (nav/log-in (:email test-user) (:password test-user))
-    (b/click user-profiles/user-name-link)
-    (b/click user-orgs)
-    (b/click (xpath "//a[text()='" org-name-1 "']"))
+    (change-user-permission (:name user1) "Member")
+    (nav/log-in (:email user1) (:password user1))
+    (b/click user-profiles/user-name-link :delay 50)
+    (b/click user-orgs :delay 50)
+    (b/click (xpath "//a[text()='" org-name-1 "']") :delay 100)
     (is (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))
     ;; an org is switched, the correct user list shows up
     (nav/log-in)
-    (b/click user-profiles/user-name-link)
+    (b/click user-profiles/user-name-link :delay 50)
     ;; create a new org
     (create-org org-name-2)
     ;; should only be one user in this org
-    (is (= 1 (count (org-user-table-entries))))
+    (b/is-soon (= 1 (count (org-user-table-entries))) 2000 50)
     ;; switch back to the other org, there is two users in this one
     (switch-to-org org-name-1)
-    (is (= 2 (count (org-user-table-entries))))
+    (b/is-soon (= 2 (count (org-user-table-entries))) 2000 50)
     ;; only an owner or admin of an org can create projects for that org
-    (b/click org-projects)
+    (b/click org-projects :delay 50)
     (create-project-org org-name-1-project)
-    ;; add test-user to Baz Qux as an owner
-    (nav/go-route "/org/users")
+    ;; add user1 to Baz Qux as an owner
+    (nav/go-route "/org/users" :wait-ms 50)
     (switch-to-org org-name-2)
-    (add-user-to-org (:name test-user))
-    (change-user-permission (:name test-user) "Owner")
-    ;; log-in as test-user and see that they cannot create group projects
-    (nav/log-in (:email test-user) (:password test-user))
-    (b/click user-profiles/user-name-link)
-    (b/click user-orgs)
-    (b/click (xpath "//a[text()='" org-name-1 "']"))
+    (add-user-to-org (:name user1))
+    (change-user-permission (:name user1) "Owner")
+    ;; log-in as user1 and see that they cannot create group projects
+    (nav/log-in (:email user1) (:password user1))
+    (b/click user-profiles/user-name-link :delay 50)
+    (b/click user-orgs :delay 50)
+    (b/click (xpath "//a[text()='" org-name-1 "']") :delay 50)
     ;; org-users and projects links exists, but billing link doesn't exist
     (is (and (b/exists? org-users) (b/exists? org-projects)))
     (is (not (taxi/exists? org-billing)))
     ;; group projects exists, but not the create project input
-    (b/click org-projects)
-    (b/exists? "#public-projects")
+    (b/click org-projects :delay 50)
+    (b/exists? "#public-projects" :delay 50)
     (is (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
     (is (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))
     ;; switch to org-name-2
     (switch-to-org org-name-2)
     ;; user can create projects here
-    (b/click org-projects)
+    (b/click org-projects :delay 50)
     (b/wait-until-exists "form.create-project")
     ;; can change user permissions for browser+test
-    (b/click org-users)
+    (b/click org-users :delay 50)
     (b/wait-until-exists (change-user-permission-dropdown "browser+test"))
     ;; billing link is available
     (is (b/exists? org-billing)))
   :cleanup
-  (doseq [{:keys [email]} [b/test-login test-user]]
+  (doseq [{:keys [email]} [b/test-login user1]]
     (b/cleanup-test-user! :email email :groups true)))
 
 ;; for manual testing:

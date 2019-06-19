@@ -6,6 +6,7 @@
             [sysrev.views.article-list.base :as article-list]
             [sysrev.views.panels.project.articles :as project-articles]
             [sysrev.views.panels.project.define-labels :as define-labels]
+            [sysrev.util :as util]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.macros])
   (:require-macros [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
@@ -96,10 +97,9 @@
  review "/review" [project-id]
  (let [project-id @(subscribe [:active-project-id])
        panel [:project :review]
-       have-project? @(subscribe [:have? [:project project-id]])
+       have-project? (and project-id @(subscribe [:have? [:project project-id]]))
        set-panel [:set-active-panel panel]
-       set-panel-after #(dispatch
-                         [:data/after-load % :review-route set-panel])]
+       set-panel-after #(dispatch [:data/after-load % :review-route set-panel])]
    (when (not have-project?)
      (dispatch set-panel))
    (let [task-id @(subscribe [:review/task-id])]

@@ -289,9 +289,9 @@
      {:dispatch [:fetch item]})))
 
 ;; Dispatch both `:require` and `:reload`
-(reg-event-fx :load [trim-v]
+(reg-event-fx :data/load [trim-v]
               (fn [_ [item]]
-                {:dispatch-n (list [:require item] [:reload item])}))
+                {:dispatch-n [[:require item] [:reload item]]}))
 
 ;; Fetches any missing required data
 (reg-event-fx

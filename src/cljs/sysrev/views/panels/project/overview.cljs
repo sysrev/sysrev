@@ -673,7 +673,7 @@
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]
                   [:project/markdown-description project-id {:panel panel}]] {}
-      [:div.project-content
+      [:div
        [ProjectDescription {:panel panel}]
        [:div.ui.two.column.stackable.grid.project-overview
         [:div.ui.row
@@ -688,17 +688,13 @@
           [KeyTerms]
           [LabelCounts]]]]])))
 
-(defn ProjectOverviewPanel [child]
-  (let [project-id @(subscribe [:active-project-id])
-        has-articles? @(subscribe [:project/has-articles?])]
-    [:div.project-content
-     (if (false? has-articles?)
-       (do (nav/nav-redirect
-            (project-uri project-id "/add-articles")
-            :scroll-top? true)
-           [:div])
-       [ProjectOverviewContent])
-     child]))
-
 (defmethod panel-content [:project :project :overview] []
-  (fn [child] [ProjectOverviewPanel child]))
+  (fn [child]
+    (when-let [project-id @(subscribe [:active-project-id])]
+      (if (false? @(subscribe [:project/has-articles?]))
+        (do (nav/nav-redirect (project-uri project-id "/add-articles")
+                              :scroll-top? true)
+            [:div])
+        [:div.project-content
+         [ProjectOverviewContent]
+         child]))))

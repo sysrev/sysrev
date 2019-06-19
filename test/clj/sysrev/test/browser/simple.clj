@@ -23,7 +23,6 @@
   (do (nav/log-in)
       (nav/new-project "Simple Test")
       (let [project-id (b/current-project-id)]
-        #_ (pm/add-articles-from-search-term "foo bar")
         (pm/import-pubmed-search-via-db "foo bar")
         (nav/go-project-route "")
         (is (nav/panel-exists? [:project]))

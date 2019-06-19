@@ -186,6 +186,9 @@
 (defmacro completes? [form]
   `(do ~form true))
 
+(defmacro succeeds? [form]
+  `(try ~form (catch Throwable e# false)))
+
 (defn s3-bucket-fixture [test-fn]
   (let [bucket-name (str (UUID/randomUUID))]
     (binding [env (assoc-in env [:filestore :bucket-name] bucket-name)]

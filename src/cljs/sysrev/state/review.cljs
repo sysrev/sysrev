@@ -5,43 +5,44 @@
             [reagent.ratom :refer [reaction]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.state.nav :refer [active-panel]]
+            [sysrev.state.nav :refer [active-panel active-project-id]]
             [sysrev.state.articles :as articles]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.shared.util :refer [in? map-values]]))
 
-(defn review-task-id [db]
-  (get-in db [:data :review :task-id]))
+(defn- review-task-state [db & [project-id]]
+  (get-in db [:data :review (or project-id (active-project-id db))]))
 
-(reg-sub :review/task-id review-task-id)
+(defn review-task-id [db & [project-id]]
+  (:task-id (review-task-state db project-id)))
 
-(defn- load-review-task [db article-id today-count]
+(reg-sub :review/task-id
+         (fn [db [_ & [project-id]]]
+           (review-task-id db project-id)))
+
+(defn- load-review-task [db project-id article-id today-count]
   (-> db
-      (assoc-in [:data :review :task-id] article-id)
-      (assoc-in [:data :review :today-count] today-count)))
+      (assoc-in [:data :review project-id :task-id] article-id)
+      (assoc-in [:data :review project-id :today-count] today-count)))
 
 (def-data :review/task
-  :loaded? review-task-id
+  :loaded? (fn [db project-id] (review-task-id db project-id))
   :uri (fn [project-id] "/api/label-task")
   :prereqs (fn [project-id] [[:project project-id]])
   :content (fn [project-id] {:project-id project-id})
   :process
-  (fn [{:keys [db]}
-       [project-id]
-       {:keys [article labels notes today-count] :as result}]
+  (fn [{:keys [db]} [project-id] {:keys [article labels notes today-count] :as result}]
     (if (= result :none)
-      {:db (-> db
-               (load-review-task :none nil))}
+      {:db (load-review-task db project-id :none nil)}
       (let [article (merge article {:labels labels :notes notes})]
-        (cond-> {:db (-> (load-review-task db (:article-id article) today-count)
+        (cond-> {:db (-> (load-review-task db project-id (:article-id article) today-count)
                          (articles/load-article article))}
           (= (active-panel db) [:project :review])
           (merge {:scroll-top true}))))))
 
 (def-action :review/send-labels
   :uri (fn [project-id _] "/api/set-labels")
-  :content (fn [project-id {:keys [article-id label-values
-                                   change? confirm? resolve?]}]
+  :content (fn [project-id {:keys [article-id label-values change? confirm? resolve?]}]
              {:project-id project-id
               :article-id article-id
               :label-values label-values
@@ -56,16 +57,13 @@
         (doseq [f success-fns] (f))
         {:dispatch-n success-events}))))
 
-(reg-sub
- :review/today-count
- (fn [db]
-   (get-in db [:data :review :today-count])))
+(reg-sub :review/today-count
+         (fn [db [_ & [project-id]]]
+           (:today-count (review-task-state db project-id))))
 
-(reg-sub
- :review/on-review-task?
- :<- [:active-panel]
- (fn [panel]
-   (= panel [:project :review])))
+(reg-sub :review/on-review-task?
+         :<- [:active-panel]
+         (fn [panel] (= panel [:project :review])))
 
 (reg-sub
  :review/editing-id
@@ -100,22 +98,16 @@
    (boolean (or (and project-aid project-resolving?)
                 (and single-aid single-resolving?)))))
 
-(reg-sub
- ::labels
- (fn [db]
-   (get-in db [:state :review :labels])))
+(reg-sub ::labels #(get-in % [:state :review :labels]))
 
-(reg-sub
- :review/saving?
- (fn [[_ article-id]]
-   [(subscribe [:panel-field [:saving-labels article-id]])])
- (fn [[saving?]] saving?))
+(reg-sub :review/saving?
+         (fn [[_ article-id]] (subscribe [:panel-field [:saving-labels article-id]]))
+         (fn [saving?] saving?))
 
-(reg-sub
- :review/change-labels?
- (fn [[_ article-id panel]]
-   [(subscribe [:panel-field [:transient :change-labels? article-id] panel])])
- (fn [[change-labels?]] change-labels?))
+(reg-sub :review/change-labels?
+         (fn [[_ article-id panel]]
+           [(subscribe [:panel-field [:transient :change-labels? article-id] panel])])
+         (fn [[change-labels?]] change-labels?))
 
 (defn review-ui-labels [db article-id]
   (get-in db [:state :review :labels article-id]))
@@ -214,8 +206,7 @@
  [trim-v]
  (fn [{:keys [db]} [{:keys [project-id article-id confirm? resolve? on-success]}]]
    (let [label-values (active-labels db article-id)
-         change? (= (articles/article-user-status db article-id)
-                    :confirmed)
+         change? (= :confirmed (articles/article-user-status db article-id))
          panel (active-panel db)]
      {:dispatch-n
       (doall
@@ -232,15 +223,12 @@
             (remove nil?)))})))
 
 ;; Reset state of locally changed label values in review interface
-(reg-event-db
- :review/reset-ui-labels
- (fn [db]
-   (assoc-in db [:state :review :labels] {})))
+(reg-event-db :review/reset-ui-labels
+              #(assoc-in % [:state :review :labels] {}))
 
-(reg-event-db
- :set-review-interface
- (fn [db [_ interface]]
-   (assoc-in db [:state :review-interface] interface)))
+(reg-event-db :set-review-interface
+              (fn [db [_ interface]]
+                (assoc-in db [:state :review-interface] interface)))
 
 (reg-sub ::review-interface-override #(get-in % [:state :review-interface]))
 

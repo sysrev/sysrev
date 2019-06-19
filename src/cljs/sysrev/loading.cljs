@@ -155,6 +155,12 @@
     (- (get-in db [:ajax :time-active])
        (get-in db [:ajax :time-inactive]))))
 
+(defn ajax-status-inactive?
+  "Returns true if no ajax requests have been active for duration
+  milliseconds (default 25)."
+  [& [duration]]
+  (< (ajax-status) (- (or duration 25))))
+
 ;;;
 ;;; Events for start/completion of AJAX requests
 ;;;

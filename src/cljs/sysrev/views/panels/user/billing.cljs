@@ -6,7 +6,8 @@
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
             [sysrev.views.semantic :refer [Segment Grid Row Column Button Icon Loader
-                                           Header ListUI ListItem]]))
+                                           Header ListUI ListItem]]
+            [sysrev.shared.util :as sutil :refer [css]]))
 
 (def panel [:user :billing])
 
@@ -69,9 +70,7 @@
          (cond basic?      "Free Plan, unlimited public projects"
                unlimited?  "Pro Plan, unlimited public and private projects")]
         [Column {:width 6 :align "right"}
-         [Button {:class (cond-> "nav-plans"
-                           basic?     (str " subscribe")
-                           unlimited? (str " unsubscribe"))
+         [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
                   :color (when basic? "green")
                   :href plans-route}
           (cond basic?      "Get private projects"

@@ -79,34 +79,38 @@
 
 (defn ProjectPanel [child]
   (when @(subscribe [:have? [:identity]])
-    (let [project-id @(subscribe [:active-project-id])]
-      ;; redirect to standard project url if needed
-      (when-let [redirect-id @(subscribe [:project-redirect-needed])]
-        (let [[_ suburi] (re-matches #".*/p/[\d]+(.*)" @active-route)
-              std-uri @(subscribe [:project/uri redirect-id suburi])]
-          (dispatch [:nav-redirect std-uri])))
-      (when project-id (dispatch [:require [:project project-id]]))
-      (when (and project-id @(subscribe [:have? [:project project-id]]))
-        (cond @(subscribe [:project/not-found? project-id])
-              [:div
-               [ProjectErrorNotice "Project not found"]
-               [:div {:style {:margin-top "16px"}}
-                [plist/UserProjectListFull]]]
+    ;; redirect to standard project url if needed
+    (when-let [redirect-id @(subscribe [:project-redirect-needed])]
+      (let [[_ suburi] (re-matches #".*/p/[\d]+(.*)" @active-route)
+            std-uri @(subscribe [:project/uri redirect-id suburi])]
+        (dispatch [:nav-redirect std-uri])))
+    (when-let [url-id @(subscribe [:active-project-url])]
+      ;; make sure we've queried for translation from url -> project-id
+      (with-loader [[:lookup-project-url url-id]] {}
+        ;; continue if we have a project id from the url
+        (when-let [project-id @(subscribe [:active-project-id])]
+          ;; wait for project data to load
+          (with-loader [[:project project-id]] {}
+            (cond @(subscribe [:project/not-found? project-id])
+                  [:div
+                   [ProjectErrorNotice "Project not found"]
+                   [:div {:style {:margin-top "16px"}}
+                    [plist/UserProjectListFull]]]
 
-              @(subscribe [:project/unauthorized? project-id])
-              [ProjectErrorNotice "Not authorized to view project"]
+                  @(subscribe [:project/unauthorized? project-id])
+                  [ProjectErrorNotice "Not authorized to view project"]
 
-              @(subscribe [:project/error project-id])
-              [ProjectErrorNotice "Unable to load project"]
+                  @(subscribe [:project/error project-id])
+                  [ProjectErrorNotice "Unable to load project"]
 
-              (and @(subscribe [:project/subscription-lapsed? project-id])
-                   ;; Don't block real (non-test) dev users from seeing projects
-                   (not @(subscribe [:user/actual-admin?])))
-              [ProjectErrorNotice
-               [PrivateProjectNotViewable project-id]]
+                  (and @(subscribe [:project/subscription-lapsed? project-id])
+                       ;; Don't block real (non-test) dev users from seeing projects
+                       (not @(subscribe [:user/actual-admin?])))
+                  [ProjectErrorNotice
+                   [PrivateProjectNotViewable project-id]]
 
-              :else
-              [ProjectContent child])))))
+                  :else
+                  [ProjectContent child])))))))
 
 (defmethod panel-content [:project] []
   (fn [child] [ProjectPanel child]))

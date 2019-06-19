@@ -189,7 +189,6 @@
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
-      #_ (pm/add-articles-from-search-term "foo bar")
       (pm/import-pubmed-search-via-db "foo bar")
 
 ;;; create new labels

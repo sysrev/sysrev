@@ -8,10 +8,7 @@
             [sysrev.util :refer [dissoc-in]]
             [sysrev.shared.util :as sutil]))
 
-(reg-event-db
- :initialize-db
- (fn [_]
-   base/default-db))
+(reg-event-db :initialize-db (constantly base/default-db))
 
 (reg-event-fx
  :reset-data

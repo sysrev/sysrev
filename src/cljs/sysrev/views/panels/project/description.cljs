@@ -71,7 +71,7 @@
      [:div.content
       [:p {:style {:margin-top "0"}}
        "This project does not currently have a description. It's easy to create a description using " [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet" :target "_blank" :rel "noopener noreferrer"} "Markdown"] " and will help visitors better understand your project."]
-      [:div.ui.fluid.button {:on-click #(reset! editing? true)}
+      [:div.ui.fluid.button.create-description {:on-click #(reset! editing? true)}
        "Create Project Description"]]]))
 
 (defn EditMarkdownButton
@@ -81,7 +81,7 @@
     [:div.ui.tiny.icon.button.edit-markdown
      {:on-click #(reset! editing? true)
       :style {:margin "0" :position "absolute" :top "0.5em" :right "0.5em"}}
-     [:i.ui.pencil.icon]]))
+     [:i.pencil.icon]]))
 
 (defn ProjectDescription [context]
   (ensure-state context)
@@ -95,22 +95,11 @@
                      (loading/any-action-running? :only :project/markdown-description))
         admin? (or @(subscribe [:member/admin?]) @(subscribe [:user/admin?]))]
     (with-loader [[:project/markdown-description project-id context]] {}
-      (cond @editing?
-            [Segment {:style {:position "relative"}}
-             (when-not @editing?
-               [EditMarkdownButton {:editing? editing? :mutable? admin?}])
-             [MarkdownComponent {:content description
-                                 :set-content! set-description!
-                                 :loading? loading?
-                                 :editing? editing?
-                                 :mutable? admin?}]]
-
-            (and admin? (str/blank? description) (not hide-description-warning?))
+      (cond (and admin? (str/blank? description) (not hide-description-warning?) (not @editing?))
             [ProjectDescriptionNag context]
 
-            (not (str/blank? description))
-            [Segment {:class "markdown-component"
-                      :style {:position "relative"}}
+            (or @editing? (not (str/blank? description)))
+            [Segment {:class "project-description" :style {:position "relative"}}
              (when-not @editing?
                [EditMarkdownButton {:editing? editing? :mutable? admin?}])
              [MarkdownComponent {:content description

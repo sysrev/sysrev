@@ -62,26 +62,25 @@
   (wait-until-stripe-id email)
   (stripe/create-subscription-user! (users/get-user-by-email email))
   ;;; go to plans
-  (b/click "#user-name-link")
-  (b/click "#user-billing")
-  (b/click ".button.nav-plans.subscribe" :displayed? true)
-  (b/click "a.payment-method.add-method")
+  (b/click "#user-name-link" :delay 50)
+  (b/click "#user-billing" :delay 50)
+  (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
+  (b/click "a.payment-method.add-method" :delay 50)
   ;; enter payment information
   (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc
                                  :exp-date "0121"
                                  :cvc "123"
                                  :postal "11111"})
-  (b/click use-card)
+  (b/click use-card :delay 50)
   ;; upgrade to unlimited
-  (b/click ".button.upgrade-plan")
+  (b/click ".button.upgrade-plan" :delay 50)
   ;; this time is goes through, confirm we are subscribed to the
   ;; Unlimited plan now
   (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000))
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-check-basic-plan-subscription
-  (and (test/db-connected?)
-       (not= :remote-test (-> env :profile)))
+  (and (test/db-connected?) (not (test/remote-test?)))
   [{:keys [email password]} b/test-login
    get-user #(users/get-user-by-email email)
    get-customer #(get-user-customer email)]
@@ -102,8 +101,7 @@
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
-  (and (test/db-connected?)
-       (not= :remote-test (-> env :profile)))
+  (and (test/db-connected?) (not (test/remote-test?)))
   [{:keys [email password]} b/test-login
    get-user #(users/get-user-by-email email)
    get-customer #(get-user-customer email)
@@ -123,15 +121,15 @@
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (get-db-plan)))
 ;;; upgrade plan
-      (b/click "#user-name-link")
-      (b/click "#user-billing")
-      (b/click ".button.nav-plans.subscribe" :displayed? true)
-      (b/click "a.payment-method.add-method")
+      (b/click "#user-name-link" :delay 50)
+      (b/click "#user-billing" :delay 50)
+      (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
+      (b/click "a.payment-method.add-method" :delay 50)
 ;;; payment method
       ;; wait until a card number is available for input
       (b/wait-until-exists (label-input "Card Number"))
       ;; just try to 'Use Card', do we have all the error messages we would expect?
-      (b/click use-card)
+      (b/click use-card :delay 50)
       ;; incomplete fields are shown
       (is (and (b/exists? (error-msg-xpath bstripe/incomplete-card-number-error))
                (b/exists? (error-msg-xpath bstripe/incomplete-expiration-date-error)
@@ -149,76 +147,80 @@
         (is (b/exists? (error-msg-xpath bstripe/invalid-card-number-error)))
         ;; 'Use Card' button disabled?
         (is (b/exists? ".button.use-card.disabled"))
-        ;; cvc check fail
+        (log/info "testing cvc-check-fail")
         (bstripe/enter-cc-information {:cardnumber bstripe/cvc-check-fail-cc
                                        :exp-date "0121"
                                        :cvc "123"
                                        :postal "11111"})
-        (b/click use-card)
+        (b/click use-card :delay 50)
         (is (b/exists? (error-msg-xpath bstripe/invalid-security-code-error)))
-        ;; card-declined-cc
+        (log/info "testing card-declined-cc")
         (bstripe/enter-cc-number bstripe/card-declined-cc)
-        (b/click use-card)
+        (b/click use-card :delay 50)
         (is (b/exists? (error-msg-xpath bstripe/card-declined-error)))
 
-        ;; incorrect-cvc-cc
+        (log/info "testing incorrect-cvc-cc")
         (bstripe/enter-cc-number bstripe/incorrect-cvc-cc)
-        (b/click use-card)
+        (b/click use-card :delay 50)
         (is (b/exists? (error-msg-xpath bstripe/invalid-security-code-error)))
 
-        ;; expired-card-cc
+        (log/info "testing expired-card-cc")
         (bstripe/enter-cc-number bstripe/expired-card-cc)
-        (b/click use-card)
+        (b/click use-card :delay 50)
         (is (b/exists? (error-msg-xpath bstripe/card-expired-error)))
 
-        ;; processing-error-cc
+        (log/info "testing processing-error-cc")
         (bstripe/enter-cc-number bstripe/processing-error-cc)
-        (b/click use-card)
+        (b/click use-card :delay 50)
         (is (b/exists? (error-msg-xpath bstripe/card-processing-error)))
 ;;; attach-success-charge-fail-cc
         ;; in this case, the card is attached to the customer
         ;; but they won't be able to subscribe because the card doesn't go
         ;; through
+        (log/info "testing attach-success-charge-fail-cc")
         (bstripe/enter-cc-number bstripe/attach-success-charge-fail-cc)
-        (b/click use-card)
-        (b/click ".button.upgrade-plan")
+        (b/click use-card :delay 100)
+        (b/click ".button.upgrade-plan" :delay 100)
         ;; check for the declined card message
         (is (b/exists? {:xpath "//p[contains(text(),'Your card was declined.')]"}))
 ;;; let's update our payment information (again) with a fraudulent card
-        (b/click "a.payment-method.change-method")
+        (log/info "testing highest-risk-fraudulent-cc")
+        (b/click "a.payment-method.change-method" :delay 100)
         (b/wait-until-displayed (b/not-disabled use-card))
         (bstripe/enter-cc-information
          {:cardnumber bstripe/highest-risk-fraudulent-cc
           :exp-date "0121"
           :cvc "123"
           :postal "11111"})
-        (b/click use-card)
+        (b/click use-card :delay 100)
         ;; try to subscribe again
-        (b/click ".button.upgrade-plan")
+        (b/click ".button.upgrade-plan" :delay 100)
         ;; card was declined
         (is (b/exists? {:xpath "//p[contains(text(),'Your card was declined.')]"}))
-        (b/click "a.payment-method.change-method")
+        (b/click "a.payment-method.change-method" :delay 50)
         (b/wait-until-displayed (b/not-disabled use-card)))
 ;;; finally, update with a valid cc number and see if we can subscribe
 ;;; to plans
+      (log/info "testing valid card info")
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc
                                      :exp-date "0121"
                                      :cvc "123"
                                      :postal "11111"})
-      (b/click use-card)
+      (b/click use-card :delay 100)
       ;; try to subscribe again
-      (b/click ".button.upgrade-plan")
+      (b/click ".button.upgrade-plan" :delay 100)
       ;; this time is goes through, confirm we are subscribed to the
       ;; Unlimied plan now
       (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000)
+      (Thread/sleep 100)
       ;; Let's check to see if our db thinks the customer is subscribed to the Unlimited
       (is (= "Unlimited_User" (get-db-plan)))
       ;; Let's check that stripe.com thinks the customer is subscribed to the Unlimited plan
       (is (= "Unlimited_User" (get-stripe-plan)))
 ;;; Subscribe back down to the Basic Plan
-      (b/click ".button.nav-plans.unsubscribe")
-      (b/click ".button.unsubscribe-plan")
-      (b/click ".button.nav-plans.subscribe" :displayed? true)
+      (b/click ".button.nav-plans.unsubscribe" :delay 100)
+      (b/click ".button.unsubscribe-plan" :delay 100)
+      (b/click ".button.nav-plans.subscribe" :delay 100 :displayed? true)
       ;; does stripe think the customer is registered to a basic plan?
       (wait-until-plan email stripe/default-plan)
       (is (= stripe/default-plan (get-stripe-plan)))

@@ -10,7 +10,8 @@
   (:require-macros [reagent.interop :refer [$]]))
 
 (defn scroll-top []
-  (. js/window (scrollTo 0 0)))
+  (. js/window (scrollTo 0 0))
+  nil)
 
 (defn schedule-scroll-top []
   (scroll-top))

@@ -104,7 +104,7 @@
       (do (log/warn "change-project-public-access: already set to" (str public? "?")
                     (pr-str [(taxi/attribute (status-q true) "class")
                              (taxi/attribute (status-q false) "class")]))
-          (b/take-screenshot)))))
+          (b/take-screenshot :warn)))))
 
 (deftest-browser correct-project-activity
   (test/db-connected?)
@@ -121,7 +121,6 @@
       (nav/new-project project-name-1)
       ;; set the project to private
       (change-project-public-access false)
-      #_ (pm/add-articles-from-search-term "foo bar")
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the user profile
       (b/click user-name-link)
@@ -167,7 +166,6 @@
       ;; add another project
       (nav/new-project project-name-2)
       (change-project-public-access false)
-      #_ (pm/add-articles-from-search-term "foo bar")
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the profile
       (b/click user-name-link)
@@ -238,10 +236,11 @@
     ;; log in as test user
     (nav/log-in)
     ;; go to users
-    (nav/go-route "/users")
-    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']"))
+    (nav/go-route "/users" :wait-ms 100)
+    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']")
+             :delay 100)
     ;; the introduction still reads the same
-    (b/is-soon (b/exists? (xpath "//p[text()='" user-introduction "']")))
+    (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; there is no edit introduction option
     (b/is-soon (not (taxi/exists? edit-introduction))))
   :cleanup (b/cleanup-test-user! :email email-test-user))
