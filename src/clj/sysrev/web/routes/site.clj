@@ -1,6 +1,7 @@
 (ns sysrev.web.routes.site
   (:require [clojure.java.io :as io]
             [clojure.tools.logging :as log]
+            [compojure.coercions :refer [as-int]]
             [compojure.core :refer :all]
             [clj-time.core :as time]
             [honeysql.core :as sql]
@@ -158,14 +159,13 @@
               user-id (keyword setting) value))
            {:success true, :settings (users/user-settings user-id)})))
 
-  (GET "/api/search" request
-       (let [{:keys [q]} (-> :params request)]
-         (api/search-site q)))
-
   (GET "/api/terms-of-use.md" request
        (app/text-file-response
         (-> (io/resource "terms_of_use.md") io/reader)
-        "terms-of-use.md")))
+        "terms-of-use.md"))
+
+  (GET "/api/search" [q p :<< as-int]
+       (api/search-site q p)))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."

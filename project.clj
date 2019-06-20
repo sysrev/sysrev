@@ -53,6 +53,8 @@
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [ring/ring-mock "0.3.2" :exclusions [cheshire]]
                  [compojure "1.6.1"]
+;;; profiling
+                 [criterium "0.4.5"]
 
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication

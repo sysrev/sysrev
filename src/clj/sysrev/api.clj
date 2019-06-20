@@ -1476,8 +1476,21 @@
            (not (project-unlimited-access? project-id))))))
 
 (defn search-site
-  "Search the site with query q"
-  [q]
-  {:results {:projects (project/search-projects q)
-             :users (users/search-users q)
-             :orgs (groups/search-groups q)}})
+  "Search the site with query q at pagenumber p"
+  [q p]
+  (let [p (or p 1)
+        page-size 10
+        max-pages 10
+        max-results (* page-size max-pages)
+        projects (project/search-projects q :limit max-results)
+        projects-partition (partition-all page-size projects)
+        users (users/search-users q :limit max-results)
+        users-partition (partition-all page-size users)
+        orgs (groups/search-groups q :limit max-results)
+        orgs-partition (partition-all page-size orgs)]
+    {:results {:projects {:items (nth projects-partition (- p 1) [])
+                          :count (count projects)}
+               :users {:items (nth users-partition (- p 1) [])
+                       :count (count users)}
+               :orgs {:items (nth orgs-partition (- p 1) [])
+                      :count (count orgs)}}}))

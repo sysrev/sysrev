@@ -8,28 +8,27 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
-            [sysrev.views.semantic :refer [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label]]))
+            [sysrev.views.semantic :refer [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label Pagination]]))
 
 (def ^:private panel [:search])
 
 (def state (r/atom {:search-results {}
-                    :search-value ""
-                    :active-search-item :projects}))
+                    :search-value ""}))
 
-(defn project-search [q]
-  (let [search-results (r/cursor state [:search-results])]
-    (swap! search-results assoc q :retrieving)
+(defn site-search [q p]
+  (let [search-results (r/cursor state [:search-results])
+        p (str p)]
+    (swap! search-results assoc-in [q p] :retrieving)
     (GET "/api/search"
-         {:params {:q q}
+         {:params {:q q :p p}
           :handler (fn [response]
-                     (swap! search-results assoc q (get-in response [:result :results])))
+                     (swap! search-results assoc-in [q p] (get-in response [:result :results])))
           :error-handler (fn [response]
-                           (swap! search-results assoc q "There was an error retrieving results, please try again"))})))
+                           (swap! search-results assoc-in [q p] "There was an error retrieving results, please try again"))})))
 
 (defn SiteSearch []
   (let [search-value (r/cursor state [:search-value])
-        cleared? (r/atom false)
-        active-search-item (r/cursor state [:active-search-item])]
+        cleared? (r/atom false)]
     (r/create-class
      {:reagent-render
       (fn [args]
@@ -44,9 +43,10 @@
           (when (not (empty? route-search-term))
             (reset! cleared? false))
           [Form {:on-submit (fn [e]
-                              (project-search @search-value)
-                              (reset! active-search-item :projects)
-                              (nav-scroll-top "/search" :params {:q @search-value}))}
+                              (site-search @search-value 1)
+                              (nav-scroll-top "/search" :params {:q @search-value
+                                                                 :p 1
+                                                                 :type "projects"}))}
            [Input {:placeholder "Search Sysrev"
                    :on-change (fn [e value]
                                 (let [input-value (-> value
@@ -58,13 +58,16 @@
 
 (defn ProjectSearchResult
   [{:keys [project-id description name]}]
-  [:div
-   [:a {:href (project-uri project-id)
-        ;; :on-click (fn [e]
-        ;;             (reset! (r/cursor state [:search-value]) ""))
-        } [:h3 name]]
-   [:p (-> description markdown/create-markdown-html markdown/html->string)]
-   [Divider]])
+  (let [description-string (-> description markdown/create-markdown-html markdown/html->string)
+        token-string (clojure.string/split description-string #" ")
+        max-length 30]
+    [:div
+     [:a {:href (project-uri project-id)} [:h3 name]]
+     [:p (str (->> (take max-length token-string)
+                   (clojure.string/join " "))
+              (when (> (count token-string) max-length)
+                " ..."))]
+     [Divider]]))
 
 (defn UserSearchResult
   [{:keys [user-id username introduction]}]
@@ -91,17 +94,20 @@
     [:h3 group-name]
     [Divider]]])
 
-(defn SearchResults [{:keys [q]}]
+(defn SearchResults [{:keys [q p type]}]
   (reset! (r/cursor state [:search-value]) q)
-  (project-search q)
+  (site-search q p)
   (r/create-class
    {:reagent-render
-    (fn [{:keys [q]}]
-      (let [search-results (r/cursor state [:search-results q])
-            projects (r/cursor search-results [:projects])
-            users (r/cursor search-results [:users])
-            orgs (r/cursor search-results [:orgs])
-            active (r/cursor state [:active-search-item])
+    (fn [{:keys [q p type]}]
+      (let [search-results (r/cursor state [:search-results q p])
+            projects-count (r/cursor search-results [:projects :count])
+            users-count (r/cursor search-results [:users :count])
+            orgs-count (r/cursor search-results [:orgs :count])
+            page-size 10
+            active (if (contains? #{:projects :users :orgs} (keyword type))
+                     (keyword type)
+                     :projects)
             base-menu-width 3]
         [Grid {:columns "equal"}
          [Row
@@ -109,74 +115,75 @@
                    :widescreen base-menu-width
                    :tablet (+ base-menu-width 1)
                    :mobile (+ base-menu-width 2)}
-           [Menu {;;:pointing true
-                  :secondary true
+           [Menu {:secondary true
                   :vertical true
                   :fluid true}
             [MenuItem {:name "Projects"
-                       :active (= @active :projects)
+                       :active (= active :projects)
                        :on-click (fn [e]
-                                   (reset! active :projects))
+                                   (nav-scroll-top "/search" :params {:q q :p 1 :type "projects"}))
                        :color "orange"}
              "Projects"
-             [Label {:size "mini"} (count @projects)]]
+             [Label {:size "mini"} @projects-count]]
             [MenuItem {:name "Users"
-                       :active (= @active :users)
+                       :active (= active :users)
                        :on-click (fn [e]
-                                   (reset! active :users))
+                                   (nav-scroll-top "/search" :params {:q q :p 1 :type "users"}))
                        :color "orange"}
              "Users"
-             [Label {:size "mini"} (count @users)]]
+             [Label {:size "mini"} @users-count]]
             [MenuItem {:name "Orgs"
-                       :active (= @active :orgs)
+                       :active (= active :orgs)
                        :on-click (fn [e]
-                                   (reset! active :orgs))
+                                   (nav-scroll-top "/search" :params {:q q :p 1 :type "orgs"}))
                        :color "orange"}
              "Orgs"
-             [Label {:size "mini"} (count @orgs)]]]]
-          [Column #_{:width 14
-                     :tablet 9
-                     :mobile 10
-                     :widescreen 14}
+             [Label {:size "mini"} @orgs-count]]]]
+          [Column
            [:div
-            ;;[:h1 "Results for " q ":"]
             (if (= @search-results :retrieving)
               [Loader {:active true}]
-              #_
-              (if-not (empty? @projects)
-                (doall
-                 (for [project @projects]
-                   ^{:key (:project-id project)}
-                   [ProjectSearchResult project]))
-                [:div
-                 [:h3 "No Results Found"]])
-              (let [results (get @search-results @active)]
-                (if-not (empty? results)
-                  (doall
-                   (for [result results]
-                     (condp = @active
-                       :projects
-                       ^{:key (:project-id result)}
-                       [ProjectSearchResult result]
-                       :users
-                       ^{:key (:user-id result)}
-                       [UserSearchResult result]
-                       :orgs
-                       ^{:key (:group-id result)}
-                       [OrgSearchResult result]
-                       [:h3 "Error: No such key"])))
+              (let [items (get-in @search-results [active :items])
+                    count (get-in @search-results [active :count])]
+                (if-not (empty? items)
+                  [:div (doall
+                         (for [item items]
+                           (condp = active
+                             :projects
+                             ^{:key (:project-id item)}
+                             [ProjectSearchResult item]
+                             :users
+                             ^{:key (:user-id item)}
+                             [UserSearchResult item]
+                             :orgs
+                             ^{:key (:group-id item)}
+                             [OrgSearchResult item]
+                             [:h3 "Error: No such key"])))
+                   (when (> count 10)
+                     [Pagination {:default-active-page 1
+                                  :total-pages (+ (quot count page-size) (if (> (rem count page-size) 0)
+                                                                           1 0))
+                                  :active-page p
+                                  :on-page-change (fn [event data]
+                                                    (let [new-active-page (:activePage (js->clj data :keywordize-keys true))]
+                                                      (site-search q new-active-page)
+                                                      (nav-scroll-top "/search" :params {:q q
+                                                                                         :p new-active-page
+                                                                                         :type (clj->js active)})))}])]
                   [:div [:h3 (str "We couldn't find anything in "
-                                  (condp = @active
+                                  (condp = active
                                     :projects "Public Projects"
                                     :users "Sysrev Users"
                                     :orgs "Sysrev Orgs")
-                                  " matching '" q "'")]])))]]]]))}))
+                                  " matching '" q "'")]])))]]]]))
+    :component-did-mount (fn [this]
+                           (site-search q p))}))
 
 (defmethod panel-content [:search] []
   (fn [child]
-    [:div
-     ;;[SiteSearch]
-     [SearchResults {:q (uri-utils/getParamValue @active-route "q")}]]))
+    [SearchResults {:q (uri-utils/getParamValue @active-route "q")
+                    :p (uri-utils/getParamValue @active-route "p")
+                    :type (uri-utils/getParamValue @active-route "type")}]))
 
 
 

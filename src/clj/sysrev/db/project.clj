@@ -631,23 +631,24 @@
                   [:= "owner" :%any.permissions]])
           do-query first))))
 
-;; for future reference:
-;; https://news.ycombinator.com/item?id=12621950
-;; http://rachbelaid.com/postgres-full-text-search-is-good-enough/
+;; some notes:
+;; https://www.postgresql.org/docs/current/textsearch.html
+;; https://www.postgresql.org/docs/current/textsearch-controls.html
+;; https://stackoverflow.com/questions/44285327/postgres-tsvector-with-relational-tables
+;; https://dba.stackexchange.com/questions/15412/postgres-full-text-search-with-multiple-columns-why-concat-in-index-and-not-at?rq=1
+;; https://dba.stackexchange.com/questions/107801/full-text-search-on-multiple-joined-tables?noredirect=1#comment196534_107801
+;; https://dba.stackexchange.com/questions/108005/full-text-search-on-two-tsvector-columns
 (defn search-projects
-  [q  & {:keys [result-limit]
-         :or {result-limit 5}}]
+  [q  & {:keys [limit]
+         :or {limit 10}}]
   "Return a list of projects using the search query q"
-  (let [pattern (str "%" q "%")]
-    (->> [(str "SELECT md.string as description, p.project_id, p.name, p.settings "
-               "FROM project_description pd "
-               "RIGHT JOIN project p on p.project_id = pd.project_id "
-               "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
-               "WHERE p.enabled = true AND p.settings->>'public-access' = 'true'"
-               "AND ((md.string ilike ?) OR (p.name ilike ?))"
-               "ORDER BY p.date_created "
-               "LIMIT ?")
-          pattern
-          pattern
-          10]
-         db/raw-query)))
+  (->> [(str "SELECT md.string as description, p.project_id, p.name, p.settings "
+             "FROM project_description pd "
+             "RIGHT JOIN project p on p.project_id = pd.project_id "
+             "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
+             "WHERE p.enabled = true AND p.settings->>'public-access' = 'true' "
+             "AND to_tsvector('english', coalesce(md.string,'') || ' ' || (coalesce(p.name,''))) @@ to_tsquery(?) "
+             "LIMIT ? ")
+        q limit]
+       db/raw-query))
+

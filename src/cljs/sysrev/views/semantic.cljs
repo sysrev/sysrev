@@ -81,3 +81,5 @@
 (def Search (component "Search"))
 (def SearchResults (component "Search" "Results"))
 
+;; pagination
+(def Pagination (component "Pagination"))

@@ -57,12 +57,11 @@
        (merge {:src "/SysRev_header_2.png" :alt "SysRev"}
               (if mobile? {:width "80" :height "25"} {:width "90" :height "28"}))]]
      (when-not full? dev-menu)
-     (when (not= js/window.location.host "sysrev.com")
-       (when-not mobile? [:div.item [SiteSearch]]))
      [loading-indicator]
      (if logged-in?
        [:div.right.menu
         (when full? dev-menu)
+        [SiteSearch]
         (toggle-theme-button)
         [:a.item {:id "user-name-link"
                   :href (str "/user/" user-id "/profile")}
@@ -75,6 +74,7 @@
         [:div.item {:style {:width "0" :padding "0"}}]]
        ;; not logged in
        [:div.right.menu
+        [SiteSearch]
         (toggle-theme-button)
         (when (= :main @(subscribe [:app-id]))
           [:a.item.distinct
