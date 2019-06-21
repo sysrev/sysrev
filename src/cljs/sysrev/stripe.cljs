@@ -4,7 +4,6 @@
             [cljsjs.react-stripe-elements]
             [reagent.core :as r]
             [re-frame.core :refer [reg-sub subscribe dispatch reg-event-db trim-v]]
-            [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :refer [nav-redirect get-url-params nav-scroll-top]]
             [sysrev.state.identity :refer [current-user-id]]
@@ -13,13 +12,9 @@
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [setup-panel-state]]))
 
-(setup-panel-state {:path [:stripe]
-                    :panel-var panel
-                    :state-var state
-                    :get-fn panel-get
-                    :set-fn panel-set
-                    :get-sub ::get
-                    :set-event ::set})
+(setup-panel-state panel [:stripe] {:state-var state
+                                    :get-fn panel-get
+                                    :set-fn panel-set})
 
 (defn default-redirect-uri [db]
   (str "/user/" (current-user-id db) "/billing"))

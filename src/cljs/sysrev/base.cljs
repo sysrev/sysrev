@@ -6,8 +6,7 @@
             [goog.events :as events]
             [goog.history.EventType :as EventType]
             [reagent.core :as r]
-            [re-frame.core :as re-frame :refer
-             [subscribe dispatch reg-sub reg-event-db trim-v]]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.shared.util :as sutil])
   (:require-macros [secretary.core :refer [defroute]]

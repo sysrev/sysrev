@@ -14,7 +14,8 @@
             [sysrev.views.review :refer [label-help-popup inclusion-tag]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values css]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values css]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
 ;; Convention -
 ;; A (new) label that exists in the client but not on the
@@ -25,11 +26,9 @@
 ;; repo: https://github.com/kevinchappell/formBuilder
 ;; demo: https://jsfiddle.net/kevinchappell/ajp60dzk/5/
 
-(def panel [:project :project :labels :edit])
+(setup-panel-state panel [:project :project :labels :edit] {:state-var state})
 
 (def initial-state {:read-only-message-closed? false})
-
-(defonce state (r/cursor app-db [:state :panels panel]))
 
 (defn- saved-labels
   "Get the label values for project from the app-db"

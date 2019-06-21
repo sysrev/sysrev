@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [clojure.set :as set]
             [reagent.ratom :refer [reaction]]
-            [re-frame.core :as re-frame :refer
+            [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
             [sysrev.loading :as loading]

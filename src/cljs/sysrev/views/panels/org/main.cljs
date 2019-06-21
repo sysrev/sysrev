@@ -3,7 +3,6 @@
             [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field set-panel-field]]
@@ -16,27 +15,25 @@
             [sysrev.views.semantic :refer
              [Segment Header Menu MenuItem Dropdown Message MessageHeader]]
             [sysrev.shared.util :as sutil :refer [ensure-pred parse-integer css]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:org :main])
+(setup-panel-state panel [:org :main] {:state-var state
+                                       :get-fn panel-get
+                                       :set-fn panel-set})
 
-(def state (r/cursor app-db [:state :panels panel]))
-
-(defn get-field [db path] (get-panel-field db path panel))
-(defn set-field [db path val] (set-panel-field db path val panel))
-
-(reg-sub ::orgs #(get-field % [:orgs]))
+(reg-sub ::orgs #(panel-get % [:orgs]))
 
 (def-data :self-orgs
   ;; TODO: don't keep this data in 2 places?
   :loaded?  (fn [db] (and (-> (get-in db [:state :self])  (contains? :orgs))
-                          (-> (get-field db nil)          (contains? :orgs))))
+                          (-> (panel-get db)              (contains? :orgs))))
   :uri      (fn [] "/api/orgs")
   :process  (fn [{:keys [db]} [] {:keys [orgs] :as result}]
               {:db (-> (assoc-in db [:state :self :orgs] orgs)
-                       (set-field [:orgs] orgs))})
+                       (panel-set [:orgs] orgs))})
   :on-error (fn [{:keys [db error]} [] _]
-              {:db (set-field db [:orgs-error] (:message error))}))
+              {:db (panel-set db [:orgs-error] (:message error))}))
 
 (reg-sub ::org
          (fn [[_ org-id]] (subscribe [::orgs]))

@@ -1,6 +1,5 @@
 (ns sysrev.state.project.core
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]
+  (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :as nav]
             [sysrev.state.project.base :refer [get-project-raw]]

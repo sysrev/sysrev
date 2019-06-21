@@ -2,7 +2,7 @@
   (:require [cljsjs.jquery]
             [cljsjs.semantic-ui]
             [reagent.core :as r]
-            [re-frame.core :as re-frame :refer
+            [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]
             [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]

@@ -13,13 +13,9 @@
             [sysrev.views.semantic :refer [Message MessageHeader]])
   (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
 
-(setup-panel-state {:path [:org-plans]
-                    :panel-var panel
-                    :state-var state
-                    :get-fn panel-get
-                    :set-fn panel-set
-                    :get-sub ::get
-                    :set-event ::set})
+(setup-panel-state panel [:org-plans] {:state-var state
+                                       :get-fn panel-get
+                                       :set-fn panel-set})
 
 (def-data :org-current-plan
   :loaded? (fn [db org-id] (-> (panel-get db org-id)

@@ -5,7 +5,6 @@
             [cljsjs.semantic-ui-react]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe]]
-            [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -16,11 +15,10 @@
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.shared.util :as sutil :refer [in?]])
-  (:require-macros [reagent.interop :refer [$ $!]]))
+  (:require-macros [reagent.interop :refer [$ $!]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def panel [:project :project :support])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:project :project :support] {:state-var state})
 
 (defn get-user-support-subscriptions
   "Get the current support subscriptions for user"

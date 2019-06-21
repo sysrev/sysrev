@@ -1,7 +1,6 @@
 (ns sysrev.loading
   (:require [reagent.core :as r]
-            [re-frame.core :as re-frame :refer
-             [subscribe dispatch dispatch-sync reg-fx]]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-fx]]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defonce ajax-db (r/atom {}))

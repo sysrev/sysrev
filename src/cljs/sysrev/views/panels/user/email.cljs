@@ -2,18 +2,16 @@
   (:require [clojure.string :as str]
             [ajax.core :refer [GET PUT POST DELETE]]
             [reagent.core :as r]
-            [re-frame.db :refer [app-db]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [->map-with-key]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def panel [:user :email])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:user :email] {:state-var state})
 
 (defn verify-email
   [code]

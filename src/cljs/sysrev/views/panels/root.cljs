@@ -1,5 +1,5 @@
 (ns sysrev.views.panels.root
-  (:require [re-frame.core :as re-frame :refer
+  (:require [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.nav :as nav]
             [sysrev.data.core :refer [def-data]]

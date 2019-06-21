@@ -4,7 +4,6 @@
             [cljsjs.moment]
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
-            [re-frame.db :refer [app-db]]
             [re-frame.core :refer [subscribe]]
             [sysrev.base :refer [active-route]]
             [sysrev.croppie :refer [CroppieComponent]]
@@ -15,11 +14,10 @@
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select Popup
               Modal ModalContent ModalHeader ModalDescription]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def panel [:user :profile])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:user :profile] {:state-var state})
 
 (s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
                     (instance? reagent.ratom/RCursor %)))
@@ -324,10 +322,8 @@
 (defn Profile
   [{:keys [user-id]}]
   (let [user (r/cursor state [:user])
-        ;;projects (r/cursor state [:projects])
         introduction (r/cursor state [:user :introduction])
         error-message (r/cursor state [:user :error-message])
-        ;;projects (r/cursor state [:projects])
         mutable? (= user-id @(subscribe [:self/user-id]))]
     (r/create-class
      {:reagent-render
@@ -350,13 +346,10 @@
       :component-did-mount
       (fn [this]
         (reset! user nil)
-        ;;(reset! projects nil)
         (get-user! user-id))
       :component-did-umount
       (fn [this]
-        (reset! user nil)
-        ;;(reset! projects nil)
-        )
+        (reset! user nil))
       :get-initial-state
       (fn [this]
         (reset! user nil)

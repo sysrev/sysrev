@@ -210,30 +210,57 @@
                                     ~@body))))
 
 (defmacro setup-panel-state
-  [{:keys [path panel-var state-var get-fn set-fn get-sub set-event]}]
+  "Creates standard definitions at the top of a UI panel namespace.
+
+  `panel-var` and `path` are required, other args are optional.
+
+  `path` must be a vector of keywords identifying the panel.
+
+  `panel-var` must be a symbol (usually `panel`) providing a var name
+  to define as the `path` value.
+
+  `state-var` (optional) should be a symbol (usually `state`)
+  providing a var name to define as a reagent cursor into the panel
+  state within the re-frame app-db.
+
+  `get-fn` and `set-fn` (optional) should be symbols that will be
+  used to define re-frame compatible functions (operating on the
+  app-db map value) for interacting with panel state.
+
+  `get-sub` and `set-event` (optional) should be keywords (usually
+  namespace-local, prefixed with `::`) that will be used to define a
+  re-frame `reg-sub` and `reg-event-db` for interacting with panel
+  state."
+  [panel-var path & [{:keys [state-var get-fn set-fn get-sub set-event]}]]
   ;; TODO: check that all these argument values are valid
   (assert (and (vector? path) (every? keyword? path) (not-empty path)))
+  (assert (symbol? panel-var))
+  (assert (or (nil? state-var) (symbol? state-var)))
+  (assert (or (nil? get-fn) (symbol? get-fn)))
+  (assert (or (nil? set-fn) (symbol? set-fn)))
+  (assert (or (nil? get-sub) (keyword? get-sub)))
+  (assert (or (nil? set-event) (keyword? set-event)))
   `(do
      ;; define var with panel key vector
      (def ~panel-var ~path)
      ;; define cursor to provide direct access to panel state map
-     (defonce ~state-var (r/cursor app-db [:state :panels ~panel-var]))
+     ~(when state-var
+        `(defonce ~state-var (r/cursor app-db [:state :panels ~panel-var])))
      ;; define function for reading panel state from db value
-     (defn ~get-fn [db# & [path#]]
-       (sysrev.state.ui/get-panel-field db# path# ~panel-var))
+     ~(when get-fn
+        `(defn ~get-fn [db# & [path#]]
+           (sysrev.state.ui/get-panel-field db# path# ~panel-var)))
      ;; define function for updating db value to set panel state
-     (defn ~set-fn [db# path# val#]
-       (sysrev.state.ui/set-panel-field db# path# val# ~panel-var))
+     ~(when set-fn
+        `(defn ~set-fn [db# path# val#]
+           (sysrev.state.ui/set-panel-field db# path# val# ~panel-var)))
      ;; define re-frame sub for reading panel state.
      ;; behavior should be equivalent to :panel-field.
-     (reg-sub ~get-sub
-              :<- [:panel-field nil ~panel-var]
-              (fn [panel-state# [_ path#]]
-                (if (or (sequential? path#) (nil? path#))
-                  (get-in panel-state# path#)
-                  (get panel-state# path#))))
+     ~(when get-sub
+        `(reg-sub ~get-sub (fn [db# [_ path#]]
+                             (~get-fn db# path#))))
      ;; define re-frame event for setting panel state.
      ;; behavior should be equivalent to :set-panel-field.
-     (reg-event-db ~set-event
-                   (fn [{:keys [db#]} [_ path# val#]]
-                     {:db (~set-fn db# path# val#)}))))
+     ~(when set-event
+        `(reg-event-db ~set-event (fn [db# [_ path# val#]]
+                                    (~set-fn db# path# val#))))))

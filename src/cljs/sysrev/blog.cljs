@@ -2,7 +2,7 @@
   (:require [cljs-time.core :as t]
             [cljs-time.format :as tf]
             [cljs-time.coerce :as tc]
-            [re-frame.core :as re-frame :refer
+            [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [set-subpanel-default-uri]]

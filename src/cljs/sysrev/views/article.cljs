@@ -1,7 +1,7 @@
 (ns sysrev.views.article
   (:require [clojure.string :as str]
             goog.object
-            [re-frame.core :as re-frame :refer
+            [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]

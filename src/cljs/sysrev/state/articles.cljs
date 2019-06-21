@@ -1,6 +1,5 @@
 (ns sysrev.state.articles
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw reg-event-db trim-v]]
+  (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw reg-event-db trim-v]]
             [sysrev.state.identity :as self]
             [sysrev.data.core :refer [def-data]]))
 

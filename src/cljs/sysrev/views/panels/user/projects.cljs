@@ -1,57 +1,39 @@
 (ns sysrev.views.panels.user.projects
   (:require [ajax.core :refer [GET POST]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
             [reagent.core :as r]
+            [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.util :as util :refer [condensed-number wrap-prevent-default]]
             [sysrev.views.components :refer [ConfirmationDialog]]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.semantic :refer
              [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:user :projects])
+(setup-panel-state panel [:user :projects] {:state-var state})
 
-(def state (r/cursor app-db [:state :panels panel]))
+(def-data :user/projects
+  :loaded? (fn [db user-id] (-> (get-in db [:data :user-projects])
+                                (contains? user-id)))
+  :uri (fn [user-id] (str "/api/user/" user-id "/projects"))
+  :process (fn [{:keys [db]} [user-id] {:keys [projects]}]
+             {:db (assoc-in db [:data :user-projects user-id] projects)})
+  :on-error (fn [{:keys [db error]} [user-id] _]
+              (js/console.error (pr-str error))
+              {}))
 
 (reg-sub :user/projects
-         (fn [db [event user-id]]
-           (get-in db [:users user-id :projects])))
-
-(reg-event-db
- :user/set-projects!
- [trim-v]
- (fn [db [user-id projects]]
-   (assoc-in db [:users user-id :projects] projects)))
-
-(defn get-user-projects! [user-id]
-  (let [retrieving-projects? (r/cursor state [:retrieving-projects?])
-        projects (r/cursor state [:projects])
-        error-message (r/cursor state [:retrieving-projects-error-message])]
-    (reset! retrieving-projects? true)
-    (GET (str "/api/user/" user-id "/projects")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! retrieving-projects? false)
-                     (dispatch [:user/set-projects! user-id (->> response :result :projects)]))
-          :error-handler (fn [error-response]
-                           (.log js/console (clj->js error-response))
-                           (reset! retrieving-projects? false)
-                           (reset! error-message (get-in error-response [:response :error :message])))})))
-
-(reg-event-fx :user/get-projects!
-              [trim-v]
-              (fn [_ [user-id]]
-                (get-user-projects! user-id)
-                {}))
+         (fn [db [_ user-id]]
+           (get-in db [:data :user-projects user-id])))
 
 (defn set-public! [project-id]
   (let [setting-public? (r/cursor state [project-id :setting-public?])]
     (reset! setting-public? true)
     ;; change the project settings
-    (dispatch [:action [:project/change-settings project-id [{:setting :public-access
-                                                              :value true}]]])
+    (dispatch [:action [:project/change-settings
+                        project-id [{:setting :public-access :value true}]]])
     ;; reset project settings state
     (dispatch [:project-settings/reset-state!])
     (dispatch [:reload [:project project-id]])))
@@ -128,8 +110,7 @@
 
 (defn- UserProjectsList
   [{:keys [user-id]}]
-  (let [projects (subscribe [:user/projects user-id])
-        error-message (r/cursor state [:retrieving-projects-error-message])]
+  (let [projects (subscribe [:user/projects user-id])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -162,10 +143,10 @@
                           [UserProject project]))]])])))
       :component-will-receive-props
       (fn [this new-argv]
-        (get-user-projects! (-> new-argv second :user-id)))
+        (dispatch [:data/load [:user/projects (-> new-argv second :user-id)]]))
       :component-did-mount (fn [this]
                              (when (empty? @projects)
-                               (get-user-projects! user-id)))})))
+                               (dispatch [:data/load [:user/projects user-id]])))})))
 
 (defn UserProjects [{:keys [user-id]}]
   (let [projects (subscribe [:user/projects user-id])]
@@ -179,4 +160,4 @@
          [UserProjectsList {:user-id user-id}]])
       :component-did-mount
       (fn [this]
-        (get-user-projects! user-id))})))
+        (dispatch [:data/load [:user/projects user-id]]))})))

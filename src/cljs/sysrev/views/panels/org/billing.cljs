@@ -1,15 +1,13 @@
 (ns sysrev.views.panels.org.billing
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [re-frame.db :refer [app-db]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
             [sysrev.views.panels.user.billing :refer [Plan PaymentSource]]
-            [sysrev.views.semantic :refer [Segment Header ListUI ListItem]]))
+            [sysrev.views.semantic :refer [Segment Header ListUI ListItem]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:org :billing])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:org :billing] {:state-var state})
 
 (defn OrgBilling [{:keys [org-id]}]
   (when org-id

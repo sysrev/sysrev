@@ -1,5 +1,5 @@
 (ns sysrev.routes
-  (:require [re-frame.core :as re-frame :refer
+  (:require [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
             [sysrev.nav :as nav :refer [nav nav-scroll-top nav-redirect]]
             [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]

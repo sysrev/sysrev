@@ -4,17 +4,16 @@
             [cljsjs.moment]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
-            [re-frame.db :refer [app-db]]
             [sysrev.shared.util :refer [->map-with-key space-join]]
             [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:user :invitations])
+(setup-panel-state panel [:user :invitations] {:state-var state
+                                               :get-fn panel-get
+                                               :set-fn panel-set})
 
-(def state (r/cursor app-db [:state :panels panel]))
-
-(reg-sub :user/invitations
-         (fn [db] @(r/cursor state [:invitations])))
+(reg-sub :user/invitations #(panel-get % :invitations))
 
 (defn get-invitations!
   "Get the invitations that have been sent to this user"
@@ -32,12 +31,10 @@
                            (reset! getting-invitations? false)
                            ($ js/console log "[get-invitations!] There was an error"))})))
 
-(reg-event-fx
- :user/get-invitations!
- []
- (fn [_ _]
-   (get-invitations!)
-   {}))
+(reg-event-fx :user/get-invitations!
+              (fn [_ _]
+                (get-invitations!)
+                {}))
 
 (defn Invitation
   [{:keys [id project-id project-name description accepted active created updated]}]

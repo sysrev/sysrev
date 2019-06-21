@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.project.main
-  (:require [re-frame.core :as re-frame :refer [subscribe dispatch]]
-            [re-frame.db :refer [app-db]]
+  (:require [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
             [sysrev.routes :as routes]
             [sysrev.util :refer [nbsp]]

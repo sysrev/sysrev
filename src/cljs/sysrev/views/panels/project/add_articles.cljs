@@ -15,13 +15,12 @@
             [sysrev.views.components :as ui]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in?]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
 
-(def panel [:project :project :add-articles])
+(setup-panel-state panel [:project :project :add-articles] {:state-var state})
 
 (def initial-state {:read-only-message-closed? false})
 
-(defonce state (r/cursor app-db [:state :panels panel]))
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))

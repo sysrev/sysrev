@@ -24,7 +24,7 @@
             [clojure.string :as str]
             [cljs-time.core :as t]
             [clojure.spec.alpha :as s]
-            [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [cognitect.transit :as transit])
   (:require-macros [sysrev.macros :refer [import-vars]]

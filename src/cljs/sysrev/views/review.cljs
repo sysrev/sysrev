@@ -1,9 +1,8 @@
 (ns sysrev.views.review
   (:require [clojure.string :as str]
             [reagent.core :as r]
-            [re-frame.core :as re-frame :refer
-             [subscribe dispatch dispatch-sync reg-sub
-              reg-event-db reg-event-fx reg-fx trim-v]]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
+                                   reg-event-db reg-event-fx reg-fx trim-v]]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.state.review :as review]

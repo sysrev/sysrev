@@ -14,11 +14,10 @@
             [sysrev.views.panels.project.support :as support]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? ->map-with-key]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:project :project :compensation])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:project :project :compensation] {:state-var state})
 
 (def admin-fee 0.20)
 

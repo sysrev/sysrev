@@ -1,6 +1,6 @@
 (ns sysrev.views.labels
   (:require [clojure.string :as str]
-            [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe dispatch]]
             [cljs-time.core :as t]
             [sysrev.views.components :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]

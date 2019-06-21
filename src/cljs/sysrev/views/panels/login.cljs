@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.login
   (:require [reagent.core :as r]
-            [re-frame.core :as re-frame :refer
+            [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]

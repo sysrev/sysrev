@@ -3,7 +3,6 @@
             [ajax.core :refer [GET PUT]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [re-frame.db :refer [app-db]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.semantic :refer [Segment Header Grid Row Column Radio Message MessageHeader Icon]]
@@ -16,28 +15,25 @@
             [sysrev.views.panels.user.orgs :refer [Orgs]]
             [sysrev.views.panels.user.profile :refer [Profile]]
             [sysrev.views.panels.user.projects :refer [UserProjects]]
-            [sysrev.base]
+            [sysrev.base :refer [active-route]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.util :refer [full-size? get-url-path mobile?]]))
+            [sysrev.util :refer [full-size? get-url-path mobile?]]
+            [sysrev.shared.util :as sutil :refer [parse-integer css]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:user-main])
+(setup-panel-state panel [:user-main] {:state-var state})
 
-(def initial-state {})
+(defn user-id-from-url []
+  (-> (re-find #"/user/(\d*)/*" @active-route) second parse-integer))
 
-(defonce state (r/cursor app-db [:state :panels panel]))
-
-(defn ensure-state []
-  (when (nil? @state)
-    (reset! state initial-state)))
-
-(reg-sub :users/path-user-id
-         (fn [db _]
-           (-> (re-find #"/user/(\d*)/*" @sysrev.base/active-route) second js/parseInt)))
+(reg-sub :users/path-user-id (fn [db] (user-id-from-url)))
 
 (reg-sub :users/is-path-user-id-self?
-         (fn [db _]
-           (= @(subscribe [:self/user-id])
-              @(subscribe [:users/path-user-id]))))
+         :<- [:self/user-id]
+         :<- [:users/path-user-id]
+         (fn [[self-id path-id]]
+           (= self-id path-id)))
+
 ;;;
 ;;; TODO: refactor to remove this inputs/values/... stuff
 ;;;
@@ -234,16 +230,18 @@
         (get-opt-in))})))
 
 (defn UserContent []
-  (let [current-path sysrev.base/active-route
+  (let [self-id (subscribe [:self/user-id])
+        path-id (subscribe [:users/path-user-id])
+        self? (subscribe [:users/is-path-user-id-self?])
         current-panel (subscribe [:active-panel])
         payments-owed (subscribe [:compensation/payments-owed])
         payments-paid (subscribe [:compensation/payments-paid])
         invitations (subscribe [:user/invitations])
-        active-item (fn [current-path sub-path]
-                      (cond-> "item "
-                        (re-matches (re-pattern (str ".*" sub-path)) current-path) (str " active")))
+        item-class (fn [sub-path]
+                     (css "item" [(re-matches (re-pattern (str ".*" sub-path)) @active-route)
+                                  "active"]))
         uri-fn (fn [sub-path]
-                 (str "/user/" @(subscribe [:users/path-user-id]) sub-path))]
+                 (str "/user/" @path-id sub-path))]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -255,51 +253,51 @@
            {:class (str " " (if (mobile?) "tiny"))}
            [:a {:key "#profile"
                 :id "user-profile"
-                :class (active-item @current-path "/profile")
+                :class (item-class "/profile")
                 :href (uri-fn "/profile")}
             "Profile"]
-           (when @(subscribe [:users/is-path-user-id-self?])
+           (when @self?
              [:a {:key "#general"
                   :id "user-general"
-                  :class (active-item @current-path "/settings")
+                  :class (item-class "/settings")
                   :href (uri-fn "/settings")}
               "General"])
            ;; should check if projects exist
            [:a {:key "#projects"
                 :id "user-projects"
-                :class (active-item @current-path "/projects")
+                :class (item-class "/projects")
                 :href (uri-fn "/projects")}
             "Projects"]
            ;; should check if orgs exist
            [:a {:keys "#user-orgs"
                 :id "user-orgs"
-                :class (active-item @current-path "/orgs")
+                :class (item-class "/orgs")
                 :href (uri-fn "/orgs")}
             "Organizations"]
-           (when @(subscribe [:users/is-path-user-id-self?])
+           (when @self?
              [:a {:key "#billing"
                   :id "user-billing"
-                  :class (active-item @current-path "/billing")
+                  :class (item-class "/billing")
                   :href (uri-fn "/billing")}
               "Billing"])
-           (when @(subscribe [:users/is-path-user-id-self?])
+           (when @self?
              [:a {:key "#email"
                   :id "user-email"
-                  :class (active-item @current-path "/email")
+                  :class (item-class "/email")
                   :href (uri-fn "/email")}
               "Email"])
-           (when @(subscribe [:users/is-path-user-id-self?])
+           (when @self?
              (when-not (empty? (or @payments-owed @payments-paid))
                [:a {:key "#compensation"
                     :id "user-compensation"
-                    :class (active-item @current-path "/compensation")
+                    :class (item-class "/compensation")
                     :href (uri-fn "/compensation")}
                 "Compensation"]))
-           (when @(subscribe [:users/is-path-user-id-self?])
+           (when @self?
              (when-not (empty? @invitations)
                [:a {:key "#invitations"
                     :id "user-invitations"
-                    :class (active-item @current-path "/invitations")
+                    :class (item-class "/invitations")
                     :href (uri-fn "/invitations")}
                 "Invitations" (when-not (empty? (filter #(nil? (:accepted (val %))) @invitations))
                                 [Icon {:name "circle"
@@ -307,9 +305,9 @@
                                        :color "red"
                                        :style {:margin-left "0.5em"}}])]))]]
          [:div#user-content
-          (condp re-matches @current-path
+          (condp re-matches @active-route
             #"/user/(\d*)/profile"
-            [Profile {:user-id @(subscribe [:users/path-user-id])}]
+            [Profile {:user-id @path-id}]
             #"/user/(\d*)/settings" ;; general
             [:div
              [Grid {:stackable true}
@@ -322,9 +320,9 @@
                 [PublicReviewerOptIn]
                 [CreateOrg]]]]]
             #"/user/(\d*)/projects"
-            [UserProjects {:user-id @(subscribe [:users/path-user-id])}]
+            [UserProjects {:user-id @path-id}]
             #"/user/(\d*)/orgs"
-            [Orgs {:user-id @(subscribe [:users/path-user-id])}]
+            [Orgs {:user-id @path-id}]
             #"/user/(\d*)/billing"
             [Billing]
             #"/user/(\d*)/email"

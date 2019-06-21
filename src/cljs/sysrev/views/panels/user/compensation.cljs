@@ -2,21 +2,19 @@
   (:require [ajax.core :refer [POST GET DELETE PUT]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub trim-v]]
-            [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
             [sysrev.util :as util]
             [sysrev.views.semantic :as s :refer
-             [Grid Row Column Segment Header]]))
+             [Grid Row Column Segment Header]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:user :compensation])
+(setup-panel-state panel [:user :compensation] {:state-var state
+                                                :get-fn panel-get
+                                                :set-fn panel-set})
 
-(def state (r/cursor app-db [:state :panels panel]))
+(reg-sub :compensation/payments-owed #(panel-get % :payments-owed))
 
-(reg-sub :compensation/payments-owed
-         (fn [db] @(r/cursor state [:payments-owed])))
-
-(reg-sub :compensation/payments-paid
-         (fn [db] @(r/cursor state [:payments-paid])))
+(reg-sub :compensation/payments-paid #(panel-get % :payments-paid))
 
 (defn get-payments-owed!
   "Retrieve the current amount of compensation owed to user"

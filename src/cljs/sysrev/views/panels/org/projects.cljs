@@ -8,11 +8,10 @@
             [sysrev.views.project-list :refer [ProjectsListSegment]]
             [sysrev.views.semantic :refer [Message MessageHeader Divider Segment Header]]
             [sysrev.shared.util :refer [->map-with-key]]
-            [sysrev.state.nav :refer [project-uri]]))
+            [sysrev.state.nav :refer [project-uri]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:org :projects])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:org :projects] {:state-var state})
 
 (reg-sub :org/projects
          (fn [db [event org-id]]

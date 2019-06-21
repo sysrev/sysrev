@@ -2,16 +2,14 @@
   (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [re-frame.db :refer [app-db]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
             [sysrev.views.semantic :refer [Segment Grid Row Column Button Icon Loader
                                            Header ListUI ListItem]]
-            [sysrev.shared.util :as sutil :refer [css]]))
+            [sysrev.shared.util :as sutil :refer [css]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
-(def panel [:user :billing])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:user :billing])
 
 (defn DefaultSource
   [{:keys [get-default-source default-source-atom]}]

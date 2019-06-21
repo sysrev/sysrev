@@ -6,11 +6,10 @@
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.semantic :refer
              [Form FormField FormInput Button Segment Header Input Message MessageHeader]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:orgs])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:orgs] {:state-var state})
 
 (defn create-org! [org-name]
   (let [create-org-retrieving? (r/cursor state [:create-org-retrieving?])

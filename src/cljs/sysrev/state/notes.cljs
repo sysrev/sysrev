@@ -1,7 +1,6 @@
 (ns sysrev.state.notes
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw
-              dispatch reg-event-db reg-event-fx trim-v]]
+  (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw dispatch
+                                   reg-event-db reg-event-fx trim-v]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.action.core :refer [def-action]]))

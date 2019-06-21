@@ -1,6 +1,5 @@
 (ns sysrev.state.project.stats
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]))
+  (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw]]))
 
 (reg-sub
  ::stats

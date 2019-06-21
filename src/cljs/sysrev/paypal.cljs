@@ -3,15 +3,13 @@
             [cljsjs.accounting]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [re-frame.db :refer [app-db]]
             [sysrev.accounting :as acct]
             [sysrev.views.semantic :as s]
             [sysrev.shared.util :as sutil])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def panel [:project :project :paypal])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:project :project :paypal] {:state-var state})
 
 (def minimum-amount "10.00")
 

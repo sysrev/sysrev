@@ -1,44 +1,31 @@
 (ns sysrev.views.panels.user.orgs
-  (:require [ajax.core :refer [GET]]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
-            [re-frame.db :refer [app-db]]
+            [sysrev.data.core :refer [def-data]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Divider]]
             [sysrev.views.panels.user.profile :as user-profile])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def panel user-profile/panel)
+;; Using same panel value as sysrev.views.panels.user.profile
+(setup-panel-state panel [:user :profile] {:state-var state})
 
-(def state (r/cursor app-db [:state :panel panel]))
+(def-data :user/orgs
+  :loaded? (fn [db user-id] (-> (get-in db [:data :user-orgs])
+                                (contains? user-id)))
+  :uri (fn [user-id] (str "/api/user/" user-id "/orgs"))
+  :process (fn [{:keys [db]} [user-id] {:keys [orgs]}]
+             {:db (assoc-in db [:data :user-orgs user-id] orgs)})
+  :on-error (fn [{:keys [db error]} [user-id] _]
+              (js/console.error (pr-str error))
+              {}))
 
-(reg-sub :users/orgs
-         (fn [db [event user-id]]
-           (get-in db [user-id :orgs])))
-
-(reg-event-db
- :users/set-orgs!
- [trim-v]
- (fn [db [user-id orgs]]
-   (assoc-in db [user-id :orgs] orgs)))
-
-(defn get-user-orgs! [user-id]
-  (let [retrieving-orgs? (r/cursor state [:retrieving-orgs?])
-        orgs (r/cursor state [:orgs])
-        error-message (r/cursor state [:retrieving-orgs-error-message])]
-    (reset! retrieving-orgs? true)
-    (GET (str "/api/user/" user-id "/orgs")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! retrieving-orgs? false)
-                     (dispatch [:users/set-orgs! user-id (-> response :result :orgs)]))
-          :error-handler (fn [error-response]
-                           (.log js/console (clj->js error-response))
-                           (reset! retrieving-orgs? false)
-                           (reset! error-message (get-in error-response [:response :error :message])))})))
-
+(reg-sub :user/orgs
+         (fn [db [_ user-id]]
+           (get-in db [:data :user-orgs user-id])))
 
 (defn UserOrganization [{:keys [group-id group-name]}]
   [:div {:id (str "org-" group-id)
@@ -50,7 +37,7 @@
    [Divider]])
 
 (defn UserOrgs [user-id]
-  (let [orgs (subscribe [:users/orgs user-id])]
+  (let [orgs (subscribe [:user/orgs user-id])]
     (r/create-class
      {:reagent-render (fn [this]
                         (when (seq @orgs)
@@ -60,14 +47,10 @@
                             (doall (for [org @orgs] ^{:key (:group-id org)}
                                      [UserOrganization org]))]]))
       :component-did-mount (fn [this]
-                             (get-user-orgs! user-id))})))
+                             (dispatch [:data/load [:user/orgs user-id]]))})))
 
-(defn Orgs
-  [{:keys [user-id]}]
-  (r/create-class
-   {:reagent-render
-    (fn [this]
-      [:div
-       (when @(subscribe [:users/is-path-user-id-self?])
-         [CreateOrg])
-       [UserOrgs user-id]])}))
+(defn Orgs [{:keys [user-id]}]
+  [:div
+   (when @(subscribe [:users/is-path-user-id-self?])
+     [CreateOrg])
+   [UserOrgs user-id]])

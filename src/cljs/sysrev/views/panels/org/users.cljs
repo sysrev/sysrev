@@ -7,11 +7,10 @@
             [sysrev.views.semantic :refer [Segment Table TableHeader TableBody TableRow TableCell Search SearchResults Button
                                            Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
                                            Input Message MessageHeader Dropdown Menu Icon]])
-  (:require-macros [reagent.interop :refer [$ $!]]))
+  (:require-macros [reagent.interop :refer [$ $!]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:org :users])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:org :users] {:state-var state})
 
 (reg-sub :org/users
          (fn [db [event org-id]]

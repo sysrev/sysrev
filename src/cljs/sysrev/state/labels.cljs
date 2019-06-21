@@ -1,7 +1,6 @@
 (ns sysrev.state.labels
   (:require [clojure.string :as str]
-            [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]
+            [re-frame.core :refer [subscribe reg-sub reg-sub-raw]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.shared.util :refer [in?]]))

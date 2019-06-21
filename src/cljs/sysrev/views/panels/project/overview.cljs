@@ -4,9 +4,8 @@
             [cljs-time.coerce :refer [from-date]]
             [reagent.core :as r]
             [sysrev.charts.chartjs :as chartjs]
-            [re-frame.core :as re-frame :refer
-             [subscribe dispatch reg-event-fx reg-sub trim-v]]
-            [re-frame.db :refer [app-db]]
+            [re-frame.core :refer
+             [subscribe dispatch reg-event-db reg-event-fx reg-sub trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
@@ -18,12 +17,10 @@
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.shared.util :as sutil :refer [in?]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
 
-(def panel [:project :project :overview])
+(setup-panel-state panel [:project :project :overview])
 
-(def initial-state {})
-(defonce state (r/cursor app-db [:state :panels panel]))
 #_ (defonce important-terms-tab (r/cursor state [:important-terms-tab]))
 
 (def colors {:grey "rgba(160,160,160,0.5)"
@@ -42,13 +39,6 @@
     [:div {:style {:margin-top (to-css margin-top)
                    :margin-bottom (to-css margin-bottom)}}
      content]))
-
-(reg-event-fx
- :overview/reset-state!
- [trim-v]
- (fn [_]
-   (reset! state initial-state)
-   {}))
 
 (defn nav-article-status [[inclusion group-status]]
   (when-let [project-id @(subscribe [:active-project-id])]

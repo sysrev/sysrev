@@ -1,8 +1,6 @@
 (ns sysrev.action.core
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe dispatch reg-event-db reg-event-fx trim-v reg-fx]]
-            [sysrev.ajax :refer
-             [reg-event-ajax reg-event-ajax-fx run-ajax]]))
+  (:require [re-frame.core :refer [subscribe dispatch reg-event-db reg-event-fx trim-v reg-fx]]
+            [sysrev.ajax :refer [reg-event-ajax reg-event-ajax-fx run-ajax]]))
 
 (defonce
   ^{:doc "Holds static definitions for server request actions"}

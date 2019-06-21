@@ -2,10 +2,10 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
+             [subscribe dispatch reg-sub reg-event-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
+            [sysrev.state.identity :refer [current-user-id]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :as ui]
@@ -13,21 +13,15 @@
             [sysrev.views.panels.project.compensation
              :refer [ProjectCompensations CompensationSummary UsersCompensations]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? css]]))
+            [sysrev.shared.util :as sutil :refer [in? css]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:project :project :settings])
+(setup-panel-state panel [:project :project :settings] {:state-var state
+                                                        :get-fn panel-get
+                                                        :set-fn panel-set})
 
-(def initial-state {:confirming? false})
-(defonce state (r/cursor app-db [:state :panels panel]))
-(defn ensure-state []
-  (when (nil? @state)
-    (reset! state initial-state)))
-
-(reg-event-fx :project-settings/reset-state!
-              [trim-v]
-              (fn [db _]
-                (reset! state initial-state)
-                {}))
+(reg-event-db :project-settings/reset-state!
+              (fn [db] (panel-set db nil {})))
 
 (defn- parse-input [skey input]
   (case skey
@@ -146,13 +140,14 @@
              ;; if project is owned by an org, also reload that orgs projects
              ;; this is hacky, need a keyword to [:action [...] :on-success #(do something)]
              ;; because this can't just be handled by sysrev.views.panels.user.projects/set-public!
-             (let [project-owner @(subscribe [:project/owner project-id])
+             (let [self-id (current-user-id db)
+                   project-owner @(subscribe [:project/owner project-id])
                    owner-type (-> project-owner keys first)
                    owner-id (-> project-owner vals first)]
                (when (= :group-id owner-type)
-                 (dispatch [:org/get-projects! owner-id])))
-             {:db (cond-> (assoc-in db [:data :project project-id :settings] settings))
-              :dispatch [:user/get-projects! @(subscribe [:self/user-id])]}))
+                 (dispatch [:org/get-projects! owner-id]))
+               {:db (assoc-in db [:data :project project-id :settings] settings)
+                :dispatch [:reload [:user/projects self-id]]})))
 
 (def-action :project/change-name
   :uri (fn [project-id project-name] "/api/change-project-name")
@@ -679,19 +674,16 @@
 
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
-    (ensure-state)
-    (let [user-id @(subscribe [:self/user-id])
-          admin? (admin?)]
-      [:div.project-content
-       [ReadOnlyMessage
-        "Changing settings is restricted to project administrators."
-        (r/cursor state [:read-only-message-closed?])]
-       [:div.ui.two.column.stackable.grid.project-settings
-        [:div.ui.row
-         [:div.ui.column
-          [ProjectMiscBox]
-          [ProjectOptionsBox]
-          [DeleteProjectForm]]
-         [:div.ui.column
-          [ProjectMembersBox]
-          [DeveloperActions]]]]])))
+    [:div.project-content
+     [ReadOnlyMessage
+      "Changing settings is restricted to project administrators."
+      (r/cursor state [:read-only-message-closed?])]
+     [:div.ui.two.column.stackable.grid.project-settings
+      [:div.ui.row
+       [:div.ui.column
+        [ProjectMiscBox]
+        [ProjectOptionsBox]
+        [DeleteProjectForm]]
+       [:div.ui.column
+        [ProjectMembersBox]
+        [DeveloperActions]]]]]))

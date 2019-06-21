@@ -2,7 +2,6 @@
   (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub reg-event-fx]]
-            [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -18,13 +17,9 @@
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader setup-panel-state sr-defroute]]))
 
-(setup-panel-state {:path [:plans]
-                    :panel-var panel
-                    :state-var state
-                    :get-fn panel-get
-                    :set-fn panel-set
-                    :get-sub ::get
-                    :set-event ::set})
+(setup-panel-state panel [:plans] {:state-var state
+                                   :get-fn panel-get
+                                   :set-fn panel-set})
 
 (def-data :user/current-plan
   :loaded? (fn [db user-id] (-> (get-in db [:data :plans])
@@ -40,7 +35,7 @@
 (reg-event-db :user/set-on-subscribe-nav-to-url!
               (fn [db [_ url]] (panel-set db :on-subscribe-nav-to-url url)))
 
-(def-action :subscribe-plan
+(def-action :user/subscribe-plan
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/subscribe-plan"))
   :content (fn [plan-name] {:plan-name plan-name})
   :process (fn [{:keys [db]} _ result]
@@ -240,7 +235,7 @@
                         :billing-settings-uri (str "/user/" self-id "/billing")
                         :default-source-atom (subscribe [:stripe/default-source "user" self-id])
                         :get-default-source stripe/get-user-default-source
-                        :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
+                        :on-upgrade (fn [] (dispatch [:action [:user/subscribe-plan "Unlimited_User"]]))
                         :on-add-payment-method
                         #(do (dispatch [:payment/set-calling-route! "/user/plans"])
                              (dispatch [:navigate [:payment]]))
@@ -249,7 +244,7 @@
           "Unlimited_User"
           [DowngradePlan {:state state
                           :billing-settings-uri (str "/user/" self-id "/billing")
-                          :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
+                          :on-downgrade (fn [] (dispatch [:action [:user/subscribe-plan "Basic"]]))
                           :unlimited-plan-name "Pro Plan"
                           :unlimited-plan-price 1000}]
           [s/Message {:negative true}

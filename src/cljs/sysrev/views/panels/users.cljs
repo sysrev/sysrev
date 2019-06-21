@@ -3,32 +3,24 @@
             [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [re-frame.db :refer [app-db]]
-            [sysrev.base]
             [sysrev.views.panels.user.profile :refer [User]]
             [sysrev.views.semantic :refer [Segment Message MessageHeader]]
             [sysrev.views.base :refer [panel-content logged-out-content]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$]]
+                   [sysrev.macros :refer [setup-panel-state]]))
 
-(def ^:private panel [:users])
-
-(def state (r/cursor app-db [:state :panels panel]))
+(setup-panel-state panel [:users] {:state-var state})
 
 (defn AllUsers []
   (let [users (r/cursor state [:users])
         error-message (r/atom "")
-        retrieving-users? (r/atom false)
-        current-path sysrev.base/active-route
         get-users! (fn []
-                     (reset! retrieving-users? true)
                      (GET "/api/users/group/public-reviewer"
                           {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
                            :handler (fn [response]
-                                      (reset! retrieving-users? false)
                                       (reset! users (->> (-> response :result :users)
                                                          (filter :primary-email-verified))))
                            :error-handler (fn [error-response]
-                                            (reset! retrieving-users? false)
                                             (reset! error-message "There was a problem retrieving users"))}))]
     (r/create-class
      {:reagent-render

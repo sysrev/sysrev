@@ -1,6 +1,5 @@
 (ns sysrev.state.project.base
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]
+  (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw]]
             [sysrev.shared.util :refer [in?]]))
 
 (reg-sub ::projects #(get-in % [:data :project]))
