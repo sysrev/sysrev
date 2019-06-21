@@ -1,0 +1,27 @@
+#!/bin/bash
+##
+## Script to build app and deploy to an AWS instance (staging.sysrev.com)
+## directly from a developer machine.
+##
+
+set -eux
+
+echo "$SYSREV_HOST"
+source vars.deploy.sh
+
+## move current config.local.edn files out of the way
+echo "new" > config.backup && rm config.backup
+mv config config.backup
+git checkout -- config
+
+## copy config/resource files from builds.insilica.co
+./jenkins/init.local
+
+## build and deploy
+./jenkins/init-build
+./jenkins/build
+./jenkins/deploy
+
+## restore original config.local.edn files
+rm -r config
+mv config.backup config
