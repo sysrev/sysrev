@@ -62,6 +62,9 @@
 (defn xml-file-response [data filename]
   (file-download-response data filename "text/xml; charset=utf-8"))
 
+(defn text-file-response [data filename]
+  (file-download-response data filename "text/plain; charset=utf-8"))
+
 (defn wrap-no-cache [handler]
   #(some-> (handler %)
            (r/header "Cache-Control" "no-cache, must-revalidate")))

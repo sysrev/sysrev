@@ -1,0 +1,33 @@
+div.markdown-content {
+    p { text-align: justify; }
+
+    ul > li {
+        margin: 0.5em 0;
+
+        > p {
+            margin: 0 0 0.5em;
+        }
+    }
+}
+
+.ui.segment > div.markdown-content {
+    margin: -0.5em 0;
+}
+
+@media only screen and (max-width: 900px) {
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.6rem; }
+    h3 { font-size: 1.5rem; }
+    h4 { font-size: 1.4rem; }
+    h5 { font-size: 1.3rem; }
+    h6 { font-size: 1.2rem; }
+    div.markdown-content {
+        ul {
+            padding-inline-start: 10px;
+        }
+    }
+
+    .ui.segment > div.markdown-content {
+        margin: -0.25em 0;
+    }
+}

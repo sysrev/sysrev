@@ -79,8 +79,9 @@
    :before
    (fn [context]
      (let [response (-> context :coeffects :event last)
-           success? (and (map? response)
-                         (contains? response :result))
+           success? (or (string? response)
+                        (and (map? response)
+                             (contains? response :result)))
            build-id (and (map? response)
                          (:build-id response))
            build-time (and (map? response)
@@ -153,14 +154,15 @@
           :uri uri
           :timeout (* 2 60 1000)
           :format (condp = content-type
+                    "application/json" (ajax/json-request-format)
                     "application/transit+json" (ajax/transit-request-format)
-                    "application/json" (ajax/json-request-format))
-          :response-format (condp = content-type
-                             "application/transit+json"
-                             (ajax/transit-response-format
-                              :json {:handlers {"u" cljs.core/uuid}})
-                             "application/json"
-                             (ajax/json-response-format {:keywords? true}))
+                    (ajax/transit-request-format))
+          :response-format
+          (condp = content-type
+            "application/transit+json" (ajax/transit-response-format
+                                        :json {:handlers {"u" cljs.core/uuid}})
+            "application/json" (ajax/json-response-format {:keywords? true})
+            "text/plain" (ajax/text-response-format))
           :headers (cond-> {}
                      csrf-token
                      (merge {"x-csrf-token" csrf-token})

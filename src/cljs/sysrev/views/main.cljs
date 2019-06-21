@@ -37,11 +37,12 @@
             [sysrev.views.panels.user.payment]
             [sysrev.views.panels.user.plans]
             [sysrev.views.panels.users]
+            [sysrev.views.panels.user-agreement]
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components :as ui]
             [sysrev.views.review :as review]
             [sysrev.views.search.core]
-            [sysrev.util :as util]
+            [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.components :refer [loading-content]]))
 
 (defmethod panel-content :default []
@@ -116,32 +117,34 @@
            [review/SaveSkipColumnSegment article-id])]]])))
 
 (defn GlobalFooter []
-  (let [sysrev-links
+  (let [mobile? (util/mobile?)
+        sysrev-links
         [:span.links
          [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
          [:a {:target "_blank" :href "https://twitter.com/sysrev1"}
-          [:i.twitter.icon] "Twitter"]
+          [:i.twitter.icon] (when-not mobile? "Twitter")]
          [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"}
-          [:i.linkedin.icon] "LinkedIn"]
+          [:i.linkedin.icon] (when-not mobile? "LinkedIn")]
          [:a {:target "_blank" :href "https://www.facebook.com/insilica/"}
-          [:i.facebook.icon] "Facebook"]
+          [:i.facebook.icon] (when-not mobile? "Facebook")]
          #_ [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"}
              [:i.reddit.alien.icon] "Reddit"]]
         contact-email
         [:span.email "info@insilica.co"]
         copyright-notice
-        [:span [:span.medium-weight "Sysrev "] "© 2019 Insilica LLC"]]
+        [:span [:span.medium-weight "Sysrev "] "© 2019 Insilica LLC"]
+        user-agreement [:a {:href "/user-agreement"} "User Agreement"]]
     [:div#footer
      (if (util/mobile?)
        [:div.ui.container
         [:div.ui.middle.aligned.grid
-         [:div.left.aligned.four.wide.column contact-email]
-         [:div.right.aligned.twelve.wide.column
-          [:div.wrapper sysrev-links]]]]
+         [:div.left.aligned.six.wide.column contact-email]
+         [:div.right.aligned.ten.wide.column
+          [:div.wrapper user-agreement " | " sysrev-links]]]]
        [:div.ui.container.middle.aligned.stackable.grid
-        [:div.left.aligned.four.wide.column copyright-notice]
-        [:div.right.aligned.twelve.wide.column
-         [:div.wrapper contact-email sysrev-links]]])]))
+        [:div.left.aligned.six.wide.column copyright-notice]
+        [:div.right.aligned.ten.wide.column
+         [:div.wrapper contact-email sysrev-links " | " user-agreement]]])]))
 
 (defn main-content []
   (if-not @(subscribe [:initialized?])

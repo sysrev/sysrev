@@ -1,5 +1,6 @@
 (ns sysrev.web.routes.site
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.java.io :as io]
+            [clojure.tools.logging :as log]
             [compojure.core :refer :all]
             [clj-time.core :as time]
             [honeysql.core :as sql]
@@ -11,7 +12,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.queries :as q]
-            [sysrev.web.app :refer [wrap-authorize current-user-id]]
+            [sysrev.web.app :as app :refer [wrap-authorize current-user-id]]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.shared.util :refer [in? map-values ->map-with-key]]))
 
@@ -159,7 +160,12 @@
 
   (GET "/api/search" request
        (let [{:keys [q]} (-> :params request)]
-         (api/search-site q))))
+         (api/search-site q)))
+
+  (GET "/api/terms-of-use.md" request
+       (app/text-file-response
+        (-> (io/resource "terms_of_use.md") io/file io/reader)
+        "terms-of-use.md")))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."

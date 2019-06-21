@@ -42,7 +42,8 @@
     (gdom/getTextContent div-container)))
 
 (defn RenderMarkdown [markdown]
-  [:div {:style {:word-wrap "break-word"}
+  [:div {:class "markdown-content"
+         :style {:word-wrap "break-word"}
          :dangerouslySetInnerHTML {:__html (create-markdown-html markdown)}}])
 
 (s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
