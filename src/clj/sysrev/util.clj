@@ -16,9 +16,10 @@
             [sysrev.shared.util :as sutil :refer [ensure-pred]])
   (:import java.util.UUID
            (java.io File ByteArrayInputStream ByteArrayOutputStream)
-           org.joda.time.DateTime
+           (java.util.zip GZIPInputStream)
            java.math.BigInteger
            java.security.MessageDigest
+           org.joda.time.DateTime
            org.apache.commons.lang3.exception.ExceptionUtils))
 
 (defn should-never-happen-exception []
@@ -357,3 +358,21 @@
 
 (defn tempfile-path [filename]
   (str (temp-dir) filename))
+
+(defmacro with-tempfile
+  "Runs `body` with `file` bound to a new temporary file and ensures the
+  file is deleted when this form completes."
+  [[file & {:keys [suffix]}] & body]
+  `(let [~file (create-tempfile :suffix ~suffix)]
+     (try ~@body
+          (finally (io/delete-file ~file)))))
+
+(defmacro with-gunzip-file
+  "Decompresses gzipped file `input-file` and runs `body` with
+  `tempfile` bound to the decompressed file, ensuring the temporary
+  file is deleted when this form completes."
+  [[tempfile input-file & {:keys [suffix]}] & body]
+  `(with-open [gz-stream# (-> ~input-file io/file io/input-stream GZIPInputStream.)]
+     (with-tempfile [~tempfile :suffix ~suffix]
+       (io/copy gz-stream# ~tempfile)
+       ~@body)))
