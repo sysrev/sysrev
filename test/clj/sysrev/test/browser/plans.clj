@@ -71,7 +71,7 @@
                                  :exp-date "0121"
                                  :cvc "123"
                                  :postal "11111"})
-  (b/click use-card :delay 50)
+  (b/click use-card :delay 200)
   ;; upgrade to unlimited
   (b/click ".button.upgrade-plan" :delay 50)
   ;; this time is goes through, confirm we are subscribed to the
@@ -179,7 +179,7 @@
         ;; through
         (log/info "testing attach-success-charge-fail-cc")
         (bstripe/enter-cc-number bstripe/attach-success-charge-fail-cc)
-        (b/click use-card :delay 100)
+        (b/click use-card :delay 200)
         (b/click ".button.upgrade-plan" :delay 100)
         ;; check for the declined card message
         (is (b/exists? {:xpath "//p[contains(text(),'Your card was declined.')]"}))
@@ -192,7 +192,7 @@
           :exp-date "0121"
           :cvc "123"
           :postal "11111"})
-        (b/click use-card :delay 100)
+        (b/click use-card :delay 200)
         ;; try to subscribe again
         (b/click ".button.upgrade-plan" :delay 100)
         ;; card was declined
@@ -206,7 +206,7 @@
                                      :exp-date "0121"
                                      :cvc "123"
                                      :postal "11111"})
-      (b/click use-card :delay 100)
+      (b/click use-card :delay 200)
       ;; try to subscribe again
       (b/click ".button.upgrade-plan" :delay 100)
       ;; this time is goes through, confirm we are subscribed to the

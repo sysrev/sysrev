@@ -84,5 +84,5 @@
     (b/set-input-text-per-char postal-input postal)
     ;; we're done, return back to default
     (taxi/switch-to-default)
-    (log/info "finished entering stripe card")))
-
+    (log/info "finished entering stripe card")
+    (Thread/sleep 100)))

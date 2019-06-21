@@ -289,7 +289,7 @@
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
-             :or {delay 15 char-delay 10 clear? true}}]
+             :or {delay 20 char-delay 10 clear? true}}]
   (let [;; remote? (test/remote-test?)
         ;; delay (if remote? (* 2 delay) delay)
         ;; char-delay (if remote? (* 2 char-delay) char-delay)
@@ -456,7 +456,8 @@
   "Runs (is pred-form) after attempting to wait for pred-form to
   evaluate as logical true."
   [pred-form & [timeout interval]]
-  `(do (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
+  `(do (or (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
+           (take-screenshot :error))
        (is ~pred-form)))
 
 (defn is-current-path

@@ -149,7 +149,7 @@
   (count (taxi/find-elements x/project-source)))
 
 (defn check-source-count [n]
-  (b/is-soon (= n (get-source-count)) 15000 100))
+  (b/is-soon (= n (get-source-count)) 15000 50))
 
 (defn add-articles-from-search-term [search-term]
   (nav/go-project-route "/add-articles")

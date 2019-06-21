@@ -84,7 +84,7 @@
   (b/set-input-text-per-char create-org-input org-name)
   (b/click create-org-button)
   (b/wait-until-exists "#add-member-button")
-  (b/wait-until-loading-completes :pre-wait 50))
+  (b/wait-until-loading-completes :pre-wait 100))
 
 (defn create-project-org
   "Must be in the Organization Settings for the org for which the project is being created"
@@ -236,8 +236,8 @@
     (b/click "a.payment-method.add-method")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
-    (b/click plans/use-card :delay 50)
-    (b/click ".button.upgrade-plan" :delay 50)
+    (b/click plans/use-card :delay 200)
+    (b/click ".button.upgrade-plan" :delay 200)
     ;; should be back at project settings
     (b/click set-private-button :delay 50)
     (b/click save-options-button :delay 50)
@@ -255,8 +255,8 @@
     (b/click "a.payment-method.add-method")
     (b/is-current-path "/user/payment")
     (bstripe/enter-cc-information user-cc)
-    (b/click plans/use-card :delay 50)
-    (b/click ".button.upgrade-plan" :delay 50)
+    (b/click plans/use-card :delay 200)
+    (b/click ".button.upgrade-plan" :delay 200)
     (b/click set-private-button :delay 50)
     (b/click save-options-button :delay 50)
     (is (b/exists? active-set-private-button))

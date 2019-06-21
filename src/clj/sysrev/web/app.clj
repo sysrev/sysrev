@@ -1,21 +1,22 @@
 (ns sysrev.web.app
-  (:require [compojure.core :refer :all]
+  (:require [clojure.string :as str]
+            [clojure.stacktrace :refer [print-cause-trace]]
+            [clojure.tools.logging :as log]
+            [compojure.core :refer :all]
             [compojure.route :refer [not-found]]
             [compojure.response :refer [Renderable]]
+            [ring.util.request :as request]
             [ring.util.response :as r]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
-            [clojure.string :as str]
-            [clojure.stacktrace :refer [print-cause-trace]]
-            [sysrev.web.index :as index]
-            [sysrev.db.users :refer [get-user-by-id get-user-by-api-token
-                                     update-member-access-time]]
-            [sysrev.db.project :as project]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? parse-integer ensure-pred]]
-            [sysrev.resources :as res]
-            [sysrev.db.users :as users]
             [sysrev.api :as api]
-            [clojure.tools.logging :as log]))
+            [sysrev.config.core :refer [env]]
+            [sysrev.db.users :as users :refer
+             [get-user-by-id get-user-by-api-token update-member-access-time]]
+            [sysrev.db.project :as project]
+            [sysrev.resources :as res]
+            [sysrev.web.index :as index]
+            [sysrev.util :as util]
+            [sysrev.shared.util :refer [in? parse-integer ensure-pred]]))
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)
@@ -80,6 +81,18 @@
                 (not csrf-match))
          (assoc-in response [:body :csrf-token] *anti-forgery-token*)
          response))))
+
+(defn wrap-log-request [handler]
+  (if (and (contains? #{:test :remote-test} (:profile env))
+           (contains? #{1 "1" true "true"} (:sysrev-log-requests env)))
+    (fn [request]
+      (util/with-print-time-elapsed
+        (str (-> (:request-method request) name str/upper-case) " "
+             (:uri request)
+             (when (:query-string request) "?[...]"))
+        (handler request)))
+    (fn [request]
+      (handler request))))
 
 (defn wrap-sysrev-response [handler]
   (fn [request]

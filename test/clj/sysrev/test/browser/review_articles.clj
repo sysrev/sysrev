@@ -253,9 +253,7 @@
       (log/info "checking label values from db")
       (let [ ;; this is not yet generalized
             article-id (-> (labels/query-public-article-labels
-                            @project-id) keys first)
-            article-title (-> (labels/query-public-article-labels
-                               @project-id) vals first :title)]
+                            @project-id) keys first)]
         ;; these are just checks in the database
         (is (= include-label-value
                (short-label-answer @project-id article-id user-id
@@ -272,7 +270,8 @@
         (log/info "checking label values from editor")
 ;;;; Let's check the actual UI for this
         (nav/go-project-route "/articles")
-        (b/click (article-title-div article-title))
+        (b/wait-until-loading-completes :pre-wait 50)
+        (b/click "a.article-title")
         (b/wait-until-displayed ".ui.button.change-labels")
         ;; check overall include
         ;; note: booleans value name have ? appended to them

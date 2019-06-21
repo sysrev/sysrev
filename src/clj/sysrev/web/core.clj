@@ -21,8 +21,7 @@
             [sysrev.web.routes.user :refer [user-routes]]
             [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
             sysrev.web.routes.api.handlers
-            [sysrev.web.app :refer [wrap-no-cache wrap-add-anti-forgery-token
-                                    wrap-sysrev-response not-found-response]]
+            [sysrev.web.app :as app]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defonce app-routes nil)
@@ -41,10 +40,10 @@
   (GET "*" {:keys [uri] :as request}
        (if (some-> uri (str/split #"/") last (str/index-of \.))
          ;; Fail if request appears to be for a static file
-         (not-found-response request)
+         (app/not-found-response request)
          ;; Otherwise serve index.html
          (index/index request)))
-  (not-found (not-found-response nil)))
+  (not-found (app/not-found-response nil)))
 
 (defn sysrev-config
   "Returns a config map for ring.defaults/wrap-defaults."
@@ -61,19 +60,20 @@
   "Ring handler wrapper for web HTML responses"
   [handler]
   (-> handler
-      wrap-no-cache
+      app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))))
 
 (defn wrap-sysrev-app
   "Ring handler wrapper for web app routes"
   [handler]
   (-> handler
-      wrap-sysrev-response
-      wrap-add-anti-forgery-token
+      app/wrap-sysrev-response
+      app/wrap-add-anti-forgery-token
       (wrap-transit-response {:encoding :json, :opts {}})
-      wrap-no-cache
+      app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery true}))
-      (wrap-transit-body {:opts {}})))
+      (wrap-transit-body {:opts {}})
+      (app/wrap-log-request)))
 
 (defn wrap-force-json-request
   "Modifies request map to set header \"Content-Type\" as
@@ -87,9 +87,9 @@
   [handler]
   (-> handler
       wrap-web-api
-      wrap-sysrev-response
+      app/wrap-sysrev-response
       (wrap-json-response {:pretty true})
-      wrap-no-cache
+      app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session false :anti-forgery false}))
       (wrap-json-body {:keywords? true})
       wrap-force-json-request))
@@ -104,7 +104,7 @@
                        (-> (r/response (index/sysrev-sitemap))
                            (r/header "Content-Type" "application/xml; charset=utf-8")))
                   (GET "*" [] (wrap-routes html-routes wrap-sysrev-html)))
-    (in? [:dev :test] (:profile env)) (wrap-no-cache)))
+    (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
 
 #_
 (defn blog-handler
@@ -113,7 +113,7 @@
   (cond-> (routes (ANY "/api/*" [] (wrap-routes blog/blog-routes wrap-sysrev-app))
                   (compojure.route/resources "/")
                   (GET "*" [] (wrap-routes blog/blog-html-routes wrap-sysrev-html)))
-    (in? [:dev :test] (:profile env)) (wrap-no-cache)))
+    (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
 
 (defonce web-servers (atom {}))
 (defonce web-port (atom nil))
