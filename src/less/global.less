@@ -13,8 +13,10 @@ a:hover { color: darken(@blue, 8); }
     margin: 0;
 }
 
-#main-content {
-    padding-bottom: 30px;
+#main-content { padding-bottom: 22px; }
+
+@media only screen and (max-width: 767px) {
+    #main-content { padding-bottom: 12px; }
 }
 
 #footer {
@@ -300,10 +302,14 @@ h6.ui.header {
 
     .ui.segment {
         padding: 0.6em;
-    }
 
-    .ui.segment > .ui.grid {
-        margin: -0.5em;
+        > .ui.grid, > div > .ui.grid {
+            margin: -0.5em;
+
+            > .column, > .row > .column {
+                padding: 0.6em;
+            }
+        }
     }
 
     .ui.grid.segment {
@@ -453,4 +459,17 @@ a.user-public-profile {
 // add a point cursor to the dropdown box
 div.dropdown > input.search {
     cursor: pointer;
+}
+
+.ui.segment.action-segment {
+    padding: 0.75em;
+}
+
+@media only screen and (max-width: 767px) {
+    #app .ui.stackable.grid:not(.segment) {
+        margin: -0.5em 0;
+        > .column:not(.row) {
+            padding: 0.5em 0 !important;
+        }
+    }
 }

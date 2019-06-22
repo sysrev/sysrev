@@ -184,14 +184,10 @@
 
 (defn- render-setting-value [skey value]
   (case skey
-    :second-review-prob
-    (cond (float? value)  (int (+ 0.5 (* value 100)))
-          :else           value)
-
-    :public-access (boolean value)
-
-    :unlimited-reviews (boolean value)
-
+    :second-review-prob (cond (float? value)  (int (+ 0.5 (* value 100)))
+                              :else           value)
+    :public-access      (boolean value)
+    :unlimited-reviews  (boolean value)
     nil))
 
 (defn- render-setting [skey]
@@ -237,7 +233,7 @@
      "20em"
      :props {:style {:text-align "center"}})))
 
-(defn- SettingsField [{:keys [setting label entries disabled?]} entries]
+(defn- SettingsField [{:keys [setting label entries disabled?]} & content]
   (let [elements (->> entries
                       (map #(SettingsButton (merge % {:setting setting
                                                       :disabled? disabled?}))))]
@@ -250,13 +246,13 @@
          ^{:key [:button (hash button)]} [button]))]
      (doall
       (for [[_ tooltip] elements]
-        ^{:key [:tooltip (hash tooltip)]} [tooltip]))]))
+        ^{:key [:tooltip (hash tooltip)]} [tooltip]))
+     (doall (map-indexed (fn [i element] ^{:key [:content i]} element) content))]))
 
 (defn- DoubleReviewPriorityField []
-  [SettingsField
-   {:setting :second-review-prob
-    :label "Article Review Priority"
-    :entries review-priority-buttons}])
+  [SettingsField {:setting :second-review-prob
+                  :label "Article Review Priority"
+                  :entries review-priority-buttons}])
 
 (def public-access-buttons
   [{:key :public
@@ -275,13 +271,13 @@
         owner-id (-> project-owner vals first)
         project-plan @(subscribe [:project/plan project-id])
         project-url @(subscribe [:project/uri project-id])]
-    [:div [SettingsField
-           {:setting :public-access
-            :label "Project Visibility"
-            :entries public-access-buttons
-            :disabled? (and (= project-plan "Basic")
-                            (not @(subscribe [:user/actual-admin?]))
-                            @(subscribe [:project/public-access? project-id]))}]
+    [SettingsField
+     {:setting :public-access
+      :label "Project Visibility"
+      :entries public-access-buttons
+      :disabled? (and (= project-plan "Basic")
+                      (not @(subscribe [:user/actual-admin?]))
+                      @(subscribe [:project/public-access? project-id]))}
      (when (and (= project-plan "Basic")
                 @(subscribe [:project/controlled-by? project-id self-id]))
        [:p [:a {:href (if (= owner-type :user-id)
@@ -292,8 +288,10 @@
                                         (str project-url "/settings")])
                              (dispatch [:org/set-on-subscribe-nav-to-url!
                                         owner-id (str project-url "/settings")]))}
-            "Upgrade"] (str " " (if (= owner-type :user-id) "your" "the organization's")
-                            " plan to make this project private")])]))
+            "Upgrade"] (str " " (if (= owner-type :user-id)
+                                  "your"
+                                  "the organization's")
+                            " plan to make this project private.")])]))
 
 (def unlimited-reviews-buttons
   [{:key :false
@@ -306,10 +304,9 @@
     :tooltip "Users may be assigned any article they have not yet reviewed"}])
 
 (defn- UnlimitedReviewsField []
-  [SettingsField
-   {:setting :unlimited-reviews
-    :label "Allow Unlimited Reviews"
-    :entries unlimited-reviews-buttons}])
+  [SettingsField {:setting :unlimited-reviews
+                  :label "Allow Unlimited Reviews"
+                  :entries unlimited-reviews-buttons}])
 
 (defn ProjectNameField []
   (let [skey :project-name
@@ -317,66 +314,54 @@
         current (misc-current skey)
         saved (misc-saved skey)
         modified? (not= current saved)]
-    [:div.field.project-name
-     {:class (misc-field-class skey)}
+    [:div.field.project-name {:class (misc-field-class skey)}
      [:label "Project Name"]
-     [:textarea
-      {:readOnly (not admin?)
-       :rows 3
-       :value current
-       :on-change (when admin?
-                    (util/wrap-prevent-default
-                     #(edit-misc skey (-> % .-target .-value))))}]]))
+     [:textarea {:readOnly (not admin?)
+                 :rows 3
+                 :value current
+                 :on-change (when admin?
+                              (util/wrap-prevent-default
+                               #(edit-misc skey (-> % .-target .-value))))}]]))
 
 (defn- DeleteProjectForm []
-  (let [confirming? (r/cursor state [:confirming?])
-        active-project-id (subscribe [:active-project-id])
-        reviewed (-> @(subscribe [:project/article-counts])
-                     :reviewed)
+  (let [confirming-delete (r/cursor state [:confirming-delete])
+        project-id @(subscribe [:active-project-id])
+        {:keys [reviewed]} @(subscribe [:project/article-counts])
         members-count (count @(subscribe [:project/member-user-ids nil true]))
-        delete-action (cond (= reviewed 0)
-                            :delete
+        delete-action (cond (= reviewed 0)             :delete
+                            (and (< reviewed 20)
+                                 (< members-count 4))  :disable
+                            :else                      nil)]
+    [:div.delete-project-toplevel
+     (if @confirming-delete
+       (when delete-action
+         (let [[title message action-color]
+               (case delete-action
+                 :delete   ["Delete this project?"
+                            "All articles/labels/notes will be lost."
+                            "orange"]
+                 :disable  ["Disable this project?"
+                            "It will be inaccessible until re-enabled."
+                            "yellow"]
+                 nil)]
+           [ui/ConfirmationDialog
+            {:on-cancel #(reset! confirming-delete false)
+             :on-confirm #(do (reset! confirming-delete false)
+                              (dispatch [:action [:project/delete project-id]]))
+             :title title
+             :message message
+             :action-color action-color}]))
+       [:button.ui.fluid.button
+        {:class (css [(nil? delete-action) "disabled"])
+         :on-click (when delete-action #(reset! confirming-delete true))}
+        (if (= delete-action :delete)
+          "Delete Project..."
+          "Disable Project...")])]))
 
-                            (and (< reviewed 20) (< members-count 4))
-                            :disable
-
-                            :else nil)
-        enable-button? (not (nil? delete-action))]
-    (when (and (admin?) (or (not @confirming?) delete-action))
-      [:div.ui.segment
-       (if @confirming?
-         (when delete-action
-           (let [[title message action-color]
-                 (case delete-action
-                   :delete
-                   ["Delete this project?"
-                    "All articles/labels/notes will be lost."
-                    "orange"]
-
-                   :disable
-                   ["Disable this project?"
-                    "It will be inaccessible until re-enabled."
-                    "yellow"]
-
-                   nil)]
-             [ui/ConfirmationDialog
-              {:on-cancel #(reset! confirming? false)
-               :on-confirm
-               (fn []
-                 (reset! confirming? false)
-                 (dispatch [:action [:project/delete @active-project-id]]))
-               :title title
-               :message message
-               :action-color action-color}]))
-         [:div.ui.form.delete-project
-          [:div.field
-           [:button.ui.fluid.button
-            {:class (if enable-button? "" "disabled")
-             :on-click
-             (when enable-button? #(reset! confirming? true))}
-            (if (= delete-action :delete)
-              "Delete Project..."
-              "Disable Project...")]]])])))
+(defn- ProjectExtraActions []
+  (when (admin?)
+    [:div.ui.secondary.segment.action-segment
+     [DeleteProjectForm]]))
 
 (defn- ProjectMiscBox []
   (let [saving? (r/atom false)]
@@ -663,7 +648,7 @@
 (defn- DeveloperActions []
   (when @(subscribe [:user/admin?])
     (let [project-id @(subscribe [:active-project-id])]
-      [:div.ui.segments>div.ui.segment
+      [:div.ui.segments>div.ui.secondary.segment.action-segment
        [:h4.ui.dividing.header "Developer Actions"]
        (let [clicked? @(subscribe [:panel-field [:update-predictions-clicked]])]
          [:div.ui.fluid.right.labeled.icon.button
@@ -679,11 +664,10 @@
       "Changing settings is restricted to project administrators."
       (r/cursor state [:read-only-message-closed?])]
      [:div.ui.two.column.stackable.grid.project-settings
-      [:div.ui.row
-       [:div.ui.column
-        [ProjectMiscBox]
-        [ProjectOptionsBox]
-        [DeleteProjectForm]]
-       [:div.ui.column
-        [ProjectMembersBox]
-        [DeveloperActions]]]]]))
+      [:div.column
+       [ProjectMiscBox]
+       [ProjectOptionsBox]]
+      [:div.column
+       [ProjectMembersBox]
+       [ProjectExtraActions]
+       [DeveloperActions]]]]))

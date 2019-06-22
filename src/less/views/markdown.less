@@ -7,12 +7,20 @@ div.markdown-content {
         > p {
             margin: 0 0 0.5em;
         }
+        > p:last-child {
+            margin: 0;
+        }
     }
 }
 
-.ui.segment > div.markdown-content,
+.ui.segment > .markdown-content,
+.ui.segment > .markdown-component > .markdown-content,
 .ui.segment > .markdown-component > div > div.markdown-content {
-    margin: -0.4em 0;
+    margin: -0.2em 0em;
+}
+
+@media only screen and (max-width: 767px) {
+    .markdown-component { }
 }
 
 @media only screen and (max-width: 900px) {
@@ -24,13 +32,14 @@ div.markdown-content {
     h6 { font-size: 1.2rem; }
     div.markdown-content {
         ul {
-            padding-inline-start: 10px;
+            padding-inline-start: 14px;
         }
     }
 
-    .ui.segment > div.markdown-content,
+    .ui.segment > .markdown-content,
+    .ui.segment > .markdown-component > .markdown-content,
     .ui.segment > .markdown-component > div > div.markdown-content {
-        margin: -0.2em 0;
-        padding: 0.1em;
+        margin: -0.2em 0em;
+        padding: 0.3em 0.1em;
     }
 }

@@ -6,6 +6,7 @@
             [sysrev.stripe :as stripe]
             [sysrev.views.semantic :refer [Segment Grid Row Column Button Icon Loader
                                            Header ListUI ListItem]]
+            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [sysrev.macros :refer [setup-panel-state]]))
 
@@ -54,25 +55,47 @@
   [{:keys [plans-route current-plan-atom fetch-current-plan]}]
   (let [current-plan (:name @current-plan-atom)
         basic? (= current-plan "Basic")
-        unlimited? (some #{"Unlimited_User" "Unlimited_Org"} [current-plan])]
+        unlimited? (some #{"Unlimited_User" "Unlimited_Org"} [current-plan])
+        mobile? (util/mobile?)]
     (fetch-current-plan)
-    [Grid {:stackable true}
-     (if (nil? current-plan)
-       [Row
-        [Column {:width 2} "Plan"]
-        [Column {:width 14} [Loader {:active true
-                                     :inline "centered"}]]]
-       [Row
-        [Column {:width 2} "Plan"]
-        [Column {:width 8}
-         (cond basic?      "Free Plan, unlimited public projects"
-               unlimited?  "Pro Plan, unlimited public and private projects")]
-        [Column {:width 6 :align "right"}
-         [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
-                  :color (when basic? "green")
-                  :href plans-route}
-          (cond basic?      "Get private projects"
-                unlimited?  "Unsubscribe")]]])]))
+    (if (util/mobile?)
+      (if (nil? current-plan)
+        [Grid
+         [Column {:width 8} "Plan"]
+         [Column {:width 8} [Loader {:active true :inline "centered"}]]]
+        [Grid {:vertical-align "middle"}
+         [Column {:width 10}
+          (cond basic?      [:ul {:style {:padding-left "1.5em"}}
+                             [:li "Free Plan"]
+                             [:li "Unlimited public projects"]]
+                unlimited?  [:ul {:style {:padding-left "1.5em"}}
+                             [:li "Pro Plan"]
+                             [:li "Unlimited public and private projects"]])]
+         [Column {:width 6 :align "right"}
+          [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
+                   :color (when basic? "green")
+                   :href plans-route}
+           (cond basic?      "Upgrade"
+                 unlimited?  "Unsubscribe")]]])
+      (if (nil? current-plan)
+        [Grid
+         [Column {:width 2} "Plan"]
+         [Column {:width 12} [Loader {:active true :inline "centered"}]]]
+        [Grid
+         [Column {:width 2} "Plan"]
+         [Column {:width 8}
+          (cond basic?      [:ul {:style {:padding-left "1.5em" :margin 0}}
+                             [:li "Free Plan"]
+                             [:li "Unlimited public projects"]]
+                unlimited?  [:ul {:style {:padding-left "1.5em"}}
+                             [:li "Pro Plan"]
+                             [:li "Unlimited public and private projects"]])]
+         [Column {:width 6 :align "right"}
+          [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
+                   :color (when basic? "green")
+                   :href plans-route}
+           (cond basic?      "Get private projects"
+                 unlimited?  "Unsubscribe")]]]))))
 
 (defn Billing []
   (let [self-id @(subscribe [:self/user-id])

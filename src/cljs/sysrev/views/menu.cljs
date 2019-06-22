@@ -57,7 +57,7 @@
        (merge {:src "/SysRev_header_2.png" :alt "SysRev"}
               (if mobile? {:width "80" :height "25"} {:width "90" :height "28"}))]]
      (when-not full? dev-menu)
-     [SiteSearch]
+     (when-not mobile? [SiteSearch])
      [loading-indicator]
      (if logged-in?
        [:div.right.menu

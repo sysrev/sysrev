@@ -1,4 +1,4 @@
-# Terms of Use
+# Sysrev Terms of Use
 
 ## Preamble
 

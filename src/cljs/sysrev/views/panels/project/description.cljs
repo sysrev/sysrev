@@ -95,17 +95,24 @@
                      (loading/any-action-running? :only :project/markdown-description))
         admin? (or @(subscribe [:member/admin?]) @(subscribe [:user/admin?]))]
     (with-loader [[:project/markdown-description project-id context]] {}
-      (cond (and admin? (str/blank? description) (not hide-description-warning?) (not @editing?))
-            [ProjectDescriptionNag context]
-
-            (or @editing? (not (str/blank? description)))
-            [Segment {:class "project-description" :style {:position "relative"}}
-             (when-not @editing?
-               [EditMarkdownButton {:editing? editing? :mutable? admin?}])
+      (cond @editing?
+            [:div.project-description
              [MarkdownComponent {:content description
                                  :set-content! set-description!
                                  :loading? loading?
                                  :editing? editing?
                                  :mutable? admin?}]]
+
+            (not (str/blank? description))
+            [Segment {:class "project-description" :style {:position "relative"}}
+             [EditMarkdownButton {:editing? editing? :mutable? admin?}]
+             [MarkdownComponent {:content description
+                                 :set-content! set-description!
+                                 :loading? loading?
+                                 :editing? editing?
+                                 :mutable? admin?}]]
+
+            (and admin? (not hide-description-warning?))
+            [ProjectDescriptionNag context]
 
             :else [:div {:style {:display "none"}}]))))

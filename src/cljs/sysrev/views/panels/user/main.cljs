@@ -229,6 +229,12 @@
         (reset! loading? true)
         (get-opt-in))})))
 
+(defn UserSettings [{:keys [user-id]}]
+  [Grid {:class "user-settings" :stackable true :columns 2}
+   [Column [user-options-box]]
+   [Column [user-dev-tools-box]]
+   [Column [PublicReviewerOptIn]]])
+
 (defn UserContent []
   (let [self-id (subscribe [:self/user-id])
         path-id (subscribe [:users/path-user-id])
@@ -247,8 +253,6 @@
       (fn [this]
         [:div
          [:nav
-          #_[:div.ui.top.attached.middle.aligned.segment.desktop
-             [:h4.ui.header.title-header "Personal Settings"]]
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
            [:a {:key "#profile"
@@ -256,13 +260,6 @@
                 :class (item-class "/profile")
                 :href (uri-fn "/profile")}
             "Profile"]
-           (when @self?
-             [:a {:key "#general"
-                  :id "user-general"
-                  :class (item-class "/settings")
-                  :href (uri-fn "/settings")}
-              "General"])
-           ;; should check if projects exist
            [:a {:key "#projects"
                 :id "user-projects"
                 :class (item-class "/projects")
@@ -273,71 +270,54 @@
                 :id "user-orgs"
                 :class (item-class "/orgs")
                 :href (uri-fn "/orgs")}
-            "Organizations"]
+            (if (mobile?) "Orgs" "Organizations")]
            (when @self?
-             [:a {:key "#billing"
-                  :id "user-billing"
-                  :class (item-class "/billing")
-                  :href (uri-fn "/billing")}
-              "Billing"])
-           (when @self?
-             [:a {:key "#email"
-                  :id "user-email"
-                  :class (item-class "/email")
-                  :href (uri-fn "/email")}
-              "Email"])
-           (when @self?
-             (when-not (empty? (or @payments-owed @payments-paid))
-               [:a {:key "#compensation"
-                    :id "user-compensation"
-                    :class (item-class "/compensation")
-                    :href (uri-fn "/compensation")}
-                "Compensation"]))
-           (when @self?
-             (when-not (empty? @invitations)
-               [:a {:key "#invitations"
-                    :id "user-invitations"
-                    :class (item-class "/invitations")
-                    :href (uri-fn "/invitations")}
-                "Invitations" (when-not (empty? (filter #(nil? (:accepted (val %))) @invitations))
-                                [Icon {:name "circle"
-                                       :size "tiny"
-                                       :color "red"
-                                       :style {:margin-left "0.5em"}}])]))]]
+             [:div.right.menu
+              [:a {:key "#billing"
+                   :id "user-billing"
+                   :class (item-class "/billing")
+                   :href (uri-fn "/billing")}
+               (if (mobile?) [:i.money.icon] "Billing")]
+              [:a {:key "#email"
+                   :id "user-email"
+                   :class (item-class "/email")
+                   :href (uri-fn "/email")}
+               (if (mobile?) [:i.mail.icon] "Email")]
+              (when-not (empty? (or @payments-owed @payments-paid))
+                [:a {:key "#compensation"
+                     :id "user-compensation"
+                     :class (item-class "/compensation")
+                     :href (uri-fn "/compensation")}
+                 "Compensation"])
+              (when-not (empty? @invitations)
+                [:a {:key "#invitations"
+                     :id "user-invitations"
+                     :class (item-class "/invitations")
+                     :href (uri-fn "/invitations")}
+                 "Invitations" (when-not (empty? (filter #(nil? (:accepted (val %))) @invitations))
+                                 [Icon {:name "circle"
+                                        :size "tiny"
+                                        :color "red"
+                                        :style {:margin-left "0.5em"}}])])
+              [:a {:key "#general"
+                   :id "user-general"
+                   :class (item-class "/settings")
+                   :href (uri-fn "/settings")}
+               (if (mobile?) [:i.settings.icon] "Settings")]])]]
          [:div#user-content
           (condp re-matches @active-route
-            #"/user/(\d*)/profile"
-            [Profile {:user-id @path-id}]
-            #"/user/(\d*)/settings" ;; general
-            [:div
-             [Grid {:stackable true}
-              [Row
-               [Column {:width 8} [user-options-box]]
-               [Column {:width 8}
-                [user-dev-tools-box]]]
-              [Row
-               [Column {:width 8}
-                [PublicReviewerOptIn]
-                [CreateOrg]]]]]
-            #"/user/(\d*)/projects"
-            [UserProjects {:user-id @path-id}]
-            #"/user/(\d*)/orgs"
-            [Orgs {:user-id @path-id}]
-            #"/user/(\d*)/billing"
-            [Billing]
-            #"/user/(\d*)/email"
-            [EmailSettings]
-            #"/user/(\d*)/compensation"
-            [:div
-             [PaymentsOwed]
-             [PaymentsPaid]
-             [UserSupportSubscriptions]]
-            #"/user/(\d*)/invitations"
-            [Invitations]
-            #"/user/(\d*)/email/(\w+)" :>>
-            (fn [[_ user-id code]] [VerifyEmail code])
-            ;; default before the active panel is loaded
-            ;; and this component still exists
+            #"/user/(\d*)/profile"       [Profile {:user-id @path-id}]
+            #"/user/(\d*)/settings"      [UserSettings {:user-id @path-id}]
+            #"/user/(\d*)/projects"      [UserProjects {:user-id @path-id}]
+            #"/user/(\d*)/orgs"          [Orgs {:user-id @path-id}]
+            #"/user/(\d*)/billing"       [Billing]
+            #"/user/(\d*)/email"         [EmailSettings]
+            #"/user/(\d*)/compensation"  [:div
+                                          [PaymentsOwed]
+                                          [PaymentsPaid]
+                                          [UserSupportSubscriptions]]
+            #"/user/(\d*)/invitations"   [Invitations]
+            #"/user/(\d*)/email/(\w+)"   :>> (fn [[_ user-id code]] [VerifyEmail code])
             [:div {:style {:display "none"}}])]])
       :component-did-mount
       (fn [this]

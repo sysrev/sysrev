@@ -3,7 +3,9 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.create-project :refer [CreateProject]])
+            [sysrev.views.create-project :refer [CreateProject]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn- ProjectListItem [{:keys [project-id name member?]}]
@@ -15,16 +17,18 @@
        [:i.grey.list.alternate.outline.icon]
        [:div.content
         [:span.project-title name]]]]]
-    [:div.ui.middle.aligned.stackable.grid.segment.project-list-project.non-member
-     [:div.twelve.wide.column
+    [:div.ui.middle.aligned.stackable.two.column.grid.segment.project-list-project.non-member
+     [:div.column {:class (css [(not (util/mobile?)) "twelve wide"])}
       [:a {:href (project-uri project-id "")}
        [:h4.ui.header.blue-text
         [:i.grey.list.alternate.outline.icon]
         [:div.content
          [:span.project-title name]]]]]
-     [:div.four.wide.right.aligned.column
-      [:div.ui.tiny.blue.button
-       {:on-click #(dispatch [:action [:join-project project-id]])}
+     [:div.right.aligned.column {:class (css [(not (util/mobile?)) "four wide"])}
+      [:div.ui.tiny.button
+       {:class (css [(util/mobile?) "fluid"]
+                    [(not (util/mobile?)) "blue"])
+        :on-click #(dispatch [:action [:join-project project-id]])}
        "Join"]]]))
 
 (defn ProjectsListSegment [title projects member? & {:keys [id]}]

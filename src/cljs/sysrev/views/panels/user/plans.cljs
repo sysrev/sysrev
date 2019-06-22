@@ -162,61 +162,62 @@
                            unlimited-plan-price
                            unlimited-plan-name]}]
   (let [error-message (r/cursor state [:error-message])
-        changing-plan? (r/cursor state [:changing-plan?])]
+        changing-plan? (r/cursor state [:changing-plan?])
+        mobile? (util/mobile?)]
     (r/create-class
      {:reagent-render
       (fn [this]
         [:div
-         [:h1 "Upgrade your plan"]
-         [Grid
-          [Row
-           [Column {:width 8}
-            [Grid [Row [Column
-                        [:h3 "UPGRADING TO"]
-                        [Unlimited {:unlimited-plan-price unlimited-plan-price
-                                    :unlimited-plan-name unlimited-plan-name}]
-                        [:a {:href billing-settings-uri} "Billing Settings"]]]]]
-           [Column {:width 8}
-            (let [no-default? (empty? @default-source-atom)]
-              [Grid
-               [Row
-                [Column
-                 [:h3 "Upgrade Summary"]
-                 [ListUI {:divided true}
-                  [:h4 "New Monthly Bill"]
-                  [ListItem [:p (str "Unlimited plan ("
-                                     (if (map? unlimited-plan-price)
-                                       (str "$" (-> unlimited-plan-price
-                                                    price-summary
-                                                    :monthly-bill
-                                                    cents->dollars)
-                                            " / month")
-                                       (str "$" (cents->dollars unlimited-plan-price) " / month"))
-                                     ")")]]
-                  [:h4 "Billing Information"]
-                  [ListItem [DefaultSource {:get-default-source get-default-source
-                                            :default-source-atom default-source-atom}]]
-                  (when (empty? @error-message)
-                    [:a.payment-method
-                     {:class (if no-default? "add-method" "change-method")
-                      :style {:cursor "pointer"}
-                      :on-click (util/wrap-prevent-default
-                                 #(do (reset! error-message nil)
-                                      (on-add-payment-method)))}
-                     (if no-default?
-                       "Add a payment method"
-                       "Change payment method")])
-                  [:div {:style {:margin-top "1em" :width "100%"}}
-                   [TogglePlanButton {:disabled (or no-default? @changing-plan?)
-                                      :on-click #(do (reset! changing-plan? true)
-                                                     (on-upgrade))
-                                      :class "upgrade-plan"
-                                      :loading @changing-plan?}
-                    "Upgrade Plan"]]
-                  (when @error-message
-                    [s/Message {:negative true}
-                     [s/MessageHeader "Change Plan Error"]
-                     [:p @error-message]])]]]])]]]])
+         (when-not mobile? [:h1 "Upgrade your plan"])
+         [Grid {:stackable true :columns 2 :class "upgrade-plan"}
+          [Column
+           [Grid [Row [Column
+                       [:h3 "UPGRADING TO"]
+                       [Unlimited {:unlimited-plan-price unlimited-plan-price
+                                   :unlimited-plan-name unlimited-plan-name}]
+                       (when-not mobile?
+                         [:a {:href billing-settings-uri} "Billing Settings"])]]]]
+          [Column
+           (let [no-default? (empty? @default-source-atom)]
+             [Grid
+              [Row
+               [Column
+                [:h3 "Upgrade Summary"]
+                [ListUI {:divided true}
+                 [:h4 "New Monthly Bill"]
+                 [ListItem [:p (str "Unlimited plan ("
+                                    (if (map? unlimited-plan-price)
+                                      (str "$" (-> unlimited-plan-price
+                                                   price-summary
+                                                   :monthly-bill
+                                                   cents->dollars)
+                                           " / month")
+                                      (str "$" (cents->dollars unlimited-plan-price) " / month"))
+                                    ")")]]
+                 [:h4 "Billing Information"]
+                 [ListItem [DefaultSource {:get-default-source get-default-source
+                                           :default-source-atom default-source-atom}]]
+                 (when (empty? @error-message)
+                   [:a.payment-method
+                    {:class (if no-default? "add-method" "change-method")
+                     :style {:cursor "pointer"}
+                     :on-click (util/wrap-prevent-default
+                                #(do (reset! error-message nil)
+                                     (on-add-payment-method)))}
+                    (if no-default?
+                      "Add a payment method"
+                      "Change payment method")])
+                 [:div {:style {:margin-top "1em" :width "100%"}}
+                  [TogglePlanButton {:disabled (or no-default? @changing-plan?)
+                                     :on-click #(do (reset! changing-plan? true)
+                                                    (on-upgrade))
+                                     :class "upgrade-plan"
+                                     :loading @changing-plan?}
+                   "Upgrade Plan"]]
+                 (when @error-message
+                   [s/Message {:negative true}
+                    [s/MessageHeader "Change Plan Error"]
+                    [:p @error-message]])]]]])]]])
       :get-initial-state
       (fn [this]
         (reset! changing-plan? false)

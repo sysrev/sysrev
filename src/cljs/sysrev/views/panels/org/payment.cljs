@@ -6,8 +6,8 @@
 
 (defn OrgPayment
   [{:keys [org-id]}]
-  [Grid
-   [Column {:width 8}
+  [Grid {:stackable true :columns 2}
+   [Column
     [Segment {:secondary true}
      [Header {:as "h1"} "Enter your Payment Method"]
      [StripeCardInfo {:add-payment-fn

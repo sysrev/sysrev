@@ -663,20 +663,19 @@
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]
                   [:project/markdown-description project-id {:panel panel}]] {}
-      [:div
+      [:div.overview-content
        [ProjectDescription {:panel panel}]
        [:div.ui.two.column.stackable.grid.project-overview
-        [:div.ui.row
-         [:div.ui.column
-          [ReviewStatusBox]
-          [RecentProgressChart]
-          [LabelPredictionsInfo]
-          [PredictionHistogram]]
-         [:div.ui.column
-          [MemberActivityChart]
-          [ProjectFilesBox]
-          [KeyTerms]
-          [LabelCounts]]]]])))
+        [:div.column
+         [ReviewStatusBox]
+         [RecentProgressChart]
+         [LabelPredictionsInfo]
+         [PredictionHistogram]]
+        [:div.column
+         [MemberActivityChart]
+         [ProjectFilesBox]
+         [KeyTerms]
+         [LabelCounts]]]])))
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

@@ -27,14 +27,14 @@
         {:tab-id :export-data
          :content [:span [:i.download.icon] "Export"]
          :action (project-uri project-id "/export")})
-      {:tab-id :settings
-       :content [:span [:i.configure.icon] "Settings"]
-       :action (project-uri project-id "/settings")}
       (when (and (admin?)
                  (re-matches #".*@insilica.co" @(subscribe [:user/email])))
         {:tab-id :compensations
          :content "Compensation"
-         :action (project-uri project-id "/compensations")})]
+         :action (project-uri project-id "/compensations")})
+      {:tab-id :settings
+       :content [:span [:i.configure.icon] "Settings"]
+       :action (project-uri project-id "/settings")}]
      [#_[{:tab-id :support
           :content [:span [:i.dollar.sign.icon] "Support"]
           :action (project-uri project-id "/support")}]]
@@ -55,18 +55,20 @@
       {:tab-id :labels
        :content [:span "Labels"]
        :action (list [:project :project :labels :edit] action-params)}
+      ;; disabled because no mobile interface for article list
+      #_
       (when (> total 0)
         {:tab-id :export-data
          :content [:span "Export"]
          :action (list [:project :project :export-data] action-params)})
-      {:tab-id :settings
-       :content [:span "Settings"]
-       :action (list [:project :project :settings] action-params)}
       (when (and (admin?)
-                 (not= js/window.location.hostname "sysrev.com"))
+                 (re-matches #".*@insilica.co" @(subscribe [:user/email])))
         {:tab-id :compensations
          :content "Compensation"
-         :action (project-uri project-id "/compensations")})]
+         :action (project-uri project-id "/compensations")})
+      {:tab-id :settings
+       :content [:span "Settings"]
+       :action (list [:project :project :settings] action-params)}]
      []
      active-tab
      "bottom attached project-menu-2"

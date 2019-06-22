@@ -253,7 +253,9 @@
                                   (filter #(get flag-display-text %))
                                   sort))]
     [:div {:class wrapper-class}
-     (doall (for [flag-name flag-names] [ArticleFlagLabel flag-name]))]))
+     (doall (map-indexed (fn [i flag-name] ^{:key i}
+                           [ArticleFlagLabel flag-name])
+                         flag-names))]))
 
 (defn ArticleDuplicatesSegment [article-id]
   (when-let [duplicates @(subscribe [:article/duplicates article-id])]
@@ -279,7 +281,7 @@
      (dispatch [:require [:annotator/status project-id]])
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
-       (list [:div.ui.middle.aligned.header.grid.segment.article-header {:key [:article-header]}
+       (list [:div.ui.middle.aligned.header.grid.segment.article-header {:key :article-header}
               [:div.five.wide.middle.aligned.column>h4.ui.article-info "Article Info"]
               [:div.eleven.wide.column.right.aligned
                (when disabled?
@@ -289,11 +291,13 @@
                (when-not (and (= context :review) (true? unlimited-reviews))
                  [ReviewStatusLabel (if private-view? :user status)])]]
 
-             (when duplicates [ArticleDuplicatesSegment article-id])
+             (when duplicates ^{:key :duplicates}
+               [ArticleDuplicatesSegment article-id])
 
-             (when-not full-size? [ArticleFlagsView article-id "ui segment"])
+             (when-not full-size? ^{:key :article-flags}
+               [ArticleFlagsView article-id "ui segment"])
 
-             [:div.ui.segment.article-content {:key [:article-content]}
+             [:div.ui.segment.article-content {:key :article-content}
               [ArticleInfoMain article-id :context context]]
 
              ^{:key :article-pdfs} [pdf/PDFs article-id]))

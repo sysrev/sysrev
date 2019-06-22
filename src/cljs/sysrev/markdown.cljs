@@ -5,6 +5,7 @@
             [goog.dom :as gdom]
             [reagent.core :as r]
             [sysrev.views.semantic :refer [Segment TextArea]]
+            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -64,40 +65,46 @@
   string argument and is responsible for resetting the editing? atom
   to false after saving value."
   [{:keys [content set-content! loading? mutable? editing?]}]
-  (let [draft-content (r/atom nil)]
+  (let [draft-content (r/atom nil)
+        mobile? (util/mobile?)]
     (fn [{:keys [content set-content! loading? mutable? editing?]}]
-      [:div.markdown-component
-       (if @editing?
-         (let [active-content (or @draft-content content "")
-               changed? (not= (or active-content "") (or content ""))]
-           [:div
-            [:div.ui.segments
-             [:div.ui.form.secondary.segment
-              [TextArea {:fluid "true"
-                         :autoHeight true
-                         :disabled (boolean loading?)
-                         :placeholder "Enter a Markdown description"
-                         :on-change #(reset! draft-content (-> ($ % :target) ($ :value)))
-                         :default-value active-content}]]
-             [:div.ui.secondary.middle.aligned.two.column.grid.segment
+      (if @editing?
+        (let [active-content (or @draft-content content "")
+              changed? (not= (or active-content "") (or content ""))]
+          [:div.markdown-component
+           [:div.ui.segments.markdown-editor
+            [:div.ui.form.secondary.segment
+             [TextArea {:fluid "true"
+                        :autoHeight true
+                        :disabled (boolean loading?)
+                        :placeholder "Enter a Markdown description"
+                        :on-change #(reset! draft-content (-> ($ % :target) ($ :value)))
+                        :default-value active-content}]
+             [:div.ui.middle.aligned.two.column.grid.form-buttons
+              {:style {:margin-top "0"}}
               [:div.left.aligned.column
-               [:a.markdown-link
+               [:a.markdown-link.bold
                 {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
                  :target "_blank" :rel "noopener noreferrer"}
                 "Markdown Cheatsheet"]]
               [:div.right.aligned.column.form-buttons
-               [:button.ui.tiny.positive.icon.labeled.button.save-button
-                {:class (css [(not changed?) "disabled"] [loading? "loading"])
+               [:button.ui.tiny.positive.button.save-button
+                {:class (css [(not changed?) "disabled"]
+                             [loading? "loading"]
+                             [(not mobile?) "icon labeled"])
                  :on-click #(set-content! @draft-content)}
-                [:i.circle.check.icon] "Save"]
-               [:button.ui.tiny.icon.labeled.button.cancel-button
+                (when (not mobile?) [:i.circle.check.icon])
+                "Save"]
+               [:button.ui.tiny.button.cancel-button
                 {:on-click #(do (reset! editing? false)
                                 (reset! draft-content nil))
-                 :class (css [loading? "disabled"])
+                 :class (css [loading? "disabled"]
+                             [(not mobile?) "icon labeled"])
                  :style {:margin-right "0"}}
-                [:i.times.icon] "Cancel"]]]]
-            [:div.ui.segments
-             [:div.ui.secondary.header.segment>h5.ui.header "Preview"]
-             [:div.ui.secondary.segment [RenderMarkdown active-content]]]])
-         (when-not (str/blank? content)
-           [:div [RenderMarkdown content]]))])))
+                (when (not mobile?) [:i.times.icon])
+                "Cancel"]]]]]
+           [:div.ui.segments.markdown-preview
+            [:div.ui.secondary.header.segment>h5.ui.header "Preview"]
+            [:div.ui.secondary.segment [RenderMarkdown active-content]]]])
+        (when-not (str/blank? content)
+          [:div.markdown-component [RenderMarkdown content]])))))
