@@ -57,3 +57,11 @@
   (do (nav/delete-current-project)
       (nav/log-out)
       (is (b/exists? "div#login-register-panel"))))
+
+(deftest-browser terms-of-use
+  true []
+  (do (nav/go-route "/")
+      (b/click "#footer a#terms-link")
+      (is (b/exists? "h2#preamble"))
+      (b/init-route "/terms-of-use")
+      (is (b/exists? "h2#preamble"))))

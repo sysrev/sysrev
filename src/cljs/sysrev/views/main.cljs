@@ -37,7 +37,7 @@
             [sysrev.views.panels.user.payment]
             [sysrev.views.panels.user.plans]
             [sysrev.views.panels.users]
-            [sysrev.views.panels.user-agreement]
+            [sysrev.views.panels.terms-of-use]
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components :as ui]
             [sysrev.views.review :as review]
@@ -118,33 +118,34 @@
 
 (defn GlobalFooter []
   (let [mobile? (util/mobile?)
+        social-text? false #_ (not mobile?)
         sysrev-links
         [:span.links
          [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
          [:a {:target "_blank" :href "https://twitter.com/sysrev1"}
-          [:i.twitter.icon] (when-not mobile? "Twitter")]
+          [:i.twitter.icon] (when social-text? "Twitter")]
          [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"}
-          [:i.linkedin.icon] (when-not mobile? "LinkedIn")]
+          [:i.linkedin.icon] (when social-text? "LinkedIn")]
          [:a {:target "_blank" :href "https://www.facebook.com/insilica/"}
-          [:i.facebook.icon] (when-not mobile? "Facebook")]
+          [:i.facebook.icon] (when social-text? "Facebook")]
          #_ [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"}
              [:i.reddit.alien.icon] "Reddit"]]
         contact-email
         [:span.email "info@insilica.co"]
         copyright-notice
         [:span [:span.medium-weight "Sysrev "] "© 2019 Insilica LLC"]
-        user-agreement [:a {:href "/user-agreement"} "User Agreement"]]
+        site-terms [:a#terms-link {:href "/terms-of-use"} "Terms of Use"]]
     [:div#footer
      (if (util/mobile?)
        [:div.ui.container
         [:div.ui.middle.aligned.grid
          [:div.left.aligned.six.wide.column contact-email]
          [:div.right.aligned.ten.wide.column
-          [:div.wrapper user-agreement " | " sysrev-links]]]]
+          [:div.wrapper sysrev-links " | " site-terms]]]]
        [:div.ui.container.middle.aligned.stackable.grid
         [:div.left.aligned.six.wide.column copyright-notice]
         [:div.right.aligned.ten.wide.column
-         [:div.wrapper contact-email sysrev-links " | " user-agreement]]])]))
+         [:div.wrapper contact-email sysrev-links "|" site-terms]]])]))
 
 (defn main-content []
   (if-not @(subscribe [:initialized?])

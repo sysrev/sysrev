@@ -21,7 +21,7 @@ a:hover { color: darken(@blue, 8); }
     .open-sans;
     font-size: 13px;
     margin: 0;
-    height: 36px;
+    height: 35px;
     border-top: 1px solid @footerBorder;
     background-color: @footerBackground;
     margin-top: auto;
@@ -46,7 +46,7 @@ a:hover { color: darken(@blue, 8); }
                 margin-right: -0.6em;
 
                 a, span {
-                    padding: 0 0.7em;
+                    padding: 0 0.6em;
                 }
 
                 span.links { padding: 0; }
@@ -104,7 +104,7 @@ a:hover { color: darken(@blue, 8); }
         font-size: 12px;
         height: 32px;
 
-        i { display: none; }
+        i { margin: 0; }
 
         .ui.grid {
             margin: 0 -0.5em;
@@ -114,8 +114,14 @@ a:hover { color: darken(@blue, 8); }
             > .right.aligned.column {
                 > div.wrapper {
                     a, span {
-                        padding: 0 0.4em;
+                        padding: 0 5px;
                     }
+                }
+                span.links {
+                    margin-right: -0.25em;
+                }
+                a#terms-link {
+                    margin-left: -0.25em;
                 }
             }
         }

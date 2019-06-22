@@ -10,8 +10,9 @@ div.markdown-content {
     }
 }
 
-.ui.segment > div.markdown-content {
-    margin: -0.5em 0;
+.ui.segment > div.markdown-content,
+.ui.segment > .markdown-component > div > div.markdown-content {
+    margin: -0.4em 0;
 }
 
 @media only screen and (max-width: 900px) {
@@ -27,7 +28,9 @@ div.markdown-content {
         }
     }
 
-    .ui.segment > div.markdown-content {
-        margin: -0.25em 0;
+    .ui.segment > div.markdown-content,
+    .ui.segment > .markdown-component > div > div.markdown-content {
+        margin: -0.2em 0;
+        padding: 0.1em;
     }
 }

@@ -1,10 +1,10 @@
-# Sysrev.com Terms & Conditions
+# Terms of Use
 
 ## Preamble
 
-By using this website, sysrev.com, the Sysrev platform, or any associated technologies, you accept the Terms & Conditions contained herein and represent that you are at least eighteen (18) years old and have the authority to bind yourself, or the company you represent, to these Terms and Conditions.  Please read the Terms & Conditions carefully.
+By using this website, sysrev.com, the Sysrev platform, or any associated technologies, you accept the Terms of Use contained herein and represent that you are at least eighteen (18) years old and have the authority to bind yourself, or the company you represent, to these Terms of Use.  Please read the Terms of Use carefully.
 
-- Right to Change: These Terms and Conditions are intended and understood to be a living document, subject to change at Insilica’s sole discretion.  Whenever this document is updated, Insilica will employ commercially reasonable efforts to alert User.
+- Right to Change: These Terms of Use are intended and understood to be a living document, subject to change at Insilica’s sole discretion.  Whenever this document is updated, Insilica will employ commercially reasonable efforts to alert User.
 
 - Registration:  When registering for Sysrev, you must provide complete and accurate information and ensure that information (as well as any additional information we request in order to, amongst other things, properly declare payments for tax purposes) is complete, accurate, and up-to-date at all times.
 
@@ -28,7 +28,7 @@ By using this website, sysrev.com, the Sysrev platform, or any associated techno
 
 ## Sponsor Agreement
 
-- 1\. AGREEMENT OBJECTIVES; TERMS OF SERVICE.  This Sponsor Agreement, a subsection of the Sysrev Terms & Conditions, contains additional terms and conditions that apply to Insilica and Sponsor as a result of the approved use of the Sysrev Platform.  The purpose of this agreement is to 1) create Public and/or Private Sysrevs for topics of Sponsors choosing, 2) for Sponsor’s employees, “Contract Reviewers”, or the public to train and utilize the Sysrev product, and 3) for Sysrev to extract relevant data from a corpus of documents chosen by Sponsor.
+- 1\. AGREEMENT OBJECTIVES; TERMS OF SERVICE.  This Sponsor Agreement, a subsection of the Sysrev Terms of Use, contains additional terms and conditions that apply to Insilica and Sponsor as a result of the approved use of the Sysrev Platform.  The purpose of this agreement is to 1) create Public and/or Private Sysrevs for topics of Sponsors choosing, 2) for Sponsor’s employees, “Contract Reviewers”, or the public to train and utilize the Sysrev product, and 3) for Sysrev to extract relevant data from a corpus of documents chosen by Sponsor.
 
 - 2\. PARTNER OBLIGATIONS.
 
@@ -81,7 +81,7 @@ By using this website, sysrev.com, the Sysrev platform, or any associated techno
 
 ## Contract Reviewer Agreement
 
-- 1\. AGREEMENT OBJECTIVES; TERMS OF SERVICE.  This Contract Reviewer Agreement, a subsection of the Sysrev Terms & Conditions, contains additional terms and conditions that apply to Insilica and User as a result of the approved use of the Sysrev Platform.  The purpose of this agreement is detail the terms and conditions associated with User’s role as a Contract Reviewer within the Sysrev Platform.
+- 1\. AGREEMENT OBJECTIVES; TERMS OF SERVICE.  This Contract Reviewer Agreement, a subsection of the Sysrev Terms of Use, contains additional terms and conditions that apply to Insilica and User as a result of the approved use of the Sysrev Platform.  The purpose of this agreement is detail the terms and conditions associated with User’s role as a Contract Reviewer within the Sysrev Platform.
 
 - 2\. Insilica’s Role.  The Sysrev Platform is a portal where in Contract Reviewers are tasked with identifying and extracting data from a variety of documents.  Unless Insilica is the “Sponsor” of a Sysrev, Insilica is not involved in the selection of documents to be reviewed.  Insilica has no control over the quality or legality of uploaded documents or the ability of Contract Reviewers to perform the reviews.  Insilica is responsible for managing the relationships with Sponsors, including but not limited to verifying their ability to pay for reviews.  Insilica is not responsible for the actions of any Contract Reviewer or performing any screening of Contract Reviewers.
 
