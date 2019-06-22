@@ -164,7 +164,7 @@
 
   (GET "/api/terms-of-use.md" request
        (app/text-file-response
-        (-> (io/resource "terms_of_use.md") io/file io/reader)
+        (-> (io/resource "terms_of_use.md") io/reader)
         "terms-of-use.md")))
 
 (defn public-project-summaries

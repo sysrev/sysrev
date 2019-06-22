@@ -334,10 +334,11 @@
         {:keys [sub-id]} (plans/get-current-plan-group group-id)
         sub-item-id (stripe/get-subscription-item sub-id)
         plan (stripe/get-plan-id plan-name)
-        {:keys [body] :as stripe-response} (stripe/update-subscription-item!
-                                            {:id sub-item-id
-                                             :plan plan
-                                             :quantity (count (groups/read-users-in-group (groups/group-id->group-name group-id)))})]
+        {:keys [body] :as stripe-response}
+        (stripe/update-subscription-item!
+         {:id sub-item-id
+          :plan plan
+          :quantity (count (groups/read-users-in-group (groups/group-id->group-name group-id)))})]
     (when-not (:error body)
       (plans/add-group-to-plan! {:group-id group-id
                                  :plan plan

@@ -39,13 +39,14 @@
          (log/warn "unable to read console errors"))))
 
 (defn log-console-messages [& [level]]
-  (let [level (or level :info)]
-    (if-let [logs (browser-console-logs)]
-      (log/logf level "browser console logs:\n\n%s" logs)
-      (log/logp level "browser console logs: (none)"))
-    (if-let [errors (browser-console-errors)]
-      (log/logf level "browser console errors:\n\n%s" errors)
-      (log/logp level "browser console errors: (none)"))))
+  (when @active-webdriver
+    (let [level (or level :info)]
+      (if-let [logs (browser-console-logs)]
+        (log/logf level "browser console logs:\n\n%s" logs)
+        (log/logp level "browser console logs: (none)"))
+      (if-let [errors (browser-console-errors)]
+        (log/logf level "browser console errors:\n\n%s" errors)
+        (log/logp level "browser console errors: (none)")))))
 
 (defn current-windows []
   (let [active (taxi/window)]
@@ -277,7 +278,7 @@
     (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 15 clear? true}}]
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
   (let [;; remote? (test/remote-test?)
         ;; delay (if remote? (* 2 delay) delay)
         ]
@@ -289,7 +290,7 @@
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
-             :or {delay 20 char-delay 10 clear? true}}]
+             :or {delay 20 char-delay 15 clear? true}}]
   (let [;; remote? (test/remote-test?)
         ;; delay (if remote? (* 2 delay) delay)
         ;; char-delay (if remote? (* 2 char-delay) char-delay)
@@ -339,7 +340,7 @@
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
-  (let [delay 10 #_ (if (test/remote-test?) 15 10)]
+  (let [delay 15 #_ (if (test/remote-test?) 15 10)]
     (wait-until-displayed input-element)
     (dotimes [_ length]
       (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)

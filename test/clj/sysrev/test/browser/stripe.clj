@@ -55,8 +55,8 @@
   ;; switch back to default
   (taxi/switch-to-default))
 
-(defn enter-cc-information
-  [{:keys [cardnumber exp-date cvc postal]}]
+(defn enter-cc-information [{:keys [cardnumber exp-date cvc postal]
+                             :or {exp-date "0121" cvc "123" postal "11111"}}]
   (log/info "entering stripe card information")
   (let [ ;; note: stripe could change the frame names
         frame-names (get-stripe-frame-names)
@@ -67,7 +67,6 @@
         postal-iframe {:xpath (str "//iframe[@name='" (nth frame-names 3) "']")}
         postal-input "input[name~='postal']"]
     ;; let's reset to be sure we are in the default iframe
-    (taxi/switch-to-default)
     (enter-cc-number cardnumber)
     ;; switch to month input iframe
     (taxi/switch-to-frame exp-date-iframe)
@@ -85,4 +84,4 @@
     ;; we're done, return back to default
     (taxi/switch-to-default)
     (log/info "finished entering stripe card")
-    (Thread/sleep 100)))
+    (Thread/sleep 150)))

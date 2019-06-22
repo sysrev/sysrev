@@ -8,7 +8,9 @@
             [sysrev.nav :refer [nav-redirect get-url-params nav-scroll-top]]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.semantic :as s]
-            [sysrev.util :as util])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.macros])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [setup-panel-state]]))
 
@@ -168,7 +170,7 @@
                                :on-change element-on-change}]]
           [:div.ui.red.header
            @(r/cursor (r/state-atom this) [:cardNumber :message])]
-          [:label "Expiration date"
+          [:label "Expiration Date"
            [CardExpiryElement {:style element-style
                                :on-change element-on-change}]]
           [:div.ui.red.header
@@ -183,12 +185,13 @@
           ;; unexplained behavior: Why do you need a minimum of
           ;; 6 digits to be entered in the cardNumber input for
           ;; in order for this to start checking input?
-          [:label "Postal code"
+          [:label "Postal Code"
            [PostalCodeElement {:style element-style
                                :on-change element-on-change}]]
           [:div.ui.red.header
            @(r/cursor (r/state-atom this) [:postalCode :message])]
-          [:button.ui.primary.button.use-card {:class (when (errors?) "disabled")}
+          [:button.ui.primary.button.use-card
+           {:type "submit" :class (css [(errors?) "disabled"])}
            "Use Card"]
           ;; shows the errors returned from the server (our own, or stripe.com)
           (when @error-message

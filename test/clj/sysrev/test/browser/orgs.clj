@@ -63,10 +63,10 @@
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"
   [username]
-  (b/click org-users :delay 50)
-  (b/click "#add-member-button" :delay 200)
+  (b/click org-users :delay 100)
+  (b/click "#add-member-button" :delay 400)
   (b/set-input-text-per-char "#org-search-users-input" username)
-  (b/click "#submit-add-member" :delay 200))
+  (b/click "#submit-add-member" :delay 400))
 
 (defn change-user-permission
   "Set username to permission. Must be in Organization Settings of the
@@ -236,7 +236,7 @@
     (b/click "a.payment-method.add-method")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
-    (b/click plans/use-card :delay 200)
+    (plans/click-use-card :delay 200)
     (b/click ".button.upgrade-plan" :delay 200)
     ;; should be back at project settings
     (b/click set-private-button :delay 50)
@@ -255,7 +255,7 @@
     (b/click "a.payment-method.add-method")
     (b/is-current-path "/user/payment")
     (bstripe/enter-cc-information user-cc)
-    (b/click plans/use-card :delay 200)
+    (plans/click-use-card :delay 200)
     (b/click ".button.upgrade-plan" :delay 200)
     (b/click set-private-button :delay 50)
     (b/click save-options-button :delay 50)

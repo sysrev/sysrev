@@ -88,7 +88,7 @@
                                      :exp-date "0120"
                                      :cvc "123"
                                      :postal "11111"})
-      (b/click ".button.use-card")
+      (test-plans/click-use-card)
       ;; support the project at $10 per month
       (b/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
       (b/click support-submit-button)
