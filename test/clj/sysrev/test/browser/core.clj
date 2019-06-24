@@ -243,12 +243,9 @@
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
   (let [remote? (test/remote-test?)
-        timeout (if remote? 45000 timeout)
-        inactive-duration nil #_ (if remote? 40 25)]
-    (when pre-wait (Thread/sleep (cond (integer? pre-wait) pre-wait
-                                       ;; remote?             35
-                                       :else               25)))
-    (assert (try-wait wait-until #(and (ajax-inactive? inactive-duration)
+        timeout (if remote? 45000 timeout)]
+    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
+    (assert (try-wait wait-until #(and (ajax-inactive?)
                                        (every? (complement displayed-now?)
                                                [(not-class "div.ui.loader.active"
                                                            "loading-indicator")
@@ -279,30 +276,23 @@
                         (taxi/current-url)))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
-  (let [;; remote? (test/remote-test?)
-        ;; delay (if remote? (* 2 delay) delay)
-        ]
-    (wait-until-displayed q)
-    (when clear? (taxi/clear q))
-    (Thread/sleep delay)
-    (taxi/input-text q text)
-    (Thread/sleep delay)))
+  (wait-until-displayed q)
+  (when clear? (taxi/clear q))
+  (Thread/sleep delay)
+  (taxi/input-text q text)
+  (Thread/sleep delay))
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
              :or {delay 25 char-delay 20 clear? true}}]
-  (let [;; remote? (test/remote-test?)
-        ;; delay (if remote? (* 2 delay) delay)
-        ;; char-delay (if remote? (* 2 char-delay) char-delay)
-        ]
-    (wait-until-displayed q)
-    (when clear? (taxi/clear q))
-    (Thread/sleep delay)
-    (let [e (taxi/element q)]
-      (doseq [c text]
-        (taxi/input-text e (str c))
-        (Thread/sleep char-delay)))
-    (Thread/sleep delay)))
+  (wait-until-displayed q)
+  (when clear? (taxi/clear q))
+  (Thread/sleep delay)
+  (let [e (taxi/element q)]
+    (doseq [c text]
+      (taxi/input-text e (str c))
+      (Thread/sleep char-delay)))
+  (Thread/sleep delay))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
   (sutil/apply-keyargs set-input-text
@@ -322,10 +312,7 @@
 (defn click [q & {:keys [if-not-exists delay displayed?]
                   :or {if-not-exists :wait, delay 20, displayed? false}}]
   ;; auto-exclude "disabled" class when q is css
-  (let [q (-> q (not-disabled) (not-loading))
-        #_ delay #_ (if (test/remote-test?)
-                      (int (* delay 1.5))
-                      delay)]
+  (let [q (-> q (not-disabled) (not-loading))]
     (when (= if-not-exists :wait)
       (if displayed? (wait-until-displayed q) (wait-until-exists q)))
     (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
@@ -340,12 +327,10 @@
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
-  (let [delay 20 #_ (if (test/remote-test?) 15 10)]
-    (wait-until-displayed input-element)
-    (dotimes [_ length]
-      (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-      (Thread/sleep delay))
-    true))
+  (wait-until-displayed input-element)
+  (dotimes [_ length]
+    (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
+    (Thread/sleep 20)))
 
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)]

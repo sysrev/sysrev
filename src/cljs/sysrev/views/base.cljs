@@ -2,8 +2,8 @@
   (:require [clojure.string :as str]
             [re-frame.core :refer [subscribe dispatch]]))
 
-(defmulti panel-content #(or % (subscribe [:active-panel])))
-(defmulti logged-out-content #(or % (subscribe [:active-panel])))
+(defmulti panel-content #(or % @(subscribe [:active-panel])))
+(defmulti logged-out-content #(or % @(subscribe [:active-panel])))
 
 (defn render-panel-tree [panel]
   (let [subpanels (map (fn [level]

@@ -27,8 +27,6 @@
         base-uri (or (second (re-matches #"(.*/p/[\d]+)(.*)" current))
                      (str "/p/" project-id))]
     (assert (integer? project-id))
-    ;; TODO: fix issue with /review where clicking it too quickly can
-    ;;       prevent it from working (happens outside tests)
     (when (= suburi "/review")
       (b/wait-until-loading-completes :pre-wait 100))
     (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent)))
@@ -79,9 +77,9 @@
   (b/wait-until-exists
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
           "//ancestor::div[@id='project']"))
-  #_ (log/info "project created")
   (b/wait-until-loading-completes :pre-wait true)
-  (b/wait-until-loading-completes :pre-wait true))
+  (b/wait-until-loading-completes :pre-wait true)
+  #_ (log/info "project created"))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
