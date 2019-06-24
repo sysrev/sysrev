@@ -278,7 +278,7 @@
     (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
   (let [;; remote? (test/remote-test?)
         ;; delay (if remote? (* 2 delay) delay)
         ]
@@ -290,7 +290,7 @@
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
-             :or {delay 20 char-delay 15 clear? true}}]
+             :or {delay 25 char-delay 20 clear? true}}]
   (let [;; remote? (test/remote-test?)
         ;; delay (if remote? (* 2 delay) delay)
         ;; char-delay (if remote? (* 2 char-delay) char-delay)
@@ -340,7 +340,7 @@
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
-  (let [delay 15 #_ (if (test/remote-test?) 15 10)]
+  (let [delay 20 #_ (if (test/remote-test?) 15 10)]
     (wait-until-displayed input-element)
     (dotimes [_ length]
       (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)

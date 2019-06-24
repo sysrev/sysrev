@@ -2,7 +2,6 @@
   (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v reg-event-fx]]
-            [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]

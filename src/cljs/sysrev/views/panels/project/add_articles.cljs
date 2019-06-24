@@ -4,7 +4,6 @@
             [reagent.core :as r]
             [re-frame.core :refer
              [dispatch subscribe reg-sub reg-fx reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
             [sysrev.action.core :refer [def-action]]

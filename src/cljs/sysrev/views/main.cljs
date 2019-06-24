@@ -118,7 +118,7 @@
 
 (defn GlobalFooter []
   (let [mobile? (util/mobile?)
-        social-text? false #_ (not mobile?)
+        social-text? (not mobile?) #_ false
         sysrev-links
         [:span.links
          [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]

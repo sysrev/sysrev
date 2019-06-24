@@ -2,43 +2,29 @@
   (:require [ajax.core :refer [GET POST PUT DELETE]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-sub dispatch reg-event-db reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.views.semantic :refer [Segment Table TableHeader TableBody TableRow TableCell Search SearchResults Button
-                                           Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
-                                           Input Message MessageHeader Dropdown Menu Icon]])
+            [sysrev.views.semantic :refer
+             [Segment Table TableHeader TableBody TableRow TableCell Search SearchResults Button
+              Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
+              Input Message MessageHeader Dropdown Menu Icon]]
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [setup-panel-state]]))
 
 (setup-panel-state panel [:org :users] {:state-var state})
 
+(def-data :org/users
+  :uri (fn [org-id] (str "/api/org/" org-id "/users"))
+  :loaded? (fn [db org-id] (-> (get-in db [:org org-id])
+                               (contains? :users)))
+  :process (fn [{:keys [db]} [org-id] {:keys [users]}]
+             {:db (assoc-in db [:org org-id :users] users)}))
+
 (reg-sub :org/users
-         (fn [db [event org-id]]
+         (fn [db [_ org-id]]
            (get-in db [:org org-id :users])))
-
-(reg-event-db
- :org/set-users!
- [trim-v]
- (fn [db [org-id users]]
-   (assoc-in db [:org org-id :users] users)))
-
-(defn get-org-users!
-  [org-id]
-  (let [retrieving? (r/cursor state [:retrieving-org-users?])
-        error (r/cursor state [:retrieving-org-users-error])]
-    (reset! retrieving? true)
-    (GET (str "/api/org/" org-id "/users")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! retrieving? false)
-                     (dispatch [:org/set-users! org-id (get-in response [:result :users])]))
-          :error-handler (fn [error-response]
-                           (reset! retrieving? false)
-                           (reset! error (get-in error-response [:response :error :messaage])))})))
-
-(reg-event-fx :org/get-users! (fn [_ [_ org-id]]
-                                (get-org-users! org-id)
-                                {}))
 
 (defn remove-from-org!
   [{:keys [user-id org-id]}]
@@ -53,8 +39,8 @@
              :handler (fn [response]
                         (reset! retrieving? false)
                         (reset! error "")
-                        (dispatch [:org/get-users! org-id])
-                        (reset! modal-open false))
+                        (reset! modal-open false)
+                        (dispatch [:data/load [:org/users org-id]]))
              :error-handler (fn [response]
                               (reset! retrieving? false)
                               (reset! error (get-in response [:response :error :message])))})))
@@ -84,13 +70,10 @@
            [TableCell
             [Avatar {:user-id @user-id}]
             [UserPublicProfileLink {:user-id @user-id :display-name @username}]]]]]
-        [Button {:color "red"
-                 :basic true
-                 :disabled @retrieving?}
+        [Button {:color "orange" :disabled @retrieving?}
          "Remove members"]
         (when-not (empty? @error)
-          [Message {:negative true
-                    :onDismiss #(reset! error "")}
+          [Message {:negative true :onDismiss #(reset! error "")}
            [MessageHeader {:as "h4"} "Remove member error"]
            @error])]]]]))
 
@@ -108,8 +91,8 @@
           :handler (fn [response]
                      (reset! retrieving? false)
                      (reset! error "")
-                     (dispatch [:org/get-users! org-id])
-                     (reset! modal-open false))
+                     (reset! modal-open false)
+                     (dispatch [:data/load [:org/users org-id]]))
           :error-handler (fn [response]
                            (reset! retrieving? false)
                            (reset! error (get-in response [:response :error :message])))})))
@@ -151,14 +134,14 @@
                         :as "h4"
                         :checked (= @new-role "member")
                         :on-change #(reset! new-role "member")
-                        :radio true}]]
+                        :radio true
+                        :style {:display "block"}}]]
             [:p {:style {:margin-top "0px"
                          :margin-left "1.5rem"}} "Can see every member and project in the organization"]
-            [Button {:disabled (or (nil? @new-role)
-                                   @retrieving?)
+            [Button {:type "submit"
+                     :disabled (or (nil? @new-role) @retrieving?)
                      :id "org-change-role-button"
-                     :color "red"
-                     :basic true}
+                     :color "orange"}
              "Change Role"]
             (when-not (empty? @error)
               [Message {:negative true
@@ -192,10 +175,9 @@
              (not (and (= self-user-id user-id)
                        (some #{"owner"} self-permissions))))
         [Dropdown {:button true
-                   :search true
-                   :class-name "icon"
-                   :icon "cog"
+                   :class-name "icon change-org-user"
                    :text " "
+                   :icon "cog"
                    :select-on-blur false
                    :options [{:text "Change role..."
                               :value "change-role"
@@ -235,11 +217,10 @@
            org-users)]]))
 
 (defn user-suggestions!
-  [term]
+  [org-id term]
   (let [retrieving? (r/cursor state [:search-loading?])
         user-search-results (r/cursor state [:user-search-results])
-        org-users (r/cursor state [:org-users])
-        org-users-set (->> @org-users
+        org-users-set (->> @(subscribe [:org/users org-id])
                            (map #(dissoc % :primary-email-verified))
                            set)]
     (when-not (empty? term)
@@ -272,8 +253,8 @@
            :handler (fn [response]
                       (reset! retrieving? false)
                       (reset! error "")
-                      (dispatch [:org/get-users! org-id])
-                      (reset! modal-open false))
+                      (reset! modal-open false)
+                      (dispatch [:data/load [:org/users org-id]]))
            :error-handler (fn [response]
                             (reset! retrieving? false)
                             (reset! error (get-in response [:response :error :messaage])))})))
@@ -332,7 +313,7 @@
                                                                 :value)]
                                             (reset! user-search-value input-value)
                                             (set-current-search-user-id!)
-                                            (user-suggestions! input-value)))
+                                            (user-suggestions! org-id input-value)))
                       :result-renderer (fn [item]
                                          (let [item (js->clj item :keywordize-keys true)]
                                            (r/as-component
@@ -366,7 +347,7 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (dispatch [:org/get-users! org-id])
+        (dispatch [:data/load [:org/users org-id]])
         [:div
          (when (some #{"owner" "admin"} @org-permissions)
            [InviteMemberModal {:org-id org-id}])

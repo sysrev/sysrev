@@ -32,6 +32,7 @@
       (pm/import-pubmed-search-via-db "foo bar")
 ;;; project description
       (b/click "#project a.item.overview" :delay 100)
+      (b/wait-until-loading-completes :pre-wait 200)
       (log/info "creating project description")
       (b/click create-button)
       ;; enter markdown

@@ -38,6 +38,7 @@
 (def Input (component "Input"))
 ;; components
 (def Label (component "Label"))
+(def LabelDetail (component "Label" "Detail"))
 (def Button (component "Button"))
 (def Dropdown (component "Dropdown"))
 (def Message (component "Message"))

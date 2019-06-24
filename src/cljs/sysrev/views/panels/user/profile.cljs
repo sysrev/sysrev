@@ -143,13 +143,10 @@
                 [Button {:on-click #(do
                                       (create-invitation! user-id @project-id)
                                       (reset! project-id nil))
-                         :basic true
                          :color "green"
                          :disabled (or @loading? @retrieving-invitations?)
                          :size "tiny"} "Invite"]
                 [Button {:on-click #(do (reset! project-id nil))
-                         :basic true
-                         :color "red"
                          :disabled (or @loading? @retrieving-invitations?)
                          :size "tiny"} "Cancel"]])
              (when-not (str/blank? @error-message)

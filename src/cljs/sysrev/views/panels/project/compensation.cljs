@@ -4,7 +4,6 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
-            [re-frame.db :refer [app-db]]
             [sysrev.accounting :as acct]
             [sysrev.charts.chartjs :as chartjs]
             [sysrev.views.base :refer [panel-content]]

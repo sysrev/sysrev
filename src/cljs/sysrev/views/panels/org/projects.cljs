@@ -2,7 +2,6 @@
   (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub reg-event-db trim-v dispatch]]
-            [re-frame.db :refer [app-db]]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.project-list :refer [ProjectsListSegment]]

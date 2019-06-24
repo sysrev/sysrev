@@ -73,13 +73,11 @@
        [:div
         [:h3 (str "You've been invited as a " description ".")]
         [Button {:on-click #(put-invitation! id true)
-                 :basic true
                  :color "green"
                  :disabled @putting-invitation?
                  :size "mini"} "Accept"]
         [Button {:on-click #(put-invitation! id false)
-                 :basic true
-                 :color "red"
+                 :color "orange"
                  :disabled @putting-invitation?
                  :size "mini"} "Decline"]])
      (when-not (str/blank? @error-message)

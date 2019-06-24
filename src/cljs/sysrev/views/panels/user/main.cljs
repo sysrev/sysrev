@@ -297,7 +297,7 @@
                  "Invitations" (when-not (empty? (filter #(nil? (:accepted (val %))) @invitations))
                                  [Icon {:name "circle"
                                         :size "tiny"
-                                        :color "red"
+                                        :color "orange"
                                         :style {:margin-left "0.5em"}}])])
               [:a {:key "#general"
                    :id "user-general"

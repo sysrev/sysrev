@@ -55,8 +55,8 @@
 
 ;; verification of emails
 (def resend-verification-email (xpath "//button[contains(text(),'Resend Verification Email')]"))
-(def green-verified-label (xpath "//div[contains(text(),'Verified') and contains(@class,'green') and contains(@class,'label')]"))
-(def red-unverified-label (xpath "//div[contains(text(),'Unverified') and contains(@class,'red') and contains(@class,'label')]"))
+(def email-verified-label (xpath "//div[contains(@class,'label') and contains(@class,'email-verified')]"))
+(def email-unverified-label (xpath "//div[contains(@class,'label') and contains(@class,'email-unverified')]"))
 (def primary-label (xpath "//div[contains(text(),'Primary') and contains(@class,'label')]"))
 (def add-new-email-address (xpath "//button[contains(text(),'Add a New Email Address')]"))
 (def new-email-address-input (xpath "//input[@id='new-email-address']"))
@@ -617,10 +617,10 @@
          "/ancestor::div[contains(@class,'row')]"))
 
 (defn email-verified? [email]
-  (b/exists? (xpath (email-address-row email) green-verified-label)))
+  (b/exists? (xpath (email-address-row email) email-verified-label)))
 
 (defn email-unverified? [email]
-  (b/exists? (xpath (email-address-row email) red-unverified-label)))
+  (b/exists? (xpath (email-address-row email) email-unverified-label)))
 
 (defn primary? [email]
   (b/exists? (xpath (email-address-row email) primary-label)))

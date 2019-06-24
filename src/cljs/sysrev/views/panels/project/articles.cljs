@@ -4,7 +4,6 @@
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v reg-fx]]
-            [re-frame.db :refer [app-db]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.article-list.base :as al]
@@ -12,9 +11,9 @@
             [sysrev.views.article-list.filters :refer [export-type-default-filters]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
 
-(def panel [:project :project :articles])
+(setup-panel-state panel [:project :project :articles])
 
 (defn- get-context-from-db [db]
   (let [project-id (active-project-id db)]
@@ -201,7 +200,7 @@
    (al/reload-list (get-context-from-db db) :transition)
    {}))
 
-(defmethod panel-content [:project :project :articles] []
+(defmethod panel-content panel []
   (fn [child]
     (when-let [project-id @(subscribe [:active-project-id])]
       [:div.project-content

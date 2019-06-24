@@ -5,7 +5,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.semantic :as s :refer
-             [Grid Row Column Segment Header Message Button Label]]
+             [Grid Row Column Segment Header Message Button Label LabelDetail]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [->map-with-key]])
   (:require-macros [reagent.interop :refer [$]]
@@ -158,37 +158,37 @@
      {:reagent-render
       (fn [this]
         (let [{:keys [email verified principal id]} @(r/cursor state [:email :addresses id])]
-          [Grid
-           [Row
-            [Column {:width 11}
+          [Grid {:class "user-email"}
+           [Row {:class "user-email"}
+            [Column {:class "user-email-info" :width 8}
              [:h4 {:class "email-entry"}
-              email " " (if verified
-                          [Label {:color "green"} "Verified"]
-                          [Label {:color "red"} "Unverified"])
-              (when principal
-                [Label "Primary"])
-              " " (when (not verified)
-                    [Button {:size "mini"
-                             :basic true
-                             :on-click #(resend-verification-code! email-object)
-                             :disabled @resending-code?}
-                     "Resend Verification Email"])]]
-            [Column {:width 5}
-             (when-not principal
-               [:div
-                [Button {:size "mini"
-                         :id "delete-email-button"
-                         :basic true
-                         :on-click #(delete-email! email-object)
-                         :disabled @deleting-email?}
-                 "Delete Email"]
-                (when verified
-                  [Button {:size "mini"
-                           :id "make-primary-button"
-                           :basic true
-                           :on-click #(set-primary! email-object)
-                           :disabled @setting-primary?}
-                   "Make Primary"])])]]
+              email
+              (when principal [Label {:size "small" :color "blue"} "Primary"])
+              (if verified
+                [Label {:class "email-verified" :size "small" :color "green"} "Verified"]
+                [Label {:class "email-unverified" :size "small" :color "orange"} "Unverified"])]]
+            [Column {:class "user-email-actions" :width 8 :align "right"}
+             (when (not verified)
+               [Button {:id "resend-verification-email"
+                        :size "small"
+                        :color "green"
+                        :on-click #(resend-verification-code! email-object)
+                        :disabled @resending-code?}
+                "Resend Verification Email"])
+             (when (not principal)
+               [Button {:id "delete-email-button"
+                        :size "small"
+                        :color "orange"
+                        :on-click #(delete-email! email-object)
+                        :disabled @deleting-email?}
+                "Delete Email"])
+             (when (and verified (not principal))
+               [Button {:id "make-primary-button"
+                        :size "small"
+                        :primary true
+                        :on-click #(set-primary! email-object)
+                        :disabled @setting-primary?}
+                "Make Primary"])]]
            (when (some false? (mapv str/blank? [@resend-error
                                                 @resend-message
                                                 @delete-error

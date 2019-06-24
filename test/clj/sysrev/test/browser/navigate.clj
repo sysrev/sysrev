@@ -86,7 +86,8 @@
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
   (go-route "/" :silent true)
-  (b/click (x/project-title-value name)))
+  (b/click (x/project-title-value name))
+  (b/wait-until-loading-completes :pre-wait 200))
 
 (defn delete-current-project []
   (when (b/current-project-id true)

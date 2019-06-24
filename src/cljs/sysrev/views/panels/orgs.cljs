@@ -2,7 +2,6 @@
   (:require [ajax.core :refer [POST]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [re-frame.db :refer [app-db]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.semantic :refer
              [Form FormField FormInput Button Segment Header Input Message MessageHeader]])
