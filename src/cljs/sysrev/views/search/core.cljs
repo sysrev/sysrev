@@ -4,7 +4,7 @@
             [reagent.core :as r]
             [sysrev.base :refer [active-route]]
             [sysrev.markdown :as markdown]
-            [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.nav :refer [nav-scroll-top make-url]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
@@ -14,6 +14,14 @@
 
 (def state (r/atom {:search-results {}
                     :search-value ""}))
+
+(defn search-url
+  "Create a url for search term q of optional type"
+  [q & {:keys [type]
+        :or {type "projects"}}]
+  (make-url "/search" {:q q
+                       :p 1
+                       :type type}))
 
 (defn site-search [q p]
   (let [search-results (r/cursor state [:search-results])
@@ -43,10 +51,13 @@
           (when (not (empty? route-search-term))
             (reset! cleared? false))
           [Form {:on-submit (fn [e]
-                              (site-search @search-value 1)
-                              (nav-scroll-top "/search" :params {:q @search-value
-                                                                 :p 1
-                                                                 :type "projects"}))}
+                              (if (clojure.string/blank? @search-value)
+                                (reset! search-value "")
+                                (do (site-search @search-value 1)
+                                    (nav-scroll-top "/search" :params {:q @search-value
+                                                                       :p 1
+                                                                       :type "projects"}))))
+                 :id "search-sysrev-form"}
            [Input {:placeholder "Search Sysrev"
                    :on-change (fn [e value]
                                 (let [input-value (-> value
@@ -109,6 +120,8 @@
                      (keyword type)
                      :projects)
             base-menu-width 3]
+        (when (nil? @search-results)
+          (site-search q p))
         [Grid {:columns "equal"}
          [Row
           [Column {:width base-menu-width
@@ -124,21 +137,24 @@
                                    (nav-scroll-top "/search" :params {:q q :p 1 :type "projects"}))
                        :color "orange"}
              "Projects"
-             [Label {:size "mini"} @projects-count]]
+             [Label {:size "mini"
+                     :id "search-results-projects-count"} @projects-count]]
             [MenuItem {:name "Users"
                        :active (= active :users)
                        :on-click (fn [e]
                                    (nav-scroll-top "/search" :params {:q q :p 1 :type "users"}))
                        :color "orange"}
              "Users"
-             [Label {:size "mini"} @users-count]]
+             [Label {:size "mini"
+                     :id "search-results-users-count"} @users-count]]
             [MenuItem {:name "Orgs"
                        :active (= active :orgs)
                        :on-click (fn [e]
                                    (nav-scroll-top "/search" :params {:q q :p 1 :type "orgs"}))
                        :color "orange"}
              "Orgs"
-             [Label {:size "mini"} @orgs-count]]]]
+             [Label {:size "mini"
+                     :id "search-results-orgs-count"} @orgs-count]]]]
           [Column
            [:div
             (if (= @search-results :retrieving)
@@ -175,7 +191,12 @@
                                     :projects "Public Projects"
                                     :users "Sysrev Users"
                                     :orgs "Sysrev Orgs")
-                                  " matching '" q "'")]])))]]]]))
+                                  " matching '" q "'")]
+                   (when (= active :projects)
+                     [:div [:h3 "Try searching for '"
+                            [:a {:href (search-url "cancer")} "cancer"]
+                            "' or '"
+                            [:a {:href (search-url "genes")} "genes"]]])])))]]]]))
     :component-did-mount (fn [this]
                            (site-search q p))}))
 

@@ -459,15 +459,7 @@
                          (str q "%")
                          limit]
                         db/raw-query
-                        (map :user-id))
-          ;; original query, except using ilike instead of like for case insensitivity
-          #_(-> (select :user-id)
-                (from :web-user)
-                (where [:like :email (str term "%")])
-                (order-by :email)
-                ;; don't want to overwhelm with options
-                (limit 5)
-                (sql/format))]
+                        (map :user-id))]
       ;; check to see if we have results before returning the public info
       (if (empty? user-ids)
         user-ids
