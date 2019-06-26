@@ -54,6 +54,8 @@
 ;; list
 (def ListUI (component "List"))
 (def ListItem (component "List" "Item"))
+(def ListIcon (component "List" "Icon"))
+(def ListContent (component "List" "Content"))
 
 ;; popup
 (def Popup (component "Popup"))

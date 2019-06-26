@@ -19,6 +19,7 @@
             [sysrev.views.panels.org.payment]
             [sysrev.views.panels.password-reset]
             [sysrev.views.panels.pubmed]
+            [sysrev.views.panels.pricing]
             [sysrev.views.panels.project.common]
             [sysrev.views.panels.project.compensation]
             [sysrev.views.panels.project.add-articles]

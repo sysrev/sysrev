@@ -42,13 +42,14 @@
 
 (def-action :auth/log-in
   :uri (fn [_ _] "/api/auth/login")
-  :content (fn [email password]
+  :content (fn [email password redirect]
              {:email email :password password})
   :process
-  (fn [_ _ {:keys [valid message] :as result}]
+  (fn [_ [email password redirect] {:keys [valid message] :as result}]
     (if valid
       {:dispatch-n
        (list [:ga-event "auth" "login_success"]
+             [:set-login-redirect-url redirect]
              [:do-login-redirect])}
       {:dispatch-n
        (list [:ga-event "auth" "login_failure"]
@@ -63,14 +64,14 @@
 
 (def-action :auth/register
   :uri (fn [& _] "/api/auth/register")
-  :content (fn [email password & [project-id]]
+  :content (fn [email password & [project-id redirect]]
              {:email email :password password :project-id project-id})
   :process
-  (fn [_ [email password] {:keys [success message] :as result}]
+  (fn [_ [email password & [project-id redirect]] {:keys [success message] :as result}]
     (if success
       {:dispatch-n
        (list [:ga-event "auth" "register_success"]
-             [:action [:auth/log-in email password]])}
+             [:action [:auth/log-in email password redirect]])}
       {:dispatch-n
        (list [:ga-event "auth" "register_failure"]
              [:set-login-error-msg message])})))

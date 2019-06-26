@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.login
-  (:require [reagent.core :as r]
+  (:require [goog.uri.utils :as uri-utils]
+            [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v]]
@@ -170,7 +171,7 @@
 (reg-event-fx
  ::submit-form
  [trim-v]
- (fn [_ [{:keys [email password register? project-id]}]]
+ (fn [_ [{:keys [email password register? project-id redirect]}]]
    (let [fields {:email email :password password}
          errors (validate fields login-validation)]
      (cond
@@ -186,13 +187,13 @@
        {:dispatch-n
         (list [::set-submitted]
               [::set-submitted-fields fields]
-              [:action [:auth/register email password project-id]])}
+              [:action [:auth/register email password project-id redirect]])}
 
        :else
        {:dispatch-n
         (list [::set-submitted]
               [::set-submitted-fields fields]
-              [:action [:auth/log-in email password]])}))))
+              [:action [:auth/log-in email password redirect]])}))))
 
 (reg-sub
  ::login-error-msg
@@ -312,68 +313,74 @@
         field-class #(if (get form-errors %) "error" "")
         field-error #(when-let [msg (get form-errors %)]
                        [:div.ui.warning.message msg])
-        form-class (when-not (empty? form-errors) "warning")]
+        form-class (when-not (empty? form-errors) "warning")
+        redirect (uri-utils/getParamValue @active-route "redirect")]
     (with-loader (if register-hash
                    [[:register-project register-hash]]
                    []) {}
-      [:div.ui.segment.auto-margin.auth-segment
-       {:id "login-register-panel"}
-       (when register-hash
-         [:h4.ui.header
-          [:i.grey.list.alternate.outline.icon]
-          [:div.content
-           (if project-name project-name "< Project not found >")]])
-       [:form.ui.form.login-register-form
-        {:class form-class
-         :on-submit
-         (wrap-prevent-default
-          #(let [email (email-input), password (password-input)]
-             (dispatch [::submit-form {:email email
-                                       :password password
-                                       :register? register?
-                                       :project-id project-id}])))}
-        [:div.field.email {:class (field-class :email)}
-         [:div.ui.left.icon.input
-          [:i.user.icon]
-          [:input {:type "email" :name "email"
-                   :id "login-email-input"
-                   :placeholder "E-mail address"
-                   :on-change
-                   #(dispatch-sync [::set-email (-> % .-target .-value)])}]]]
-        [:div.field.password {:class (field-class :password)}
-         [:div.ui.left.icon.input
-          [:i.lock.icon]
-          [:input {:type "password" :name "password"
-                   :id "login-password-input"
-                   :placeholder "Password"
-                   :on-change
-                   #(dispatch-sync [::set-password (-> % .-target .-value)])}]]]
-        [field-error :email]
-        [field-error :password]
-        [:button.ui.fluid.primary.button
-         {:type "submit" :name "submit"
-          :class (if (and register? (loading/any-action-running? :only :auth/register))
-                   "loading")}
-         (if register? "Register" "Login")]
-        (when-let [err @(subscribe [::login-error-msg])]
-          [:div.ui.negative.message err])
-        (when (not= js/window.location.host "sysrev.com")
-          [GoogleLogInButton])
-        #_ [GoogleSignInButton]]
-       (if register?
-         [:div.ui.center.aligned.grid
-          [:div.column
-           [:a.medium-weight {:href (if register-hash
-                                      (str @active-route "/login")
-                                      "/login")}
-            "Already have an account?"]]]
-         [:div.ui.two.column.center.aligned.grid
-          [:div.column
-           [:a.medium-weight {:href "/register"}
-            "Create Account"]]
-          [:div.column
-           [:a.medium-weight {:href "/request-password-reset"}
-            "Forgot Password?"]]])])))
+      [:div
+       (when (= redirect "/user/plans")
+         [:h4 {:style {:text-align "center"}} "Create a free account to upgrade to Pro Plan"])
+       [:div.ui.segment.auto-margin.auth-segment
+        {:id "login-register-panel"}
+        (when register-hash
+          [:h4.ui.header
+           [:i.grey.list.alternate.outline.icon]
+           [:div.content
+            (if project-name project-name "< Project not found >")]])
+        [:form.ui.form.login-register-form
+         {:class form-class
+          :on-submit
+          (wrap-prevent-default
+           #(let [email (email-input), password (password-input)]
+              (dispatch [::submit-form {:email email
+                                        :password password
+                                        :register? register?
+                                        :project-id project-id
+                                        :redirect redirect}])))}
+         [:div.field.email {:class (field-class :email)}
+          [:div.ui.left.icon.input
+           [:i.user.icon]
+           [:input {:type "email" :name "email"
+                    :id "login-email-input"
+                    :placeholder "E-mail address"
+                    :on-change
+                    #(dispatch-sync [::set-email (-> % .-target .-value)])}]]]
+         [:div.field.password {:class (field-class :password)}
+          [:div.ui.left.icon.input
+           [:i.lock.icon]
+           [:input {:type "password" :name "password"
+                    :id "login-password-input"
+                    :placeholder "Password"
+                    :on-change
+                    #(dispatch-sync [::set-password (-> % .-target .-value)])}]]]
+         [field-error :email]
+         [field-error :password]
+         [:button.ui.fluid.primary.button
+          {:type "submit" :name "submit"
+           :class (if (and register? (loading/any-action-running? :only :auth/register))
+                    "loading")}
+          (if register? "Register" "Login")]
+         (when-let [err @(subscribe [::login-error-msg])]
+           [:div.ui.negative.message err])
+         (when (not= js/window.location.host "sysrev.com")
+           [GoogleLogInButton])
+         #_ [GoogleSignInButton]]
+        (if register?
+          [:div.ui.center.aligned.grid
+           [:div.column
+            (when-not (= redirect "/user/plans")
+              [:a.medium-weight {:href (if register-hash
+                                         (str @active-route "/login")
+                                         "/login")}
+               "Already have an account?"])]]
+          [:div.ui.two.column.center.aligned.grid
+           [:div.column
+            [:a.medium-weight {:href "/register"}
+             "Create Account"]]
+           [:div.column
+            [:a.medium-weight {:href "/request-password-reset"}
+             "Forgot Password?"]]])]])))
 
 (defn- wrap-join-project [& children]
   [:div.ui.padded.segments.auto-margin.join-project-panel

@@ -17,6 +17,7 @@
             sysrev.test.browser.project-support
             sysrev.test.browser.pubmed
             sysrev.test.browser.review-articles
+            sysrev.test.browser.search
             sysrev.test.browser.markdown
             #_ sysrev.test.browser.blog
             sysrev.test.browser.review-settings
