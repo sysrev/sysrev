@@ -65,7 +65,9 @@
 (deftest-browser basic-search-test
   (test/db-connected?)
   [search-term "foo"]
-  (do ;; create fake projects
+  (do
+    (nav/go-route "/")
+    ;; create fake projects
     (doall (map project/create-project (take 35 (for [x capitalized-metasyntactic-variables y capitalized-metasyntactic-variables z capitalized-metasyntactic-variables] (str x " " y " " z)))))
     ;; create fake test users
     (doall (map insert-fake-user
