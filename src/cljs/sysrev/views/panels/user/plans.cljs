@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.plans
   (:require [ajax.core :refer [GET]]
+            [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub reg-event-fx]]
             [sysrev.base :refer [active-route]]
@@ -114,7 +115,8 @@
                              unlimited-plan-price
                              unlimited-plan-name]}]
   (let [error-message (r/cursor state [:error-message])
-        changing-plan? (r/cursor state [:changing-plan?])]
+        changing-plan? (r/cursor state [:changing-plan?])
+        current-path (uri-utils/getPath @active-route)]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -130,7 +132,10 @@
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [BasicPlan]
-                        [:a {:href billing-settings-uri} "Billing Settings"]]]]]
+                        [:a {:href billing-settings-uri}
+                         (if (= current-path "/user/plans")
+                           "<< Back to user settings"
+                           "<< Back to org settings")]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]
@@ -163,7 +168,8 @@
                            unlimited-plan-name]}]
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])
-        mobile? (util/mobile?)]
+        mobile? (util/mobile?)
+        current-path (uri-utils/getPath @active-route)]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -176,7 +182,10 @@
                        [Unlimited {:unlimited-plan-price unlimited-plan-price
                                    :unlimited-plan-name unlimited-plan-name}]
                        (when-not mobile?
-                         [:a {:href billing-settings-uri} "Billing Settings"])]]]]
+                         [:a {:href billing-settings-uri}
+                          (if (= current-path "/user/plans")
+                            "<< Back to user settings"
+                            "<< Back to org settings")])]]]]
           [Column
            (let [no-default? (empty? @default-source-atom)]
              [Grid

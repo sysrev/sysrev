@@ -319,8 +319,10 @@
                    [[:register-project register-hash]]
                    []) {}
       [:div
-       (when (= redirect "/user/plans")
+       (when (= (uri-utils/getPath (or redirect "")) "/user/plans")
          [:h4 {:style {:text-align "center"}} "Create a free account to upgrade to Pro Plan"])
+       (when (= (uri-utils/getPath (or redirect "")) "/create/org")
+         [:h4 {:style {:text-align "center"}} "Create a free account before moving on to team creation"])
        [:div.ui.segment.auto-margin.auth-segment
         {:id "login-register-panel"}
         (when register-hash

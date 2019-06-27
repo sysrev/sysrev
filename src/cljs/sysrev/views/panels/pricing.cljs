@@ -2,7 +2,7 @@
   (:require [re-frame.core :refer [dispatch subscribe]]
             [reagent.core :as r]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.nav :refer [nav]]
+            [sysrev.nav :refer [nav make-url]]
             [sysrev.views.semantic :refer [Segment Column Row Grid ListUI ListItem ListIcon ListContent Icon Button Popup
                                            Divider]])
   (:require-macros [sysrev.macros :refer [sr-defroute setup-panel-state]]))
@@ -34,16 +34,17 @@
     (when (and @logged-in? (nil? current-plan))
       (dispatch [:data/load [:user/current-plan @(subscribe [:self/user-id])]]))
     [:div
-     [:h3 {:style {:text-align "center"}} "Pricing"]
-     [Grid {:columns "equal"}
+     [:h3 {:id "pricing-header"} "Pricing"]
+     [Grid {:columns "equal"
+            :id "pricing-plans"}
       [Row
        [Column [Segment
-                [:div {:style {:text-align "center"}}
+                [:div {:class "pricing-list-header"}
                  [:h3 "Free"]
                  [:h2 "$0"]
                  [:h4 "Per month"]
                  [:p "The basics of Sysrev for every researcher"]]
-                [ListUI {:style {:margin-bottom "2em"}}
+                [ListUI
                  [PricingItem {:content [PublicProjects]}]
                  [PricingItem {:content "Project management"}]
                  [PricingItem {:content "Free lifetime storage for public projects"
@@ -56,12 +57,12 @@
                    "Already signed up!"
                    "Choose Free")]]]
        [Column [Segment
-                [:div {:style {:text-align "center"}}
+                [:div {:class "pricing-list-header"}
                  [:h3 "Pro"]
                  [:h2 "$10"]
                  [:h4 "Per month"]
                  [:p "Pro tools for researchers with advanced requirements"]]
-                [ListUI {:style {:margin-bottom "2em"}}
+                [ListUI
                  [PricingItem {:icon "check" :content [PublicProjects]}]
                  [PricingItem {:icon "check" :content [PrivateProjects]}]
                  [PricingItem {:icon "check" :content "Project management"}]
@@ -78,31 +79,31 @@
                    "Already signed up!"
                    "Choose Pro")]]]
        [Column [Segment
-                [:div {:style {:text-align "center"}}
+                [:div {:class "pricing-list-header"}
                  [:h3 "Team Pro"]
                  [:h2 "$10"]
                  [:h4 "Per user / month"]
                  [:p "Advanced collaboration and management tools for teams"]]
-                [ListUI {:style {:margin-bottom "2em"}}
+                [ListUI
                  [PricingItem {:icon "check" :content [PublicProjects]}]
                  [PricingItem {:icon "check" :content [PrivateProjects]}]
                  [PricingItem {:icon "check" :content "Project management"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]
                  [PricingItem {:icon "users" :content "Group adminstration tools"}]]
-                [:p {:style {:font-size "12px"
-                             :text-align "center"
-                             :margin "2em 0.5em 2em 0.5em"}} "Starts at " [:b "$30 / month"] " and includes your first 3 team members"]
-                [Button {:on-click (fn [e] (println "team pro"))
+                [:p {:class "team-pricing"} "Starts at " [:b "$30 / month"] " and includes your first 5 team members"]
+                [Button {:on-click (fn [e] (if @logged-in?
+                                             (nav (make-url "/create/org" {:type "existing-account"}))
+                                             (nav "/register" :params {:redirect (make-url "/create/org" {:type "new-account"})})))
                          :primary true
                          :fluid true}
                  "Choose Team Pro"]]]
        [Column [Segment
-                [:div {:style {:text-align "center"}}
+                [:div {:class "pricing-list-header"}
                  [:h3 "Enterprise"]
-                 [:h3 {:style {:text-align "center"}} [:a {:href "mailto:info@insilica.co"}
-                                                       "Contact Sales for pricing"]]
-                 [:p {:style {:margin "2em 0 2em 0"}} "Customized plans tailored to your organization's needs"]]
+                 [:h3 [:a {:href "mailto:info@sysrev.com"}
+                       "Contact Sales for pricing"]]
+                 [:p {:class "customized-plans"} "Customized plans tailored to your organization's needs"]]
                 [ListUI
                  [PricingItem {:content "Everything included in Team Pro"}]
                  [Divider]
@@ -110,11 +111,11 @@
                  [PricingItem {:content "Priority support"}]
                  [PricingItem {:content "Invoice billing"}]
                  [PricingItem {:content "Custom data sources"}]
-                 [PricingItem {:content "Contract and paid reviewers"}]]
-                ]]]]]))
+                 [PricingItem {:content "Contract and paid reviewers"}]]]]]]]))
 
 (defmethod panel-content panel []
   (fn [child] [Pricing]))
 
 (sr-defroute pricing "/pricing" []
              (dispatch [:set-active-panel panel]))
+

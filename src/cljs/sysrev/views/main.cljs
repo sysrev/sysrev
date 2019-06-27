@@ -14,6 +14,7 @@
             [sysrev.views.article-list.core :as alist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.root]
+            [sysrev.views.panels.orgs]
             [sysrev.views.panels.org.main]
             [sysrev.views.panels.org.plans]
             [sysrev.views.panels.org.payment]
