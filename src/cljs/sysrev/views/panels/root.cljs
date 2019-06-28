@@ -5,6 +5,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
+            [sysrev.views.panels.pricing :refer [Pricing]]
             [sysrev.views.project-list :as plist]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.shared.text :as text]
@@ -61,7 +62,8 @@
         [plist/PublicProjectsList]]
        [:div.seven.wide.column
         [:div.ui.segments
-         [LoginRegisterPanel]]]]]]))
+         [LoginRegisterPanel]]]]]
+     [:div {:style {:margin-top "50em"}} [Pricing]]]))
 
 (defn RootFullPanelUser []
   [:div.landing-page

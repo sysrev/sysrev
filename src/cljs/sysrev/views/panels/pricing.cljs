@@ -3,6 +3,7 @@
             [reagent.core :as r]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.nav :refer [nav make-url]]
+            [sysrev.util :as util]
             [sysrev.views.semantic :refer [Segment Column Row Grid ListUI ListItem ListIcon ListContent Icon Button Popup
                                            Divider]])
   (:require-macros [sysrev.macros :refer [sr-defroute setup-panel-state]]))
@@ -35,10 +36,13 @@
       (dispatch [:data/load [:user/current-plan @(subscribe [:self/user-id])]]))
     [:div
      [:h3 {:id "pricing-header"} "Pricing"]
-     [Grid {:columns "equal"
-            :id "pricing-plans"}
+     [Grid (if (util/mobile?)
+             {:columns 1}
+             {:columns "equal"
+              :id "pricing-plans"})
       [Row
-       [Column [Segment
+       [Column [Segment (when (util/mobile?)
+                          {:style {:margin-bottom "1em"}})
                 [:div {:class "pricing-list-header"}
                  [:h3 "Free"]
                  [:h2 "$0"]
@@ -56,7 +60,8 @@
                  (if @logged-in?
                    "Already signed up!"
                    "Choose Free")]]]
-       [Column [Segment
+       [Column [Segment (when (util/mobile?)
+                          {:style {:margin-bottom "1em"}})
                 [:div {:class "pricing-list-header"}
                  [:h3 "Pro"]
                  [:h2 "$10"]
@@ -78,7 +83,8 @@
                  (if (= current-plan "Unlimited_User")
                    "Already signed up!"
                    "Choose Pro")]]]
-       [Column [Segment
+       [Column [Segment (when (util/mobile?)
+                          {:style {:margin-bottom "1em"}})
                 [:div {:class "pricing-list-header"}
                  [:h3 "Team Pro"]
                  [:h2 "$10"]
@@ -98,10 +104,11 @@
                          :primary true
                          :fluid true}
                  "Choose Team Pro"]]]
-       [Column [Segment
+       [Column [Segment (when (util/mobile?)
+                          {:style {:margin-bottom "1em"}})
                 [:div {:class "pricing-list-header"}
                  [:h3 "Enterprise"]
-                 [:h3 [:a {:href "mailto:info@sysrev.com"}
+                 [:h3 [:a {:href "mailto:sales@sysrev.com"}
                        "Contact Sales for pricing"]]
                  [:p {:class "customized-plans"} "Customized plans tailored to your organization's needs"]]
                 [ListUI
@@ -109,9 +116,14 @@
                  [Divider]
                  [PricingItem {:content "Self-hosted or cloud-hosted"}]
                  [PricingItem {:content "Priority support"}]
+                 [PricingItem {:content "Access provisioning"}]
                  [PricingItem {:content "Invoice billing"}]
-                 [PricingItem {:content "Custom data sources"}]
-                 [PricingItem {:content "Contract and paid reviewers"}]]]]]]]))
+                 [PricingItem {:content "Unique data sources"}]
+                 [PricingItem {:content "AI models tailored to your organization's needs"}]
+                 [PricingItem {:content "Customized feature development"}]
+                 [PricingItem {:content "Contracted expert reviewers"}]]
+                [:p {:class "team-pricing"} "Contact " [:a {:href "mailto:sales@sysrev.com"} "us"] " about designing a custom data processing and analysis solution to meet your needs today!"]
+                ]]]]]))
 
 (defmethod panel-content panel []
   (fn [child] [Pricing]))

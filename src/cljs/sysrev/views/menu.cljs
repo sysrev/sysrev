@@ -1,11 +1,13 @@
 (ns sysrev.views.menu
-  (:require  [re-frame.core :refer [subscribe dispatch dispatch-sync]]
-             [sysrev.loading :as loading]
-             [sysrev.nav :refer [nav nav-scroll-top]]
-             [sysrev.views.components :refer [dropdown-menu with-tooltip]]
-             [sysrev.views.panels.user.profile :refer [Avatar]]
-             [sysrev.views.search.core :refer [SiteSearch]]
-             [sysrev.util :as util])
+  (:require [goog.uri.utils :as uri-utils]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync]]
+            [sysrev.base :refer [active-route]]
+            [sysrev.loading :as loading]
+            [sysrev.nav :refer [nav nav-scroll-top]]
+            [sysrev.views.components :refer [dropdown-menu with-tooltip]]
+            [sysrev.views.panels.user.profile :refer [Avatar]]
+            [sysrev.views.search.core :refer [SiteSearch]]
+            [sysrev.util :as util])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []
@@ -56,6 +58,12 @@
       [:img.ui.middle.aligned.image
        (merge {:src "/SysRev_header_2.png" :alt "SysRev"}
               (if mobile? {:width "80" :height "25"} {:width "90" :height "28"}))]]
+     (when (and (= "/" (uri-utils/getPath @active-route))
+                logged-in?)
+       [:a.item.distinct
+        {:id "pricing-link"
+         :href "/pricing"}
+        "Pricing"])
      (when-not full? dev-menu)
      [loading-indicator]
      (if logged-in?
