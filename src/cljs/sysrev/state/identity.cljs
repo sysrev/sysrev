@@ -57,10 +57,9 @@
 
 (def-action :auth/log-out
   :uri (fn [] "/api/auth/logout")
-  :process
-  (fn [{:keys [db]} _ result]
-    {:reset-data true
-     :nav-scroll-top "/"}))
+  :process (fn [{:keys [db]} _ result]
+             {:reset-data true
+              :nav-scroll-top "/"}))
 
 (def-action :auth/register
   :uri (fn [& _] "/api/auth/register")

@@ -13,7 +13,13 @@ a:hover { color: darken(@blue, 8); }
     margin: 0;
 }
 
+#toplevel.landing {
+    background-color: #f0f1f3;
+}
+
 #main-content { padding-bottom: 22px; }
+
+#main-content.landing { padding-bottom: 0; }
 
 @media only screen and (max-width: 767px) {
     #main-content { padding-bottom: 12px; }
@@ -25,6 +31,7 @@ a:hover { color: darken(@blue, 8); }
     margin: 0;
     height: 35px;
     border-top: 1px solid @footerBorder;
+    box-shadow: none !important;
     background-color: @footerBackground;
     margin-top: auto;
 
@@ -57,24 +64,96 @@ a:hover { color: darken(@blue, 8); }
     }
 }
 
-.ui.segment.welcome-msg {
-    text-align: center;
-    padding: 1.5em 1em;
-    > div.wrapper {
-        max-width: 900px;
-        margin-left: auto;
-        margin-right: auto;
-        text-align: left;
+div.landing-page.landing-public {
+    > div.section {
+    }
+    > div.section.intro-section {
+        background-color: #fbfcfd;
+        padding: 0.5em 0;
 
-        p {
-            font-size: 14px;
-            span.site-name {
-                font-size: 17px;
-                .bold;
+        .ui.segments, .ui.segment {
+            background-color: rgba(0,0,0,0.0);
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .ui.segments > .ui.stackable.grid.segment {
+            padding: 1em 2.5em;
+        }
+
+        .welcome-msg {
+            text-align: justify;
+            padding: 0 1em;
+            > div.wrapper {
+                margin-left: auto;
+                margin-right: auto;
+                text-align: left;
+
+                p {
+                    font-size: 18px;
+                    span.site-name {
+                        font-size: 24px;
+                        .bold;
+                    }
+                }
+                p:first-child { margin-top: 0; }
+                p:last-child { margin-bottom: 0; }
             }
         }
-        p:first-child { margin-top: 0; }
-        p:last-child { margin-bottom: 0; }
+    }
+    > div.section.section2 {
+        margin-top: -1em;
+        padding: 1.25em 0;
+        font-size: 14px;
+        .bold;
+
+        .ui.grid {
+            padding: 0 2.5em;
+
+            > .column {
+                padding: 1em;
+            }
+        }
+    }
+
+    #login-register-panel.ui.segment {
+        border: none !important;
+        // border-left: 1px solid rgba(128,128,128,0.5) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+
+        padding: 2.5em 2.5em;
+
+        div.create-account {
+            text-align: center;
+            font-size: 17px;
+            h4.header {
+            }
+        }
+        input {
+            font-size: 15px;
+        }
+        .ui.button {
+            font-size: 15px;
+        }
+    }
+    > div.section.section3 {
+        padding: 1em 0 1.5em 0;
+        font-size: 15px;
+    }
+    div.projects-list-landing {
+        h4.header {
+            .bold;
+            font-size: 26px;
+            text-align: center;
+        }
+        > .ui.stackable.grid {
+            > .row  {
+                > .column {
+                    padding: 0;
+                }
+            }
+        }
     }
 }
 

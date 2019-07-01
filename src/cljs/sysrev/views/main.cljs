@@ -45,6 +45,7 @@
             [sysrev.views.review :as review]
             [sysrev.views.search.core]
             [sysrev.util :as util :refer [nbsp]]
+            [sysrev.shared.util :as sutil :refer [css]]
             [sysrev.shared.components :refer [loading-content]]))
 
 (defmethod panel-content :default []
@@ -150,34 +151,34 @@
          [:div.wrapper contact-email sysrev-links "|" site-terms]]])]))
 
 (defn main-content []
-  (if-not @(subscribe [:initialized?])
-    (loading-content)
-    (case @(subscribe [:app-id])
-      :blog
-      [:div#toplevel
-       [:div#main-content
-        [blog/blog-header-menu]
-        [:div.ui.container.blog-content
-         [active-panel-content]]]
-       [GlobalFooter]]
-      [:div#toplevel
-       [:div#main-content
-        {:class (cond-> ""
-                  (or (not @(subscribe [:data/ready?]))
-                      (loading/any-loading?
-                       :ignore (into loading/ignore-data-names
-                                     [:pdf/open-access-available?
-                                      :pdf/article-pdfs])))
-                  (str " loading")
-                  (review/display-sidebar?)
-                  (str " annotator"))}
-        [header-menu]
-        [:div.ui.container.panel-content
-         (if (review/display-sidebar?)
-           [:div.ui.grid
-            [SidebarColumn]
-            [:div.thirteen.wide.column
-             [active-panel-content]]]
-           [active-panel-content])]]
-       [notifier @(subscribe [:active-notification])]
-       [GlobalFooter]])))
+  (let [panel @(subscribe [:active-panel])
+        landing? @(subscribe [:landing-page?])]
+    (if-not @(subscribe [:initialized?])
+      (loading-content)
+      (case @(subscribe [:app-id])
+        :blog
+        [:div#toplevel
+         [:div#main-content
+          [blog/blog-header-menu]
+          [:div.ui.container.blog-content
+           [active-panel-content]]]
+         [GlobalFooter]]
+        [:div#toplevel {:class (css [landing? "landing"])}
+         [:div#main-content {:class (css [(review/display-sidebar?) "annotator"]
+                                         [landing? "landing"]
+                                         [(or (not @(subscribe [:data/ready?]))
+                                              (loading/any-loading?
+                                               :ignore (into loading/ignore-data-names
+                                                             [:pdf/open-access-available?
+                                                              :pdf/article-pdfs])))
+                                          "loading"])}
+          [header-menu]
+          [:div.panel-content {:class (css [(not landing?) "ui container"])}
+           (if (review/display-sidebar?)
+             [:div.ui.grid
+              [SidebarColumn]
+              [:div.thirteen.wide.column
+               [active-panel-content]]]
+             [active-panel-content])]]
+         [notifier @(subscribe [:active-notification])]
+         [GlobalFooter]]))))

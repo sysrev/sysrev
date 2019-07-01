@@ -19,8 +19,7 @@
             (dissoc-in [:state :panels])
             (dissoc-in [:state :navigation :subpanels]))
     :dispatch-n (list [:require [:identity]]
-                      [:reload [:identity]])
-    :fetch-missing [true nil]}))
+                      [:reload [:identity]])}))
 
 (reg-fx
  :reset-data

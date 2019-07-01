@@ -14,6 +14,13 @@
 
 (def ^:private panel [:root])
 
+(reg-sub :landing-page?
+         :<- [:active-panel]
+         :<- [:self/logged-in?]
+         (fn [[active-panel logged-in?]]
+           (and (= active-panel [:root])
+                (not logged-in?))))
+
 (def-data :global-stats
   :loaded? (fn [db] (-> (get-in db [:data])
                         (contains? :global-stats)))
@@ -25,45 +32,59 @@
 (reg-sub :global-stats (fn [db _] (get-in db [:data :global-stats])))
 
 (defn IntroSegment []
-  [:div.ui.segments>div.ui.segment.welcome-msg
+  [:div.welcome-msg
    [:div.description.wrapper.open-sans
     [:p [:span.site-name "sysrev"]
      (first text/site-intro-text)]
-    [:p "Create a project to get started or explore the featured public projects below."]]])
+    [:p "Create a project to get started, or explore the featured public projects below."]]])
 
 (defn GlobalStatsReport []
-  [:div.ui.segments>div.ui.segment.global-stats
-   (with-loader [[:global-stats]] {:dimmer :fixed}
+  [:div.global-stats
+   (with-loader [[:global-stats]] {}
      (let [{:keys [labeled-articles label-entries real-users real-projects]}
            @(subscribe [:global-stats])]
        [:div.ui.three.column.middle.aligned.center.aligned.stackable.grid
-        [:div.column
+        [:div.column ;;.left.aligned
          [:p [:span.bold (str real-projects)] " user projects"]]
         [:div.column
-         [:p [:span.bold (str labeled-articles)] " total articles labeled"]]
-        [:div.column
+         [:p [:span.bold (str labeled-articles)] " articles labeled"]]
+        [:div.column ;;.right.aligned
          [:p [:span.bold (str label-entries)] " user labels on articles"]]]))])
 
 (defn RootFullPanelPublic []
-  (with-loader [[:identity]
-                [:public-projects]
-                [:global-stats]] {}
-    [:div.landing-page
-     [:div.ui.stackable.grid
-      (when-not (util/mobile?)
-        [:div.row {:style {:padding-bottom "0"}}
+  (with-loader [[:identity] [:public-projects] [:global-stats]] {}
+    [:div.landing-page.landing-public
+     [:div.section.section2
+      [:div.ui.container
+       [:div.ui.stackable.grid
+        [:div.middle.aligned.row
          [:div.sixteen.wide.column
-          [GlobalStatsReport]]])
-      [:div.row {:style {:padding-bottom "0"}}
-       [:div.sixteen.wide.column
-        [IntroSegment]]]
-      [:div.row
-       [:div.nine.wide.column
-        [plist/PublicProjectsList]]
-       [:div.seven.wide.column
-        [:div.ui.segments
+          [GlobalStatsReport]]]]]]
+     [:div.section.intro-section
+      [:div.ui.container.segments>div.ui.stackable.grid.segment.divided
+       [:div.middle.aligned.row
+        [:div.nine.wide.column {:style {:padding-left "2em" :padding-right "2em"}}
+         [IntroSegment]]
+        [:div.seven.wide.column {:style {:padding-left "0" :padding-right "0"}}
          [LoginRegisterPanel]]]]]
-     [:div {:style {:margin-top "50em"}} [Pricing]]]))
+     [:div.section.section3
+      [:div.ui.container
+       [:div.ui.stackable.grid
+        [:div.nine.wide.column
+         [plist/PublicProjectsList]]
+        [:div.seven.wide.column
+         [:a {:href "https://blog.sysrev.com/getting-started/"
+              :target "_blank"}
+          [:img {:src "/getting_started_01.png"
+                 :title "Sysrev Blog - Getting Started"
+                 :alt "Getting Started"
+                 :style {:border "1.5px solid rgba(128,128,128,0.3)"
+                         :box-shadow "none"
+                         :max-width "98%"
+                         :height "auto"
+                         :border-radius "4px"}}]]]
+        [:div.sixteen.wide.column
+         [Pricing]]]]]]))
 
 (defn RootFullPanelUser []
   [:div.landing-page

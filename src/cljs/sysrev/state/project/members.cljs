@@ -55,3 +55,11 @@
          (fn [[_ user-id project-id]] (subscribe [::member user-id project-id]))
          (fn [member] (+ (-> member :articles :includes count)
                          (-> member :articles :excludes count))))
+
+(reg-sub :user/project-admin?
+         (fn [[_ user-id]]
+           [(subscribe [:self/logged-in?])
+            (subscribe [:user/admin? user-id])
+            (subscribe [:member/admin? user-id])])
+         (fn [[logged-in? dev? admin?]]
+           (boolean (and logged-in? (or dev? admin?)))))

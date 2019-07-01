@@ -155,10 +155,11 @@
  ::register?
  (fn [_]
    [(subscribe [:active-panel])
-    (subscribe [::login-to-join?])])
- (fn [[panel login-to-join?]]
-   (and (= panel register-panel)
-        (not login-to-join?))))
+    (subscribe [::login-to-join?])
+    (subscribe [:landing-page?])])
+ (fn [[panel login-to-join? landing?]]
+   (or landing? (and (= panel register-panel)
+                     (not login-to-join?)))))
 
 (reg-sub
  ::fields
@@ -303,7 +304,8 @@
    "Log in with Google"])
 
 (defn LoginRegisterPanel []
-  (let [register? @(subscribe [::register?])
+  (let [landing? @(subscribe [:landing-page?])
+        register? @(subscribe [::register?])
         project-id @(subscribe [:register/project-id])
         project-name @(subscribe [:register/project-name])
         register-hash @(subscribe [:register/register-hash])
@@ -340,6 +342,10 @@
                                         :register? register?
                                         :project-id project-id
                                         :redirect redirect}])))}
+         (when landing?
+           [:div.create-account
+            [:h4.header "Create an Account"]
+            [:div.ui.divider]])
          [:div.field.email {:class (field-class :email)}
           [:div.ui.left.icon.input
            [:i.user.icon]
@@ -362,27 +368,28 @@
           {:type "submit" :name "submit"
            :class (if (and register? (loading/any-action-running? :only :auth/register))
                     "loading")}
-          (if register? "Register" "Login")]
+          (cond landing?   "Sign Up"
+                register?  "Register"
+                :else      "Login")]
          (when-let [err @(subscribe [::login-error-msg])]
            [:div.ui.negative.message err])
          (when (not= js/window.location.host "sysrev.com")
            [GoogleLogInButton])
          #_ [GoogleSignInButton]]
-        (if register?
-          [:div.ui.center.aligned.grid
-           [:div.column
-            (when-not (= redirect "/user/plans")
-              [:a.medium-weight {:href (if register-hash
-                                         (str @active-route "/login")
-                                         "/login")}
-               "Already have an account?"])]]
-          [:div.ui.two.column.center.aligned.grid
-           [:div.column
-            [:a.medium-weight {:href "/register"}
-             "Create Account"]]
-           [:div.column
-            [:a.medium-weight {:href "/request-password-reset"}
-             "Forgot Password?"]]])]])))
+        (cond landing?   nil
+              register?  [:div.ui.center.aligned.grid
+                          [:div.column
+                           [:a.medium-weight {:href (if register-hash
+                                                      (str @active-route "/login")
+                                                      "/login")}
+                            "Already have an account?"]]]
+              :else      [:div.ui.two.column.center.aligned.grid
+                          [:div.column
+                           [:a.medium-weight {:href "/register"}
+                            "Create Account"]]
+                          [:div.column
+                           [:a.medium-weight {:href "/request-password-reset"}
+                            "Forgot Password?"]]])]])))
 
 (defn- wrap-join-project [& children]
   [:div.ui.padded.segments.auto-margin.join-project-panel

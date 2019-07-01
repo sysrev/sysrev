@@ -35,11 +35,34 @@ div.project-content {
         line-height: 1.15em;
     }
 
-    .ui.label {
+    .ui.button.project-access {
         .open-sans;
         .medium-weight;
         font-size: 13px;
+        padding: 0.7em 1.2em;
+        margin: 0;
     }
+
+    .ui.header.title-header {
+        font-size: 16px;
+        span.project-title {
+        }
+    }
+
+    .ui.header.title-header:hover {
+        span.project-title {
+            color: @emphasisText;
+        }
+        i.grey.icon {
+            color: @emphasisGrey !important;
+        }
+    }
+}
+
+span.project-title {
+    font-size: 14px;
+    .open-sans;
+    .medium-weight;
 }
 
 div.project-files > .ui.list {

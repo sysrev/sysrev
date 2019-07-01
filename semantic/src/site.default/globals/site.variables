@@ -16,3 +16,7 @@
 @subtleShadow: 0 1px 2px 0 rgba(34,36,38,.05);
 
 @solidInternalBorderColor: rgba(70, 70, 70, 0.125);
+
+@segmentBackground: rgba(255,255,255,1.0);
+@secondarySegmentBackground: rgba(248,248,248,1.0);
+@tertiarySegmentBackground: rgba(238,238,238,1.0);

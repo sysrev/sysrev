@@ -4,6 +4,8 @@
             [sysrev.routes :as routes]
             [sysrev.util :refer [nbsp]]
             [sysrev.base :refer [active-route]]
+            [sysrev.nav :as nav]
+            [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.project.common
              :refer [project-page-menu project-submenu]]
@@ -17,14 +19,20 @@
     (with-loader [[:project project-id]] {}
       (let [project-name @(subscribe [:project/name])
             public? @(subscribe [:project/public-access?])
+            access-button (fn [content]
+                            [:button.ui.tiny.button.project-access
+                             {:on-click (when @(subscribe [:user/project-admin?])
+                                          #(nav/nav-scroll-top (project-uri nil "/settings")))}
+                             content])
             access-label (if public?
-                           [:div.ui.label [:i.globe.icon] "Public"]
-                           [:div.ui.label [:i.lock.icon] "Private"])]
+                           [access-button [:span [:i.globe.icon] "Public"]]
+                           [access-button [:span [:i.lock.icon] "Private"]])]
         [:div
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
            [:div.fourteen.wide.column
-            [:h4.ui.header.title-header
+            [:a.ui.header.title-header
+             {:href (project-uri nil "")}
              [:i.grey.list.alternate.outline.icon]
              [:div.content
               [:span.project-title project-name]]]]

@@ -64,6 +64,25 @@
           :name (:name project)
           :member? true}])))])
 
+(defn PublicProjectsLanding []
+  (let [all-public @(subscribe [:public-projects])]
+    [:div.projects-list-landing
+     [:div.ui.two.column.stackable.grid
+      (doall
+       (for [ids-row (->> [100 269 2026 844 3144]
+                          (filter #(contains? all-public %))
+                          (partition-all 2))]
+         ^{:key [:project-row (first ids-row)]}
+         [:div.middle.aligned.row
+          (for [project-id ids-row]
+            (when-let [project (get all-public project-id)]
+              ^{:key [:public-project project-id]}
+              [:div.column #_ {:style {:padding "0"}}
+               [ProjectListItem
+                {:project-id project-id
+                 :name (:name project)
+                 :member? true}]]))]))]]))
+
 (defn UserProjectListFull []
   (with-loader [[:identity] [:public-projects]] {}
     (when @(subscribe [:self/logged-in?])

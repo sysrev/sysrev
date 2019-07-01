@@ -265,7 +265,9 @@
         {:type "submit"
          :name "submit"
          :class (if loading? "loading" "")}
-        "Request Password Reset Link"]]
+        "Send Password Reset Link"]]
+      [:div.ui.center.aligned.grid.small>div.column
+       [:a.medium-weight.small {:href "/login"} "Back to Login"]]
       (when-let [msg @(subscribe [:request-password-reset/error])]
         [:div.ui.negative.message msg])
       (when @(subscribe [:request-password-reset/sent?])

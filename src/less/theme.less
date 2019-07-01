@@ -1,9 +1,13 @@
 @text: @darkText;
+@emphasisText: @darkestText;
 @invertedText: @lightText;
 @mutedText: @mutedDarkText;
 @mutedInvertedText: @mutedLightText;
 @fadedText: @fadedDarkText;
 @fadedInvertedText: @fadedLightText;
+
+@grey: #767676;
+@emphasisGrey: #606060;
 
 @blue: rgba(64, 121, 191, 1);
 @brightBlue: rgba(70, 150, 250, 1);
@@ -17,8 +21,9 @@
 @partialSegmentBackground: rgba(248,249,250,1.0);
 @secondarySegmentBackground: #f3f4f5;
 
-@footerBackground: rgba(249,250,252, 1.0);
-@footerBorder: rgba(215, 215, 215, 1.0);
+// @footerBackground: rgba(249,250,252, 1.0);
+@footerBackground: rgba(252,253,254,1.0);
+@footerBorder: rgba(220, 220, 220, 0.85);
 
 @blueBackground: rgba(230,245,255,0.5);
 @greenBackground: rgba(235,255,225,0.5);
@@ -58,4 +63,9 @@
 .ui.segments {
     // box-shadow: none !important;
     // -webkit-box-shadow: none !important;
+}
+
+.ui.divided.grid:not([class*="vertically divided"]) > .column:not(.row),
+.ui.divided.grid:not([class*="vertically divided"]) > .row > .column {
+    box-shadow: -1px 0 0 0 rgba(34,36,38,.175);
 }

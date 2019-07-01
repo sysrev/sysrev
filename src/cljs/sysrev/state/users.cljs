@@ -50,11 +50,9 @@
  (fn [[user]]
    (:permissions user)))
 
-(reg-sub
- :user/admin?
- (fn [[_ user-id]]
-   [(subscribe [:user/permissions user-id])])
- (fn [[perms]] (boolean (in? perms "admin"))))
+(reg-sub :user/admin?
+         (fn [[_ user-id]] (subscribe [:user/permissions user-id]))
+         (fn [perms] (boolean (in? perms "admin"))))
 
 (reg-sub
  :user/visible?
