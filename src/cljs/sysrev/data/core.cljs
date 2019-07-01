@@ -28,12 +28,15 @@
 ;; def-data arguments
 (doseq [arg [::loaded? ::uri ::process ::prereqs ::content ::on-error]]
   (s/def arg ifn?))
+(s/def ::method keyword?)
 (s/def ::content-type string?)
 
 (defn def-data
-  "Create definition for a data item to fetch from server.
+  "Create a definition for a data item to fetch from server.
 
   Required parameters:
+
+  `:uri` - fn taking `::item-args`, returns url string for request.
 
   `:loaded?` - fn taking `::db-item-args`, returns boolean indicating
   whether item is already loaded. Should check db for the presence of
@@ -44,16 +47,14 @@
   item becomes not-loaded (data entry removed from db) after
   `:require` was called previously.
 
-  `:uri` - fn taking `::item-args`, returns url string for request.
-
   `:process` - (fn [cofx item-args result] ...)
-  `cofx` is normal re-frame cofx map for reg-event-fx
-  (ex: {:keys [db]}).
-  `item-args` provides the `::item-args` from the item vector passed to
-  one of `:require` `:reload` `:fetch`.
-  `result` provides the value returned from server on HTTP success.
-  The value is unwrapped, having already been extracted from the raw
-  {:result value, ...} returned by the server.
+  * `cofx` is normal re-frame cofx map for reg-event-fx
+    (ex: {:keys [db]}).
+  * `item-args` provides the `::item-args` from the item vector passed to
+    one of `:require` `:reload` `:fetch`.
+  * `result` provides the value returned from server on HTTP success.
+    The value is unwrapped, having already been extracted from the raw
+    {:result value, ...} returned by the server.
 
   Optional parameters:
 
@@ -66,29 +67,33 @@
   `:content` - fn taking `::item-args`, returns request content
   (normally a map of request parameter values).
 
+  `:method` - keyword value for HTTP method (default :get)
+
   `:content-type` - string value for HTTP Content-Type header
 
   `:on-error` - Similar to `:process` but called on HTTP error
   status. cofx value includes an `:error` key, which is taken from
   the `:error` field of the server response."
-  [name & {:keys [prereqs loaded? uri content content-type process on-error]
-           :or {prereqs (constantly [[:identity]])}
+  [name & {:keys [uri loaded? prereqs content process on-error method content-type]
+           :or {prereqs (constantly [[:identity]])
+                method :get}
            :as fields}]
   (s/assert ::item-name name)
-  (s/assert ::loaded? loaded?)
   (s/assert ::uri uri)
+  (s/assert ::loaded? loaded?)
   (s/assert ::process process)
   (s/assert ::prereqs prereqs)
   (when content (s/assert ::content content))
   (when content-type (s/assert ::content-type content-type))
   (when on-error (s/assert ::on-error on-error))
+  (when method (s/assert ::method method))
   (swap! data-defs assoc name
-         (merge fields {:prereqs prereqs})))
+         (merge fields {:prereqs prereqs :method method})))
 
 (s/fdef def-data
   :args (s/cat :name ::item-name
-               :keys (s/keys* :req-un [::loaded? ::uri ::process]
-                              :opt-un [::prereqs ::content ::content-type ::on-error]))
+               :keys (s/keys* :req-un [::uri ::loaded? ::process]
+                              :opt-un [::prereqs ::content ::on-error ::method ::content-type]))
   :ret map?)
 
 ;; Gets raw list of data requirements
@@ -127,11 +132,9 @@
 (defn- lookup-load-triggers [db item]
   (get-in db [:on-load item]))
 
-(reg-event-db
- :data/after-load
- [trim-v]
- (fn [db [item trigger-id action]]
-   (add-load-trigger db item trigger-id action)))
+(reg-event-db :data/after-load [trim-v]
+              (fn [db [item trigger-id action]]
+                (add-load-trigger db item trigger-id action)))
 
 (reg-event-fx
  ::process-load-triggers
@@ -151,18 +154,12 @@
                                    (fn? %)      nil))
                        (apply concat))})))
 
-(reg-fx
- ::process-load-triggers
- (fn [item]
-   (dispatch [::process-load-triggers item])))
+(reg-fx ::process-load-triggers
+        (fn [item] (dispatch [::process-load-triggers item])))
 
-(reg-event-db
- :data/reset-required
- (fn [db]
-   (assoc db :needed [])))
+(reg-event-db :data/reset-required #(assoc % :needed []))
 
-(reg-fx
- :data/reset-required (fn [_] (dispatch [:data/reset-required])))
+(reg-fx :data/reset-required (fn [_] (dispatch [:data/reset-required])))
 
 ;; Tests if `item` is loaded
 (defn- have-item? [db item]
@@ -194,12 +191,6 @@
  (fn [[initialized? missing]]
    (boolean (and initialized? (empty? missing)))))
 
-;;
-;; Maintain counters for start/completion of AJAX requests
-;;
-
-
-
 ;; TODO: replace this with a queue for items to fetch in @app-db
 (defonce
   ^{:doc "Atom used to ensure a minimal delay between :fetch events."}
@@ -210,78 +201,70 @@
 ;; Usually this should be triggered from :require via `with-loader`,
 ;; or from :reload to fetch updated data in response to a user action.
 (reg-event-fx
- :fetch
- [trim-v]
+ :fetch [trim-v]
  (fn [{:keys [db]} [item]]
    (let [[name & args] item
-         entry (get @data-defs name)
+         {:keys [uri content content-type method]
+          :as entry} (get @data-defs name)
          elapsed-millis (- (js/Date.now) @last-fetch-millis)]
-     (when (and entry (not (loading/item-loading? item)))
+     (assert entry (str "def-data not found - " (pr-str name)))
+     (when-not (loading/item-loading? item)
        (cond (loading/item-spammed? item)
              {:data-failed item}
 
-             (< elapsed-millis 25)
-             (do (js/setTimeout #(dispatch [:fetch item])
-                                (- 40 elapsed-millis))
-                 {})
+             (< elapsed-millis 20)
+             {:dispatch-later [{:dispatch [:fetch item] :ms (- 30 elapsed-millis)}]}
 
-             (loading/any-action-running? :ignore [:sources/delete])
-             (do (js/setTimeout #(dispatch [:fetch item])
-                                50)
-                 {})
+             (not (loading/ajax-action-inactive?))
+             {:dispatch-later [{:dispatch [:fetch item] :ms 20}]}
 
              :else
-             (let [uri (apply (:uri entry) args)
-                   content (some-> (:content entry) (apply args))
-                   content-type (or (:content-type entry)
-                                    "application/transit+json")]
+             (let [content-val (some-> content (apply args))]
                (reset! last-fetch-millis (js/Date.now))
-               (merge
-                {:data-sent item}
-                (run-ajax
-                 (cond-> {:db db
-                          :method (or (:method entry) :get)
-                          :uri uri
-                          :on-success [::on-success item]
-                          :on-failure [::on-failure item]
-                          :content-type content-type}
-                   content (assoc :content content))))))))))
+               (merge {:data-sent item}
+                      (run-ajax (cond-> {:db db
+                                         :method method
+                                         :uri (apply uri args)
+                                         :on-success [::on-success item]
+                                         :on-failure [::on-failure item]
+                                         :content-type (or content-type
+                                                           "application/transit+json")}
+                                  content-val (assoc :content content-val))))))))))
 
 (reg-event-ajax-fx
  ::on-success
  (fn [{:keys [db] :as cofx} [item result]]
    (let [[name & args] item
          spammed? (loading/item-spammed? item)]
-     (merge
-      {:data-returned item}
-      (if spammed?
-        {:data-failed item}
-        {:reset-data-failed item})
-      (when (not spammed?)
-        (when-let [entry (get @data-defs name)]
-          (when-let [process (:process entry)]
-            (merge (apply process [cofx args result])
-                   ;; Run :fetch-missing in case this request provided any
-                   ;; missing data prerequisites.
-                   {:fetch-missing [true item]}
-                   (when (not-empty (lookup-load-triggers db item))
-                     {::process-load-triggers item})))))))))
+     (merge {:data-returned item}
+            (if spammed?
+              {:data-failed item}
+              {:reset-data-failed item})
+            (when (not spammed?)
+              (when-let [entry (get @data-defs name)]
+                (when-let [process (:process entry)]
+                  (merge (apply process [cofx args result])
+                         ;; Run :fetch-missing in case this request provided any
+                         ;; missing data prerequisites.
+                         {:fetch-missing [true item]}
+                         (when (not-empty (lookup-load-triggers db item))
+                           {::process-load-triggers item})))))))))
 
 (reg-event-ajax-fx
  ::on-failure
  (fn [cofx [item result]]
    (let [[name & args] item]
-     (merge
-      {:data-returned item
-       :data-failed item}
-      (when-let [entry (get @data-defs name)]
-        (when-let [process (:on-error entry)]
-          (apply process [cofx args result])))))))
+     (merge {:data-returned item
+             :data-failed item}
+            (when-let [entry (get @data-defs name)]
+              (if-let [process (:on-error entry)]
+                (apply process [cofx args result])
+                (do (js/console.error (str "data error: " (pr-str item)))
+                    {})))))))
 
 ;; Reload data item from server if already loaded.
 (reg-event-fx
- :reload
- [trim-v]
+ :reload [trim-v]
  (fn [{:keys [db]} [item]]
    (when (and (or (have-item? db item)
                   (loading/item-failed? item))
@@ -290,20 +273,7 @@
 
 ;; Dispatch both `:require` and `:reload`
 (reg-event-fx :data/load [trim-v]
-              (fn [_ [item]]
-                {:dispatch-n [[:require item] [:reload item]]}))
-
-;; Fetches any missing required data
-(reg-event-fx
- :fetch-missing
- [trim-v]
- (fn [{:keys [db]} [trigger-item]]
-   {:dispatch-n
-    (->> (get-missing-items db)
-         (remove #(loading/item-failed? %))
-         (remove #(loading/item-loading? %))
-         (map (fn [item] [:fetch item]))
-         doall)}))
+              (fn [_ [item]] {:dispatch-n [[:require item] [:reload item]]}))
 
 (reg-fx
  ::fetch-if-missing
@@ -317,6 +287,15 @@
          (dispatch [:fetch item])))
     10)))
 
+;; Fetches any missing required data
+(reg-event-fx :fetch-missing
+              (fn [{:keys [db]}]
+                {:dispatch-n
+                 (->> (get-missing-items db)
+                      (remove #(loading/item-failed? %))
+                      (remove #(loading/item-loading? %))
+                      (mapv (fn [item] [:fetch item])))}))
+
 (reg-fx
  :fetch-missing
  (fn [[fetch? trigger-item]]
@@ -324,14 +303,6 @@
      ;; Use setTimeout to ensure that changes to app-db from any simultaneously
      ;; dispatched events will have completed first.
      (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 30))))
-
-;; (Re-)fetches all required data. This shouldn't be needed.
-(reg-event-fx
- :data/fetch-all
- (fn [{:keys [db]}]
-   {:dispatch-n
-    (map (fn [item] [:fetch item])
-         (get-needed-items db))}))
 
 (defn init-data []
   (dispatch [:ui/load-default-panels])

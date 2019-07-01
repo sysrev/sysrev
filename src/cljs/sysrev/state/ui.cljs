@@ -32,15 +32,13 @@
                path [path])]
     (get-in db (concat [:state :panels panel] path))))
 
-(reg-sub
- :panel-field
- (fn [[_ path & [panel]]]
-   [(subscribe [::panel-state panel])])
- (fn [[pstate] [_ path & [panel]]]
-   (when (and pstate path)
-     (let [path (if (or (nil? path) (sequential? path))
-                  path [path])]
-       (get-in pstate path)))))
+(reg-sub :panel-field
+         (fn [[_ path & [panel]]] (subscribe [::panel-state panel]))
+         (fn [pstate [_ path & [panel]]]
+           (when (and pstate path)
+             (let [path (if (or (nil? path) (sequential? path))
+                          path [path])]
+               (get-in pstate path)))))
 
 (defn set-panel-field [db path val & [panel]]
   (let [panel (or panel (nav/active-panel db))
@@ -48,17 +46,13 @@
                path [path])]
     (assoc-in db (concat [:state :panels panel] path) val)))
 
-(reg-event-db
- :set-panel-field
- [trim-v]
- (fn [db [path val & [panel]]]
-   (set-panel-field db path val panel)))
+(reg-event-db :set-panel-field [trim-v]
+              (fn [db [path val & [panel]]]
+                (set-panel-field db path val panel)))
 
-(reg-event-db
- :reset-transient-fields
- [trim-v]
- (fn [db [panel]]
-   (dissoc-in db [:state :panels panel :transient])))
+(reg-event-db :reset-transient-fields [trim-v]
+              (fn [db [panel]]
+                (dissoc-in db [:state :panels panel :transient])))
 
 ;;;
 ;;; Views

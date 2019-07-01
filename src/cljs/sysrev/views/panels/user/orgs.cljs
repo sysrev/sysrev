@@ -3,15 +3,17 @@
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.util :as util :refer [wrap-prevent-default]]
+            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Divider]]
-            [sysrev.views.panels.user.profile :as user-profile])
+            [sysrev.views.panels.user.profile :as user-profile]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [parse-integer]])
   (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
 ;; Using same panel value as sysrev.views.panels.user.profile
-(setup-panel-state panel [:user :profile] {:state-var state})
+(setup-panel-state panel [:user :orgs] {})
 
 (def-data :user/orgs
   :loaded? (fn [db user-id] (-> (get-in db [:data :user-orgs])
@@ -27,30 +29,33 @@
          (fn [db [_ user-id]]
            (get-in db [:data :user-orgs user-id])))
 
-(defn UserOrganization [{:keys [group-id group-name]}]
+(defn- UserOrganization [{:keys [group-id group-name]}]
   [:div {:id (str "org-" group-id)
          :class "user-org-entry"
          :style {:margin-bottom "1em"}}
-   [:a {:href "#" :on-click (wrap-prevent-default
-                             #(nav-scroll-top (str "/org/" group-id "/users")))}
+   [:a {:href (str "/org/" group-id "/users") :on-click #(util/scroll-top)}
     group-name]
    [Divider]])
 
-(defn UserOrgs [user-id]
-  (let [orgs (subscribe [:user/orgs user-id])]
-    (r/create-class
-     {:reagent-render (fn [this]
-                        (when (seq @orgs)
-                          [Segment
-                           [Header {:as "h4" :dividing true} "Organizations"]
-                           [:div {:id "user-organizations"}
-                            (doall (for [org @orgs] ^{:key (:group-id org)}
-                                     [UserOrganization org]))]]))
-      :component-did-mount (fn [this]
-                             (dispatch [:data/load [:user/orgs user-id]]))})))
+(defn- UserOrgs [user-id]
+  (with-loader [[:user/orgs user-id]] {}
+    (when-let [orgs (seq @(subscribe [:user/orgs user-id]))]
+      [Segment
+       [Header {:as "h4" :dividing true} "Organizations"]
+       [:div {:id "user-organizations"}
+        (doall (for [org orgs] ^{:key (:group-id org)}
+                 [UserOrganization org]))]])))
 
-(defn Orgs [{:keys [user-id]}]
+(defn UserOrgsPanel []
   [:div
-   (when @(subscribe [:users/is-path-user-id-self?])
-     [CreateOrg])
-   [UserOrgs user-id]])
+   (when @(subscribe [:user-panel/self?]) [CreateOrg])
+   [UserOrgs @(subscribe [:user-panel/user-id])]])
+
+(defmethod panel-content panel []
+  (fn [child] [UserOrgsPanel]))
+
+(sr-defroute user-orgs "/user/:user-id/orgs" [user-id]
+             (let [user-id (parse-integer user-id)]
+               (dispatch [:user-panel/set-user-id user-id])
+               (dispatch [:reload [:user/orgs user-id]])
+               (dispatch [:set-active-panel panel])))

@@ -164,5 +164,5 @@
 ;; TODO: remove this, potentially very expensive
 (reg-event-fx :project/fetch-all-projects
               (fn []
-                {:dispatch-n (doall (map (fn [p] [:fetch [:project (:project-id p)]])
+                {:dispatch-n (doall (map (fn [p] [:reload [:project (:project-id p)]])
                                          @(subscribe [:self/projects])))}))

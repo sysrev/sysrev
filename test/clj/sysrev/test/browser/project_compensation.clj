@@ -654,7 +654,7 @@
       (nav/register-user (:email user1) (:password user1))
       ;; the user can't be listed as a public reviewer
       (b/click "#user-name-link")
-      (b/click "#user-general")
+      (b/click "#user-settings")
       (b/wait-until-exists opt-in-toggle)
       (is (taxi/attribute opt-in-toggle "disabled"))
       ;; verify the email address
@@ -690,7 +690,7 @@
         (is (= 1 (email-address-count)))
         ;; opt-in as a public reviewer
         (b/click "#user-name-link")
-        (b/click "#user-general")
+        (b/click "#user-settings")
         (b/wait-until-exists opt-in-toggle)
         ;; due to the hacky nature of React Semantic UI toggle buttons,
         ;; you click the label, not the input
@@ -720,7 +720,7 @@
         (is (= 0 (your-projects-count)))
         ;;(nav/go-route "/user/settings")
         (b/click "#user-name-link")
-        (b/click "#user-general")
+        (b/click "#user-settings")
         (b/click (xpath "//a[@href='/user/" user-id "/invitations']"))
         ;; accept the invitation
         (b/click (xpath "//button[contains(text(),'Accept')]"))

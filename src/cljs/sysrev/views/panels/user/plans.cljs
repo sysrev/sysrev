@@ -20,14 +20,19 @@
 
 (setup-panel-state panel [:plans] {:state-var state
                                    :get-fn panel-get
-                                   :set-fn panel-set})
+                                   :set-fn panel-set
+                                   :get-sub ::get
+                                   :set-event ::set})
+
+(defn- load-user-current-plan [db plan]
+  (assoc-in db [:data :plans :current-plan] plan))
 
 (def-data :user/current-plan
   :loaded? (fn [db user-id] (-> (get-in db [:data :plans])
                                 (contains? :current-plan)))
   :uri (fn [user-id] (str "/api/user/" user-id "/stripe/current-plan"))
   :process (fn [{:keys [db]} _ {:keys [plan] :as result}]
-             {:db (assoc-in db [:data :plans :current-plan] plan)}))
+             {:db (load-user-current-plan db plan)}))
 
 (reg-sub :user/current-plan #(get-in % [:data :plans :current-plan]))
 
@@ -37,18 +42,20 @@
               (fn [db [_ url]] (panel-set db :on-subscribe-nav-to-url url)))
 
 (def-action :user/subscribe-plan
-  :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/subscribe-plan"))
-  :content (fn [plan-name] {:plan-name plan-name})
-  :process (fn [{:keys [db]} _ result]
-             (when (:created result)
-               {:db (-> (panel-set db :changing-plan? false)
-                        (panel-set :error-message nil))
-                :dispatch-n (list
-                             [:fetch [:user/current-plan (current-user-id db)]]
-                             ;; need to download all projects associated with the user
-                             ;; to update [:project/subscription-lapsed?] for MakePublic
-                             [:project/fetch-all-projects])
-                :nav-scroll-top @(subscribe [:user/on-subscribe-nav-to-url])}))
+  :uri (fn [user-id plan-name] (str "/api/user/" user-id "/stripe/subscribe-plan"))
+  :content (fn [user-id plan-name]
+             #_ (js/console.log ":user/subscribe-plan running " (pr-str [user-id plan-name]))
+             {:plan-name plan-name})
+  :process (fn [{:keys [db]} [user-id _] {:keys [stripe-body plan] :as result}]
+             #_ (js/console.log ":user/subscribe-plan result = " (pr-str result))
+             (if (:created stripe-body)
+               (let [nav-url (panel-get db :on-subscribe-nav-to-url)]
+                 {:db (-> (panel-set db :changing-plan? false)
+                          (panel-set :error-message nil)
+                          (load-user-current-plan plan))
+                  :dispatch-n (list [:project/fetch-all-projects]
+                                    [:nav-scroll-top nav-url]
+                                    #_ [:data/load [:user/current-plan user-id]])})))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"
@@ -161,8 +168,7 @@
 (defn UpgradePlan [{:keys [state
                            billing-settings-uri
                            on-upgrade
-                           default-source-atom
-                           get-default-source
+                           default-source
                            on-add-payment-method
                            unlimited-plan-price
                            unlimited-plan-name]}]
@@ -170,104 +176,99 @@
         changing-plan? (r/cursor state [:changing-plan?])
         mobile? (util/mobile?)
         current-path (uri-utils/getPath @active-route)]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        [:div
-         (when-not mobile? [:h1 "Upgrade your plan"])
-         [Grid {:stackable true :columns 2 :class "upgrade-plan"}
-          [Column
-           [Grid [Row [Column
-                       [:h3 "UPGRADING TO"]
-                       [Unlimited {:unlimited-plan-price unlimited-plan-price
-                                   :unlimited-plan-name unlimited-plan-name}]
-                       (when-not mobile?
-                         [:a {:href billing-settings-uri}
-                          (if (= current-path "/user/plans")
-                            "<< Back to user settings"
-                            "<< Back to org settings")])]]]]
-          [Column
-           (let [no-default? (empty? @default-source-atom)]
-             [Grid
-              [Row
-               [Column
-                [:h3 "Upgrade Summary"]
-                [ListUI {:divided true}
-                 [:h4 "New Monthly Bill"]
-                 [ListItem [:p (str "Unlimited plan ("
-                                    (if (map? unlimited-plan-price)
-                                      (str "$" (-> unlimited-plan-price
-                                                   price-summary
-                                                   :monthly-bill
-                                                   cents->dollars)
-                                           " / month")
-                                      (str "$" (cents->dollars unlimited-plan-price) " / month"))
-                                    ")")]]
-                 [:h4 "Billing Information"]
-                 [ListItem [DefaultSource {:get-default-source get-default-source
-                                           :default-source-atom default-source-atom}]]
-                 (when (empty? @error-message)
-                   [:a.payment-method
-                    {:class (if no-default? "add-method" "change-method")
-                     :style {:cursor "pointer"}
-                     :on-click (util/wrap-prevent-default
-                                #(do (reset! error-message nil)
-                                     (on-add-payment-method)))}
-                    (if no-default?
-                      "Add a payment method"
-                      "Change payment method")])
-                 [:div {:style {:margin-top "1em" :width "100%"}}
-                  [TogglePlanButton {:disabled (or no-default? @changing-plan?)
-                                     :on-click #(do (reset! changing-plan? true)
-                                                    (on-upgrade))
-                                     :class "upgrade-plan"
-                                     :loading @changing-plan?}
-                   "Upgrade Plan"]]
-                 (when @error-message
-                   [s/Message {:negative true}
-                    [s/MessageHeader "Change Plan Error"]
-                    [:p @error-message]])]]]])]]])
-      :get-initial-state
-      (fn [this]
-        (reset! changing-plan? false)
-        (reset! error-message nil))})))
+    [:div
+     (when-not mobile? [:h1 "Upgrade your plan"])
+     [Grid {:stackable true :columns 2 :class "upgrade-plan"}
+      [Column
+       [Grid [Row [Column
+                   [:h3 "UPGRADING TO"]
+                   [Unlimited {:unlimited-plan-price unlimited-plan-price
+                               :unlimited-plan-name unlimited-plan-name}]
+                   (when-not mobile?
+                     [:a {:href billing-settings-uri}
+                      (if (= current-path "/user/plans")
+                        "<< Back to user settings"
+                        "<< Back to org settings")])]]]]
+      [Column
+       (let [no-default? (empty? default-source)]
+         [Grid
+          [Row
+           [Column
+            [:h3 "Upgrade Summary"]
+            [ListUI {:divided true}
+             [:h4 "New Monthly Bill"]
+             [ListItem [:p (str "Unlimited plan ("
+                                (if (map? unlimited-plan-price)
+                                  (str "$" (-> unlimited-plan-price
+                                               price-summary
+                                               :monthly-bill
+                                               cents->dollars)
+                                       " / month")
+                                  (str "$" (cents->dollars unlimited-plan-price) " / month"))
+                                ")")]]
+             [:h4 "Billing Information"]
+             [ListItem [DefaultSource {:default-source default-source}]]
+             (when (empty? @error-message)
+               [:a.payment-method
+                {:class (if no-default? "add-method" "change-method")
+                 :style {:cursor "pointer"}
+                 :on-click (util/wrap-prevent-default
+                            #(do (reset! error-message nil)
+                                 (on-add-payment-method)))}
+                (if no-default?
+                  "Add a payment method"
+                  "Change payment method")])
+             [:div {:style {:margin-top "1em" :width "100%"}}
+              [TogglePlanButton {:disabled (or no-default? @changing-plan?)
+                                 :on-click #(do (reset! changing-plan? true)
+                                                (on-upgrade))
+                                 :class "upgrade-plan"
+                                 :loading @changing-plan?}
+               "Upgrade Plan"]]
+             (when @error-message
+               [s/Message {:negative true}
+                [s/MessageHeader "Change Plan Error"]
+                [:p @error-message]])]]]])]]]))
+
+(defn UserPlans []
+  (when-let [self-id @(subscribe [:self/user-id])]
+    (let [current-plan @(subscribe [:user/current-plan])
+          default-source @(subscribe [:user/default-source])
+          plan-args {:state state
+                     :billing-settings-uri (str "/user/" self-id "/billing")
+                     :unlimited-plan-price 1000
+                     :unlimited-plan-name "Pro Plan"}]
+      #_ (js/console.log "UserPlans: current-plan = " (:name current-plan))
+      (condp = (:name current-plan)
+        "Basic"
+        [UpgradePlan
+         (merge plan-args
+                {:default-source default-source
+                 :on-upgrade #(dispatch [:action [:user/subscribe-plan self-id "Unlimited_User"]])
+                 :on-add-payment-method
+                 #(do (dispatch [:stripe/set-calling-route! "/user/plans"])
+                      (nav-scroll-top "/user/payment"))})]
+        "Unlimited_User"
+        [DowngradePlan
+         (merge plan-args
+                {:on-downgrade #(dispatch [:action [:user/subscribe-plan self-id "Basic"]])})]
+        [s/Message {:negative true}
+         [s/MessageHeader "User Plans Error"]
+         [:div.content
+          [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " self-id)]
+          [:p (str "Active route: " @active-route)]]]))))
+
+(defmethod panel-content [:plans] []
+  (fn [child] [UserPlans]))
 
 (defmethod logged-out-content [:plans] []
   (logged-out-content :logged-out))
 
-(defn UserPlans []
-  (when-let [self-id @(subscribe [:self/user-id])]
-    (with-loader [[:user/current-plan self-id]] {}
-      (let [current-plan @(subscribe [:user/current-plan])]
-        (condp = (:name current-plan)
-          "Basic"
-          [UpgradePlan {:state state
-                        :billing-settings-uri (str "/user/" self-id "/billing")
-                        :default-source-atom (subscribe [:stripe/default-source "user" self-id])
-                        :get-default-source stripe/get-user-default-source
-                        :on-upgrade (fn [] (dispatch [:action [:user/subscribe-plan "Unlimited_User"]]))
-                        :on-add-payment-method
-                        #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                             (dispatch [:navigate [:payment]]))
-                        :unlimited-plan-price 1000
-                        :unlimited-plan-name "Pro Plan"}]
-          "Unlimited_User"
-          [DowngradePlan {:state state
-                          :billing-settings-uri (str "/user/" self-id "/billing")
-                          :on-downgrade (fn [] (dispatch [:action [:user/subscribe-plan "Basic"]]))
-                          :unlimited-plan-name "Pro Plan"
-                          :unlimited-plan-price 1000}]
-          [s/Message {:negative true}
-           [s/MessageHeader "User Plans Error"]
-           [:div.content
-            [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " self-id)]
-            [:p (str "Active route: " @active-route)]]])))))
-
-(defmethod panel-content [:plans] []
-  (fn [child]
-    [UserPlans]))
-
 (sr-defroute user-plans "/user/plans" []
              (let [self-id @(subscribe [:self/user-id])]
+               (dispatch [::set :changing-plan? nil])
+               (dispatch [::set :error-message nil])
                (dispatch [:set-active-panel [:plans]])
-               (when self-id (dispatch [:data/load [:user/current-plan self-id]]))))
+               (when self-id
+                 (dispatch [:data/load [:user/current-plan self-id]])
+                 (dispatch [:data/load [:user/default-source self-id]]))))

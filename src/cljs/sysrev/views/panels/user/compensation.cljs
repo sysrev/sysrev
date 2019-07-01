@@ -1,106 +1,99 @@
 (ns sysrev.views.panels.user.compensation
-  (:require [ajax.core :refer [POST GET DELETE PUT]]
-            [reagent.core :as r]
-            [re-frame.core :refer [subscribe reg-event-fx reg-sub trim-v]]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.accounting :as accounting]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.state.identity :refer [current-user-id]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.semantic :as sui :refer
+             [Grid Row Column Segment Header ListUI ListItem]]
+            [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.util :as util]
-            [sysrev.views.semantic :as s :refer
-             [Grid Row Column Segment Header]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [parse-integer]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :compensation] {:state-var state
-                                                :get-fn panel-get
-                                                :set-fn panel-set})
+                                                :get-fn panel-get :set-fn panel-set
+                                                :get-sub ::get :set-event ::set})
 
-(reg-sub :compensation/payments-owed #(panel-get % :payments-owed))
+(def-data :user/payments-owed
+  :uri (fn [user-id] (str "/api/user/" user-id "/payments-owed"))
+  :loaded? (fn [db user-id] (-> (get-in db [:data :user-payments user-id])
+                                (contains? :owed)))
+  :process (fn [{:keys [db]} [user-id] {:keys [payments-owed]}]
+             {:db (assoc-in db [:data :user-payments user-id :owed] payments-owed)}))
 
-(reg-sub :compensation/payments-paid #(panel-get % :payments-paid))
+(reg-sub :user/payments-owed
+         (fn [db [_ & [user-id]]]
+           (let [user-id (or user-id (current-user-id db))]
+             (get-in db [:data :user-payments user-id :owed]))))
 
-(defn get-payments-owed!
-  "Retrieve the current amount of compensation owed to user"
-  []
-  (let [user-id @(subscribe [:self/user-id])
-        payments-owed (r/cursor state [:payments-owed])
-        retrieving-payments-owed? (r/cursor state [:retrieving-payments-owed?])
-        error-message (r/cursor state [:retrieving-payments-error-message])]
-    (reset! retrieving-payments-owed? true)
-    (GET (str "/api/user/" user-id "/payments-owed")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [{:keys [result]}]
-                     (reset! retrieving-payments-owed? false)
-                     (reset! payments-owed (:payments-owed result)))
-          :error-handler (fn [{:keys [error]}]
-                           (reset! retrieving-payments-owed? false)
-                           (reset! error-message (:message error)))})))
+(def-data :user/payments-paid
+  :uri (fn [user-id] (str "/api/user/" user-id "/payments-paid"))
+  :loaded? (fn [db user-id] (-> (get-in db [:data :user-payments user-id])
+                                (contains? :paid)))
+  :process (fn [{:keys [db]} [user-id] {:keys [payments-paid]}]
+             {:db (assoc-in db [:data :user-payments user-id :paid] payments-paid)}))
 
-(reg-event-fx :compensation/get-payments-owed! (fn [_ _]
-                                                 (get-payments-owed!)
-                                                 {}))
+(reg-sub :user/payments-paid
+         (fn [db [_ & [user-id]]]
+           (let [user-id (or user-id (current-user-id db))]
+             (get-in db [:data :user-payments user-id :paid]))))
 
-(defn get-payments-paid!
-  "Retrieve the current amount of compensation made to user"
-  []
-  (let [user-id @(subscribe [:self/user-id])
-        payments-paid (r/cursor state [:payments-paid])
-        retrieving-payments-paid? (r/cursor state [:retrieving-payments-paid?])
-        error-message (r/cursor state [:retrieving-payments-error-message])]
-    (reset! retrieving-payments-paid? true)
-    (GET (str "/api/user/" user-id "/payments-paid")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [{:keys [result]}]
-                     (reset! retrieving-payments-paid? false)
-                     (reset! payments-paid (:payments-paid result)))
-          :error-handler (fn [{:keys [error]}]
-                           (reset! retrieving-payments-paid? false)
-                           (reset! error-message (:message error)))})))
-
-(reg-event-fx :compensation/get-payments-paid! (fn [_ _]
-                                                 (get-payments-paid!)
-                                                 {}))
-
-(defn PaymentOwed
+(defn- PaymentOwed
   "Display a payment-owed map"
   [{:keys [total-owed project-id project-name]}]
   ^{:key (gensym project-id)}
-  [s/ListItem
+  [ListItem
    [Grid [Row
           [Column {:width 5} project-name]
           [Column {:width 8}]
           [Column {:width 3 :align "right"} (accounting/cents->string total-owed)]]]])
 
 (defn PaymentsOwed []
-  (let [payments-owed (r/cursor state [:payments-owed])]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        [Segment
-         [Header {:as "h4" :dividing true} "Payments Owed"]
-         (if-not (empty? @payments-owed)
-           [s/ListUI {:divided true :relaxed true}
-            (doall (map (partial PaymentOwed) @payments-owed))]
-           [:div [:h4 "You do not currently have any payments owed"]])])
-      :component-did-mount
-      (fn [this] (get-payments-owed!))})))
+  (when-let [user-id @(subscribe [:self/user-id])]
+    [Segment
+     [Header {:as "h4" :dividing true} "Payments Owed"]
+     (with-loader [[:user/payments-owed user-id]] {}
+       (if-let [payments (seq @(subscribe [:user/payments-owed]))]
+         [ListUI {:divided true :relaxed true}
+          (doall (map (partial PaymentOwed) payments))]
+         [:div>h4 "You do not currently have any payments owed"]))]))
 
-(defn PaymentPaid
+(defn- PaymentPaid
   "Display a payment-owed map"
   [{:keys [total-paid project-id project-name created]}]
   ^{:key (gensym project-id)}
-  [s/ListItem
+  [ListItem
    [Grid [Row
           [Column {:width 5} project-name]
           [Column {:width 8} (str "Paid on: " (util/unix-epoch->date-string created))]
           [Column {:width 3 :align "right"} (accounting/cents->string total-paid)]]]])
 
 (defn PaymentsPaid []
-  (let [payments-paid (r/cursor state [:payments-paid])]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        (when-not (empty? @payments-paid)
-          [Segment
-           [Header {:as "h4" :dividing true} "Payments Paid"]
-           [s/ListUI {:divided true :relaxed true}
-            (doall (map (partial PaymentPaid) @payments-paid))]]))
-      :component-did-mount
-      (fn [this] (get-payments-paid!))})))
+  (when-let [user-id @(subscribe [:self/user-id])]
+    (with-loader [[:user/payments-paid user-id]] {}
+      (when-let [payments (seq @(subscribe [:user/payments-paid]))]
+        [Segment
+         [Header {:as "h4" :dividing true} "Payments Paid"]
+         [ListUI {:divided true :relaxed true}
+          (doall (map (partial PaymentPaid) payments))]]))))
+
+(defn UserCompensation []
+  [:div
+   [PaymentsOwed]
+   [PaymentsPaid]
+   [UserSupportSubscriptions]])
+
+(defmethod panel-content panel []
+  (fn [child] [UserCompensation]))
+
+(defmethod logged-out-content panel []
+  (logged-out-content :logged-out))
+
+(sr-defroute user-compensation "/user/:user-id/compensation" [user-id]
+             (let [user-id (parse-integer user-id)]
+               (dispatch [:user-panel/set-user-id user-id])
+               (dispatch [:data/load [:user/payments-owed user-id]])
+               (dispatch [:data/load [:user/payments-paid user-id]])
+               (dispatch [:set-active-panel panel])))

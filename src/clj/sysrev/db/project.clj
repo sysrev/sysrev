@@ -615,10 +615,6 @@
 
 (defn get-project-owner [project-id]
   (with-transaction
-    (assert (integer? (-> (select :project-id)
-                          (from :project)
-                          (where [:= :project-id project-id])
-                          do-query first :project-id)))
     (if-let [project-group (-> (select :group-id)
                                (from :project-group)
                                (where [:= :project-id project-id])

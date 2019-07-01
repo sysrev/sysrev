@@ -108,41 +108,54 @@
                         :pdf/open-access-available?])
 (def ignore-action-names [:sources/delete])
 
+(defn any-data-for-indicator? []
+  (any-loading? :ignore ignore-data-names))
+
+(defn any-action-for-indicator? []
+  (any-action-running? :ignore ignore-action-names))
+
 (defn any-loading-for-indicator? []
-  (or (any-loading? :ignore ignore-data-names)
-      (any-action-running? :ignore ignore-action-names)))
+  (or (any-data-for-indicator?)
+      (any-action-for-indicator?)))
 
 (defn update-loading-status []
   (let [db @ajax-db
         active? (any-loading-for-indicator?)
+        action? (any-action-for-indicator?)
         time-now (js/Date.now)
         time-inactive (if (not active?) time-now
                           (get-in db [:ajax :time-inactive] 0))
         time-active (if active? time-now
                         (get-in db [:ajax :time-active] 0))
+        action-inactive (if (not action?) time-now
+                            (get-in db [:ajax :action-inactive] 0))
+        action-active (if action? time-now
+                          (get-in db [:ajax :action-active] 0))
         cur-status (get-in db [:ajax :loading-status] true)
         new-status
         (cond
           ;; enable indicator when ajax active for >= minimum time
-          (>= (- time-active time-inactive) 75) true
+          (>= (- time-active time-inactive) 100) true
           ;; disable indicator when ajax inactive for >= minimum time
-          (>= (- time-inactive time-active) 175) false
+          (>= (- time-inactive time-active) 100) false
           ;; otherwise maintain existing indicator status
           :else cur-status)]
     (swap! ajax-db (fn [db]
                      (-> db
                          ;; update logged time for ajax activity
-                         (update-in [:ajax :time-active]
-                                    #(if active? time-now %))
+                         (update-in [:ajax :time-active] #(if active? time-now %))
                          ;; update logged time for ajax inactivity
-                         (update-in [:ajax :time-inactive]
-                                    #(if (not active?) time-now %))
+                         (update-in [:ajax :time-inactive] #(if active? % time-now))
+                         ;; update logged time for ajax action activity
+                         (update-in [:ajax :action-active] #(if action? time-now %))
+                         ;; update logged time for ajax action inactivity
+                         (update-in [:ajax :action-inactive] #(if action? % time-now))
                          ;; update indicator status
                          (assoc-in [:ajax :loading-status] new-status))))))
 
 (defn schedule-loading-update []
   (update-loading-status)
-  (doseq [ms [80 200 400]]
+  (doseq [ms [105 155 210 350]]
     (js/setTimeout update-loading-status ms)))
 
 (defn loading-indicator []
@@ -154,11 +167,23 @@
     (- (get-in db [:ajax :time-active])
        (get-in db [:ajax :time-inactive]))))
 
+(defn ajax-action-status []
+  (update-loading-status)
+  (let [db @ajax-db]
+    (- (get-in db [:ajax :action-active])
+       (get-in db [:ajax :action-inactive]))))
+
 (defn ajax-status-inactive?
   "Returns true if no ajax requests have been active for duration
   milliseconds (default 25)."
   [& [duration]]
   (< (ajax-status) (- (or duration 25))))
+
+(defn ajax-action-inactive?
+  "Returns true if no ajax action requests have been active for duration
+  milliseconds (default 25)."
+  [& [duration]]
+  (< (ajax-action-status) (- (or duration 25))))
 
 ;;;
 ;;; Events for start/completion of AJAX requests

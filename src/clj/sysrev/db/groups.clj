@@ -66,29 +66,31 @@
 (defn read-users-in-group
   "Return all of the users in group-name"
   [group-name]
-  (let [users-in-group (-> (select :user-id :permissions)
-                           (from :user-group)
-                           (where [:and
-                                   [:= :enabled true]
-                                   [:= :group-id (group-name->group-id group-name)]])
-                           do-query)
-        users-public-info (->> (map :user-id users-in-group)
-                               (users/get-users-public-info)
-                               (->map-with-key :user-id))]
-    (vec (some->> (seq users-in-group)
-                  (map #(assoc % :primary-email-verified
-                               (users/primary-email-verified? (:user-id %))))
-                  (map #(merge % (get users-public-info (:user-id %))))))))
+  (with-transaction
+    (let [users-in-group (-> (select :user-id :permissions)
+                             (from :user-group)
+                             (where [:and
+                                     [:= :enabled true]
+                                     [:= :group-id (group-name->group-id group-name)]])
+                             do-query)
+          users-public-info (->> (map :user-id users-in-group)
+                                 (users/get-users-public-info)
+                                 (->map-with-key :user-id))]
+      (vec (some->> (seq users-in-group)
+                    (map #(assoc % :primary-email-verified
+                                 (users/primary-email-verified? (:user-id %))))
+                    (map #(merge % (get users-public-info (:user-id %)))))))))
 
 (defn user-active-in-group?
   "Test for presence of enabled user-group entry"
   [user-id group-name]
-  (-> (select :enabled)
-      (from :user-group)
-      (where [:and
-              [:= :user-id user-id]
-              [:= :group-id (group-name->group-id group-name)]])
-      do-query first :enabled boolean))
+  (with-transaction
+    (-> (select :enabled)
+        (from :user-group)
+        (where [:and
+                [:= :user-id user-id]
+                [:= :group-id (group-name->group-id group-name)]])
+        do-query first :enabled boolean)))
 
 (defn read-groups
   [user-id]

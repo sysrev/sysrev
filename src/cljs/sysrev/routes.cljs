@@ -126,6 +126,8 @@
  project-settings "/settings" [project-id]
  (let [project-id @(subscribe [:active-project-id])]
    (dispatch [:reload [:project/settings project-id]])
+   ;; run this to make sure :project/plan is updated
+   (dispatch [:reload [:project project-id]])
    (dispatch [:set-active-panel [:project :project :settings]])))
 
 (sr-defroute-project
@@ -191,10 +193,6 @@
 (sr-defroute
  users "/users" []
  (dispatch [:set-active-panel [:users]]))
-
-(sr-defroute
- user-main "/user/:user-id/*" []
- (dispatch [:set-active-panel [:user-main]]))
 
 (sr-defroute
  search "/search" []

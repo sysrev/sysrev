@@ -4,62 +4,48 @@
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.semantic :refer [Segment Grid Row Column Button Icon Loader
-                                           Header ListUI ListItem]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.semantic :refer
+             [Segment Grid Row Column Button Icon Loader Header ListUI ListItem]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [css]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in? css parse-integer]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :billing])
 
-(defn DefaultSource
-  [{:keys [get-default-source default-source-atom]}]
-  (r/create-class
-   {:reagent-render
-    (fn [this]
-      [:div.bold
-       [Icon {:name "credit card"}]
-       (if (seq @default-source-atom)
-         (let [{:keys [brand exp_month exp_year last4]} @default-source-atom]
-           (str brand " expiring on " exp_month "/" (subs (str exp_year) 2 4)
-                " and ending in " last4))
-         "No payment method on file.")])
-    :component-did-mount
-    (fn [this] (get-default-source))}))
+(defn DefaultSource [{:keys [default-source]}]
+  [:div.bold
+   [Icon {:name "credit card"}]
+   (if (seq default-source)
+     (let [{:keys [brand exp_month exp_year last4]} default-source]
+       (str brand " expiring on " exp_month "/" (subs (str exp_year) 2 4)
+            " and ending in " last4))
+     "No payment method on file.")])
 
-(defn PaymentSource
-  [{:keys [get-default-source default-source-atom on-add-payment-method]}]
-  (r/create-class
-   {:reagent-render
-    (fn [this]
-      [Grid {:stackable true}
-       (if (nil? @default-source-atom)
-         [Row
-          [Column {:width 2} "Payment"]
-          [Column {:width 14} [Loader {:active true
-                                       :inline "centered"}]]]
-         [Row
-          [Column {:width 2} "Payment"]
-          [Column {:width 8} [DefaultSource {:get-default-source get-default-source
-                                             :default-source-atom default-source-atom}]]
-          [Column {:width 6 :align "right"}
-           [Button {:on-click on-add-payment-method}
-            (if-not (empty? @default-source-atom)
-              [:div [Icon {:name "credit card"}] "Change payment method"]
-              [:div [Icon {:name "credit card"}] "Add payment method"])]]])])
-    :component-did-mount
-    (fn [this] (get-default-source))}))
+(defn PaymentSource [{:keys [default-source on-add-payment-method]}]
+  [Grid {:stackable true}
+   (if (nil? default-source)
+     [Row
+      [Column {:width 2} "Payment"]
+      [Column {:width 14} [Loader {:active true
+                                   :inline "centered"}]]]
+     [Row
+      [Column {:width 2} "Payment"]
+      [Column {:width 8} [DefaultSource {:default-source default-source}]]
+      [Column {:width 6 :align "right"}
+       [Button {:on-click on-add-payment-method}
+        (if (seq default-source)
+          [:div [Icon {:name "credit card"}] "Change payment method"]
+          [:div [Icon {:name "credit card"}] "Add payment method"])]]])])
 
 ;; TODO: shows Loader forever on actual null plan value (show error message?)
-(defn Plan
-  [{:keys [plans-route current-plan-atom fetch-current-plan]}]
-  (let [current-plan (:name @current-plan-atom)
-        basic? (= current-plan "Basic")
-        unlimited? (some #{"Unlimited_User" "Unlimited_Org"} [current-plan])
+(defn Plan [{:keys [plans-url current-plan]}]
+  (let [basic? (= (:name current-plan) "Basic")
+        unlimited? (in? #{"Unlimited_User" "Unlimited_Org"} (:name current-plan))
         mobile? (util/mobile?)]
-    (fetch-current-plan)
-    (if (util/mobile?)
-      (if (nil? current-plan)
+    #_ (js/console.log "Plan: current-plan = " (:name current-plan))
+    (if mobile?
+      (if (nil? (:name current-plan))
         [Grid
          [Column {:width 8} "Plan"]
          [Column {:width 8} [Loader {:active true :inline "centered"}]]]
@@ -74,10 +60,10 @@
          [Column {:width 6 :align "right"}
           [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
                    :color (when basic? "green")
-                   :href plans-route}
+                   :href plans-url}
            (cond basic?      "Upgrade"
                  unlimited?  "Unsubscribe")]]])
-      (if (nil? current-plan)
+      (if (nil? (:name current-plan))
         [Grid
          [Column {:width 2} "Plan"]
          [Column {:width 12} [Loader {:active true :inline "centered"}]]]
@@ -93,22 +79,40 @@
          [Column {:width 6 :align "right"}
           [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
                    :color (when basic? "green")
-                   :href plans-route}
+                   :href plans-url}
            (cond basic?      "Get private projects"
                  unlimited?  "Unsubscribe")]]]))))
 
-(defn Billing []
-  (let [self-id @(subscribe [:self/user-id])
-        billing-url (str "/user/" self-id "/billing")]
-    (dispatch [:user/set-on-subscribe-nav-to-url! billing-url])
-    [Segment
-     [Header {:as "h4" :dividing true} "Billing"]
-     [ListUI {:divided true :relaxed true}
-      [ListItem [Plan {:plans-route "/user/plans"
-                       :current-plan-atom (subscribe [:user/current-plan])
-                       :fetch-current-plan #(dispatch [:fetch [:user/current-plan self-id]])}]]
-      [ListItem [PaymentSource
-                 {:get-default-source stripe/get-user-default-source
-                  :default-source-atom (subscribe [:stripe/default-source "user" self-id])
-                  :on-add-payment-method #(do (dispatch [:payment/set-calling-route! billing-url])
-                                              (dispatch [:navigate [:payment]]))}]]]]))
+(defn UserBilling []
+  (when-let [self-id @(subscribe [:self/user-id])]
+    (let [billing-url (str "/user/" self-id "/billing")]
+      (dispatch [:user/set-on-subscribe-nav-to-url! billing-url])
+      (dispatch [:data/load [:user/default-source self-id]])
+      (dispatch [:data/load [:user/current-plan self-id]])
+      #_ (js/console.log "UserBilling: current-plan = " (:name @(subscribe [:user/current-plan])))
+      #_ (js/console.log "UserBilling: default-source = " (str @(subscribe [:user/default-source])))
+      [Segment
+       [Header {:as "h4" :dividing true} "Billing"]
+       [ListUI {:divided true :relaxed true}
+        [ListItem [Plan {:plans-url "/user/plans"
+                         :current-plan @(subscribe [:user/current-plan])}]]
+        [ListItem
+         [PaymentSource
+          {:default-source @(subscribe [:user/default-source self-id])
+           :on-add-payment-method #(do (dispatch [:data/load [:user/default-source self-id]])
+                                       (dispatch [:stripe/set-calling-route! billing-url])
+                                       (dispatch [:navigate [:payment]]))}]]]])))
+
+(defmethod panel-content panel []
+  (fn [child] [UserBilling]))
+
+(defmethod logged-out-content panel []
+  (logged-out-content :logged-out))
+
+(sr-defroute user-billing "/user/:user-id/billing" [user-id]
+             (let [user-id (parse-integer user-id)]
+               (dispatch [:user-panel/set-user-id user-id])
+               (when (= user-id @(subscribe [:self/user-id]))
+                 (dispatch [:data/load [:user/default-source user-id]])
+                 (dispatch [:data/load [:user/current-plan user-id]]))
+               (dispatch [:set-active-panel panel])))

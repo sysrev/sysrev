@@ -4,15 +4,19 @@
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.util :as util :refer [condensed-number wrap-prevent-default]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [ConfirmationDialog]]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.semantic :refer
-             [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]])
+             [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]]
+            [sysrev.util :as util :refer [condensed-number wrap-prevent-default]]
+            [sysrev.shared.util :as sutil :refer [parse-integer]])
   (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
-(setup-panel-state panel [:user :projects] {:state-var state})
+(setup-panel-state panel [:user :projects] {:state-var state
+                                            :get-fn panel-get :set-fn panel-set
+                                            :get-sub ::get :set-event ::set})
 
 (def-data :user/projects
   :loaded? (fn [db user-id] (-> (get-in db [:data :user-projects])
@@ -24,40 +28,34 @@
               (js/console.error (pr-str error))
               {}))
 
-(reg-sub :user/projects
-         (fn [db [_ user-id]]
-           (get-in db [:data :user-projects user-id])))
+(reg-sub :user/projects (fn [db [_ user-id]] (get-in db [:data :user-projects user-id])))
 
 (defn set-public! [project-id]
-  (let [setting-public? (r/cursor state [project-id :setting-public?])]
-    (reset! setting-public? true)
-    ;; change the project settings
-    (dispatch [:action [:project/change-settings
-                        project-id [{:setting :public-access :value true}]]])
-    ;; reset project settings state
-    (dispatch [:project-settings/reset-state!])
-    (dispatch [:reload [:project project-id]])))
+  (dispatch [:action [:project/change-settings project-id
+                      [{:setting :public-access :value true}]]])
+  (dispatch [:project-settings/reset-state!])
+  (dispatch [:reload [:project project-id]]))
 
 (defn MakePublic [{:keys [project-id]}]
-  (let [confirming? (r/atom false)
-        setting-public? (r/cursor state [project-id :setting-public?])]
+  (let [confirming? (r/atom false)]
     (r/create-class
      {:reagent-render
       (fn [args]
         [:div
          (when @confirming?
-           [ConfirmationDialog {:on-cancel #(reset! confirming? false)
-                                :on-confirm (fn [e]
-                                              (set-public! project-id)
-                                              (reset! confirming? false))
-                                :title "Confirm Action"
-                                :message "Are you sure you want to make this project publicly viewable? Anyone will be able to view the contents of this project."}])
+           [ConfirmationDialog
+            {:on-cancel #(reset! confirming? false)
+             :on-confirm (fn [e]
+                           (set-public! project-id)
+                           (reset! confirming? false))
+             :title "Confirm Action"
+             :message (str "Are you sure you want to make this project publicly viewable? "
+                           "Anyone will be able to view the contents of this project.")}])
          (when-not @confirming?
-           [Button {:size "mini" :on-click (wrap-prevent-default #(reset! confirming? true))
-                    :id "set-publicly-viewable"}
+           [Button {:size "mini" :on-click #(reset! confirming? true)
+                    :class "set-publicly-viewable"}
             "Set Publicly Viewable"])])
       :component-did-mount (fn [this]
-                             (reset! setting-public? false)
                              (reset! confirming? false))})))
 
 (defn- ActivityColumn [item-count text header-class & [count-font-size]]
@@ -72,7 +70,7 @@
   (when (some pos? [articles labels annotations])
     (let [item-column (fn [item-count text header-class]
                         [ActivityColumn item-count text header-class count-font-size])]
-      [Grid {:columns 3 :style {:display "block"}}
+      [Grid {:class "user-activity-content" :columns 3 :style {:display "block"}}
        [Row
         [item-column articles "Articles Reviewed" "articles-reviewed"]
         [item-column labels "Labels Contributed" "labels-contributed"]
@@ -82,7 +80,7 @@
   (let [item-totals (apply merge (->> [:articles :labels :annotations]
                                       (map (fn [k] {k (apply + (map k projects))}))))]
     (when (some pos? (vals item-totals))
-      [Segment {:id "user-activity-summary"}
+      [Segment {:class "user-activity-summary"}
        [UserActivityContent {:articles (item-totals :articles)
                              :labels (item-totals :labels)
                              :annotations (item-totals :annotations)}]])))
@@ -95,8 +93,9 @@
    [:a {:href (project-uri project-id)
         :style {:margin-bottom "0.5em" :display "inline-block"}} name]
    (when (and
-          ;; this project is the users project
-          @(subscribe [:users/is-path-user-id-self?])
+          ;; user page is for logged in user
+          ;; TODO: is this checking that the user is a project admin?
+          @(subscribe [:user-panel/self?])
           ;; this project is not public
           (not (:public-access settings))
           ;; the subscription has lapsed
@@ -108,56 +107,49 @@
                          :count-font-size "1em"}]
    [Divider]])
 
-(defn- UserProjectsList
-  [{:keys [user-id]}]
-  (let [projects (subscribe [:user/projects user-id])]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        (let [{:keys [public private]}
-              (-> (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)
-                  ;; because we need to exclude anything that doesn't explicitly have a settings keyword
-                  ;; non-public project summaries are given, but without identifying profile information
-                  (update :private #(filter :settings %)))
-              activity-summary (fn [{:keys [articles labels annotations]}]
-                                 (+ articles labels annotations))
-              sort-activity #(> (activity-summary %1)
-                                (activity-summary %2))]
-          (when (seq @projects)
-            [:div.projects
-             (when (seq public)
-               [Segment
-                [Header {:as "h4" :dividing true :style {:font-size "120%"}}
-                 "Public Projects"]
-                [:div {:id "public-projects"}
-                 (doall (for [project (sort sort-activity public)]
-                          ^{:key (:project-id project)}
-                          [UserProject project]))]])
-             (when (seq private)
-               [Segment
-                [Header {:as "h4" :dividing true :style {:font-size "120%"}}
-                 "Private Projects"]
-                [:div {:id "private-projects"}
-                 (doall (for [project (sort sort-activity private)]
-                          ^{:key (:project-id project)}
-                          [UserProject project]))]])])))
-      :component-will-receive-props
-      (fn [this new-argv]
-        (dispatch [:data/load [:user/projects (-> new-argv second :user-id)]]))
-      :component-did-mount (fn [this]
-                             (when (empty? @projects)
-                               (dispatch [:data/load [:user/projects user-id]])))})))
+(defn- UserProjectsList [{:keys [user-id]}]
+  (with-loader [[:user/projects user-id]] {}
+    (let [projects @(subscribe [:user/projects user-id])
+          {:keys [public private]}
+          (-> (group-by #(if (get-in % [:settings :public-access]) :public :private) projects)
+              ;; because we need to exclude anything that doesn't explicitly have a settings keyword
+              ;; non-public project summaries are given, but without identifying profile information
+              (update :private #(filter :settings %)))
+          activity-summary (fn [{:keys [articles labels annotations]}]
+                             (+ articles labels annotations))
+          sort-activity #(> (activity-summary %1)
+                            (activity-summary %2))]
+      (when (seq projects)
+        [:div.projects
+         (when (seq public)
+           [Segment
+            [Header {:as "h4" :dividing true :style {:font-size "120%"}}
+             "Public Projects"]
+            [:div {:id "public-projects"}
+             (doall (for [project (sort sort-activity public)] ^{:key (:project-id project)}
+                      [UserProject project]))]])
+         (when (seq private)
+           [Segment
+            [Header {:as "h4" :dividing true :style {:font-size "120%"}}
+             "Private Projects"]
+            [:div {:id "private-projects"}
+             (doall (for [project (sort sort-activity private)] ^{:key (:project-id project)}
+                      [UserProject project]))]])]))))
 
-(defn UserProjects [{:keys [user-id]}]
-  (let [projects (subscribe [:user/projects user-id])]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        [:div
-         [UserActivitySummary @projects]
-         (when @(subscribe [:users/is-path-user-id-self?])
-           [CreateProject])
-         [UserProjectsList {:user-id user-id}]])
-      :component-did-mount
-      (fn [this]
-        (dispatch [:data/load [:user/projects user-id]]))})))
+(defn UserProjects [user-id]
+  (with-loader [[:user/projects user-id]] {}
+    (let [projects @(subscribe [:user/projects user-id])]
+      [:div
+       [UserActivitySummary projects]
+       (when @(subscribe [:user-panel/self?])
+         [CreateProject])
+       [UserProjectsList {:user-id user-id}]])))
+
+(defmethod panel-content panel []
+  (fn [child] [UserProjects @(subscribe [:user-panel/user-id])]))
+
+(sr-defroute user-projects "/user/:user-id/projects" [user-id]
+             (let [user-id (parse-integer user-id)]
+               (dispatch [:user-panel/set-user-id user-id])
+               (dispatch [:data/load [:user/projects user-id]])
+               (dispatch [:set-active-panel panel])))

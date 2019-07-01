@@ -141,17 +141,14 @@
   "Set and save answers on current article for a sequence of labels."
   [label-settings]
   (log/info "setting article labels")
-  (b/wait-until-loading-completes :pre-wait 150)
-  (nav/go-project-route "/review")
-  (b/wait-until-loading-completes :pre-wait 150)
+  (nav/go-project-route "/review" :silent true :wait-ms 50)
   (when (test/remote-test?) (Thread/sleep 500))
-  (b/click x/review-labels-tab :delay 100 :displayed? true)
+  (b/click x/review-labels-tab :delay 50 :displayed? true)
   (doseq [x label-settings] (set-label-answer x))
-  (Thread/sleep 100)
   (when (test/remote-test?) (Thread/sleep 500))
-  (b/click ".button.save-labels" :delay 100 :displayed? true)
+  (b/click ".button.save-labels" :delay 50 :displayed? true)
   (when (test/remote-test?) (Thread/sleep 500))
-  (b/wait-until-loading-completes :pre-wait 100)
+  (b/wait-until-loading-completes)
   (db/clear-query-cache))
 
 (defn randomly-set-article-labels

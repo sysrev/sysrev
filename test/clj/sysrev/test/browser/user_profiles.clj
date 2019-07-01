@@ -31,7 +31,7 @@
 (def user-name-link (xpath "//a[@id='user-name-link']"))
 (def user-profile-tab (xpath "//a[@id='user-profile']"))
 (def activity-values (xpath "//h2[contains(@class,'articles-reviewed' | 'labels-contributed' | 'annotations-contributed')]"))
-(def user-activity-summary-div (xpath "//div[@id='user-activity-summary']" activity-values))
+(def user-activity-summary-div (xpath "//div[contains(@class,'user-activity-summary')]" activity-values))
 (defn project-activity-summary-div [project-name]
   (xpath "//a[contains(text(),'" project-name "')]"
          "/ancestor::div[contains(@id,'project-')]"
@@ -95,7 +95,7 @@
   [public?]
   (let [status-q #(str "button#public-access_" (if % "public" "private"))
         q (status-q public?)]
-    (nav/go-project-route "/settings")
+    (nav/go-project-route "/settings" :pre-wait-ms 50 :wait-ms 50)
     (b/wait-until-exists (-> q b/not-disabled))
     (log/infof "changing project access to %s" (if public? "public" "private"))
     (if (taxi/exists? (-> q b/not-disabled (b/not-class "active")))
@@ -112,11 +112,12 @@
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))
-   click-project-link #(b/click (xpath "//a[contains(text(),'" % "')]"))]
+   click-project-link #(do (log/infof "loading project %s" (pr-str %))
+                           (b/click (xpath "//a[contains(text(),'" % "')]") :delay 50))]
   (do #_ (b/start-webdriver true)
       (nav/log-in)
       ;; subscribe to plans
-      (plans/user-subscribe-to-unlimited email)
+      (plans/user-subscribe-to-unlimited email (:password b/test-login))
       ;; create a project, populate with articles
       (nav/new-project project-name-1)
       ;; set the project to private
@@ -124,8 +125,7 @@
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the user profile
       (b/click user-name-link)
-      (b/click "#user-projects")
-      (Thread/sleep 150)
+      (b/click "#user-projects" :delay 50)
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-1))
       ;; do some work to see if it shows up in the user profile
@@ -136,9 +136,8 @@
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; go back to profile, check activity
       (b/click user-name-link)
-      (b/click "#user-projects")
+      (b/click "#user-projects" :delay 50)
       ;; is the user's overall activity correct?
-      (Thread/sleep 150)
       (b/is-soon (= (select-keys (user-activity-summary)
                                  [:articles-reviewed :labels-contributed])
                     {:articles-reviewed 3 :labels-contributed 3}))
@@ -153,8 +152,7 @@
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; return to the profile, the user should have one annotation
       (b/click user-name-link)
-      (b/click "#user-projects")
-      (Thread/sleep 150)
+      (b/click "#user-projects" :delay 50)
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 3
                                              :labels-contributed 3
@@ -169,8 +167,7 @@
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the profile
       (b/click user-name-link)
-      (b/click "#user-projects")
-      (Thread/sleep 150)
+      (b/click "#user-projects" :delay 50)
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-2))
       ;; do some work to see if it shows up in the user profile
@@ -184,8 +181,7 @@
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; go back and check activity
       (b/click user-name-link)
-      (b/click "#user-projects")
-      (Thread/sleep 150)
+      (b/click "#user-projects" :delay 50)
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 5
                                              :labels-contributed 5
@@ -202,8 +198,7 @@
       (click-project-link project-name-1)
       (change-project-public-access true)
       (b/click user-name-link)
-      (b/click "#user-projects")
-      (Thread/sleep 150)
+      (b/click "#user-projects" :delay 50)
       (b/is-soon (and (in? (public-project-names) project-name-1)
                       (not (in? (private-project-names) project-name-1))))
       (b/is-soon (and (in? (private-project-names) project-name-2)
@@ -250,24 +245,23 @@
   [{:keys [user-id]} (users/get-user-by-email (:email b/test-login))]
   (do (nav/log-in)
       ;; go to the user profile
-      (b/click "#user-name-link" :delay 100)
-      (b/click "#user-profile" :delay 100)
+      (b/click "#user-name-link")
+      (b/click "#user-profile" :delay 50)
       ;; click the user profile avatar
-      (b/click avatar :delay 150)
-      (Thread/sleep 100)
+      (b/click avatar :displayed? true :delay 200)
       ;; "upload" file
       (log/info "uploading image")
       (taxi/execute-script upload-image-blob-js)
       (log/info "waiting until displayed")
       ;; set position of avatar
-      (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]") 30000)
+      (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]"))
       (log/info "got image interface")
-      (Thread/sleep 500)
+      (Thread/sleep 150)
       (->actions @b/active-webdriver
                  (move-to-element (taxi/element "div.cr-viewport") 0 0)
                  (click-and-hold) (move-by-offset 83 0) (release)
                  (perform))
-      (Thread/sleep 500)
+      (Thread/sleep 150)
       ;; set avatar
       (log/info "setting avatar")
       (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
@@ -280,7 +274,7 @@
                               ;; another value (jeff chromium linux)
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
                             (:key (files/avatar-image-key-filename user-id)))
-                 3000 300)
+                 3000 200)
       (log/info "got file key")
       (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))

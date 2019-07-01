@@ -48,10 +48,10 @@
 
 (defn save-label []
   (log/info "saving label definition")
-  (b/click save-button :delay 50))
+  (b/click save-button :delay 20))
 
 (defn discard-label []
-  (b/click discard-button :delay 50))
+  (b/click discard-button :delay 20))
 
 (defn field-input-xpath
   "Searches within xpath for an input element inside a div.field.<field-class>"
@@ -231,7 +231,7 @@
   (let [{:keys [value-type]} label-map
         new-xpath "//div[contains(@id,'new-label-')]"]
     (log/info "creating label definition")
-    (nav/go-project-route "/labels/edit")
+    (nav/go-project-route "/labels/edit" :silent true)
     (b/click (add-label-button value-type))
     (set-label-definition new-xpath label-map)
     (b/click save-button)
@@ -249,7 +249,7 @@
   "Edit an existing label definition using browser interface."
   [label-id label-map]
   (log/info "editing label definition")
-  (nav/go-project-route "/labels/edit")
+  (nav/go-project-route "/labels/edit" :silent true)
   (b/click (edit-label-button label-id))
   (set-label-definition (label-definition-div label-id) label-map)
   (b/click save-button)

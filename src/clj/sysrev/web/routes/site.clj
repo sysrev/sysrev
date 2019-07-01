@@ -13,6 +13,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.queries :as q]
+            [sysrev.config.core :refer [env]]
             [sysrev.web.app :as app :refer [wrap-authorize current-user-id]]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.shared.util :refer [in? map-values ->map-with-key]]))
@@ -108,8 +109,9 @@
   (when (nil? (:value @global-stats-cache))
     (log/info "Initializing global-stats-cache")
     (update-global-stats)
-    (future (Thread/sleep (* 1000 60 15))
-            (loop-update-global-stats))))
+    (when (= (:profile env) :prod)
+      (future (Thread/sleep (* 1000 60 15))
+              (loop-update-global-stats)))))
 
 (defn sysrev-global-stats
   "Gets value of global-stats map. This should normally return immediately with

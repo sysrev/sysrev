@@ -4,20 +4,27 @@
             [cljsjs.moment]
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe]]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.base :refer [active-route]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.loading :as loading]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.util :as util :refer [wrap-prevent-default]]
+            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select Popup
-              Modal ModalContent ModalHeader ModalDescription]])
+              Modal ModalContent ModalHeader ModalDescription]]
+            [sysrev.util :as util :refer [wrap-prevent-default]]
+            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.macros])
   (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
-(setup-panel-state panel [:user :profile] {:state-var state})
+(setup-panel-state panel [:user :profile] {:state-var state
+                                           :get-fn panel-get :set-fn panel-set
+                                           :get-sub ::get :set-event ::set})
 
 (s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
                     (instance? reagent.ratom/RCursor %)))
@@ -31,23 +38,23 @@
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving-invitations? false)
-                     (reset! (r/cursor state [:invitations]) (-> response :result :invitations)))})))
+                     (reset! (r/cursor state [:invitations])
+                             (-> response :result :invitations)))})))
 
-(defn get-user!
-  [user-id]
-  (let [retrieving-users? (r/cursor state [:retrieving-users?])
-        user-error-message (r/cursor state [:user :error-message])
-        user-atom (r/cursor state [:user])]
-    (reset! retrieving-users? true)
-    (GET (str "/api/user/" user-id)
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! retrieving-users? false)
-                     (reset! user-atom (-> response :result :user)))
-          :error-handler (fn [error-response]
-                           (.log js/console (clj->js error-response))
-                           (reset! retrieving-users? false)
-                           (reset! user-error-message (get-in error-response [:response :error :message])))})))
+(def-data :user/info
+  :uri (fn [user-id] (str "/api/user/" user-id))
+  :loaded? (fn [db user-id]
+             (-> (get-in db [:data :users-public user-id])
+                 (contains? :info)))
+  :process (fn [{:keys [db]} [user-id] {:keys [user]}]
+             {:db (assoc-in db [:data :users-public user-id :info] user)})
+  :on-error (fn [{:keys [db error]} [user-id] _]
+              (let [{:keys [message]} error]
+                {:db (panel-set db [:user user-id :info-error] message)})))
+
+(reg-sub :user/info
+         (fn [[_ user-id]] (subscribe [:user/get user-id]))
+         (fn [user] (:info user)))
 
 (defn- InvitationMessage
   [{:keys [project-id description accepted active created]}]
@@ -222,8 +229,7 @@
 
 (defn User
   [{:keys [username user-id]}]
-  (let [editing? (r/cursor state [:editing-profile?])
-        mutable? (= user-id @(subscribe [:self/user-id]))
+  (let [mutable? (= user-id @(subscribe [:self/user-id]))
         modal-open (r/cursor state [:avatar-model-open])]
     [Segment {:class "user"}
      [Grid {:columns "equal"}
@@ -255,14 +261,14 @@
          [:div {:style {:margin-top "1em"}}
           [UserInvitations user-id]]]]]]]))
 
-(defn- EditIntroduction
+(defn- EditIntroductionLink
   [{:keys [editing? mutable? blank?]}]
   (when (and mutable? (not @editing?))
     [:a {:id "edit-introduction"
          :href "#" :on-click (wrap-prevent-default #(swap! editing? not))}
      "Edit"]))
 
-(s/def ::introduction ::ratom)
+(s/def ::introduction (s/nilable string?))
 (s/def ::mutable? boolean?)
 (s/def ::user-id integer?)
 
@@ -272,9 +278,8 @@
 (defn- Introduction
   "Display introduction and edit if mutable? is true"
   [{:keys [mutable? introduction user-id]}]
-  (let [editing? (r/cursor state [:user :editing?])
-        loading? (r/cursor state [:user :loading])
-        retrieving-users? (r/cursor state [:retrieving-users?])
+  (let [editing? (r/cursor state [:introduction :editing?])
+        loading? (r/cursor state [:introduction :loading])
         set-markdown! (fn [user-id]
                         (fn [draft-introduction]
                           (reset! loading? true)
@@ -282,72 +287,67 @@
                                {:params {:introduction draft-introduction}
                                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                 :handler (fn [response]
-                                           (get-user! user-id))
+                                           (dispatch [:reload [:user/info user-id]])
+                                           (reset! editing? false)
+                                           (reset! loading? false))
                                 :error-handler (fn [error-response]
                                                  (reset! loading? false)
-                                                 (reset! editing? false))})))]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        (when (or (not (str/blank? @introduction))
-                  mutable?)
-          [Segment {:class "introduction"}
-           [Header {:as "h4"
-                    :dividing true}
-            "Introduction"]
-           [MarkdownComponent {:content @introduction
-                               :set-content! (set-markdown! user-id)
-                               :loading? (boolean (or @loading? @retrieving-users?))
-                               :mutable? mutable?
-                               :editing? editing?}]
-           [EditIntroduction {:editing? editing?
+                                                 (reset! editing? false))})))
+        user-loading? (loading/item-loading? [:user/info user-id])]
+    (when (or mutable? (not (str/blank? introduction)))
+      [Segment {:class "introduction"}
+       [Header {:as "h4" :dividing true} "Introduction"]
+       [MarkdownComponent {:content introduction
+                           :set-content! (set-markdown! user-id)
+                           :loading? (boolean (or @loading? user-loading?))
+                           :mutable? mutable?
+                           :editing? editing?}]
+       [EditIntroductionLink {:editing? editing?
                               :mutable? mutable?
-                              :blank? (r/track #(str/blank? @%) introduction)}]]))
-      :get-initial-state
-      (fn [this]
-        (reset! editing? false)
-        (reset! loading? false)
-        {})})))
+                              :blank? (str/blank? introduction)}]])))
 
-(defn- ProfileSettings
-  [{:keys [user-id username]}]
+(defn- ProfileSettings [{:keys [user-id username]}]
   (let [editing? (r/cursor state [:editing-profile?])]
     (if @editing?
       [EditingUser {:user-id user-id :username username }]
       [User {:user-id user-id :username username}])))
 
-(defn Profile
-  [{:keys [user-id]}]
-  (let [user (r/cursor state [:user])
-        introduction (r/cursor state [:user :introduction])
-        error-message (r/cursor state [:user :error-message])
-        mutable? (= user-id @(subscribe [:self/user-id]))]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        (if (str/blank? @error-message)
-          ;; display user
-          (when-not (nil? @user)
-            [:div
-             [ProfileSettings @user]
-             [Introduction {:mutable? mutable?
-                            :introduction introduction
-                            :user-id user-id}]])
-          ;; error message
-          [Message {:negative true}
-           [MessageHeader "Error Retrieving User"]
-           @error-message]))
-      :component-will-receive-props
-      (fn [this new-argv]
-        (get-user! (-> new-argv second :user-id)))
-      :component-did-mount
-      (fn [this]
-        (reset! user nil)
-        (get-user! user-id))
-      :component-did-umount
-      (fn [this]
-        (reset! user nil))
-      :get-initial-state
-      (fn [this]
-        (reset! user nil)
-        {})})))
+(defn UserProfile [user-id]
+  (let [{:keys [introduction] :as user} @(subscribe [:user/info user-id])
+        error-message @(subscribe [::get [:user user-id :info-error]])
+        self? @(subscribe [:user-panel/self?])]
+    (dispatch [:require [:user/info user-id]])
+    (if (str/blank? error-message)
+      (when user
+        [:div
+         [ProfileSettings user]
+         [Introduction {:mutable? self?
+                        :introduction introduction
+                        :user-id user-id}]])
+      [Message {:negative true}
+       [MessageHeader "Error Retrieving User"]
+       error-message])))
+
+(defn UserProfilePanel []
+  (when-let [user-id @(subscribe [:user-panel/user-id])]
+    [UserProfile user-id]))
+
+(defmethod panel-content panel []
+  (fn [child] [UserProfilePanel]))
+
+(defn- go-user-profile-route [user-id]
+  (let [user-id (parse-integer user-id)]
+    (dispatch [:user-panel/set-user-id user-id])
+    (dispatch [::set [] {}])
+    (dispatch [:data/load [:user/info user-id]])
+    (when @(subscribe [:user-panel/self?])
+      (dispatch [:reload [:user/payments-owed user-id]])
+      (dispatch [:reload [:user/payments-paid user-id]])
+      (dispatch [:user/get-invitations!]))
+    (dispatch [:set-active-panel panel])))
+
+(sr-defroute user-root #"/user/(\d+)$" [user-id]
+             (go-user-profile-route user-id))
+
+(sr-defroute user-profile "/user/:user-id/profile" [user-id]
+             (go-user-profile-route user-id))

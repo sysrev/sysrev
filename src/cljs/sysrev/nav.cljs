@@ -63,6 +63,8 @@
 
 (reg-event-fx :nav-redirect (fn [_ [_ url]] {:nav-redirect url}))
 
+(reg-event-fx :nav-scroll-top (fn [_ [_ url]] {:nav-scroll-top url}))
+
 (defn- reload-page []
   (-> js/window .-location (.reload true)))
 

@@ -233,7 +233,7 @@
      "20em"
      :props {:style {:text-align "center"}})))
 
-(defn- SettingsField [{:keys [setting label entries disabled?]} & content]
+(defn- SettingsField [{:keys [setting label entries disabled?]} & [content]]
   (let [elements (->> entries
                       (map #(SettingsButton (merge % {:setting setting
                                                       :disabled? disabled?}))))]
@@ -247,7 +247,7 @@
      (doall
       (for [[_ tooltip] elements]
         ^{:key [:tooltip (hash tooltip)]} [tooltip]))
-     (doall (map-indexed (fn [i element] ^{:key [:content i]} element) content))]))
+     (when content [content])]))
 
 (defn- DoubleReviewPriorityField []
   [SettingsField {:setting :second-review-prob
@@ -280,18 +280,19 @@
                       @(subscribe [:project/public-access? project-id]))}
      (when (and (= project-plan "Basic")
                 @(subscribe [:project/controlled-by? project-id self-id]))
-       [:p [:a {:href (if (= owner-type :user-id)
-                        "/user/plans"
-                        (str "/org/" owner-id "/plans"))
-                :on-click #(if (= owner-type :user-id)
-                             (dispatch [:user/set-on-subscribe-nav-to-url!
-                                        (str project-url "/settings")])
-                             (dispatch [:org/set-on-subscribe-nav-to-url!
-                                        owner-id (str project-url "/settings")]))}
-            "Upgrade"] (str " " (if (= owner-type :user-id)
-                                  "your"
-                                  "the organization's")
-                            " plan to make this project private.")])]))
+       (fn []
+         [:p [:a {:href (if (= owner-type :user-id)
+                          "/user/plans"
+                          (str "/org/" owner-id "/plans"))
+                  :on-click #(if (= owner-type :user-id)
+                               (dispatch [:user/set-on-subscribe-nav-to-url!
+                                          (str project-url "/settings")])
+                               (dispatch [:org/set-on-subscribe-nav-to-url!
+                                          owner-id (str project-url "/settings")]))}
+              "Upgrade"] (str " " (if (= owner-type :user-id)
+                                    "your"
+                                    "the organization's")
+                              " plan to make this project private.")]))]))
 
 (def unlimited-reviews-buttons
   [{:key :false

@@ -169,7 +169,7 @@
            [:div.ui.primary.button.update-payment
             {:on-click
              (wrap-prevent-default
-              #(do (dispatch [:payment/set-calling-route!
+              #(do (dispatch [:stripe/set-calling-route!
                               (project-uri @project-uri "/support")])
                    (dispatch [:navigate [:payment]])))}
             "Update Payment Information"])
@@ -239,7 +239,7 @@
              [:div.ui.primary.button.update-payment
               {:on-click
                (wrap-prevent-default
-                #(do (dispatch [:payment/set-calling-route!
+                #(do (dispatch [:stripe/set-calling-route!
                                 (project-uri @project-id "/compensations")])
                      (dispatch [:navigate [:payment]])))}
               "Update Payment Information"])]

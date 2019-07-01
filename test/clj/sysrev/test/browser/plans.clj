@@ -21,14 +21,24 @@
 
 (def upgrade-link (xpath "//a[text()='Upgrade']"))
 
-(defn click-use-card [& {:keys [wait delay] :or {wait true delay 50}}]
-  (b/click use-card)
+(defn click-use-card [& {:keys [wait delay error?]
+                         :or {wait true delay 50 error? false}}]
+  (b/click use-card :displayed? true)
   ;; try clicking again if the first click didn't do anything
   ;; (button should usually be either disabled or gone)
-  (when (and wait (not (b/try-wait b/wait-until
-                                   #(not (taxi/exists? (b/not-disabled use-card)))
-                                   2000 25)))
-    (b/click use-card))
+  #_ (when (and wait (not (b/try-wait b/wait-until
+                                      #(not (taxi/exists? (b/not-disabled use-card)))
+                                      2000 25)))
+       (b/click use-card))
+  (when-not error?
+    (b/is-soon (not (taxi/exists? (b/not-disabled use-card)))))
+  (log/info "clicked \"Use Card\"")
+  (b/wait-until-loading-completes :pre-wait delay))
+
+(defn click-upgrade-plan [& {:keys [delay] :or {delay 50}}]
+  (b/click ".ui.button.upgrade-plan" :displayed? true)
+  (b/is-soon (not (taxi/exists? (b/not-disabled ".ui.button.upgrade-plan"))))
+  (log/info "clicked \"Upgrade Plan\"")
   (b/wait-until-loading-completes :pre-wait delay))
 
 (defn get-user-customer [email]
@@ -66,13 +76,15 @@
   (xpath "//div[contains(@class,'red') and contains(text(),\"" error-msg "\")]"))
 
 (defn user-subscribe-to-unlimited
-  [email]
+  [email password]
   (when-not (get-user-customer email)
     (log/info (str "Stripe Customer created for " email))
     (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
   (wait-until-stripe-id email)
   (stripe/create-subscription-user! (users/get-user-by-email email))
-  ;;; go to plans
+  (Thread/sleep 100)
+  (nav/log-in email password)
+  ;; go to plans
   (b/click "#user-name-link" :delay 150)
   (b/click "#user-billing" :delay 150)
   (b/click ".button.nav-plans.subscribe" :delay 150 :displayed? true)
@@ -81,10 +93,11 @@
   (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
   (click-use-card :delay 250)
   ;; upgrade to unlimited
-  (b/click ".button.upgrade-plan" :delay 100)
+  (click-upgrade-plan :delay 100)
   ;; this time is goes through, confirm we are subscribed to the
   ;; Unlimited plan now
-  (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000))
+  (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+  (log/info "found \"Unsubscribe\" button"))
 
 ;; need to disable sending emails in this test (for register user via web)
 (deftest-browser register-and-check-basic-plan-subscription
@@ -117,7 +130,6 @@
       (assert stripe/stripe-public-key)
       (users/create-sysrev-stripe-customer! (get-user))
       (stripe/create-subscription-user! (get-user))
-      (nav/log-in)
       (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?
       (is (= email (:email (get-customer))))
@@ -126,9 +138,10 @@
       (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (get-db-plan)))
+      (nav/log-in)
 ;;; upgrade plan
-      (b/click "#user-name-link" :delay 50)
-      (b/click "#user-billing" :delay 50)
+      (b/click "#user-name-link")
+      (b/click "#user-billing")
       (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
       (b/click "a.payment-method.add-method" :delay 50)
 ;;; payment method
@@ -137,11 +150,10 @@
       ;; just try to 'Use Card', do we have all the error messages we would expect?
       (click-use-card)
       ;; incomplete fields are shown
-      (is (and (b/exists? (error-msg-xpath bstripe/incomplete-card-number-error))
-               (b/exists? (error-msg-xpath bstripe/incomplete-expiration-date-error)
-                          :wait? false)
-               (b/exists? (error-msg-xpath bstripe/incomplete-security-code-error)
-                          :wait? false)))
+      (b/is-soon (every? #(taxi/exists? (error-msg-xpath %))
+                         [bstripe/incomplete-card-number-error
+                          bstripe/incomplete-expiration-date-error
+                          bstripe/incomplete-security-code-error]))
       (if (test/full-tests?)
         (log/info "running full stripe tests")
         (log/info "skipping full stripe tests"))
@@ -186,14 +198,14 @@
             (bstripe/enter-cc-information (merge {:cardnumber number} cc-fields))
             (bstripe/enter-cc-number number))
           (when (b/try-wait b/wait-until #(taxi/exists? (b/not-disabled use-card)) 250 20)
-            (click-use-card))
+            (click-use-card :error? (boolean error)))
           (when error
             (when (string? error)
               (b/is-soon (taxi/exists? (error-msg-xpath error))))
             #_ (b/is-soon (taxi/exists? (str use-card ".disabled"))))
           (when declined
             (b/wait-until-loading-completes :pre-wait 200)
-            (b/click ".button.upgrade-plan" :delay 100)
+            (click-upgrade-plan :delay 100)
             (b/is-soon
              (taxi/exists?
               {:xpath "//p[contains(text(),'Your card was declined.')]"}))
@@ -202,21 +214,21 @@
 ;;; finally, update with a valid cc number and see if we can subscribe to plans
       (log/info "testing valid card info")
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (click-use-card :delay 200)
+      (click-use-card :delay 100)
       ;; try to subscribe again
-      (b/click ".button.upgrade-plan" :delay 100)
+      (click-upgrade-plan)
       ;; this time is goes through, confirm we are subscribed to the
       ;; Unlimited plan now
-      (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000)
-      (Thread/sleep 100)
+      (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+      (log/info "found \"Unsubscribe\" button")
       ;; Let's check to see if our db thinks the customer is subscribed to the Unlimited
       (is (= "Unlimited_User" (get-db-plan)))
       ;; Let's check that stripe.com thinks the customer is subscribed to the Unlimited plan
       (is (= "Unlimited_User" (get-stripe-plan)))
 ;;; Subscribe back down to the Basic Plan
-      (b/click ".button.nav-plans.unsubscribe" :delay 100)
-      (b/click ".button.unsubscribe-plan" :delay 100)
-      (b/click ".button.nav-plans.subscribe" :delay 100 :displayed? true)
+      (b/click ".button.nav-plans.unsubscribe")
+      (b/click ".button.unsubscribe-plan")
+      (b/click ".button.nav-plans.subscribe" :displayed? true)
       ;; does stripe think the customer is registered to a basic plan?
       (wait-until-plan email stripe/default-plan)
       (is (= stripe/default-plan (get-stripe-plan)))

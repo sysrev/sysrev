@@ -181,7 +181,7 @@
                    request {:authorize-fn (user-authd? user-id)}
                    (let [{:keys [email]} (:body request)]
                      (api/send-verification-email user-id email))))
-             (GET "/verify/:code" [code :as request]
+             (PUT "/verify/:code" [code :as request]
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
                    (api/verify-email! user-id code)))

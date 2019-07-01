@@ -3,45 +3,29 @@
             [ajax.core :refer [GET PUT POST DELETE]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label LabelDetail]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [->map-with-key]])
+            [sysrev.shared.util :as sutil :refer [->map-with-key parse-integer]])
   (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
-(setup-panel-state panel [:user :email] {:state-var state})
+(setup-panel-state panel [:user :email] {:state-var state
+                                         :get-fn panel-get :set-fn panel-set
+                                         :get-sub ::get :set-event ::set})
 
-(defn verify-email
-  [code]
-  (let [verifying-code? (r/cursor state [:code :verifying-code?])
-        verify-message (r/cursor state [:code :verify-message])
-        verify-error (r/cursor state [:code :verify-error])]
-    (reset! verifying-code? true)
-    (GET (str "/api/user/" @(subscribe [:self/user-id]) "/email/verify/" code)
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! verifying-code? false)
-                     (reset! verify-message "Thank you for verifying your email address."))
-          :error-handler (fn [error-response]
-                           (reset! verifying-code? false)
-                           (reset! verify-error (get-in error-response
-                                                        [:response :error :message])))})))
-
-(defn get-email-addresses!
-  []
-  (let [retrieving-addresses? (r/cursor state [:email :retrieving-addresses?])
-        email-addresses (r/cursor state [:email :addresses])]
-    (reset! retrieving-addresses? true)
+(defn get-email-addresses! []
+  (let [email-addresses (r/cursor state [:email :addresses])]
     (GET (str "/api/user/" @(subscribe [:self/user-id]) "/email/addresses")
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [{:keys [result]}]
-                     (reset! retrieving-addresses? false)
-                     (dispatch [:fetch [:identity]])
-                     (reset! email-addresses (->map-with-key :id (:addresses result))))
+                     (reset! email-addresses (->map-with-key :id (:addresses result)))
+                     (dispatch [:fetch [:identity]]))
           :error-handler (fn [response]
-                           (reset! retrieving-addresses? false)
                            ($ js/console log "[get-email-addresses] There was an error"))})))
 
 (defn resend-verification-code!
@@ -121,28 +105,6 @@
                            (reset! setting-primary? false)
                            (reset! set-primary-error
                                    (get-in error-response [:response :error :message])))})))
-
-(defn VerifyEmail
-  [code]
-  (let [verify-message (r/cursor state [:code :verify-message])
-        verify-error (r/cursor state [:code :verify-error])]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        [:div
-         (when-not (str/blank? @verify-message)
-           (js/setTimeout #(nav-scroll-top (str "/user/" @(subscribe [:self/user-id]) "/email")) 1000)
-           [Message @verify-message])
-         (when-not (str/blank? @verify-error)
-           (js/setTimeout #(nav-scroll-top (str "/user/" @(subscribe [:self/user-id]) "/email")) 1000)
-           [Message {:negative true} @verify-error])
-         [:div {:style {:margin-top "1em"}}
-          "Redirecting to email settings..."]])
-      :get-initial-state
-      (fn [this]
-        (reset! verify-message nil)
-        (reset! verify-error nil)
-        (verify-email code))})))
 
 (defn EmailAddress
   [email-object]
@@ -293,8 +255,19 @@
     (fn [this]
       (get-email-addresses!))}))
 
-(defn EmailSettings
-  []
+(defn UserEmailSettings []
   [Segment
    [Header {:as "h4" :dividing true} "Email"]
    [EmailAddresses]])
+
+(defmethod panel-content panel []
+  (fn [child] [UserEmailSettings]))
+
+(defmethod logged-out-content panel []
+  (logged-out-content :logged-out))
+
+(sr-defroute user-email "/user/:user-id/email" [user-id]
+             (let [user-id (parse-integer user-id)]
+               (dispatch [:user-panel/set-user-id user-id])
+               (get-email-addresses!)
+               (dispatch [:set-active-panel panel])))

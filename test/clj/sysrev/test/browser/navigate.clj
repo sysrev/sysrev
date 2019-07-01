@@ -8,28 +8,32 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
-(defn go-route [path & {:keys [wait-ms silent]}]
+(defn go-route [path & {:keys [wait-ms pre-wait-ms silent]
+                        :or {wait-ms 20}}]
   (let [current (taxi/current-url)
         path (if (empty? path) "/" path)]
     (cond (or (not (string? current))
               (not (str/includes? current (:url (test/get-selenium-config)))))
           (b/init-route path)
           (not= current (b/path->url path))
-          (do (when-not silent (log/info "navigating to" path))
+          (do (when-not silent
+                (log/info "navigating to" path))
+              (when pre-wait-ms
+                (b/wait-until-loading-completes :pre-wait pre-wait-ms))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
-              (b/wait-until-loading-completes :pre-wait (or wait-ms true))))
+              (b/wait-until-loading-completes :pre-wait wait-ms)))
     nil))
 
-(defn go-project-route [suburi & {:keys [project-id wait-ms silent]}]
+(defn go-project-route [suburi & {:keys [project-id wait-ms pre-wait-ms silent]}]
   (let [project-id (or project-id (b/current-project-id))
         current (b/url->path (taxi/current-url))
         ;; TODO: use server-side lookup to get project base url
-        base-uri (or (second (re-matches #"(.*/p/[\d]+)(.*)" current))
-                     (str "/p/" project-id))]
+        match-uri (second (re-matches #"(.*/p/[\d]+)(.*)" current))
+        base-uri (or match-uri (str "/p/" project-id))]
     (assert (integer? project-id))
-    (when (= suburi "/review")
-      (b/wait-until-loading-completes :pre-wait 100))
-    (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent)))
+    (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent
+              :pre-wait-ms (or pre-wait-ms
+                               (when (= suburi "/review") 25)))))
 
 (defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")
@@ -44,10 +48,11 @@
     (go-route "/" :silent true)
     (log-out :silent true)
     (go-route "/login" :silent true)
+    (b/wait-until-displayed (xpath "//button[contains(text(),'Login')]"))
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (Thread/sleep 50)
+    (b/wait-until-loading-completes :pre-wait true)
     (go-route "/" :silent true)
     #_ (log/info "login successful")))
 
@@ -70,7 +75,6 @@
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
   (go-route "/" :silent true)
-  (b/wait-until-exists "form.create-project")
   (b/set-input-text "form.create-project div.project-name input" project-name)
   (b/click "form.create-project .button.create-project")
   (when (test/remote-test?) (Thread/sleep 500))
@@ -78,14 +82,12 @@
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
           "//ancestor::div[@id='project']"))
   (b/wait-until-loading-completes :pre-wait true)
-  (b/wait-until-loading-completes :pre-wait true)
   #_ (log/info "project created"))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
   (go-route "/" :silent true)
-  (b/click (x/project-title-value name))
-  (b/wait-until-loading-completes :pre-wait 200))
+  (b/click (x/project-title-value name) :delay 50))
 
 (defn delete-current-project []
   (when (b/current-project-id true)

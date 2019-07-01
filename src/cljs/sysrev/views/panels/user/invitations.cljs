@@ -4,14 +4,14 @@
             [cljsjs.moment]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
-            [sysrev.shared.util :refer [->map-with-key space-join]]
-            [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]])
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]]
+            [sysrev.shared.util :refer [->map-with-key space-join parse-integer]])
   (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :invitations] {:state-var state
-                                               :get-fn panel-get
-                                               :set-fn panel-set})
+                                               :get-fn panel-get :set-fn panel-set})
 
 (reg-sub :user/invitations #(panel-get % :invitations))
 
@@ -31,12 +31,9 @@
                            (reset! getting-invitations? false)
                            ($ js/console log "[get-invitations!] There was an error"))})))
 
-(reg-event-fx :user/get-invitations!
-              (fn [_ _]
-                (get-invitations!)
-                {}))
+(reg-event-fx :user/get-invitations! (fn [_ _] (get-invitations!) {}))
 
-(defn Invitation
+(defn- Invitation
   [{:keys [id project-id project-name description accepted active created updated]}]
   (let [putting-invitation? (r/cursor state [:invitation id :putting?])
         error-message (r/atom "")
@@ -86,8 +83,7 @@
         [MessageHeader "Invitation Error"]
         @error-message])]))
 
-(defn Invitations
-  []
+(defn UserInvitations []
   (let [getting-invitations? (r/cursor state [:getting-invitations?])
         invitations (r/cursor state [:invitations])]
     (r/create-class
@@ -107,3 +103,14 @@
         (when-not @getting-invitations?
           (dispatch [:user/get-invitations!])))})))
 
+(defmethod panel-content panel []
+  (fn [child] [UserInvitations]))
+
+(defmethod logged-out-content panel []
+  (logged-out-content :logged-out))
+
+(sr-defroute user-invitations "/user/:user-id/invitations" [user-id]
+             (let [user-id (parse-integer user-id)]
+               (dispatch [:user-panel/set-user-id user-id])
+               (dispatch [:user/get-invitations!])
+               (dispatch [:set-active-panel panel])))

@@ -49,7 +49,7 @@
   (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
   ;; switch the the proper iframe. note that the name could change if stripe updates their library
   (taxi/switch-to-frame {:xpath (str "//iframe[@name='" (nth (get-stripe-frame-names) 0) "']")})
-  (b/backspace-clear 30 cardnumber-input)
+  (b/backspace-clear 20 cardnumber-input)
   ;; clear anything that could be in the form
   (b/set-input-text-per-char cardnumber-input cc-number)
   ;; switch back to default
@@ -84,4 +84,4 @@
     ;; we're done, return back to default
     (taxi/switch-to-default)
     (log/info "finished entering stripe card")
-    (Thread/sleep 150)))
+    (Thread/sleep 50)))

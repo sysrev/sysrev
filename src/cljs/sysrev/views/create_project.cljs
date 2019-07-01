@@ -67,6 +67,6 @@
                              (dispatch [:reload [:self-orgs]]))})))
 
 (defn CreateProject [& [initial-org-id]]
-  [Segment {:secondary true}
+  [Segment {:secondary true :class "create-project"}
    [Header {:as "h4" :dividing true} "Create a New Project"]
    [CreateProjectForm initial-org-id]])

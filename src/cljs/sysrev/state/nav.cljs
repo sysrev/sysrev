@@ -147,7 +147,7 @@
 (reg-event-fx
  :set-active-project-url
  (fn [{:keys [db]} [_ [project-url-id {:keys [user-url-id org-url-id] :as owner}]]]
-   (let [;; url-id - vector used to look up project id from url strings
+   (let [ ;; url-id - vector used to look up project id from url strings
          ;; (will be nil when this is called for a non-project url)
          url-id (when project-url-id [project-url-id owner])
          ;; get any integer values from url id strings
@@ -159,6 +159,7 @@
          recent-url-id (get-in db [:state :recent-project-url])
          ;; active project id before updating for url
          cur-active (active-project-id db)
+         cur-active-url (get-in db [:state :active-project-url])
          ;; new value for re-frame db map
          new-db (as-> db new-db
                   ;; store id literals from url to state
@@ -177,7 +178,8 @@
               ;; update browser page title based on project name
               :set-page-title (some->> new-active (get-project-raw new-db) :name)}
        ;; reset data if this changes to a new active project
-       (and (not= cur-active new-active) recent-url-id url-id (not= recent-url-id url-id))
+       #_ (and (not= cur-active new-active) recent-url-id url-id (not= recent-url-id url-id))
+       (and url-id (not= url-id cur-active-url) (not= cur-active new-active))
        (merge {:reset-project-ui true, :reset-needed true})
        ;; look up project id from server
        url-id

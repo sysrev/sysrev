@@ -182,7 +182,7 @@
   [pred & [timeout interval]]
   (let [remote? (test/remote-test?)
         timeout (or timeout (if remote? 10000 5000))
-        interval (or interval 15)]
+        interval (or interval 10)]
     (when-not (pred)
       (Thread/sleep interval)
       (taxi/wait-until pred timeout interval))))
@@ -246,7 +246,7 @@
         timeout (if remote? 45000 timeout)]
     (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
     (assert (try-wait wait-until #(and (ajax-inactive?)
-                                       (every? (complement displayed-now?)
+                                       (every? (complement taxi/exists? #_ displayed-now?)
                                                [(not-class "div.ui.loader.active"
                                                            "loading-indicator")
                                                 "div.ui.dimmer.active > .ui.loader"
@@ -275,7 +275,7 @@
     (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 15 clear? true}}]
   (wait-until-displayed q)
   (when clear? (taxi/clear q))
   (Thread/sleep delay)
@@ -284,7 +284,7 @@
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
-             :or {delay 25 char-delay 20 clear? true}}]
+             :or {delay 15 char-delay 20 clear? true}}]
   (wait-until-displayed q)
   (when clear? (taxi/clear q))
   (Thread/sleep delay)
@@ -330,7 +330,13 @@
   (wait-until-displayed input-element)
   (dotimes [_ length]
     (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-    (Thread/sleep 20)))
+    (Thread/sleep 10)))
+
+(defn ensure-logged-out []
+  (try (when (taxi/exists? "a#log-out-link")
+         (click "a#log-out-link" :if-not-exists :skip)
+         (wait-until-loading-completes :pre-wait true))
+       (catch Throwable _ nil)))
 
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)]
@@ -354,6 +360,10 @@
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
                         (log-console-messages (if failed# :error :info))))
+                    (try (wait-until-loading-completes :pre-wait true :timeout 500)
+                         (catch Throwable e2#
+                           (log/warn "exception in test cleanup (wait-until-loading-completes)")))
+                    (ensure-logged-out)
                     ~cleanup))))))))
 
 (defn cleanup-browser-test-projects []
@@ -462,12 +472,6 @@
       #_ (log/info "instrumented" fn-count "cljs functions")
       (assert (> fn-count 0) "no spec functions were instrumented")))
   nil)
-
-(defn- ensure-logged-out []
-  (try (when (taxi/exists? "a#log-out-link")
-         (click "a#log-out-link" :if-not-exists :skip)
-         (wait-until-loading-completes :pre-wait true))
-       (catch Throwable _ nil)))
 
 (defn webdriver-fixture-once [f]
   (f))

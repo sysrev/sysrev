@@ -4,6 +4,7 @@
             [cljsjs.react-stripe-elements]
             [reagent.core :as r]
             [re-frame.core :refer [reg-sub subscribe dispatch reg-event-db trim-v]]
+            [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :refer [nav-redirect get-url-params nav-scroll-top]]
             [sysrev.state.identity :refer [current-user-id]]
@@ -17,9 +18,6 @@
 (setup-panel-state panel [:stripe] {:state-var state
                                     :get-fn panel-get
                                     :set-fn panel-set})
-
-(defn default-redirect-uri [db]
-  (str "/user/" (current-user-id db) "/billing"))
 
 ;; based on: https://github.com/stripe/react-stripe-elements
 ;;           https://jsfiddle.net/g9rm5qkt/
@@ -45,92 +43,72 @@
                            :letterSpacing "0.025em"
                            :fontFamily "Source Code Pro, Menlo, monospace"
                            "::placeholder" {:color "#aab7c4"}}
-                    :invalid {:color "#9e2146"}}) 
+                    :invalid {:color "#9e2146"}})
+
+(reg-event-db :stripe/set-calling-route! [trim-v]
+              (fn [db [calling-route]]
+                (assoc-in db [:state :stripe :calling-route] calling-route)))
 
 (def-action :stripe/add-payment-user
-  :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id])  "/stripe/payment-method"))
-  :content (fn [token] {:token token})
-  :process
-  (fn [{:keys [db]} _ _]
-    (let [;; calling-route should be set by the :payment/set-calling-route! event
-          ;; this is just in case it wasn't set
-          ;; e.g. user went directly to /payment route
-          calling-route (or (get-in db [:state :stripe :calling-route])
-                            (default-redirect-uri db))
-          need-card? (r/cursor state [:need-card?])]
-      ;; don't need to ask for a card anymore
-      ;;(dispatch [:stripe/set-need-card? false])
-      (reset! need-card? false)
-      ;; clear any error message that was present in plans
-      ;;(dispatch [:plans/clear-error-message!])
-      ;; go back to where this panel was called from
-      (if (string? calling-route)
-        (nav-scroll-top calling-route)
-        (dispatch [:navigate calling-route]))
-      ;; empty map, just interested in causing side effects
-      {}))
-  :on-error
-  (fn [{:keys [db error]} _]
-    ;; we have an error message, set it so that it can be display to the user
-    (reset! (r/cursor state [:error-message]) (:message error))
-    {}))
+  :uri (fn [user-id token] (str "/api/user/" user-id "/stripe/payment-method"))
+  :content (fn [user-id token] {:token token})
+  :process (fn [{:keys [db]} [user-id _] _]
+             (let [ ;; calling-route should be set by the :stripe/set-calling-route! event
+                   ;; this is just in case it wasn't set
+                   ;; e.g. user went directly to /payment route
+                   calling-route (or (get-in db [:state :stripe :calling-route])
+                                     (str "/user/" user-id "/billing"))]
+               ;; clear any error message that was present in plans
+               ;;(dispatch [:plans/clear-error-message!])
+               { ;; don't need to ask for a card anymore
+                :db (-> (panel-set db :need-card? false)
+                        ;; clear any error message
+                        (panel-set :error-message nil)
+                        ;; reset the calling-route value upon redirect
+                        (assoc-in [:state :stripe :calling-route] nil))
+                ;; go back to where this panel was called from
+                :nav-scroll-top calling-route}))
+  :on-error (fn [{:keys [db error]} _ _]
+              ;; we have an error message, set it so that it can be display to the user
+              {:db (panel-set db :error-message (:message error))}))
 
 (def-action :stripe/add-payment-org
-  :uri (fn [org-id] (str "/api/org/" org-id  "/stripe/payment-method"))
+  :uri (fn [org-id token] (str "/api/org/" org-id "/stripe/payment-method"))
   :content (fn [org-id token] {:token token})
-  :process
-  (fn [{:keys [db]} [org-id] _]
-    (let [;; calling-route should be set by the :payment/set-calling-route! event
-          ;; this is just in case it wasn't set
-          ;; e.g. user went directly to /payment route
-          calling-route (or (get-in db [:state :stripe :calling-route])
-                            (default-redirect-uri db))
-          need-card? (r/cursor state [:need-card?])]
-      ;; don't need to ask for a card anymore
-      ;;(dispatch [:stripe/set-need-card? false])
-      (reset! need-card? false)
-      ;; clear any error message that was present in plans
-      ;;(dispatch [:plans/clear-error-message!])
-      ;; go back to where this panel was called from
-      (if (string? calling-route)
-        (nav-scroll-top calling-route)
-        (dispatch [:navigate calling-route]))
-      ;; empty map, just interested in causing side effects
-      {}))
-  :on-error
-  (fn [{:keys [db error]} _]
-    ;; we have an error message, set it so that it can be display to the user
-    (reset! (r/cursor state [:error-message]) (:message error))
-    {}))
+  :process (fn [{:keys [db]} [org-id _] _]
+             (let [calling-route (or (get-in db [:state :stripe :calling-route])
+                                     (str "/org/" org-id "/billing"))]
+               {:db (-> (panel-set db :need-card? false)
+                        (panel-set :error-message nil)
+                        (assoc-in [:state :stripe :calling-route] nil))
+                :nav-scroll-top calling-route}))
+  :on-error (fn [{:keys [db error]} _]
+              {:db (panel-set db :error-message (:message error))}))
 
-(reg-sub :stripe/default-source
-         (fn [db [_ id-type id]]
-           (get-in db [:state :stripe :default-source id-type id])))
+(def-data :user/default-source
+  :uri (fn [user-id] (str "/api/user/" user-id "/stripe/default-source"))
+  :loaded? (fn [db user-id]
+             (-> (get-in db [:data :default-stripe-source :user])
+                 (contains? user-id)))
+  :process (fn [{:keys [db]} [user-id] {:keys [default-source]}]
+             {:db (assoc-in db [:data :default-stripe-source :user user-id] default-source)}))
 
-(reg-event-db :stripe/set-default-source!
-              (fn [db [_ id-type id source-id]]
-                (assoc-in db [:state :stripe :default-source id-type id] source-id)))
+(reg-sub :user/default-source
+         (fn [db [_ & [user-id]]]
+           (let [user-id (or user-id (current-user-id db))]
+             (get-in db [:data :default-stripe-source :user user-id]))))
 
-(defn get-user-default-source []
-  (let [default-source-error (r/cursor state [:default-source-error])
-        user-id @(subscribe [:self/user-id])]
-    (GET (str "/api/user/" user-id "/stripe/default-source")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [{:keys [result]}]
-                     (dispatch [:stripe/set-default-source!
-                                "user" user-id (:default-source result)]))
-          :error-handler (fn [{:keys [error]}]
-                           (reset! default-source-error (:message error)))})))
+(def-data :org/default-source
+  :uri (fn [org-id] (str "/api/org/" org-id "/stripe/default-source"))
+  :loaded? (fn [db org-id]
+             (-> (get-in db [:data :default-stripe-source :org])
+                 (contains? org-id)))
+  :process (fn [{:keys [db]} [org-id] {:keys [default-source]}]
+             {:db (assoc-in db [:data :default-stripe-source :org org-id] default-source)}))
 
-(defn get-org-default-source [current-org-id]
-  (let [default-source-error (r/cursor state [:default-source-error])]
-    (GET (str "/api/org/" current-org-id "/stripe/default-source")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [{:keys [result]}]
-                     (dispatch [:stripe/set-default-source!
-                                "org" current-org-id (:default-source result)]))
-          :error-handler (fn [{:keys [error]}]
-                           (reset! default-source-error (:message error)))})))
+(reg-sub :org/default-source
+         (fn [db [_ org-id]]
+           (get-in db [:data :default-stripe-source :org org-id])))
 
 (defn inject-stripe [comp]
   (-> comp
