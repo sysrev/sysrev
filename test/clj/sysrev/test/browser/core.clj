@@ -339,12 +339,18 @@
        (catch Throwable _ nil)))
 
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
-  (let [name-str (clojure.core/name name)]
+  (let [name-str (clojure.core/name name)
+        repl? (= :dev (:profile env))]
     `(deftest ~name
-       (when ~enable
+       (when (or ~repl? ~enable)
          (util/with-print-time-elapsed ~name-str
            (let ~bindings
              (try (log/info "running" ~name-str)
+                  (when ~repl?
+                    (try ~cleanup
+                         (catch Throwable e#
+                           (log/warn "got exception in repl cleanup:" (str e#))))
+                    (create-test-user))
                   ~body
                   (catch Throwable e#
                     (log/error "current-url:" (try (taxi/current-url)
@@ -363,8 +369,9 @@
                     (try (wait-until-loading-completes :pre-wait true :timeout 500)
                          (catch Throwable e2#
                            (log/warn "exception in test cleanup (wait-until-loading-completes)")))
-                    (ensure-logged-out)
-                    ~cleanup))))))))
+                    (when-not ~repl?
+                      (ensure-logged-out)
+                      ~cleanup)))))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")

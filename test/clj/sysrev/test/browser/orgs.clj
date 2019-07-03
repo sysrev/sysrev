@@ -214,8 +214,7 @@
             :exp-date "0122"
             :cvc "123"
             :postal "11111"}
-   email (:email b/test-login)
-   user-id (:user-id (users/get-user-by-email email))]
+   {:keys [email]} b/test-login]
   (do
     ;; need to be a stripe customer
     (when-not (:stripe-id (users/get-user-by-email email))
@@ -224,7 +223,9 @@
     (when-not (-> email users/get-user-by-email :user-id (api/current-plan) (get-in [:result :plan]))
       (stripe/create-subscription-user! (users/get-user-by-email email)))
     ;; current plan
-    (b/is-soon (= (get-in (api/current-plan user-id) [:result :plan :name])
+    (b/is-soon (= (-> (:user-id (users/get-user-by-email email))
+                      (api/current-plan)
+                      (get-in [:result :plan :name]))
                   stripe/default-plan)
                3000 50)
     (plans/wait-until-stripe-id email)
