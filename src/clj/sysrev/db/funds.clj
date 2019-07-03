@@ -1,6 +1,6 @@
 (ns sysrev.db.funds
   (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
+            [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.util :as util]))
 
 (def transaction-source-descriptor {:paypal-payment "PayPal/payment-id"
@@ -53,7 +53,7 @@
   [{:keys [transaction-id status]}]
   (-> (sqlh/update :project-fund-pending)
       (sset {:status status
-             :updated (util/now-unix-seconds)})
+             :updated (util/to-epoch (db/sql-now))})
       (where [:= :transaction-id transaction-id])
       do-execute))
 

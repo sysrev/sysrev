@@ -24,6 +24,11 @@
                                    :get-sub ::get
                                    :set-event ::set})
 
+;; TODO: remove this, potentially very expensive (load only :plan and :subscription-lapsed?)
+(reg-event-fx :self/reload-all-projects
+              (fn [] {:dispatch-n (doall (map (fn [p] [:reload [:project (:project-id p)]])
+                                              @(subscribe [:self/projects])))}))
+
 (defn- load-user-current-plan [db plan]
   (assoc-in db [:data :plans :current-plan] plan))
 
@@ -53,7 +58,7 @@
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
                           (load-user-current-plan plan))
-                  :dispatch-n (list [:project/fetch-all-projects]
+                  :dispatch-n (list [:self/reload-all-projects]
                                     [:nav-scroll-top nav-url]
                                     #_ [:data/load [:user/current-plan user-id]])})))
   :on-error (fn [{:keys [db error]} _ _]

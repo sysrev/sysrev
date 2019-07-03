@@ -15,6 +15,7 @@
         sysrev.source.core
         sysrev.db.article-list
         sysrev.db.annotations
+        sysrev.db.plans
         sysrev.cassandra
         sysrev.clone-project
         sysrev.filestore

@@ -5,6 +5,7 @@
             [clj-time.format :as f]
             [clj-time.local :as l]
             [sysrev.config.core :refer [env]]
+            [sysrev.db.core :as db]
             [sysrev.db.funds :as funds]
             [sysrev.util :as util]))
 
@@ -164,7 +165,7 @@
                                                  :amount amount
                                                  :transaction-id transaction-id
                                                  :transaction-source transaction-source
-                                                 :created (util/now-unix-seconds)}))
+                                                 :created (util/to-epoch (db/sql-now))}))
           ;; nothing has changed, do nothing
           (= sale-state status)
           nil

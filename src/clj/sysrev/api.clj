@@ -319,10 +319,7 @@
                                                :plan plan})]
       (if (:error body)
         (update body :error #(merge % {:status not-found}))
-        (do (plans/add-user-to-plan! {:user-id user-id
-                                      :plan plan
-                                      :created (util/now-unix-seconds)
-                                      :sub-id sub-id})
+        (do (plans/add-user-to-plan! user-id plan sub-id)
             (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
               (db/clear-project-cache project-id))
             {:stripe-body body
@@ -343,10 +340,7 @@
             :quantity (count (groups/read-users-in-group (groups/group-id->group-name group-id)))})]
       (if (:error body)
         (update body :error #(merge % {:status not-found}))
-        (do (plans/add-group-to-plan! {:group-id group-id
-                                       :plan plan
-                                       :created (util/now-unix-seconds)
-                                       :sub-id sub-id})
+        (do (plans/add-group-to-plan! group-id plan sub-id)
             (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
               (db/clear-project-cache project-id))
             {:stripe-body body
@@ -676,7 +670,7 @@
   {:success true})
 
 ;; to manually add funds:
-;;  (funds/create-project-fund-entry! {:project-id <project-id> :user-id <user-id> :transaction-id (str (UUID/randomUUID)) :transaction-source "Manual Entry" :amount 20000 :created (util/now-unix-seconds)})
+;;  (funds/create-project-fund-entry! {:project-id <project-id> :user-id <user-id> :transaction-id (str (UUID/randomUUID)) :transaction-source "Manual Entry" :amount 20000 :created (util/to-epoch (db/sql-now))})
 ;; in the database:
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 (defn pay-user!
@@ -696,7 +690,7 @@
            {:error {:status bad-request
                     :message (get-in body [:message])}}
            (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
-                 created (util/now-unix-seconds)]
+                 now (util/to-epoch (db/sql-now))]
              ;; deduct for funds to the user
              (funds/create-project-fund-entry!
               {:project-id project-id
@@ -704,7 +698,7 @@
                :amount (- compensation)
                :transaction-id payout-batch-id
                :transaction-source (:paypal-payout funds/transaction-source-descriptor)
-               :created created})
+               :created now})
              ;; deduct admin fee
              (funds/create-project-fund-entry!
               {:project-id project-id
@@ -712,7 +706,7 @@
                :amount (- admin-fee)
                :transaction-id (str (UUID/randomUUID))
                :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
-               :created created})
+               :created now})
              {:result "success"})))))))
 
 (defn payments-owed

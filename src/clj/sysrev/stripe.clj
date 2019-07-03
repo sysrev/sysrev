@@ -12,7 +12,7 @@
             [sysrev.db.funds :as funds]
             [sysrev.db.plans :as db-plans]
             [sysrev.db.project :as project]
-            [sysrev.util :refer [current-function-name]]))
+            [sysrev.util :as util :refer [current-function-name]]))
 
 (def stripe-secret-key (env :stripe-secret-key))
 
@@ -82,10 +82,11 @@
 
 (defn delete-customer!
   "Delete stripe customer entry for user"
-  [user]
-  (if-not (nil? (:stripe-id user))
-    (execute-action (customers/delete-customer (:stripe-id user)))
-    (log/info (str "Error in " (current-function-name) ": " "no stripe-id associated with user (user-id: " (:user-id user) ")"))))
+  [{:keys [stripe-id user-id]}]
+  (if stripe-id
+    (execute-action (customers/delete-customer stripe-id))
+    (log/warnf "Error in %s: no stripe-id associated with user=%d"
+               (current-function-name) user-id)))
 
 ;; !!! WARNING !!!
 ;; !! This is only a util for dev environemnt !!
@@ -144,46 +145,32 @@
    (filter #(= (:nickname %) nickname) (:data (get-plans)))
    first :id))
 
-
 ;; prorating does occur, but only on renewal day (e.g. day payment is due)
 ;; it is not prorated at the time of upgrade/downgrade
 ;; https://stripe.com/docs/subscriptions/upgrading-downgrading
 (defn create-subscription-user!
   "Create a subscription using the basic plan for user. This subscription is used for all subsequent subscription plans. Return the stripe response."
-  [user]
-  (let [{:keys [start id plan] :as stripe-response}
-        (execute-action (subscriptions/subscribe-customer
-                         (common/plan (get-plan-id default-plan) )
-                         (common/customer (:stripe-id user))
-                         (subscriptions/do-not-prorate)))]
-    (cond (:error stripe-response)
-          stripe-response
-          start
-          (do (db-plans/add-user-to-plan! {:user-id (:user-id user)
-                                           :plan (:id plan)
-                                           :created start
-                                           :sub-id id})
-              stripe-response))))
-
-(defn subscripe-customer!
-  [stripe-id plan-id])
-
-(defn create-subscription-org!
-  "Create a subscription using the basic plan for group-id. This subscription is used for all subsequent subscription plans. Return the stripe response."
-  [group-id stripe-id]
-  (let [{:keys [start id plan] :as stripe-response}
+  [{:keys [user-id stripe-id]}]
+  (let [{:keys [start plan error] :as response}
         (execute-action (subscriptions/subscribe-customer
                          (common/plan (get-plan-id default-plan))
                          (common/customer stripe-id)
                          (subscriptions/do-not-prorate)))]
-    (cond (:error stripe-response)
-          stripe-response
-          start
-          (do (db-plans/add-group-to-plan! {:group-id group-id
-                                            :plan (:id plan)
-                                            :created start
-                                            :sub-id id})
-              stripe-response))))
+    (when-not error
+      (db-plans/add-user-to-plan! user-id (:id plan) (:id response)))
+    response))
+
+(defn create-subscription-org!
+  "Create a subscription using the basic plan for group-id. This subscription is used for all subsequent subscription plans. Return the stripe response."
+  [group-id stripe-id]
+  (let [{:keys [start plan error] :as response}
+        (execute-action (subscriptions/subscribe-customer
+                         (common/plan (get-plan-id default-plan))
+                         (common/customer stripe-id)
+                         (subscriptions/do-not-prorate)))]
+    (when-not error
+      (db-plans/add-group-to-plan! group-id (:id plan) (:id response)))
+    response))
 
 ;; not needed for main application, needed only in tests
 (defn unsubscribe-customer!

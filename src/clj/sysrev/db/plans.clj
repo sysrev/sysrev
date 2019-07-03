@@ -1,38 +1,39 @@
 (ns sysrev.db.plans
   (:require [honeysql.helpers :refer :all :exclude [update]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
-            [sysrev.db.core :refer [do-query do-execute]]))
+            [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
+            [sysrev.util :as util]))
 
-(defn add-user-to-plan!
-  "Add user-id to plan with at time created with subscription id sub-id"
-  [{:keys [user-id plan created sub-id]}]
-  (-> (insert-into :plan-user)
-      (values [{:user-id user-id, :plan plan, :created created, :sub-id sub-id}])
-      do-execute))
+(defn add-user-to-plan! [user-id plan sub-id]
+  (with-transaction
+    (let [now-epoch (util/to-epoch (db/sql-now))]
+      (-> (insert-into :plan-user)
+          (values [{:user-id user-id, :plan plan, :created now-epoch, :sub-id sub-id}])
+          do-execute))))
 
-(defn add-group-to-plan!
-  "Add a group-id to plan with name at time created with subscription id sub-id"
-  [{:keys [group-id plan created sub-id]}]
-  (-> (insert-into :plan-group)
-      (values [{:group-id group-id, :plan plan, :created created, :sub-id sub-id}])
-      do-execute))
+(defn add-group-to-plan! [group-id plan sub-id]
+  (with-transaction
+    (let [now-epoch (util/to-epoch (db/sql-now))]
+      (-> (insert-into :plan-group)
+          (values [{:group-id group-id, :plan plan, :created now-epoch, :sub-id sub-id}])
+          do-execute))))
 
 (defn get-current-plan
   "Get the plan for which user is currently subscribed"
   [user-id]
-  (-> (select :*)
+  (-> (select :pu.* :sp.name)
       (from [:plan-user :pu])
       (join [:stripe-plan :sp] [:= :pu.plan :sp.id])
-      (where [:= :user-id user-id])
+      (where [:= :pu.user-id user-id])
       do-query (->> (sort-by :created) last)))
 
 (defn get-current-plan-group
   "Get the information for the plan the group is currently subscribed to"
   [group-id]
-  (-> (select :*)
+  (-> (select :pg.* :sp.name)
       (from [:plan-group :pg])
       (join [:stripe-plan :sp] [:= :pg.plan :sp.id])
-      (where [:= :group-id group-id])
+      (where [:= :pg.group-id group-id])
       do-query (->> (sort-by :created) last)))
 
 (defn get-support-project-plan
@@ -47,10 +48,10 @@
 (defn user-support-subscriptions
   "Return all support subscriptions for user which are active"
   [{:keys [user-id] :as user}]
-  (-> (select :*)
+  (-> (select :pss.*)
       (from [:project-support-subscriptions :pss])
       (join [:project :p] [:= :p.project-id :pss.project-id])
-      (where [:and [:= :user-id user-id] [:= :status "active"]])
+      (where [:and [:= :pss.user-id user-id] [:= :pss.status "active"]])
       do-query))
 
 (defn support-subscription

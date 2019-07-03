@@ -162,9 +162,6 @@
   (tf/unparse (tf/formatters (or formatter :mysql))
               (to-clj-time t)))
 
-(defn now-unix-seconds []
-  (-> (t/now) (tc/to-long) (/ 1000) int))
-
 (defn now-ms []
   (-> (t/now) (tc/to-long)))
 

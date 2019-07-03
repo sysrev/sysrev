@@ -60,7 +60,7 @@
                                #_ [:data/load [:org/current-plan org-id]]
                                ;; need to download all projects associated with the user
                                ;; to update [:project/subscription-lapsed?] for MakePublic
-                               [:project/fetch-all-projects]
+                               [:self/reload-all-projects]
                                [:nav-scroll-top nav-url])})))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
