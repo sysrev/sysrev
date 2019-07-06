@@ -54,7 +54,7 @@
 (defn RootFullPanelPublic []
   (with-loader [[:identity] [:public-projects] [:global-stats]] {}
     [:div.landing-page.landing-public
-     [:div.section.section2
+     [:div.section.section1
       [:div.ui.container
        [:div.ui.stackable.grid
         [:div.middle.aligned.row
@@ -69,7 +69,7 @@
          [LoginRegisterPanel]]]]]
      [:div.section.section3
       [:div.ui.container
-       [:div.ui.stackable.grid
+       [:div.ui.middle.aligned.stackable.grid
         [:div.nine.wide.column
          [plist/PublicProjectsList]]
         [:div.seven.wide.column
@@ -82,9 +82,10 @@
                          :box-shadow "none"
                          :max-width "98%"
                          :height "auto"
-                         :border-radius "4px"}}]]]
-        [:div.sixteen.wide.column
-         [Pricing]]]]]]))
+                         :border-radius "4px"}}]]]]]]
+     [:div.section.section4
+      [:div.ui.container
+       [Pricing]]]]))
 
 (defn RootFullPanelUser []
   [:div.landing-page

@@ -193,10 +193,10 @@
                                     :orgs "Sysrev Orgs")
                                   " matching '" q "'")]
                    (when (= active :projects)
-                     [:div [:h3 "Try searching for '"
-                            [:a {:href (search-url "cancer")} "cancer"]
-                            "' or '"
-                            [:a {:href (search-url "genes")} "genes"]]])])))]]]]))
+                     [:div [:h3 "Try searching for "
+                            [:a {:href (search-url "cancer")} "\"cancer\""]
+                            " or "
+                            [:a {:href (search-url "genes")} "\"genes\""]]])])))]]]]))
     :component-did-mount (fn [this]
                            (site-search q p))}))
 
