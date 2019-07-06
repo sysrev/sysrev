@@ -74,6 +74,7 @@
         [:div.right.menu
          (when full? dev-menu)
          (toggle-theme-button)
+         (when-not mobile? [SiteSearch])
          [:a.item {:id "user-name-link"
                    :href (str "/user/" user-id "/profile")}
           [:div
@@ -85,7 +86,7 @@
          [:div.item {:style {:width "0" :padding "0"}}]]
         ;; not logged in
         [:div.right.menu
-         [SiteSearch]
+         (when-not mobile? [SiteSearch])
          (toggle-theme-button)
          (when (= :main @(subscribe [:app-id]))
            [:a.item.distinct

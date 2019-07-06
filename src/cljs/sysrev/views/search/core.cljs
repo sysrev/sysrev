@@ -8,9 +8,11 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
-            [sysrev.views.semantic :refer [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label Pagination]]))
+            [sysrev.views.semantic :refer
+             [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label Pagination]])
+  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute]]))
 
-(def ^:private panel [:search])
+(setup-panel-state panel [:search])
 
 (def state (r/atom {:search-results {}
                     :search-value ""}))
@@ -30,42 +32,42 @@
     (GET "/api/search"
          {:params {:q q :p p}
           :handler (fn [response]
-                     (swap! search-results assoc-in [q p] (get-in response [:result :results])))
+                     (swap! search-results assoc-in [q p]
+                            (get-in response [:result :results])))
           :error-handler (fn [response]
-                           (swap! search-results assoc-in [q p] "There was an error retrieving results, please try again"))})))
+                           (swap! search-results assoc-in [q p]
+                                  "There was an error retrieving results, please try again"))})))
 
 (defn SiteSearch []
   (let [search-value (r/cursor state [:search-value])
         cleared? (r/atom false)]
-    (r/create-class
-     {:reagent-render
-      (fn [args]
-        (let [route-search-term (uri-utils/getParamValue @active-route "q")]
-          ;; when the route-search-term is empty, clear the search value
-          (when (and (empty? route-search-term)
-                     (not @cleared?))
-            (reset! cleared? true)
-            (reset! search-value ""))
-          ;; when the route-search-term is present, reset the fact that the searh value
-          ;; has been cleared
-          (when (not (empty? route-search-term))
-            (reset! cleared? false))
-          [Form {:on-submit (fn [e]
-                              (if (clojure.string/blank? @search-value)
-                                (reset! search-value "")
-                                (do (site-search @search-value 1)
-                                    (nav-scroll-top "/search" :params {:q @search-value
-                                                                       :p 1
-                                                                       :type "projects"}))))
-                 :id "search-sysrev-form"}
-           [Input {:placeholder "Search Sysrev"
-                   :on-change (fn [e value]
-                                (let [input-value (-> value
-                                                      (js->clj :keywordize-keys true)
-                                                      :value)]
-                                  (reset! search-value input-value)))
-                   :id "search-sysrev-bar"
-                   :value @search-value}]]))})))
+    (fn []
+      (let [route-search-term (uri-utils/getParamValue @active-route "q")]
+        ;; when the route-search-term is empty, clear the search value
+        (when (and (empty? route-search-term)
+                   (not @cleared?))
+          (reset! cleared? true)
+          (reset! search-value ""))
+        ;; when the route-search-term is present, reset the fact that the searh value
+        ;; has been cleared
+        (when (not (empty? route-search-term))
+          (reset! cleared? false))
+        [Form {:on-submit (fn [e]
+                            (if (clojure.string/blank? @search-value)
+                              (reset! search-value "")
+                              (do (site-search @search-value 1)
+                                  (nav-scroll-top "/search" :params {:q @search-value
+                                                                     :p 1
+                                                                     :type "projects"}))))
+               :id "search-sysrev-form"}
+         [Input {:placeholder "Search Sysrev"
+                 :on-change (fn [e value]
+                              (let [input-value (-> value
+                                                    (js->clj :keywordize-keys true)
+                                                    :value)]
+                                (reset! search-value input-value)))
+                 :id "search-sysrev-bar"
+                 :value @search-value}]]))))
 
 (defn ProjectSearchResult
   [{:keys [project-id description name]}]
@@ -176,16 +178,19 @@
                              [OrgSearchResult item]
                              [:h3 "Error: No such key"])))
                    (when (> count 10)
-                     [Pagination {:default-active-page 1
-                                  :total-pages (+ (quot count page-size) (if (> (rem count page-size) 0)
-                                                                           1 0))
-                                  :active-page p
-                                  :on-page-change (fn [event data]
-                                                    (let [new-active-page (:activePage (js->clj data :keywordize-keys true))]
-                                                      (site-search q new-active-page)
-                                                      (nav-scroll-top "/search" :params {:q q
-                                                                                         :p new-active-page
-                                                                                         :type (clj->js active)})))}])]
+                     [Pagination
+                      {:default-active-page 1
+                       :total-pages (+ (quot count page-size)
+                                       (if (> (rem count page-size) 0)
+                                         1 0))
+                       :active-page p
+                       :on-page-change (fn [event data]
+                                         (let [{:keys [activePage]} (js->clj data :keywordize-keys true)]
+                                           (site-search q activePage)
+                                           (nav-scroll-top
+                                            "/search" :params {:q q
+                                                               :p activePage
+                                                               :type (clj->js active)})))}])]
                   [:div [:h3 (str "We couldn't find anything in "
                                   (condp = active
                                     :projects "Public Projects"
@@ -205,6 +210,3 @@
     [SearchResults {:q (uri-utils/getParamValue @active-route "q")
                     :p (uri-utils/getParamValue @active-route "p")
                     :type (uri-utils/getParamValue @active-route "type")}]))
-
-
-

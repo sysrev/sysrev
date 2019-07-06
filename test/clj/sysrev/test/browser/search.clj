@@ -1,5 +1,6 @@
 (ns sysrev.test.browser.search
   (:require [clojure.test :refer :all]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [honeysql.core :as sql]
@@ -17,8 +18,10 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(def metasyntactic-variables ["foo" "bar" "baz" "qux" "quux" "corge" "grault" "garply" "waldo" "fred" "plugh" "xyzzy" "thud"])
-(def capitalized-metasyntactic-variables (mapv clojure.string/capitalize metasyntactic-variables))
+(def metasyntactic-variables
+  ["foo" "bar" "baz" "qux" "quux" "corge" "grault" "garply" "waldo" "fred" "plugh" "xyzzy" "thud"])
+
+(def capitalized-metasyntactic-variables (mapv str/capitalize metasyntactic-variables))
 
 (def search-bar "#search-sysrev-bar")
 (def search-bar-form "#search-sysrev-form")
@@ -32,20 +35,23 @@
       (values [{:email email :username username}])
       do-execute))
 
-(defn delete-projects-matching-term [q]
-  (->> (project/search-projects q :limit 100)
-       (map :project-id)
-       (map project/delete-project)))
+(defn delete-projects-by-name [names]
+  (db/clear-query-cache)
+  (-> (delete-from :project)
+      (where [:in :name (seq names)])
+      do-execute))
 
-(defn delete-users-matching-term [q]
-  (->> (users/search-users q :limit 100)
-       (map :user-id)
-       (map users/delete-user)))
+(defn delete-users-by-email [emails]
+  (db/clear-query-cache)
+  (-> (delete-from :web-user)
+      (where [:in :email (seq emails)])
+      do-execute))
 
-(defn delete-orgs-matching-term [q]
-  (->> (groups/search-groups q :limit 100)
-       (map :group-id)
-       (map groups/delete-group!)))
+(defn delete-groups-by-name [names]
+  (db/clear-query-cache)
+  (-> (delete-from :groups)
+      (where [:in :group-name (seq names)])
+      do-execute))
 
 (defn search-for [q]
   (b/set-input-text-per-char search-bar q)
@@ -63,36 +69,45 @@
    :orgs (search-item-count :orgs)})
 
 (deftest-browser basic-search-test
-  (test/db-connected?)
-  [search-term "foo"]
+  (and (test/db-connected?) (not (test/remote-test?)))
+  [project-names (->> (for [x capitalized-metasyntactic-variables
+                            y capitalized-metasyntactic-variables
+                            z capitalized-metasyntactic-variables]
+                        (str x " " y " " z))
+                      (take 35))
+   users (->> (for [x metasyntactic-variables
+                    y metasyntactic-variables]
+                {:username (str x " " y)
+                 :email (str x "@" y
+                             (nth [".com" ".org" ".net"] (rand-int 3)))})
+              (take 10))
+   group-names (->> (for [x capitalized-metasyntactic-variables
+                          y capitalized-metasyntactic-variables
+                          z capitalized-metasyntactic-variables]
+                      (str x " " y " " z " "
+                           (nth ["LLC." "Inc." "LMTD." "Corp." "Co."] (rand-int 5))))
+                    (take 35))]
   (do
     (nav/go-route "/")
     ;; create fake projects
-    (doall (map project/create-project (take 35 (for [x capitalized-metasyntactic-variables y capitalized-metasyntactic-variables z capitalized-metasyntactic-variables] (str x " " y " " z)))))
+    (doseq [name project-names] (project/create-project name))
     ;; create fake test users
-    (doall (map insert-fake-user
-                (->> (for [x metasyntactic-variables y metasyntactic-variables] {:username (str x " " y) :email (str x "@" y (nth [".com" ".org" ".net"] (rand-int 3)))}) (take 10))))
+    (doseq [user users] (insert-fake-user user))
     ;; create fake org names
-    (doall
-     (map groups/create-group! (->> (for [x capitalized-metasyntactic-variables y capitalized-metasyntactic-variables z capitalized-metasyntactic-variables] (str x " " y " " z " " (nth ["LLC." "Inc." "LMTD." "Corp." "Co."] (rand-int 5)))) (take 35))))
+    (doseq [name group-names] (groups/create-group! name))
     ;; make sure the projects, users and orgs are populated
-    (b/wait-until #(= 35 (count (project/search-projects "foo" :limit 100))))
-    (b/wait-until #(= 10 (count (users/search-users "foo" :limit 100))))
-    (b/wait-until #(= 35 (count (groups/search-groups "foo" :limit 100))))
+    (b/is-soon (= 35 (count (project/search-projects "foo" :limit 100))))
+    (b/is-soon (= 10 (count (users/search-users "foo" :limit 100))))
+    (b/is-soon (= 35 (count (groups/search-groups "foo" :limit 100))))
     ;; search for foo
     (search-for "foo")
-    (b/wait-until #(= {:projects 35 :users 10 :orgs 35}
-                      (search-counts)))
-    (is (= {:projects 35 :users 10 :orgs 35}
-           (search-counts)))
+    (b/is-soon (= (search-counts) {:projects 35 :users 10 :orgs 35}))
     ;; search for bar
     (search-for "bar")
-    (b/wait-until #(= {:projects 15 :users 0 :orgs 15}
-                      (search-counts)))
-    ;; do we have 15 projects, 0 users and 15 orgs?
-    (is (= {:projects 15 :users 0 :orgs 15}
-           (search-counts))))
-  :cleanup (do
-             (delete-projects-matching-term "foo")
-             (delete-users-matching-term "foo")
-             (delete-orgs-matching-term "foo")))
+    (b/is-soon (= (search-counts) {:projects 15 :users 0 :orgs 15})))
+  :cleanup (do (log/info "deleting projects:"
+                         (delete-projects-by-name project-names))
+               (log/info "deleting users:"
+                         (delete-users-by-email (map :email users)))
+               (log/info "deleting groups:"
+                         (delete-groups-by-name group-names))))
