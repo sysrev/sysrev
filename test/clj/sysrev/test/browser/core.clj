@@ -243,7 +243,7 @@
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
   (let [remote? (test/remote-test?)
-        timeout (if remote? 45000 timeout)]
+        timeout (or timeout #_ (if remote? 15000 nil))]
     (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
     (assert (try-wait wait-until #(and (ajax-inactive?)
                                        (every? (complement taxi/exists? #_ displayed-now?)

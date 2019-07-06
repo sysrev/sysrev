@@ -38,6 +38,7 @@
 (defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")
     (when-not silent (log/info "logging out"))
+    (b/wait-until-loading-completes :pre-wait 10)
     (b/click "a#log-out-link" :if-not-exists :skip)
     (b/wait-until-loading-completes :pre-wait true)))
 

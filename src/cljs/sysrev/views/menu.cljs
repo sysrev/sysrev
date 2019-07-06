@@ -73,8 +73,8 @@
       (if logged-in?
         [:div.right.menu
          (when full? dev-menu)
-         (toggle-theme-button)
          (when-not mobile? [SiteSearch])
+         (toggle-theme-button)
          [:a.item {:id "user-name-link"
                    :href (str "/user/" user-id "/profile")}
           [:div
