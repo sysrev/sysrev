@@ -1,8 +1,6 @@
 (ns sysrev.test.browser.user-profiles
   (:require [clojure.java.io :as io]
             [clojure.tools.logging :as log]
-            [clj-webdriver.core :refer [->actions move-to-element click-and-hold move-by-offset
-                                        release perform]]
             [clj-webdriver.taxi :as taxi]
             [clojure.data.json :as json]
             [clojure.test :refer :all]
@@ -257,10 +255,7 @@
       (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]"))
       (log/info "got image interface")
       (Thread/sleep 150)
-      (->actions @b/active-webdriver
-                 (move-to-element (taxi/element "div.cr-viewport") 0 0)
-                 (click-and-hold) (move-by-offset 83 0) (release)
-                 (perform))
+      (b/click-drag-element "div.cr-viewport" :offset-x 83)
       (Thread/sleep 150)
       ;; set avatar
       (log/info "setting avatar")

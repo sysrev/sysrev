@@ -1,7 +1,5 @@
 (ns sysrev.test.browser.annotator
   (:require [clj-webdriver.taxi :as taxi]
-            [clj-webdriver.core :refer
-             [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
             [clojure.string :as str]
             [clojure.test :refer :all]
             [clojure-csv.core :as csv]
@@ -28,16 +26,15 @@
 (def annotation-value-input (xpath "//div[contains(@class,'value')]//input"))
 
 (defn annotate-article [semantic-class annotation-value &
-                        {:keys [offset-x] :or {offset-x 671}}]
+                        {:keys [start-x offset-x] :or {start-x 0 offset-x 671}}]
   (b/wait-until-loading-completes :pre-wait 200)
   (b/click ".ui.button.change-labels" :if-not-exists :skip)
   (Thread/sleep 100)
   (b/click x/review-annotator-tab)
   (b/wait-until-displayed select-text-to-annotate)
   (Thread/sleep 100)
-  (->actions @b/active-webdriver
-             (move-to-element (taxi/element (xpath "//div[@data-field='primary-title']")) 0 0)
-             (click-and-hold) (move-by-offset offset-x 0) (release) (perform))
+  (b/click-drag-element (xpath "//div[@data-field='primary-title']")
+                        :start-x 0 :offset-x offset-x)
   (Thread/sleep 100)
   (b/input-text semantic-class-input semantic-class :delay 50)
   (b/input-text annotation-value-input annotation-value :delay 50)
@@ -46,9 +43,9 @@
   (b/wait-until-exists blue-pencil-icon)
   (Thread/sleep 100))
 
-(deftest-browser happy-path-project-annotator
+(deftest-browser annotation-text
   (test/db-connected?)
-  [project-name "Annotator Test"
+  [project-name "Browser Test (annotation-text)"
    selected-text {:xpath "//span[contains(text(),'Journal of the American Chemical Society')]"}
    semantic-class "foo"
    annotation-value "bar"
@@ -68,27 +65,7 @@
       (nav/go-project-route "/articles")
       (b/wait-until-loading-completes :pre-wait 200)
       (b/click article-title-div :delay 200)
-      (annotate-article semantic-class annotation-value)
-      ;; (b/wait-until-loading-completes :pre-wait 200)
-      ;; (b/click article-title-div :delay 200)
-      ;; (b/wait-until-loading-completes :pre-wait 200)
-      ;; (b/click x/enable-sidebar-button
-      ;;          :if-not-exists :skip :delay 100)
-      ;; (Thread/sleep 100)
-      ;; (b/click x/review-annotator-tab)
-      ;; (b/wait-until-displayed select-text-to-annotate)
-      ;; (b/wait-until-displayed selected-text)
-      ;; (Thread/sleep 100)
-      ;; (->actions @b/active-webdriver
-      ;;            (move-to-element (taxi/element {:xpath "//div[@data-field='primary-title']"}) 0 0)
-      ;;            (click-and-hold) (move-by-offset 671 0) (release) (perform))
-      ;; (Thread/sleep 100)
-      ;; (b/input-text semantic-class-input semantic-class :delay 50)
-      ;; (b/input-text annotation-value-input annotation-value :delay 50)
-      ;; (b/click submit-button)
-      ;; (Thread/sleep 50)
-      ;; (b/wait-until-exists blue-pencil-icon)
-      ;; (Thread/sleep 250)
+      (annotate-article semantic-class annotation-value :offset-x 671)
       ;;check the annotation
       (let [{:keys [email password]} b/test-login
             user-id (:user-id (users/get-user-by-email email))

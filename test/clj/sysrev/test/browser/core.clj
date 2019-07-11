@@ -6,6 +6,8 @@
             [cljs.build.api :as cljs]
             [clj-webdriver.driver :as driver]
             [clj-webdriver.taxi :as taxi]
+            [clj-webdriver.core :refer [->actions double-click move-to-element click-and-hold
+                                        move-by-offset release perform]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.api :as api]
@@ -16,6 +18,7 @@
             [sysrev.db.groups :as groups]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test :refer [succeeds?]]
+            [sysrev.test.browser.xpath :as xpath :refer [xpath]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer
              [parse-integer ensure-pred string-ellipsis wrap-parens]])
@@ -503,3 +506,33 @@
           ;; log out to set up for next test
           (ensure-logged-out))
         (when-not local? (reset! db/query-cache-enabled cache?)))))
+
+(defonce ^:private chromedriver-version-atom (atom nil))
+
+(defn chromedriver-version []
+  (or @chromedriver-version-atom
+      (reset! chromedriver-version-atom
+              (or (->> (util/shell "chromedriver" "--version")
+                       :out
+                       str/split-lines
+                       (map #(second (re-matches #"^ChromeDriver (\d+)\.\d+.*$" %)))
+                       (remove nil?)
+                       first
+                       parse-integer)
+                  0))))
+
+(defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y]
+                               :or {start-x 0 offset-x 0 start-y 0 offset-y 0}}]
+  (let [ ;; ChromeDriver 75 changes default behavior to use element
+        ;; center as base position instead of top-left.
+        center? (>= (chromedriver-version) 75)
+        ;; Need to subtract half of element size in this case to get
+        ;; the same positions as ChromeDriver <= 74.
+        {:keys [width height]} (when center? (taxi/element-size q))
+        adjust-x (if center? (- (quot width 2)) 0)
+        adjust-y (if center? (- (quot height 2)) 0)
+        x (+ start-x adjust-x)
+        y (+ start-y adjust-y)]
+    (->actions @active-webdriver
+               (move-to-element (taxi/element q) x y)
+               (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))))
