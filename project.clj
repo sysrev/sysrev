@@ -1,21 +1,21 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.10.0"]
+  :dependencies [[org.clojure/clojure "1.10.1"]
 
 ;;; Force versions of indirect dependencies
-                 [com.fasterxml.jackson.core/jackson-databind "2.9.8"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.9.9.1"]
                  [cheshire "5.8.1"]
                  [commons-io/commons-io "2.6"]
-                 [commons-codec "1.11"]
+                 [commons-codec "1.12"]
 
 ;;; Logging
                  [org.clojure/tools.logging "0.4.1"]
                  [ch.qos.logback/logback-classic "1.2.3"]
-                 [org.slf4j/jul-to-slf4j "1.7.25"]
+                 [org.slf4j/jul-to-slf4j "1.7.26"]
 
 ;;; Libraries
                  [org.clojure/test.check "0.9.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
-                 [org.clojure/math.combinatorics "0.1.4"]
+                 [org.clojure/math.combinatorics "0.1.5"]
                  [crypto-random "1.2.0"]
                  [me.raynes/fs "1.4.6"]
 
@@ -23,25 +23,25 @@
                  [org.clojure/data.json "0.2.6"]
                  [com.cognitect/transit-clj "0.8.313"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
-                 [org.clojure/data.zip "0.1.2"]
+                 [org.clojure/data.zip "0.1.3"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
 
 ;;; Postgres
-                 [org.clojure/java.jdbc "0.7.8"]
-                 [org.postgresql/postgresql "42.2.5"]
-                 [joda-time "2.10.1"]
+                 [org.clojure/java.jdbc "0.7.9"]
+                 [org.postgresql/postgresql "42.2.6"]
+                 [joda-time "2.10.3"]
                  [clj-time "0.15.1" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "2.6.0"]
+                 [hikari-cp "2.8.0"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.4"]
                  [nilenso/honeysql-postgres "0.2.5"]
 
 ;;; Cassandra
-                 [cc.qbits/alia-all "4.3.0"]
-                 [cc.qbits/hayt "4.0.2"]
+                 [cc.qbits/alia-all "4.3.1"]
+                 [cc.qbits/hayt "4.1.0"]
 
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
@@ -51,38 +51,43 @@
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
-                 [ring/ring-mock "0.3.2" :exclusions [cheshire]]
+                 [ring/ring-mock "0.4.0" :exclusions [cheshire]]
                  [compojure "1.6.1"]
 ;;; profiling
                  [criterium "0.4.5"]
 
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication
-                 [clj-http "3.9.1"]
+                 [clj-http "3.10.0"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.3"] ;; email client
-                 [amazonica "0.3.139"
+                 [amazonica "0.3.143"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
                  ;; =1.23.0 because version conflict in latest
+                 ;; (1.30.2 breaks selenium)
                  [com.google.api-client/google-api-client "1.23.0"]
                  [abengoa/clj-stripe "1.0.4"]
                  [environ "1.1.0"]
                  [bouncer "1.0.1"] ;; validation
                  [hickory "0.7.1"] ;; html parser
                  [kanwei/sitemap "0.3.1"] ;; sitemap alternative with clojure.spec fix
-                 [org.clojure/core.memoize "0.7.1"]
+                 [org.clojure/core.memoize "0.7.2"]
                  [gravatar "1.1.1"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
-             "-Xms600m"
-             "-Xmx1600m"
-             #_ "-XX:+UseParallelGC"
+             "-server"
+             "-Xms500m"
+             "-Xmx1200m"
              "-XX:+TieredCompilation"
-             #_ "-XX:+AggressiveOpts"
-             "-Xverify:none"]
+             "-XX:+AggressiveOpts"
+             "-Xverify:none"
+             #_ "-XX:TieredStopAtLevel=1"
+             #_ "-XX:+UseParallelGC"
+             #_ "-XX:+UseConcMarkSweepGC"
+             #_ "-XX:+CMSClassUnloadingEnabled"]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
             ["with-profile" "+test,+test-all" "run"]
@@ -96,8 +101,7 @@
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
   :profiles {:prod
-             {:jvm-opts ["-Xms800m" "-Xmx1500m" "-server"]
-              :resource-paths ["config/prod"]
+             {:resource-paths ["config/prod"]
               :main sysrev.web-main
               :aot [sysrev.web-main]}
              :test-browser
@@ -115,9 +119,7 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Xms800m" "-Xmx1600m" "-server" #_ "-client"
-                         #_ "-XX:TieredStopAtLevel=1" #_ "-XX:+UseConcMarkSweepGC"
-                         #_ "-XX:+CMSClassUnloadingEnabled"]
+             {:jvm-opts ["-Xmx1500m"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
@@ -160,8 +162,7 @@
               :aot [sysrev.spark.core
                     sysrev.spark.similarity]}
              :test
-             {:jvm-opts ["-server" #_ "-client"
-                         "-XX:TieredStopAtLevel=1" #_ "-XX:+UseConcMarkSweepGC"]
+             {:jvm-opts [#_ "-client" "-XX:TieredStopAtLevel=1"]
               :resource-paths ["config/test" "resources/test"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]

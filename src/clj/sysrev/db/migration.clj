@@ -1,5 +1,6 @@
 (ns sysrev.db.migration
   (:require [clojure.string :as str]
+            [clojure.set :as set]
             [clojure.tools.logging :as log]
             [clojure.stacktrace :refer [print-cause-trace]]
             [clojure.data.json :as json]
@@ -8,7 +9,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer
+            [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction to-sql-array
               with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.queries :as q]
@@ -177,7 +178,7 @@
   (let [plans (->> (stripe/get-plans)
                    :data
                    (mapv #(select-keys % [:nickname :created :id]))
-                   (mapv #(clojure.set/rename-keys % {:nickname :name})))]
+                   (mapv #(set/rename-keys % {:nickname :name})))]
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :name)

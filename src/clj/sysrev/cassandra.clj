@@ -1,6 +1,6 @@
 (ns sysrev.cassandra
   (:require [qbits.alia :as alia]
-            [qbits.hayt :as h :refer :all :exclude [update]]))
+            [qbits.hayt :as h :refer :all :exclude [update group-by]]))
 
 (defonce active-cluster (atom nil))
 (defonce active-session (atom nil))
