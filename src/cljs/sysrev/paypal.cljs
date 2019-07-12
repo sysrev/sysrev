@@ -1,17 +1,21 @@
 (ns sysrev.paypal
-  (:require [ajax.core :refer [POST]]
-            [cljsjs.accounting]
-            [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch]]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.accounting :as acct]
             [sysrev.views.semantic :as s]
-            [sysrev.shared.util :as sutil])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.macros])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [setup-panel-state]]))
 
-(setup-panel-state panel [:project :project :paypal] {:state-var state})
+(setup-panel-state panel [:paypal] {:state-var state
+                                    :get-fn panel-get :set-fn panel-set
+                                    :get-sub ::get :set-event ::set})
 
-(def minimum-amount "10.00")
+(def minimum-amount "$1")
+(def default-amount "$10")
 
 (def paypal-env
   (some-> (.getElementById js/document "paypal-env")
@@ -20,173 +24,129 @@
 (def paypal-client-id
   (some-> (.getElementById js/document "paypal-client-id")
           (.getAttribute "data-paypal-client-id")))
-;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#interactive-code-demo
 
-(defn add-funds
-  [state paypal-response]
-  (let [project-id @(subscribe [:active-project-id])
-        user-id @(subscribe [:self/user-id])
-        error-message (r/cursor state [:error-message])
-        success-message (r/cursor state [:success-message])
-        loading? (r/cursor state [:loading?])
-        user-defined-support-level (r/cursor state [:user-defined-support-level])]
-    (reset! success-message nil)
-    (reset! error-message nil)
-    (POST "/api/paypal/add-funds"
-          {:params {:project-id project-id
-                    :user-id user-id
-                    :response paypal-response}
-           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-           :handler
-           (fn [response]
-             (reset! loading? false)
-             (reset! success-message
-                     (str "Your payment of "
-                          @user-defined-support-level
-                          " has been received and will be available after it has been processed"))
-             (reset! user-defined-support-level (-> minimum-amount (sutil/ensure-prefix "$")))
-             (dispatch [:project/get-funds]))
-           :error-handler
-           (fn [error]
-             (reset! loading? false)
-             (reset! error-message (get-in error [:response :error :message])))})))
+(def-action :paypal/add-funds
+  :uri (constantly "/api/paypal/add-funds")
+  :content (fn [project-id user-id response]
+             {:project-id project-id :user-id user-id :response response})
+  :process (fn [{:keys [db]} [project-id _ _] result]
+             (let [amount (panel-get db :user-defined-support-level)]
+               {:db (-> (panel-set db :success-message
+                                   (str "Your payment of " amount " has been received and "
+                                        "will be available after it has been processed."))
+                        (panel-set :error-message nil)
+                        (panel-set :user-defined-support-level nil))
+                :dispatch [:project/get-funds]}))
+  :on-error (fn [{:keys [db error]} [_ _ _] _]
+              {:db (-> (panel-set db :success-message nil)
+                       (panel-set :error-message (:message error)))}))
 
-(defn on-authorize-default
-  "Default function for PayPalButton on-authorize. data and actions are
-  default values that are required by PayPal"
-  [data actions]
-  (-> ($ actions payment.execute)
-      ($ then #($ js/window alert "Payment Complete!"))))
-
-(defn on-error-default
-  "Default function for PayPalButton on-authorize. err is an Error
-  object. The message property on the err returned from PayPal is a
-  long string that is difficult to parse"
-  [err]
-  ($ js/window alert "There was an error with PayPal"))
-
+;; depends on https://www.paypalobjects.com/api/checkout.js (loaded in index.clj)
 ;; https://developer.paypal.com/docs/checkout/quick-start/
-;; this also depends on [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
-;; in index.clj
+;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#interactive-code-demo
+;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#show-a-confirmation-page
 (defn PayPalButton
-  "Create a PayPalButton where amount-atom derefs to an integer amount
-  of cents. Optional on-authorize is a fn of data and
-  actions (fn [data actions] ...) to pass to onAuthorize"
-  [amount-atom & {:keys [on-authorize on-error]
-                  :or {on-authorize  on-authorize-default
-                       on-error      on-error-default}}]
-  (r/create-class
-   {:reagent-render
-    (fn [this]
-      [:div {:id "paypal-button"}])
-    :component-did-mount
-    (fn [this]
-      (-> ($ js/paypal :Button)
-          ($ render
-             (clj->js
-              {:env paypal-env
-               :style {:label "pay"
-                       :layout "vertical"
-                       :size "responsive"
-                       :shape "rect"
-                       :color "gold"}
-               :disabled true
-               :commit true
-               :funding {:allowed [($ js/paypal :FUNDING.CARD)
-                                   ($ js/paypal :FUNDING.CREDIT)]
-                         :disallowed []}
-               :client
-               (condp = paypal-env
-                 "sandbox"     {:sandbox paypal-client-id}
-                 "production"  {:production paypal-client-id})
-               :payment
-               (fn [data actions]
-                 ($ actions payment.create
-                    (clj->js
-                     {:payment
-                      {:transactions
-                       [{:amount {:total (acct/format-money @amount-atom "")
-                                  :currency "USD"}}]}
-                      ;; what other experience fields can we set?
-                      :experience {:input_fields {:no_shipping 1}}})))
-               ;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#show-a-confirmation-page
-               :onAuthorize on-authorize
-               :onError on-error})
-             "#paypal-button")))}))
+  "PayPal button component. on-authorize and on-error are optional functions
+  to run additionally in PayPal authorize and error hooks."
+  [project-id user-id amount-ref & {:keys [on-authorize on-error]}]
+  (letfn [(render-button []
+            (-> ($ js/paypal :Button)
+                ($ render
+                   (clj->js
+                    {:env paypal-env
+                     :style {:label "pay"
+                             :size "responsive"
+                             :height 38
+                             :shape "rect"
+                             :color "gold"
+                             :tagline false
+                             :fundingicons false}
+                     :disabled false
+                     :commit true
+                     :client {paypal-env paypal-client-id}
+                     :payment (fn [data actions]
+                                ($ actions payment.create
+                                   (clj->js
+                                    {:payment
+                                     {:transactions
+                                      [{:amount {:total (acct/format-money @amount-ref "")
+                                                 :currency "USD"}}]}
+                                     :experience {:input_fields {:no_shipping 1}}})))
+                     :onAuthorize (fn [data actions]
+                                    (-> ($ actions payment.execute)
+                                        ($ then #(dispatch [:action [:paypal/add-funds
+                                                                     project-id user-id %]])))
+                                    (when on-authorize (on-authorize))
+                                    nil)
+                     :onError (fn [err]
+                                (dispatch [::set :error-message
+                                           "An error was encountered during PayPal checkout."])
+                                (when on-error (on-error err))
+                                nil)})
+                   "#paypal-button")))]
+    (r/create-class {:reagent-render (fn [& _] [:div#paypal-button])
+                     :component-did-mount (fn [& _] (render-button))})))
 
-(defn amount-validation
-  "Validate that the dollar amount string (e.g. '$10.00') is in the correct format"
-  [amount]
-  (cond
-    ;; appears to not be a valid amount
-    (not (re-matches acct/valid-usd-regex amount))
-    "Amount is not valid"
-    (< (acct/string->cents amount) (acct/string->cents minimum-amount))
-    (str "Minimum payment is " (acct/format-money minimum-amount "$"))
-    :else nil))
+(defn amount-validation [amount]
+  (let [amount (some-> (sutil/ensure-pred string? amount)
+                       not-empty
+                       (sutil/ensure-prefix "$"))]
+    (cond (empty? amount)                                  :empty
+          (not (re-matches acct/valid-usd-regex amount))   :invalid-amount
+          (< (acct/string->cents amount)
+             (acct/string->cents minimum-amount))          :minimum-amount)))
 
-(defn AddFunds []
-  (let [support-level (r/cursor state [:support-level])
-        user-defined-support-level (r/cursor state [:user-defined-support-level])
-        error-message (r/cursor state [:error-message])
-        loading? (r/cursor state [:loading?])
-        success-message (r/cursor state [:success-message])
-        paypal-disabled? (r/cursor state [:paypal-disabled?])]
+(defn AddFundsImpl [& {:keys [on-success]}]
+  (let [set-val #(dispatch-sync [::set %1 %2])
+        set-amount #(set-val :user-defined-support-level %)
+        amount-ref (r/cursor state [:user-defined-support-level])
+        amount @amount-ref
+        disabled? (boolean (or (empty? amount)
+                               (amount-validation amount)))]
+    [:div
+     [:h4.ui.dividing.header "Add Funds"]
+     [:div.ui.form {:on-submit util/no-submit}
+      [:div.fields {:style {:margin-bottom "0"}}
+       [s/FormField {:width 8 :error (boolean (and (not-empty amount)
+                                                   (amount-validation amount)))}
+        [:div.ui.labeled.input
+         [:div.ui.label "$"]
+         [:input
+          {:id "paypal-amount" :type "text" :autoComplete "off"
+           :value amount
+           :placeholder "Amount"
+           :on-change (util/on-event-value
+                       #(let [error (amount-validation %)]
+                          (set-amount %)
+                          (set-val :error-message
+                                   (condp = error
+                                     :minimum-amount (str "Minimum amount is "
+                                                          (acct/format-money minimum-amount "$"))
+                                     :invalid-amount "Amount is not valid"
+                                     nil))))}]]]
+       (let [project-id @(subscribe [:active-project-id])
+             user-id @(subscribe [:self/user-id])]
+         ;; the built-in PayPal disabled button is weird, the buttons
+         ;; simply aren't clickable. This reproduces the same effect
+         ;; much simpler
+         [s/FormField {:width 8 :disabled disabled?
+                       :style (when disabled? {:pointer-events "none"})}
+          [PayPalButton project-id user-id amount-ref :on-authorize on-success]])]
+      (when-let [msg @(subscribe [::get :error-message])]
+        [s/Message {:negative true} msg])
+      (when-let [msg @(subscribe [::get :success-message])]
+        [s/Message {:positive true}
+         [s/MessageHeader "Payment Processed"] msg])]]))
+
+(defn AddFunds [& {:keys [on-success]}]
+  (let [set-val #(dispatch-sync [::set %1 %2])
+        set-amount #(set-val :user-defined-support-level %)]
     (r/create-class
-     {:reagent-render
-      (fn [this]
-        [:div.ui.segment
-         [:h4.ui.dividing.header "Add Funds"]
-         [s/Form {:on-submit
-                  #(let [cents (acct/string->cents @user-defined-support-level)]
-                     (cond (and (= @support-level :user-defined)
-                                (= cents 0))
-                           (reset! user-defined-support-level "$0.00")
-                           (and (= @support-level :user-defined)
-                                (> cents 0))
-                           (reset! loading? true)
-                           :else
-                           (reset! loading? true)))}
-          [s/FormGroup
-           [s/FormInput {:id "create-user-defined-support-level"
-                         :value @user-defined-support-level
-                         :on-change #(let [value (-> ($ % :target.value) (sutil/ensure-prefix "$"))
-                                           validation-error (amount-validation value)]
-                                       (if validation-error
-                                         (reset! paypal-disabled? true)
-                                         (reset! paypal-disabled? false))
-                                       (reset! error-message (amount-validation value))
-                                       (reset! user-defined-support-level value))
-                         :on-click #(reset! support-level :user-defined)}]]
-          (when @error-message
-            [s/Message {:negative true
-                        :onDismiss #(reset! error-message nil)}
-             [s/MessageHeader "Payment Error"]
-             @error-message])
-          (when @success-message
-            [s/Message {:positive true
-                        :onDismiss #(reset! success-message nil)}
-             [s/MessageHeader "Payment Processed"]
-             @success-message])
-          ;; the built-in PayPal disabled button is weird, the buttons
-          ;; simply aren't cickable. This reproduces the same effect
-          ;; much simpler
-          [:div (when @paypal-disabled? {:style {:pointer-events "none"}})
-           [PayPalButton user-defined-support-level
-            :on-authorize (fn [data actions]
-                            (-> ($ actions payment.execute)
-                                ($ then
-                                   (fn [response]
-                                     ;; we're just going to pass the response to the server
-                                     (add-funds state response)
-                                     nil))))
-            :on-error (fn [err]
-                        (reset! error-message "An error was encountered during PayPal checkout"))]]]])
-      :get-initial-state
-      (fn [this]
-        (reset! support-level :user-defined)
-        (reset! user-defined-support-level (acct/format-money minimum-amount "$"))
-        (reset! loading? false)
-        (reset! error-message nil)
-        (reset! success-message nil)
-        {})})))
+     {:reagent-render (fn [& {:keys [on-success]}]
+                        [AddFundsImpl :on-success on-success])
+      :get-initial-state (fn [this]
+                           (set-val :support-level :user-defined)
+                           (set-amount nil)
+                           (set-val :error-message nil)
+                           (set-val :success-message nil)
+                           {})})))

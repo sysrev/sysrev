@@ -4,7 +4,8 @@
 
 ;; https://stackoverflow.com/questions/2227370/currency-validation
 (def valid-usd-regex
-  #"^\$[0-9]\d*(((,\d{3}){1})?(\.\d{0,2})?)$")
+  #"^[\$]?[0-9]\d*(((,\d{3}){1})?(\.\d{0,2})?)$")
+
 ;; functions around accounting.js
 (defn unformat
   "Converts a string to a currency amount (default is in dollar)"

@@ -1,0 +1,46 @@
+div.project-content.compensation {
+    input[type=text], .ui.form input[type=text] {
+        padding: 0.66em 0.8em;
+        font-size: 14px;
+    }
+    > .ui.stackable.grid {
+        > .column { padding: 0.75em 1em; }
+    }
+    > .ui.segment.funds, > .ui.segment.rates {
+        padding: 1em 0;
+        > .ui.stackable.grid {
+            margin: 0;
+            > .column { padding: 0.5em 1.5em; }
+        }
+    }
+
+    .column.project-funds {
+        .ui.two.column.vertically.divided.grid {
+            margin: -1em;
+            font-size: 15px;
+            > .row > .column { margin: 0; }
+        }
+    }
+
+    .ui.stackable.grid.user-compensation-entry {
+        margin: 0;
+        > .column:not(.row) { padding: 0; }
+        > .left.aligned.column { font-size: 1.1rem; }
+    }
+
+    .ui.form.add-rate {
+        > .fields { margin: 0 -0.5em 0; }
+    }
+
+    .ui.selection.dropdown {
+        font-size: 0.9rem;
+        div.menu {
+            font-size: 0.925rem;
+            > .item { font-size: 0.925rem; }
+        }
+    }
+
+    div#project-rates {
+        .ui.divider { margin-top: 1em; }
+    }
+}

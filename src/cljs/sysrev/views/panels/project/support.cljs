@@ -225,7 +225,7 @@
                              (dispatch
                               [:action [:support/support-plan @support-level frequency]]))))}
           [FormGroup
-           [FormInput {:id "create-user-defined-support-level"
+           [FormInput {:id "paypal-amount"
                        :value @user-defined-support-level
                        :on-change
                        #(reset! user-defined-support-level

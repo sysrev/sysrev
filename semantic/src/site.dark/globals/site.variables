@@ -21,7 +21,8 @@
 @lightPrimaryColor : @lightBlue;
 @secondaryColor : lighten(@pageBackground, 20);
 @lightSecondaryColor : rgba(140, 141, 142, 1.0);
-@grey: rgba(150, 150, 150, 0.925);
+@grey: rgba(160, 160, 160, 1.0);
+@lightGrey: rgba(195, 195, 195, 1.0);
 
 @inputBackground : rgba(245,245,245,1.0);
 @inputColor: @invertedTextColor;

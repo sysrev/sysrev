@@ -1,4 +1,4 @@
 .ui.labeled.input > .label {
-    background-color: @inputBackground;
-    color: @mutedInvertedTextColor;
+    background-color: #c8c8c8;
+    color: #060606;
 }

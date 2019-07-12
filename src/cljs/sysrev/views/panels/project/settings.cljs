@@ -10,8 +10,6 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.panels.project.compensation
-             :refer [ProjectCompensations CompensationSummary UsersCompensations]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? css]])
   (:require-macros [sysrev.macros :refer [setup-panel-state]]))
