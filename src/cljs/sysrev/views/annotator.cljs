@@ -24,34 +24,28 @@
 (defn- update-field [db context path f]
   (ui-state/update-view-field db view (concat [context] path) f))
 
-(reg-sub
- ::get
- (fn [[_ context path]]
-   [(subscribe [:view-field view (concat [context] path)])])
- (fn [[value]] value))
+(reg-sub ::get
+         (fn [[_ context path]]
+           (subscribe [:view-field view (concat [context] path)]))
+         identity)
 
-(reg-event-db
- ::set [trim-v]
- (fn [db [context path value]]
-   (set-field db context path value)))
+(reg-event-db ::set [trim-v]
+              (fn [db [context path value]]
+                (set-field db context path value)))
 
-(reg-event-db
- ::clear-annotations [trim-v]
- (fn [db [context]]
-   (-> db
-       (set-field context [:annotations] {})
-       (set-field context [:new-annotation] nil)
-       (set-field context [:editing-id] nil))))
+(reg-event-db ::clear-annotations [trim-v]
+              (fn [db [context]]
+                (-> (set-field db context [:annotations] {})
+                    (set-field context [:new-annotation] nil)
+                    (set-field context [:editing-id] nil))))
 
-(reg-event-db
- ::remove-ann [trim-v]
- (fn [db [context id]]
-   (update-field db context [:annotations] #(dissoc % id))))
+(reg-event-db ::remove-ann [trim-v]
+              (fn [db [context ann-id]]
+                (update-field db context [:annotations] #(dissoc % ann-id))))
 
-(reg-event-db
- :annotator/init-view-state [trim-v]
- (fn [db [context & [panel]]]
-   (set-field db context [] {:context context})))
+(reg-event-db :annotator/init-view-state [trim-v]
+              (fn [db [context & [panel]]]
+                (set-field db context [] {:context context})))
 
 (defn annotator-data-item
   "Given an annotator context, returns a vector representing both the
@@ -103,12 +97,9 @@
   :process (fn [{:keys [db]} [project-id] {:keys [status]}]
              {:db (assoc-in db [:data :project project-id :annotator :status] status)}))
 
-(reg-sub
- :annotator/status
- (fn [[_ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project]]
-   (-> project :annotator :status)))
+(reg-sub :annotator/status
+         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
+         #(-> % :annotator :status))
 
 (defn- sort-class-options [entries]
   (vec (->> entries
@@ -117,20 +108,18 @@
                        [(or last-used 0) count]))
             reverse)))
 
-(reg-sub
- :annotator/semantic-class-options
- (fn [[_ project-id]]
-   [(subscribe [:annotator/status project-id])])
- (fn [[{:keys [member project]}]]
-   (when (or member project)
-     (let [member-sorted (when member
-                           (->> (sort-class-options member)
-                                (filterv (fn [[class {:keys [last-used count]}]]
-                                           (and last-used (not= 0 last-used)
-                                                count (not= 0 count))))))
-           project-sorted (when project (sort-class-options project))]
-       (->> (concat member-sorted project-sorted)
-            (mapv first) distinct vec)))))
+(reg-sub :annotator/semantic-class-options
+         (fn [[_ project-id]] (subscribe [:annotator/status project-id]))
+         (fn [{:keys [member project]}]
+           (when (or member project)
+             (let [member-sorted (when member
+                                   (->> (sort-class-options member)
+                                        (filterv (fn [[class {:keys [last-used count]}]]
+                                                   (and last-used (not= 0 last-used)
+                                                        count (not= 0 count))))))
+                   project-sorted (when project (sort-class-options project))]
+               (->> (concat member-sorted project-sorted)
+                    (mapv first) distinct vec)))))
 
 (def-data :annotator/article
   :loaded? (fn [db project-id article-id]
@@ -144,13 +133,12 @@
   :process (fn [{:keys [db]} [project-id article-id] {:keys [annotations]}]
              (when annotations
                {:db (assoc-in db [:data :project project-id :annotator :article article-id]
-                              (->map-with-key :id annotations))
+                              (->map-with-key :annotation-id annotations))
                 :dispatch [:reload [:annotator/status project-id]]})))
 
-(reg-sub
- :annotator/article
- (fn [db [_ project-id article-id]]
-   (get-in db [:data :project project-id :annotator :article article-id])))
+(reg-sub :annotator/article
+         (fn [db [_ project-id article-id]]
+           (get-in db [:data :project project-id :annotator :article article-id])))
 
 (def-data :annotator/article-pdf
   :loaded? (fn [db project-id article-id pdf-key]
@@ -165,31 +153,30 @@
   (fn [{:keys [db]} [project-id article-id pdf-key] {:keys [annotations]}]
     (when annotations
       {:db (assoc-in db [:data :project project-id :annotator :article-pdf article-id pdf-key]
-                     (->map-with-key :id annotations))
+                     (->map-with-key :annotation-id annotations))
        :dispatch [:reload [:annotator/status project-id]]})))
 
-(reg-sub
- :annotator/article-pdf
- (fn [db [_ project-id article-id pdf-key]]
-   (get-in db [:data :project project-id
-               :annotator :article-pdf article-id pdf-key])))
+(reg-sub :annotator/article-pdf
+         (fn [db [_ project-id article-id pdf-key]]
+           (get-in db [:data :project project-id
+                       :annotator :article-pdf article-id pdf-key])))
 
-(defn AnnotationEditor [context id]
+(defn AnnotationEditor [context ann-id]
   (let [set (fn [path value] (dispatch-sync [::set context path value]))
-        set-ann (fn [path value] (set (concat [:annotations id] path) value))
+        set-ann (fn [path value] (set (concat [:annotations ann-id] path) value))
         {:keys [new-annotation editing-id]} @(subscribe [::get context])
         data @(subscribe (annotator-data-item context))
-        saved (get data id)
+        saved (get data ann-id)
         new? (empty? saved)
         initial-new (when new? new-annotation)
         selection (:selection (if new? initial-new saved))
-        editing? (or (= id editing-id)
+        editing? (or (= ann-id editing-id)
                      (and new? (nil? editing-id)))
         self-id @(subscribe [:self/user-id])
         user-id (if new? self-id (:user-id saved))
         self? (= user-id self-id)
         fields [:annotation :semantic-class]
-        annotation @(subscribe [::get context [:annotations id]])
+        annotation @(subscribe [::get context [:annotations ann-id]])
         class-options @(subscribe [:annotator/semantic-class-options])
         active (if new?
                  {:selection (:selection initial-new)
@@ -213,10 +200,10 @@
                    (dispatch [:action [:annotator/create-annotation
                                        context active]])
                    (dispatch [:action [:annotator/update-annotation
-                                       context id
+                                       context ann-id
                                        (:annotation active)
                                        (:semantic-class active)]]))
-        on-delete #(dispatch [:action [:annotator/delete-annotation context id]])
+        on-delete #(dispatch [:action [:annotator/delete-annotation context ann-id]])
         full-width? (>= (util/viewport-width) 1340)
         button-class (css "ui fluid tiny" [full-width? "labeled"] "icon button")
         dark-theme? @(subscribe [:self/dark-theme?])
@@ -290,7 +277,7 @@
                        [:button {:class button-class
                                  :on-click (util/wrap-user-event
                                             #(do (dispatch-sync [::clear-annotations context])
-                                                 (set [:editing-id] id))
+                                                 (set [:editing-id] ann-id))
                                             :prevent-default true)}
                         [:i.blue.pencil.alternate.icon]
                         (when full-width? "Edit")]]
@@ -350,30 +337,28 @@
 
 ;; Returns map of all annotations for context.
 ;; Includes new-annotation entry when include-new is true.
-(reg-sub
- :annotator/all-annotations
- (fn [[_ context _]]
-   [(subscribe [::get context [:new-annotation]])
-    (subscribe (annotator-data-item context))])
- (fn [[new-annotation annotations]
-      [_ _ include-new]]
-   (cond->> annotations
-     (and new-annotation include-new)
-     (merge {(:id new-annotation) new-annotation}))))
+(reg-sub :annotator/all-annotations
+         (fn [[_ context _]]
+           [(subscribe [::get context [:new-annotation]])
+            (subscribe (annotator-data-item context))])
+         (fn [[new-annotation annotations]
+              [_ _ include-new]]
+           (cond->> annotations
+             (and new-annotation include-new)
+             (merge {(:annotation-id new-annotation) new-annotation}))))
 
 ;; Returns map of annotations for context filtered by user-id.
 ;; Includes new-annotation entry for self-id unless only-saved is true.
-(reg-sub
- :annotator/user-annotations
- (fn [[_ context _ & _]]
-   [(subscribe [:self/user-id])
-    (subscribe [::get context [:new-annotation]])
-    (subscribe (annotator-data-item context))])
- (fn [[self-id new-annotation annotations]
-      [_ _ user-id & [{:keys [only-saved]}]]]
-   (cond->> (filter-values #(= (:user-id %) user-id) annotations)
-     (and new-annotation (= user-id self-id) (not only-saved))
-     (merge {(:id new-annotation) new-annotation}))))
+(reg-sub :annotator/user-annotations
+         (fn [[_ context _ & _]]
+           [(subscribe [:self/user-id])
+            (subscribe [::get context [:new-annotation]])
+            (subscribe (annotator-data-item context))])
+         (fn [[self-id new-annotation annotations]
+              [_ _ user-id & [{:keys [only-saved]}]]]
+           (cond->> (filter-values #(= (:user-id %) user-id) annotations)
+             (and new-annotation (= user-id self-id) (not only-saved))
+             (merge {(:annotation-id new-annotation) new-annotation}))))
 
 (defn AnnotationMenu
   "Full component for editing and viewing annotations."
@@ -387,13 +372,11 @@
     [:div.ui.segments.annotation-menu {:class class}
      [:div.ui.center.aligned.secondary.segment.menu-header
       [:div.ui.large.fluid.label "Select text to annotate"]]
-     (when-let [new-id (:id new-annotation)]
+     (when-let [new-id (:annotation-id new-annotation)]
        [AnnotationEditor context new-id])
-     (doall (for [{:keys [id]} (->> (vals annotations)
-                                    (filter #(integer? (:id %)))
-                                    (sort-by :id)
-                                    reverse)]
-              ^{:key id} [AnnotationEditor context id]))]))
+     (doall
+      (for [ann-id (->> (keys annotations) (filter integer?) sort reverse)] ^{:key ann-id}
+        [AnnotationEditor context ann-id]))]))
 
 (def js-text-type (type (js/Text.)))
 
@@ -445,7 +428,7 @@
   root node."
   [context field child]
   (let [set (fn [path value] (dispatch-sync [::set context path value]))
-        set-ann (fn [id path value] (set (concat [:annotations id] path) value))
+        set-ann (fn [ann-id path value] (set (concat [:annotations ann-id] path) value))
         set-pos (fn [key value] (set [:positions key] value))
         touchscreen? @(subscribe [:touchscreen?])
         update-selection
@@ -469,14 +452,14 @@
               (set [:selection] (:selection selection-map))
               (if (empty? (:selection selection-map))
                 (set [:new-annotation] nil)
-                (let [entry {:id (str "new-ann-" (sutil/random-id))
+                (let [entry {:annotation-id (str "new-ann-" (sutil/random-id))
                              :selection (:selection selection-map)
                              :context (-> (dissoc selection-map :selection)
                                           (assoc :client-field field))
                              :annotation ""
                              :semantic-class nil}]
                   (set [:new-annotation] entry)
-                  (set-ann (:id entry) nil entry)
+                  (set-ann (:annotation-id entry) nil entry)
                   (when (not touchscreen?)
                     (-> #(.focus (js/$ ".annotation-view.new-annotation .field.value input"))
                         (js/setTimeout 50))))))
