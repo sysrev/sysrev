@@ -588,8 +588,37 @@
                 (when (= 1 n-members) project-id)))
          (remove nil?))))
 
+;;;
+;;; These are intended only for testing
+;;;
+(defn delete-compensation-by-id [project-id compensation-id]
+  ;; delete from compensation-user-period
+  (-> (delete-from :compensation-user-period)
+      (where [:= :compensation-id compensation-id])
+      do-execute)
+  ;; delete from compensation-project-default
+  (-> (delete-from :compensation-project-default)
+      (where [:= :compensation-id compensation-id])
+      do-execute)
+  ;; delete from compensation-project
+  (-> (delete-from :compensation-project)
+      (where [:= :compensation-id compensation-id])
+      do-execute)
+  ;; delete from compensation
+  (-> (delete-from :compensation)
+      (where [:= :compensation-id compensation-id])
+      do-execute))
+;;;
+(defn delete-project-compensations [project-id]
+  (doseq [{:keys [compensation-id]} (-> (select :compensation-id)
+                                        (from :compensation-project)
+                                        (where [:= :project-id project-id])
+                                        do-query)]
+    (delete-compensation-by-id project-id compensation-id)))
+;;;
 (defn delete-solo-projects-from-user [user-id]
   (doseq [project-id (get-single-user-project-ids user-id)]
+    (delete-project-compensations project-id)
     (delete-project project-id)))
 
 (defn project-article-ids

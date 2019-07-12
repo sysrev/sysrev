@@ -79,10 +79,9 @@
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-server"
-             "-Xms500m"
-             "-Xmx1200m"
+             "-Xms500m" "-Xmx1000m"
              "-XX:+TieredCompilation"
-             "-XX:+AggressiveOpts"
+             #_ "-XX:+AggressiveOpts"
              "-Xverify:none"
              #_ "-XX:TieredStopAtLevel=1"
              #_ "-XX:+UseParallelGC"
@@ -162,7 +161,9 @@
               :aot [sysrev.spark.core
                     sysrev.spark.similarity]}
              :test
-             {:jvm-opts [#_ "-client" "-XX:TieredStopAtLevel=1"]
+             {:jvm-opts ["-Xmx1000m"
+                         #_ "-client"
+                         #_ "-XX:TieredStopAtLevel=1"]
               :resource-paths ["config/test" "resources/test"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]

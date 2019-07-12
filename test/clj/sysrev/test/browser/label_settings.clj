@@ -156,7 +156,6 @@
       (b/click ".button.change-labels")
       (b/click ".label-edit .dropdown a.label i.delete.icon")
       (b/click ".button.save-labels" :delay 25)
-      (nav/go-project-route "/articles")
       ;; check that article still shows as conflict
       (check-status 0 1 0)
       ;; disable label consensus setting
@@ -167,7 +166,6 @@
       ;; check article list interface (Include Full filter)
       (b/click include-full :delay 100)
       (is (b/exists? "div.article-list-article"))
-      (nav/go-project-route "/articles")
       ;; re-enable label consensus setting
       (define/edit-label @label-id-1 (merge label1 {:consensus true}))
       ;; check that articles shows as conflict again
@@ -179,7 +177,6 @@
       (is (= "Resolve Labels" (taxi/text ".button.change-labels")))
       (b/click ".button.change-labels")
       (b/click ".button.save-labels" :delay 25)
-      (nav/go-project-route "/articles")
       ;; check that article is resolved
       (check-status 1 0 1)
       (let [uanswers (export/export-user-answers-csv @project-id)

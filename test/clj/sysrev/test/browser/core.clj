@@ -190,6 +190,14 @@
       (Thread/sleep interval)
       (taxi/wait-until pred timeout interval))))
 
+(defmacro is-soon
+  "Runs (is pred-form) after attempting to wait for pred-form to
+  evaluate as logical true."
+  [pred-form & [timeout interval]]
+  `(do (or (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
+           (take-screenshot :error))
+       (is ~pred-form)))
+
 (defn wait-until-exists
   "Waits until an element matching q exists, or throws exception on
   timeout."
@@ -317,7 +325,9 @@
   ;; auto-exclude "disabled" class when q is css
   (let [q (-> q (not-disabled) (not-loading))]
     (when (= if-not-exists :wait)
-      (if displayed? (wait-until-displayed q) (wait-until-exists q)))
+      (if displayed?
+        (is-soon (displayed-now? q))
+        (is-soon (taxi/exists? q))))
     (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
       (try (taxi/click q)
            (catch Throwable e
@@ -397,34 +407,9 @@
     (mapv taxi/text (taxi/elements q))
     []))
 
-(defn delete-compensation-by-id [project-id compensation-id]
-  ;; delete from compensation-user-period
-  (-> (delete-from :compensation-user-period)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation-project-default
-  (-> (delete-from :compensation-project-default)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation-project
-  (-> (delete-from :compensation-project)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation
-  (-> (delete-from :compensation)
-      (where [:= :compensation-id compensation-id])
-      do-execute))
-
-(defn delete-project-compensations [project-id]
-  (doseq [{:keys [compensation-id]} (-> (select :compensation-id)
-                                        (from :compensation-project)
-                                        (where [:= :project-id project-id])
-                                        do-query)]
-    (delete-compensation-by-id project-id compensation-id)))
-
 (defn delete-test-user-projects! [user-id & [compensations]]
   (doseq [{:keys [project-id]} (users/user-projects user-id)]
-    (when compensations (delete-project-compensations project-id))
+    (when compensations (project/delete-project-compensations project-id))
     (project/delete-project project-id)))
 
 (defn delete-test-user-groups! [user-id]
@@ -457,14 +442,6 @@
     (str (:url (test/get-selenium-config))
          (if (= (nth path 0) \/)
            (subs path 1) path))))
-
-(defmacro is-soon
-  "Runs (is pred-form) after attempting to wait for pred-form to
-  evaluate as logical true."
-  [pred-form & [timeout interval]]
-  `(do (or (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
-           (take-screenshot :error))
-       (is ~pred-form)))
 
 (defn is-current-path
   "Runs test assertion that current URL matches relative path."

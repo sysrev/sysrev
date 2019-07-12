@@ -13,27 +13,21 @@
 (def ^:private request-panel [:request-password-reset])
 (def ^:private reset-panel [:reset-password])
 
-(reg-event-fx
- :reset-password/reset-code
- [trim-v]
- (fn [_ [reset-code]]
-   {:dispatch [:set-panel-field [:reset-code] reset-code reset-panel]}))
+(reg-event-fx :reset-password/reset-code [trim-v]
+              (fn [_ [reset-code]]
+                {:dispatch [:set-panel-field [:reset-code] reset-code reset-panel]}))
 
-(reg-sub
- :reset-password/reset-code
- :<- [:panel-field [:reset-code] reset-panel]
- identity)
+(reg-sub :reset-password/reset-code
+         :<- [:panel-field [:reset-code] reset-panel]
+         identity)
 
-(reg-event-fx
- :reset-password/email
- [trim-v]
- (fn [_ [email]]
-   {:dispatch [:set-panel-field [:email] email reset-panel]}))
+(reg-event-fx :reset-password/email [trim-v]
+              (fn [_ [email]]
+                {:dispatch [:set-panel-field [:email] email reset-panel]}))
 
-(reg-sub
- :reset-password/email
- :<- [:panel-field [:email] reset-panel]
- identity)
+(reg-sub :reset-password/email
+         :<- [:panel-field [:email] reset-panel]
+         identity)
 
 (def-data :password-reset
   :loaded? (fn [db reset-code]
@@ -41,133 +35,99 @@
                    active-email (get-panel-field db [:email] reset-panel)]
                (boolean
                 (and active-email (= reset-code active-code)))))
-  :uri (fn [_] "/api/auth/lookup-reset-code")
-  :prereqs (fn [_] nil)
+  :uri (constantly "/api/auth/lookup-reset-code")
+  :prereqs (constantly nil)
   :content (fn [reset-code] {:reset-code reset-code})
-  :process
-  (fn [_ [reset-code] {:keys [email]}]
-    (when email
-      {:dispatch-n
-       (list [:reset-password/reset-code reset-code]
-             [:reset-password/email email])})))
+  :process (fn [_ [reset-code] {:keys [email]}]
+             (when email
+               {:dispatch-n (list [:reset-password/reset-code reset-code]
+                                  [:reset-password/email email])})))
 
 (def-action :auth/request-password-reset
-  :uri (fn [_] "/api/auth/request-password-reset")
-  :content (fn [email] {:email email
-                        :url-base (nav/current-url-base)})
-  :process
-  (fn [_ [email] {:keys [success] :as result}]
-    (if success
-      {:dispatch [:request-password-reset/sent? true]}
-      {:dispatch-n
-       (list [:request-password-reset/sent? false]
-             [:request-password-reset/error
-              "No account found for this email address."])})))
+  :uri (constantly "/api/auth/request-password-reset")
+  :content (fn [email] {:email email :url-base (nav/current-url-base)})
+  :process (fn [_ [email] {:keys [success] :as result}]
+             (if success
+               {:dispatch [:request-password-reset/sent? true]}
+               {:dispatch-n (list [:request-password-reset/sent? false]
+                                  [:request-password-reset/error
+                                   "No account found for this email address."])})))
 
 (def-action :auth/reset-password
-  :uri (fn [_] "/api/auth/reset-password")
-  :content (fn [{:keys [reset-code password] :as args}]
-             args)
+  :uri (constantly "/api/auth/reset-password")
+  :content (fn [{:keys [reset-code password] :as args}] args)
   :process
   (fn [_ _ {:keys [success message] :as result}]
     (if success
-      {:dispatch-n
-       (list [:ga-event "auth" "password_reset_success"]
-             [:reset-password/success? true])
-       :dispatch-later
-       [{:ms 2000 :dispatch [:navigate [:login]]}]}
-      {:dispatch-n
-       (list [:ga-event "error" "password_reset_failure"]
-             [:reset-password/error
-              (or message "Request failed")])})))
+      {:dispatch-n (list [[:ga-event "auth" "password_reset_success"]
+                          [:reset-password/success? true]])
+       :dispatch-later [{:ms 2000 :dispatch [:nav-scroll-top "/login"]}]}
+      {:dispatch-n (list [:ga-event "error" "password_reset_failure"]
+                         [:reset-password/error (or message "Request failed")])})))
 
-(reg-event-fx
- ::request-email
- [trim-v]
- (fn [_ [email]]
-   {:dispatch [:set-panel-field [:transient :email] email request-panel]}))
+(reg-event-fx ::request-email [trim-v]
+              (fn [_ [email]]
+                {:dispatch [:set-panel-field [:transient :email] email request-panel]}))
 
-(reg-sub
- ::request-email
- :<- [:panel-field [:transient :email] request-panel]
- identity)
+(reg-sub ::request-email
+         :<- [:panel-field [:transient :email] request-panel]
+         identity)
 
-(reg-event-fx
- ::request-submitted?
- [trim-v]
- (fn [_ [submitted?]]
-   {:dispatch [:set-panel-field [:transient :submitted?] submitted? request-panel]}))
+(reg-event-fx ::request-submitted? [trim-v]
+              (fn [_ [submitted?]]
+                {:dispatch [:set-panel-field [:transient :submitted?] submitted? request-panel]}))
 
-(reg-sub
- ::request-submitted?
- :<- [:panel-field [:transient :submitted?] request-panel]
- identity)
+(reg-sub ::request-submitted?
+         :<- [:panel-field [:transient :submitted?] request-panel]
+         identity)
 
-(reg-event-fx
- :request-password-reset/sent?
- [trim-v]
- (fn [_ [sent?]]
-   {:dispatch [:set-panel-field [:transient :sent?] sent? request-panel]}))
+(reg-event-fx :request-password-reset/sent? [trim-v]
+              (fn [_ [sent?]]
+                {:dispatch [:set-panel-field [:transient :sent?] sent? request-panel]}))
 
-(reg-sub
- :request-password-reset/sent?
- :<- [:panel-field [:transient :sent?] request-panel]
- identity)
+(reg-sub :request-password-reset/sent?
+         :<- [:panel-field [:transient :sent?] request-panel]
+         identity)
 
-(reg-event-fx
- :request-password-reset/error
- [trim-v]
- (fn [_ [error]]
-   {:dispatch [:set-panel-field [:transient :error] error request-panel]}))
+(reg-event-fx :request-password-reset/error [trim-v]
+              (fn [_ [error]]
+                {:dispatch [:set-panel-field [:transient :error] error request-panel]}))
 
-(reg-sub
- :request-password-reset/error
- :<- [:panel-field [:transient :error] request-panel]
- identity)
+(reg-sub :request-password-reset/error
+         :<- [:panel-field [:transient :error] request-panel]
+         identity)
 
-(reg-event-fx
- ::reset-submitted?
- [trim-v]
- (fn [_ [submitted?]]
-   {:dispatch [:set-panel-field [:transient :submitted?] submitted? reset-panel]}))
+(reg-event-fx ::reset-submitted? [trim-v]
+              (fn [_ [submitted?]]
+                {:dispatch [:set-panel-field [:transient :submitted?] submitted? reset-panel]}))
 
-(reg-sub
- ::reset-submitted?
- :<- [:panel-field [:transient :submitted?] reset-panel]
- identity)
+(reg-sub ::reset-submitted?
+         :<- [:panel-field [:transient :submitted?] reset-panel]
+         identity)
 
-(reg-event-fx
- :reset-password/error
- [trim-v]
- (fn [_ [error]]
-   {:dispatch [:set-panel-field [:transient :error] error reset-panel]}))
+(reg-event-fx :reset-password/error [trim-v]
+              (fn [_ [error]]
+                {:dispatch [:set-panel-field [:transient :error] error reset-panel]}))
 
-(reg-sub
- :reset-password/error
- :<- [:panel-field [:transient :error] reset-panel]
- identity)
+(reg-sub :reset-password/error
+         :<- [:panel-field [:transient :error] reset-panel]
+         identity)
 
-(reg-event-fx
- :reset-password/success?
- [trim-v]
- (fn [_ [success?]]
-   {:dispatch [:set-panel-field [:transient :success?] success? reset-panel]}))
+(reg-event-fx :reset-password/success? [trim-v]
+              (fn [_ [success?]]
+                {:dispatch [:set-panel-field [:transient :success?] success? reset-panel]}))
 
-(reg-sub
- :reset-password/success?
- :<- [:panel-field [:transient :success?] reset-panel]
- identity)
+(reg-sub :reset-password/success?
+         :<- [:panel-field [:transient :success?] reset-panel]
+         identity)
 
-(reg-event-fx
- ::password
- [trim-v]
- (fn [_ [password]]
-   {:dispatch [:set-panel-field [:transient :password] password reset-panel]}))
+(reg-event-fx ::password [trim-v]
+              (fn [_ [password]]
+                {:dispatch [:set-panel-field [:transient :password] password reset-panel]}))
 
-(reg-sub
- ::password
- :<- [:panel-field [:transient :password] reset-panel]
- identity)
+(reg-sub ::password
+         :<- [:panel-field [:transient :password] reset-panel]
+         identity)
 
 (defn reset-password-panel []
   (let [reset-code @(subscribe [:reset-password/reset-code])
@@ -175,9 +135,9 @@
         submitted? @(subscribe [::reset-submitted?])
         password @(subscribe [::password])
         errors (when submitted?
-                 (validate
-                  {:password password}
-                  {:password [#(>= (count %) 6) (str "Password must be at least six characters")]}))
+                 (validate {:password password}
+                           {:password [#(>= (count %) 6)
+                                       "Password must be at least six characters"]}))
         on-submit (wrap-prevent-default
                    #(when (and (not-empty email)
                                (not-empty password))
@@ -194,8 +154,7 @@
         form-class (when-not (empty? errors) "warning")]
     [:div.ui.padded.segments.auto-margin
      {:style {:max-width "500px" :margin-top "10px"}}
-     [:h3.ui.top.attached.header
-      "Reset Password"]
+     [:h3.ui.top.attached.header "Reset Password"]
      [:div.ui.bottom.attached.segment
       (if (nil? email)
         (when-not (loading/any-loading?)
@@ -274,28 +233,24 @@
         [:div.ui.green.message
          "An email has been sent with a link to reset your password."])]]))
 
-(defmethod panel-content [:request-password-reset] []
+(defmethod panel-content request-panel []
   (fn [child]
     [:div.ui.padded.segments.auto-margin
      {:style {:max-width "500px" :margin-top "10px"}}
-     [:h3.ui.top.attached.header
-      "Request Password Reset"]
+     [:h3.ui.top.attached.header "Request Password Reset"]
      [:div.ui.bottom.attached.segment
-      [:div.ui.orange.message
-       "You must be logged out before using this."]]]))
+      [:div.ui.orange.message "You must be logged out before using this."]]]))
 
-(defmethod logged-out-content [:request-password-reset] []
+(defmethod logged-out-content request-panel []
   [request-password-reset-panel])
 
-(defmethod panel-content [:reset-password] []
+(defmethod panel-content reset-panel []
   (fn [child]
     [:div.ui.padded.segments.auto-margin
      {:style {:max-width "500px" :margin-top "10px"}}
-     [:h3.ui.top.attached.header
-      "Reset Password"]
+     [:h3.ui.top.attached.header "Reset Password"]
      [:div.ui.bottom.attached.segment
-      [:div.ui.orange.message
-       "You must be logged out before using this."]]]))
+      [:div.ui.orange.message "You must be logged out before using this."]]]))
 
-(defmethod logged-out-content [:reset-password] []
+(defmethod logged-out-content reset-panel []
   [reset-password-panel])

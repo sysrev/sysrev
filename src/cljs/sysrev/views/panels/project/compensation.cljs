@@ -457,7 +457,7 @@
                                       :error-handler (fn [error]
                                                        (reset! updating? false))}))))}]))
 
-(defn UserCompensationEntry [name-content control-content]
+(defn UserRateEntry [name-content control-content]
   [:div.item>div.ui.stackable.middle.aligned.grid.user-compensation-entry
    [:div.ten.wide.left.aligned.column name-content]
    [:div.six.wide.right.aligned.column control-content]])
@@ -472,13 +472,13 @@
        [:h4.ui.dividing.header "Rates by Reviewer"]
        [:div.ui.relaxed.divided.list
         ^{:key :default}
-        [UserCompensationEntry
+        [UserRateEntry
          [:span "New User Default"]
          [DefaultCompensationDropdown]]
         (doall (for [user-id member-ids]
                  (when-let [entry (first (->> entries (filter #(= (:user-id %) user-id))))]
                    ^{:key user-id}
-                   [UserCompensationEntry
+                   [UserRateEntry
                     [:span [:i.user.icon] @(subscribe [:user/display user-id])]
                     [UserCompensationDropdown user-id]])))]])))
 
@@ -520,5 +520,5 @@
 
 (defmethod panel-content [:project :project :compensations] []
   (fn [child]
-    #_ (when member ...)
+    ;; TODO: hide and show message if user is not project admin
     [ProjectCompensationPanel]))

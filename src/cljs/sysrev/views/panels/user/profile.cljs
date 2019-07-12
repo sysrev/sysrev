@@ -11,6 +11,7 @@
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.state.ui]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer

@@ -1,6 +1,5 @@
 (ns sysrev.test.browser.markdown
   (:require [clojure.test :refer :all]
-            [clojure.string :as string]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]

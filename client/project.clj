@@ -33,9 +33,8 @@
                  [cljsjs/showdown "1.8.6-0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
-             "-Xms500m"
-             "-Xmx1500m"
              "-server"
+             "-Xms600m" "-Xmx1250m"
              #_ "-XX:+UseParallelGC"
              "-XX:+TieredCompilation"
              #_ "-XX:+AggressiveOpts"

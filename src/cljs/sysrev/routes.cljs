@@ -177,6 +177,7 @@
  pubmed-search "/pubmed-search" []
  (dispatch [:set-active-panel [:pubmed-search]]))
 
+#_
 (sr-defroute-project
  support "/support" [project-id]
  (let [project-id @(subscribe [:active-project-id])]
@@ -222,8 +223,8 @@
          #(project-uri (:project-id %) "/compensations")]
         [[:project :project :export-data]
          #(project-uri (:project-id %) "/export")]
-        [[:project :project :support]
-         #(project-uri (:project-id %) "/support")]
+        #_ [[:project :project :support]
+            #(project-uri (:project-id %) "/support")]
         [[:login] "/login"]
         [[:request-password-reset] "/request-password-reset"]
         [[:pubmed-search] "/pubmed-search"]

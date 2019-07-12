@@ -90,17 +90,13 @@
           article-notes @(subscribe [:article/notes article-id user-id])]
       (do (when send-labels?
             (dispatch [:action [:review/send-labels
-                                project-id
-                                {:article-id article-id
-                                 :label-values active-values
-                                 :confirm? false
-                                 :resolve? false
-                                 :change? false}]]))
+                                project-id {:article-id article-id
+                                            :label-values active-values
+                                            :confirm? false :resolve? false :change? false}]]))
           (when sync-notes?
-            (dispatch [:review/sync-article-notes
-                       article-id ui-notes article-notes]))
+            (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
           (if (or send-labels? sync-notes?)
-            #?(:cljs (js/setTimeout route-fn 125)
+            #?(:cljs (js/setTimeout route-fn 100)
                :clj (route-fn))
             (route-fn))
           (dispatch [:review/reset-saving])))
@@ -175,7 +171,7 @@
                      ;; body function (dispatch is asynchronous).
                      (not= url-id# cur-id#)
                      (do #_ (js/console.log (str "url-id changed to " (pr-str url-id#)))
-                         (js/setTimeout body-fn# 40))
+                         (js/setTimeout body-fn# 30))
                      ;; Otherwise run route body function immediately.
                      :else (body-fn#))))
                (route-fn-when-ready# []

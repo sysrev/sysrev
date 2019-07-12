@@ -159,8 +159,8 @@
     (b/click import-button-xpath)
     (Thread/sleep 250)
     (check-source-count (inc initial-count))
-    (b/wait-until-loading-completes :pre-wait 500 :timeout 10000)
-    #_ (nav/go-project-route "" :silent true)
+    (b/wait-until-loading-completes :pre-wait 300 :timeout 10000)
+    (b/wait-until-loading-completes :pre-wait 300)
     (nav/wait-until-overview-ready)))
 
 ;; This doesn't work against staging.sysrev.com - cache not cleared?
