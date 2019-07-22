@@ -21,8 +21,11 @@
   ;; ZipFile seems to be automatically be closed after .entries method invocation
   (->> (enumeration-seq (.entries zip-file))
        ;; filter by pdf file extension
-       (filter #(some-> % (.getName) (fs/extension)
-                        (str/lower-case) (= ".pdf")))
+       (filter #(.getName %))
+       (filter #(fs/base-name (.getName %)))
+       (filter #(not (some-> (fs/base-name (.getName %))
+                             (str/starts-with? "."))))
+       (filter #(= ".pdf" (some-> (.getName %) fs/extension str/lower-case)))
        ;; there seems to be spurious entries; filter based on size
        (filter #(> (.getSize %) 256))))
 

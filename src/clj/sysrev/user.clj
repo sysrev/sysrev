@@ -20,6 +20,7 @@
         sysrev.clone-project
         sysrev.filestore
         sysrev.source.endnote
+        sysrev.source.pdf-zip
         sysrev.export.endnote
         sysrev.paypal
         sysrev.stripe
