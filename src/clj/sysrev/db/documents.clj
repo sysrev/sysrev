@@ -1,13 +1,10 @@
 (ns sysrev.db.documents
-  (:require
-   [sysrev.shared.util :refer [map-values]]
-   [sysrev.db.core :as db :refer
-    [do-query do-execute to-sql-array with-project-cache]]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [me.raynes.fs :as fs]
-   [clojure.java.io :as io]
-   [sysrev.db.queries :as q]))
+  (:require [me.raynes.fs :as fs]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.db.core :as db :refer
+             [do-query do-execute to-sql-array with-project-cache]]
+            [sysrev.shared.util :refer [map-values]]))
 
 (defn load-article-documents
   "Loads and replaces the database entries for article PDF files based on the

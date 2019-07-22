@@ -6,6 +6,7 @@
                  [cheshire "5.8.1"]
                  [commons-io/commons-io "2.6"]
                  [commons-codec "1.12"]
+                 [org.apache.commons/commons-compress "1.18"]
 
 ;;; Logging
                  [org.clojure/tools.logging "0.4.1"]
