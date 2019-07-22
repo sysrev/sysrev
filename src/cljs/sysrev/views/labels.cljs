@@ -142,15 +142,16 @@
                (when (and @(subscribe [:have? ann-data-item])
                           @(subscribe [:have? ann-status-item]))
                  (when-let [entries (user-annotations user-id)]
-                   (for [{:keys [id selection semantic-class annotation]} entries]
-                     [:div.ui.form.segment.user-annotation {:key [:annotation id]}
-                      [:div.field>div.three.fields
-                       [:div.field [:label "Selection"]
-                        [:div.ui.fluid.basic.label
-                         (or (some-> selection str pr-str) nbsp)]]
-                       [:div.field [:label "Semantic Class"]
-                        [:div.ui.fluid.basic.label
-                         (or (some-> semantic-class str not-empty) nbsp)]]
-                       [:div.field [:label "Value"]
-                        [:div.ui.fluid.basic.label
-                         (or (some-> annotation str not-empty) nbsp)]]]]))))))))))))
+                   (doall
+                    (for [{:keys [annotation-id selection semantic-class annotation]} entries]
+                      [:div.ui.form.segment.user-annotation {:key [:annotation annotation-id]}
+                       [:div.field>div.three.fields
+                        [:div.field [:label "Selection"]
+                         [:div.ui.fluid.basic.label
+                          (or (some-> selection str pr-str) nbsp)]]
+                        [:div.field [:label "Semantic Class"]
+                         [:div.ui.fluid.basic.label
+                          (or (some-> semantic-class str not-empty) nbsp)]]
+                        [:div.field [:label "Value"]
+                         [:div.ui.fluid.basic.label
+                          (or (some-> annotation str not-empty) nbsp)]]]])))))))))))))

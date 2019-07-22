@@ -149,7 +149,7 @@
   (count (taxi/find-elements x/project-source)))
 
 (defn check-source-count [n]
-  (b/is-soon (= n (get-source-count)) 10000 50))
+  (b/is-soon (= n (get-source-count)) 6000 25))
 
 (defn add-articles-from-search-term [search-term]
   (nav/go-project-route "/add-articles")
@@ -193,11 +193,10 @@
       (add-articles-from-search-term search-term))))
 
 (defn delete-search-term-source [search-term]
-  (b/wait-until-loading-completes :pre-wait 200)
+  (b/wait-until-loading-completes :pre-wait 250)
   (log/info "deleting article source")
   (b/click (x/search-term-delete search-term))
-  (b/wait-until-loading-completes :pre-wait 200)
-  (b/wait-until-loading-completes :pre-wait 200))
+  (b/wait-until-loading-completes :pre-wait 250 :loop 3))
 
 (deftest-browser pubmed-search
   true []

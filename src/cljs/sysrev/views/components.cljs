@@ -206,7 +206,8 @@
           (let [active? (= tab-id active-tab-id)]
             (when entry
               [:a {:key tab-id
-                   :class (css [active? "active"] "item" [class class] [disabled "disabled"])
+                   :class (css [active? "active"] "item" [class class] [disabled "disabled"]
+                               (str "tab-" (name tab-id)))
                    :href (when (string? action) action)
                    :on-click
                    (util/wrap-user-event

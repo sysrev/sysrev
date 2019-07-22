@@ -93,10 +93,11 @@
 (defn delete-current-project []
   (when (b/current-project-id true)
     (log/info "deleting current project")
-    (go-project-route "/settings" :silent true)
+    (go-project-route "/settings" :silent true :wait-ms 50)
     (b/click (xpath "//button[contains(text(),'Project...')]"))
     (b/click (xpath "//button[text()='Confirm']"))
-    (b/wait-until-exists "form.create-project")))
+    (b/wait-until-exists "form.create-project")
+    (b/wait-until-loading-completes :pre-wait true)))
 
 (defn panel-name [panel-keys]
   (str/join "_" (map name panel-keys)))

@@ -148,7 +148,9 @@
       (click-project-link project-name-1)
       (nav/go-project-route "/articles" :wait-ms 200)
       (b/click "a.article-title" :delay 200)
-      (annotator/annotate-article "foo" "bar" :offset-x 100)
+      (annotator/annotate-article
+       {:client-field "primary-title" :semantic-class "foo" :value "bar"}
+       :offset-x 99)
       ;; return to the profile, the user should have one annotation
       (b/click user-name-link)
       (b/click "#user-projects" :delay 50)
@@ -177,7 +179,9 @@
       ;; annotate
       (nav/go-project-route "/articles" :wait-ms 200)
       (b/click "a.article-title" :delay 200)
-      (annotator/annotate-article "foo" "bar" :offset-x 100)
+      (annotator/annotate-article
+       {:client-field "primary-title" :semantic-class "foo" :value "bar"}
+       :offset-x 99)
       ;; go back and check activity
       (b/click user-name-link)
       (b/click "#user-projects" :delay 50)

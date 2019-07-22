@@ -252,9 +252,8 @@
   (< (ajax-activity-duration) (- (or duration 20))))
 
 (defn wait-until-loading-completes
-  [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
-  (let [remote? (test/remote-test?)
-        timeout (or timeout #_ (if remote? 15000 nil))]
+  [& {:keys [timeout interval pre-wait loop] :or {pre-wait false}}]
+  (dotimes [i (or loop 1)]
     (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
     (assert (try-wait wait-until #(and (ajax-inactive?)
                                        (every? (complement taxi/exists? #_ displayed-now?)
@@ -287,23 +286,25 @@
                         (taxi/current-url)))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 15 clear? true}}]
-  (wait-until-displayed q)
-  (when clear? (taxi/clear q))
-  (Thread/sleep delay)
-  (taxi/input-text q text)
-  (Thread/sleep delay))
+  (let [q (not-disabled q)]
+    (wait-until-displayed q)
+    (when clear? (taxi/clear q))
+    (Thread/sleep delay)
+    (taxi/input-text q text)
+    (Thread/sleep delay)))
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
              :or {delay 15 char-delay 20 clear? true}}]
-  (wait-until-displayed q)
-  (when clear? (taxi/clear q))
-  (Thread/sleep delay)
-  (let [e (taxi/element q)]
-    (doseq [c text]
-      (taxi/input-text e (str c))
-      (Thread/sleep char-delay)))
-  (Thread/sleep delay))
+  (let [q (not-disabled q)]
+    (wait-until-displayed q)
+    (when clear? (taxi/clear q))
+    (Thread/sleep delay)
+    (let [e (taxi/element q)]
+      (doseq [c text]
+        (taxi/input-text e (str c))
+        (Thread/sleep char-delay)))
+    (Thread/sleep delay)))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
   (sutil/apply-keyargs set-input-text
@@ -500,16 +501,30 @@
 
 (defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y]
                                :or {start-x 0 offset-x 0 start-y 0 offset-y 0}}]
-  (let [ ;; ChromeDriver 75 changes default behavior to use element
+  (let [start-x (or start-x 0)
+        offset-x (or offset-x 0)
+        start-y (or start-y 0)
+        offset-y (or offset-y 0)
+        ;; ChromeDriver 75 changes default behavior to use element
         ;; center as base position instead of top-left.
         center? (>= (chromedriver-version) 75)
         ;; Need to subtract half of element size in this case to get
         ;; the same positions as ChromeDriver <= 74.
         {:keys [width height]} (when center? (taxi/element-size q))
-        adjust-x (if center? (- (quot width 2)) 0)
-        adjust-y (if center? (- (quot height 2)) 0)
-        x (+ start-x adjust-x)
-        y (+ start-y adjust-y)]
+        adjust-x (when center? (- (quot width 2)))
+        adjust-y (when center? (- (quot height 2)))
+        x (if center?
+            (-> (+ adjust-x start-x) (max adjust-x) (min (- adjust-x)))
+            start-x)
+        y (if center?
+            (-> (+ adjust-y start-y) (max adjust-y) (min (- adjust-y)))
+            start-y)]
+    #_ (log/info (pr-str {:width width :height height
+                          :start-x start-x :offset-x offset-x
+                          :start-y start-y :offset-y offset-y
+                          :x x :y y}))
+    (Thread/sleep 25)
     (->actions @active-webdriver
                (move-to-element (taxi/element q) x y)
-               (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))))
+               (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))
+    (Thread/sleep 25)))

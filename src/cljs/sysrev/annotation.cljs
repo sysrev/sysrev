@@ -337,7 +337,7 @@
                        :or {field "annotated-text"}}]
   ;;(reset! text-atom text)
   ;;(reset! annotations-atom annotations)
-  [:div {:data-field field}
+  [:div {:data-field field :class "annotated-text-toplevel"}
    (try (cljs.reader/read-string
          (highlight-text-div-string annotations text))
         (catch js/Object e

@@ -134,17 +134,19 @@
                current-class (-> (select :*) (from :semantic-class)
                                  (where [:= :semantic-class-id current-class-id])
                                  do-query first)
+               ;; NOTE: these semantic-class entries are global across database
+               ;;       (this means they must never be deleted or modified)
                new-class (-> (select :*) (from :semantic-class)
                              (where [:= :definition (db/to-jsonb semantic-class)])
                              do-query first)]
-           ;; create a new semantic-class, if needed
-           (if (nil? new-class)
-             (let [new-id (create-semantic-class! semantic-class)]
-               (associate-annotation-semantic-class! annotation-id new-id))
-             (associate-annotation-semantic-class! annotation-id (:semantic-class-id new-class)))
-           ;; dissociate the current-semantic-class, if needed
-           (when (and current-class (not= new-class current-class))
-             (dissociate-semantic-class! annotation-id (:semantic-class-id current-class))))
+           ;; dissociate current class
+           (when current-class
+             (dissociate-semantic-class! annotation-id (:semantic-class-id current-class)))
+           ;; associate new class
+           (let [ ;; take existing class entry, or create if not found
+                 new-class-id (or (:semantic-class-id new-class)
+                                  (create-semantic-class! semantic-class))]
+             (associate-annotation-semantic-class! annotation-id new-class-id)))
          (finally (some-> (annotation-id->project-id annotation-id)
                           (db/clear-project-cache))))))
 

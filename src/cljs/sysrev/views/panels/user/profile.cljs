@@ -167,12 +167,12 @@
         (reset! loading? false)
         nil)})))
 
-(defn UserPublicProfileLink
-  [{:keys [user-id display-name]}]
-  [:a.user-public-profile {:href (str "/user/" user-id "/profile")} display-name])
+(defn UserPublicProfileLink [{:keys [user-id display-name]}]
+  [:a.user-public-profile {:href (str "/user/" user-id "/profile")
+                           :data-username display-name}
+   display-name])
 
-(defn Avatar
-  [{:keys [user-id]}]
+(defn Avatar [{:keys [user-id]}]
   (let [reload-avatar? (r/cursor state [:reload-avatar?])]
     (if @reload-avatar?
       (reset! reload-avatar? false)

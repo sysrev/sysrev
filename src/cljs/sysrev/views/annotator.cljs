@@ -209,7 +209,10 @@
         dark-theme? @(subscribe [:self/dark-theme?])
         touchscreen? @(subscribe [:touchscreen?])]
     [:div.ui.secondary.segment.annotation-view
-     {:class (css [new? "new-annotation"])}
+     {:class (css [new? "new-annotation"])
+      :data-annotation-id (str ann-id)
+      :data-semantic-class (:semantic-class saved)
+      :data-annotation (:annotation saved)}
      [:form.ui.small.form.edit-annotation
       {:on-submit (util/wrap-user-event on-save :prevent-default true)}
       [:div.field.selection
@@ -260,12 +263,12 @@
       (cond editing? [:div.field.buttons>div.fields
                       [:div.eight.wide.field
                        [:button {:type "submit"
-                                 :class (css button-class "positive"
+                                 :class (css button-class "positive" "save-annotation"
                                              [(and (not changed?) (not new?)) "disabled"])}
                         [:i.check.circle.outline.icon]
                         (when full-width? "Save")]]
                       [:div.eight.wide.field
-                       [:button {:class button-class
+                       [:button {:class (css button-class "cancel-edit")
                                  :on-click (util/wrap-user-event
                                             #(do (set [:editing-id] nil)
                                                  (dispatch-sync [::clear-annotations context]))
@@ -274,7 +277,7 @@
                         (when full-width? "Cancel")]]]
             self?    [:div.field.buttons>div.fields
                       [:div.eight.wide.field
-                       [:button {:class button-class
+                       [:button {:class (css button-class "edit-annotation")
                                  :on-click (util/wrap-user-event
                                             #(do (dispatch-sync [::clear-annotations context])
                                                  (set [:editing-id] ann-id))
@@ -282,7 +285,7 @@
                         [:i.blue.pencil.alternate.icon]
                         (when full-width? "Edit")]]
                       [:div.eight.wide.field
-                       [:button {:class button-class
+                       [:button {:class (css button-class "delete-annotation")
                                  :on-click (util/wrap-user-event on-delete :prevent-default true)}
                         [:i.red.circle.times.icon]
                         (when full-width? "Delete")]]])]]))

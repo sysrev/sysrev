@@ -1,5 +1,6 @@
 (ns sysrev.web.core
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [compojure.core :refer :all]
             [compojure.route :refer [not-found]]
             [ring.util.response :as r]
@@ -8,8 +9,6 @@
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
             [aleph.http :as aleph]
-            [clojure.string :as str]
-            [clojure.pprint :refer [pprint]]
             [sysrev.config.core :refer [env]]
             [sysrev.web.session :refer [sysrev-session-store]]
             [sysrev.web.index :as index]
