@@ -43,17 +43,17 @@
   "Create a compensation in an integer amount of cents"
   [amount]
   (log/info "creating compensation:" amount "cents")
-  (b/wait-until-loading-completes :pre-wait 100)
-  (nav/go-project-route "/compensations" :wait-ms 150)
+  (b/wait-until-loading-completes :pre-wait 50)
+  (nav/go-project-route "/compensations" :wait-ms 100)
   (b/wait-until-displayed ".ui.form.add-rate")
   (b/set-input-text-per-char "input#create-compensation-amount"
                              (subs (cents->string amount) 1)
-                             :delay 100 :char-delay 25)
-  (b/click ".ui.form.add-rate button[type=submit]" :delay 100)
+                             :delay 25 :char-delay 25)
+  (b/click ".ui.form.add-rate button[type=submit]" :delay 50)
   (b/wait-until-exists
    (xpath "//div[@id='project-rates']"
           "/descendant::span[contains(text(),'" (cents->string amount) "')]"))
-  (b/wait-until-loading-completes :pre-wait 100))
+  (b/wait-until-loading-completes :pre-wait 50))
 
 (defn compensation-select [name]
   (let [name (first (str/split name #"@"))]
@@ -71,8 +71,8 @@
 
 (defn select-compensation-dropdown [name amount]
   (let [name (or name "New User Default")]
-    (b/click (compensation-select name))
-    (b/click (compensation-option name amount))))
+    (b/click (compensation-select name) :delay 30)
+    (b/click (compensation-option name amount) :delay 30)))
 
 (defn todays-date []
   ;; YYYY-MM-DD
@@ -165,7 +165,7 @@
     (b/wait-until-displayed button)
     (Thread/sleep 50)
     (taxi/click button)
-    (Thread/sleep 300)))
+    (Thread/sleep 100)))
 
 ;; this function is incomplete as it only handles the case of boolean labels
 ;; this can only create, not update labels
@@ -231,13 +231,13 @@
              4000 200)
   (b/log-current-windows)
   (log/info "waiting for paypal window to load")
-  (b/wait-until-displayed "a#createAccount" 15000 50)
-  (Thread/sleep 300)
+  (b/wait-until-displayed "a#createAccount" 15000 30)
+  (Thread/sleep 200)
   (log/info "clicking to pay as guest")
   (taxi/click "a#createAccount")
-  (b/wait-until-displayed "input#cc" 15000 50)
+  (b/wait-until-displayed "input#cc" 15000 30)
   (log/info "setting payment fields")
-  (Thread/sleep 300)
+  (Thread/sleep 200)
   (letfn [(enter-text [q text]
             (taxi/focus q)
             (b/set-input-text-per-char q text :delay 20 :clear? false))]
@@ -255,10 +255,10 @@
     (enter-text "input#email" "browser+test@insilica.co")
     (taxi/click (xpath "//input[@id='guestSignup2']"
                        "/ancestor::div[contains(@class,'radioButton')]"))
-    (Thread/sleep 300))
+    (Thread/sleep 100))
   (log/info "submitting paypal payment")
   (taxi/click "button#guestSubmit")
-  (Thread/sleep 300)
+  (Thread/sleep 100)
   (taxi/switch-to-window 0)
   (taxi/switch-to-default))
 
@@ -339,7 +339,6 @@
       (doseq [amt (:amounts project1)] (create-compensation amt))
       ;; set the first compensation amount as default
       (select-compensation-dropdown nil (-> project1 :amounts (nth 0)))
-      (Thread/sleep 100)
       ;; add funds to the project
       (try (add-paypal-funds "20.00")
            (log/info "waiting for paypal to finish")

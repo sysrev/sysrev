@@ -61,7 +61,7 @@
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"
   [username]
-  (b/click org-users :delay 50)
+  (b/click org-users :delay 30)
   (b/click "#add-member-button" :delay 400)
   (b/set-input-text-per-char "#org-search-users-input" username)
   (b/click "#submit-add-member" :delay 400))
@@ -91,7 +91,7 @@
   "Must be in the Organization Settings for the org for which the project is being created"
   [project-name]
   (b/set-input-text "form.create-project div.project-name input" project-name)
-  (b/click "form.create-project .button.create-project" :delay 50)
+  (b/click "form.create-project .button.create-project")
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
@@ -152,7 +152,7 @@
     (switch-to-org org-name-1)
     (b/is-soon (= 2 (count (org-user-table-entries))) 3000 50)
     ;; only an owner or admin of an org can create projects for that org
-    (b/click org-projects :delay 50)
+    (b/click org-projects :delay 30)
     (create-project-org org-name-1-project)
     ;; add user1 to Baz Qux as an owner
     (nav/go-route "/org/users" :wait-ms 50)
@@ -168,7 +168,7 @@
     (b/is-soon (and (taxi/exists? org-users) (taxi/exists? org-projects)))
     (b/is-soon (not (taxi/exists? org-billing)))
     ;; group projects exists, but not the create project input
-    (b/click org-projects :delay 50)
+    (b/click org-projects :delay 30)
     (b/exists? "#public-projects")
     (b/is-soon (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
@@ -176,7 +176,7 @@
     ;; switch to org-name-2
     (switch-to-org org-name-2)
     ;; user can create projects here
-    (b/click org-projects :delay 50)
+    (b/click org-projects :delay 30)
     (b/wait-until-exists "form.create-project")
     ;; can change user permissions for browser+test
     (b/click org-users)
@@ -231,7 +231,7 @@
     (nav/log-in)
     (create-org org-name-1)
     ;; create org project
-    (b/click org-projects :delay 50)
+    (b/click org-projects :delay 30)
     (create-project-org org-name-1-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
@@ -268,15 +268,15 @@
     (log/info "set project to private access")
     ;; user downgrades to basic plan
     (b/click user-profiles/user-name-link)
-    (b/click "#user-billing" :delay 50)
+    (b/click "#user-billing" :delay 30)
     (b/click ".button.nav-plans.unsubscribe" :delay 25)
-    (Thread/sleep 500) ;; wait for created seconds value to advance
+    (Thread/sleep 250) ;; wait for created seconds value to advance
     (b/click ".button.unsubscribe-plan" :delay 25)
     (b/exists? ".button.nav-plans.subscribe")
     (log/info "downgraded user plan")
     ;; paywall is in place for their project they set private
     (b/click "#user-projects")
-    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 50)
+    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 30)
     ;; this is a user project, should redirect to /user/plans
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; set the project publicly viewable
@@ -286,33 +286,33 @@
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to Unlimited
     (b/click user-profiles/user-name-link)
-    (b/click "#user-billing" :delay 50)
-    (b/click ".button.nav-plans.subscribe" :delay 100)
-    (plans/click-upgrade-plan :delay 100)
+    (b/click "#user-billing" :delay 30)
+    (b/click ".button.nav-plans.subscribe" :delay 50)
+    (plans/click-upgrade-plan :delay 50)
     (b/exists? ".button.nav-plans.unsubscribe")
     (log/info "upgraded user plan")
     ;; go back to projects
-    (b/click "#user-projects" :delay 50)
-    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 150)
+    (b/click "#user-projects" :delay 30)
+    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 30)
     ;; set the project private
-    (nav/go-project-route "/settings")
-    (b/click set-private-button :delay 50)
-    (b/click save-options-button :delay 50)
+    (nav/go-project-route "/settings" :wait-ms 30)
+    (b/click set-private-button :delay 30)
+    (b/click save-options-button :delay 30)
     (is (b/exists? active-set-private-button))
     (log/info "set project to private access")
     ;; downgrade to basic plan again
-    (b/click user-profiles/user-name-link :delay 50)
-    (b/click "#user-billing" :delay 50)
+    (b/click user-profiles/user-name-link :delay 30)
+    (b/click "#user-billing" :delay 30)
     (b/click ".button.nav-plans.unsubscribe" :delay 25)
     (b/click ".button.unsubscribe-plan" :delay 25)
     (b/exists? ".button.nav-plans.subscribe")
     ;; go to user project again
-    (b/click "#user-projects" :delay 50)
-    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 50)
+    (b/click "#user-projects" :delay 30)
+    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 30)
     ;; paywall is in place
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; upgrade plans
-    (b/click (xpath "//a[contains(@href,'/user/plans')]") :delay 50)
+    (b/click (xpath "//a[contains(@href,'/user/plans')]") :delay 30)
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
@@ -320,13 +320,13 @@
     ;; go to org, subscribe to basic
     (log/info "Testing Org Paywall")
     (switch-to-org org-name-1)
-    (b/click org-billing :delay 50)
+    (b/click org-billing :delay 30)
     (b/click ".button.nav-plans.unsubscribe" :delay 25)
     (b/click ".button.unsubscribe-plan" :delay 25)
     (is (b/exists? ".button.nav-plans.subscribe"))
     ;; go to org projects
-    (b/click org-projects :delay 50)
-    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 50)
+    (b/click org-projects :delay 30)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 30)
     ;; should redirect to /org/<org-id>/plans
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     ;; set the project publicly viewable
@@ -335,30 +335,30 @@
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to unlimited
     (switch-to-org org-name-1 :silent true)
-    (b/click org-billing :delay 50)
-    (b/click ".button.nav-plans.subscribe" :delay 50)
+    (b/click org-billing :delay 30)
+    (b/click ".button.nav-plans.subscribe" :delay 30)
     (plans/click-upgrade-plan)
     (is (b/exists? ".button.nav-plans.unsubscribe"))
     ;; set project to private again
     (switch-to-org org-name-1 :silent true)
-    (b/click org-projects :delay 50)
-    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 50)
+    (b/click org-projects :delay 30)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 30)
     (nav/go-project-route "/settings" :pre-wait-ms 50 :wait-ms 50)
     (b/click set-private-button)
     (b/click save-options-button :delay 25)
     ;; downgrade to basic plan again
     (switch-to-org org-name-1 :silent true)
-    (b/click org-billing :delay 50)
+    (b/click org-billing :delay 30)
     (b/click ".button.nav-plans.unsubscribe" :delay 25)
     (b/click ".button.unsubscribe-plan" :delay 25)
     (log/info "downgraded org plan")
     (b/exists? ".button.nav-plans.subscribe")
     ;; go to project again
-    (b/click org-projects :delay 50)
-    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 50)
+    (b/click org-projects :delay 30)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 30)
     ;; paywall is in place
     (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]"))
-    (b/click (xpath "//a[contains(text(),'Upgrade your plan')]") :delay 100)
+    (b/click (xpath "//a[contains(text(),'Upgrade your plan')]") :delay 50)
     (log/info "got paywall on org project")
     (plans/click-upgrade-plan)
     ;; paywall has been lifted

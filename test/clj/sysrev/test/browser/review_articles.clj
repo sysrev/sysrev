@@ -62,7 +62,7 @@
   [name string]
   (b/set-input-text (xpath (label-div-with-name name)
                            "/descendant::input[@type='text']")
-                    string :delay 50))
+                    string :delay 25))
 
 (defn select-with-text-label-name
   "select text from the dropdown for label with name"
@@ -71,10 +71,8 @@
                             "/descendant::div[contains(@class,'dropdown')]")
         entry-div (xpath (label-div-with-name name)
                          "/descendant::div[contains(text(),'" text "')]")]
-    (b/click dropdown-div :displayed? true)
-    (Thread/sleep 300)
-    (b/click entry-div :displayed? true)
-    (Thread/sleep 100)))
+    (b/click dropdown-div :displayed? true :delay 100)
+    (b/click entry-div :displayed? true :delay 100)))
 
 (defn article-title-div [title]
   (xpath "//div[contains(@class,'article-title') and contains(text(),'" title "')]"))
@@ -140,16 +138,16 @@
 (defn set-article-answers
   "Set and save answers on current article for a sequence of labels."
   [label-settings]
-  (log/info "setting article labels")
-  (nav/go-project-route "/review" :silent true :wait-ms 50)
-  (when (test/remote-test?) (Thread/sleep 500))
-  (b/click x/review-labels-tab :delay 50 :displayed? true)
-  (doseq [x label-settings] (set-label-answer x))
-  (when (test/remote-test?) (Thread/sleep 500))
-  (b/click ".button.save-labels" :delay 50 :displayed? true)
-  (when (test/remote-test?) (Thread/sleep 500))
-  (b/wait-until-loading-completes)
-  (db/clear-query-cache))
+  (let [remote? (test/remote-test?)]
+    (log/info "setting article labels")
+    (nav/go-project-route "/review" :silent true :wait-ms 50)
+    (b/wait-until-loading-completes :pre-wait (if remote? 100 30) :loop 2)
+    (b/click x/review-labels-tab :delay 25 :displayed? true)
+    (doseq [x label-settings] (set-label-answer x))
+    (when remote? (Thread/sleep 100))
+    (b/click ".button.save-labels" :delay 30 :displayed? true)
+    (b/wait-until-loading-completes :pre-wait (if remote? 150 30) :loop 2)
+    (db/clear-query-cache)))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article

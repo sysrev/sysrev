@@ -57,6 +57,7 @@
 
 (defn enter-cc-information [{:keys [cardnumber exp-date cvc postal]
                              :or {exp-date "0121" cvc "123" postal "11111"}}]
+  (Thread/sleep 10)
   (log/info "entering stripe card information")
   (let [ ;; note: stripe could change the frame names
         frame-names (get-stripe-frame-names)

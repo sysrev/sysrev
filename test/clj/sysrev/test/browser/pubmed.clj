@@ -10,7 +10,7 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.shared.util :as util]))
+            [sysrev.shared.util :as sutil :refer [parse-integer]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -21,40 +21,41 @@
   (log/info "running PubMed search:" (pr-str query))
   (b/wait-until #(and (taxi/exists? x/pubmed-search-form)
                       (taxi/exists? x/pubmed-search-input)))
+  (Thread/sleep 10)
   (-> {:xpath "//div[contains(@class,'button') and contains(text(),'Close')]"}
       (b/click :if-not-exists :skip))
   (b/set-input-text x/pubmed-search-input query)
   (taxi/submit x/pubmed-search-form)
-  (b/wait-until-loading-completes :pre-wait 200 :timeout 20000))
+  (b/wait-until-loading-completes :pre-wait 200 :inactive-ms 50 :timeout 20000))
 
 (defn search-count
   "Return an integer item count of search results"
   []
   (let [pager-message {:xpath "//h5[contains(@class,'list-pager-message')]"}
         pubmed-article {:xpath "//div[contains(@class,'pubmed-article')]"}]
-    (b/wait-until-exists pager-message)
-    (b/wait-until-exists pubmed-article)
+    (b/wait-until-displayed pager-message)
+    (b/wait-until-displayed pubmed-article)
     (->> (taxi/find-elements pager-message)
          first
          taxi/text
          (re-matches #".*of (\d*).*")
          last
-         util/parse-integer)))
+         parse-integer)))
 
 (defn max-pages
   "Return max number of pages"
   []
   (let [page-number {:xpath "//span[contains(@class,'page-number')]"}]
-    (b/wait-until-exists page-number)
+    (b/wait-until-displayed page-number)
     (->> (taxi/text (taxi/find-element page-number))
          (re-matches #"(.|\s)*of (\d*).*")
          last
-         util/parse-integer)))
+         parse-integer)))
 
 (defn get-current-page-number
   []
   (->> {:xpath "//input[contains(@class,'page-number') and @type='text']"}
-       taxi/find-element taxi/value util/parse-integer))
+       taxi/find-element taxi/value parse-integer))
 
 (defn search-term-count-matches?
   "Does the search-term result in the browser match the remote call?"
@@ -66,81 +67,43 @@
 (defn click-pager
   "Given a nav string, click the link in the pager corresponding to that position"
   [nav]
-  (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
-    (b/click query)))
+  (b/click (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")))
 
-(defn click-button-class
-  [class]
-  (let [query {:xpath (str "//div[contains(@class,'button') and contains(@class,'" class "')]")}]
-    (b/click query)))
+(defn click-button-class [class]
+  (b/click (format ".ui.button.%s" class)))
 
 (defn disabled-pager-link?
   "Given a nav string, check to see if that pager link is disabled"
   [nav]
-  (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
+  (let [query (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")]
     (b/wait-until-exists query)
     (boolean (re-matches #".*disabled.*" (taxi/attribute query :class)))))
 
 (defn search-term-articles-summary
-  "Given a search term, return the map corresponding to the overlap of the
-  articles of the form:
-  {:unique-articles <int>
-   :reviewed-articles <int>
-   :total-articles <int>
-   :overlap [{:overlap-count <int>
-              :source string}]"
+  "Given a search term, return the map corresponding to the overlap of
+  the articles of the form:
+
+  {:unique-articles <int>, :reviewed-articles <int>, :total-articles <int>
+   :overlap [{:overlap-count <int>, :source string} ...]"
   [search-term]
-  (let [reviewed
-        (-> (x/search-source
-             search-term
-             "/descendant::span[contains(@class,'reviewed-count')]")
-            taxi/text
-            (str/split #",")
-            (str/join)
-            util/parse-integer)
-        unique
-        (-> (x/search-source
-             search-term
-             "/descendant::span[contains(@class,'unique-count')]")
-            taxi/text
-            (str/split #",")
-            (str/join)
-            util/parse-integer)
-        total
-        (-> (x/search-source
-             search-term
-             "/descendant::span[contains(@class,'total-count')]")
-            taxi/text
-            (str/split #",")
-            (str/join)
-            util/parse-integer)
-        overlap {}
-        #_ [reviewed unique & overlap]
-        #_ (-> (x/search-source
-                search-term
-                "/descendant::div[contains(@class,'source-description')]")
-               taxi/text
-               (str/split #"\n"))
-        #_ [_ reviewed total] #_ (re-matches #"(\d*) of (\d*)(?:\s|\S)*" reviewed)
-        overlap-string->overlap-map
-        (fn [overlap-string]
-          (let [[_ overlap source]
-                (re-matches #"(\d*) article(?:s)? shared with (.*)"
-                            overlap-string)]
-            (if-not (and (nil? overlap) (nil? source))
-              {:overlap (util/parse-integer overlap) :source source})))
-        summary-map
-        {:unique-articles unique
+  (let [span-xpath #(x/search-source search-term
+                                     (format "/descendant::span[contains(@class,'%s')]" %))
+        read-count #(-> (span-xpath %) taxi/text (str/split #",") str/join parse-integer)
+        reviewed (read-count "reviewed-count")
+        unique (read-count "unique-count")
+        total (read-count "total-count")
+        #_ overlap #_ {}
+        #_ make-overlap-map #_ (fn [overlap-string]
+                                 (let [[_ overlap source]
+                                       (re-matches #"(\d*) article(?:s)? shared with (.*)"
+                                                   overlap-string)]
+                                   (if-not (and (nil? overlap) (nil? source))
+                                     {:overlap (parse-integer overlap) :source source})))]
+    (-> {:unique-articles unique
          :reviewed-articles reviewed
          :total-articles total}
-        #_ {:unique-articles (->> (re-matches #"(\d*) unique article(?:s)?" unique)
-                                  second util/parse-integer)
-            :reviewed-articles (util/parse-integer reviewed)
-            :total-articles (util/parse-integer total)}]
-    (if-not (empty? overlap)
-      (assoc summary-map :overlap-maps
-             (set (mapv overlap-string->overlap-map overlap)))
-      summary-map)))
+        #_ (cond-> (seq overlap)
+             (assoc :overlap-maps (set (mapv make-overlap-map overlap)))))))
 
 (def import-button-xpath
   {:xpath "//button[contains(@class,'button') and contains(text(),'Import')]"})
@@ -149,18 +112,19 @@
   (count (taxi/find-elements x/project-source)))
 
 (defn check-source-count [n]
-  (b/is-soon (= n (get-source-count)) 6000 25))
+  (b/is-soon (= n (get-source-count)) 8000 30))
 
 (defn add-articles-from-search-term [search-term]
-  (nav/go-project-route "/add-articles")
+  (nav/go-project-route "/add-articles" :wait-ms 50)
   (let [initial-count (get-source-count)]
     (search-pubmed search-term)
     (log/info "importing articles from search")
     (b/click import-button-xpath)
-    (Thread/sleep 250)
+    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 2
+                                    :timeout 10000 :interval 30)
     (check-source-count (inc initial-count))
-    (b/wait-until-loading-completes :pre-wait 300 :timeout 10000)
-    (b/wait-until-loading-completes :pre-wait 300)
+    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 2
+                                    :timeout 10000 :interval 30)
     (nav/wait-until-overview-ready)))
 
 ;; This doesn't work against staging.sysrev.com - cache not cleared?
@@ -174,9 +138,8 @@
     (log/infof "importing (%d) pmid articles to project (#%d)"
                (count pmids) project-id)
     (import/import-pmid-vector project-id {:pmids pmids} {:use-future? false})
-    (Thread/sleep 200)
-    (b/init-route (str "/p/" project-id "/add-articles") :silent true)
-    (b/wait-until-loading-completes :pre-wait 100)))
+    (Thread/sleep 20)
+    (b/init-route (str "/p/" project-id "/add-articles") :silent true)))
 
 (def test-search-pmids
   {"foo bar" [25706626 25215519 23790141 22716928 19505094 9656183]
@@ -193,10 +156,10 @@
       (add-articles-from-search-term search-term))))
 
 (defn delete-search-term-source [search-term]
-  (b/wait-until-loading-completes :pre-wait 250)
+  (b/wait-until-loading-completes :pre-wait 25 :inactive-ms 75 :loop 3)
   (log/info "deleting article source")
   (b/click (x/search-term-delete search-term))
-  (b/wait-until-loading-completes :pre-wait 250 :loop 3))
+  (b/wait-until-loading-completes :pre-wait 50 :inactive-ms 100 :loop 4))
 
 (deftest-browser pubmed-search
   true []

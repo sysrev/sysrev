@@ -14,7 +14,7 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (defn click-save []
-  (Thread/sleep 50)
+  (b/wait-until-loading-completes :pre-wait 50)
   (b/click ".markdown-component .ui.save-button" :delay 100))
 
 (deftest-browser happy-path-project-description
@@ -31,7 +31,7 @@
       (pm/import-pubmed-search-via-db "foo bar")
 ;;; project description
       (b/click "#project a.item.overview" :delay 100)
-      (b/wait-until-loading-completes :pre-wait 200)
+      (b/wait-until-loading-completes :pre-wait 100)
       (log/info "creating project description")
       (b/click create-button)
       ;; enter markdown
@@ -46,22 +46,20 @@
       (b/wait-until-displayed input)
       ;; make sure textarea contains the previously saved markdown
       (is (b/exists? (xpath "//textarea[text()='" content-first "']")))
-      (b/set-input-text input content-edit :delay 100)
+      (b/set-input-text input content-edit :delay 50)
       (click-save)
       (b/wait-until-displayed {:xpath "//h1[contains(text(),'foo bar')]"})
       (is (b/exists? {:xpath "//p[contains(text(),'quxx quzz corge')]"}))
       ;; delete the markdown, make sure we are back at stage one
-      (b/click edit-icon)
-      (Thread/sleep 100)
+      (b/click edit-icon :delay 50)
       ;; clear the text area
       (b/wait-until-displayed input)
-      (Thread/sleep 100)
       (taxi/clear input)
-      (Thread/sleep 100)
+      (Thread/sleep 25)
       (taxi/send-keys input org.openqa.selenium.Keys/ENTER)
-      (Thread/sleep 100)
+      (Thread/sleep 25)
       (taxi/send-keys input org.openqa.selenium.Keys/BACK_SPACE)
-      (Thread/sleep 100)
+      (Thread/sleep 25)
       (click-save)
       ;; a prompt for creating a project description
       (b/is-soon (b/displayed-now? create-button)))

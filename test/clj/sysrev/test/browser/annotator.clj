@@ -54,6 +54,7 @@
   "Returns sequence of visible annotations shown for the current article in the
   read-only interface (div.article-labels-view, not sidebar)."
   []
+  (Thread/sleep 20)
   (mapv #(let [[s1 s2 s3] (->> (taxi/find-elements-under % {:css ".ui.label"})
                                (mapv taxi/text))]
            {:selection (remove-quotes s1)
@@ -65,6 +66,7 @@
   "Returns sequence of visible annotations shown for the current article in the
   sidebar interface."
   []
+  (Thread/sleep 20)
   (mapv (fn [form-el]
           (letfn [(find-el [q]
                     (some->> (taxi/find-elements-under form-el {:css q})
@@ -89,7 +91,7 @@
        (mapv taxi/text)))
 
 (defn check-highlights [annotations]
-  (b/wait-until-loading-completes :pre-wait true)
+  (Thread/sleep 20)
   (is (= (set (map :selection annotations))
          (set (annotation-highlights)))))
 
@@ -113,24 +115,24 @@
   (if-let [el (taxi/element (b/not-disabled semantic-class-input))]
     ;; enter value into text input
     (do #_ (log/info "entering text input")
-        (b/input-text el semantic-class :delay 50))
+        (b/input-text el semantic-class))
     ;; otherwise have dropdown menu
     (if-let [el (taxi/element (b/not-disabled semantic-class-dropdown-input))]
       (do ;; click dropdown input to expand menu
         #_ (log/info "clicking dropdown menu")
-        (b/click el :delay 100)
+        (b/click el :delay 50)
         ;; check if the value we want is already in the list
         (if-let [item-el (taxi/element (semantic-class-dropdown-item semantic-class))]
           ;; value found, click to select
           (do #_ (log/info "clicking dropdown item")
-              (b/click item-el :delay 100))
+              (b/click item-el :delay 50))
           ;; menu doesn't have this value
           (do ;; click button to add a new value
             #_ (log/info "clicking new class button")
-            (b/click semantic-class-new-button :delay 50)
+            (b/click semantic-class-new-button)
             ;; enter the new value into text input
             #_ (log/info "entering text input")
-            (b/input-text (b/not-disabled semantic-class-input) semantic-class :delay 50))))
+            (b/input-text (b/not-disabled semantic-class-input) semantic-class))))
       (log/warn "no dropdown input found"))))
 
 (defn check-db-annotation [project-id match-fields {:keys [selection value semantic-class client-field user-id]
@@ -158,24 +160,24 @@
                :semantic-class semantic-class
                :value value}
         check-values (fn []
+                       (Thread/sleep 20)
                        (let [fields (cond-> [:semantic-class :value]
                                       selection (conj :selection))]
                          (in? (->> (sidebar-annotations)
                                    (map #(select-keys % fields) ))
                               (select-keys entry fields))))]
-    (b/wait-until-loading-completes :pre-wait 100)
-    (b/click ".ui.button.change-labels" :if-not-exists :skip :delay 50)
+    (b/wait-until-loading-completes :pre-wait 50)
+    (b/click ".ui.button.change-labels" :if-not-exists :skip)
     (b/click x/review-annotator-tab)
     (b/wait-until-displayed ".annotation-menu .menu-header")
     (b/click-drag-element q
                           :start-x start-x :offset-x offset-x
                           :start-y (+ 2 (or start-y 0)) :offset-y offset-y)
     (input-semantic-class semantic-class)
-    (b/input-text annotation-value-input value :delay 50)
+    (b/input-text annotation-value-input value)
     (check-values)
-    (b/click save-annotation-button :delay 50)
+    (b/click save-annotation-button)
     (b/wait-until-exists edit-annotation-icon)
-    (Thread/sleep 50)
     (check-values)))
 
 (defn edit-annotation [{:keys [semantic-class value] :as lookup} new-values]
@@ -196,6 +198,7 @@
 
 (defn delete-annotation [{:keys [semantic-class value] :as lookup}]
   (log/info "deleting annotation")
+  (b/wait-until-loading-completes :pre-wait 25 :inactive-ms 25)
   (let [q (css sidebar-el
                (cond-> "div.ui.segment.annotation-view"
                  semantic-class (str (format "[data-semantic-class='%s']" semantic-class))
@@ -308,23 +311,23 @@
       (is (not (taxi/exists? sidebar-el)))
       ;; check that annotation is visible in read-only article view
       (b/exists? (user-profile-link user1))
-      (b/is-soon (= (article-view-annotations) [ann1]) 2000 50)
+      (b/is-soon (= (article-view-annotations) [ann1]) 2000 30)
       (b/click ".ui.button.change-labels")
       (b/exists? sidebar-el)
       (b/exists? (user-profile-link user1))
       (b/exists? "div.label-editor-view")
       ;; check that still visible after clicking "Change Labels"
-      (b/is-soon (= (article-view-annotations) [ann1]) 2000 50)
+      (b/is-soon (= (article-view-annotations) [ann1]) 2000 30)
       (b/click "a.item.tab-annotations")
       ;; check that still visible with annotator tab selected
-      (b/is-soon (= (article-view-annotations) [ann1]) 2000 50)
+      (b/is-soon (= (article-view-annotations) [ann1]) 2000 30)
       ;; check for highlights in article text
       (check-highlights [ann1])
       ;; check that saved annotation appears in sidebar interface
       (is (= (sidebar-annotations) [ann1]))
       (annotate-article ann2-def :offset-x 111)
       ;; check that both annotations appear in article view
-      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2])) 2000 50)
+      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2])) 2000 30)
       (check-highlights [ann1 ann2])
       ;; check that both annotations appear in sidebar view
       (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
@@ -334,7 +337,7 @@
       (b/click "a.article-title")
       (b/exists? (user-profile-link user1))
       ;; check that both annotations appear in article view (user2)
-      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2])) 2000 50)
+      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2])) 2000 30)
       (is (not (taxi/exists? sidebar-el)))
       ;; review same article with user2
       (nav/go-project-route "/review")
@@ -352,17 +355,17 @@
       (b/exists? (user-profile-link user1))
       (b/exists? (user-profile-link user2))
       ;; check that all annotations appear in article view
-      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 50)
+      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
       (is (not (taxi/exists? sidebar-el)))
       ;; open label/annotation editor interface
       (b/click ".ui.button.change-labels")
       (b/exists? sidebar-el)
       ;; switch to annotator interface
-      (b/click "a.item.tab-annotations" :delay 100)
+      (b/click "a.item.tab-annotations")
       ;; check that only the annotation from user2 is shown in sidebar
-      (b/is-soon (= (sidebar-annotations) [ann3]) 2000 50)
+      (b/is-soon (= (sidebar-annotations) [ann3]) 2000 30)
       ;; check that all annotations still visible in article view
-      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 50)
+      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
       (check-highlights [ann1 ann2 ann3])
       ;; check valid db values stored for each annotation
       (check-db-annotation
@@ -381,19 +384,19 @@
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click "a.article-title")
       ;; check that all annotations are shown from user1
-      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 50)
+      (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
       ;; open annotator interface
       (b/click ".ui.button.change-labels")
       (b/click "a.item.tab-annotations")
       ;; check that only annotations from user1 shown in sidebar interface
-      (b/is-soon (= (set (sidebar-annotations)) (set [ann1 ann2])) 2000 50)
+      (b/is-soon (= (set (sidebar-annotations)) (set [ann1 ann2])) 2000 30)
       (check-highlights [ann1 ann2 ann3])
       ;; try changing an existing annotation
       (edit-annotation ann1 {:value "value1-changed"})
       ;; bind updated map for ann1
       (let [ann1 (assoc ann1 :value "value1-changed")]
         ;; check that article view was updated after edit
-        (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 50)
+        (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
         ;; check for correct sidebar view entries
         (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
         ;; check for correct db values on edited annotation
@@ -404,7 +407,7 @@
         (edit-annotation ann1 {:semantic-class "class1-changed"})
         (let [ann1 (assoc ann1 :semantic-class "class1-changed")]
           ;; check correct values for everything again
-          (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 50)
+          (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
           (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
           (check-db-annotation
            @project-id [:selection]
@@ -414,14 +417,14 @@
           ;; delete an annotation
           (delete-annotation ann1)
           ;; check that deleted annotation is removed everywhere
-          (b/is-soon (= (set (article-view-annotations)) (set [ann2 ann3])) 2000 50)
+          (b/is-soon (= (set (article-view-annotations)) (set [ann2 ann3])) 2000 30)
           (check-highlights [ann2 ann3])
           (is (= (sidebar-annotations) [ann2]))
           (is (= 2 (count (api/project-annotations @project-id))))
           (check-annotations-csv @project-id)
           ;; delete other annotation
           (delete-annotation ann2)
-          (b/is-soon (= (article-view-annotations) [ann3]) 2000 50)
+          (b/is-soon (= (article-view-annotations) [ann3]) 2000 30)
           (check-highlights [ann3])
           (is (empty? (sidebar-annotations)))
           (is (= 1 (count (api/project-annotations @project-id)))))))

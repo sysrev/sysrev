@@ -13,6 +13,7 @@
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
+            [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.groups :as groups]
@@ -148,9 +149,7 @@
         (try (stripe/delete-customer! user)
              (catch Throwable t nil)))
       (when user-id
-        (-> (delete-from :compensation-user-period)
-            (where [:= :user-id user-id])
-            do-execute))
+        (q/delete :compensation-user-period {:user-id user-id}))
       (users/delete-user-by-email email))))
 
 (defn create-test-user [& {:keys [email password project-id]
@@ -249,13 +248,13 @@
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 20)."
   [& [duration]]
-  (< (ajax-activity-duration) (- (or duration 20))))
+  (< (ajax-activity-duration) (- (or duration 10))))
 
 (defn wait-until-loading-completes
-  [& {:keys [timeout interval pre-wait loop] :or {pre-wait false}}]
+  [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
   (dotimes [i (or loop 1)]
-    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
-    (assert (try-wait wait-until #(and (ajax-inactive?)
+    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 10)))
+    (assert (try-wait wait-until #(and (ajax-inactive? inactive-ms)
                                        (every? (complement taxi/exists? #_ displayed-now?)
                                                [(not-class "div.ui.loader.active"
                                                            "loading-indicator")
@@ -291,7 +290,7 @@
     (when clear? (taxi/clear q))
     (Thread/sleep delay)
     (taxi/input-text q text)
-    (Thread/sleep delay)))
+    (Thread/sleep 5)))
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
@@ -304,7 +303,7 @@
       (doseq [c text]
         (taxi/input-text e (str c))
         (Thread/sleep char-delay)))
-    (Thread/sleep delay)))
+    #_ (Thread/sleep delay)))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
   (sutil/apply-keyargs set-input-text
@@ -380,9 +379,9 @@
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
                         (log-console-messages (if failed# :error :info))))
-                    (try (wait-until-loading-completes :pre-wait true :timeout 500)
+                    (try (wait-until-loading-completes :pre-wait 20 :timeout 300)
                          (catch Throwable e2#
-                           (log/warn "exception in test cleanup (wait-until-loading-completes)")))
+                           (log/info "test cleanup - wait-until-loading-completes timed out")))
                     (when-not ~repl?
                       (ensure-logged-out)
                       ~cleanup)))))))))
@@ -465,7 +464,7 @@
   (f))
 
 (defn reuse-webdriver? []
-  (contains? #{true 1 "true" "1"} (:sysrev-reuse-webdriver env) ))
+  (not (contains? #{false 0 "false" "0"} (:sysrev-reuse-webdriver env))))
 
 (defn webdriver-fixture-each [f]
   (let [local? (= "localhost" (:host (test/get-selenium-config)))

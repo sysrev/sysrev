@@ -85,15 +85,15 @@
   (Thread/sleep 100)
   (nav/log-in email password)
   ;; go to plans
-  (b/click "#user-name-link" :delay 150)
-  (b/click "#user-billing" :delay 150)
-  (b/click ".button.nav-plans.subscribe" :delay 150 :displayed? true)
-  (b/click "a.payment-method.add-method" :delay 150)
+  (b/click "#user-name-link" :delay 50)
+  (b/click "#user-billing" :delay 50)
+  (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
+  (b/click "a.payment-method.add-method" :delay 50)
   ;; enter payment information
   (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-  (click-use-card :delay 250)
+  (click-use-card :delay 50)
   ;; upgrade to unlimited
-  (click-upgrade-plan :delay 100)
+  (click-upgrade-plan :delay 50)
   ;; this time is goes through, confirm we are subscribed to the
   ;; Unlimited plan now
   (b/wait-until-displayed ".button.nav-plans.unsubscribe")
@@ -204,8 +204,8 @@
               (b/is-soon (taxi/exists? (error-msg-xpath error))))
             #_ (b/is-soon (taxi/exists? (str use-card ".disabled"))))
           (when declined
-            (b/wait-until-loading-completes :pre-wait 200)
-            (click-upgrade-plan :delay 100)
+            (b/wait-until-loading-completes :pre-wait 100)
+            (click-upgrade-plan :delay 50)
             (b/is-soon
              (taxi/exists?
               {:xpath "//p[contains(text(),'Your card was declined.')]"}))
@@ -214,7 +214,7 @@
 ;;; finally, update with a valid cc number and see if we can subscribe to plans
       (log/info "testing valid card info")
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (click-use-card :delay 100)
+      (click-use-card :delay 50)
       ;; try to subscribe again
       (click-upgrade-plan)
       ;; this time is goes through, confirm we are subscribed to the

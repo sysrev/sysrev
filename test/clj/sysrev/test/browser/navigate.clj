@@ -9,7 +9,7 @@
             [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
 (defn go-route [path & {:keys [wait-ms pre-wait-ms silent]
-                        :or {wait-ms 20}}]
+                        :or {wait-ms 15}}]
   (let [current (taxi/current-url)
         path (if (empty? path) "/" path)]
     (cond (or (not (string? current))
@@ -88,7 +88,7 @@
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
   (go-route "/" :silent true)
-  (b/click (x/project-title-value name) :delay 50))
+  (b/click (x/project-title-value name) :delay 30))
 
 (defn delete-current-project []
   (when (b/current-project-id true)

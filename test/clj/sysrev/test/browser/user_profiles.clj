@@ -146,8 +146,8 @@
                     {:articles-reviewed 3 :labels-contributed 3}))
       ;; let's do some annotations to see if they are showing up
       (click-project-link project-name-1)
-      (nav/go-project-route "/articles" :wait-ms 200)
-      (b/click "a.article-title" :delay 200)
+      (nav/go-project-route "/articles" :wait-ms 100)
+      (b/click "a.article-title" :delay 100)
       (annotator/annotate-article
        {:client-field "primary-title" :semantic-class "foo" :value "bar"}
        :offset-x 99)
@@ -177,8 +177,8 @@
       (dotimes [n 2]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; annotate
-      (nav/go-project-route "/articles" :wait-ms 200)
-      (b/click "a.article-title" :delay 200)
+      (nav/go-project-route "/articles" :wait-ms 100)
+      (b/click "a.article-title" :delay 100)
       (annotator/annotate-article
        {:client-field "primary-title" :semantic-class "foo" :value "bar"}
        :offset-x 99)
@@ -222,19 +222,22 @@
     ;; make test-user a public reviewer
     (make-public-reviewer user-id-test-user email-test-user)
     (nav/log-in email-test-user password-test-user)
+    (b/wait-until-loading-completes :pre-wait 50)
     ;; go to the user profile
-    (b/click user-name-link)
-    (b/click user-profile-tab)
+    (b/click user-name-link :delay 50)
+    (b/click user-profile-tab :delay 50)
     ;; edit introduction
-    (b/click edit-introduction)
+    (b/click edit-introduction :delay 50)
     (b/wait-until-displayed "textarea")
-    (b/set-input-text "textarea" user-introduction :delay 100)
+    (b/wait-until-loading-completes :pre-wait 50)
+    (b/set-input-text "textarea" user-introduction :delay 50)
     (markdown/click-save)
     (b/is-soon (b/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; log in as test user
     (nav/log-in)
+    (b/wait-until-loading-completes :pre-wait 50)
     ;; go to users
-    (nav/go-route "/users" :wait-ms 100)
+    (nav/go-route "/users" :wait-ms 200)
     (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']")
              :delay 100)
     ;; the introduction still reads the same

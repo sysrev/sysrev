@@ -199,3 +199,4 @@ resources/public/semantic
 profiles.clj
 /vars.sh
 /flyway.cmd
+/vars.deploy.sh
