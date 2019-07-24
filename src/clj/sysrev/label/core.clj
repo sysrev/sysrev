@@ -19,10 +19,9 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
+            [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]
-            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
-            [sysrev.shared.labels :refer [cleanup-label-answer]])
-  (:import java.util.UUID))
+            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key or-default]]))
 
 (def valid-label-categories
   ["inclusion criteria" "extra"])
@@ -37,10 +36,16 @@
       (where [:= :label-id label-id])
       do-query first))
 
+(defn- next-project-ordering [project-id]
+  (or-default 0 (some-> (select [:%max.project-ordering :max])
+                        (from :label)
+                        (where [:= :project-id project-id])
+                        do-query first :max inc)))
+
 (defn add-label-entry
   "Creates an entry for a label definition.
 
-  Ordinarily this will be directly called only by one of the type-specific 
+  Ordinarily this will be directly called only by one of the type-specific
   label creation functions."
   [project-id {:keys [name question short-label category
                       required consensus value-type definition]}]
@@ -49,7 +54,7 @@
   (try
     (-> (insert-into :label)
         (values [(cond-> {:project-id project-id
-                          :project-ordering (q/next-label-project-ordering project-id)
+                          :project-ordering (next-project-ordering project-id)
                           :value-type value-type
                           :name name
                           :question question
@@ -108,7 +113,7 @@
   are treated as having no relationship to inclusion. If `inclusion-values` is
   not empty, answers are treated as implying inclusion if any of the answer
   values is present in `inclusion-values`; non-empty answers for which none of
-  the values is present in `inclusion-values` are treated as implying 
+  the values is present in `inclusion-values` are treated as implying
   exclusion.
 
   `custom-category` is optional, unless specified the label category will be
@@ -184,12 +189,11 @@
                :consensus true}))
 
 (defn alter-label-entry [project-id label-id values-map]
-  (let [label-id (q/to-label-id label-id)]
-    (try (-> (sqlh/update :label)
-             (sset (dissoc values-map :label-id :project-id))
-             (where [:and [:= :label-id label-id] [:= :project-id project-id]])
-             do-execute)
-         (finally (db/clear-project-cache project-id)))))
+  (try (-> (sqlh/update :label)
+           (sset (dissoc values-map :label-id :project-id))
+           (where [:and [:= :label-id label-id] [:= :project-id project-id]])
+           do-execute)
+       (finally (db/clear-project-cache project-id))))
 
 ;; TODO: move into article entity
 (defn article-user-labels-map [project-id article-id]

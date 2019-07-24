@@ -1,66 +1,290 @@
 (ns sysrev.db.queries
-  (:require [clojure.spec.alpha :as s]
+  (:refer-clojure :exclude [find])
+  (:require [clojure.string :as str]
+            [clojure.spec.alpha :as s]
+            [clojure.tools.logging :as log]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer
-             [do-query do-execute sql-now to-sql-array to-jsonb
-              sql-field with-project-cache clear-project-cache
-              clear-query-cache sql-array-contains]]
-            [sysrev.shared.util :as u :refer [in?]])
+            [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
+            [sysrev.shared.util :as sutil :refer
+             [in? ->map-with-key or-default map-values apply-keyargs
+              ensure-pred assert-pred]])
   (:import java.util.UUID))
 
 ;;;
-;;; id conversions
+;;; * Query DSL
 ;;;
 
-(defn to-article-id
-  "Returns integer article id of argument."
-  [article-or-id]
-  (let [in (s/conform ::sa/article-or-id article-or-id)]
-    (if (= in ::s/invalid)
-      nil
-      (let [[t v] in]
-        (cond
-          (= t :map) (:article-id article-or-id)
-          (= t :id)
-          (let [id (s/unform ::sc/article-id v)]
-            (if (integer? id)
-              id
-              (-> (select :article-id)
-                  (from :article)
-                  (where [:= :article-uuid id])
-                  do-query first :article-id)))
-          :else nil)))))
 ;;;
-(s/fdef to-article-id
-  :args (s/cat :article-or-id ::sa/article-or-id)
-  :ret (s/nilable ::sc/sql-serial-id))
+;;; ** Shared helper functions
+;;;
 
-(defn to-label-id
-  "Returns label uuid of argument."
-  [label-id]
-  (let [in (s/conform ::sc/label-id label-id)]
-    (if (= in ::s/invalid)
-      nil
-      (let [[t v] in]
-        (cond
-          (= t :uuid) label-id
-          (= t :serial) (-> (select :label-id)
-                            (from :label)
-                            (where [:= :label-id-local label-id])
-                            do-query first :label-id)
-          :else nil)))))
-;;;
-(s/fdef to-label-id
-  :args (s/cat :label-id ::sc/label-id)
-  :ret (s/nilable ::sc/uuid))
+(defn- merge-match-by
+  "Returns updated honeysql map based on `m`, merging a where clause
+  generated from `match-by` map."
+  [m match-by]
+  (merge-where m (or (some->> (seq (for [[field match-value] (seq match-by)]
+                                     (if (sequential? match-value)
+                                       [:in field match-value]
+                                       [:= field match-value])))
+                              (apply vector :and))
+                     true)))
+
+(defn- merge-join-args
+  "Returns updated honeysql map based on `m`, merging a join clause
+  generated from `join-args` using honeysql function
+  `merge-join-fn` (e.g.  merge-join, merge-left-join)."
+  [m merge-join-fn join-args]
+  (reduce (fn [m [with-table join-table join-alias on-field]]
+            (merge-join-fn m
+                           [join-table join-alias]
+                           [:= (sql-field join-alias on-field)
+                            (sql-field with-table on-field)]))
+          m join-args))
+
+(defn- extract-column-name
+  "Extracts an unqualified column name keyword from honeysql keyword `k`
+  by dropping any preceding '<table>.' portion. If `k` is a
+  two-element keyword sequence (following format of honeysql
+  select), returns the second keyword. Returns nil if `k` does not
+  seem to represent a column; presence of '%' indicates that `k`
+  represents an sql function call rather than a column."
+  [k]
+  (if (and (sequential? k) (= (count k) 2) (every? keyword? k))
+    (ensure-pred keyword? (second k))
+    (some-> (ensure-pred keyword? k)
+            name
+            ((ensure-pred (fn [s] (not (str/includes? s "%")))))
+            (str/split #"\.")
+            last
+            keyword)))
 
 ;;;
-;;; articles
+;;; ** DSL functions
+;;;
+
+(defn find
+  "Runs select query on `table` filtered according to `match-by`.
+  Returns a sequence of row entries; if `fields` is a keyword the
+  entries will be values of the named field, otherwise the entries
+  will be a map of field keyword to value.
+
+  `table` should match format of honeysql (from ...) function.
+
+  `fields` may be a single keyword, a sequence of keywords, or if not
+  specified then all table fields will be included.
+
+  `index` or `group` optionally provides a field keyword which will be
+  used to transform the result into a map indexed by that field value.
+
+  `where` optionally provides an additional honeysql where clause.
+
+  `prepare` optionally provides a function to apply to the final
+  honeysql query before running.
+
+  The arguments `join`, `left-join`, `limit` add a clause to the query
+  using the honeysql function of the same name.
+
+  `return` optionally modifies the behavior and return value.
+  - `:execute` (default behavior) runs the query against the connected
+    database and returns the processed result.
+  - `:query` returns the honeysql query map that would be run against
+    the database.
+  - `:string` returns an SQL string corresponding to the query."
+  [table match-by & [fields & {:keys [index group join left-join where limit prepare return]
+                               :or {return :execute}
+                               :as opts}]]
+  (assert (every? #{:index :group :join :left-join :where :limit :prepare :return}
+                  (keys opts)))
+  (let [wildcard? #(some-> % name (str/ends-with? "*"))
+        literal? #(and (keyword? %) (not (wildcard? %)))
+        single-field (some->> fields
+                              (ensure-pred literal?)
+                              (extract-column-name))
+        specified (some->> (cond (keyword? fields)  [fields]
+                                 (empty? fields)    nil
+                                 :else              fields)
+                           (map extract-column-name)
+                           (ensure-pred (partial every? literal?)))
+        fields (cond (keyword? fields)  [fields]
+                     (empty? fields)    [:*]
+                     :else              (vec fields))
+        select-fields (as-> (concat fields
+                                    #_ (keys match-by)
+                                    (some->> index (ensure-pred keyword?) (list))
+                                    (some->> group (ensure-pred keyword?) (list)))
+                          select-fields
+                        (if (in? select-fields :*) [:*] select-fields)
+                        (distinct select-fields))
+        map-fields (cond index  map-values
+                         group  (fn [f coll] (map-values (partial map f) coll))
+                         :else  map)]
+    (assert (in? #{0 1} (count (remove nil? [index group]))))
+    (-> (apply select select-fields)
+        (from table)
+        (merge-match-by match-by)
+        (cond-> join (merge-join-args merge-join join))
+        (cond-> left-join (merge-join-args merge-left-join left-join))
+        (cond-> where (merge-where where))
+        (cond-> limit (sqlh/limit limit))
+        (cond-> prepare (prepare))
+        ((fn [query]
+           (case return
+             :query       query
+             :string      (db/to-sql-string query)
+             :execute     (-> (do-query query)
+                              (cond->> index (->map-with-key index))
+                              (cond->> group (group-by group))
+                              (cond->> specified (map-fields #(select-keys % specified)))
+                              (cond->> single-field (map-fields single-field))
+                              not-empty)))))))
+
+;;; Examples:
+;;;
+;;; (find :web-user {:email "browser+test@insilica.co"} :user-id)
+;;; => (95)
+;;;
+;;; (find :project {:project-id 3588} :name)
+;;; => ("Hallmark and key characteristics mapping")
+;;;
+;;; (find :project-member {:project-id 100} :user-id, :limit 10)
+;;; => (70 35 139 95 56 83 9 117 100 114)
+;;;
+;;; (find :project {:project-id 3588})
+;;; => [{:project-id 3588,
+;;;      :name "Hallmark and key characteristics mapping",
+;;;      :enabled true,
+;;;      ...}]
+;;;
+;;; (find :project {:project-id 3588} [:project-id :name])
+;;; => ({:project-id 3588, :name "Hallmark and key characteristics mapping"})
+;;;
+;;; (find :project {:project-id 3588} :name, :index :project-id)
+;;; => {3588 "Hallmark and key characteristics mapping"}
+;;;
+;;; (find :project {} :name, :index :project-id, :limit 4)
+;;; => {101 "FACTS: Factors Affecting Combination Trial Success",
+;;;     6064 "test",
+;;;     102 "MnSOD in Cancer and Antioxidant Therapy",
+;;;     106 "FACTS Data Extraction"}
+
+(defn find-one
+  "Runs `find` and returns a single result entry (or nil if none found),
+  throwing an exception if the query returns more than one result."
+  [table match-by & [fields & {:keys [where prepare join left-join] :as opts}]]
+  (assert (every? #{:where :prepare :join :left-join} (keys opts)))
+  (first (->> (apply-keyargs find table match-by fields
+                             (assoc opts :prepare #(-> (cond-> % prepare (prepare))
+                                                       (limit 2))))
+              (assert-pred {:pred #(<= (count %) 1)
+                            :message "find-one - multiple results from query"})) ))
+
+;;; Examples:
+;;;
+;;; (find-one :web-user {:user-id 70} [:email :settings])
+;;; => {:email "jeff@insilica.co", :settings {:ui-theme "Dark"}}
+;;;
+;;; (find-one :web-user {:user-id 70} :email)
+;;; => "jeff@insilica.co"
+;;;
+;;; (find-one :web-user {:email "jeff@insilica.co"} :user-id)
+;;; => 70
+;;;
+;;; (:verified (find-one :web-user {:user-id 70}))
+;;; => true
+
+(defn exists
+  "Runs (find ... :return :query) and wraps result in [:exists ...]."
+  [table match-by & {:keys [join left-join where prepare] :as opts}]
+  (assert (every? #{:join :left-join :where :prepare} (keys opts)))
+  [:exists (apply-keyargs find table match-by :*
+                          (assoc opts :return :query))])
+
+(defn not-exists
+  "Runs (find ... :return :query) and wraps result in [:not [:exists ...]."
+  [table match-by & {:keys [join left-join where prepare] :as opts}]
+  (assert (every? #{:join :left-join :where :prepare} (keys opts)))
+  [:not (apply-keyargs exists table match-by opts)])
+
+(defn modify
+  "Runs update query on `table` filtered according to `match-by`.
+  Returns a count of rows updated.
+
+  `table` should match format of honeysql (from ...) function.
+
+  `where` optionally provides an additional honeysql where clause.
+
+  `prepare` optionally provides a function to apply to the final honeysql
+  query before running.
+
+  The arguments `join`, `left-join` add a clause to the query using
+  the honeysql function of the same name.
+
+  `return` optionally modifies the behavior and return value.
+  - `:execute` (default behavior) runs the query against the connected
+    database and returns the processed result.
+  - `:query` returns the honeysql query map that would be run against
+    the database.
+  - `:string` returns an SQL string corresponding to the query."
+  [table match-by set-values & {:keys [where prepare join left-join return]
+                                :or {return :execute}
+                                :as opts}]
+  (assert (every? #{:where :prepare :join :left-join :return} (keys opts)))
+  (-> (sqlh/update table)
+      (merge-match-by match-by)
+      (sset set-values)
+      (cond-> join (merge-join-args merge-join join))
+      (cond-> left-join (merge-join-args merge-left-join left-join))
+      (cond-> where (merge-where where))
+      (cond-> prepare (prepare))
+      ((fn [query]
+         (case return
+           :query   query
+           :string  (db/to-sql-string query)
+           :execute (first (do-execute query)))))))
+
+(defn delete
+  "Runs delete query on `table` filtered according to `match-by`.
+  Returns a count of rows deleted.
+
+  `table` should match format of honeysql (from ...) function.
+
+  `where` optionally provides an additional honeysql where clause.
+
+  `prepare` optionally provides a function to apply to the final honeysql
+  query before running.
+
+  The arguments `join`, `left-join` add a clause to the query
+  using the honeysql function of the same name.
+
+  `return` optionally modifies the behavior and return value.
+  - `:execute` (default behavior) runs the query against the connected
+    database and returns the processed result.
+  - `:query` returns the honeysql query map that would be run against
+    the database.
+  - `:string` returns an SQL string corresponding to the query."
+  [table match-by & {:keys [where prepare join left-join return]
+                     :or {return :execute}
+                     :as opts}]
+  (assert (every? #{:where :prepare :join :left-join :return} (keys opts)))
+  (-> (sqlh/delete-from table)
+      (merge-match-by match-by)
+      (cond-> join (merge-join-args merge-join join))
+      (cond-> left-join (merge-join-args merge-left-join left-join))
+      (cond-> where (merge-where where))
+      (cond-> prepare (prepare))
+      ((fn [query]
+         (case return
+           :query   query
+           :string  (db/to-sql-string query)
+           :execute (first (do-execute query)))))))
+
+;;;
+;;; * Article queries
 ;;;
 
 (defn select-project-articles
@@ -75,51 +299,25 @@
 
    Only one of [include-disabled? include-disabled-source?] should be set."
   [project-id fields & [{:keys [include-disabled? tname include-disabled-source?]
-                         :or {include-disabled? false
-                              tname :a
-                              include-disabled-source? false}
+                         :or {tname :a}
                          :as opts}]]
-  (cond->
-      (-> (apply select fields)
-          (from [:article tname]))
-    project-id
-    (merge-where [:= (sql-field tname :project-id) project-id])
+  (letfn [(a [field] (sql-field tname field))]
+    (find [:article tname]
+          (merge (when project-id
+                   {(a :project-id) project-id})
+                 (when (and (not include-disabled?)
+                            (not include-disabled-source?))
+                   {(a :enabled) true}))
+          fields
+          :where (when include-disabled-source?
+                   (not-exists [:article-flag :af-1]
+                               {:af-1.article-id (a :article-id), :af-1.disable true}))
+          :return :query)))
 
-    (and (not include-disabled?)
-         (not include-disabled-source?))
-    (merge-where [:= (sql-field tname :enabled) true])
-
-    include-disabled-source?
-    (merge-where
-     [:not
-      [:exists
-       (-> (select :*)
-           (from [:article-flag :af-test])
-           (where [:and
-                   [:= :af-test.disable true]
-                   [:=
-                    :af-test.article-id
-                    (sql-field tname :article-id)]]))]])))
-
-(defn select-article-where
-  [project-id where-clause fields & [{:keys [include-disabled? tname]
-                                      :as opts}]]
-  (cond->
-      (select-project-articles project-id fields opts)
-    (and (not (nil? where-clause))
-         (not (true? where-clause))) (merge-where where-clause)))
-
-(defn set-article-enabled-where
-  [enabled? where-clause & [project-id]]
-  (assert (in? [true false] enabled?))
-  (-> (sqlh/update [:article :a])
-      (sset {:enabled enabled?})
-      (where [:and
-              where-clause
-              (if project-id
-                [:= :a.project-id project-id]
-                true)])
-      do-execute))
+(defn select-article-where [project-id where-clause fields & [{:keys [include-disabled? tname] :as opts}]]
+  (cond-> (select-project-articles project-id fields opts)
+    (not (in? #{true nil} where-clause))
+    (merge-where where-clause)))
 
 (defn select-article-by-id
   [article-id fields & [{:keys [include-disabled? tname project-id]
@@ -152,33 +350,15 @@
       disabled? (merge-where exists)
       (not disabled?) (merge-where [:not exists]))))
 
+(defn join-article-flags [m]
+  (merge-join m [:article-flag :aflag] [:= :aflag.article-id :a.article-id]))
+
 (defn query-article-by-id [article-id fields & [opts]]
   (-> (select-article-by-id article-id fields opts)
       do-query first))
 
-(defn query-article-locations-by-id [article-id fields]
-  (if (or (string? article-id) (uuid? article-id))
-    (-> (apply select fields)
-        (from [:article-location :al])
-        (join [:article :a]
-              [:= :a.article-id :al.article-id])
-        (where [:= :a.article-uuid article-id])
-        do-query)
-    (-> (apply select fields)
-        (from [:article-location :al])
-        (where [:= :al.article-id article-id])
-        do-query)))
-
-(defn join-article-locations [m & [{:keys [tname-a tname-aloc]
-                                    :or {tname-a :a
-                                         tname-aloc :aloc}}]]
-  (-> m (merge-join [:article-location tname-aloc]
-                    [:=
-                     (sql-field tname-aloc :article-id)
-                     (sql-field tname-a :article-id)])))
-
 ;;;
-;;; labels
+;;; * Label queries
 ;;;
 
 (defn select-label-by-id
@@ -209,31 +389,9 @@
     project-id (merge-where [:= :project-id project-id])
     (not include-disabled?) (merge-where [:= :enabled true])))
 
-(defn next-label-project-ordering [project-id]
-  (let [max
-        (-> (select [:%max.project-ordering :max])
-            (from :label)
-            (where [:= :project-id project-id])
-            do-query first :max)]
-    (if max (inc max) 0)))
-
-(defn query-label-by-name [project-id label-name fields & [opts]]
-  (-> (select-label-where project-id [:= :name label-name] fields opts)
-      do-query first))
-
 (defn query-label-where [project-id where-clause fields]
   (-> (select-label-where project-id where-clause [:*])
       do-query first))
-
-(defn query-project-labels [project-id fields]
-  (-> (select-label-where project-id true fields)
-      do-query))
-
-(defn label-confirmed-test [confirmed?]
-  (case confirmed?
-    true [:!= :confirm-time nil]
-    false [:= :confirm-time nil]
-    true))
 
 (defn join-article-labels [m & [{:keys [tname-a tname-al]
                                  :or {tname-a :a
@@ -254,26 +412,22 @@
   (-> m (merge-join [:label :l]
                     [:= :l.label-id :al.label-id])))
 
-(defn join-article-flags [m]
-  (-> m (merge-join [:article-flag :aflag]
-                    [:= :aflag.article-id :a.article-id])))
+(defn label-confirmed-test [confirmed?]
+  (case confirmed?
+    true [:!= :confirm-time nil]
+    false [:= :confirm-time nil]
+    true))
 
 (defn filter-valid-article-label [m confirmed?]
   (-> m (merge-where [:and
                       (label-confirmed-test confirmed?)
                       [:!= :al.answer nil]
-                      [:!= :al.answer (to-jsonb nil)]
-                      [:!= :al.answer (to-jsonb [])]
-                      #_ [:!= :al.answer (to-jsonb {})]])))
+                      [:!= :al.answer (db/to-jsonb nil)]
+                      [:!= :al.answer (db/to-jsonb [])]
+                      #_ [:!= :al.answer (db/to-jsonb {})]])))
 
 (defn filter-label-user [m user-id]
   (-> m (merge-where [:= :al.user-id user-id])))
-
-(defn filter-label-name [m label-name]
-  (-> m (merge-where [:= :l.name label-name])))
-
-(defn filter-overall-label [m]
-  (-> m (filter-label-name "overall include")))
 
 (defn select-project-article-labels [project-id confirmed? fields]
   (-> (select-project-articles project-id fields)
@@ -281,8 +435,7 @@
       (join-article-label-defs)
       (filter-valid-article-label confirmed?)))
 
-(defn select-user-article-labels
-  [user-id article-id confirmed? fields]
+(defn select-user-article-labels [user-id article-id confirmed? fields]
   (-> (apply select fields)
       (from [:article-label :al])
       (where [:and
@@ -291,13 +444,11 @@
       (filter-valid-article-label confirmed?)))
 
 ;;;
-;;; projects
+;;; * Project queries
 ;;;
 
 (defn select-project-where [where-clause fields]
-  (cond->
-      (-> (apply select fields)
-          (from [:project :p]))
+  (cond-> (-> (apply select fields) (from [:project :p]))
     (and (not (nil? where-clause))
          (not (true? where-clause))) (merge-where where-clause)))
 
@@ -306,15 +457,16 @@
       do-query first))
 
 ;;;
-;;; keywords
+;;; * Keyword queries
 ;;;
+
 (defn select-project-keywords [project-id fields]
   (-> (apply select fields)
       (from [:project-keyword :pkw])
       (where [:= :pkw.project-id project-id])))
 
 ;;;
-;;; users
+;;; * User queries
 ;;;
 
 (defn select-project-members [project-id fields]
@@ -325,18 +477,14 @@
       (where [:= :m.project-id project-id])))
 
 (defn join-users [m user-id]
-  (-> m
-      (merge-join [:web-user :u]
-                  [:= :u.user-id user-id])))
+  (merge-join m [:web-user :u] [:= :u.user-id user-id]))
 
 (defn join-user-member-entries [m project-id]
-  (-> m
-      (merge-join [:project-member :m]
-                  [:= :m.user-id :u.user-id])
+  (-> (merge-join m [:project-member :m] [:= :m.user-id :u.user-id])
       (merge-where [:= :m.project-id project-id])))
 
 (defn filter-user-permission [m permission & [not?]]
-  (let [test (sql-array-contains :u.permissions permission)
+  (let [test (db/sql-array-contains :u.permissions permission)
         test (if not? [:not test] test)]
     (merge-where m test)))
 ;;;
@@ -358,7 +506,7 @@
   :ret ::sc/honeysql)
 
 ;;;
-;;; predict values
+;;; * Label prediction queries
 ;;;
 
 (defn select-predict-run-where [where-clause fields]
@@ -400,7 +548,7 @@
 (defn project-latest-predict-run-id
   "Gets the most recent predict-run ID for a project."
   [project-id]
-  (with-project-cache project-id [:predict :latest-predict-run-id]
+  (db/with-project-cache project-id [:predict :latest-predict-run-id]
     (-> (select-latest-predict-run [:predict-run-id])
         (merge-where [:= :project-id project-id])
         do-query first :predict-run-id)))
@@ -418,7 +566,10 @@
                      [:= :a.article-id article-id]))
       do-query first :predict-run-id))
 
-;;; article notes
+;;;
+;;; * Article note queries
+;;;
+
 (defn with-project-note [m & [note-name]]
   (cond-> m
     true (merge-join [:project-note :pn]
@@ -435,46 +586,20 @@
     note-name (merge-where [:= :pn.name note-name])
     user-id (merge-where [:= :an.user-id user-id])))
 
-(defn delete-by-id
-  "Delete rows from table where id-field equals id-value.
-
-  alter-query (optional) is a function applied to modify the DELETE
-  query before executing."
-  [table id-field id-value & {:keys [alter-query]}]
-  (assert (s/valid? keyword? table))
-  (assert (s/valid? keyword? id-field))
-  (assert (not (nil? id-value)))
-  (-> (delete-from table)
-      (where [:= id-field id-value])
-      (#(if alter-query (alter-query %) %))
-      do-execute))
-
-(defn delete-multiple-by-id
-  "Delete rows from table where id-field equals any value in id-values.
-
-  alter-query (optional) is a function applied to modify the DELETE
-  query before executing."
-  [table id-field id-values & {:keys [alter-query]}]
-  (assert (s/valid? keyword? table))
-  (assert (s/valid? keyword? id-field))
-  (assert (s/valid? (s/nilable sequential?) id-values))
-  (doseq [id-group (partition-all 100 id-values)]
-    (when (not-empty id-group)
-      (-> (delete-from table)
-          (where [:in id-field (vec id-group)])
-          (#(if alter-query (alter-query %) %))
-          do-execute))))
+;;;
+;;; * Utility functions
+;;;
 
 (defn query-multiple-by-id
-  "Runs query to select fields from table where id-field is any of id-values.
+  "Runs query to select rows from table where id-field is any of id-values.
   Allows for unlimited count of id-values by partitioning values into
   groups and running multiple select queries."
-  [table fields id-field id-values & {:keys [where alter-query]}]
+  [table fields id-field id-values & {:keys [where prepare]}]
   (apply concat (for [id-group (->> (if (sequential? id-values) id-values [id-values])
                                     (partition-all 200))]
                   (when (seq id-group)
                     (-> (apply select fields) (from table)
                         (sqlh/where [:in id-field (vec id-group)])
                         (#(if where (merge-where % where) %))
-                        (#(if alter-query (alter-query %) %))
+                        (#(if prepare (prepare %) %))
                         do-query)))))

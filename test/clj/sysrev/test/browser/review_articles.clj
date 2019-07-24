@@ -227,7 +227,6 @@
 ;;;; review an article
       (nav/go-project-route "")
       (b/click (x/project-menu-item :review) :delay 50)
-      (b/click x/enable-sidebar-button :if-not-exists :skip :delay 100)
       (b/click x/review-labels-tab)
       (b/wait-until-displayed
        (label-div-with-name (:short-label include-label-definition)))

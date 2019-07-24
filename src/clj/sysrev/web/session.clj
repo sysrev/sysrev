@@ -42,7 +42,7 @@
                 do-execute)))
         key)))
   (delete-session [_ key]
-    (q/delete-by-id :session :skey key)
+    (q/delete :session {:skey key})
     nil))
 
 (defn sysrev-session-store []

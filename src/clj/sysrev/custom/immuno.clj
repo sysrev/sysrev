@@ -3,25 +3,25 @@
 ;;
 
 (ns sysrev.custom.immuno
-  (:require [clojure.java.io :as io]
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
-            [sysrev.source.endnote :refer [parse-endnote-file]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.db.queries :as q]
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.users :as users]
             [sysrev.label.core :as labels]
-            [sysrev.util :refer [xml-find]]
-            [clojure.string :as str]
-            [sysrev.db.queries :as q]
+            [sysrev.source.endnote :refer [parse-endnote-file]]
             [sysrev.misc :refer [articles-matching-regex-clause
                                  merge-article-labels]]
-            [clojure.java.jdbc :as j]))
+            [sysrev.util :as util :refer [xml-find]]
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defn match-article-id
   "Attempt to find an article-id in the database which is the best match
   for the given fields. Requires an exact match on title and journal fields,
-  allows for differences in remote-database-name and attempts to select an 
+  allows for differences in remote-database-name and attempts to select an
   appropriate match."
   [project-id title journal rdb-name]
   (let [results (-> (select :article-id :remote-database-name)
@@ -76,25 +76,20 @@
 
 (defn merge-duplicate-articles [article-ids]
   (when-not (empty? article-ids)
-    (let [articles
-          (->> article-ids
-               (pmap #(q/query-article-by-id % [:*]))
-               doall)
-          single-id
-          (->> articles
-               (sort-by #(vector (-> % :urls count)
-                                 (-> % :locations count)
-                                 (-> % :abstract count)))
-               reverse
-               first
-               :article-id)]
+    (let [articles (doall (->> article-ids (pmap #(q/query-article-by-id % [:*]))))
+          single-id (->> articles
+                         (sort-by #(vector (-> % :urls count)
+                                           (-> % :locations count)
+                                           (-> % :abstract count)))
+                         reverse
+                         first
+                         :article-id)]
       (when (every? :enabled articles)
         (assert single-id)
         (merge-article-labels article-ids)
         (doseq [article-id article-ids]
-          (q/set-article-enabled-where
-           (= article-id single-id)
-           [:= :article-id article-id]))
+          (q/modify :article {:article-id article-id}
+                    {:enabled (= article-id single-id)}))
         (println
          (format "using article '%s' from '%s'" single-id (pr-str article-ids)))))))
 

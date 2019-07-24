@@ -110,7 +110,7 @@
   (when-not (in? [:test :remote-test] (-> config/env :profile))
     (send importance-api (fn [_] (load-project-important-terms project-id)))))
 
-(defn force-importance-update-all-projects []
+(defn ^:repl force-importance-update-all-projects []
   (let [project-ids (project/all-project-ids)]
     (log/info "Updating important terms for projects:" (pr-str project-ids))
     (doseq [project-id project-ids]

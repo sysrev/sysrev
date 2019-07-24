@@ -145,7 +145,7 @@
   (when (= :prod (-> config/env :profile))
     (future (update-project-predictions project-id))))
 
-(defn force-predict-update-all-projects []
+(defn ^:repl force-predict-update-all-projects []
   (let [project-ids (project/all-project-ids)]
     (log/info "Updating predictions for projects:"
               (pr-str project-ids))

@@ -245,7 +245,7 @@
          (apply concat)
          vec)))
 
-(defn compare-fetched-pmids
+(defn ^:repl compare-fetched-pmids
   "Test function for Cassandra/PubMed import.
 
   Returns list of differences between PubMed entries fetched from

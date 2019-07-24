@@ -58,22 +58,22 @@
        (map symbol)
        (map find-ns)))
 
-(defn clear-project-symbols [syms]
+(defn ^:repl clear-project-symbols [syms]
   (let [syms (if (coll? syms) syms [syms])]
     (doseq [ns (all-project-ns)]
       (doseq [sym syms]
         (ns-unmap ns sym)))))
 
-(defn clear-project-aliases [alias]
+(defn ^:repl clear-project-aliases [alias]
   (doseq [ns (all-project-ns)]
     (ns-unalias ns alias)))
 
-(defn reload
+(defn ^:repl reload
   "Reload sysrev.user namespace to update referred symbols."
   []
   (require 'sysrev.user :reload))
 
-(defn reload-all
+(defn ^:repl reload-all
   "Reload code for all project namespaces."
   []
   (let [ ;; Reload project namespaces
@@ -319,7 +319,7 @@
                 (concat r (lazy-seq (encode (drop 3 bytes)))))))]
     (apply str (encode bytes))))
 
-(defn rename-flyway-files
+(defn ^:repl rename-flyway-files
   "Handles renaming flyway sql files for formatting. Returns a sequence
   of shell commands that can be used to rename all of the
   files. directory should be path containing the sql

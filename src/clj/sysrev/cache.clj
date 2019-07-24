@@ -31,7 +31,7 @@
 
 (def cache-table :memo-cache)
 
-(defn fn->string
+(defn- fn->string
   "Given a fn, return a string representation of that function"
   [f]
   (-> (type f) str demunge (str/replace #"class " "")))
@@ -39,7 +39,7 @@
 ;; see also:
 ;; https://github.com/boxuk/groxy/blob/master/src/clojure/groxy/cache/db.clj
 
-(defn find-results
+(defn- find-results
   "Given a database definition,db, a string representing a function
   name f (i.e. string returned by fn->string) and params, look up any
   result associated with it in the db"
@@ -52,7 +52,7 @@
               [:= :params (pr-str params)]])
       do-query))
 
-(defn lookup
+(defn- lookup
   "Lookup results when calling f by params"
   ([db f params] (lookup db f params nil))
   ([db f params not-found]
@@ -61,7 +61,7 @@
        (read-string (:result row))
        not-found))))
 
-(defn store [db f params result]
+(defn- store [db f params result]
   ;; this is sysrev specific
   (-> (insert-into cache-table)
       (values [{:params (pr-str params)
@@ -69,7 +69,7 @@
                 :f (pr-str f)}])
       do-execute))
 
-(defn purge [db params])
+(defn- purge [db params])
 
 ;; the dereferencing of db as an atom is particular to the case
 ;; where pooled connections are stored in an atom
@@ -93,7 +93,7 @@
   Object
   (toString [_] (str cache)))
 
-(defn sql-memo-cache-factory
+(defn- sql-memo-cache-factory
   "Return a durable SQL DB backed-cache for memoization of function f
   given a db definition and base cache"
   [base db f]

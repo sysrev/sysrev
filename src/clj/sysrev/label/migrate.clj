@@ -95,7 +95,7 @@
 ;; note: this was related to identifying categorical label values
 ;;       using a uuid rather than directly by their text value
 #_
-(defn migrate-label-uuid-values [label-id]
+(defn ^:unused migrate-label-uuid-values [label-id]
   (with-transaction
     (let [{:keys [value-type definition]}
           (-> (select :value-type :definition)

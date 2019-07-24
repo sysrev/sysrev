@@ -237,7 +237,7 @@
 
 (defonce query-cache-enabled (atom true))
 
-(defn enable-query-cache [enable?]
+(defn ^:repl enable-query-cache [enable?]
   (reset! query-cache-enabled enable?))
 ;;
 (s/fdef enable-query-cache

@@ -61,8 +61,7 @@
           (->> do-query (mapv :article-id)))))
 
 (defn set-user-article-note [article-id user-id note-name content]
-  (let [article-id (q/to-article-id article-id)
-        {:keys [project-id project-note-id] :as pnote}
+  (let [{:keys [project-id project-note-id] :as pnote}
         (-> (q/select-article-by-id article-id [:pn.*])
             (merge-join [:project :p] [:= :p.project-id :a.project-id])
             (q/with-project-note note-name)
@@ -98,14 +97,13 @@
   :ret (s/nilable map?))
 
 (defn article-user-notes-map [project-id article-id]
-  (let [article-id (q/to-article-id article-id)]
-    (with-project-cache project-id [:article article-id :notes :user-notes-map]
-      (-> (q/select-article-by-id article-id [:an.* :pn.name])
-          (q/with-article-note)
-          (->> do-query
-               (group-by :user-id)
-               (map-values #(->> (->map-with-key :name %)
-                                 (map-values :content))))))))
+  (with-project-cache project-id [:article article-id :notes :user-notes-map]
+    (-> (q/select-article-by-id article-id [:an.* :pn.name])
+        (q/with-article-note)
+        (->> do-query
+             (group-by :user-id)
+             (map-values #(->> (->map-with-key :name %)
+                               (map-values :content)))))))
 ;;;
 (s/fdef article-user-notes-map
   :args (s/cat :project-id ::sc/project-id
@@ -141,9 +139,10 @@
   :ret map?)
 
 (defn article-locations-map [article-id]
-  (->> (q/query-article-locations-by-id
-        article-id [:al.source :al.external-id])
-       (group-by :source)))
+  (-> (select :al.source :al.external-id)
+      (from [:article-location :al])
+      (where [:= :al.article-id article-id])
+      (->> do-query (group-by :source))))
 
 (defn article-flags-map [article-id]
   (-> (q/select-article-by-id
@@ -268,15 +267,6 @@
   [pmcid s3-id]
   (-> (insert-into :pmcid-s3store)
       (values [{:pmcid pmcid :s3-id s3-id}])
-      do-execute))
-
-;; TODO: replace with generic function
-(defn modify-project-articles
-  "Runs SQL update setting `values` on all project articles"
-  [project-id values]
-  (-> (sqlh/update :article)
-      (sset values)
-      (where [:= :project-id project-id])
       do-execute))
 
 ;; TODO: replace with generic function

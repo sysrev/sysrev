@@ -89,7 +89,7 @@
                        [:exists (-> asources (merge-where [:= :as.source-id source-id]))]
                        [:not [:exists (-> asources (merge-where [:!= :as.source-id source-id]))]]])
                do-execute)
-           (q/delete-by-id :article-source :source-id source-id))
+           (q/delete :article-source {:source-id source-id}))
          (finally (clear-project-cache (source-id->project-id source-id))))))
 
 (defn fail-source-import
@@ -183,7 +183,7 @@
            ;; delete articles that aren't contained in another source
            (delete-source-articles source-id)
            ;; delete entries for project source
-           (q/delete-by-id :project-source :source-id source-id)
+           (q/delete :project-source {:source-id source-id})
            ;; update the article enabled flags
            (update-project-articles-enabled project-id)
            true)
@@ -337,13 +337,6 @@
 (s/fdef source-has-labeled-articles?
   :args (s/cat :source-id int?)
   :ret boolean?)
-
-(defn add-article-to-source
-  "Create an article-source entry linking article-id to source-id."
-  [article-id source-id]
-  (-> (sqlh/insert-into :article-source)
-      (values [{:article-id article-id :source-id source-id}])
-      do-execute))
 
 (defn add-articles-to-source
   "Create article-source entries linking article-ids to source-id."

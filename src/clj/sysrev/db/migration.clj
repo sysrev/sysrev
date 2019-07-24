@@ -186,7 +186,7 @@
         do-execute)))
 
 ;; TODO: has this been run? should it be?
-(defn update-dates-from-article-raw
+(defn ^:repl update-dates-from-article-raw
   "Extract the date from the raw column of the article and then update
   the corresponding date field"
   []

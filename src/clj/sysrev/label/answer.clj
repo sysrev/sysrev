@@ -168,7 +168,7 @@
 ;;      if yes, need to run this.
 ;;      if no, can delete this.
 #_
-(defn update-label-answer-inclusion [label-id]
+(defn ^:unused update-label-answer-inclusion [label-id]
   (with-transaction
     (let [entries (-> (select :article-label-id :answer)
                       (from :article-label)

@@ -7,11 +7,25 @@
                    (java.io ByteArrayOutputStream ByteArrayInputStream))))
 
 (defn ensure-pred
-  "Returns value if (pred value) returns logical true, otherwise
-  returns nil. With one argument, returns a function using pred that
+  "Returns `value` if (`pred` `value`) returns logical true, otherwise
+  returns nil. With one argument, returns a function using `pred` that
   can be applied to a value."
   ([pred] #(ensure-pred pred %))
   ([pred value] (when (pred value) value)))
+
+(defn assert-pred
+  "Returns `value` if (`pred` `value`) returns logical true, otherwise
+  throws an assert exception. An assert message may optionally be
+  provided by passing `pred` as a map with keys `:pred` and
+  `:message`. With one argument, returns a function using `pred` that
+  can be applied to a value."
+  ([pred] #(assert-pred pred %))
+  ([pred value]
+   (let [{:keys [pred message]} (if (map? pred) pred {:pred pred})]
+     (if message
+       (assert (pred value) message)
+       (assert (pred value)))
+     value)))
 
 (defn parse-integer
   "Reads a number from a string. Returns nil if not a number."
@@ -197,9 +211,10 @@
   [f & args]
   (let [keyargs (last args)
         mainargs (butlast args)]
-    (assert (and (map? keyargs)
-                 (every? keyword? (keys keyargs)))
-            (str "args has invalid last value: " (pr-str keyargs)))
+    (when keyargs
+      (assert (and (map? keyargs)
+                   (every? keyword? (keys keyargs)))
+              (str "args has invalid last value: " (pr-str keyargs))))
     (apply f (concat mainargs (keyword-argseq keyargs)))))
 
 (defn space-join
@@ -246,13 +261,14 @@
                (transit/read s))))
 
 ;; Slightly modified from clojure.core/group-by
-(defn ->map-with-key [keyfn coll]
+(defn ->map-with-key
   "Variant of clojure.core/group-by for unique key values.
 
   Returns a map of the elements of coll keyed by the result of keyfn
   on each element. The elements of coll must all have a unique value
   for keyfn. The value at each key will be the single corresponding
   element."
+  [keyfn coll]
   (persistent!
    (reduce
     (fn [ret x]
@@ -262,11 +278,16 @@
         (assoc! ret k x)))
     (transient {}) coll)))
 
+(defn or-default
+  "If `value` is nil, returns `default`; otherwise returns `value`."
+  [default value]
+  (if (nil? value) default value))
+
 ;;;
 ;;; Not used, keeping in case needed later
 ;;;
 #_
-(defn integerify-map-keys
+(defn ^:unused integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed
   to keywords. This converts any integer keywords back to integers, operating
   recursively through nested maps."
@@ -286,7 +307,7 @@
          (apply concat)
          (apply hash-map))))
 #_
-(defn uuidify-map-keys
+(defn ^:unused uuidify-map-keys
   "Maps parsed from JSON with UUID keys will have the UUID values changed
   to keywords. This converts any UUID keywords back to UUID values, operating
   recursively through nested maps."

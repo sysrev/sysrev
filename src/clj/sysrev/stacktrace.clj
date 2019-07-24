@@ -10,7 +10,7 @@
 
 #_ (defonce ^:private default-print-stack-trace stack/print-stack-trace)
 
-#_ (defn- sysrev-element? [e] (str/includes? (.getClassName e) "sysrev"))
+#_ (defn- sysrev-element? ^:unused [e] (str/includes? (.getClassName e) "sysrev"))
 
 (defn- boring-element?
   "Check if stacktrace element should be filtered out when printing."

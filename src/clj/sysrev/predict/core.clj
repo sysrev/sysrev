@@ -10,7 +10,7 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.queries :as q]))
 
-(defn create-predict-version
+(defn ^:repl create-predict-version
   "Adds a new predict-version entry to database."
   [note]
   (-> (insert-into :predict-version)

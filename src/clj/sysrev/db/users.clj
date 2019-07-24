@@ -163,12 +163,12 @@
 
 (defn delete-user [user-id]
   (assert (integer? user-id))
-  (try (q/delete-by-id :web-user :user-id user-id)
+  (try (q/delete :web-user {:user-id user-id})
        (finally (db/clear-query-cache))))
 
 (defn delete-user-by-email [email]
   (assert (string? email))
-  (try (q/delete-by-id :web-user :email email)
+  (try (q/delete :web-user {:email email})
        (finally (db/clear-query-cache))))
 
 (defn create-password-reset-code [user-id]

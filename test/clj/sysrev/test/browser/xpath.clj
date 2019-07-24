@@ -59,11 +59,5 @@
   {:xpath (str "//div[contains(@class,'review-interface')]"
                "//a[contains(text(),'Labels')]")})
 
-(def enable-sidebar-button
-  {:xpath "//div[contains(@class,'button') and contains(text(),'Enable Sidebar')]"})
-
-(def disable-sidebar-button
-  {:xpath "//div[contains(@class,'button') and contains(text(),'Disable Sidebar')]"})
-
 (defn project-menu-item [item-class]
   (str ".ui.menu.project-menu > .item." (name item-class)))

@@ -46,7 +46,7 @@
                  (str protocol "://" host (if port (str ":" port) "") "/")))
              :safe (db-connected?)))))
 
-(defn set-selenium-config [raw-config]
+(defn ^:repl set-selenium-config [raw-config]
   (reset! raw-selenium-config raw-config))
 
 (defn full-tests? []
@@ -188,13 +188,6 @@
 
 (defmacro succeeds? [form]
   `(try ~form (catch Throwable e# false)))
-
-(defn s3-bucket-fixture [test-fn]
-  (let [bucket-name (str (UUID/randomUUID))]
-    (binding [env (assoc-in env [:filestore :bucket-name] bucket-name)]
-      (s3/create-bucket bucket-name)
-      (test-fn)
-      (s3/delete-bucket bucket-name))))
 
 ;; wait-until macro modified from
 ;; https://gist.github.com/kornysietsma/df45bbea3196adb5821b

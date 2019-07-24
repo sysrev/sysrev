@@ -264,7 +264,8 @@
 
 (defn project-overall-label-id [project-id]
   (with-project-cache project-id [:labels :overall-label-id]
-    (:label-id (q/query-label-by-name project-id "overall include" [:label-id]))))
+    (:label-id (-> (q/select-label-where project-id [:= :name "overall include"] [:label-id])
+                   do-query first))))
 ;;;
 (s/fdef project-overall-label-id
   :args (s/cat :project-id ::sc/project-id)
@@ -365,23 +366,20 @@
                :user-id ::sc/user-id)
   :ret any?)
 
-(defn add-project-keyword
+(defn ^:unused add-project-keyword
   "Creates an entry in `project-keyword` table, to be used by web client
   to highlight important words and link them to labels."
   [project-id text category & [{:keys [user-id label-id label-value color]} :as optionals]]
-  (let [label-id (and label-id (q/to-label-id label-id))]
-    (try (-> (insert-into :project-keyword)
-             (values [(cond-> {:project-id project-id
-                               :value text
-                               :category category}
-                        user-id           (assoc :user-id user-id)
-                        label-id          (assoc :label-id label-id)
-                        ((comp not nil?)
-                         label-value)     (assoc :label-value (db/to-jsonb label-value))
-                        color             (assoc :color color))])
-             (returning :*)
-             do-query)
-         (finally (clear-project-cache project-id)))))
+  (try (-> (insert-into :project-keyword)
+           (values [(cond-> {:project-id project-id :value text :category category}
+                      user-id           (assoc :user-id user-id)
+                      label-id          (assoc :label-id label-id)
+                      ((comp not nil?)
+                       label-value)     (assoc :label-value (db/to-jsonb label-value))
+                      color             (assoc :color color))])
+           (returning :*)
+           do-query)
+       (finally (clear-project-cache project-id))))
 ;;;
 (s/fdef add-project-keyword
   :args (s/cat :project-id ::sc/project-id
@@ -571,7 +569,7 @@
 (defn delete-all-projects-with-name [project-name]
   (assert (string? project-name))
   (assert (not-empty project-name))
-  (q/delete-by-id :project :name project-name))
+  (q/delete :project {:name project-name}))
 
 (defn get-single-user-project-ids [user-id]
   (let [project-ids (-> (select :project-id)

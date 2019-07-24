@@ -1,4 +1,5 @@
 (ns sysrev.user
+  (:refer-clojure :exclude [find])
   (:use sysrev.util
         sysrev.entity
         sysrev.article.core
@@ -39,7 +40,6 @@
         sysrev.web.routes.project
         sysrev.web.routes.api.core
         sysrev.web.routes.api.handlers
-        #_ sysrev.web.blog
         sysrev.mail.core
         sysrev.custom.immuno
         sysrev.custom.ebtc
@@ -76,7 +76,7 @@
             [amazonica.core :as aws]
             [amazonica.aws.s3 :as s3]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.config.core :refer [env]]

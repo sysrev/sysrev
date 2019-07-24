@@ -34,8 +34,6 @@
          "/ancestor::tr"
          "/td/div[contains(@class,'change-org-user')]"))
 (def change-role (xpath "//span[contains(text(),'Change role...')]"))
-(def member-permission-owner-radio (xpath "//label[contains(text(),'Owner')]" "/ancestor::h4" "//label"))
-(def member-permission-member-radio (xpath "//label[contains(text(),'Member')]" "/ancestor::h4" "//label"))
 (def org-change-role-button "#org-change-role-button")
 (def change-org-dropdown "#change-org-dropdown")
 (def current-org-dropdown (xpath "//div[@id='change-org-dropdown']/div[@class='text']"))
