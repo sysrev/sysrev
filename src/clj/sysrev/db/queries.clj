@@ -8,7 +8,7 @@
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql-postgres.helpers :as sqlh-pg :refer :all :exclude [partition-by]]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
             [sysrev.shared.util :as sutil :refer
              [in? ->map-with-key or-default map-values apply-keyargs
@@ -210,6 +210,53 @@
   (assert (every? #{:join :left-join :where :prepare} (keys opts)))
   [:not (apply-keyargs exists table match-by opts)])
 
+(defn create
+  "Runs insert query on `table` using sequence of value maps `insert-values`.
+  Returns a count of rows updated.
+
+  `insert-values` may also be a map and will be treated as a single
+  entry; if a `returning` argument is given, this will give a return
+  value of one entry rather than a sequence of entries.
+
+  `table` should match format of honeysql (from ...) function.
+
+  `returning` optionally takes a sequence of field keywords to use as
+  arguments to a Postgres-specific returning clause. `returning` may
+  also be a single keyword; in this case the return value will be a
+  sequence of values for this field rather than a sequence of field
+  value maps.
+
+  `prepare` optionally provides a function to apply to the final honeysql
+  query before running.
+
+  `return` optionally modifies the behavior and return value.
+  - `:execute` (default behavior) runs the query against the connected
+    database and returns the processed result.
+  - `:query` returns the honeysql query map that would be run against
+    the database.
+  - `:string` returns an SQL string corresponding to the query."
+  [table insert-values & {:keys [returning prepare return]
+                          :or {return :execute}
+                          :as opts}]
+  (assert (every? #{:returning :prepare :return} (keys opts)))
+  (let [single-value? (map? insert-values)
+        insert-values (if (map? insert-values) [insert-values] insert-values)
+        single-returning? (and (keyword? returning) (not= returning :*))
+        returning (if (keyword? returning) [returning] returning)]
+    (-> (sqlh/insert-into table)
+        (values insert-values)
+        (cond-> returning (#(apply sqlh-pg/returning % returning)))
+        (cond-> prepare (prepare))
+        ((fn [query]
+           (case return
+             :query   query
+             :string  (db/to-sql-string query)
+             :execute (if returning
+                        (cond->> (do-query query)
+                          single-returning? (map (first returning))
+                          single-value? first)
+                        (first (do-execute query)))))))))
+
 (defn modify
   "Runs update query on `table` filtered according to `match-by`.
   Returns a count of rows updated.
@@ -217,6 +264,12 @@
   `table` should match format of honeysql (from ...) function.
 
   `where` optionally provides an additional honeysql where clause.
+
+  `returning` optionally takes a sequence of field keywords to use as
+  arguments to a Postgres-specific returning clause. `returning` may
+  also be a single keyword; in this case the return value will be a
+  sequence of values for this field rather than a sequence of field
+  value maps.
 
   `prepare` optionally provides a function to apply to the final honeysql
   query before running.
@@ -230,22 +283,28 @@
   - `:query` returns the honeysql query map that would be run against
     the database.
   - `:string` returns an SQL string corresponding to the query."
-  [table match-by set-values & {:keys [where prepare join left-join return]
+  [table match-by set-values & {:keys [where returning prepare join left-join return]
                                 :or {return :execute}
                                 :as opts}]
-  (assert (every? #{:where :prepare :join :left-join :return} (keys opts)))
-  (-> (sqlh/update table)
-      (merge-match-by match-by)
-      (sset set-values)
-      (cond-> join (merge-join-args merge-join join))
-      (cond-> left-join (merge-join-args merge-left-join left-join))
-      (cond-> where (merge-where where))
-      (cond-> prepare (prepare))
-      ((fn [query]
-         (case return
-           :query   query
-           :string  (db/to-sql-string query)
-           :execute (first (do-execute query)))))))
+  (assert (every? #{:where :returning :prepare :join :left-join :return} (keys opts)))
+  (let [single-returning? (and (keyword? returning) (not= returning :*))
+        returning (if (keyword? returning) [returning] returning)]
+    (-> (sqlh/update table)
+        (merge-match-by match-by)
+        (sset set-values)
+        (cond-> join (merge-join-args merge-join join))
+        (cond-> left-join (merge-join-args merge-left-join left-join))
+        (cond-> where (merge-where where))
+        (cond-> returning (#(apply sqlh-pg/returning % returning)))
+        (cond-> prepare (prepare))
+        ((fn [query]
+           (case return
+             :query   query
+             :string  (db/to-sql-string query)
+             :execute (if returning
+                        (cond->> (do-query query)
+                          single-returning? (map (first returning)))
+                        (first (do-execute query)))))))))
 
 (defn delete
   "Runs delete query on `table` filtered according to `match-by`.
