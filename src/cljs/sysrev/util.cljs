@@ -152,6 +152,40 @@
                         (continuous-update-until f pred on-success n)))
                  n))
 
+(defonce ^:private run-after-condition-state (atom #{}))
+
+(defn run-after-condition
+  "Run function `on-ready` as soon as function `is-ready` returns
+  logical true, re-checking every `interval` ms. `id` can be any value
+  and should identify this call to `run-after-condition` in order to
+  prevent multiple duplicate instances from running simultaneously.
+  `is-abort` is optionally a function that will be checked along with
+  `is-ready`, and if returns true this will be aborted without running
+  `on-ready`."
+  [id is-ready on-ready & {:keys [interval is-abort]
+                           :or {interval 25
+                                is-abort (constantly false)}}]
+  ;; Check if a `run-after-condition` instance is already active
+  ;; for this `id` value; if so, don't start a new one.
+  (when-not (contains? @run-after-condition-state id)
+    (swap! run-after-condition-state #(conj % id))
+    (letfn [(run []
+              (cond (is-ready)
+                    ;; Finished; remove `id` from list of active `run-after-condition`
+                    ;; instances and run final `on-ready` function.
+                    (do (swap! run-after-condition-state
+                               #(set (remove (partial = id) %)))
+                        (on-ready))
+                    ;; If `is-abort` function was provided and returns true,
+                    ;; abort this loop and remove `id` from list.
+                    (and is-abort (is-abort))
+                    (swap! run-after-condition-state
+                           #(set (remove (partial = id) %)))
+                    ;; Condition not yet true; try again after `interval` ms.
+                    :else (js/setTimeout run interval)))]
+      ;; Begin loop
+      (run))))
+
 (defn event-input-value
   "Returns event.target.value from a DOM event."
   [event]

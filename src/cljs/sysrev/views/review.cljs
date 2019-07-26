@@ -360,24 +360,30 @@
                         [resolving? "purple" :else "primary"])
         on-save (util/wrap-user-event
                  (fn []
-                   (notes/sync-article-notes article-id)
-                   (dispatch
-                    [:review/send-labels
-                     {:project-id project-id
-                      :article-id article-id
-                      :confirm? true
-                      :resolve? (boolean resolving?)
-                      :on-success (->> [(when (or on-review-task? (= article-id review-task-id))
-                                          [:fetch [:review/task project-id]])
-                                        (when (not on-review-task?)
-                                          [:fetch [:article project-id article-id]])
-                                        (when (not on-review-task?)
-                                          [:review/disable-change-labels article-id])
-                                        (when @(subscribe [:project-articles/article-id])
-                                          (dispatch [:project-articles/reload-list])
-                                          (dispatch [:project-articles/hide-article])
-                                          (util/scroll-top))]
-                                       (remove nil?))}])))
+                   (util/run-after-condition
+                    [:review-save article-id]
+                    #(and (loading/ajax-status-inactive? 50)
+                          (nil? (aget (js/$ "div.view-pdf.rendering") 0))
+                          (nil? (aget (js/$ "div.view-pdf.updating") 0)))
+                    (fn []
+                      (notes/sync-article-notes article-id)
+                      (dispatch
+                       [:review/send-labels
+                        {:project-id project-id
+                         :article-id article-id
+                         :confirm? true
+                         :resolve? (boolean resolving?)
+                         :on-success (->> [(when (or on-review-task? (= article-id review-task-id))
+                                             [:fetch [:review/task project-id]])
+                                           (when (not on-review-task?)
+                                             [:fetch [:article project-id article-id]])
+                                           (when (not on-review-task?)
+                                             [:review/disable-change-labels article-id])
+                                           (when @(subscribe [:project-articles/article-id])
+                                             (dispatch [:project-articles/reload-list])
+                                             (dispatch [:project-articles/hide-article])
+                                             (util/scroll-top))]
+                                          (remove nil?))}])))))
         button (fn [] [:button.ui.right.labeled.icon.button.save-labels
                        {:class save-class, :on-click on-save}
                        (str (if resolving? "Resolve" "Save") (when-not small? "Labels"))
@@ -401,13 +407,19 @@
                            (loading/item-loading? [:review/task project-id]))
         on-review-task? @(subscribe [:review/on-review-task?])
         on-next (util/wrap-user-event
-                 #(when on-review-task?
-                    (notes/sync-article-notes article-id)
-                    (dispatch [:review/send-labels {:project-id project-id
-                                                    :article-id article-id
-                                                    :confirm? false
-                                                    :resolve? false}])
-                    (dispatch [:fetch [:review/task project-id]])))]
+                 (fn []
+                   (util/run-after-condition
+                    [:review-skip article-id]
+                    #(and (loading/ajax-status-inactive? 50)
+                          (nil? (aget (js/$ "div.view-pdf.rendering") 0))
+                          (nil? (aget (js/$ "div.view-pdf.updating") 0)))
+                    #(when on-review-task?
+                       (notes/sync-article-notes article-id)
+                       (dispatch [:review/send-labels {:project-id project-id
+                                                       :article-id article-id
+                                                       :confirm? false
+                                                       :resolve? false}])
+                       (dispatch [:fetch [:review/task project-id]])))))]
     (list ^{:key :skip-article}
           [:button.ui.right.labeled.icon.button.skip-article
            {:class (css [loading-task? "loading"] [small? "tiny"] [fluid? "fluid"])

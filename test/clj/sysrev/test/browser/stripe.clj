@@ -60,6 +60,7 @@
   (Thread/sleep 10)
   (log/info "entering stripe card information")
   (let [ ;; note: stripe could change the frame names
+        _ (b/wait-until #(>= (count (get-stripe-frame-names)) 4))
         frame-names (get-stripe-frame-names)
         exp-date-iframe {:xpath (str "//iframe[@name='" (nth frame-names 1) "']")}
         exp-date-input "input[name~='exp-date']"

@@ -204,8 +204,10 @@
         (fn [pdf-url]
           (let [context (get-ann-context pdf-url project-id)]
             (dispatch-sync [::set context [:container-id] container-id])
-            (dispatch [:require (annotator/annotator-data-item context)])
-            (dispatch [:reload (annotator/annotator-data-item context)])))
+            (dispatch-sync [::set context [:pdf-updating] true])
+            ;; PDF annotations not currently supported
+            #_ (dispatch [:require (annotator/annotator-data-item context)])
+            #_ (dispatch [:reload (annotator/annotator-data-item context)])))
         render-pdf
         (fn [context pdf]
           (let [{:keys [page-num]} @(subscribe [::get context])]
@@ -219,7 +221,8 @@
           (let [context (get-ann-context pdf-url project-id)
                 cached-pdf @(subscribe [:pdf-cache pdf-url])]
             (if cached-pdf
-              (render-pdf context cached-pdf)
+              (do (render-pdf context cached-pdf)
+                  (dispatch-sync [::set context [:pdf-updating] false]))
               (-> (doto ($ js/pdfjsLib getDocument pdf-url)
                     ($! :GlobalWorkerOptions
                         (clj->js {:workerSrc
@@ -227,15 +230,16 @@
                   ($ then
                      (fn [pdf]
                        (dispatch-sync [:pdf-cache pdf-url pdf])
-                       (render-pdf context pdf)))))))]
+                       (render-pdf context pdf)
+                       (dispatch-sync [::set context [:pdf-updating] false])))))))]
     (r/create-class
      {:render
       (fn [this]
         (let [pdf-url (get-pdf-url this)
               context (get-ann-context pdf-url project-id)
-              {:keys [page-rendering]} @(subscribe [::get context])]
-          [:div.view-pdf
-           {:class (when page-rendering "rendering")}
+              {:keys [page-rendering pdf-updating]} @(subscribe [::get context])]
+          [:div.view-pdf {:class (css [page-rendering "rendering"]
+                                      [pdf-updating "updating"])}
            [:div.ui.grid.view-pdf-main
             [:div.sixteen.wide.column.pdf-content
              [:div.pdf-container {:id container-id}]
