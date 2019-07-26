@@ -63,14 +63,6 @@
 (def max-import-articles (:max-import-articles env))
 (def paywall-grandfather-date "2019-06-09 23:56:00")
 
-(defmacro try-catch-response
-  [body]
-  `(try
-     ~body
-     (catch Throwable e#
-       {:error {:status internal-server-error
-                :message (.getMessage e#)}})))
-
 (defn create-project-for-user!
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
@@ -110,10 +102,9 @@
 ;;;
 ;; not pulling in ::sc/org-id for some reason, skipping
 #_ (s/fdef create-project-for-org!
-  :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id, :org-id ::sc/org-id)
-  :ret ::sp/project)
+     :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id, :org-id ::sc/org-id)
+     :ret ::sp/project)
 
-;; this needs modified (maybe?) to also check 
 (defn delete-project!
   "Delete a project with project-id by user-id. Checks to ensure the
   user is an admin of that project. If there are reviewed articles in
@@ -542,11 +533,8 @@
   the day (12:00:00AM) and end-date is until the end of the
   day (11:59:59AM)."
   [project-id start-date end-date]
-  (try {:amount-owed (compensation/project-compensation-for-users
-                      project-id start-date end-date)}
-       (catch Throwable e
-         {:error {:status internal-server-error
-                  :message (.getMessage e)}})))
+  {:amount-owed (compensation/project-compensation-for-users
+                 project-id start-date end-date)})
 
 (defn compensation-owed
   "Return compensations owed for all users by project-id"
@@ -561,88 +549,83 @@
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
   [project-id]
-  (try-catch-response
-   {:project-users-current-compensation
-    (compensation/project-users-current-compensation project-id)}))
+  {:project-users-current-compensation
+   (compensation/project-users-current-compensation project-id)})
 
 (defn toggle-compensation-enabled! [project-id compensation-id enabled]
-  (try-catch-response
-   (let [current-compensation (->> (compensation/read-project-compensations project-id)
-                                   (filterv #(= (:compensation-id %) compensation-id))
-                                   first)]
-     (cond
-       ;; this compensation doesn't even exist
-       (nil? current-compensation)
-       {:error {:status not-found}}
-       ;; nothing changed, do nothing
-       (= enabled (:enabled current-compensation))
-       {:success true
-        :message (str "compensation-id " compensation-id
-                      " already has enabled = " enabled)}
-       ;; this compensation is being deactivated, so also disable all other compensations for users
-       (false? enabled)
-       (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
-           (compensation/end-compensation-period-for-all-users! project-id compensation-id)
-           {:success true})
-       (true? enabled)
-       (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
-           {:success true})))))
+  (let [current-compensation (->> (compensation/read-project-compensations project-id)
+                                  (filterv #(= (:compensation-id %) compensation-id))
+                                  first)]
+    (cond
+      ;; this compensation doesn't even exist
+      (nil? current-compensation)
+      {:error {:status not-found}}
+      ;; nothing changed, do nothing
+      (= enabled (:enabled current-compensation))
+      {:success true
+       :message (str "compensation-id " compensation-id
+                     " already has enabled = " enabled)}
+      ;; this compensation is being deactivated, so also disable all other compensations for users
+      (false? enabled)
+      (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
+          (compensation/end-compensation-period-for-all-users! project-id compensation-id)
+          {:success true})
+      (true? enabled)
+      (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
+          {:success true}))))
 
 (defn get-default-compensation
   "Get the default compensation-id for project-id"
   [project-id]
-  (try-catch-response
-   {:success true, :compensation-id (compensation/get-default-project-compensation project-id)}))
+  {:success true, :compensation-id (compensation/get-default-project-compensation project-id)})
 
 (defn set-default-compensation!
   "Set the compensation-id to the default for project-id "
   [project-id compensation-id]
-  (try-catch-response
-   (do (if (nil? compensation-id)
-         (compensation/delete-default-project-compensation! project-id)
-         (compensation/set-default-project-compensation! project-id compensation-id))
-       {:success true})))
+  (do (if (nil? compensation-id)
+        (compensation/delete-default-project-compensation! project-id)
+        (compensation/set-default-project-compensation! project-id compensation-id))
+      {:success true}))
 
 (defn set-user-compensation!
   "Set the compensation-id for user-id in project-id"
   [project-id user-id compensation-id]
-  (try-catch-response
-   (let [project-compensations (set (->> (compensation/read-project-compensations project-id)
-                                         (filter :enabled)
-                                         (map :compensation-id)))
-         current-compensation-id (compensation/user-compensation project-id user-id)]
-     (cond
-       ;; compensation is set to none for user and they don't have a current compensation
-       (and (= compensation-id "none")
-            (nil? (project-compensations current-compensation-id)))
-       {:success true
-        :message "Compensation is already set to none for this user, no changes made"}
-       ;; compensation is set to none and they have a current compensation
-       (and (= compensation-id "none")
-            (not (nil? (project-compensations current-compensation-id))))
-       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
-           {:success true})
-       ;; there wasn't a compensation id found for the project, or it isn't enabled
-       (nil? (project-compensations compensation-id))
-       {:error {:status not-found
-                :message (str "compensation-id " compensation-id
-                              " is not enabled or doesn't exist for project-id " project-id)}}
-       ;; this is the same compensation-id as the user already has
-       (= current-compensation-id compensation-id)
-       {:success true
-        :message "Compensation is already set to this value for the user, no changes made."}
-       ;; the user is going from having no compensation-id set to having a new one
-       (nil? current-compensation-id)
-       (do (compensation/start-compensation-period-for-user! compensation-id user-id)
-           {:success true})
-       ;; the user is switching compensations
-       (and (project-compensations compensation-id)
-            current-compensation-id)
-       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
-           (compensation/start-compensation-period-for-user! compensation-id user-id)
-           {:success true})
-       :else {:error {:status precondition-failed
-                      :message "An unknown error occurred"}}))))
+  (let [project-compensations (set (->> (compensation/read-project-compensations project-id)
+                                        (filter :enabled)
+                                        (map :compensation-id)))
+        current-compensation-id (compensation/user-compensation project-id user-id)]
+    (cond
+      ;; compensation is set to none for user and they don't have a current compensation
+      (and (= compensation-id "none")
+           (nil? (project-compensations current-compensation-id)))
+      {:success true
+       :message "Compensation is already set to none for this user, no changes made"}
+      ;; compensation is set to none and they have a current compensation
+      (and (= compensation-id "none")
+           (not (nil? (project-compensations current-compensation-id))))
+      (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
+          {:success true})
+      ;; there wasn't a compensation id found for the project, or it isn't enabled
+      (nil? (project-compensations compensation-id))
+      {:error {:status not-found
+               :message (str "compensation-id " compensation-id
+                             " is not enabled or doesn't exist for project-id " project-id)}}
+      ;; this is the same compensation-id as the user already has
+      (= current-compensation-id compensation-id)
+      {:success true
+       :message "Compensation is already set to this value for the user, no changes made."}
+      ;; the user is going from having no compensation-id set to having a new one
+      (nil? current-compensation-id)
+      (do (compensation/start-compensation-period-for-user! compensation-id user-id)
+          {:success true})
+      ;; the user is switching compensations
+      (and (project-compensations compensation-id)
+           current-compensation-id)
+      (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
+          (compensation/start-compensation-period-for-user! compensation-id user-id)
+          {:success true})
+      :else {:error {:status precondition-failed
+                     :message "An unknown error occurred"}})))
 
 (defn calculate-project-funds
   [project-id]
@@ -675,39 +658,38 @@
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 (defn pay-user!
   [project-id user-id compensation admin-fee]
-  (try-catch-response
-   (let [available-funds (:available-funds (calculate-project-funds project-id))
-         user (users/get-user-by-id user-id)
-         total-amount (+ compensation admin-fee)]
-     (cond
-       (> total-amount available-funds)
-       {:error {:status payment-required
-                :message "Not enough available funds to fulfill this payment"}}
-       (<= total-amount available-funds)
-       (let [{:keys [status body]}
-             (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
-         (if-not (= status 201)
-           {:error {:status bad-request
-                    :message (get-in body [:message])}}
-           (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
-                 now (util/to-epoch (db/sql-now))]
-             ;; deduct for funds to the user
-             (funds/create-project-fund-entry!
-              {:project-id project-id
-               :user-id user-id
-               :amount (- compensation)
-               :transaction-id payout-batch-id
-               :transaction-source (:paypal-payout funds/transaction-source-descriptor)
-               :created now})
-             ;; deduct admin fee
-             (funds/create-project-fund-entry!
-              {:project-id project-id
-               :user-id user-id
-               :amount (- admin-fee)
-               :transaction-id (str (UUID/randomUUID))
-               :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
-               :created now})
-             {:result "success"})))))))
+  (let [available-funds (:available-funds (calculate-project-funds project-id))
+        user (users/get-user-by-id user-id)
+        total-amount (+ compensation admin-fee)]
+    (cond
+      (> total-amount available-funds)
+      {:error {:status payment-required
+               :message "Not enough available funds to fulfill this payment"}}
+      (<= total-amount available-funds)
+      (let [{:keys [status body]}
+            (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
+        (if-not (= status 201)
+          {:error {:status bad-request
+                   :message (get-in body [:message])}}
+          (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
+                now (util/to-epoch (db/sql-now))]
+            ;; deduct for funds to the user
+            (funds/create-project-fund-entry!
+             {:project-id project-id
+              :user-id user-id
+              :amount (- compensation)
+              :transaction-id payout-batch-id
+              :transaction-source (:paypal-payout funds/transaction-source-descriptor)
+              :created now})
+            ;; deduct admin fee
+            (funds/create-project-fund-entry!
+             {:project-id project-id
+              :user-id user-id
+              :amount (- admin-fee)
+              :transaction-id (str (UUID/randomUUID))
+              :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
+              :created now})
+            {:result "success"}))))))
 
 (defn payments-owed
   "A list of of payments owed by all projects to user-id that are compensating user-id"
@@ -852,10 +834,7 @@
   "Returns the annotations by hash (.hashCode <string>). Assumes
   annotations-atom has already been set by a previous fn"
   [hash]
-  (let [annotations (annotations/get-annotations
-                     (get @annotations-atom hash))]
-    ;; return the annotations
-    annotations))
+  (annotations/get-annotations (get @annotations-atom hash)))
 
 (def db-annotations-by-hash!
   (db-memo db/active-db annotations-by-hash!))
@@ -971,14 +950,11 @@
 (defn dissociate-article-pdf
   "Remove the association between an article and PDF file."
   [article-id key filename]
-  (try (if-let [s3-id (files/s3-id-from-filename-key filename key)]
-         (do (files/dissociate-s3-file-from-article s3-id article-id)
-             {:success true})
-         {:error {:status not-found
-                  :message (str "No file found: " (pr-str [filename key]))}})
-       (catch Throwable e
-         {:error {:message "Exception in dissociate-article-pdf"
-                  :exception e}})))
+  (if-let [s3-id (files/s3-id-from-filename-key filename key)]
+    (do (files/dissociate-s3-file-from-article s3-id article-id)
+        {:success true})
+    {:error {:status not-found
+             :message (str "No file found: " (pr-str [filename key]))}}))
 
 (defn process-annotation-context
   "Convert the context annotation to the one saved on the server"
@@ -1072,13 +1048,11 @@
                                          project-id :user-id user-id)))})))
 
 (defn change-project-permissions [project-id users-map]
-  (try (assert project-id)
-       (with-transaction
-         (doseq [[user-id perms] (vec users-map)]
-           (project/set-member-permissions project-id user-id perms))
-         {:success true})
-       (catch Throwable e
-         {:error {:exception e, :message "Exception in change-project-permissions"}})))
+  (do (assert project-id)
+      (with-transaction
+        (doseq [[user-id perms] (vec users-map)]
+          (project/set-member-permissions project-id user-id perms))
+        {:success true})))
 
 (defn read-project-description
   "Read project description of project-id"
