@@ -994,59 +994,46 @@
 
 (defn save-article-annotation
   [project-id article-id user-id selection annotation & {:keys [pdf-key context]}]
-  (try
+  (db/with-clear-project-cache project-id
     (let [annotation-id (db-annotations/create-annotation!
                          selection annotation
                          (process-annotation-context context article-id)
                          article-id)]
-      (db-annotations/associate-annotation-article! annotation-id article-id)
-      (db-annotations/associate-annotation-user! annotation-id user-id)
+      (db-annotations/associate-ann-user annotation-id user-id)
       (when pdf-key
         (let [s3-id (files/s3-id-from-article-key article-id pdf-key)]
-          (db-annotations/associate-annotation-s3! annotation-id s3-id)))
-      {:success true, :annotation-id annotation-id})
-    (catch Throwable e
-      {:error {:message "Exception in save-article-annotation"
-               :exception e}})
-    (finally (db/clear-project-cache project-id))))
+          (db-annotations/associate-ann-s3 annotation-id s3-id)))
+      {:success true, :annotation-id annotation-id})))
 
 (defn user-defined-annotations
   [article-id]
-  (try {:success true, :annotations (db-annotations/user-defined-article-annotations article-id)}
-       (catch Throwable e
-         {:error {:exception e, :message "Exception in user-defined-annotations"}})))
+  {:success true, :annotations (db-annotations/user-defined-article-annotations article-id)})
 
 (defn user-defined-pdf-annotations
   [article-id pdf-key]
-  (try (let [s3-id (files/s3-id-from-article-key article-id pdf-key)
-             annotations (db-annotations/user-defined-article-pdf-annotations
-                          article-id s3-id)]
-         {:success true, :annotations annotations})
-       (catch Throwable e
-         {:error {:exception e, :message "Exception in user-defined-pdf-annotations"}})))
+  (let [s3-id (files/s3-id-from-article-key article-id pdf-key)
+        annotations (db-annotations/user-defined-article-pdf-annotations
+                     article-id s3-id)]
+    {:success true, :annotations annotations}))
 
 (defn delete-annotation! [annotation-id]
-  (try (db-annotations/delete-annotation! annotation-id)
-       {:success true, :annotation-id annotation-id}
-       (catch Throwable e
-         {:error {:exception e, :message "Exception in delete-annotation!"}})))
+  (do (db-annotations/delete-annotation! annotation-id)
+      {:success true, :annotation-id annotation-id}))
 
 (defn update-annotation!
   "Update the annotation for user-id. Only users can edit their own annotations"
   [annotation-id annotation semantic-class user-id]
-  (try (with-transaction
-         (if (= user-id (db-annotations/annotation-id->user-id annotation-id))
-           (do (db-annotations/update-annotation! annotation-id annotation semantic-class)
-               {:success true
-                :annotation-id annotation-id
-                :annotation annotation
-                :semantic-class semantic-class})
-           {:success false
-            :annotation-id annotation-id
-            :annotation annotation
-            :semantic-class semantic-class}))
-       (catch Throwable e
-         {:error {:exception e, :message "Exception in update-annotation!"}})))
+  (with-transaction
+    (if (= user-id (db-annotations/ann-user-id annotation-id))
+      (do (db-annotations/update-annotation! annotation-id annotation semantic-class)
+          {:success true
+           :annotation-id annotation-id
+           :annotation annotation
+           :semantic-class semantic-class})
+      {:success false
+       :annotation-id annotation-id
+       :annotation annotation
+       :semantic-class semantic-class})))
 
 (defn pdf-download-url [article-id filename key]
   (str "/api/files/article/" article-id "/download/" key "/" filename))

@@ -309,6 +309,11 @@
           (swap! *transaction-query-cache* update-cache))))
     nil))
 
+(defmacro with-clear-project-cache [project-id & body]
+  `(with-transaction
+     (let [project-id# ~project-id]
+       (try ~@body (finally (some-> project-id# (clear-project-cache)))))))
+
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))
 

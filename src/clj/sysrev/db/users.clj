@@ -433,13 +433,8 @@
   [user-id]
   (-> (select [:%count.an.annotation-id :annotations] :a.project-id)
       (from [:annotation :an])
-      (join [:ann-article :aa]  [:= :aa.annotation-id :an.annotation-id]
-            [:article :a]       [:= :a.article-id :aa.article-id]
-            [:ann-user :au]     [:= :au.annotation-id :an.annotation-id])
-      (left-join [:ann-s3store :as3]         [:= :an.annotation-id :as3.annotation-id]
-                 [:s3store :s3]              [:= :s3.s3-id :as3.s3-id]
-                 [:ann-semantic-class :asc]  [:= :an.annotation-id :asc.annotation-id]
-                 [:semantic-class :sc]       [:= :sc.semantic-class-id :asc.semantic-class-id])
+      (join [:article :a]    [:= :a.article-id :an.article-id]
+            [:ann-user :au]  [:= :au.annotation-id :an.annotation-id])
       (group :a.project-id)
       (where [:= :au.user-id user-id])
       do-query))
