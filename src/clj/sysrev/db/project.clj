@@ -670,7 +670,7 @@
              "RIGHT JOIN project p on p.project_id = pd.project_id "
              "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
              "WHERE p.enabled = true AND p.settings->>'public-access' = 'true' "
-             "AND to_tsvector('english', coalesce(md.string,'') || ' ' || (coalesce(p.name,''))) @@ to_tsquery(?) "
+             "AND to_tsvector('english', coalesce(md.string,'') || ' ' || (coalesce(p.name,''))) @@ plainto_tsquery(?) "
              "LIMIT ? ")
         q limit]
        db/raw-query))

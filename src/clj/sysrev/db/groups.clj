@@ -182,19 +182,6 @@
     (let [user-ids (->> ["SELECT group_id,group_name FROM groups WHERE (group_name ilike ?) AND group_name != 'public-reviewer' ORDER BY group_name LIMIT ?"
                          (str "%" q "%")
                          limit]
-                        db/raw-query
-                        ;;(map :group_id)
-                        )
-          ;; original query, except using ilike instead of like for case insensitivity
-          #_(-> (select :user-id)
-                (from :web-user)
-                (where [:like :email (str term "%")])
-                (order-by :email)
-                ;; don't want to overwhelm with options
-                (limit 5)
-                (sql/format))]
+                        db/raw-query)]
       ;; check to see if we have results before returning the public info
-      user-ids
-      #_(if (empty? user-ids)
-        user-ids
-        (get-users-public-info user-ids)))))
+      user-ids)))
