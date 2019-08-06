@@ -34,6 +34,14 @@
       (returning :id)
       do-query first :id))
 
+(defn get-group-owner [group-id]
+  (-> (select :user-id)
+      (from :user-group)
+      (where [:and
+              [:= :group-id group-id]
+              [:= "owner" :%any.permissions]])
+      do-query first :user-id))
+
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"
   [user-id group-name]
@@ -121,6 +129,14 @@
                 :group-id group-id}])
       (returning :id)
       do-query first :id))
+
+(defn delete-project-group!
+  [project-id group-id]
+  (-> (delete-from :project-group)
+      (where [:and
+              [:= :project-id project-id]
+              [:= :group-id group-id]])
+      do-execute))
 
 (defn user-group-permission
   "Return the permissions for user-id in group-id"

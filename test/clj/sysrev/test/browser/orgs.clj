@@ -169,7 +169,7 @@
     (b/is-soon (not (taxi/exists? org-billing)))
     ;; group projects exists, but not the create project input
     (b/click org-projects :delay 30)
-    (b/exists? "#public-projects")
+    (b/exists? "#projects")
     (b/is-soon (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
     (b/is-soon (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))

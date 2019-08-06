@@ -101,9 +101,6 @@
     (let [current-perms (:permissions (project-member project-id user-id))]
       (assert (not-empty permissions))
       (assert (every? (in? valid-permissions) permissions))
-      (assert (if (in? current-perms "owner")
-                (every? (in? permissions) ["owner" "admin"])
-                true))
       (try (-> (sqlh/update :project-member)
                (sset {:permissions (db/to-sql-array "text" permissions)})
                (where [:and [:= :project-id project-id] [:= :user-id user-id]])
@@ -606,14 +603,20 @@
   (-> (delete-from :compensation)
       (where [:= :compensation-id compensation-id])
       do-execute))
-;;;
+
 (defn delete-project-compensations [project-id]
   (doseq [{:keys [compensation-id]} (-> (select :compensation-id)
                                         (from :compensation-project)
                                         (where [:= :project-id project-id])
                                         do-query)]
     (delete-compensation-by-id project-id compensation-id)))
-;;;
+
+(defn member-count [project-id]
+  (-> (select :%count.user-id)
+      (from :project-member)
+      (where [:= :project-id project-id])
+      do-query first :count))
+
 (defn delete-solo-projects-from-user [user-id]
   (doseq [project-id (get-single-user-project-ids user-id)]
     (delete-project-compensations project-id)
@@ -640,6 +643,15 @@
       do-query
       first))
 
+(defn get-project-admins [project-id]
+  (-> (select :pm.user-id :wb.email)
+      (from [:project-member :pm])
+      (join [:web-user :wb] [:= :wb.user_id :pm.user-id])
+      (where [:and
+              [:= :project-id project-id]
+              [:= "admin" :%any.pm.permissions]])
+      do-query))
+
 (defn get-project-owner [project-id]
   (with-transaction
     (if-let [project-group (-> (select :group-id)
@@ -654,6 +666,18 @@
                   [:= "owner" :%any.permissions]])
           do-query first))))
 
+(defn last-active
+  "When was the last time an article-label was updated for project-id?"
+  [project-id]
+  (-> (select [:al.updated_time :last_active])
+      (from [:article-label :al])
+      (join [:article :a] [:= :a.article-id :al.article-id]
+            ;;[:project :p] [:= :p.project-id :a.project-id]
+            )
+      (where [:= :a.project-id project-id])
+      (order-by [:al.updated_time :desc])
+      (limit 1)
+      do-query first :last-active))
 ;; some notes:
 ;; https://www.postgresql.org/docs/current/textsearch.html
 ;; https://www.postgresql.org/docs/current/textsearch-controls.html

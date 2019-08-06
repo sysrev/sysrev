@@ -9,7 +9,8 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :as db :refer
+            [sysrev.api :as api]
+            [sysrev.db.core :refer
              [do-query do-execute with-transaction to-sql-array
               with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.queries :as q]
@@ -232,6 +233,27 @@
   []
   (when-not (groups/group-name->group-id "public-reviewer")
     (groups/create-group! "public-reviewer")))
+
+;; only meant to be used once
+(defn set-project-owners []
+  (let [projects (->> (-> (select :project_id)
+                          (from :project)
+                          do-query)
+                      (mapv :project-id))]
+    (mapv #(if (nil? (project/get-project-owner %))
+             (let [project-admin (-> (project/get-project-admins %)
+                                     first :user-id)]
+               (if-not (nil? project-admin)
+                 ;; set the project-admin to owner
+                 (api/change-project-owner % :user-id project-admin)
+                 ;; set the member with the lowest user-id as owner
+                 (let [first-member (-> (project/project-user-ids %) sort first)]
+                   (if-not (nil? first-member)
+                     ; set the project-admin to first-member
+                     (api/change-project-owner % :user-id first-member)
+                     ;; this is an orphaned project
+                     ;; the following projects are orphaned: 12962 (data extraction rct), 11214 (EBT Course Assignment Copy 2)
+                     (println "orphaned project: " %)))))) projects)))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."

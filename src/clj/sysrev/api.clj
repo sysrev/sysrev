@@ -122,6 +122,68 @@
   :args (s/cat :project-id int?, :user-id int?)
   :ret map?)
 
+(defn remove-current-owner [project-id]
+  (let [current-owner (project/get-project-owner project-id)
+        current-owner-type (-> current-owner keys first)
+        current-owner-id (-> current-owner vals first)]
+    ;; remove current owner
+    (when-not (empty? current-owner)
+      (condp = current-owner-type
+        :user-id
+        ;; there should only ever be one owner, so set that owner as a member
+        (project/set-member-permissions project-id current-owner-id ["member"])
+        :group-id
+        ;; this is a group owner, delete the group ownership
+        (groups/delete-project-group! project-id current-owner-id)))))
+
+(defn change-project-owner-to-user [project-id user-id]
+  (with-transaction
+    (assert (not= (-> (project/get-project-owner project-id)
+                      vals first)
+                  user-id))
+    (remove-current-owner project-id)
+    ;; is the user-id a member of the project? not nil project-member
+    (if (empty? (project/project-member project-id user-id))
+      (project/add-project-member project-id user-id :permissions ["member" "admin" "owner"])
+      (project/set-member-permissions project-id user-id ["member" "admin" "owner"]))))
+
+(defn change-project-owner-to-group
+  [project-id group-id]
+  (with-transaction
+    (assert (not= (-> (project/get-project-owner project-id)
+                      vals first)
+                  group-id))
+    (remove-current-owner project-id)
+    ;; add an entry to project-group
+    (groups/create-project-group! project-id group-id)
+    ;; make the group owner the admin of the project
+    (let [group-owner-id (groups/get-group-owner group-id)]
+      (if (empty? (project/project-member project-id group-owner-id))
+        (project/add-project-member project-id group-owner-id :permissions ["member" "admin" "owner"])
+        (project/set-member-permissions project-id group-owner-id ["member" "admin" "owner"])))))
+
+(defn change-project-owner [project-id & {:keys [user-id group-id]}]
+  (cond user-id
+        (change-project-owner-to-user project-id user-id)
+        group-id
+        (change-project-owner-to-group project-id group-id)
+        :else
+        (throw (Exception. "No user-id or group-id given"))))
+
+;; example: transfer Tom's projects to InSilica
+;; (transfer-user-projects 139 :group-id 3)
+(defn transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
+  (with-transaction
+    (let [users-projects (->> (users/user-projects owner-user-id [:permissions])
+                              (filter #(contains? (set (:permissions %)) "owner"))
+                              (mapv :project-id))]
+      (cond user-id
+            (mapv #(change-project-owner % :user-id user-id) users-projects)
+            group-id
+            (mapv #(change-project-owner % :group-id group-id) users-projects)
+            :else
+            (throw (Exception. "No user-id or group-id given"))))))
+
 (defn wrap-import-api [f]
   (let [{:keys [error]} (try (f)
                              (catch Throwable e
@@ -1428,7 +1490,11 @@
       {:error {:message (str "user-id: " user-id " is not part of org-id: " org-id)}})))
 
 (defn group-projects [group-id & {:keys [private-projects?]}]
-  {:projects (groups/group-projects group-id :private-projects? private-projects?)})
+  {:projects (->> (groups/group-projects group-id :private-projects? private-projects?)
+                  (map #(assoc %
+                               :member-count (project/member-count (:project-id %))
+                               :admins (project/get-project-admins (:project-id %))
+                               :last-active (project/last-active (:project-id %)))))})
 
 (defn subscription-lapsed?
   "Is the project private with a lapsed subscription?"
