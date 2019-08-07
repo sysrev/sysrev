@@ -9,7 +9,7 @@
             [sysrev.api :as api]
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb clear-project-cache sql-now]]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.db.project :as project]
             [sysrev.label.core :as labels]
             [sysrev.test.core :as test :refer [succeeds?]]
@@ -87,7 +87,7 @@
        (apply +)))
 
 (defn user-amount-paid [project-name email]
-  (->> (:payments-paid (api/payments-paid (:user-id (users/get-user-by-email email))))
+  (->> (:payments-paid (api/payments-paid (user-by-email email :user-id)))
        (filter #(= (:project-name %) project-name))
        (map :total-paid)
        (apply +)))
@@ -205,10 +205,8 @@
   (let [unreviewed-articles (take n (articles-unreviewed-by-user project-id user-id))]
     (doall (map (partial randomly-set-labels project-id user-id) unreviewed-articles))))
 
-(defn get-user-id
-  "Given an email address return the user-id"
-  [email]
-  (-> email (users/get-user-by-email) :user-id))
+(defn get-user-id [email]
+  (user-by-email email :user-id))
 
 ;; https://developer.paypal.com/developer/accounts/
 ;; test information associated with:  test@insilica.co
@@ -374,7 +372,7 @@
         (select-compensation-dropdown nil (-> project2 :amounts (nth 0)))
         ;; associate the other users with the second project
         (doseq [{:keys [email]} test-users]
-          (let [{:keys [user-id]} (users/get-user-by-email email)]
+          (let [user-id (user-by-email email :user-id)]
             (project/add-project-member @(:project-id project2) user-id)))
         ;; review some articles from all users
         (db-review-articles user1 project2)

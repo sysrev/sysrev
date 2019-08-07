@@ -5,7 +5,7 @@
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
             [sysrev.db.project :as project]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -29,15 +29,15 @@
 ;; (b/delete-test-user)
 
 ;; find the project
-;; (users/user-self-info (:user-id (users/get-user-by-email (:email b/test-login))))
+;; (users/user-self-info (user-by-email (:email b/test-login) :user-id))
 
 ;; delete the project
-;; (let [project-ids (->> (users/get-user-by-email (:email b/test-login)) :user-id users/user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
+;; (let [project-ids (->> (user-by-email (:email b/test-login)) :user-id users/user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
 
 ;; useful definitions after basic values have been set by tests
 ;; (def email (:email b/test-login))
 ;; (def password (:password b/test-login))
-;; (def user-id (:user-id (users/get-user-by-email email)))
+;; (def user-id (:user-id (user-by-email email)))
 ;; (def project-id (get-user-project-id user-id))
 ;; (def article-title (-> (labels/query-public-article-labels project-id) vals first :title))
 ;; (def article-id (-> (labels/query-public-article-labels project-id) keys first))
@@ -179,7 +179,7 @@
    have-errors-now? #(= (set %) (set (define/get-all-error-messages)))
    have-errors? (fn [errors] (b/try-wait b/wait-until #(have-errors-now? errors) 2500))
    new-label "//div[contains(@id,'new-label-')]"
-   {:keys [user-id]} (users/get-user-by-email (:email b/test-login))]
+   {:keys [user-id]} (user-by-email (:email b/test-login))]
   (do (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))

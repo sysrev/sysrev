@@ -10,7 +10,7 @@
             [sysrev.filestore :as fstore]
             [sysrev.db.groups :as groups]
             [sysrev.db.project :as project]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.test.browser.annotator :as annotator]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.markdown :as markdown]
@@ -83,7 +83,7 @@
   (with-transaction
     (users/create-email-verification! user-id email)
     (users/verify-email!
-     email (:verify-code (users/read-email-verification-code user-id email)) user-id)
+     email (users/email-verify-code user-id email) user-id)
     (users/set-primary-email! user-id email)
     (if-let [user-group-id (:id (groups/read-user-group-name user-id "public-reviewer"))]
       (groups/set-user-group-enabled! user-group-id true)
@@ -110,7 +110,7 @@
   [project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"
    email (:email b/test-login)
-   user-id (:user-id (users/get-user-by-email email))
+   user-id (user-by-email email :user-id)
    click-project-link #(do (log/infof "loading project %s" (pr-str %))
                            (b/click (xpath "//a[contains(text(),'" % "')]") :delay 50))]
   (do #_ (b/start-webdriver true)
@@ -215,8 +215,8 @@
    email-test-user "test@insilica.co"
    password-test-user "testinsilica"
    _ (b/create-test-user :email email-test-user :password password-test-user)
-   user-id-test-user (:user-id (users/get-user-by-email email-test-user))
-   user-id-browser+test (:user-id (users/get-user-by-email email-browser+test))
+   user-id-test-user (user-by-email email-test-user :user-id)
+   user-id-browser+test (user-by-email email-browser+test :user-id)
    user-introduction "I am the browser test"]
   (do
     ;; make test-user a public reviewer
@@ -248,7 +248,7 @@
 
 (deftest-browser user-avatar
   (test/db-connected?)
-  [{:keys [user-id]} (users/get-user-by-email (:email b/test-login))]
+  [{:keys [user-id]} (user-by-email (:email b/test-login))]
   (do (nav/log-in)
       ;; go to the user profile
       (b/click "#user-name-link")
@@ -339,9 +339,7 @@
        (not (test/remote-test?)))
   [user1 {:email "foo@insilica.co" :password "foobar"}
    new-email-address "bar@insilica.co"
-   user-id (-> (:email user1)
-               users/get-user-by-email
-               :user-id)]
+   user-id (user-by-email (:email user1) :user-id)]
   (do (alter-var-root #'sysrev.sendgrid/send-template-email
                       (constantly (fn [& _] (log/info "No email sent"))))
       (b/create-test-user)
@@ -352,8 +350,8 @@
       (b/wait-until-exists opt-in-toggle)
       (is (taxi/attribute opt-in-toggle "disabled"))
       ;; verify the email address
-      (let [{:keys [user-id email]} (users/get-user-by-email (:email user1))
-            {:keys [verify-code]} (users/read-email-verification-code user-id email)]
+      (let [{:keys [user-id email]} (user-by-email (:email user1))
+            verify-code (users/email-verify-code user-id email)]
         (b/init-route (str "/user/" user-id "/email/" verify-code))
         (is (email-verified? email))
         ;; add a new email address
@@ -367,8 +365,7 @@
         (is (email-unverified? new-email-address))
         ;; verify new email address
         (b/init-route (str "/user/" user-id "/email/"
-                           (:verify-code (users/read-email-verification-code
-                                          user-id new-email-address))))
+                           (users/email-verify-code user-id new-email-address)))
         (is (email-verified? new-email-address))
         ;;make this email address primary
         (make-primary new-email-address)

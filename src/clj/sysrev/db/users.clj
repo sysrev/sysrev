@@ -26,31 +26,24 @@
 (defn all-users
   "Returns seq of short info on all users, for interactive use."
   []
-  (-> (select :*) (from :web-user) do-query
-      (->> (map #(select-keys % [:user-id :email :permissions])))))
+  (->> (q/find :web-user {})
+       (map #(select-keys % [:user-id :email :permissions]))))
 
-(defn get-user-by-email [email]
-  (-> (select :*)
-      (from :web-user)
-      (where [:= (sql/call :lower :email) (sql/call :lower email)])
-      do-query first))
+(defn user-by-email [email & [fields]]
+  (q/find-one :web-user {} (or fields :*)
+              :where [:= (sql/call :lower :email) (sql/call :lower email)]))
 
-(defn get-user-by-id [user-id]
-  (-> (select :*)
-      (from :web-user)
-      (where [:= :user-id user-id])
-      do-query first))
+(defn get-user [user-id & [fields]]
+  (q/find-one :web-user {:user-id user-id} (or fields :*)))
 
 (defn user-projects
   "Returns sequence of projects for which user-id is a
   member. Includes :project-id by default; fields optionally specifies
   additional fields from [:project :p] or [:project-member :pm]."
   [user-id & [fields]]
-  (-> (apply select :p.project-id fields)
-      (from [:project :p])
-      (join [:project-member :pm] [:= :pm.project-id :p.project-id])
-      (where [:and [:= :p.enabled true] [:= :pm.user-id user-id]])
-      do-query))
+  (q/find [:project :p] {:p.enabled true, :pm.user-id user-id}
+          (concat [:p.project-id] fields)
+          :join [[:p :project-member :pm :project-id]]))
 
 (defn user-public-projects
   "Returns sequence of public projects for which user-id is a member.
@@ -77,26 +70,16 @@
   publicly viewable information for each user-id"
   [user-ids]
   (when (seq user-ids)
-    (-> (select :user-id :email :date-created :username :introduction)
-        (from :web-user)
-        (where [:in :user-id user-ids])
-        (->> do-query (map #(-> (dissoc % :email)
-                                (assoc :username (first (str/split (:email %) #"@")))))))))
+    (->> (q/find :web-user {:user-id user-ids}
+                 [:user-id :email :date-created :username :introduction])
+         (map #(-> (dissoc % :email)
+                   (assoc :username (first (str/split (:email %) #"@"))))))))
 
-(defn get-user-by-reset-code [reset-code]
-  (assert (string? reset-code))
-  (-> (select :*)
-      (from :web-user)
-      (where [:= :reset-code reset-code])
-      do-query
-      first))
+(defn user-by-reset-code [reset-code]
+  (q/find-one :web-user {:reset-code reset-code}))
 
-(defn get-user-by-api-token [api-token]
-  (assert (string? api-token))
-  (-> (select :*)
-      (from :web-user)
-      (where [:= :api-token api-token])
-      do-query first))
+(defn user-by-api-token [api-token]
+  (q/find-one :web-user {:api-token api-token}))
 
 (defn generate-api-token []
   (->> (crypto.random/bytes 16)
@@ -140,23 +123,19 @@
       user)))
 
 (defn set-user-password [email new-password]
-  (-> (sqlh/update :web-user)
-      (sset {:pw-encrypted-buddy (encrypt-password new-password)})
-      (where [:= (sql/call :lower :email) (sql/call :lower email)])
-      do-execute))
+  (q/modify :web-user {} {:pw-encrypted-buddy (encrypt-password new-password)}
+            :where [:= (sql/call :lower :email) (sql/call :lower email)]))
 
 (defn set-user-permissions
   "Change the site permissions for a user account."
   [user-id permissions]
-  (try (-> (sqlh/update :web-user)
-           (sset {:permissions (db/to-sql-array "text" permissions)})
-           (where [:= :user-id user-id])
-           (returning :user-id :permissions)
-           do-query)
+  (try (q/modify :web-user {:user-id user-id}
+                 {:permissions (db/to-sql-array "text" permissions)}
+                 :returning [:user-id :permissions])
        (finally (clear-user-cache user-id))))
 
 (defn valid-password? [email password-attempt]
-  (let [entry (get-user-by-email email)
+  (let [entry (user-by-email email)
         encrypted-password (:pw-encrypted-buddy entry)]
     (boolean (and entry encrypted-password
                   (buddy.hashers/check password-attempt encrypted-password)))))
@@ -172,58 +151,38 @@
        (finally (db/clear-query-cache))))
 
 (defn create-password-reset-code [user-id]
-  (-> (sqlh/update :web-user)
-      (sset {:reset-code (crypto.random/hex 16)})
-      (where [:= :user-id user-id])
-      do-execute))
+  (q/modify :web-user {:user-id user-id} {:reset-code (crypto.random/hex 16)}))
 
 (defn clear-password-reset-code [user-id]
-  (-> (sqlh/update :web-user)
-      (sset {:reset-code nil})
-      (where [:= :user-id user-id])
-      do-execute))
+  (q/modify :web-user {:user-id user-id} {:reset-code nil}))
 
 (defn user-password-reset-url
   [user-id & {:keys [url-base] :or {url-base "https://sysrev.com"}}]
-  (when-let [reset-code (-> (select :reset-code)
-                            (from :web-user)
-                            (where [:= :user-id user-id])
-                            do-query first :reset-code)]
+  (when-let [reset-code (get-user user-id :reset-code)]
     (format "%s/reset-password/%s" url-base reset-code)))
 
 (defn user-settings [user-id]
-  (into {} (-> (select :settings)
-               (from :web-user)
-               (where [:= :user-id user-id])
-               do-query first :settings)))
+  (into {} (get-user user-id :settings)))
 
 (defn change-user-setting [user-id setting new-value]
   (with-transaction
-    (let [cur-settings (-> (select :settings)
-                           (from :web-user)
-                           (where [:= :user-id user-id])
-                           do-query first :settings)
+    (let [cur-settings (get-user user-id :settings)
           new-settings (assoc cur-settings setting new-value)]
       (assert (s/valid? ::su/settings new-settings))
-      (-> (sqlh/update :web-user)
-          (sset {:settings (db/to-jsonb new-settings)})
-          (where [:= :user-id user-id])
-          do-execute)
+      (q/modify :web-user {:user-id user-id} {:settings (db/to-jsonb new-settings)})
       new-settings)))
 
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [self?]]
-  (-> (select :user-id :user-uuid :email :verified :permissions :settings :default-project-id)
-      (from :web-user)
-      (where [:= :user-id user-id])
-      do-query first))
+  (get-user user-id [:user-id :user-uuid :email :verified :permissions :settings
+                     :default-project-id]))
 
 (defn user-self-info
   "Returns a map of values with various user account information.
   This result is sent to client for the user's own account upon login."
   [user-id]
-  (let [uperms (:permissions (get-user-by-id user-id))
+  (let [uperms (get-user user-id :permissions)
         admin? (in? uperms "admin")
         project-url-ids (-> (select :purl.url-id :purl.project-id)
                             (from [:project-member :m])
@@ -282,10 +241,7 @@
                                                  :description (str "Sysrev UUID: " user-uuid))
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
-      (try (do (-> (sqlh/update :web-user)
-                   (sset {:stripe-id stripe-customer-id})
-                   (where [:= :user-id user-id])
-                   do-execute)
+      (try (do (q/modify :web-user {:user-id user-id} {:stripe-id stripe-customer-id})
                {:success true})
            (catch Throwable e
              {:error {:message "Exception in create-sysrev-stripe-customer!"
@@ -301,120 +257,69 @@
           stripe-source-id (:id (stripe/read-default-customer-source stripe-id))]
       (when stripe-source-id
         (stripe/delete-customer-card! stripe-id stripe-source-id))
-      (-> (sqlh/update :web-user)
-          (sset {:stripe-id nil})
-          (where [:= :user-id user-id])
-          do-execute))))
+      (q/modify :web-user {:user-id user-id} {:stripe-id nil}))))
 
 (defn set-user-default-project [user-id project-id]
-  (-> (sqlh/update :web-user)
-      (sset {:default-project-id project-id})
-      (where [:= :user-id user-id])
-      do-execute))
+  (q/modify :web-user {:user-id user-id} {:default-project-id project-id}))
 
 (defn update-member-access-time [user-id project-id]
-  (-> (sqlh/update :project-member)
-      (sset {:access-date (sql-now)})
-      (where [:and [:= :user-id user-id] [:= :project-id project-id]])
-      do-execute))
+  (q/modify :project-member {:user-id user-id :project-id project-id}
+            {:access-date (sql-now)}))
 
 (defn create-user-stripe [stripe-acct user-id]
-  (-> (insert-into :user-stripe)
-      (values [{:stripe-acct stripe-acct, :user-id user-id}])
-      do-execute))
+  (q/create :user-stripe {:stripe-acct stripe-acct :user-id user-id}))
 
 (defn user-stripe-account [user-id]
-  (-> (select :*)
-      (from :user-stripe)
-      (where [:= :user-id user-id])
-      do-query first))
+  (q/find-one :user-stripe {:user-id user-id}))
 
 (defn verified-primary-email?
   "Is this email already primary and verified?"
   [email]
-  (-> (select :email)
-      (from :user-email)
-      (where [:and [:= :email email] [:= :principal true] [:= :verified true]])
-      do-query empty? not))
+  (pos? (count (q/find :user-email {:email email :principal true :verified true}))))
 
 (defn create-email-verification! [user-id email & {:keys [principal] :or {principal false}}]
-  (-> (insert-into :user-email)
-      (values [{:user-id user-id
-                :email email
-                :verify-code (crypto.random/hex 16)
-                :principal principal}])
-      do-execute))
+  (q/create :user-email {:user-id user-id
+                         :email email
+                         :verify-code (crypto.random/hex 16)
+                         :principal principal}))
 
 (defn user-email-status [user-id verify-code]
-  (-> (select :verify-code :verified :email)
-      (from :user-email)
-      (where [:and [:= :user-id user-id] [:= :verify-code verify-code]])
-      do-query first))
+  (q/find-one :user-email {:user-id user-id :verify-code verify-code}
+              [:verify-code :verified :email]))
 
 (defn current-email-entry [user-id email]
-  (-> (select :*)
-      (from :user-email)
-      (where [:and [:= :user-id user-id] [:= :email email]])
-      do-query first))
+  (q/find-one :user-email {:user-id user-id :email email}))
 
-(defn primary-email-verified?
-  "Is the primary email for this user verified?"
-  [user-id]
-  (let [{:keys [email]} (get-user-by-id user-id)]
-    (-> (select :verified)
-        (from :user-email)
-        (where [:and [:= :user-id user-id] [:= :email email] [:= :principal true]])
-        do-query first :verified boolean)))
+(defn primary-email-verified? [user-id]
+  (when-let [email (get-user user-id :email)]
+    (boolean (q/find-one :user-email {:user-id user-id :email email :principal true}
+                         :verified))))
 
 (defn set-primary-email!
   "Given an email, set it as the primary email address for user-id. This
   assumes that the email address has been confirmed"
   [user-id email]
-  ;; set all user-email principal to false for this user-id
-  ;; note: this will eventually change
   (with-transaction
-    (-> (sqlh/update :user-email)
-        (sset {:principal false, :updated (sql-now)})
-        (where [:= :user-id user-id])
-        do-execute)
-    (-> (sqlh/update :user-email)
-        (sset {:principal true, :updated (sql-now)})
-        (where [:and [:= :user-id user-id] [:= :email email]])
-        do-execute)
-    ;; update the user
-    (-> (sqlh/update :web-user)
-        (sset {:verified true, :email email})
-        (where [:= :user-id user-id])
-        do-execute)))
+    ;; set principal to false on all emails for user
+    (q/modify :user-email {:user-id user-id} {:principal false :updated (sql-now)})
+    ;; set principal to true for this email
+    (q/modify :user-email {:user-id user-id :email email} {:principal true})
+    ;; update the user's email status
+    (q/modify :web-user {:user-id user-id} {:verified true :email email})))
 
 (defn verify-email! [email verify-code user-id]
-  (-> (sqlh/update :user-email)
-      (sset {:verified true, :updated (sql-now)})
-      (where [:and
-              (if verify-code
-                [:= :verify-code verify-code]
-                true)
-              [:= :email email]
-              [:= :user-id user-id]])
-      do-execute))
+  (q/modify :user-email (cond-> {:email email :user-id user-id}
+                          verify-code (assoc :verify-code verify-code))
+            {:verified true :updated (sql-now)}))
 
-(defn read-email-addresses [user-id]
-  (-> (select :*)
-      (from :user-email)
-      (where [:and [:= :user-id user-id] [:= :enabled true]])
-      do-query))
+(defn get-user-emails [user-id]
+  (q/find :user-email {:user-id user-id :enabled true}))
 
 (defn set-user-email-enabled! [user-id email enabled]
-  (-> (sqlh/update :user-email)
-      (sset {:enabled enabled})
-      (where [:and [:= :email email] [:= :user-id user-id]])
-      do-execute))
+  (q/modify :user-email {:email email :user-id user-id} {:enabled enabled}))
 
-(defn read-email-verification-code [user-id email]
-  (-> (select :verify-code)
-      (from :user-email)
-      (where [:and [:= :user-id user-id] [:= :email email]])
-      do-query first))
+(defn email-verify-code [user-id email]
+  (q/find-one :user-email {:user-id user-id :email email} :verify-code))
 
 (defn projects-labeled-summary
   "Return the count of articles and labels done by user-id grouped by projects"
@@ -440,10 +345,7 @@
       do-query))
 
 (defn update-user-introduction! [user-id introduction]
-  (-> (sqlh/update :web-user)
-      (sset {:introduction introduction})
-      (where [:= :user-id user-id])
-      do-execute))
+  (q/modify :web-user {:user-id user-id} {:introduction introduction}))
 
 (defn search-users
   "Return users whose email matches q"

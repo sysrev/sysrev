@@ -6,7 +6,7 @@
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.db.plans :as plans]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
@@ -42,7 +42,7 @@
   (b/wait-until-loading-completes :pre-wait delay))
 
 (defn get-user-customer [email]
-  (some-> email (users/get-user-by-email) :stripe-id
+  (some-> email (user-by-email) :stripe-id
           (customers/get-customer)
           (stripe/execute-action)))
 
@@ -53,7 +53,7 @@
   (some-> (get-user-customer email) (customer-plan) :nickname))
 
 (defn user-db-plan [email]
-  (some-> email (users/get-user-by-email) :user-id (plans/get-current-plan) :name))
+  (some-> email (user-by-email) :user-id (plans/get-current-plan) :name))
 
 (defn wait-until-stripe-id
   "Wait until stripe has customer entry for email."
@@ -79,9 +79,9 @@
   [email password]
   (when-not (get-user-customer email)
     (log/info (str "Stripe Customer created for " email))
-    (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
+    (users/create-sysrev-stripe-customer! (user-by-email email)))
   (wait-until-stripe-id email)
-  (stripe/create-subscription-user! (users/get-user-by-email email))
+  (stripe/create-subscription-user! (user-by-email email))
   (Thread/sleep 100)
   (nav/log-in email password)
   ;; go to plans
@@ -103,10 +103,10 @@
 (deftest-browser register-and-check-basic-plan-subscription
   (and (test/db-connected?) (not (test/remote-test?)))
   [{:keys [email password]} b/test-login
-   get-user #(users/get-user-by-email email)
+   get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)]
-  (do (users/create-sysrev-stripe-customer! (get-user))
-      (stripe/create-subscription-user! (get-user))
+  (do (users/create-sysrev-stripe-customer! (get-test-user))
+      (stripe/create-subscription-user! (get-test-user))
       ;; after registering, does the stripe customer exist?
       (wait-until-stripe-id email)
       (is (= email (:email (get-customer))))
@@ -115,21 +115,21 @@
       (is (= stripe/default-plan (user-stripe-plan email)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (user-db-plan email))))
-  :cleanup (do (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))
+  :cleanup (do (users/delete-sysrev-stripe-customer! (user-by-email email))
                (b/cleanup-test-user! :email email)))
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
   (and (test/db-connected?) (not (test/remote-test?)))
   [{:keys [email password]} b/test-login
-   get-user #(users/get-user-by-email email)
+   get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)
    get-stripe-plan #(user-stripe-plan email)
    get-db-plan #(user-db-plan email)]
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
-      (users/create-sysrev-stripe-customer! (get-user))
-      (stripe/create-subscription-user! (get-user))
+      (users/create-sysrev-stripe-customer! (get-test-user))
+      (stripe/create-subscription-user! (get-test-user))
       (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?
       (is (= email (:email (get-customer))))
@@ -234,5 +234,5 @@
       (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (get-db-plan))))
-  :cleanup (do (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))
+  :cleanup (do (users/delete-sysrev-stripe-customer! (user-by-email email))
                (b/cleanup-test-user! :email email)))

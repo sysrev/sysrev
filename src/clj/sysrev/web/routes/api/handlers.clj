@@ -13,7 +13,7 @@
             [sysrev.shared.spec.web-api :as swa]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.db.project :as project]
             [sysrev.label.core :as labels]
             [sysrev.clone-project :as clone]
@@ -66,7 +66,7 @@
                                        :query-params
                                        walk/keywordize-keys)
           valid (users/valid-password? email password)
-          user (when valid (users/get-user-by-email email))
+          user (when valid (user-by-email email))
           verified (users/primary-email-verified? (:user-id user))
           success (boolean valid)]
       (if success
@@ -180,11 +180,9 @@
               "Does nothing if user is already a member of project."]
              (str/join "\n"))}
   (fn [request]
-    (let [{:keys [project-id email] :as body}
-          (-> request :body)
+    (let [{:keys [project-id email] :as body} (:body request)
           project (q/query-project-by-id project-id [:*])
-          {:keys [user-id] :as user}
-          (users/get-user-by-email email)]
+          {:keys [user-id] :as user} (user-by-email email)]
       (cond
         (nil? user)
         (make-error-response
@@ -221,17 +219,12 @@
    :require-admin? true
    :doc "Deletes user and all entries belonging to the user."}
   (fn [request]
-    (let [{:keys [email] :as body}
-          (-> request :body)
-          {:keys [user-id] :as user}
-          (users/get-user-by-email email)]
-      (cond
-        (nil? user)
-        (make-error-response
-         500 :api (format "user not found (email=%s)" email))
-        :else
-        (do (users/delete-user user-id)
-            {:result {:success true}})))))
+    (let [{:keys [email] :as body} (:body request)
+          {:keys [user-id] :as user} (user-by-email email)]
+      (cond (nil? user) (make-error-response
+                         500 :api (format "user not found (email=%s)" email))
+            :else       (do (users/delete-user user-id)
+                            {:result {:success true}})))))
 
 ;; TODO: remove for now, use web interface
 #_
@@ -241,16 +234,13 @@
    :optional [:permissions]
    :require-admin? true}
   (fn [request]
-    (let [{:keys [email password permissions] :as body}
-          (-> request :body)
-          user (users/get-user-by-email email)]
+    (let [{:keys [email password permissions] :as body} (:body request)
+          user (user-by-email email)]
       (if (nil? user)
-        {:result
-         {:success true
-          :user
-          (if (nil? permissions)
-            (users/create-user email password)
-            (users/create-user email password :permissions permissions))}}
+        {:result {:success true
+                  :user (if (nil? permissions)
+                          (users/create-user email password)
+                          (users/create-user email password :permissions permissions))}}
         (make-error-response
          500 :api "A user with that email already exists")))))
 
@@ -261,7 +251,7 @@
    #_ :require-admin? #_ true}
   (fn [request]
     (let [{:keys [api-token project-name add-self?]} (:body request)
-          {:keys [user-id]} (users/get-user-by-api-token api-token)]
+          {:keys [user-id]} (users/user-by-api-token api-token)]
       (api/create-project-for-user! project-name user-id))))
 
 ;; TODO: does tom need this? disable for now
@@ -273,10 +263,8 @@
    :check-answers? true
    :doc "Deletes project and all database entries belonging to it."}
   (fn [request]
-    (let [{:keys [project-id api-token] :as body}
-          (-> request :body)
-          {:keys [user-id]}
-          (users/get-user-by-api-token api-token)]
+    (let [{:keys [project-id api-token] :as body} (:body request)
+          {:keys [user-id]} (users/user-by-api-token api-token)]
       (api/delete-project! project-id user-id))))
 
 ;; TODO: allow public project access

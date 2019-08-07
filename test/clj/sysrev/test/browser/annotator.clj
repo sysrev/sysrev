@@ -5,7 +5,7 @@
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.db.export :as export]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
@@ -234,7 +234,7 @@
       (annotate-article ann1 :offset-x 670)
       ;;check the annotation
       (let [{:keys [email password]} b/test-login
-            user-id (:user-id (users/get-user-by-email email))
+            user-id (user-by-email email :user-id)
             project-id (review-articles/get-user-project-id user-id)
             article-id (first (sysrev.db.project/project-article-ids project-id))
             {:keys [annotations]} (api/user-defined-annotations article-id)
@@ -370,13 +370,13 @@
       ;; check valid db values stored for each annotation
       (check-db-annotation
        @project-id [:selection]
-       (merge ann1-def {:user-id (:user-id (users/get-user-by-email user1))}))
+       (merge ann1-def {:user-id (user-by-email user1 :user-id)}))
       (check-db-annotation
        @project-id [:selection]
-       (merge ann2-def {:user-id (:user-id (users/get-user-by-email user1))}))
+       (merge ann2-def {:user-id (user-by-email user1 :user-id)}))
       (check-db-annotation
        @project-id [:selection]
-       (merge ann3-def {:user-id (:user-id (users/get-user-by-email user2))}))
+       (merge ann3-def {:user-id (user-by-email user2 :user-id)}))
       (check-annotations-csv @project-id)
       ;; switch back to first user
       (switch-user user1)
@@ -402,7 +402,7 @@
         ;; check for correct db values on edited annotation
         (check-db-annotation
          @project-id [:selection]
-         (merge ann1-def ann1 {:user-id (:user-id (users/get-user-by-email user1))}))
+         (merge ann1-def ann1 {:user-id (user-by-email user1 :user-id)}))
         ;; now try editing semantic-class value
         (edit-annotation ann1 {:semantic-class "class1-changed"})
         (let [ann1 (assoc ann1 :semantic-class "class1-changed")]
@@ -411,7 +411,7 @@
           (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
           (check-db-annotation
            @project-id [:selection]
-           (merge ann1-def ann1 {:user-id (:user-id (users/get-user-by-email user1))}))
+           (merge ann1-def ann1 {:user-id (user-by-email user1 :user-id)}))
           (check-annotations-csv @project-id)
           (is (= 3 (count (api/project-annotations @project-id))))
           ;; delete an annotation

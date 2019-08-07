@@ -108,7 +108,7 @@
     (if-let [route (web-api-route request)]
       (let [{:keys [require-token? require-admin? project-role required]} route
             {:keys [api-token project-id]} (-> request :body)
-            user (and api-token (users/get-user-by-api-token api-token))
+            user (and api-token (users/user-by-api-token api-token))
             admin? (and user (in? (:permissions user) "admin"))
             member-roles
             (and user project-id

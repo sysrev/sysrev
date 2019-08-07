@@ -6,7 +6,7 @@
             [sysrev.api :as api]
             [sysrev.db.groups :as groups]
             [sysrev.db.project :as project]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.user-profiles :as user-profiles]
@@ -117,7 +117,7 @@
    org-name-2 "Baz Qux"
    org-name-1-project "Foo Bar Article Reviews"
    email (:email b/test-login)
-   user-id (:user-id (users/get-user-by-email email))
+   user-id (user-by-email email :user-id)
    user1 {:name "foo", :email "foo@bar.com", :password "foobar"}
    user-role #(get-in (org-user-table-entries) [% :permission])]
   (do
@@ -188,7 +188,7 @@
 
 ;; for manual testing:
 ;; delete a customer's card:
-#_(let [stripe-id (-> email users/get-user-by-email :stripe-id)
+#_(let [stripe-id (user-by-email email :stripe-id)
         source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
     source-id
     #_ (stripe/delete-customer-card! stripe-id source-id))
@@ -215,13 +215,15 @@
    {:keys [email]} b/test-login]
   (do
     ;; need to be a stripe customer
-    (when-not (:stripe-id (users/get-user-by-email email))
+    (when-not (user-by-email email :stripe-id)
       (log/info (str "Stripe Customer created for " email))
-      (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
-    (when-not (-> email users/get-user-by-email :user-id (api/current-plan) (get-in [:result :plan]))
-      (stripe/create-subscription-user! (users/get-user-by-email email)))
+      (users/create-sysrev-stripe-customer! (user-by-email email)))
+    (when-not (-> (user-by-email email :user-id)
+                  (api/current-plan)
+                  (get-in [:result :plan]))
+      (stripe/create-subscription-user! (user-by-email email)))
     ;; current plan
-    (b/is-soon (= (-> (:user-id (users/get-user-by-email email))
+    (b/is-soon (= (-> (user-by-email email :user-id)
                       (api/current-plan)
                       (get-in [:result :plan :name]))
                   stripe/default-plan)
@@ -363,12 +365,12 @@
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
     (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-  :cleanup (do (some-> email (users/get-user-by-email) (users/delete-sysrev-stripe-customer!))
+  :cleanup (do (some-> email (user-by-email) (users/delete-sysrev-stripe-customer!))
                (b/cleanup-test-user! :email email :groups true)))
 
 ;; from repl in sysrev.user ns:
 #_ (let [email (:email test-login)]
-     (some-> email (get-user-by-email) (delete-sysrev-stripe-customer!))
+     (some-> email (user-by-email) (delete-sysrev-stripe-customer!))
      (cleanup-test-user! :email email :groups true)
      (create-test-user)
      (sysrev.test.browser.orgs/org-plans))

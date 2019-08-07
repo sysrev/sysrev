@@ -669,20 +669,20 @@
          (wrap-authorize
           request {:logged-in true}
           (api/user-support-subscriptions
-           (users/get-user-by-id (current-user-id request))))))
+           (users/get-user (current-user-id request))))))
 
 (dr (GET "/api/current-support" request
          (wrap-authorize
           request {:logged-in true}
           (api/current-project-support-level
-           (users/get-user-by-id (current-user-id request))
+           (users/get-user (current-user-id request))
            (active-project request)))))
 
 (dr (POST "/api/cancel-project-support" request
           (wrap-authorize
            request {:logged-in true}
            (api/cancel-project-support
-            (users/get-user-by-id (current-user-id request))
+            (users/get-user (current-user-id request))
             (active-project request)))))
 
 ;;;

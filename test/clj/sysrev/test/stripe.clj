@@ -15,7 +15,7 @@
         plan-name "Basic"]
     ;; register user to stripe
     (users/create-sysrev-stripe-customer! new-user)
-    (let [user (users/get-user-by-email email)]
+    (let [user (users/user-by-email email)]
       ;; subscribe user to a free plan
       (is (= "subscription"
              (:object (stripe/subscribe-customer! user plan-name))))

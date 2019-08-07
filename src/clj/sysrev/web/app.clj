@@ -11,7 +11,7 @@
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.db.users :as users :refer
-             [get-user-by-id get-user-by-api-token update-member-access-time]]
+             [get-user user-by-api-token update-member-access-time]]
             [sysrev.db.project :as project]
             [sysrev.resources :as res]
             [sysrev.web.index :as index]
@@ -22,12 +22,12 @@
   (or (-> request :session :identity :user-id)
       (when-let [api-token (and (-> request :body map?)
                                 (-> request :body :api-token))]
-        (:user-id (get-user-by-api-token api-token)))))
+        (:user-id (user-by-api-token api-token)))))
 
 (defn active-project [request]
   (if-let [api-token (and (-> request :body map?)
                           (-> request :body :api-token))]
-    (when (get-user-by-api-token api-token)
+    (when (user-by-api-token api-token)
       (-> request :body :project-id))
     (let [project-id (or (-> request :params :project-id)
                          (and (-> request :body map?)
@@ -202,7 +202,7 @@
          valid-project# (some-> project-id# ((ensure-pred integer?)) project/project-exists?)
          public-project# (and valid-project# (-> (project/project-settings project-id#)
                                                  ((comp true? :public-access))))
-         user# (and user-id# (get-user-by-id user-id#))
+         user# (and user-id# (get-user user-id#))
          member# (and user-id# valid-project# (project/project-member project-id# user-id#))
          dev-user?# (in? (:permissions user#) "admin")
          mperms# (:permissions member#)

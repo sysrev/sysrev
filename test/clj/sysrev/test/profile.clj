@@ -19,7 +19,7 @@
       (create-test-user)
       (f)
       (delete-test-user)
-      (is (nil? (users/get-user-by-email email))))))
+      (is (nil? (users/user-by-email email))))))
 
 (deftest double-create-user-test
   (let [{:keys [email password]} test-login]

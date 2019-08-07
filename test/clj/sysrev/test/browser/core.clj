@@ -143,8 +143,8 @@
 
 (defn delete-test-user [& {:keys [email] :or {email (:email test-login)}}]
   (with-transaction
-    (when-let [{:keys [user-id stripe-id] :as user}
-               (users/get-user-by-email email)]
+    (when-let [{:keys [user-id stripe-id]
+                :as user} (users/user-by-email email)]
       (when stripe-id
         (try (stripe/delete-customer! user)
              (catch Throwable t nil)))
@@ -423,8 +423,8 @@
       :or {projects true, compensations true, groups false}}]
   (assert (or (integer? user-id) (string? email)))
   (assert (not (and (integer? user-id) (string? email))))
-  (let [email (or email (:email (users/get-user-by-id user-id)))
-        user-id (or user-id (:user-id (users/get-user-by-email email)))]
+  (let [email (or email (users/get-user user-id :email))
+        user-id (or user-id (users/user-by-email email :user-id))]
     (when (and email user-id)
       (when projects (delete-test-user-projects! user-id compensations))
       (when groups (delete-test-user-groups! user-id))

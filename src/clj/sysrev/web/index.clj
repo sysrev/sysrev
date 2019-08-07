@@ -24,11 +24,9 @@
   (let [{{{:keys [user-id] :as identity} :identity
           :as session} :session} request]
     (if user-id
-      (or (some-> user-id (users/get-user-by-id) :settings :ui-theme
-                  str/lower-case)
+      (or (some-> user-id (users/get-user) :settings :ui-theme str/lower-case)
           "default")
-      (or (some-> session :settings :ui-theme
-                  str/lower-case)
+      (or (some-> session :settings :ui-theme str/lower-case)
           "default"))))
 
 (defn css-paths [& {:keys [theme] :or {theme "default"}}]

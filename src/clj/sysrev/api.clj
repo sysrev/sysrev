@@ -33,7 +33,7 @@
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.source.pmid :as src-pmid]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [get-user user-by-email]]
             [sysrev.filestore :as fstore]
             [sysrev.source.endnote :as endnote]
             [sysrev.pubmed :as pubmed]
@@ -111,7 +111,7 @@
   the project, disables project instead of deleting it"
   [project-id user-id]
   (assert (or (project/member-has-permission? project-id user-id "admin")
-              (in? (:permissions (users/get-user-by-id user-id)) "admin")))
+              (in? (get-user user-id :permissions) "admin")))
   (if (project/project-has-labeled-articles? project-id)
     (do (project/disable-project! project-id)
         {:result {:success true, :project-id project-id}})
@@ -282,7 +282,7 @@
 (defn send-verification-email
   "Send the verification email to user-id"
   [user-id email]
-  (let [{:keys [verify-code]} (users/read-email-verification-code user-id email)]
+  (let [verify-code (users/email-verify-code user-id email)]
     (sendgrid/send-template-email
      email "Verify Your Email"
      (str "Verify your email by clicking <a href='" (sysrev-base-url)
@@ -294,7 +294,7 @@
   [email password project-id]
   (assert (string? email))
   (with-transaction
-    (let [user (users/get-user-by-email email)
+    (let [user (user-by-email email)
           db-result (when-not user
                       (try (users/create-user email password :project-id project-id)
                            true
@@ -307,14 +307,14 @@
                  :message "Exception occurred while creating account"
                  :exception db-result}}
         (true? db-result)
-        (let [new-user (users/get-user-by-email email)]
+        (let [new-user (user-by-email email)]
           ;; create-sysrev-stripe-customer! will handle
           ;; logging any error messages related to not
           ;; being able to create a stripe customer for the
           ;; user
           (users/create-sysrev-stripe-customer! new-user)
           ;; create a subscription for the user. Uses default plan
-          (stripe/create-subscription-user! (users/get-user-by-email email))
+          (stripe/create-subscription-user! (user-by-email email))
           ;; add email verification entry for email
           (users/create-email-verification! (:user-id new-user) email :principal true)
           ;; send verification email
@@ -325,7 +325,7 @@
 (defn update-user-stripe-payment-method!
   "Using a stripe token, update the payment method for user-id"
   [user-id token]
-  (let [{:keys [stripe-id]} (users/get-user-by-id user-id)
+  (let [{:keys [stripe-id]} (get-user user-id)
         stripe-response (stripe/update-customer-card! stripe-id token)]
     (if (:error stripe-response)
       stripe-response
@@ -363,7 +363,7 @@
   "Subscribe user to plan-name"
   [user-id plan-name]
   (with-transaction
-    (let [{:keys [stripe-id]} (users/get-user-by-id user-id)
+    (let [{:keys [stripe-id]} (get-user user-id)
           {:keys [sub-id]} (plans/get-current-plan user-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
@@ -551,7 +551,7 @@
 (defn user-stripe-default-source
   [user-id]
   (with-transaction
-    {:default-source (or (some-> (:stripe-id (users/get-user-by-id user-id))
+    {:default-source (or (some-> (:stripe-id (get-user user-id))
                                  (stripe/read-default-customer-source))
                          [])}))
 
@@ -721,7 +721,7 @@
 (defn pay-user!
   [project-id user-id compensation admin-fee]
   (let [available-funds (:available-funds (calculate-project-funds project-id))
-        user (users/get-user-by-id user-id)
+        user (get-user user-id)
         total-amount (+ compensation admin-fee)]
     (cond
       (> total-amount available-funds)
@@ -1177,7 +1177,7 @@
                                 invitation/invitations-for-user
                                 (filter #(= project-id (:project-id %)))
                                 (filter #(= description (:description %))))
-        email (:email (users/get-user-by-id invitee))]
+        email (get-user invitee :email)]
     (if (empty? project-invitation)
       (do
         ;; send invitation email
@@ -1211,7 +1211,7 @@
 (defn read-email-addresses
   "Given a user-id, return all email addresses associated with it"
   [user-id]
-  {:addresses (users/read-email-addresses user-id)})
+  {:addresses (users/get-user-emails user-id)})
 
 (defn verify-email!
   "Verify the email for user-id with code"
@@ -1234,10 +1234,8 @@
       (= verify-code code)
       (do (users/verify-email! email verify-code user-id)
           ;; set this as primary when the user doesn't have any other verified email addresses
-          (when (= (->> (users/read-email-addresses user-id)
-                        (filterv :verified)
-                        count)
-                   1)
+          (when (= 1 (count (->> (users/get-user-emails user-id)
+                                 (filter :verified))))
             (users/set-primary-email! user-id email))
           {:success true})
       :else
@@ -1250,7 +1248,7 @@
   (let [current-email-entry (users/current-email-entry user-id new-email)]
     (cond
       ;; this email was already registerd to another user
-      (-> (users/get-user-by-email new-email) empty? not)
+      (-> (user-by-email new-email) empty? not)
       {:error {:status forbidden
                :message "This email address was already used to register an account."}}
       ;; this email doesn't exist for this user
@@ -1294,7 +1292,7 @@
   (let [current-email-entry (users/current-email-entry user-id email)]
     (cond
       ;; already used for a main account
-      (-> (users/get-user-by-email email) empty? not)
+      (-> (user-by-email email) empty? not)
       {:error {:status forbidden
                :message "This email address was already used to register an account."}}
       (:principal current-email-entry)
@@ -1432,7 +1430,7 @@
 (defn read-avatar
   "Return the url for the profile avatar"
   [user-id]
-  (let [email (:email (users/get-user-by-id user-id))
+  (let [email (get-user user-id :email)
         gravatar-img (files/gravatar-link email)
         {:keys [key filename]} (files/avatar-image-key-filename user-id)]
     (cond (not (empty? key))
@@ -1470,7 +1468,7 @@
       (with-transaction
         ;; create the group
         (let [new-org-id (groups/create-group! org-name)
-              user (users/get-user-by-id user-id)
+              user (get-user user-id)
               _ (groups/create-sysrev-stripe-customer! new-org-id)
               stripe-id (groups/get-stripe-id new-org-id)]
           ;; set the user as group admin

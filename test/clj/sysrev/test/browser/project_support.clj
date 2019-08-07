@@ -6,7 +6,7 @@
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.db.plans :as plans]
-            [sysrev.db.users :as users]
+            [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.db.project :as project]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
@@ -16,7 +16,7 @@
             [sysrev.test.browser.stripe :as bstripe]))
 
 ;; if a user is created in the db, they won't have a stripe customer associated with them
-;; to add them: (users/create-sysrev-stripe-customer! (users/get-user-by-email "browser+test@insilica.co"))
+;; to add them: (users/create-sysrev-stripe-customer! (user-by-email "browser+test@insilica.co"))
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
@@ -44,7 +44,7 @@
        (map #(stripe/cancel-subscription! %) subscriptions)))))
 
 ;; if you need need to unsubscribe all plans between tests:
-;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email b/test-login)))
+;; (unsubscribe-user-from-all-support-plans (user-by-email (:email b/test-login)))
 
 ;; This is testing a feature that is not used anymore
 #_
@@ -56,7 +56,7 @@
    project-id (atom nil)]
   (do (log/info "register-and-support-projects")
       ;; cancel any previouly created subscriptions
-      (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
+      (unsubscribe-user-from-all-support-plans (user-by-email email))
       ;; delete any test user that currently exists
       (b/delete-test-user :email email)
       ;; register manually to create stripe account
@@ -70,12 +70,12 @@
       (is (= email
              (:email (stripe/execute-action
                       (customers/get-customer
-                       (:stripe-id (users/get-user-by-email email)))))))
+                       (:stripe-id (user-by-email email)))))))
       ;; does stripe think the customer is registered to a basic plan?
       (is (= api/default-plan
              (-> (stripe/execute-action
                   (customers/get-customer
-                   (:stripe-id (users/get-user-by-email email))))
+                   (:stripe-id (user-by-email email))))
                  :subscriptions :data first :items :data first :plan :name)))
 ;;; go to root project and support it (default is $5)
       (nav/go-project-route "/support")
@@ -99,7 +99,7 @@
       (b/click support-submit-button)
       (is (b/exists? (support-message-xpath (now-supporting-at-string "$50.00"))))
       ;; is this all the user is paying for?
-      (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
+      (let [user-subscriptions (plans/user-support-subscriptions (user-by-email email))]
         (is (= 1
                (count user-subscriptions)))
         (is (= 5000
@@ -112,7 +112,7 @@
       (b/click support-submit-button)
       (is (b/exists? (support-message-xpath (now-supporting-at-string "$200.00"))))
       ;; is this all the user is paying for?
-      (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
+      (let [user-subscriptions (plans/user-support-subscriptions (user-by-email email))]
         (is (= 1
                (count user-subscriptions)))
         (is (= 20000
@@ -128,8 +128,8 @@
       (b/click cancel-support-button)
       (b/click stop-support-button)
       (is (b/exists? {:xpath "//h1[text()='Support This Project']"}))
-      ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
-      (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email)))))
+      ;;(unsubscribe-user-from-all-support-plans (user-by-email email))
+      (is (empty? (plans/user-support-subscriptions (user-by-email email)))))
 
   :cleanup
   (do (when @project-id (project/delete-project @project-id))
