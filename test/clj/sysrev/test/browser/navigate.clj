@@ -9,7 +9,7 @@
             [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
 (defn go-route [path & {:keys [wait-ms pre-wait-ms silent]
-                        :or {wait-ms 15}}]
+                        :or {wait-ms 20}}]
   (let [current (taxi/current-url)
         path (if (empty? path) "/" path)]
     (cond (or (not (string? current))

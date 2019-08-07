@@ -112,18 +112,18 @@
   (count (taxi/find-elements x/project-source)))
 
 (defn check-source-count [n]
-  (b/is-soon (= n (get-source-count)) 8000 30))
+  (b/is-soon (= n (get-source-count)) 10000 40))
 
 (defn add-articles-from-search-term [search-term]
-  (nav/go-project-route "/add-articles" :wait-ms 50)
+  (nav/go-project-route "/add-articles" :wait-ms 75)
   (let [initial-count (get-source-count)]
     (search-pubmed search-term)
     (log/info "importing articles from search")
     (b/click import-button-xpath)
-    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 2
+    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (check-source-count (inc initial-count))
-    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 2
+    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (nav/wait-until-overview-ready)))
 
@@ -156,10 +156,10 @@
       (add-articles-from-search-term search-term))))
 
 (defn delete-search-term-source [search-term]
-  (b/wait-until-loading-completes :pre-wait 25 :inactive-ms 75 :loop 3)
+  (b/wait-until-loading-completes :pre-wait 75 :inactive-ms 100 :loop 3)
   (log/info "deleting article source")
   (b/click (x/search-term-delete search-term))
-  (b/wait-until-loading-completes :pre-wait 50 :inactive-ms 100 :loop 4))
+  (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 4))
 
 (deftest-browser pubmed-search
   true []

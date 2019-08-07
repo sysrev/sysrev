@@ -248,12 +248,12 @@
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 20)."
   [& [duration]]
-  (< (ajax-activity-duration) (- (or duration 10))))
+  (< (ajax-activity-duration) (- (or duration 15))))
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
   (dotimes [i (or loop 1)]
-    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 10)))
+    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 15)))
     (assert (try-wait wait-until #(and (ajax-inactive? inactive-ms)
                                        (every? (complement taxi/exists? #_ displayed-now?)
                                                [(not-class "div.ui.loader.active"
@@ -290,7 +290,7 @@
     (when clear? (taxi/clear q))
     (Thread/sleep delay)
     (taxi/input-text q text)
-    (Thread/sleep 5)))
+    (Thread/sleep 10)))
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
@@ -379,7 +379,7 @@
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
                         (log-console-messages (if failed# :error :info))))
-                    (try (wait-until-loading-completes :pre-wait 20 :timeout 300)
+                    (try (wait-until-loading-completes :pre-wait 25 :timeout 400)
                          (catch Throwable e2#
                            (log/info "test cleanup - wait-until-loading-completes timed out")))
                     (when-not ~repl?
