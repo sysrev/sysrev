@@ -71,7 +71,7 @@
       [:div.ui.container
        [:div.ui.middle.aligned.stackable.grid
         [:div.nine.wide.column
-         [plist/PublicProjectsList]]
+         [plist/FeaturedProjectsList]]
         [:div.seven.wide.column
          [:a {:href "https://blog.sysrev.com/getting-started/"
               :target "_blank"}

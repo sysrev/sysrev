@@ -84,22 +84,19 @@
   (let [panel (or panel (nav/active-panel db))]
     (update-in db (concat [:state :panels panel :views view] path) update-fn)))
 
-(reg-sub
- :view-field
- (fn [[_ view path & [panel]]]
-   [(subscribe [::view-state view panel])])
- (fn [[vstate] [_ view path _]]
-   (when (and vstate path)
-     (let [path (if (or (nil? path) (sequential? path))
-                  path [path])]
-       (get-in vstate path)))))
+(reg-sub :view-field
+         (fn [[_ view path & [panel]]]
+           [(subscribe [::view-state view panel])])
+         (fn [[vstate] [_ view path _]]
+           (when (and vstate path)
+             (let [path (if (or (nil? path) (sequential? path))
+                          path [path])]
+               (get-in vstate path)))))
 
-(reg-event-db
- :set-view-field
- [trim-v]
- (fn [db [view path val & [panel]]]
-   (let [panel (or panel (nav/active-panel db))]
-     (assoc-in db (concat [:state :panels panel :views view] path) val))))
+(reg-event-db :set-view-field [trim-v]
+              (fn [db [view path val & [panel]]]
+                (let [panel (or panel (nav/active-panel db))]
+                  (assoc-in db (concat [:state :panels panel :views view] path) val))))
 
 ;;;
 ;;; Notifications

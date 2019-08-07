@@ -4,6 +4,7 @@
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.create-project :refer [CreateProject]]
+            [sysrev.views.list-pager :refer [ListPager]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -31,27 +32,59 @@
         :on-click #(dispatch [:action [:join-project project-id]])}
        "Join"]]]))
 
+
+(reg-sub ::projects-list-page-num
+         (fn [[_ member? id]]
+           (subscribe [:view-field :projects-list [:page-num member? id]]))
+         (fn [page-num] (or page-num 1)))
+
+(reg-event-fx ::projects-list-page-num [trim-v]
+              (fn [_ [member? id page-num]]
+                {:dispatch [:set-view-field :projects-list
+                            [:page-num member? id]
+                            page-num]}))
+
 (defn ProjectsListSegment [title projects member? & {:keys [id]}]
   (with-loader [[:identity]] {}
     (when (or (not-empty projects) (true? member?))
-      [:div.ui.segments.projects-list
-       {:class (if member? "member" "non-member")
-        :id (if (nil? id)
-              (if member?
-                "your-projects" "available-projects")
-              id)}
-       (when (loading/item-loading? [:identity])
-         [:div.ui.active.inverted.dimmer
-          [:div.ui.loader]])
-       [:div.ui.segment.projects-list-header
-        [:h4.ui.header title]]
-       (doall
-        (->> projects
-             (map (fn [{:keys [project-id] :as project}]
-                    ^{:key [:projects-list title project-id]}
-                    [ProjectListItem project]))))])))
+      (let [panel @(subscribe [:active-panel])
+            items-per-page 10
+            current-page @(subscribe [::projects-list-page-num member? id])
+            offset (when (> (count projects) 10)
+                     (* (dec current-page) items-per-page))]
+        [:div.ui.segments.projects-list
+         {:class (if member? "member" "non-member")
+          :id (if (nil? id)
+                (if member?
+                  "your-projects" "available-projects")
+                id)}
+         (when (loading/item-loading? [:identity])
+           [:div.ui.active.inverted.dimmer
+            [:div.ui.loader]])
+         [:div.ui.stackable.grid.segment.projects-list-header
+          [:div.five.wide.column
+           [:h4.ui.header title]]
+          [:div.eleven.wide.right.aligned.column
+           (when (> (count projects) 10)
+             [ListPager
+              {:panel panel
+               :instance-key [:projects-list member? id]
+               :offset offset
+               :total-count (count projects)
+               :items-per-page items-per-page
+               :item-name-string "projects"
+               :set-offset #(dispatch [::projects-list-page-num
+                                       member? id
+                                       (inc (quot % items-per-page))])
+               :show-message? false}])]]
+         (doall
+          (->> (cond-> projects
+                 offset (->> (drop offset) (take items-per-page)))
+               (map (fn [{:keys [project-id] :as project}]
+                      ^{:key [:projects-list title project-id]}
+                      [ProjectListItem project]))))]))))
 
-(defn PublicProjectsList []
+(defn FeaturedProjectsList []
   [:div.ui.segments.projects-list
    [:div.ui.segment.projects-list-header
     [:h4.ui.header "Featured Projects"]]
@@ -94,8 +127,8 @@
           [:div.sixteen.wide.column
            [CreateProject]]]
          [:div.row
-          [:div.nine.wide.column.user-projects
-           [ProjectsListSegment "Your Projects" member-projects true]
-           [ProjectsListSegment "Available Projects" available-projects false]]
-          [:div.seven.wide.column.public-projects
-           [PublicProjectsList]]]]))))
+          [:div.eight.wide.column.user-projects
+           [ProjectsListSegment "Your Projects" member-projects true]]
+          [:div.eight.wide.column.public-projects
+           [FeaturedProjectsList]
+           [ProjectsListSegment "Available Projects" available-projects false]]]]))))
