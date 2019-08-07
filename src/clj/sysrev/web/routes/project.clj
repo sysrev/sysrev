@@ -444,7 +444,8 @@
 
 (dr (POST "/api/change-project-settings" request
           (wrap-authorize
-           request {:roles ["admin"]}
+           request {:roles ["admin"]
+                    :bypass-subscription-lapsed? true}
            (let [project-id (active-project request)
                  {:keys [changes]} (:body request)]
              (api/change-project-settings project-id changes)))))

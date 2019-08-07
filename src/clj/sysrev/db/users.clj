@@ -115,7 +115,7 @@
 (defn create-user [email password & {:keys [project-id user-id permissions]
                                      :or {permissions ["user"]}
                                      :as opts}]
-  (let [test-email? (and (not= (:profile env) :prod)
+  (let [test-email? (and (not= (in? #{:prod :test :remote-test} (:profile env)))
                          (boolean (or (re-find #"\+test.*\@" email)
                                       (re-find #"\@sysrev\.us$" email)
                                       (re-find #"\@insilica\.co$" email))))

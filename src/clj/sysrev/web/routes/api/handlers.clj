@@ -258,12 +258,10 @@
 (def-webapi
   :create-project :post
   {:required [:project-name]
-   :require-admin? true}
+   #_ :require-admin? #_ true}
   (fn [request]
-    (let [{:keys [api-token project-name add-self?]}
-          (-> request :body)
-          {:keys [user-id]}
-          (users/get-user-by-api-token api-token)]
+    (let [{:keys [api-token project-name add-self?]} (:body request)
+          {:keys [user-id]} (users/get-user-by-api-token api-token)]
       (api/create-project-for-user! project-name user-id))))
 
 ;; TODO: does tom need this? disable for now

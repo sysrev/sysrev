@@ -114,5 +114,6 @@
             (when-let [entry (get @action-defs name)]
               (if-let [process (:on-error entry)]
                 (apply process [cofx args result])
-                (do (js/console.error (str "action error: " (pr-str item)))
+                (do (js/console.error (str "action error: item = " (pr-str item)
+                                           "\nerror: " (pr-str (:error cofx))))
                     {})))))))

@@ -36,6 +36,7 @@
 (deftest test-import-pmids
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
+        _ (users/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id] :as project} (project/create-project "test-import-pmids")]
     (try
       (let [response (webapi-post "import-pmids"
@@ -52,6 +53,7 @@
 (deftest test-import-article-text
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
+        _ (users/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id] :as project} (project/create-project "test-import-article-text")]
     (try
       (let [response (webapi-post "import-article-text"
@@ -73,6 +75,7 @@
 (deftest test-copy-articles
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
+        _ (users/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id] :as project} (project/create-project "test-copy-articles")
         dest-project (project/create-project "test-copy-articles-dest")]
     (try
@@ -156,8 +159,8 @@
 (deftest test-check-allow-answers
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
-        {:keys [project-id]
-         :as project} (project/create-project "test-check-allow-answers")]
+        _ (users/set-user-permissions user-id ["user" "admin"])
+        {:keys [project-id]} (project/create-project "test-check-allow-answers")]
     (try
       (label/add-label-entry-boolean
        project-id {:name "include" :question "include?" :short-label "Include"
@@ -200,6 +203,7 @@
         dest-project-name (str "[cloned] " source-project-name)
         {:keys [url]} (get-selenium-config)
         {:keys [user-id api-token]} (create-test-user)
+        _ (users/set-user-permissions user-id ["user" "admin"])
         source-project-id (-> (webapi-post "create-project"
                                            {:api-token api-token
                                             :project-name source-project-name

@@ -259,7 +259,8 @@
             (when-let [entry (get @data-defs name)]
               (if-let [process (:on-error entry)]
                 (apply process [cofx args result])
-                (do (js/console.error (str "data error: " (pr-str item)))
+                (do (js/console.error (str "data error: item = " (pr-str item)
+                                           "\nerror: " (pr-str (:error cofx))))
                     {})))))))
 
 ;; Reload data item from server if already loaded.
