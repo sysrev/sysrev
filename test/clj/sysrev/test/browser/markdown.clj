@@ -63,6 +63,5 @@
       (click-save)
       ;; a prompt for creating a project description
       (b/is-soon (b/displayed-now? create-button)))
-  :cleanup
-  (do (nav/delete-current-project)
-      (nav/log-out)))
+  :cleanup (do (nav/delete-current-project)
+               (nav/log-out)))

@@ -21,7 +21,7 @@
             [sysrev.db.queries :as q]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer
-             [map-values in? short-uuid to-uuid parse-number ->map-with-key]]
+             [map-values in? short-uuid to-uuid parse-number ->map-with-key filter-values]]
             [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
 
@@ -564,24 +564,14 @@
            (mapv #(select-keys % [:project-id :name])))))
 
 (defn delete-all-projects-with-name [project-name]
-  (assert (string? project-name))
-  (assert (not-empty project-name))
-  (q/delete :project {:name project-name}))
+  (q/delete :project {:name (not-empty project-name)}))
 
 (defn get-single-user-project-ids [user-id]
-  (let [project-ids (-> (select :project-id)
-                        (from :project-member)
-                        (where [:= :user-id user-id])
-                        (->> do-query (map :project-id) vec))
-        member-counts (when (not-empty project-ids)
-                        (-> (select :user-id :project-id)
-                            (from :project-member)
-                            (where [:in :project-id project-ids])
-                            (->> do-query (group-by :project-id) (map-values count))))]
-    (->> (vec member-counts)
-         (map (fn [[project-id n-members]]
-                (when (= 1 n-members) project-id)))
-         (remove nil?))))
+  (let [project-ids (q/find :project-member {:user-id user-id} :project-id)
+        p-members (when (seq project-ids)
+                    (q/find :project-member {:project-id project-ids} [:user-id :project-id]
+                            :group :project-id))]
+    (keys (filter-values #(= 1 (count %)) p-members))))
 
 ;;;
 ;;; These are intended only for testing
