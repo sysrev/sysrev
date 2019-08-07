@@ -44,7 +44,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
             [sysrev.biosource.predict :as predict-api])
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
@@ -603,7 +603,7 @@
   [project-id]
   (let [public-info (->> (project/project-user-ids project-id)
                          (users/get-users-public-info)
-                         (->map-with-key :user-id))
+                         (index-by :user-id))
         compensation-owed-by-project (compensation/compensation-owed-by-project project-id)]
     {:compensation-owed (map #(merge % (get public-info (:user-id %)))
                              compensation-owed-by-project)}))
@@ -1327,9 +1327,9 @@
           labeled-summary (users/projects-labeled-summary user-id)
           annotations-summary (users/projects-annotated-summary user-id)]
       {:projects (vals (merge-with merge
-                                   (->map-with-key :project-id projects)
-                                   (->map-with-key :project-id labeled-summary)
-                                   (->map-with-key :project-id annotations-summary)))})))
+                                   (index-by :project-id projects)
+                                   (index-by :project-id labeled-summary)
+                                   (index-by :project-id annotations-summary)))})))
 
 (defn update-user-introduction!
   "Change the introduction for user-id"

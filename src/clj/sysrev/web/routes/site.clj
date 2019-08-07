@@ -16,7 +16,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.web.app :as app :refer [wrap-authorize current-user-id]]
             [sysrev.util :refer [should-never-happen-exception]]
-            [sysrev.shared.util :refer [in? map-values ->map-with-key]]))
+            [sysrev.shared.util :refer [in? map-values index-by]]))
 
 ;; Functions defined after defroutes form
 (declare public-project-summaries)
@@ -184,5 +184,5 @@
     (-> (select :*)
         (from :project)
         (->> do-query
-             (->map-with-key :project-id)
+             (index-by :project-id)
              (map-values #(assoc % :admins (get admins (:project-id %) [])))))))

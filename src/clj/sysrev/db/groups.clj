@@ -5,7 +5,7 @@
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [->map-with-key]]))
+            [sysrev.shared.util :as sutil :refer [index-by]]))
 
 (defn group-name->group-id
   "Given a group-name, get the group-id associated with it"
@@ -83,7 +83,7 @@
                              do-query)
           users-public-info (->> (map :user-id users-in-group)
                                  (users/get-users-public-info)
-                                 (->map-with-key :user-id))]
+                                 (index-by :user-id))]
       (vec (some->> (seq users-in-group)
                     (map #(assoc % :primary-email-verified
                                  (users/primary-email-verified? (:user-id %))))

@@ -7,7 +7,7 @@
             [re-frame.core :refer [subscribe dispatch reg-sub reg-sub-raw reg-event-db
                                    reg-event-fx trim-v]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [->map-with-key]])
+            [sysrev.shared.util :as sutil :refer [index-by]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
 (def semantic-ui js/semanticUIReact)
@@ -130,7 +130,7 @@
   Returns a vector of the form
   [{:word nil :index [[<begin> <end>] ..] :annotation <string>} ...]"
   [annotations string]
-  (let [occupied-chars (sort (flatten (mapv :index 
+  (let [occupied-chars (sort (flatten (mapv :index
                                             annotations)))
         no-annotations-indices (merge (mapv #(vector %1 %2)
                                   (take-nth 2 (rest occupied-chars))
@@ -288,8 +288,8 @@
         annotations (-> (convert-annotations annotations text)
                         remove-overlaps)
         max-index (- (count text) 1)
-        start-map (->map-with-key :start annotations)
-        end-map (->map-with-key :end annotations)
+        start-map (index-by :start annotations)
+        end-map (index-by :end annotations)
         escaped-item #(if (= % "\"") "\\\"" %)]
     (str "[:div "
          (->> (map-indexed

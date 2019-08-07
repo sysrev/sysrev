@@ -11,7 +11,7 @@
             [sysrev.views.components :as ui]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer
-             [in? map-values filter-values css ->map-with-key]])
+             [in? map-values filter-values css index-by]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -133,7 +133,7 @@
   :process (fn [{:keys [db]} [project-id article-id] {:keys [annotations]}]
              (when annotations
                {:db (assoc-in db [:data :project project-id :annotator :article article-id]
-                              (->map-with-key :annotation-id annotations))
+                              (index-by :annotation-id annotations))
                 :dispatch [:reload [:annotator/status project-id]]})))
 
 (reg-sub :annotator/article
@@ -153,7 +153,7 @@
   (fn [{:keys [db]} [project-id article-id pdf-key] {:keys [annotations]}]
     (when annotations
       {:db (assoc-in db [:data :project project-id :annotator :article-pdf article-id pdf-key]
-                     (->map-with-key :annotation-id annotations))
+                     (index-by :annotation-id annotations))
        :dispatch [:reload [:annotator/status project-id]]})))
 
 (reg-sub :annotator/article-pdf

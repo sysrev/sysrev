@@ -8,7 +8,7 @@
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
             [sysrev.views.project-list :refer [ProjectsListSegment]]
             [sysrev.views.semantic :refer [Message MessageHeader Divider Segment Header Table TableHeader TableHeaderCell TableBody TableRow TableCell Icon Loader]]
-            [sysrev.shared.util :refer [->map-with-key]]
+            [sysrev.shared.util :refer [index-by]]
             [sysrev.state.nav :refer [project-uri]])
   (:require-macros [sysrev.macros :refer [setup-panel-state]]
                    [reagent.interop :refer [$]]))
@@ -32,7 +32,7 @@
     (GET (str "/api/org/" org-id "/projects")
          {:header {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [{:keys [result]}]
-                     (let [user-projects (->map-with-key :project-id @(subscribe [:self/projects]))
+                     (let [user-projects (index-by :project-id @(subscribe [:self/projects]))
                            member-of? #(get-in user-projects [% :member?])]
                        (reset! retrieving? false)
                        (dispatch [:org/set-projects! org-id (map #(assoc % :member? (member-of? (:project-id %)))

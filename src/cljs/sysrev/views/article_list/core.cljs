@@ -18,7 +18,7 @@
             [sysrev.views.article-list.filters :as f]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values css ->map-with-key]])
+            [sysrev.shared.util :as sutil :refer [in? map-values css index-by]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (reg-sub-raw
@@ -151,7 +151,7 @@
                           (keys users-notes)]
                          (apply concat) distinct)]
         (let [user-labels (if show-labels
-                            (->map-with-key :label-id (get users-labels user-id))
+                            (index-by :label-id (get users-labels user-id))
                             {})
               user-note (when show-notes (first (get users-notes user-id)))
               user-name @(subscribe [:user/display user-id])

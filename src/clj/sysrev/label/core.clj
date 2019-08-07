@@ -21,7 +21,7 @@
             [sysrev.article.core :as article]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]
-            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key or-default]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by or-default]]))
 
 (def valid-label-categories
   ["inclusion criteria" "extra"])
@@ -202,7 +202,7 @@
       (->> do-query
            (group-by :user-id)
            (map-values
-            #(->> (->map-with-key :label-id %)
+            #(->> (index-by :label-id %)
                   (map-values
                    (fn [{:keys [confirm-time updated-time] :as entry}]
                      (merge (select-keys entry [:answer :resolve])
@@ -432,7 +432,7 @@
   (with-project-cache project-id [:members-info]
     (let [users (-> (q/select-project-members
                      project-id [:u.* [:m.permissions :project-permissions]])
-                    (->> do-query (->map-with-key :user-id)))
+                    (->> do-query (index-by :user-id)))
           inclusions (project-user-inclusions project-id)
           #_ in-progress
           #_ (-> (q/select-project-articles
@@ -441,7 +441,7 @@
                  (q/filter-valid-article-label false)
                  (group :al.user-id)
                  (->> do-query
-                      (->map-with-key :user-id)
+                      (index-by :user-id)
                       (map-values :count)))]
       (->> users
            (mapv (fn [[user-id user]]

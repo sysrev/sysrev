@@ -12,8 +12,7 @@
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.views.panels.project.support :as support]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer
-             [in? ->map-with-key ensure-pred]])
+            [sysrev.shared.util :as sutil :refer [in? index-by ensure-pred]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [setup-panel-state]]))
 
@@ -58,7 +57,7 @@
           :handler (fn [{:keys [result]}]
                      (reset! loading? false)
                      (reset! project-compensations
-                             (->map-with-key :compensation-id (:compensations result))))
+                             (index-by :compensation-id (:compensations result))))
           :error-handler (fn [response]
                            (reset! loading? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
@@ -77,7 +76,7 @@
                  (reset! users-current-comp
                          (->> (:project-users-current-compensation result)
                               (map #(update % :compensation-id (fn [x] (or x "none"))))
-                              (->map-with-key :user-id))))
+                              (index-by :user-id))))
       :error-handler (fn [response]
                        (reset! loading? false)
                        ($ js/console log

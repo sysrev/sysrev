@@ -6,7 +6,7 @@
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]]
-            [sysrev.shared.util :refer [->map-with-key space-join parse-integer]])
+            [sysrev.shared.util :refer [index-by space-join parse-integer]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
@@ -25,7 +25,7 @@
     (GET (str "/api/user/" user-id "/invitations")
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [{:keys [result]}]
-                     (reset! invitations (->map-with-key :id (:invitations result)))
+                     (reset! invitations (index-by :id (:invitations result)))
                      (reset! getting-invitations? false))
           :error-handler (fn [error]
                            (reset! getting-invitations? false)

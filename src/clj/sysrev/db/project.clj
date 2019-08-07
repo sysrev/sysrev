@@ -21,7 +21,7 @@
             [sysrev.db.queries :as q]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer
-             [map-values in? short-uuid to-uuid parse-number ->map-with-key filter-values]]
+             [map-values in? short-uuid to-uuid parse-number index-by filter-values]]
             [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
 
@@ -246,7 +246,7 @@
   (with-project-cache project-id [:labels :all include-disabled?]
     (-> (q/select-label-where
          project-id true [:*] {:include-disabled? include-disabled?})
-        (->> do-query (->map-with-key :label-id)))))
+        (->> do-query (index-by :label-id)))))
 ;;;
 (s/fdef project-labels
   :args (s/cat :project-id ::sc/project-id
@@ -297,7 +297,7 @@
                        ;; (q/with-article-predict-score predict-run-id)
                        (merge-where [:exists (q/select-user-article-labels
                                               user-id :a.article-id nil [:*])])
-                       (->> do-query (->map-with-key :article-id))))
+                       (->> do-query (index-by :article-id))))
           labels-map (fn [confirmed?]
                        (->> labels
                             (filter #(= (true? (:confirmed %)) confirmed?))
@@ -393,7 +393,7 @@
     (->> (do-query (q/select-project-keywords project-id [:*]))
          (map (fn [kw] (assoc kw :toks (->> (str/split (:value kw) #" ")
                                             (mapv canonical-keyword)))))
-         (->map-with-key :keyword-id))))
+         (index-by :keyword-id))))
 ;;;
 (s/fdef project-keywords
   :args (s/cat :project-id ::sc/project-id)
@@ -428,7 +428,7 @@
   (with-project-cache project-id [:notes :all]
     (-> (q/select-project-where [:= :p.project-id project-id] [:pn.*])
         (q/with-project-note)
-        (->> do-query (->map-with-key :name)))))
+        (->> do-query (index-by :name)))))
 ;;;
 (s/fdef project-notes
   :args (s/cat :project-id ::sc/project-id)
@@ -515,7 +515,7 @@
 (defn project-users-info [project-id]
   (with-project-cache project-id [:users-info]
     (->> (do-query (q/select-project-members project-id [:u.*]))
-         (->map-with-key :user-id)
+         (index-by :user-id)
          (map-values #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
 
 (defn project-pmids

@@ -18,7 +18,7 @@
             [sysrev.label.answer :as answer]
             [sysrev.db.queries :as q]
             [sysrev.db.annotations :refer [project-article-annotations]]
-            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]))
 
@@ -292,7 +292,7 @@ WHERE project_id=%d
                            {:labels (get (project-article-labels project-id) article-id)
                             :notes  (get (project-article-notes project-id) article-id)}
                            (get (project-article-consensus project-id) article-id))))
-             (->map-with-key :article-id)))))
+             (index-by :article-id)))))
 
 (defn query-project-article-list
   [project-id {:keys [filters sort-by sort-dir n-offset n-count user-id]

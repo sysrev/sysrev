@@ -11,7 +11,7 @@
             [sysrev.db.project :as p]
             [sysrev.article.core :as a]
             [sysrev.filestore :as fstore]
-            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
 
 (defn get-source
   "Get fields for project-source entry matching source-id."
@@ -135,7 +135,7 @@
   (-> (select :article-id :enabled)
       (from :article)
       (where [:= :project-id project-id])
-      (->> do-query (->map-with-key :article-id) (map-values :enabled))))
+      (->> do-query (index-by :article-id) (map-values :enabled))))
 
 (defn update-project-articles-enabled
   "Update the enabled fields of articles associated with project-id."

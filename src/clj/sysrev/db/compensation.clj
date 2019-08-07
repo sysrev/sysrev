@@ -10,7 +10,7 @@
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
             [sysrev.db.funds :refer [transaction-source-descriptor]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [->map-with-key]]))
+            [sysrev.shared.util :as sutil :refer [index-by]]))
 
 (def admin-fee 0.20)
 
@@ -179,7 +179,7 @@
   "Return the amount-owed to users of project-id over start-date and end-date"
   [project-id & [start-date end-date]]
   (let [project-users (project-users project-id)
-        users-map (->map-with-key :user-id project-users)]
+        users-map (index-by :user-id project-users)]
     (->> project-users
          (map #(project-compensation-for-user project-id (:user-id %) start-date end-date))
          flatten

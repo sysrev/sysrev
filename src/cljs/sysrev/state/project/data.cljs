@@ -11,7 +11,7 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.shared.transit :as sr-transit]
             [sysrev.util :refer [dissoc-in]]
-            [sysrev.shared.util :as sutil :refer [in? ->map-with-key]]))
+            [sysrev.shared.util :as sutil :refer [in? index-by]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))
@@ -26,7 +26,7 @@
   :uri (fn [] "/api/public-projects")
   :process (fn [{:keys [db]} [] {:keys [projects]}]
              {:db (assoc-in db [:data :public-projects]
-                            (->map-with-key :project-id projects))}))
+                            (index-by :project-id projects))}))
 
 (def-data :project
   :loaded? project-loaded?

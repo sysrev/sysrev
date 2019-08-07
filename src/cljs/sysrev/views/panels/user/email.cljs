@@ -10,7 +10,7 @@
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label LabelDetail]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [->map-with-key parse-integer]])
+            [sysrev.shared.util :as sutil :refer [index-by parse-integer]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
 
@@ -23,7 +23,7 @@
     (GET (str "/api/user/" @(subscribe [:self/user-id]) "/email/addresses")
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [{:keys [result]}]
-                     (reset! email-addresses (->map-with-key :id (:addresses result)))
+                     (reset! email-addresses (index-by :id (:addresses result)))
                      (dispatch [:fetch [:identity]]))
           :error-handler (fn [response]
                            ($ js/console log "[get-email-addresses] There was an error"))})))
@@ -184,7 +184,7 @@
         new-email (r/cursor state [:email :new-email])
         sending-update? (r/cursor state [:update :sending?])
         update-message (r/cursor state [:update :message])
-        update-error (r/cursor state [:update :error])] 
+        update-error (r/cursor state [:update :error])]
     (r/create-class
      {:reagent-render
       (fn [this]

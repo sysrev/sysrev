@@ -11,8 +11,7 @@
             [honeysql-postgres.helpers :as sqlh-pg :refer :all :exclude [partition-by]]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
             [sysrev.shared.util :as sutil :refer
-             [in? ->map-with-key or-default map-values apply-keyargs
-              ensure-pred assert-pred]])
+             [in? index-by or-default map-values apply-keyargs ensure-pred assert-pred]])
   (:import java.util.UUID))
 
 ;;;
@@ -137,7 +136,7 @@
              :query       query
              :string      (db/to-sql-string query)
              :execute     (-> (do-query query)
-                              (cond->> index (->map-with-key index))
+                              (cond->> index (index-by index))
                               (cond->> group (group-by group))
                               (cond->> specified (map-fields #(select-keys % specified)))
                               (cond->> single-field (map-fields single-field))

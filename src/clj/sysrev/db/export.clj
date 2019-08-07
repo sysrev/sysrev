@@ -9,7 +9,7 @@
             [sysrev.db.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.db.project :as project]
-            [sysrev.shared.util :refer [in? map-values ->map-with-key]]))
+            [sysrev.shared.util :refer [in? map-values index-by]]))
 
 (def default-csv-separator "|||")
 
@@ -36,7 +36,7 @@
                            (merge-where [:exists (-> (q/select-project-article-labels
                                                       project-id true [:al.*])
                                                      (merge-where [:= :l.enabled true]))])
-                           (->> do-query (->map-with-key :article-id)))
+                           (->> do-query (index-by :article-id)))
           user-answers (-> (q/select-project-articles
                             project-id [:al.article-id :al.label-id :al.user-id :al.answer
                                         :al.resolve :al.updated-time :u.email])
@@ -94,7 +94,7 @@
                            (merge-where [:exists (-> (q/select-project-article-labels
                                                       project-id true [:al.*])
                                                      (merge-where [:= :l.enabled true]))])
-                           (->> do-query (->map-with-key :article-id)))
+                           (->> do-query (index-by :article-id)))
           anotes (-> (q/select-project-articles
                       project-id [:anote.article-id :anote.user-id :anote.content])
                      (merge-join [:article-note :anote]
@@ -157,7 +157,7 @@
                                        :authors :abstract]
                              :article-id article-ids
                              :where [:= :enabled true])
-                            (->map-with-key :article-id))
+                            (index-by :article-id))
           predict-run-id (q/project-latest-predict-run-id project-id)
           predict-label-ids [(project/project-overall-label-id project-id)]
           ;; TODO: select labels by presence of label_predicts entries
@@ -165,7 +165,7 @@
                            (-> (q/select-label-where
                                 project-id [:in :l.label-id predict-label-ids]
                                 [:l.label-id :l.label-id-local :l.short-label])
-                               (->> do-query (->map-with-key :label-id))))
+                               (->> do-query (index-by :label-id))))
           apredicts (when (and predict-run-id (seq predict-label-ids))
                       (-> (q/select-project-articles
                            project-id [:lp.article-id :lp.label-id [:lp.val :score]])

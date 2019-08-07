@@ -11,7 +11,7 @@
             [sysrev.article.core :as article]
             [sysrev.source.endnote :refer [load-endnote-record parse-endnote-file]]
             [sysrev.util :as util :refer [xml-find-value parse-xml-str]]
-            [sysrev.shared.util :as u :refer [in? map-values ->map-with-key]]))
+            [sysrev.shared.util :as u :refer [in? map-values index-by]]))
 
 (defn all-included-articles [project-id]
   (->> (keys (labels/project-included-articles project-id))

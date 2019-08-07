@@ -261,7 +261,7 @@
                (transit/read s))))
 
 ;; Slightly modified from clojure.core/group-by
-(defn ->map-with-key
+(defn index-by
   "Variant of clojure.core/group-by for unique key values.
 
   Returns a map of the elements of coll keyed by the result of keyfn
@@ -274,7 +274,7 @@
     (fn [ret x]
       (let [k (keyfn x)]
         (assert (= ::not-found (get ret k ::not-found))
-                (str "->map-with-key: duplicate key value (" k ")"))
+                (str "index-by: duplicate key value (" k ")"))
         (assoc! ret k x)))
     (transient {}) coll)))
 

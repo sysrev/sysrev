@@ -15,7 +15,7 @@
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.core :as test]
             [sysrev.stripe :as stripe]
-            [sysrev.shared.util :as sutil :refer [->map-with-key]]))
+            [sysrev.shared.util :as sutil :refer [index-by]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -56,7 +56,7 @@
        (mapv taxi/text)
        (mapv #(str/split % #"\n"))
        (mapv #(hash-map :name (first %) :permission (second %)))
-       (->map-with-key :name)))
+       (index-by :name)))
 
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"

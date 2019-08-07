@@ -7,7 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.util :as u :refer [in? map-values ->map-with-key]]
+            [sysrev.shared.util :as u :refer [in? map-values index-by]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -102,7 +102,7 @@
         (q/with-article-note)
         (->> do-query
              (group-by :user-id)
-             (map-values #(->> (->map-with-key :name %)
+             (map-values #(->> (index-by :name %)
                                (map-values :content)))))))
 ;;;
 (s/fdef article-user-notes-map
@@ -149,7 +149,7 @@
        article-id (db/table-fields :aflag [:flag-name :disable :date-created :meta]))
       (q/join-article-flags)
       (->> do-query
-           (->map-with-key :flag-name)
+           (index-by :flag-name)
            (map-values #(dissoc % :flag-name)))))
 
 (defn article-sources-list [article-id]
