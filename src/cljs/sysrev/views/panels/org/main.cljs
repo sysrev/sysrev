@@ -77,13 +77,10 @@
                    "Members"]
                   [MenuItem {:id "org-projects" :href (uri-fn "projects")
                              :name "Projects" :class (css [(active? "projects") "active"])}]
-                  #_
-                  [MenuItem {:id "org-profile" :href "/org/profile"
-                             :name "Profile" :class (css [(= @active-route "/org/profile") "active"])}
-                   "Profile"]
                   (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
                     [MenuItem {:id "org-billing" :href (uri-fn "billing")
-                               :name "Billing" :class (css [(active? "billing") "active"])}
+                               :name "Billing" :class (css [(active? "billing") "active"])
+                               :position "right"}
                      "Billing"])]]])
              [:div {:id "org-content"}
               (condp re-matches @active-route

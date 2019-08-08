@@ -3,6 +3,7 @@
             [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [sysrev.base :refer [active-route]]
             [sysrev.loading :as loading]
+            [sysrev.state.nav :refer [user-uri]]
             [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.views.components :refer [dropdown-menu with-tooltip]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
@@ -76,7 +77,7 @@
          (when-not mobile? [SiteSearch])
          (toggle-theme-button)
          [:a.item {:id "user-name-link"
-                   :href (str "/user/" user-id "/profile")}
+                   :href (user-uri user-id)}
           [:div
            [Avatar {:user-id user-id}]
            [:span.blue-text {:style {:margin-left "0.25em"}} user-display]]]

@@ -644,17 +644,24 @@
 
 (defn get-project-owner [project-id]
   (with-transaction
-    (if-let [project-group (-> (select :group-id)
-                               (from :project-group)
+    (if-let [project-owner (-> (select :g.group-id :g.group-name)
+                               (from [:project-group :pg])
                                (where [:= :project-id project-id])
-                               do-query first :group-id)]
-      {:group-id project-group}
-      (-> (select :user-id)
-          (from :project-member)
-          (where [:and
-                  [:= :project-id project-id]
-                  [:= "owner" :%any.permissions]])
-          do-query first))))
+                               (join [:groups :g] [:= :g.group-id :pg.group-id])
+                               do-query first)]
+      {:group-id (:group-id project-owner)
+       :name (:group-name project-owner)}
+      (let [project-owner (-> (select :wu.user-id :wu.email)
+                              (from [:project-member :pm])
+                              (where [:and
+                                      [:= :pm.project-id project-id]
+                                      [:= "owner" :%any.pm.permissions]])
+                              (join [:web-user :wu] [:= :pm.user-id :wu.user-id])
+                              do-query first)]
+        {:user-id (:user-id project-owner)
+         :name (-> (:email project-owner)
+                   (clojure.string/split #"@")
+                   first)}))))
 
 (defn last-active
   "When was the last time an article-label was updated for project-id?"

@@ -12,7 +12,7 @@
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.state.ui]
-            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.state.nav :refer [project-uri user-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select Popup
@@ -168,7 +168,7 @@
         nil)})))
 
 (defn UserPublicProfileLink [{:keys [user-id display-name]}]
-  [:a.user-public-profile {:href (str "/user/" user-id "/profile")
+  [:a.user-public-profile {:href (user-uri user-id)
                            :data-username display-name}
    display-name])
 

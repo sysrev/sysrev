@@ -205,6 +205,11 @@
 (defn project-uri [project-id & [suburi]]
   @(subscribe [:project/uri project-id suburi]))
 
+(defn user-uri [user-id]
+  (str "/user/" user-id "/profile"))
+
+(defn group-uri [group-id]
+  (str "/org/" group-id "/users" ))
 ;; TODO: add this function for use in re-frame events
 #_ (defn get-project-uri [db project-id suburi]
      (let [project-url-id (project-active-url-id db project-id)

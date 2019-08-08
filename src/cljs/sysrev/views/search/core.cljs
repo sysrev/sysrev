@@ -5,7 +5,7 @@
             [sysrev.base :refer [active-route]]
             [sysrev.markdown :as markdown]
             [sysrev.nav :refer [nav-scroll-top make-url]]
-            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.state.nav :refer [project-uri user-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
             [sysrev.views.semantic :refer
@@ -91,10 +91,10 @@
               :widescreen 1
               :tablet 2
               :mobile 4}
-      [:a {:href (str "/user/" user-id "/profile")}
+      [:a {:href (user-uri user-id)}
        [ProfileAvatar {:user-id user-id}]]]
      [Column {:style {:padding-left 0}}
-      [:a {:href (str "/user/" user-id "/profile")}
+      [:a {:href (user-uri user-id)}
        [:h3 {:style {:display "inline"
                      :vertical-align "top"}} username]]
       [:p (-> introduction markdown/create-markdown-html markdown/html->string)]]]]

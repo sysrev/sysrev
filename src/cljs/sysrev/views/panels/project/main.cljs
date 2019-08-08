@@ -5,7 +5,7 @@
             [sysrev.util :refer [nbsp]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :as nav]
-            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.state.nav :refer [project-uri user-uri group-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.project.common
              :refer [project-page-menu project-submenu]]
@@ -19,6 +19,7 @@
     (with-loader [[:project project-id]] {}
       (let [project-name @(subscribe [:project/name])
             public? @(subscribe [:project/public-access?])
+            project-owner @(subscribe [:project/owner])
             access-button (fn [content]
                             [:button.ui.tiny.button.project-access
                              {:on-click (when @(subscribe [:user/project-admin?])
@@ -31,11 +32,17 @@
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
            [:div.fourteen.wide.column
-            [:a.ui.header.title-header
-             {:href (project-uri nil "")}
+            [:span.ui.header.title-header
              [:i.grey.list.alternate.outline.icon]
-             [:div.content
-              [:span.project-title project-name]]]]
+             [:div.content.project-title
+              [:a {:href (if-let [user-id (:user-id project-owner)]
+                           (user-uri user-id)
+                           (group-uri (:group-id project-owner)))}
+               (:name project-owner)]
+              [:span {:style {:font-size "1.2em"
+                              :margin "0.25em"}} "/"]
+              [:a {:href (project-uri nil "")}
+               project-name]]]]
            [:div.two.wide.right.aligned.column access-label]]]
          [:div.ui.top.attached.segment.project-header.mobile
           [:h4.ui.header.title-header
