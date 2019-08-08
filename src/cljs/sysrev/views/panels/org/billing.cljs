@@ -27,4 +27,4 @@
         {:default-source @(subscribe [:org/default-source org-id])
          :on-add-payment-method #(do (dispatch [:stripe/set-calling-route!
                                                 (str "/org/" org-id "/billing")])
-                                     (nav-scroll-top (str "/org/" org-id "/payment")))}]]]]))
+                                     (nav-scroll-top (str "/org/" org-id "/plans")))}]]]]))

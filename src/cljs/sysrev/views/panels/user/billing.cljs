@@ -51,10 +51,10 @@
          [Column {:width 8} [Loader {:active true :inline "centered"}]]]
         [Grid {:vertical-align "middle"}
          [Column {:width 10}
-          (cond basic?      [:ul {:style {:padding-left "1.5em"}}
+          (cond basic?      [:ul {:style {:padding-left "1.5em" :margin 0}}
                              [:li "Free Plan"]
                              [:li "Unlimited public projects"]]
-                unlimited?  [:ul {:style {:padding-left "1.5em"}}
+                unlimited?  [:ul {:style {:padding-left "1.5em" :margin 0}}
                              [:li "Pro Plan"]
                              [:li "Unlimited public and private projects"]])]
          [Column {:width 6 :align "right"}
@@ -73,7 +73,7 @@
           (cond basic?      [:ul {:style {:padding-left "1.5em" :margin 0}}
                              [:li "Free Plan"]
                              [:li "Unlimited public projects"]]
-                unlimited?  [:ul {:style {:padding-left "1.5em"}}
+                unlimited?  [:ul {:style {:padding-left "1.5em" :margin 0}}
                              [:li "Pro Plan"]
                              [:li "Unlimited public and private projects"]])]
          [Column {:width 6 :align "right"}

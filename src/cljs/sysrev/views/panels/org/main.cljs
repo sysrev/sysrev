@@ -67,22 +67,24 @@
              [MessageHeader {:as "h4"} "Organizations Error"]
              [:p "There isn't an org here."]]
             [:div
-             (when-not (active? "plans")
-               [:nav
-                [Menu {:class "primary-menu" :pointing true :secondary true :attached "bottom"}
-                 [MenuItem {:id "org-members" :href (uri-fn "users")
-                            :name "Members" :class (css [(active? "users") "active"])}
-                  "Members"]
-                 [MenuItem {:id "org-projects" :href (uri-fn "projects")
-                            :name "Projects" :class (css [(active? "projects") "active"])}]
-                 #_
-                 [MenuItem {:id "org-profile" :href "/org/profile"
-                            :name "Profile" :class (css [(= @active-route "/org/profile") "active"])}
-                  "Profile"]
-                 (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
-                   [MenuItem {:id "org-billing" :href (uri-fn "billing")
-                              :name "Billing" :class (css [(active? "billing") "active"])}
-                    "Billing"])]])
+             (when-not (or (active? "plans")
+                           (active? "payment"))
+               [:div [:h2 @(subscribe [:org/name org-id])]
+                [:nav
+                 [Menu {:class "primary-menu" :pointing true :secondary true :attached "bottom"}
+                  [MenuItem {:id "org-members" :href (uri-fn "users")
+                             :name "Members" :class (css [(active? "users") "active"])}
+                   "Members"]
+                  [MenuItem {:id "org-projects" :href (uri-fn "projects")
+                             :name "Projects" :class (css [(active? "projects") "active"])}]
+                  #_
+                  [MenuItem {:id "org-profile" :href "/org/profile"
+                             :name "Profile" :class (css [(= @active-route "/org/profile") "active"])}
+                   "Profile"]
+                  (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
+                    [MenuItem {:id "org-billing" :href (uri-fn "billing")
+                               :name "Billing" :class (css [(active? "billing") "active"])}
+                     "Billing"])]]])
              [:div {:id "org-content"}
               (condp re-matches @active-route
                 #"/org/(\d*)/users"     [OrgUsers {:org-id org-id}]
@@ -103,7 +105,8 @@
                  [:p "This page does not exist."]])]])))
       :component-did-mount (fn []
                              (dispatch [:require [:self-orgs]])
-                             (dispatch [:reload [:self-orgs]]))})))
+                             (dispatch [:reload [:self-orgs]])
+                             (dispatch [:data/load [:org/current-plan (org-id-from-url)]]))})))
 
 (defmethod logged-out-content [:org-settings] []
   (logged-out-content :logged-out))
