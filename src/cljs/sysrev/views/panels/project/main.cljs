@@ -35,14 +35,14 @@
             [:span.ui.header.title-header
              [:i.grey.list.alternate.outline.icon]
              [:div.content.project-title
-              [:a {:href (if-let [user-id (:user-id project-owner)]
-                           (user-uri user-id)
-                           (group-uri (:group-id project-owner)))}
-               (:name project-owner)]
-              [:span {:style {:font-size "1.2em"
-                              :margin "0.25em"}} "/"]
-              [:a {:href (project-uri nil "")}
-               project-name]]]]
+              (when project-owner
+                [:span
+                 [:a {:href (if-let [user-id (:user-id project-owner)]
+                              (user-uri user-id)
+                              (group-uri (:group-id project-owner)))}
+                  (:name project-owner)]
+                 [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
+              [:a {:href (project-uri nil "")} project-name]]]]
            [:div.two.wide.right.aligned.column access-label]]]
          [:div.ui.top.attached.segment.project-header.mobile
           [:h4.ui.header.title-header

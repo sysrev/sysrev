@@ -644,37 +644,25 @@
 
 (defn get-project-owner [project-id]
   (with-transaction
-    (if-let [project-owner (-> (select :g.group-id :g.group-name)
-                               (from [:project-group :pg])
-                               (where [:= :project-id project-id])
-                               (join [:groups :g] [:= :g.group-id :pg.group-id])
-                               do-query first)]
-      {:group-id (:group-id project-owner)
-       :name (:group-name project-owner)}
-      (let [project-owner (-> (select :wu.user-id :wu.email)
-                              (from [:project-member :pm])
-                              (where [:and
-                                      [:= :pm.project-id project-id]
-                                      [:= "owner" :%any.pm.permissions]])
-                              (join [:web-user :wu] [:= :pm.user-id :wu.user-id])
-                              do-query first)]
-        {:user-id (:user-id project-owner)
-         :name (-> (:email project-owner)
-                   (clojure.string/split #"@")
-                   first)}))))
+    (if-let [{:keys [group-id group-name] :as owner}
+             (q/find-one [:project-group :pg] {:project-id project-id}
+                         [:g.group-id :g.group-name]
+                         :join [[:pg :groups :g :group-id]])]
+      {:group-id group-id, :name group-name}
+      (when-let [{:keys [user-id email] :as owner}
+                 (q/find-one [:project-member :pm] {:pm.project-id project-id
+                                                    "owner" :%any.pm.permissions}
+                             [:u.user-id :u.email]
+                             :join [[:pm :web-user :u :user-id]])]
+        {:user-id user-id, :name (-> email (str/split #"@") first)}))))
 
 (defn last-active
   "When was the last time an article-label was updated for project-id?"
   [project-id]
-  (-> (select [:al.updated_time :last_active])
-      (from [:article-label :al])
-      (join [:article :a] [:= :a.article-id :al.article-id]
-            ;;[:project :p] [:= :p.project-id :a.project-id]
-            )
-      (where [:= :a.project-id project-id])
-      (order-by [:al.updated_time :desc])
-      (limit 1)
-      do-query first :last-active))
+  (first (q/find [:article-label :al] {:a.project-id project-id} :al.updated-time
+                 :join [[:al :article :a :article-id]]
+                 :prepare #(order-by % [:al.updated-time :desc])
+                 :limit 1)))
 
 (defn cleanup-browser-test-projects []
   (delete-all-projects-with-name "Sysrev Browser Test")
