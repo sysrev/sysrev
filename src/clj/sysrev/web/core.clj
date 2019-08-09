@@ -26,12 +26,11 @@
 (defonce app-routes nil)
 
 (defn load-app-routes []
-  (alter-var-root #'app-routes (constantly
-                                (routes auth-routes
-                                        site-routes
-                                        project-routes
-                                        user-routes
-                                        org-routes))))
+  (alter-var-root #'app-routes (constantly (routes auth-routes
+                                                   site-routes
+                                                   project-routes
+                                                   user-routes
+                                                   org-routes))))
 
 (load-app-routes)
 

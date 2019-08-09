@@ -43,7 +43,7 @@
   [user-id & [fields]]
   (q/find [:project :p] {:p.enabled true, :pm.user-id user-id}
           (concat [:p.project-id] fields)
-          :join [[:p :project-member :pm :project-id]]))
+          :join [[:project-member:pm :p.project-id]]))
 
 (defn user-public-projects
   "Returns sequence of public projects for which user-id is a member.

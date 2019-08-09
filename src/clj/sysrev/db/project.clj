@@ -570,7 +570,7 @@
   (let [project-ids (q/find :project-member {:user-id user-id} :project-id)
         p-members (when (seq project-ids)
                     (q/find :project-member {:project-id project-ids} [:user-id :project-id]
-                            :group :project-id))]
+                            :group-by :project-id))]
     (keys (filter-values #(= 1 (count %)) p-members))))
 
 ;;;
@@ -647,20 +647,20 @@
     (if-let [{:keys [group-id group-name] :as owner}
              (q/find-one [:project-group :pg] {:project-id project-id}
                          [:g.group-id :g.group-name]
-                         :join [[:pg :groups :g :group-id]])]
+                         :join [[:groups:g :pg.group-id]])]
       {:group-id group-id, :name group-name}
       (when-let [{:keys [user-id email] :as owner}
                  (q/find-one [:project-member :pm] {:pm.project-id project-id
                                                     "owner" :%any.pm.permissions}
                              [:u.user-id :u.email]
-                             :join [[:pm :web-user :u :user-id]])]
+                             :join [[:web-user:u :pm.user-id]])]
         {:user-id user-id, :name (-> email (str/split #"@") first)}))))
 
 (defn last-active
   "When was the last time an article-label was updated for project-id?"
   [project-id]
   (first (q/find [:article-label :al] {:a.project-id project-id} :al.updated-time
-                 :join [[:al :article :a :article-id]]
+                 :join [[:article:a :al.article-id]]
                  :prepare #(order-by % [:al.updated-time :desc])
                  :limit 1)))
 

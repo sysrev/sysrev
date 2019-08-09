@@ -1,17 +1,17 @@
 (ns sysrev.db.queries
-  (:refer-clojure :exclude [find])
+  (:refer-clojure :exclude [find group-by])
   (:require [clojure.string :as str]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update delete order-by limit]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :as sqlh-pg :refer :all :exclude [partition-by]]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
             [sysrev.shared.util :as sutil :refer
-             [in? index-by or-default map-values apply-keyargs ensure-pred assert-pred]])
+             [in? or-default map-values apply-keyargs ensure-pred assert-pred]])
   (:import java.util.UUID))
 
 ;;;
@@ -33,17 +33,45 @@
                               (apply vector :and))
                      true)))
 
-(defn- merge-join-args
+(s/def ::join-specifier-1
+  (s/and keyword?
+         #(nil? (namespace %))
+         #(string? (name %))
+         #(let [[join-table join-alias] (-> (name %) (str/split #"\:")) ]
+            (and (string? join-table) (string? join-alias)))))
+
+(s/def ::join-specifier-2
+  (s/and keyword?
+         #(nil? (namespace %))
+         #(string? (name %))
+         #(let [[with-table on-field] (-> (name %) (str/split #"\.")) ]
+            (and (string? with-table) (string? on-field)))))
+
+(s/def ::join-arg-single
+  (s/cat :join-table-colon-alias ::join-specifier-1
+         :with-table-dot-field ::join-specifier-2))
+
+(s/def ::join-args
+  (s/coll-of ::join-arg-single, :distinct true))
+
+(defn merge-join-args
   "Returns updated honeysql map based on `m`, merging a join clause
   generated from `join-args` using honeysql function
   `merge-join-fn` (e.g.  merge-join, merge-left-join)."
   [m merge-join-fn join-args]
-  (reduce (fn [m [with-table join-table join-alias on-field]]
-            (merge-join-fn m
-                           [join-table join-alias]
-                           [:= (sql-field join-alias on-field)
-                            (sql-field with-table on-field)]))
+  (reduce (fn [m [join-table-colon-alias with-table-dot-field]]
+            (let [[join-table join-alias] (map keyword (-> (name join-table-colon-alias)
+                                                           (str/split #"\:")))
+                  [with-table on-field] (map keyword (-> (name with-table-dot-field)
+                                                         (str/split #"\.")))]
+              (-> m (merge-join-fn [join-table join-alias]
+                                   [:= (sql-field join-alias on-field)
+                                    (sql-field with-table on-field)]))))
           m join-args))
+
+(s/fdef merge-join-args
+  :args (s/cat :m map? :merge-join-fn fn? :join-args ::join-args)
+  :ret map?)
 
 (defn- extract-column-name
   "Extracts an unqualified column name keyword from honeysql keyword `k`
@@ -77,16 +105,17 @@
   `fields` may be a single keyword, a sequence of keywords, or if not
   specified then all table fields will be included.
 
-  `index` or `group` optionally provides a field keyword which will be
-  used to transform the result into a map indexed by that field value.
+  `index-by` or `group-by` optionally provides a field keyword which
+  will be used to transform the result into a map indexed by that
+  field value.
 
   `where` optionally provides an additional honeysql where clause.
 
   `prepare` optionally provides a function to apply to the final
   honeysql query before running.
 
-  The arguments `join`, `left-join`, `limit` add a clause to the query
-  using the honeysql function of the same name.
+  The arguments `join`, `left-join`, `limit`, `order-by` add a clause
+  to the query using the honeysql function of the same name.
 
   `return` optionally modifies the behavior and return value.
   - `:execute` (default behavior) runs the query against the connected
@@ -94,10 +123,11 @@
   - `:query` returns the honeysql query map that would be run against
     the database.
   - `:string` returns an SQL string corresponding to the query."
-  [table match-by & [fields & {:keys [index group join left-join where limit prepare return]
-                               :or {return :execute}
-                               :as opts}]]
-  (assert (every? #{:index :group :join :left-join :where :limit :prepare :return}
+  [table match-by &
+   [fields & {:keys [index-by group-by join left-join where limit order-by prepare return]
+              :or {return :execute}
+              :as opts}]]
+  (assert (every? #{:index-by :group-by :join :left-join :where :limit :order-by :prepare :return}
                   (keys opts)))
   (let [wildcard? #(some-> % name (str/ends-with? "*"))
         literal? #(and (keyword? %) (not (wildcard? %)))
@@ -114,15 +144,15 @@
                      :else              (vec fields))
         select-fields (as-> (concat fields
                                     #_ (keys match-by)
-                                    (some->> index (ensure-pred keyword?) (list))
-                                    (some->> group (ensure-pred keyword?) (list)))
+                                    (some->> index-by (ensure-pred keyword?) (list))
+                                    (some->> group-by (ensure-pred keyword?) (list)))
                           select-fields
                         (if (in? select-fields :*) [:*] select-fields)
                         (distinct select-fields))
-        map-fields (cond index  map-values
-                         group  (fn [f coll] (map-values (partial map f) coll))
-                         :else  map)]
-    (assert (in? #{0 1} (count (remove nil? [index group]))))
+        map-fields (cond index-by  map-values
+                         group-by  (fn [f coll] (map-values (partial map f) coll))
+                         :else     map)]
+    (assert (in? #{0 1} (count (remove nil? [index-by group-by]))))
     (-> (apply select select-fields)
         (from table)
         (merge-match-by match-by)
@@ -130,14 +160,15 @@
         (cond-> left-join (merge-join-args merge-left-join left-join))
         (cond-> where (merge-where where))
         (cond-> limit (sqlh/limit limit))
+        (cond-> order-by (sqlh/order-by order-by))
         (cond-> prepare (prepare))
         ((fn [query]
            (case return
              :query       query
              :string      (db/to-sql-string query)
              :execute     (-> (do-query query)
-                              (cond->> index (index-by index))
-                              (cond->> group (group-by group))
+                              (cond->> index-by (sutil/index-by index-by))
+                              (cond->> group-by (clojure.core/group-by group-by))
                               (cond->> specified (map-fields #(select-keys % specified)))
                               (cond->> single-field (map-fields single-field))
                               not-empty)))))))
@@ -159,17 +190,20 @@
 ;;;      :enabled true,
 ;;;      ...}]
 ;;;
-;;; (find :project {:project-id 3588} [:project-id :name])
-;;; => ({:project-id 3588, :name "Hallmark and key characteristics mapping"})
+;;; (find-one :project {:project-id 3588} [:project-id :name])
+;;; => {:project-id 3588, :name "Hallmark and key characteristics mapping"}
 ;;;
-;;; (find :project {:project-id 3588} :name, :index :project-id)
+;;; (find :project {:project-id 3588} :name, :index-by :project-id)
 ;;; => {3588 "Hallmark and key characteristics mapping"}
 ;;;
-;;; (find :project {} :name, :index :project-id, :limit 4)
-;;; => {101 "FACTS: Factors Affecting Combination Trial Success",
-;;;     6064 "test",
-;;;     102 "MnSOD in Cancer and Antioxidant Therapy",
-;;;     106 "FACTS Data Extraction"}
+;;; (find :project {} :name, :order-by :project-id, :limit 4, :index-by :project-id)
+;;; => {1 "Novel Dose Escalation Methods and Phase I Designs: ...",
+;;;     100 "EBTC - Effects on the liver as observed in experimental ...",
+;;;     101 "FACTS: Factors Affecting Combination Trial Success",
+;;;     102 "MnSOD in Cancer and Antioxidant Therapy"}
+;;;
+;;; (find [:project :p] {:p.project-id 100} :pm.user-id, :join [[:project-member:pm :p.project-id]])
+;;; => (26 69 33 85 37 91 50 57 41 53 73 88 89 90 98 62 106 114 100 117 9 83 56 35 139 70)
 
 (defn find-one
   "Runs `find` and returns a single result entry (or nil if none found),
@@ -178,7 +212,7 @@
   (assert (every? #{:where :prepare :join :left-join} (keys opts)))
   (first (->> (apply-keyargs find table match-by fields
                              (assoc opts :prepare #(-> (cond-> % prepare (prepare))
-                                                       (limit 2))))
+                                                       (sqlh/limit 2))))
               (assert-pred {:pred #(<= (count %) 1)
                             :message "find-one - multiple results from query"})) ))
 
@@ -600,8 +634,8 @@
 (defn select-latest-predict-run [fields]
   (-> (apply select fields)
       (from [:predict-run :pr])
-      (order-by [:pr.create-time :desc])
-      (limit 1)))
+      (sqlh/order-by [:pr.create-time :desc])
+      (sqlh/limit 1)))
 
 (defn project-latest-predict-run-id
   "Gets the most recent predict-run ID for a project."
