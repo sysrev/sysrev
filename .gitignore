@@ -38,6 +38,7 @@ figwheel_server.log
 .idea/
 
 *.org
+!/sysrev-tasks.org
 
 .ensime*
 *.pgdumpc

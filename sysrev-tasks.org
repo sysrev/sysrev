@@ -1,0 +1,117 @@
+* High Priority
+** TODO UI for transferring projects
+** TODO Log user activity (similar to Google Analytics) to local database
+** TODO Run migration for assigning owner on existing projects
+
+
+* Major Tasks
+** TODO [#A] Add support for article types
+*** TODO [#A] Support basic JSON type for article content
+** TODO [#A] Add documentation links
+*** TODO Create standard component for documentation links
+*** TODO Add links to GitHub wiki throughout app
+** TODO [#A] Improve and document review label keyboard hotkeys
+*** TODO Add large "Keyboard Hotkeys" tooltip on review Labels interface
+*** TODO Set focus to first review label upon loading interface or article
+*** TODO Add hotkey for saving review labels (Ctrl+Enter?)
+*** TODO Add Up/Down hotkeys for navigating between labels
+** TODO [#B] Google OAuth registration/login
+*** TODO Allow creating account via OAuth
+*** TODO Use current url hostname for oauth redirect (not localhost)
+** TODO [#B] User/Org URLs
+   Use :set-project-url-error for project id lookup errors (?)
+** TODO Fix SEO issues
+*** TODO [#A] Update robots.txt/sitemap.xml to block indexing all unimportant URLs
+*** TODO [#B] Change window title to reflect current page + context (project, user, org, etc)
+*** TODO [#C] Return project description text in HTML meta element (project overview)
+** TODO [#B] Add support for nested labels
+
+
+* Fixes
+** TODO [#A] (Annotator) New sidebar item can be activated incorrectly (?)
+   If user is already editing an annotation ("Save" button shown),
+   selecting new text will create a new entry but will not activate it,
+   while the original entry remains active.
+** TODO [#B] Sidebar only when editing article (?)
+** TODO [#B] Show an "Access Denied"-type message for PDFs instead of silently hiding
+** TODO [#C] Fix clone-project issues
+*** TODO Copy sources along with articles
+*** TODO Copy "Project Documents" entries
+
+
+* Improvements
+** TODO [#A] Proper rendering of error messages on article import
+*** TODO Add test for display of these messages
+** TODO [#B] Allow removing members from project settings
+** TODO [#C] Allow dev users to delete account (user settings page)
+** TODO [#C] Allow deleting projects with small number of labeled articles
+
+
+* Code Maintainence
+** TODO [#A] Add on-{success,error,response} hooks to {def-data,def-action}
+** TODO [#A] Rewrite remaining AJAX calls to use {def-data,def-action}
+** TODO [#A] Remove panel navigation subpanel logic (:navigate, load-default-panels)
+** TODO [#B] Store error message/response automatically from {def-data,def-action}
+** TODO [#B] Remove routes.cljs, move sr-defroute forms to panel namespaces
+** TODO [#B] Improve join syntax for q/find q/modify
+** TODO [#B] Determine join field automatically in calls to q/find q/modify
+** TODO [#B] Add more SQL clauses in q/find etc
+   order-by, group, ...
+** TODO [#C] Remove user default-project-id everywhere
+*** TODO Remove update-user-default-project function
+*** TODO Remove default-project-id from db
+** TODO [#C] Add general mechanism for requiring login on a page
+
+
+* Test suite
+** TODO [#A] Review all web interfaces for test coverage
+** TODO [#A] Invite link flow (register, login, join, already member)
+   Should replace with better system; needs tests until then.
+** TODO [#B] All non-authenticated pages work (logged out)
+** TODO [#C] All authenticated pages require login (logged out)
+** TODO [#C] Public review pages (logged out)
+** TODO [#C] Public review pages (non-member)
+** TODO [#C] Full testing for labels/annotations editor state
+** DONE [#A] Update test suite to use only ordinary (non-dev) accounts in tests
+   CLOSED: [2019-08-09 Fri 06:33]
+
+
+* Labels
+** TODO [#C] Support changing/removing values in categorical label definitions
+** TODO [#C] Add label editor field for string label regex requirement
+** TODO [#C] Add keyword editor UI (within label definitions UI)
+*** TODO [#C] Merge rendering for text annotations and keyword highlights
+
+
+* Design
+** TODO [#A] Add more info to project listing element (# articles, labels, users)
+** TODO [#B] Change label popups to use FixedTooltipElement (better size/position)
+** TODO [#B] Redesign /user/<user>/profile default page
+*** TODO Place useful content (projects/orgs) on main page
+*** TODO Change URL to /user/<user>
+*** TODO Disable "Projects" and "Orgs" tabs on User pages when empty
+** TODO [#B] Redesign UI for "Public Reviewer Opt In"
+** TODO [#B] Redesign UI for "Invite this user to <Select Project>"
+** TODO [#C] Redesign global UI styling
+   More flat / modern; fewer bordered rectangles.
+
+
+* Mobile
+** TODO [#B] Use nav-scroll-top for article links from article list
+** TODO [#C] Change /user/*/profile layout, reduce size of user image
+** TODO [#C] Change /user/*/projects layout, text generally too large
+** TODO [#C] Improve layout for Billing pages
+** TODO [#C] Fix layout for Org Members list
+** TODO [#C] "Add Member" modal doesn't fit on screen
+** TODO [#C] Popup for "Sources" on article page breaks page position
+
+
+* New functionality (low priority)
+** TODO [#C] Add web interface for cloning projects
+** TODO [#C] Support copying label definitions from other projects
+
+
+* (Misc) SDS Requests
+** Suggested: Option for UserAnswers, multiple rows per article
+*** User sets a label or labels to include with article-id as key value
+*** One row per combination of article-id and answer value (/p/4047 export by tuples of [article,chemical])
