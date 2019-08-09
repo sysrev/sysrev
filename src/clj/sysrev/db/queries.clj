@@ -52,22 +52,25 @@
          :with-table-dot-field ::join-specifier-2))
 
 (s/def ::join-args
-  (s/coll-of ::join-arg-single, :distinct true))
+  (s/or :single-arg ::join-arg-single
+        :multi-args (s/coll-of ::join-arg-single, :distinct true)))
 
 (defn merge-join-args
   "Returns updated honeysql map based on `m`, merging a join clause
   generated from `join-args` using honeysql function
   `merge-join-fn` (e.g.  merge-join, merge-left-join)."
   [m merge-join-fn join-args]
-  (reduce (fn [m [join-table-colon-alias with-table-dot-field]]
-            (let [[join-table join-alias] (map keyword (-> (name join-table-colon-alias)
-                                                           (str/split #"\:")))
-                  [with-table on-field] (map keyword (-> (name with-table-dot-field)
-                                                         (str/split #"\.")))]
-              (-> m (merge-join-fn [join-table join-alias]
-                                   [:= (sql-field join-alias on-field)
-                                    (sql-field with-table on-field)]))))
-          m join-args))
+  (let [join-args (if (s/valid? ::join-arg-single join-args)
+                    [join-args] join-args)]
+    (reduce (fn [m [join-table-colon-alias with-table-dot-field]]
+              (let [[join-table join-alias] (map keyword (-> (name join-table-colon-alias)
+                                                             (str/split #"\:")))
+                    [with-table on-field] (map keyword (-> (name with-table-dot-field)
+                                                           (str/split #"\.")))]
+                (-> m (merge-join-fn [join-table join-alias]
+                                     [:= (sql-field join-alias on-field)
+                                      (sql-field with-table on-field)]))))
+            m join-args)))
 
 (s/fdef merge-join-args
   :args (s/cat :m map? :merge-join-fn fn? :join-args ::join-args)
@@ -202,7 +205,7 @@
 ;;;     101 "FACTS: Factors Affecting Combination Trial Success",
 ;;;     102 "MnSOD in Cancer and Antioxidant Therapy"}
 ;;;
-;;; (find [:project :p] {:p.project-id 100} :pm.user-id, :join [[:project-member:pm :p.project-id]])
+;;; (find [:project :p] {:p.project-id 100} :pm.user-id, :join [:project-member:pm :p.project-id])
 ;;; => (26 69 33 85 37 91 50 57 41 53 73 88 89 90 98 62 106 114 100 117 9 83 56 35 139 70)
 
 (defn find-one

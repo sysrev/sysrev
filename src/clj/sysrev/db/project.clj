@@ -647,22 +647,21 @@
     (if-let [{:keys [group-id group-name] :as owner}
              (q/find-one [:project-group :pg] {:project-id project-id}
                          [:g.group-id :g.group-name]
-                         :join [[:groups:g :pg.group-id]])]
+                         :join [:groups:g :pg.group-id])]
       {:group-id group-id, :name group-name}
       (when-let [{:keys [user-id email] :as owner}
                  (q/find-one [:project-member :pm] {:pm.project-id project-id
                                                     "owner" :%any.pm.permissions}
                              [:u.user-id :u.email]
-                             :join [[:web-user:u :pm.user-id]])]
+                             :join [:web-user:u :pm.user-id])]
         {:user-id user-id, :name (-> email (str/split #"@") first)}))))
 
 (defn last-active
   "When was the last time an article-label was updated for project-id?"
   [project-id]
   (first (q/find [:article-label :al] {:a.project-id project-id} :al.updated-time
-                 :join [[:article:a :al.article-id]]
-                 :prepare #(order-by % [:al.updated-time :desc])
-                 :limit 1)))
+                 :join [:article:a :al.article-id]
+                 :order-by [:al.updated-time :desc], :limit 1)))
 
 (defn cleanup-browser-test-projects []
   (delete-all-projects-with-name "Sysrev Browser Test")

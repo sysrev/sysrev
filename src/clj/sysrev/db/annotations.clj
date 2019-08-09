@@ -25,7 +25,7 @@
 
 (defn ann-project-id [annotation-id]
   (q/find-one [:annotation :ann] {:ann.annotation-id annotation-id}
-              :a.project-id, :left-join [[:article:a :ann.article-id]]))
+              :a.project-id, :left-join [:article:a :ann.article-id]))
 
 (defn- get-annotations-by [match-by]
   (vec (q/find [:annotation :ann] match-by
