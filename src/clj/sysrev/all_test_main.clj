@@ -7,8 +7,8 @@
             [clojure.pprint :as pprint]
             sysrev.test.all
             [sysrev.test.core :as test]
-            [sysrev.test.browser.core :as browser]
             [sysrev.config.core :refer [env]]
+            [sysrev.db.project :as project]
             [sysrev.db.migration :as migration]
             [sysrev.init :as init]))
 
@@ -19,7 +19,7 @@
                  (pprint/write (test/get-selenium-config) :stream nil)))
   (when (and (test/db-connected?) (= (-> env :profile) :remote-test))
     (init/start-db)
-    (browser/cleanup-browser-test-projects)
+    (project/cleanup-browser-test-projects)
     (migration/ensure-updated-db)
     (init/start-cassandra-db))
   (let [fname "target/junit-all.xml"

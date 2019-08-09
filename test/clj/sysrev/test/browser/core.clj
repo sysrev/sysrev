@@ -386,11 +386,6 @@
                       (ensure-logged-out)
                       ~cleanup)))))))))
 
-(defn cleanup-browser-test-projects []
-  (project/delete-all-projects-with-name "Sysrev Browser Test")
-  (when-let [test-user-id (q/find-one :web-user {:email (:email test-login)} :user-id)]
-    (project/delete-solo-projects-from-user test-user-id)))
-
 (defn current-frame-names []
   (->> (taxi/xpath-finder "//iframe")
        (mapv #(when (taxi/exists? %) (taxi/attribute % :name)))

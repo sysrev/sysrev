@@ -675,6 +675,12 @@
       (order-by [:al.updated_time :desc])
       (limit 1)
       do-query first :last-active))
+
+(defn cleanup-browser-test-projects []
+  (delete-all-projects-with-name "Sysrev Browser Test")
+  (when-let [test-user-id (q/find-one :web-user {:email "browser+test@insilica.co"} :user-id)]
+    (delete-solo-projects-from-user test-user-id)))
+
 ;; some notes:
 ;; https://www.postgresql.org/docs/current/textsearch.html
 ;; https://www.postgresql.org/docs/current/textsearch-controls.html
@@ -695,4 +701,3 @@
              "LIMIT ? ")
         q limit]
        db/raw-query))
-
