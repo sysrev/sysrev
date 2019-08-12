@@ -6,7 +6,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update delete order-by limit]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update delete order-by limit group]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :as sqlh-pg :refer :all :exclude [partition-by]]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
@@ -21,6 +21,12 @@
 ;;;
 ;;; ** Shared helper functions
 ;;;
+
+(defn wildcard? [kw]
+  (some-> kw name (str/ends-with? "*")))
+
+(defn literal? [kw]
+  (and (keyword? kw) (not (wildcard? kw))))
 
 (defn- merge-match-by
   "Returns updated honeysql map based on `m`, merging a where clause
@@ -117,8 +123,8 @@
   `prepare` optionally provides a function to apply to the final
   honeysql query before running.
 
-  The arguments `join`, `left-join`, `limit`, `order-by` add a clause
-  to the query using the honeysql function of the same name.
+  The arguments `join`, `left-join`, `limit`, `order-by`, `group` add
+  a clause to the query using the honeysql function of the same name.
 
   `return` optionally modifies the behavior and return value.
   - `:execute` (default behavior) runs the query against the connected
@@ -127,14 +133,13 @@
     the database.
   - `:string` returns an SQL string corresponding to the query."
   [table match-by &
-   [fields & {:keys [index-by group-by join left-join where limit order-by prepare return]
+   [fields & {:keys [index-by group-by join left-join where limit order-by group prepare return]
               :or {return :execute}
               :as opts}]]
-  (assert (every? #{:index-by :group-by :join :left-join :where :limit :order-by :prepare :return}
+  (assert (every? #{:index-by :group-by :join :left-join :where :limit :order-by :group
+                    :prepare :return}
                   (keys opts)))
-  (let [wildcard? #(some-> % name (str/ends-with? "*"))
-        literal? #(and (keyword? %) (not (wildcard? %)))
-        single-field (some->> fields
+  (let [single-field (some->> fields
                               (ensure-pred literal?)
                               (extract-column-name))
         specified (some->> (cond (keyword? fields)  [fields]
@@ -146,7 +151,6 @@
                      (empty? fields)    [:*]
                      :else              (vec fields))
         select-fields (as-> (concat fields
-                                    #_ (keys match-by)
                                     (some->> index-by (ensure-pred keyword?) (list))
                                     (some->> group-by (ensure-pred keyword?) (list)))
                           select-fields
@@ -164,6 +168,7 @@
         (cond-> where (merge-where where))
         (cond-> limit (sqlh/limit limit))
         (cond-> order-by (sqlh/order-by order-by))
+        (cond-> group (#(apply sqlh/group % (collify group))))
         (cond-> prepare (prepare))
         ((fn [query]
            (case return
@@ -193,8 +198,8 @@
 ;;;      :enabled true,
 ;;;      ...}]
 ;;;
-;;; (find-one :project {:project-id 3588} [:project-id :name])
-;;; => {:project-id 3588, :name "Hallmark and key characteristics mapping"}
+;;; (find :project {:project-id 3588} [:project-id :name])
+;;; => ({:project-id 3588, :name "Hallmark and key characteristics mapping"})
 ;;;
 ;;; (find :project {:project-id 3588} :name, :index-by :project-id)
 ;;; => {3588 "Hallmark and key characteristics mapping"}
@@ -260,10 +265,11 @@
   arguments to a Postgres-specific returning clause. `returning` may
   also be a single keyword; in this case the return value will be a
   sequence of values for this field rather than a sequence of field
-  value maps.
+  value maps. Wildcard keywords (e.g. `:*`, `:table.*`) are also
+  allowed.
 
-  `prepare` optionally provides a function to apply to the final honeysql
-  query before running.
+  `prepare` optionally provides a function to apply to the final
+  honeysql query before running.
 
   `return` optionally modifies the behavior and return value.
   - `:execute` (default behavior) runs the query against the connected
@@ -277,7 +283,7 @@
   (assert (every? #{:returning :prepare :return} (keys opts)))
   (let [single-value? (map? insert-values)
         insert-values (if (map? insert-values) [insert-values] insert-values)
-        single-returning? (and (keyword? returning) (not= returning :*))
+        single-returning? (literal? returning)
         returning (if (keyword? returning) [returning] returning)]
     (-> (sqlh/insert-into table)
         (values insert-values)

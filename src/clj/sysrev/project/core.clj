@@ -41,24 +41,18 @@
 (defn all-projects
   "Returns seq of short info on all projects, for interactive use."
   []
-  (-> (select :p.project-id :p.name :p.project-uuid
-              [:%count.article-id :n-articles])
-      (from [:project :p])
-      (left-join [:article :a] [:= :a.project-id :p.project-id])
-      (group :p.project-id)
-      (order-by :p.date-created)
-      do-query))
+  (q/find [:project :p] {}
+          [:p.project-id :p.name [:%count.a.article-id :n-articles]]
+          :left-join [:article:a :p.project-id]
+          :group :p.project-id
+          :order-by :p.project-id))
 
 (defn project-member [project-id user-id]
   (with-project-cache project-id [:users user-id :member]
-    (-> (select :*)
-        (from :project-member)
-        (where [:and [:= :project-id project-id] [:= :user-id user-id]])
-        do-query first)))
+    (q/find-one :project-member {:project-id project-id, :user-id user-id})))
 ;;;
 (s/fdef project-member
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id)
+  :args (s/cat :project-id ::sc/project-id, :user-id ::sc/user-id)
   :ret (s/nilable ::sp/project-member))
 
 (defn add-project-member
