@@ -119,7 +119,7 @@
                          ~@body
                          (when clear-text# (sysrev.util/clear-text-selection-soon)))))
                  (route-fn-when-ready# []
-                   (if (sysrev.loading/ajax-status-inactive? 20)
+                   (if (sysrev.loading/ajax-status-inactive?)
                      (route-fn#)
                      (js/setTimeout route-fn-when-ready# 20)))]
            #_ (route-fn#)
@@ -169,11 +169,12 @@
                      ;; body function (dispatch is asynchronous).
                      (not= url-id# cur-id#)
                      (do #_ (js/console.log (str "url-id changed to " (pr-str url-id#)))
-                         (js/setTimeout body-fn# 30))
+                         #_ (js/setTimeout body-fn# 30)
+                         (body-fn#))
                      ;; Otherwise run route body function immediately.
                      :else (body-fn#))))
                (route-fn-when-ready# []
-                 (if (sysrev.loading/ajax-status-inactive? 20)
+                 (if (sysrev.loading/ajax-status-inactive?)
                    (go-route-sync-data route-fn#)
                    (js/setTimeout route-fn-when-ready# 20)))]
          #_ (route-fn-when-ready#)

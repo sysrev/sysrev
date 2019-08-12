@@ -135,9 +135,9 @@
         new-status
         (cond
           ;; enable indicator when ajax active for >= minimum time
-          (>= (- time-active time-inactive) 100) true
+          (>= (- time-active time-inactive) 75) true
           ;; disable indicator when ajax inactive for >= minimum time
-          (>= (- time-inactive time-active) 100) false
+          (>= (- time-inactive time-active) 125) false
           ;; otherwise maintain existing indicator status
           :else cur-status)]
     (swap! ajax-db (fn [db]
@@ -155,7 +155,7 @@
 
 (defn schedule-loading-update []
   (update-loading-status)
-  (doseq [ms [105 155 210 350]]
+  (doseq [ms (map #(+ 5 (* 25 (inc %))) (range 6))]
     (js/setTimeout update-loading-status ms)))
 
 (defn loading-indicator []
@@ -175,15 +175,15 @@
 
 (defn ajax-status-inactive?
   "Returns true if no ajax requests have been active for duration
-  milliseconds (default 25)."
+  milliseconds (default 30)."
   [& [duration]]
-  (< (ajax-status) (- (or duration 25))))
+  (< (ajax-status) (- (or duration 30))))
 
 (defn ajax-action-inactive?
   "Returns true if no ajax action requests have been active for duration
-  milliseconds (default 25)."
+  milliseconds (default 30)."
   [& [duration]]
-  (< (ajax-action-status) (- (or duration 25))))
+  (< (ajax-action-status) (- (or duration 30))))
 
 ;;;
 ;;; Events for start/completion of AJAX requests

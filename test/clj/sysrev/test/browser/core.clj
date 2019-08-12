@@ -248,7 +248,7 @@
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 20)."
   [& [duration]]
-  (< (ajax-activity-duration) (- (or duration 15))))
+  (< (ajax-activity-duration) (- (or duration 20))))
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
@@ -290,7 +290,7 @@
     (when clear? (taxi/clear q))
     (Thread/sleep delay)
     (taxi/input-text q text)
-    (Thread/sleep 10)))
+    (Thread/sleep (quot delay 2))))
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
@@ -303,7 +303,7 @@
       (doseq [c text]
         (taxi/input-text e (str c))
         (Thread/sleep char-delay)))
-    #_ (Thread/sleep delay)))
+    (Thread/sleep (quot delay 2))))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
   (sutil/apply-keyargs set-input-text

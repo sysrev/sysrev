@@ -1,7 +1,6 @@
 (ns sysrev.state.core
   (:require [re-frame.core :refer
-             [subscribe reg-sub reg-event-db reg-event-fx
-              dispatch trim-v reg-fx]]
+             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
             [sysrev.base :as base :refer [ga-event]]
             [sysrev.nav :refer [nav-scroll-top force-dispatch]]
             [sysrev.action.core :refer [def-action]]
@@ -14,16 +13,15 @@
  :reset-data
  (fn [{:keys [db]}]
    {:db (-> (assoc db :data {} :needed [])
+            (dissoc-in [:state :identity])
             (dissoc-in [:state :self])
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels])
             (dissoc-in [:state :navigation :subpanels]))
-    :dispatch-n (list [:require [:identity]]
-                      [:reload [:identity]])}))
+    :dispatch [:data/load [:identity]]}))
 
-(reg-fx
- :reset-data
- (fn [reset?] (when reset? (dispatch [:reset-data]))))
+(reg-fx :reset-data
+        (fn [reset?] (when reset? (dispatch [:reset-data]))))
 
 (reg-event-db :reset-project-ui
               (fn [db]
