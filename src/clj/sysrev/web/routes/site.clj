@@ -167,7 +167,13 @@
         "terms-of-use.md"))
 
   (GET "/api/search" [q p :<< as-int]
-       (api/search-site q p)))
+       (api/search-site q p))
+
+  #_ (POST "/api/activity" request
+           (let []))
+
+  #_ (POST "/api/error" request
+           (let [])))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."

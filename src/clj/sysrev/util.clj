@@ -1,5 +1,6 @@
 (ns sysrev.util
   (:require [clojure.string :as str]
+            [clojure.pprint :as pp]
             [clojure.java.io :as io]
             [clojure.java.shell :refer [sh]]
             [clojure.main :refer [demunge]]
@@ -373,3 +374,6 @@
      (with-tempfile [~tempfile :suffix ~suffix]
        (io/copy gz-stream# ~tempfile)
        ~@body)))
+
+(defn pp-str [x]
+  (with-out-str (pp/pprint x)))

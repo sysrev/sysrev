@@ -10,12 +10,15 @@
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
             [sysrev.db.users :as users :refer
              [get-user user-by-api-token update-member-access-time]]
             [sysrev.project.core :as project]
             [sysrev.resources :as res]
             [sysrev.web.index :as index]
-            [sysrev.util :as util]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]]
+            [sysrev.util :as util :refer [pp-str]]
             [sysrev.shared.util :refer [in? parse-integer ensure-pred]]))
 
 (defn current-user-id [request]
@@ -106,6 +109,57 @@
       (update response :body assoc-in [:result :success] true)
       response)))
 
+(defn log-request-exception [request e]
+  (try (log/error "Request:\n" (pp-str request)
+                  "Exception:\n" (with-out-str (print-cause-trace-custom e)))
+       (catch Throwable e2
+         (log/error "error in log-request-exception"))))
+
+(defn request-client-ip [request]
+  (or (get-in request [:headers "x-real-ip"])
+      (:remote-addr request)))
+
+(defn request-url [request]
+  (some-> (:uri request) (str/split #"\?") first))
+
+(defn log-web-event [{:keys [event-type logged-in user-id project-id skey client-ip
+                             browser-url request-url request-method is-error meta]
+                      :as event}]
+  (q/create :web-event event :returning :*))
+
+(defn make-web-request-event [request & {:keys [error exception]}]
+  {:event-type "ajax"
+   :logged-in (boolean (current-user-id request))
+   :user-id (current-user-id request)
+   :project-id (active-project request)
+   :skey (:session/key request)
+   :client-ip (request-client-ip request)
+   :browser-url (get-in request [:headers "referer"])
+   :request-url (request-url request)
+   :request-method (some-> (:request-method request) name str/lower-case)
+   :is-error (boolean (or error exception))
+   :meta (cond error
+               (db/to-jsonb
+                {:error (merge error
+                               (when (:exception error)
+                                 {:stacktrace (with-out-str
+                                                (-> (:exception error)
+                                                    (print-cause-trace-custom)))}))})
+               exception
+               (db/to-jsonb
+                {:error {:message (.getMessage exception)
+                         :stacktrace (with-out-str
+                                       (print-cause-trace-custom exception))}}))})
+
+(defn make-web-page-event [request browser-url]
+  {:event-type "page"
+   :logged-in (boolean (current-user-id request))
+   :user-id (current-user-id request)
+   :project-id (active-project request)
+   :skey (:session/key request)
+   :client-ip (request-client-ip request)
+   :browser-url browser-url})
+
 (defn wrap-sysrev-response [handler]
   (fn [request]
     (try
@@ -117,13 +171,8 @@
             response
             (cond
               ;; Return error if body has :error field
-              error (do (when exception
-                          (println "************************")
-                          (println (pr-str request))
-                          (print-cause-trace exception)
-                          (println "************************"))
-                        (make-error-response
-                         status type message exception response))
+              error (do (when exception (log-request-exception request exception))
+                        (make-error-response status type message exception response))
               ;; Otherwise return result if body has :result field
               result (merge-default-success-true response)
               ;; If no :error or :result key, wrap the value in :result
@@ -140,6 +189,7 @@
               :else response)
             session-meta (or (-> body meta :session)
                              (-> response meta :session))]
+        (future (log-web-event (make-web-request-event request :error error)))
         (cond-> response
           ;; If the request handler attached a :session meta value to
           ;; the result, set that session value in the response.
@@ -148,10 +198,8 @@
           (and (map? body) res/build-id)    (assoc-in [:body :build-id] res/build-id)
           (and (map? body) res/build-time)  (assoc-in [:body :build-time] res/build-time)))
       (catch Throwable e
-        (println "************************")
-        (println (pr-str request))
-        (print-cause-trace e)
-        (println "************************")
+        (future (log-web-event (make-web-request-event request :exception e)))
+        (log-request-exception request e)
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))
 
