@@ -9,7 +9,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]

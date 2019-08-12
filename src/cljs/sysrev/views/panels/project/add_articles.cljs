@@ -11,7 +11,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.components :as ui]
+            [sysrev.views.components.core :as ui]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))

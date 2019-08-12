@@ -17,11 +17,10 @@
              [do-query do-execute with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
-            [sysrev.db.project :as project]
-            [sysrev.db.export :as export]
+            [sysrev.project.core :as project]
             [sysrev.db.groups :as groups]
-            [sysrev.article.core :as article]
             [sysrev.db.documents :as docs]
+            [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
             [sysrev.label.answer :as answer]
             [sysrev.article.assignment :as assign]
@@ -30,7 +29,8 @@
             [sysrev.db.article-list :as alist]
             [sysrev.db.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
-            [sysrev.export.endnote :as endnote-out]
+            [sysrev.export.core :as export]
+            [sysrev.export.endnote :refer [project-to-endnote-xml]]
             [sysrev.filestore :as fstore]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.predict.report :as predict-report]
@@ -603,7 +603,7 @@
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :endnote-xml
-                            (endnote-out/project-to-endnote-xml
+                            (project-to-endnote-xml
                              project-id :article-ids article-ids :to-file true))
                  {:keys [download-id]
                   :as entry} (add-project-export

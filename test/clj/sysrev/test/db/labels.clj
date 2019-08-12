@@ -7,7 +7,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as p]
+            [sysrev.project.core :as p]
             [sysrev.label.core :as l]
             [sysrev.article.core :as a]
             [sysrev.article.assignment :as assign]

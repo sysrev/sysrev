@@ -9,9 +9,9 @@
         sysrev.db.documents
         sysrev.db.users
         sysrev.label.core
-        sysrev.db.project
+        sysrev.project.core
         sysrev.db.migration
-        sysrev.db.export
+        sysrev.export.core
         sysrev.db.files
         sysrev.source.core
         sysrev.db.article-list

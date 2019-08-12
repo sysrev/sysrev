@@ -3,7 +3,7 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.db.users :as users]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]

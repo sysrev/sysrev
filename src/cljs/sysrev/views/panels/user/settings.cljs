@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.views.components :refer [selection-dropdown]]
+            [sysrev.views.components.core :refer [selection-dropdown]]
             [ajax.core :refer [GET PUT]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as sui :refer

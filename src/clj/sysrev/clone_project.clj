@@ -7,7 +7,7 @@
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.documents :as docs]
             [sysrev.db.files :as files]
             [sysrev.article.core :as article]

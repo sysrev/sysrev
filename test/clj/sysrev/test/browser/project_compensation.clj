@@ -10,7 +10,7 @@
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb clear-project-cache sql-now]]
             [sysrev.db.users :as users :refer [user-by-email]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]

@@ -10,7 +10,7 @@
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.web.routes.api.core :refer [webapi-get webapi-post]]

@@ -9,10 +9,10 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.state.ui :as ui-state]
-            [sysrev.state.articles :as articles]
+            [sysrev.state.article :as article]
             [sysrev.views.annotator :as annotator]
-            [sysrev.views.components :refer [UploadButton]]
-            [sysrev.views.list-pager :refer [ListPager]]
+            [sysrev.views.components.core :refer [UploadButton]]
+            [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [reagent.interop :refer [$ $!]]
@@ -108,27 +108,25 @@
 
 (def-data :pdf/open-access-available?
   :loaded? (fn [db project-id article-id]
-             (contains? (articles/get-article db article-id)
+             (contains? (article/get-article db article-id)
                         :open-access-available?))
   :uri (fn [_ article-id] (str "/api/open-access/" article-id "/availability"))
   :prereqs (fn [project-id article-id]
              [[:article project-id article-id]])
   :process (fn [{:keys [db]} [_ article-id] {:keys [available? key]}]
-             {:db (articles/update-article
-                   db article-id {:open-access-available? available?
-                                  :key key})}))
+             {:db (article/update-article db article-id {:open-access-available? available?
+                                                         :key key})}))
 
 (def-data :pdf/article-pdfs
   :loaded? (fn [db project-id article-id]
-             (-> (articles/get-article db article-id)
+             (-> (article/get-article db article-id)
                  (contains? :pdfs)))
   :uri (fn [project-id article-id]
          (str "/api/files/" project-id "/article/" article-id "/article-pdfs"))
   :prereqs (fn [project-id article-id]
              [[:article project-id article-id]])
   :process (fn [{:keys [db]} [_ article-id] {:keys [files]}]
-             {:db (articles/update-article
-                   db article-id {:pdfs files})}))
+             {:db (article/update-article db article-id {:pdfs files})}))
 
 (def-action :pdf/delete-pdf
   :uri (fn [project-id article-id key filename]

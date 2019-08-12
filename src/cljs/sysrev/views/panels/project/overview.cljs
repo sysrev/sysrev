@@ -12,7 +12,7 @@
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.components :as ui]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.util :as util :refer [wrap-user-event]]

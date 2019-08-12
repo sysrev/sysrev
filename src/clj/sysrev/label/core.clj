@@ -17,7 +17,7 @@
               sql-now to-sql-array to-jsonb sql-cast
               with-query-cache with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.article.core :as article]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]

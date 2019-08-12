@@ -5,7 +5,7 @@
             [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.project.define-labels :refer [label-settings-config]]
-            [sysrev.views.components :refer
+            [sysrev.views.components.core :refer
              [with-ui-help-tooltip ui-help-icon]]
             [sysrev.util :as util :refer [today-string nbsp]]))
 

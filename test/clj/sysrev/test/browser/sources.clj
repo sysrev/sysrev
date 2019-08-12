@@ -9,7 +9,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.db.project :as project]))
+            [sysrev.project.core :as project]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

@@ -1,4 +1,4 @@
-(ns sysrev.db.project
+(ns sysrev.project.core
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [honeysql.core :as sql]

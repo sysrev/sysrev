@@ -88,14 +88,13 @@
            {:dispatch-later [{:dispatch [:action item] :ms 20}]}
            :else
            (merge {:action-sent item}
-                  (run-ajax
-                   (cond-> {:db db
-                            :method method
-                            :uri (apply uri args)
-                            :on-success [::on-success item]
-                            :on-failure [::on-failure item]
-                            :content-type (or content-type "application/transit+json")}
-                     content-val (assoc :content content-val))))))))
+                  (run-ajax (cond-> {:db db
+                                     :method method
+                                     :uri (apply uri args)
+                                     :on-success [::on-success item]
+                                     :on-failure [::on-failure item]
+                                     :content-type (or content-type "application/transit+json")}
+                              content-val (assoc :content content-val))))))))
 
 (reg-event-ajax-fx
  ::on-success

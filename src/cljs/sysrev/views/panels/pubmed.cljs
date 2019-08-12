@@ -8,8 +8,8 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.components :as ui]
-            [sysrev.views.list-pager :refer [ListPager]]
+            [sysrev.views.components.core :as ui]
+            [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :refer [wrap-prevent-default nbsp]]
             [sysrev.shared.util :as util])
   (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))

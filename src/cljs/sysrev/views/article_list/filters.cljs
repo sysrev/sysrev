@@ -10,8 +10,8 @@
             [sysrev.state.nav :refer
              [active-panel active-project-id project-uri]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.state.labels :refer [project-overall-label-id]]
-            [sysrev.views.components :as ui]
+            [sysrev.state.label :refer [project-overall-label-id]]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.panels.project.add-articles :as source]
             [sysrev.util :as util :refer [nbsp]]

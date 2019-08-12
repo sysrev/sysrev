@@ -5,7 +5,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.article.core :as article]
             [sysrev.label.core :as l]
             [sysrev.util :as util]

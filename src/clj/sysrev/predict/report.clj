@@ -3,7 +3,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.predict.core]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [map-values]]))

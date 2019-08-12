@@ -1,7 +1,7 @@
 (ns sysrev.test.web.routes.api.handlers
   (:require [clojure.data.json :as json]
             [clojure.test :refer :all]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.db.users :as users]
             [sysrev.pubmed :as pubmed]

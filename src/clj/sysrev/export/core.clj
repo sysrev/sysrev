@@ -1,4 +1,4 @@
-(ns sysrev.db.export
+(ns sysrev.export.core
   (:require [clojure.string :as str]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -8,7 +8,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.annotations :as ann]
             [sysrev.label.core :as label]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.shared.util :refer [in? map-values index-by]]))
 
 (def default-csv-separator "|||")

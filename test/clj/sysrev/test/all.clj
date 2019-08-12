@@ -1,7 +1,6 @@
 (ns sysrev.test.all
   (:require sysrev.test.core
             sysrev.test.connect
-            sysrev.test.profile
             sysrev.test.import
             sysrev.test.db.core
             sysrev.test.db.project

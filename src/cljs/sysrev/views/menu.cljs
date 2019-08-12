@@ -5,7 +5,7 @@
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [user-uri]]
             [sysrev.nav :refer [nav nav-scroll-top]]
-            [sysrev.views.components :refer [dropdown-menu with-tooltip]]
+            [sysrev.views.components.core :refer [dropdown-menu with-tooltip]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
             [sysrev.views.search.core :refer [SiteSearch]]
             [sysrev.util :as util])

@@ -6,7 +6,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel active-project-id]]
-            [sysrev.state.articles :as articles]
+            [sysrev.state.article :as article]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.shared.util :refer [in? map-values]]))
 
@@ -36,7 +36,7 @@
       {:db (load-review-task db project-id :none nil)}
       (let [article (merge article {:labels labels :notes notes})]
         (cond-> {:db (-> (load-review-task db project-id (:article-id article) today-count)
-                         (articles/load-article article))}
+                         (article/load-article article))}
           (= (active-panel db) [:project :review])
           (merge {:scroll-top true}))))))
 
@@ -114,7 +114,7 @@
 
 (defn active-labels [db article-id]
   (when-let [user-id (current-user-id db)]
-    (merge (->> (articles/article-labels db article-id user-id)
+    (merge (->> (article/article-labels db article-id user-id)
                 (map-values :answer))
            (review-ui-labels db article-id))))
 
@@ -206,7 +206,7 @@
  [trim-v]
  (fn [{:keys [db]} [{:keys [project-id article-id confirm? resolve? on-success]}]]
    (let [label-values (active-labels db article-id)
-         change? (= :confirmed (articles/article-user-status db article-id))
+         change? (= :confirmed (article/article-user-status db article-id))
          panel (active-panel db)]
      {:dispatch-n
       (doall

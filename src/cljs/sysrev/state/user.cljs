@@ -1,4 +1,4 @@
-(ns sysrev.state.users
+(ns sysrev.state.user
   (:require [clojure.string :as str]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]

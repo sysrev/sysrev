@@ -1,6 +1,6 @@
 (ns sysrev.charts
   (:require [sysrev.db.core :refer [with-project-cache]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
             [sysrev.shared.transit :as sr-transit]))
 

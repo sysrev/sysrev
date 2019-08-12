@@ -7,7 +7,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users :refer [user-by-email]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]

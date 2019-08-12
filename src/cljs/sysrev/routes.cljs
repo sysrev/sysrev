@@ -8,8 +8,7 @@
             [sysrev.views.panels.project.define-labels :as define-labels]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [parse-integer]]
-            [sysrev.macros])
-  (:require-macros [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
+            [sysrev.macros :refer-macros [sr-defroute sr-defroute-project]]))
 
 (sr-defroute
  home "/" []

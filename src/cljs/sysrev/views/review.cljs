@@ -6,9 +6,9 @@
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.state.review :as review]
-            [sysrev.state.labels :refer [get-label-raw]]
-            [sysrev.state.notes :as notes]
-            [sysrev.views.components :as ui]
+            [sysrev.state.label :refer [get-label-raw]]
+            [sysrev.state.note :refer [sync-article-notes]]
+            [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer [in? css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -366,7 +366,7 @@
                           (nil? (aget (js/$ "div.view-pdf.rendering") 0))
                           (nil? (aget (js/$ "div.view-pdf.updating") 0)))
                     (fn []
-                      (notes/sync-article-notes article-id)
+                      (sync-article-notes article-id)
                       (dispatch
                        [:review/send-labels
                         {:project-id project-id
@@ -414,7 +414,7 @@
                           (nil? (aget (js/$ "div.view-pdf.rendering") 0))
                           (nil? (aget (js/$ "div.view-pdf.updating") 0)))
                     #(when on-review-task?
-                       (notes/sync-article-notes article-id)
+                       (sync-article-notes article-id)
                        (dispatch [:review/send-labels {:project-id project-id
                                                        :article-id article-id
                                                        :confirm? false

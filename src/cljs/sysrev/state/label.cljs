@@ -1,20 +1,17 @@
-(ns sysrev.state.labels
+(ns sysrev.state.label
   (:require [clojure.string :as str]
             [re-frame.core :refer [subscribe reg-sub reg-sub-raw]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.shared.util :refer [in?]]))
 
-(reg-sub
- ::labels
- (fn [[_ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project]] (:labels project)))
+(reg-sub ::labels
+         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
+         #(:labels %))
 
 (defn project-labels [db & [project-id]]
-  (let [project-id (or project-id (active-project-id db))
-        project (get-project-raw db project-id)]
-    (:labels project)))
+  (when-let [project-id (or project-id (active-project-id db))]
+    (:labels (get-project-raw db project-id))))
 
 (defn get-label-raw [db label-id & [project-id]]
   (get (project-labels db project-id) label-id))
@@ -82,14 +79,15 @@
        (filter #(= (:name %) "overall include"))
        first :label-id))
 
-;; Use this to get a sequence of label-id in project, in a consistent
+(reg-sub :project/labels-raw
+         (fn [db [_ project-id]] (project-labels db project-id)))
+
+;; Use this to get a sequence of label-id from project in a consistent
 ;; sorted order.
-(reg-sub
- :project/label-ids
- (fn [[_ project-id include-disabled?]]
-   [(subscribe [::labels project-id])])
- (fn [[labels] [_ _ include-disabled?]]
-   (sort-project-labels labels include-disabled?)))
+(reg-sub :project/label-ids
+         (fn [[_ project-id _]] (subscribe [::labels project-id]))
+         (fn [labels [_ _ include-disabled?]]
+           (sort-project-labels labels include-disabled?)))
 
 (reg-sub
  :project/have-label?

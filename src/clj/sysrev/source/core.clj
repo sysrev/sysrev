@@ -8,7 +8,7 @@
              [do-query do-execute with-transaction to-jsonb
               clear-project-cache with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as p]
+            [sysrev.project.core :as p]
             [sysrev.article.core :as a]
             [sysrev.filestore :as fstore]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))

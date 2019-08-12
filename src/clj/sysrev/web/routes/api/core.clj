@@ -13,7 +13,7 @@
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.web.app :refer
              [current-user-id active-project make-error-response]]
             [sysrev.shared.spec.core :as sc]

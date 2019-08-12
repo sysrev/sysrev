@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.common
   (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.components :refer
+            [sysrev.views.components.core :refer
              [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]
             [sysrev.util :refer [full-size? mobile? nbsp]]
             [sysrev.shared.util :refer [in?]]))

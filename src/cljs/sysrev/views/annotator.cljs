@@ -8,7 +8,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.views.components :as ui]
+            [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer
              [in? map-values filter-values css index-by]])

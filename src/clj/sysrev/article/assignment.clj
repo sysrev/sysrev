@@ -7,7 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.entity :as e]
             [sysrev.article.core :as article]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.util :as util]

@@ -8,7 +8,7 @@
             sysrev.test.all
             [sysrev.test.core :as test]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.migration :as migration]
             [sysrev.init :as init]))
 

@@ -3,7 +3,7 @@
    [sysrev.shared.util :refer [map-values]]
    [sysrev.db.core :refer
     [do-query do-execute with-transaction sql-now clear-project-cache]]
-   [sysrev.db.project :refer [project-overall-label-id]]
+   [sysrev.project.core :refer [project-overall-label-id]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]

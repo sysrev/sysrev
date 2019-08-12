@@ -1,7 +1,7 @@
 (ns sysrev.test.web.routes.project
   (:require [clojure.test :refer :all]
             [clojure.string :as str]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.db.users :as users]

@@ -5,7 +5,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.article.core :refer [set-article-flag]]
             [sysrev.label.core :as labels]
             [sysrev.label.answer :as answer]

@@ -8,7 +8,7 @@
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-execute]]
             [sysrev.db.groups :as groups]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.users :as users]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]

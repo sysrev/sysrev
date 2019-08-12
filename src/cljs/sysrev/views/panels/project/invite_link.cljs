@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.invite-link
   (:require
    [re-frame.core :refer [subscribe dispatch]]
-   [sysrev.views.components :refer [ClipboardButton]]
+   [sysrev.views.components.core :refer [ClipboardButton]]
    [sysrev.views.base :refer [panel-content logged-out-content]]))
 
 (defmethod panel-content [:project :project :invite-link] []

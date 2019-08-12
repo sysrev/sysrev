@@ -4,7 +4,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.label.answer :as answer]
             [sysrev.article.core :as article]
             [sysrev.shared.util :refer [map-values in?]]

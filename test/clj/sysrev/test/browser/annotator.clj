@@ -6,7 +6,8 @@
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
             [sysrev.db.users :as users :refer [user-by-email]]
-            [sysrev.db.export :as export]
+            [sysrev.project.core :as project]
+            [sysrev.export.core :as export]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -236,7 +237,7 @@
       (let [{:keys [email password]} b/test-login
             user-id (user-by-email email :user-id)
             project-id (review-articles/get-user-project-id user-id)
-            article-id (first (sysrev.db.project/project-article-ids project-id))
+            article-id (first (project/project-article-ids project-id))
             {:keys [annotations]} (api/user-defined-annotations article-id)
             annotation (first annotations)
             annotations-csv (rest (export/export-annotations-csv project-id))

@@ -8,7 +8,7 @@
             [sysrev.annotation :as annotation]
             [sysrev.pdf :as pdf]
             [sysrev.views.annotator :as annotator]
-            [sysrev.views.components :as ui]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
             [sysrev.util :as util :refer [nbsp]]

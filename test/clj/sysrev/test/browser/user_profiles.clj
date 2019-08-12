@@ -9,7 +9,7 @@
             [sysrev.db.files :as files]
             [sysrev.filestore :as fstore]
             [sysrev.db.groups :as groups]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.test.browser.annotator :as annotator]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]

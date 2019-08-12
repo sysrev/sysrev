@@ -49,7 +49,7 @@
             [sysrev.views.panels.users]
             [sysrev.views.panels.terms-of-use]
             [sysrev.views.menu :refer [header-menu]]
-            [sysrev.views.components :as ui]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.review :as review]
             [sysrev.views.search.core]
             [sysrev.util :as util :refer [nbsp]]

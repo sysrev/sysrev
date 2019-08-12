@@ -8,7 +8,7 @@
              [do-query do-execute with-transaction
               with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.article.core :as article]
             [sysrev.label.core :as label]
             [sysrev.util :as util]

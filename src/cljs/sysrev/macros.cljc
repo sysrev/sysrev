@@ -15,12 +15,10 @@
        :reagent-render (fn [content#] content#)})))
 
 (defmacro import-vars [[_quote ns]]
-  `(do
-     ~@(->>
-        (ana-api/ns-publics ns)
-        (remove (comp :macro second))
-        (map (fn [[k# _]]
-               `(def ~(symbol k#) ~(symbol (name ns) (name k#))))))))
+  `(do ~@(->> (ana-api/ns-publics ns)
+              (remove (comp :macro second))
+              (map (fn [[k# _]] `(def ~(symbol k#)
+                                   ~(symbol (name ns) (name k#))))))))
 
 (defmacro with-loader
   "Wraps a UI component to define required data and delay rendering until

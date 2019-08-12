@@ -1,4 +1,4 @@
-(ns sysrev.state.articles
+(ns sysrev.state.article
   (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw reg-event-db trim-v]]
             [sysrev.state.identity :as self]
             [sysrev.data.core :refer [def-data]]))

@@ -8,7 +8,7 @@
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.components :as ui]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? css]])

@@ -14,7 +14,7 @@
              [do-query do-execute with-transaction to-sql-array
               with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project :refer
+            [sysrev.project.core :as project :refer
              [add-project-member set-member-permissions
               default-project-settings]]
             [sysrev.db.groups :as groups]

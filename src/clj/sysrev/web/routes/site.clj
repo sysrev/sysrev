@@ -11,7 +11,7 @@
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.users :as users]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.queries :as q]
             [sysrev.config.core :refer [env]]
             [sysrev.web.app :as app :refer [wrap-authorize current-user-id]]

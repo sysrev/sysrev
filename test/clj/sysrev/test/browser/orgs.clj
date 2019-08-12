@@ -5,7 +5,7 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.api :as api]
             [sysrev.db.groups :as groups]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]

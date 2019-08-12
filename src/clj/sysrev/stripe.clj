@@ -11,7 +11,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.funds :as funds]
             [sysrev.db.plans :as db-plans]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.util :as util :refer [current-function-name]]))
 
 (def stripe-secret-key (env :stripe-secret-key))
@@ -96,7 +96,7 @@
 ;; a production stripe-secret-key in your profiles.clj, which you should
 ;; absolutely NEVER DO IN THE FIRST PLACE!!!!
 ;;
-;; Because of the sensitive nature of this fn, it is hardcoded to only use a 
+;; Because of the sensitive nature of this fn, it is hardcoded to only use a
 ;; key extracted from profiles.clj
 ;;
 ;;

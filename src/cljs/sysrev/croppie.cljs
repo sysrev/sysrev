@@ -4,7 +4,7 @@
             [jborden.croppie]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe]]
-            [sysrev.views.components :refer [UploadButton]]
+            [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.semantic :refer [Button Loader]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 

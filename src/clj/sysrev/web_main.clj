@@ -3,7 +3,7 @@
   (:require [sysrev.init :as init]
             [sysrev.db.core :as db]
             [sysrev.db.migration :as migration]
-            [sysrev.db.project :as project]))
+            [sysrev.project.core :as project]))
 
 (defn -main [& args]
   (init/start-db)

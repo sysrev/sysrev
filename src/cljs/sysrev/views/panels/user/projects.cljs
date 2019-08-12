@@ -5,7 +5,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.components :refer [ConfirmationDialog]]
+            [sysrev.views.components.core :refer [ConfirmationDialog]]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.semantic :refer
              [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]]

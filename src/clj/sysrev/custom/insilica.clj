@@ -2,7 +2,7 @@
   (:require [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.queries :as q]
             [sysrev.clone-project :as clone]
             [sysrev.shared.util :refer [in? parse-integer]]))

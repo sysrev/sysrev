@@ -14,7 +14,7 @@
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users :refer [user-by-email]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
             [sysrev.clone-project :as clone]
             [sysrev.source.core :as source]

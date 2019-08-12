@@ -9,7 +9,7 @@
             [sysrev.stripe :refer [stripe-public-key stripe-client-id]]
             [sysrev.util :refer [today-string]]
             [sysrev.db.users :as users]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.shared.text :as text]))
 
 (defonce web-asset-path (atom "/out"))

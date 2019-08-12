@@ -1,4 +1,4 @@
-(ns sysrev.state.notes
+(ns sysrev.state.note
   (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw dispatch
                                    reg-event-db reg-event-fx trim-v]]
             [sysrev.state.nav :refer [active-project-id]]

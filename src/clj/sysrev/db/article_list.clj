@@ -13,7 +13,7 @@
             [sysrev.db.core :as db :refer
              [active-db do-query do-execute to-sql-array sql-now to-jsonb
               with-project-cache clear-project-cache]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.db.queries :as q]

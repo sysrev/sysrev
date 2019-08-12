@@ -15,7 +15,7 @@
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.groups :as groups]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test :refer [succeeds?]]

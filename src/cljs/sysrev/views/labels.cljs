@@ -2,10 +2,10 @@
   (:require [clojure.string :as str]
             [re-frame.core :refer [subscribe dispatch]]
             [cljs-time.core :as t]
-            [sysrev.views.components :refer [updated-time-label note-content-label]]
+            [sysrev.views.components.core :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
-            [sysrev.state.labels :refer [real-answer?]]
+            [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :refer [time-from-epoch time-elapsed-string nbsp]]
             [sysrev.shared.util :refer [in? css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))

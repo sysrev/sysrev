@@ -8,7 +8,7 @@
             [sysrev.api :as api]
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.pubmed :as pubmed]

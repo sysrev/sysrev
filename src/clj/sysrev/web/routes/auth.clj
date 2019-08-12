@@ -4,7 +4,7 @@
             [ring.util.response :as response]
             [sysrev.api :as api]
             [sysrev.db.users :as users :refer [user-by-email]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.shared.util :refer [in?]]
             [sysrev.mail.core :refer [send-email]]

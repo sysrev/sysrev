@@ -1,4 +1,4 @@
-(ns sysrev.views.list-pager
+(ns sysrev.views.components.list-pager
   (:require [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-fx trim-v]]
             [sysrev.util :as util]

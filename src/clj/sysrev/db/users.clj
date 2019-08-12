@@ -15,7 +15,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction sql-now raw-query]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :refer [add-project-member]]
+            [sysrev.project.core :refer [add-project-member]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.users :as su]
             [sysrev.stripe :as stripe]

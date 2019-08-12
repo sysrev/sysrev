@@ -4,7 +4,7 @@
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.create-project :refer [CreateProject]]
-            [sysrev.views.list-pager :refer [ListPager]]
+            [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))

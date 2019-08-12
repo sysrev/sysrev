@@ -12,7 +12,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.users :as users :refer
              [get-user user-by-api-token update-member-access-time]]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.resources :as res]
             [sysrev.web.index :as index]
             [sysrev.util :as util]

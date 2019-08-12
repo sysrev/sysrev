@@ -1,4 +1,4 @@
-(ns sysrev.views.components
+(ns sysrev.views.components.core
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [reagent.core :as r]

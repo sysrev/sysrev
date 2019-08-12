@@ -3,11 +3,11 @@
             sysrev.state.identity
             sysrev.state.nav
             sysrev.state.ui
-            sysrev.state.users
-            sysrev.state.articles
-            sysrev.state.labels
+            sysrev.state.user
+            sysrev.state.article
+            sysrev.state.label
             sysrev.state.review
-            sysrev.state.notes
+            sysrev.state.note
             sysrev.state.project.base
             sysrev.state.project.core
             sysrev.state.project.data

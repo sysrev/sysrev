@@ -4,7 +4,7 @@
             [clojure.test :refer :all]
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
-            [sysrev.db.project :as project]
+            [sysrev.project.core :as project]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
