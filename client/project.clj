@@ -2,6 +2,9 @@
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [org.clojure/clojurescript "1.10.520"]
 
+;;; clojure.spec
+                 [orchestra "2018.12.06-2" #_ "2019.02.06-1"]
+
 ;;; JVM/CLJS deps
                  [org.clojure/tools.logging "0.4.1"]
                  [ch.qos.logback/logback-classic "1.2.3"]

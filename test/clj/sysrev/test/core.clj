@@ -6,7 +6,7 @@
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
-            [clojure.spec.test.alpha :as t]
+            [orchestra.spec.test :as t]
             [clojure.tools.logging :as log]
             [sysrev.config.core :refer [env]]
             [sysrev.init :refer [start-app]]

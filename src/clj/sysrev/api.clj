@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [clojure.walk :refer [keywordize-keys]]
             [clj-time.core :as t]
@@ -44,7 +45,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un]]
             [sysrev.biosource.predict :as predict-api])
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
@@ -63,28 +64,33 @@
 (def max-import-articles (:max-import-articles env))
 (def paywall-grandfather-date "2019-06-09 23:56:00")
 
-(defn create-project-for-user!
+(s/def ::success boolean?)
+
+(s/def ::status int?)
+(s/def ::message string?)
+(s/def ::error (s/keys :opt-un [::status ::message]))
+
+(defn or-error [primary-spec]
+  (s/or :error (req-un ::error) :standard primary-spec))
+
+(s/def ::project ::sp/project-partial)
+
+(defn-spec create-project-for-user! (req-un ::project)
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
-  [project-name user-id]
+  [project-name string?, user-id int?]
   (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (labels/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (project/add-project-member project-id user-id
                                   :permissions ["member" "admin" "owner"])
-      {:result
-       {:success true
-        :project (select-keys project [:project-id :name])}})))
-;;;
-(s/fdef create-project-for-user!
-  :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id)
-  :ret ::sp/project)
+      {:project (select-keys project [:project-id :name])})))
 
-(defn create-project-for-org!
+(defn-spec create-project-for-org! (req-un ::project)
   "Create a new project for org-id using project-name and insert a
   minimum label, returning the project in a response map"
-  [project-name user-id group-id]
+  [project-name string?, user-id int?, group-id int?]
   (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (labels/add-label-overall-include project-id)
@@ -97,30 +103,19 @@
                                   ;; a project_member entry with
                                   ;; an "owner" permission
                                   :permissions ["member" "admin"])
-      {:success true
-       :project (select-keys project [:project-id :name])})))
-;;;
-;; not pulling in ::sc/org-id for some reason, skipping
-#_ (s/fdef create-project-for-org!
-     :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id, :org-id ::sc/org-id)
-     :ret ::sp/project)
+      {:project (select-keys project [:project-id :name])})))
 
-(defn delete-project!
+(defn-spec delete-project! (req-un ::sp/project-id)
   "Delete a project with project-id by user-id. Checks to ensure the
   user is an admin of that project. If there are reviewed articles in
   the project, disables project instead of deleting it"
-  [project-id user-id]
+  [project-id int?, user-id int?]
   (assert (or (project/member-has-permission? project-id user-id "admin")
               (in? (get-user user-id :permissions) "admin")))
   (if (project/project-has-labeled-articles? project-id)
-    (do (project/disable-project! project-id)
-        {:result {:success true, :project-id project-id}})
-    (do (project/delete-project project-id)
-        {:result {:success true, :project-id project-id}})))
-;;;
-(s/fdef delete-project!
-  :args (s/cat :project-id int?, :user-id int?)
-  :ret map?)
+    (project/disable-project! project-id)
+    (project/delete-project project-id))
+  {:project-id project-id})
 
 (defn remove-current-owner [project-id]
   (let [current-owner (project/get-project-owner project-id)
@@ -226,18 +221,14 @@
    #(import/import-pdf-zip
      project-id {:file file :filename filename} options)))
 
-(defn project-sources
-  "Return sources for project-id"
-  [project-id]
-  {:success true, :sources (source/project-sources project-id)})
-;;;
-(s/fdef project-sources
-  :args (s/cat :project-id int?)
-  :ret map?)
+(s/def ::sources map?)
 
-(defn delete-source!
-  "Delete a source with source-id by user-id."
-  [source-id]
+(defn-spec project-sources (req-un ::sources)
+  [project-id int?]
+  {:sources (source/project-sources project-id)})
+
+(defn-spec delete-source! (-> (req-un ::success) or-error)
+  [source-id int?]
   (cond (source/source-has-labeled-articles? source-id)
         {:error {:status forbidden
                  :message "Source contains reviewed articles"}}
@@ -249,14 +240,10 @@
                 (predict-api/schedule-predict-update project-id)
                 (importance/schedule-important-terms-update project-id)
                 {:success true})))
-;;;
-(s/fdef delete-source!
-  :args (s/cat :source-id int?)
-  :ret map?)
 
-(defn toggle-source
+(defn-spec toggle-source (-> (req-un ::success) or-error)
   "Toggle a source as being enabled or disabled."
-  [source-id enabled?]
+  [source-id int?, enabled? boolean?]
   (if (source/source-exists? source-id)
     (let [project-id (source/source-id->project-id source-id)]
       (source/toggle-source source-id enabled?)
@@ -265,10 +252,6 @@
       {:success true})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
-;;;
-(s/fdef toggle-source
-  :args (s/cat :source-id int?, :enabled? boolean?)
-  :ret map?)
 
 (defn sysrev-base-url
   "Tries to determine and return the current root url for Sysrev web

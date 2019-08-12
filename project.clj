@@ -1,6 +1,9 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.10.1"]
 
+;;; clojure.spec
+                 [orchestra "2018.12.06-2" #_ "2019.02.06-1"]
+
 ;;; Force versions of indirect dependencies
                  [com.fasterxml.jackson.core/jackson-databind "2.9.9.1"]
                  [cheshire "5.8.1"]

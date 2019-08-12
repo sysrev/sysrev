@@ -1,5 +1,6 @@
 (ns sysrev.article.core
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-project-cache clear-project-cache]]
@@ -21,10 +22,10 @@
       (where [:= :article-id article-id])
       do-query first :project-id))
 
-(defn article-to-sql
+(defn-spec article-to-sql map?
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
-  [article & [conn]]
+  [article ::sa/article-partial, & [conn] (s/? any?)]
   (try (-> article
            (update :authors #(db/to-sql-array "text" % conn))
            (update :keywords #(db/to-sql-array "text" % conn))
@@ -34,23 +35,12 @@
          (log/warn "article-to-sql: error converting article")
          (log/warn "article =" (pr-str article))
          (throw e))))
-;;;
-(s/fdef article-to-sql
-  :args (s/cat :article ::sa/article-partial
-               :conn (s/? any?))
-  :ret map?)
 
-(defn add-article [article project-id & [conn]]
-  (-> (insert-into :article)
-      (values [(-> (article-to-sql article conn) (assoc :project-id project-id))])
-      (returning :article-id)
-      do-query first :article-id))
-;;;
-(s/fdef add-article
-  :args (s/cat :article ::sa/article-partial
-               :project-id ::sc/project-id
-               :conn (s/? any?))
-  :ret (s/nilable ::sc/article-id))
+(defn-spec add-article (s/nilable int?)
+  [article ::sa/article-partial, project-id int?, & [conn] (s/? any?)]
+  (q/create :article (-> (article-to-sql article conn)
+                         (assoc :project-id project-id))
+            :returning :article-id))
 
 (defn add-articles [articles project-id & [conn]]
   (if (empty? articles) []

@@ -247,12 +247,12 @@
 ;; TODO: needed? safe?
 (def-webapi
   :create-project :post
-  {:required [:project-name]
-   #_ :require-admin? #_ true}
+  {:required [:project-name]}
   (fn [request]
     (let [{:keys [api-token project-name add-self?]} (:body request)
           {:keys [user-id]} (users/user-by-api-token api-token)]
-      (api/create-project-for-user! project-name user-id))))
+      {:result (merge {:success true}
+                      (api/create-project-for-user! project-name user-id))} )))
 
 ;; TODO: does tom need this? disable for now
 #_
@@ -265,7 +265,8 @@
   (fn [request]
     (let [{:keys [project-id api-token] :as body} (:body request)
           {:keys [user-id]} (users/user-by-api-token api-token)]
-      (api/delete-project! project-id user-id))))
+      {:result (merge {:success true}
+                      (api/delete-project! project-id user-id))})))
 
 ;; TODO: allow public project access
 (def-webapi

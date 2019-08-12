@@ -58,6 +58,8 @@
 *** TODO Remove update-user-default-project function
 *** TODO Remove default-project-id from db
 ** TODO [#C] Add general mechanism for requiring login on a page
+** TODO [#C] Remove unused project_member.membership_id field
+*** TODO Check that unique contraint exists for (project_id, user_id)
 ** DONE Improve join syntax for q/find q/modify
    CLOSED: [2019-08-09 Fri 09:33]
 ** DONE Add more SQL clauses in q/find etc

@@ -94,6 +94,18 @@
     (fn [request]
       (handler request))))
 
+
+(defn- merge-default-success-true
+  "If response result is a map and has keyword key values, merge in
+  default {:success true} entry."
+  [{:keys [body] :as response}]
+  (let [{:keys [result]} (ensure-pred map? body)]
+    (if (and (map? result)
+             (some keyword? (keys result))
+             (not (contains? result :success)))
+      (update response :body assoc-in [:result :success] true)
+      response)))
+
 (defn wrap-sysrev-response [handler]
   (fn [request]
     (try
@@ -113,9 +125,10 @@
                         (make-error-response
                          status type message exception response))
               ;; Otherwise return result if body has :result field
-              result response
+              result (merge-default-success-true response)
               ;; If no :error or :result key, wrap the value in :result
-              (map? body) (update response :body #(hash-map :result %))
+              (map? body) (-> (update response :body #(hash-map :result %))
+                              (merge-default-success-true))
               ;; If handler gave HTTP redirect response, return it
               (= 302 (:status response)) response
               ;; Return error on empty response body

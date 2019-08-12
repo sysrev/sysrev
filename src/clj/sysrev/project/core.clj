@@ -33,10 +33,7 @@
 (def valid-permissions ["member" "admin" "owner" "resolve"])
 
 (defn all-project-ids []
-  (-> (select :project-id)
-      (from [:project :p])
-      (order-by :project-id)
-      (->> do-query (mapv :project-id))))
+  (q/find :project {} :project-id, :order-by :project-id))
 
 (defn all-projects
   "Returns seq of short info on all projects, for interactive use."
@@ -58,35 +55,26 @@
 (defn add-project-member
   "Add a user to the list of members of a project."
   [project-id user-id & {:keys [permissions] :or {permissions ["member"]}}]
-  (try (-> (insert-into :project-member)
-           (values [{:project-id project-id
-                     :user-id user-id
-                     :permissions (db/to-sql-array "text" permissions)}])
-           (returning :membership-id)
-           do-query first :membership-id)
+  (try (q/create :project-member {:project-id project-id, :user-id user-id
+                                  :permissions (db/to-sql-array "text" permissions)})
        ;; set their compensation to the project default
-       (when-let [default-compensation-id (compensation/get-default-project-compensation project-id)]
-         (compensation/start-compensation-period-for-user! default-compensation-id user-id))
+       (when-let [comp-id (compensation/get-default-project-compensation project-id)]
+         (compensation/start-compensation-period-for-user! comp-id user-id))
+       nil
        (finally (clear-project-cache project-id))))
 ;;;
 (s/fdef add-project-member
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id
+  :args (s/cat :project-id ::sc/project-id, :user-id ::sc/user-id
                :opts (s/keys* :opt-un [::sp/permissions]))
-  :ret (s/nilable ::sc/sql-id))
+  :ret nil?)
 
-(defn remove-project-member
-  "Remove a user from a project."
-  [project-id user-id]
-  (try (-> (delete-from :project-member)
-           (where [:and [:= :project-id project-id] [:= :user-id user-id]])
-           do-execute)
+(defn remove-project-member [project-id user-id]
+  (try (q/delete :project-member {:project-id project-id :user-id user-id})
        (finally (clear-project-cache project-id))))
 ;;;
 (s/fdef remove-project-member
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id)
-  :ret (s/nilable integer?))
+  :args (s/cat :project-id ::sc/project-id, :user-id ::sc/user-id)
+  :ret int?)
 
 (defn set-member-permissions
   "Change the permissions for a project member."
@@ -138,7 +126,7 @@
 ;;;
 (s/fdef delete-project
   :args (s/cat :project-id (s/nilable ::sc/project-id))
-  :ret (s/coll-of integer?))
+  :ret int?)
 
 (defn enable-project!
   "Set the enabled flag for project-id to false"
@@ -260,7 +248,7 @@
 ;;;
 (s/fdef project-overall-label-id
   :args (s/cat :project-id ::sc/project-id)
-  :ret ::sl/label-id)
+  :ret (s/nilable ::sl/label-id))
 
 (defn member-has-permission?
   "Does the user-id have the permission for project-id?"
@@ -456,17 +444,13 @@
   :ret ::snt/member-notes-map)
 
 (defn project-user-ids
-  "Returns a vector of `user-id` for the members of `project-id`.
-   If `admin?` is a boolean, filter by user admin status."
-  [project-id & [admin?]]
-  (-> (q/select-project-members project-id [:u.user-id])
-      (q/filter-admin-user admin?)
-      (->> do-query (mapv :user-id))))
+  "Returns sequence of user-id for all members of project."
+  [project-id]
+  (q/find :project-member {:project-id project-id} :user-id))
 ;;;
 (s/fdef project-user-ids
-  :args (s/cat :project-id ::sc/project-id
-               :admin? (s/? (s/nilable boolean?)))
-  :ret (s/coll-of map?))
+  :args (s/cat :project-id ::sc/project-id)
+  :ret (s/nilable (s/coll-of int?)))
 
 (defn project-id-from-register-hash [register-hash]
   (-> (q/select-project-where true [:project-id :project-uuid])

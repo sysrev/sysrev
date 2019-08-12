@@ -283,6 +283,9 @@
   [default value]
   (if (nil? value) default value))
 
+(defn req-un [& keys]
+  (s/keys :req-un (into [] keys)))
+
 ;;;
 ;;; Not used, keeping in case needed later
 ;;;

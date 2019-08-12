@@ -1,5 +1,5 @@
 (ns sysrev.core
-  (:require [clojure.spec.test.alpha :as spec-test]
+  (:require [orchestra-cljs.spec.test :as t]
             [cljsjs.jquery]
             [reagent.core :as reagent]
             [re-frame.core :as re-frame :refer
@@ -106,7 +106,7 @@
   (-> js/window (.addEventListener "mousedown" on-mousedown)))
 
 (defn ^:export spec-instrument []
-  (-> (spec-test/instrument) count))
+  (count (t/instrument)))
 
 (defn ^:export init []
   (case (base/app-id)

@@ -1,7 +1,6 @@
 (ns sysrev.test.browser.simple
   (:require [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
-            [clojure.spec.test.alpha :as t]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.core :as test :refer [default-fixture]]
