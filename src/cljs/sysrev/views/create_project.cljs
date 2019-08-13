@@ -1,11 +1,11 @@
 (ns sysrev.views.create-project
   (:require [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :as util]
             [sysrev.views.semantic :refer
-             [Form FormField Input Message MessageHeader Segment Header Button Dropdown]])
-  (:require-macros [reagent.interop :refer [$]]))
+             [Form FormField Input Message MessageHeader Segment Header Button Dropdown]]))
 
 (def view :create-project)
 (defn field [path] (subscribe [:view-field view path]))

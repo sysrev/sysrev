@@ -1,5 +1,7 @@
 (ns sysrev.shared.util
   (:require [clojure.spec.alpha :as s]
+            #?(:clj [orchestra.core :refer [defn-spec]]
+               :cljs [orchestra.core :refer-macros [defn-spec]])
             [clojure.string :as str]
             [clojure.test.check.generators :as gen]
             [cognitect.transit :as transit])
@@ -173,14 +175,14 @@
 (s/def ::class-condition (s/and vector? #(-> % count (mod 2) (= 0))))
 (s/def ::class-form (s/or :null nil? :string string? :condition ::class-condition))
 
-(defn css
+(defn-spec css string?
   "Combines class forms into a space-separated CSS classes string.
   Each value should be of type string, vector, or nil. Vector forms
   are handled as if passing the values as arguments to cond; the
   values form pairs of (condition string), and the string from the
   first matching condition will be used. If no condition matches then
   no value will be included."
-  [& class-forms]
+  [& class-forms (s/* ::class-form)]
   (->> class-forms
        (map (fn [x]
               (if (vector? x)
@@ -192,10 +194,6 @@
                 x)))
        (remove #(contains? #{nil ""} %))
        (str/join " ")))
-;;;
-(s/fdef css
-  :args (s/cat :class-forms (s/* ::class-form))
-  :ret string?)
 
 (defn keyword-argseq
   "Converts a keyword map to a flat sequence as used in syntax for
@@ -283,8 +281,11 @@
   [default value]
   (if (nil? value) default value))
 
-(defn req-un [& keys]
-  (s/keys :req-un (into [] keys)))
+(defmacro req-un [& keys]
+  `(s/keys :req-un ~(into [] keys)))
+
+(defmacro opt-keys [& keys]
+  `(s/? (s/cat :keys (s/keys* :opt-un ~(into [] keys)))))
 
 ;;;
 ;;; Not used, keeping in case needed later

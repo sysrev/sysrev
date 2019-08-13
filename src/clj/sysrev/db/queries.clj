@@ -1,7 +1,8 @@
 (ns sysrev.db.queries
   (:refer-clojure :exclude [find group-by])
-  (:require [clojure.string :as str]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
@@ -61,11 +62,11 @@
   (s/or :single-arg ::join-arg-single
         :multi-args (s/coll-of ::join-arg-single, :distinct true)))
 
-(defn merge-join-args
+(defn-spec merge-join-args map?
   "Returns updated honeysql map based on `m`, merging a join clause
   generated from `join-args` using honeysql function
   `merge-join-fn` (e.g.  merge-join, merge-left-join)."
-  [m merge-join-fn join-args]
+  [m map?, merge-join-fn fn?, join-args ::join-args]
   (let [join-args (if (s/valid? ::join-arg-single join-args)
                     [join-args] join-args)]
     (reduce (fn [m [join-table-colon-alias with-table-dot-field]]
@@ -77,10 +78,6 @@
                                      [:= (sql-field join-alias on-field)
                                       (sql-field with-table on-field)]))))
             m join-args)))
-
-(s/fdef merge-join-args
-  :args (s/cat :m map? :merge-join-fn fn? :join-args ::join-args)
-  :ret map?)
 
 (defn- extract-column-name
   "Extracts an unqualified column name keyword from honeysql keyword `k`
@@ -584,27 +581,18 @@
   (-> (merge-join m [:project-member :m] [:= :m.user-id :u.user-id])
       (merge-where [:= :m.project-id project-id])))
 
-(defn filter-user-permission [m permission & [not?]]
+(defn-spec filter-user-permission map?
+  [m map?, permission string?, & [not?] (s/cat :not? (s/? boolean?))]
   (let [test (db/sql-array-contains :u.permissions permission)
         test (if not? [:not test] test)]
     (merge-where m test)))
-;;;
-(s/fdef filter-user-permission
-  :args (s/cat :m ::sc/honeysql
-               :permission string?
-               :not? (s/? boolean?))
-  :ret ::sc/honeysql)
 
-(defn filter-admin-user [m admin?]
+(defn-spec filter-admin-user map?
+  [m map?, admin? (s/nilable boolean?)]
   (cond-> m
     (true? admin?) (filter-user-permission "admin")
     (false? admin?) (filter-user-permission "admin" true)
     (nil? admin?) (identity)))
-;;;
-(s/fdef filter-admin-user
-  :args (s/cat :m ::sc/honeysql
-               :admin? (s/nilable boolean?))
-  :ret ::sc/honeysql)
 
 ;;;
 ;;; * Label prediction queries

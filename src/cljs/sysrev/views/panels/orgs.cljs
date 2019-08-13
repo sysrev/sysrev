@@ -2,14 +2,14 @@
   (:require [ajax.core :refer [POST]]
             [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
-             [Form FormField FormInput Button Segment Header Input Message MessageHeader]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state sr-defroute]]))
+             [Form FormField FormInput Button Segment Header Input Message MessageHeader]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 (setup-panel-state panel [:orgs] {:state-var state})
 

@@ -6,6 +6,7 @@
         sysrev.article.assignment
         sysrev.db.core
         sysrev.db.queries
+        sysrev.db.query-types
         sysrev.db.documents
         sysrev.db.users
         sysrev.label.core

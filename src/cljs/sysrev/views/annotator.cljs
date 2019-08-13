@@ -3,6 +3,7 @@
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
@@ -11,9 +12,8 @@
             [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer
-             [in? map-values filter-values css index-by]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [with-loader]]))
+             [in? map-values filter-values css index-by]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (def view :annotator)
 

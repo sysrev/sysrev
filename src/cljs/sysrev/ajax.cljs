@@ -1,12 +1,13 @@
 (ns sysrev.ajax
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer-macros [defn-spec]]
             [cognitect.transit]
             [ajax.core :as ajax]
             [day8.re-frame.http-fx]
-            [re-frame.core :as re-frame :refer
-             [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
+            [re-frame.core :refer [reg-sub reg-event-db reg-event-fx trim-v reg-fx
+                                   dispatch ->interceptor]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? to-uuid]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
 (s/def ::uri string?)
@@ -74,7 +75,7 @@
 
 ;; event interceptor for ajax response handlers
 (def handle-ajax
-  (re-frame/->interceptor
+  (->interceptor
    :id :handle-ajax
    :before
    (fn [context]
@@ -139,7 +140,10 @@
     (fn [db event]
       (fx-handler db event)))))
 
-(defn run-ajax [{:keys [db method uri content on-success on-failure action-params content-type]}]
+(defn-spec run-ajax map?
+  [{:keys [db method uri content on-success on-failure action-params content-type]}
+   (s/keys :req-un [::method ::uri ::on-success]
+           :opt-un [::content ::on-failure ::action-params])]
   (let [csrf-token (get-csrf-token db)
         on-failure (or on-failure [:ajax/default-failure])
         force-body? false
@@ -176,16 +180,8 @@
        (merge {:body (sutil/write-transit-str content)})
        (not force-body?)
        (merge {:params content}))}))
-;;;
-(s/fdef run-ajax
-  :args (s/cat :keys (s/keys
-                      :req-un [::method ::uri ::on-success]
-                      :opt-un [::content ::on-failure ::action-params]))
-  :ret map?)
 
-(reg-event-db
- :ajax/default-failure
- [trim-v]
- (fn [db [response]]
-   #_ (println (str "request failed: " (pr-str response)))
-   db))
+(reg-event-db :ajax/default-failure [trim-v]
+              (fn [db [response]]
+                #_ (println (str "request failed: " (pr-str response)))
+                db))

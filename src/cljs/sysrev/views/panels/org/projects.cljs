@@ -2,16 +2,18 @@
   (:require [ajax.core :refer [GET]]
             [cljsjs.moment]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub reg-event-db trim-v dispatch]]
+            [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
             [sysrev.views.project-list :refer [ProjectsListSegment]]
-            [sysrev.views.semantic :refer [Message MessageHeader Divider Segment Header Table TableHeader TableHeaderCell TableBody TableRow TableCell Icon Loader]]
+            [sysrev.views.semantic :refer
+             [Message MessageHeader Divider Segment Header Icon Loader
+              Table TableHeader TableHeaderCell TableBody TableRow TableCell]]
             [sysrev.shared.util :refer [index-by]]
-            [sysrev.state.nav :refer [project-uri]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state]]
-                   [reagent.interop :refer [$]]))
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:org :projects] {:state-var state})
 

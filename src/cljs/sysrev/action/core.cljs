@@ -1,5 +1,6 @@
 (ns sysrev.action.core
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer-macros [defn-spec]]
             [re-frame.core :refer [subscribe dispatch reg-event-db reg-event-fx trim-v reg-fx]]
             [sysrev.ajax :refer [reg-event-ajax reg-event-ajax-fx run-ajax]]
             [sysrev.loading :as loading]))
@@ -26,7 +27,7 @@
 (s/def ::method keyword?)
 (s/def ::content-type string?)
 
-(defn def-action
+(defn-spec def-action map?
   "Create a definition for a server request. `sysrev.data.core/def-data`
   should generally be used instead if the main purpose of the request is
   to fetch data from the server and save it to client state.
@@ -56,9 +57,12 @@
   `:on-error` - Similar to `:process` but called on HTTP error
   status. cofx value includes an `:error` key, which is taken from
   the `:error` field of the server response."
-  [name & {:keys [uri content process on-error method content-type]
-           :or {method :post}
-           :as fields}]
+  [name ::item-name &
+   {:keys [uri content process on-error method content-type]
+    :or {method :post}
+    :as fields}
+   (s/? (s/keys* :req-un [::uri ::process]
+                 :opt-un [::content ::on-error ::method ::content-type]))]
   (s/assert ::item-name name)
   (s/assert ::uri uri)
   (s/assert ::process process)
@@ -68,12 +72,6 @@
   (when method (s/assert ::method method))
   (swap! action-defs assoc name
          (merge fields {:method method})))
-
-(s/fdef def-action
-  :args (s/cat :name ::item-name
-               :keys (s/keys* :req-un [::uri ::process]
-                              :opt-un [::content ::on-error ::method ::content-type]))
-  :ret map?)
 
 ;; Runs an AJAX action specified by `item`
 (reg-event-fx

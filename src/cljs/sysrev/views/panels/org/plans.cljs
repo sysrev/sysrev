@@ -10,8 +10,8 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.plans :refer [UpgradePlan DowngradePlan]]
             [sysrev.views.semantic :refer [Message MessageHeader]]
-            [sysrev.shared.util :refer [parse-integer]])
-  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
+            [sysrev.shared.util :refer [parse-integer]]
+            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 (setup-panel-state panel [:org-plans] {:state-var state
                                        :get-fn panel-get

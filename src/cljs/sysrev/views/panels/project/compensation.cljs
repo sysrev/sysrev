@@ -3,6 +3,7 @@
             [cljsjs.moment]
             [clojure.string :as str]
             [reagent.core :as r]
+            [reagent.interop :refer [$]]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [sysrev.accounting :as acct]
             [sysrev.charts.chartjs :as chartjs]
@@ -12,9 +13,8 @@
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.views.panels.project.support :as support]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? index-by ensure-pred]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in? index-by ensure-pred]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:project :project :compensation] {:state-var state})
 

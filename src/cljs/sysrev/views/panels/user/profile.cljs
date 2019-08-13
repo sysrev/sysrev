@@ -4,6 +4,7 @@
             [cljsjs.moment]
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
@@ -19,9 +20,7 @@
               Modal ModalContent ModalHeader ModalDescription]]
             [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.shared.util :as sutil :refer [parse-integer]]
-            [sysrev.macros])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :profile] {:state-var state
                                            :get-fn panel-get :set-fn panel-set

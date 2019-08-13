@@ -1,5 +1,6 @@
 (ns sysrev.web.routes.api.core
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
             [clojure.string :as str]
             [clojure.walk :as walk]
             [clojure.data.json :as json]
@@ -26,8 +27,12 @@
 
 ;; TODO: handle anonymous read access to public projects.
 ;;       use :allow-public key
-(defn def-webapi
-  [name method opts handler]
+(defn-spec def-webapi any?
+  [name ::swa/name
+   method ::swa/method
+   opts (s/keys :opt-un [::swa/required ::swa/optional ::swa/doc ::swa/require-token?
+                         ::swa/check-answers? ::swa/require-admin? ::swa/project-role])
+   handler ::swa/handler]
   (let [opts (merge {:require-token? true} opts)
         opts (cond-> opts
                (:require-token? opts)
@@ -38,19 +43,6 @@
       (swap! web-api-routes-order #(vec (conj % name))))
     (swap! web-api-routes assoc name
            (merge {:name name :method method :handler handler} opts))))
-
-(s/fdef def-webapi
-        :args (s/cat :name ::swa/web
-                     :method ::swa/method
-                     :opts (s/keys :opt-un
-                                   [::swa/required
-                                    ::swa/optional
-                                    ::swa/doc
-                                    ::swa/require-token?
-                                    ::swa/check-answers?
-                                    ::swa/require-admin?
-                                    ::swa/project-role])
-                     :handler ::swa/handler))
 
 (defn web-api-route [request]
   (when-let [route (some-> request :route-params :* keyword)]

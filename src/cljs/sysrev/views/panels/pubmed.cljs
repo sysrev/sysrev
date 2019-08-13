@@ -11,8 +11,8 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :refer [wrap-prevent-default nbsp]]
-            [sysrev.shared.util :as util])
-  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
+            [sysrev.shared.util :as util]
+            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 (setup-panel-state panel [:pubmed-search] {:state-var state
                                            :get-fn panel-get

@@ -6,8 +6,8 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Message]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :verify-email] {:get-fn panel-get :set-fn panel-set
                                                 :get-sub ::get :set-event ::set})

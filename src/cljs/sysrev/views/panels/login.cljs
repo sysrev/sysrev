@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.login
   (:require [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v]]
@@ -14,9 +15,8 @@
             [sysrev.loading :as loading]
             [sysrev.util :refer
              [full-size? mobile? validate wrap-prevent-default nbsp]]
-            [sysrev.shared.util :refer [in?]])
-  (:require-macros [sysrev.macros :refer [with-loader]]
-                   [reagent.interop :refer [$ $!]]))
+            [sysrev.shared.util :refer [in?]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (def ^:private login-panel [:login])
 (def ^:private register-panel [:register])

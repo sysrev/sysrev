@@ -61,9 +61,16 @@
   (let [el (or (.getElementById js/document "blog-app")
                (.getElementById js/document "app"))]
     (reagent/render [main-content] el))
-  (-> js/window (.addEventListener
-                 "resize"
-                 on-window-resize)))
+  (js/window.addEventListener "resize" on-window-resize))
+
+(defn dev-setup []
+  (when base/debug?
+    (enable-console-print!)
+    (t/instrument)))
+
+(defn on-jsload []
+  (dev-setup)
+  (mount-root))
 
 (reg-sub
  :touch-event-time
@@ -110,15 +117,13 @@
 
 (defn ^:export init []
   (case (base/app-id)
-    :main (do (when base/debug?
-                (enable-console-print!))
+    :main (do (when base/debug? (enable-console-print!))
               (base/setup-console-hooks)
               (pushy/start! base/history)
               (re-frame/dispatch-sync [:initialize-db])
               (data/init-data)
               (mount-root))
-    :blog (do (when base/debug?
-                (enable-console-print!))
+    :blog (do (when base/debug? (enable-console-print!))
               (pushy/start! base/history)
               (re-frame/dispatch-sync [:initialize-db])
               (blog/init-blog)

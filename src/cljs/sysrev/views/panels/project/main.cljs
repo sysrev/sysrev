@@ -2,7 +2,6 @@
   (:require [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
             [sysrev.routes :as routes]
-            [sysrev.util :refer [nbsp]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri group-uri]]
@@ -11,8 +10,9 @@
              :refer [project-page-menu project-submenu]]
             [sysrev.views.project-list :as plist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
-            [sysrev.views.panels.user.projects :refer [MakePublic]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.views.panels.user.projects :refer [MakePublic]]
+            [sysrev.util :refer [nbsp]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]

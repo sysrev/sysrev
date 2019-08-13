@@ -36,21 +36,21 @@
          (log/warn "article =" (pr-str article))
          (throw e))))
 
-(defn-spec add-article (s/nilable int?)
+(defn-spec add-article int?
   [article ::sa/article-partial, project-id int?, & [conn] (s/? any?)]
   (q/create :article (-> (article-to-sql article conn)
                          (assoc :project-id project-id))
             :returning :article-id))
 
 (defn add-articles [articles project-id & [conn]]
-  (if (empty? articles) []
-      (-> (insert-into :article)
-          (values (->> articles (mapv #(-> (article-to-sql % conn)
-                                           (assoc :project-id project-id)))))
-          (returning :article-id)
-          (->> do-query (mapv :article-id)))))
+  (vec (when (seq articles)
+         (q/create :article (mapv #(-> (article-to-sql % conn)
+                                       (assoc :project-id project-id))
+                                  articles)
+                   :returning :article-id))))
 
-(defn set-user-article-note [article-id user-id note-name content]
+(defn-spec set-user-article-note map?
+  [article-id int?, user-id int?, note-name string?, content (s/nilable string?)]
   (let [{:keys [project-id project-note-id] :as pnote}
         (-> (q/select-article-by-id article-id [:pn.*])
             (merge-join [:project :p] [:= :p.project-id :a.project-id])
@@ -61,32 +61,21 @@
                   do-query first)]
     (assert pnote "note type not defined in project")
     (assert project-id "project-id not found")
-    (try (let [fields {:article-id article-id
-                       :user-id user-id
-                       :project-note-id project-note-id
-                       :content content
-                       :updated-time (db/sql-now)}]
-           (if (nil? anote)
-             (-> (sqlh/insert-into :article-note)
-                 (values [fields])
-                 (returning :*)
-                 do-query)
-             (-> (sqlh/update :article-note)
-                 (where [:and [:= :article-id article-id] [:= :user-id user-id]
-                         [:= :project-note-id project-note-id]])
-                 (sset fields)
-                 (returning :*)
-                 do-query)))
-         (finally (clear-project-cache project-id)))))
-;;;
-(s/fdef set-user-article-note
-  :args (s/cat :article-id ::sc/article-id
-               :user-id ::sc/user-id
-               :note-name string?
-               :content (s/nilable string?))
-  :ret (s/nilable map?))
+    (db/with-clear-project-cache project-id
+      (let [fields {:article-id article-id
+                    :user-id user-id
+                    :project-note-id project-note-id
+                    :content content
+                    :updated-time (db/sql-now)}]
+        (if (nil? anote)
+          (q/create :article-note fields, :returning :*)
+          (first (q/modify :article-note {:article-id article-id
+                                          :user-id user-id
+                                          :project-note-id project-note-id}
+                           fields, :returning :*)))))))
 
-(defn article-user-notes-map [project-id article-id]
+(defn-spec article-user-notes-map (s/map-of int? any?)
+  [project-id int?, article-id int?]
   (with-project-cache project-id [:article article-id :notes :user-notes-map]
     (-> (q/select-article-by-id article-id [:an.* :pn.name])
         (q/with-article-note)
@@ -94,39 +83,21 @@
              (group-by :user-id)
              (map-values #(->> (index-by :name %)
                                (map-values :content)))))))
-;;;
-(s/fdef article-user-notes-map
-  :args (s/cat :project-id ::sc/project-id
-               :article-id ::sc/article-id)
-  :ret (s/nilable map?))
 
-(defn remove-article-flag [article-id flag-name]
-  (-> (delete-from :article-flag)
-      (where [:and [:= :article-id article-id] [:= :flag-name flag-name]])
-      do-execute))
-;;;
-(s/fdef remove-article-flag
-  :args (s/cat :article-id ::sc/article-id
-               :flag-name ::sa/flag-name)
-  :ret ::sc/sql-execute)
+(defn-spec remove-article-flag int?
+  [article-id int?, flag-name string?]
+  (q/delete :article-flag {:article-id article-id :flag-name flag-name}))
 
-(defn set-article-flag [article-id flag-name disable? & [meta]]
+(defn-spec set-article-flag map?
+  [article-id int?, flag-name string?, disable? boolean?
+   & [meta] (s/? (s/cat :meta map?))]
   (db/with-transaction
     (remove-article-flag article-id flag-name)
-    (-> (insert-into :article-flag)
-        (values [{:article-id article-id
-                  :flag-name flag-name
-                  :disable disable?
-                  :meta (some-> meta db/to-jsonb)}])
-        (returning :*)
-        do-query first)))
-;;;
-(s/fdef set-article-flag
-  :args (s/cat :article-id ::sc/article-id
-               :flag-name ::sa/flag-name
-               :disable? boolean?
-               :meta (s/? ::sa/meta))
-  :ret map?)
+    (q/create :article-flag {:article-id article-id
+                             :flag-name flag-name
+                             :disable disable?
+                             :meta (some-> meta db/to-jsonb)}
+              :returning :*)))
 
 (defn article-locations-map [article-id]
   (-> (select :al.source :al.external-id)

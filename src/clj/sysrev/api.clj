@@ -221,7 +221,7 @@
    #(import/import-pdf-zip
      project-id {:file file :filename filename} options)))
 
-(s/def ::sources map?)
+(s/def ::sources vector?)
 
 (defn-spec project-sources (req-un ::sources)
   [project-id int?]

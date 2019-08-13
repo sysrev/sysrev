@@ -1,7 +1,7 @@
 (ns sysrev.views.semantic
   (:require [cljsjs.semantic-ui-react]
-            [reagent.core :as r])
-  (:require-macros [reagent.interop :refer [$]]))
+            [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]))
 
 (def semantic-ui js/semanticUIReact)
 

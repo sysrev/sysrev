@@ -7,12 +7,10 @@
             [sysrev.views.annotator :as ann]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :refer [time-from-epoch time-elapsed-string nbsp]]
-            [sysrev.shared.util :refer [in? css]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.shared.util :refer [in? css]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
-(defn LabelAnswerTag
-  "Component for displaying a label answer."
-  [label-id answer]
+(defn LabelAnswerTag [label-id answer]
   (let [display @(subscribe [:label/display label-id])
         value-type @(subscribe [:label/value-type label-id])
         category @(subscribe [:label/category label-id])

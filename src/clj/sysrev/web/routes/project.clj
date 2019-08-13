@@ -397,10 +397,9 @@
           (wrap-authorize
            request {:roles ["member"]}
            (let [user-id (current-user-id request)
-                 {:keys [article-id name content]
-                  :as body} (-> request :body)]
+                 {:keys [article-id name content]} (:body request)]
              (article/set-user-article-note article-id user-id name content)
-             {:result body}))))
+             {:result (:body request)}))))
 
 ;;;
 ;;; PubMed search

@@ -3,12 +3,12 @@
             [ajax.core :refer [GET PUT]]
             [cljsjs.moment]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]]
-            [sysrev.shared.util :refer [index-by space-join parse-integer]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.shared.util :refer [index-by space-join parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :invitations] {:state-var state
                                                :get-fn panel-get :set-fn panel-set})

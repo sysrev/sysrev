@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.project.description
   (:require [clojure.string :as str]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
@@ -9,9 +10,8 @@
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.state.ui :as ui-state]
             [sysrev.util :as util]
-            [sysrev.views.semantic :refer [Segment]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [with-loader]]))
+            [sysrev.views.semantic :refer [Segment]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (def view :markdown)
 

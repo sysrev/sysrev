@@ -3,10 +3,10 @@
             [ajax.core :refer [GET POST HEAD]]
             [jborden.croppie]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe]]
             [sysrev.views.components.core :refer [UploadButton]]
-            [sysrev.views.semantic :refer [Button Loader]])
-  (:require-macros [reagent.interop :refer [$ $!]]))
+            [sysrev.views.semantic :refer [Button Loader]]))
 
 (def Croppie js/Croppie)
 

@@ -2,12 +2,12 @@
   (:require [clojure.string :as str]
             [ajax.core :refer [GET]]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.views.panels.user.profile :refer [User]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer [Segment Message MessageHeader]]
-            [sysrev.views.base :refer [panel-content logged-out-content]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.views.panels.user.profile :refer [User]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:users] {:state-var state})
 

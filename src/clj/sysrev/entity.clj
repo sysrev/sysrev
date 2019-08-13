@@ -6,6 +6,7 @@
 
 (ns sysrev.entity
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [clojure.set :as set]
             [honeysql.core :as sql]
@@ -22,12 +23,12 @@
 
 (defonce ^:private entity-defs (atom {}))
 
-(defn entity-columns
+(defn-spec entity-columns (s/coll-of ::column)
   "Returns sequence of column name keywords for table named by keyword
   value entity. Will query database for list of columns on first
   invocation for a table; all further invocations will use cached
   value."
-  [entity]
+  [entity ::entity]
   (if-let [cached (get @db/entity-columns-cache entity)]
     cached
     (let [columns
@@ -42,24 +43,16 @@
               (format "columns for table %s not found in schema" (pr-str entity)))
       (swap! db/entity-columns-cache assoc entity columns)
       columns)))
-;;;
-(s/fdef entity-columns
-  :args (s/cat :entity ::entity)
-  :ret (s/coll-of ::column))
 
-(defn entity-custom-fields
+(defn-spec entity-custom-fields (s/coll-of ::field)
   "Returns sequence of custom field name keywords for entity."
-  [entity]
+  [entity ::entity]
   (some-> @entity-defs (get entity) :values keys sort vec))
-;;;
-(s/fdef entity-custom-fields
-  :args (s/cat :entity ::entity)
-  :ret (s/coll-of ::field))
 
-(defn entity-fields
+(defn-spec entity-fields (s/coll-of ::field)
   "Returns sequence of all column name and custom field name keywords
   for entity."
-  [entity]
+  [entity ::entity]
   (let [columns (entity-columns entity)
         custom-fields (entity-custom-fields entity)
         conflicts (set/intersection (set columns) (set custom-fields))]
@@ -67,17 +60,12 @@
             (str "custom entity fields must not conflict with column names"
                  (format " [%s: %s]" (name entity) (pr-str (seq conflicts)))))
     (vec (concat columns custom-fields))))
-;;;
-(s/fdef entity-fields
-  :args (s/cat :entity ::entity)
-  :ret (s/coll-of ::field))
-
-(s/def ::primary-key (s/or :column ::column
-                           :multi (s/coll-of ::column)))
 
 (defn- update-entity-def [entity update-fn]
   (swap! entity-defs update entity update-fn)
   (get @entity-defs entity))
+
+(s/def ::primary-key (s/or :column ::column, :multi (s/coll-of ::column)))
 
 (defn def-entity
   "Creates base definition for a database entity."

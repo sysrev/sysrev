@@ -2,6 +2,7 @@
   (:require [ajax.core :refer [GET]]
             [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub reg-event-fx]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
@@ -14,9 +15,8 @@
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [css]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [with-loader setup-panel-state sr-defroute]]))
+            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.macros :refer-macros [with-loader setup-panel-state sr-defroute]]))
 
 (setup-panel-state panel [:plans] {:state-var state
                                    :get-fn panel-get

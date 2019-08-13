@@ -4,8 +4,8 @@
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
             [sysrev.views.panels.user.billing :refer [Plan PaymentSource]]
-            [sysrev.views.semantic :refer [Segment Header ListUI ListItem]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.views.semantic :refer [Segment Header ListUI ListItem]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:org :billing] {:state-var state})
 

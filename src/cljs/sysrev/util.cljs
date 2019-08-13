@@ -1,13 +1,13 @@
 (ns sysrev.util
-  (:require [clojure.string :as str]
-            [goog.string :refer [unescapeEntities]]
+  (:require [goog.string :refer [unescapeEntities]]
+            [clojure.string :as str]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
             [cljs-time.format :as tformat]
             [cljsjs.jquery]
             [cljsjs.moment]
-            [sysrev.shared.util :refer [parse-integer ensure-pred]])
-  (:require-macros [reagent.interop :refer [$]]))
+            [reagent.interop :refer-macros [$]]
+            [sysrev.shared.util :refer [parse-integer ensure-pred]]))
 
 (defn scroll-top []
   (. js/window (scrollTo 0 0))

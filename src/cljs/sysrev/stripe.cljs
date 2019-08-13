@@ -3,6 +3,7 @@
             [cljs-http.client :refer [generate-query-string]]
             [cljsjs.react-stripe-elements]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [reg-sub subscribe dispatch reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -11,9 +12,7 @@
             [sysrev.views.semantic :as s]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]]
-            [sysrev.macros])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:stripe] {:state-var state
                                     :get-fn panel-get

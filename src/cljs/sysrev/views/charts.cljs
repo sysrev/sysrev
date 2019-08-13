@@ -1,9 +1,9 @@
 (ns sysrev.views.charts
   (:require [sysrev.charts.chartjs :as chartjs]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe]]
-            [sysrev.util :as util])
-  (:require-macros [reagent.interop :refer [$]]))
+            [sysrev.util :as util]))
 
 ;; Paul Tol colors: https://personal.sron.nl/~pault/
 ;; This vector was copied from: https://github.com/google/palette.js/blob/master/palette.js

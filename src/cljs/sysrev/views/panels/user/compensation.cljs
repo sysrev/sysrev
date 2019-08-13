@@ -9,8 +9,8 @@
              [Grid Row Column Segment Header ListUI ListItem]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :compensation] {:state-var state
                                                 :get-fn panel-get :set-fn panel-set

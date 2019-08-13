@@ -1,22 +1,20 @@
 (ns sysrev.views.panels.pricing
   (:require [re-frame.core :refer [dispatch subscribe]]
             [reagent.core :as r]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.nav :refer [nav make-url]]
+            [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.semantic :refer
+             [Segment Column Row Grid Icon Button Popup Divider
+              ListUI ListItem ListIcon ListContent]]
             [sysrev.util :as util]
-            [sysrev.views.semantic :refer [Segment Column Row Grid ListUI ListItem ListIcon ListContent Icon Button Popup
-                                           Divider]])
-  (:require-macros [sysrev.macros :refer [sr-defroute setup-panel-state]]))
+            [sysrev.macros :refer-macros [sr-defroute setup-panel-state]]))
 
 (setup-panel-state panel [:pricing])
 
-(defn PricingItem
-  [{:keys [icon icon-color content]
-    :or {icon-color "green"
-         icon "check"}}]
+(defn PricingItem [{:keys [icon icon-color content]
+                    :or {icon "check", icon-color "green"}}]
   [ListItem
-   [Icon {:name icon
-          :color icon-color}]
+   [Icon {:name icon :color icon-color}]
    [ListContent content]])
 
 (defn PublicProjects []
@@ -122,12 +120,10 @@
                  [PricingItem {:content "AI models tailored to your organization's needs"}]
                  [PricingItem {:content "Customized feature development"}]
                  [PricingItem {:content "Contracted expert reviewers"}]]
-                [:p {:class "team-pricing"} "Contact " [:a {:href "mailto:sales@sysrev.com"} "us"] " about designing a custom data processing and analysis solution to meet your needs today!"]
-                ]]]]]))
+                [:p {:class "team-pricing"} "Contact " [:a {:href "mailto:sales@sysrev.com"} "us"] " about designing a custom data processing and analysis solution to meet your needs today!"]]]]]]))
 
 (defmethod panel-content panel []
   (fn [child] [Pricing]))
 
 (sr-defroute pricing "/pricing" []
              (dispatch [:set-active-panel panel]))
-

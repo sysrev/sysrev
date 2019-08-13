@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.user.projects
-  (:require [ajax.core :refer [GET POST]]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
@@ -10,9 +10,8 @@
             [sysrev.views.semantic :refer
              [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]]
             [sysrev.util :as util :refer [condensed-number wrap-prevent-default]]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :projects] {:state-var state
                                             :get-fn panel-get :set-fn panel-set

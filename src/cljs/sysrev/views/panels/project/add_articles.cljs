@@ -13,8 +13,8 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components.core :as ui]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]])
-  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in?]]
+            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 (setup-panel-state panel [:project :project :add-articles] {:state-var state})
 

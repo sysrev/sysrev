@@ -8,8 +8,8 @@
             [sysrev.views.semantic :refer
              [Segment Grid Row Column Button Icon Loader Header ListUI ListItem]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? css parse-integer]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.shared.util :as sutil :refer [in? css parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :billing])
 

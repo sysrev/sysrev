@@ -5,8 +5,8 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.markdown :as md]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil])
-  (:require-macros [sysrev.macros :refer [with-loader sr-defroute setup-panel-state]]))
+            [sysrev.shared.util :as sutil]
+            [sysrev.macros :refer-macros [with-loader sr-defroute setup-panel-state]]))
 
 (setup-panel-state panel [:terms-of-use])
 

@@ -1,5 +1,6 @@
 (ns sysrev.project.core
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
             [clojure.string :as str]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -19,9 +20,10 @@
              [set-article-flag remove-article-flag article-to-sql]]
             [sysrev.db.documents :as docs]
             [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer
-             [map-values in? short-uuid to-uuid parse-number index-by filter-values]]
+             [in? map-values filter-values index-by req-un opt-keys]]
             [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
 
@@ -44,115 +46,66 @@
           :group :p.project-id
           :order-by :p.project-id))
 
-(defn project-member [project-id user-id]
+(defn-spec project-member (s/nilable ::sp/project-member)
+  [project-id int?, user-id int?]
   (with-project-cache project-id [:users user-id :member]
     (q/find-one :project-member {:project-id project-id, :user-id user-id})))
-;;;
-(s/fdef project-member
-  :args (s/cat :project-id ::sc/project-id, :user-id ::sc/user-id)
-  :ret (s/nilable ::sp/project-member))
 
-(defn add-project-member
+(defn-spec add-project-member nil?
   "Add a user to the list of members of a project."
-  [project-id user-id & {:keys [permissions] :or {permissions ["member"]}}]
-  (try (q/create :project-member {:project-id project-id, :user-id user-id
-                                  :permissions (db/to-sql-array "text" permissions)})
-       ;; set their compensation to the project default
-       (when-let [comp-id (compensation/get-default-project-compensation project-id)]
-         (compensation/start-compensation-period-for-user! comp-id user-id))
-       nil
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef add-project-member
-  :args (s/cat :project-id ::sc/project-id, :user-id ::sc/user-id
-               :opts (s/keys* :opt-un [::sp/permissions]))
-  :ret nil?)
+  [project-id int?, user-id int? &
+   {:keys [permissions] :or {permissions ["member"]}}
+   (opt-keys ::sp/permissions)]
+  (db/with-clear-project-cache project-id
+    (q/create :project-member {:project-id project-id, :user-id user-id
+                               :permissions (db/to-sql-array "text" permissions)})
+    ;; set their compensation to the project default
+    (when-let [comp-id (compensation/get-default-project-compensation project-id)]
+      (compensation/start-compensation-period-for-user! comp-id user-id))
+    nil))
 
-(defn remove-project-member [project-id user-id]
-  (try (q/delete :project-member {:project-id project-id :user-id user-id})
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef remove-project-member
-  :args (s/cat :project-id ::sc/project-id, :user-id ::sc/user-id)
-  :ret int?)
+(defn-spec remove-project-member int?
+  [project-id int?, user-id int?]
+  (db/with-clear-project-cache project-id
+    (q/delete :project-member {:project-id project-id :user-id user-id})))
 
-(defn set-member-permissions
-  "Change the permissions for a project member."
-  [project-id user-id permissions]
-  (with-transaction
-    (let [current-perms (:permissions (project-member project-id user-id))]
-      (assert (not-empty permissions))
-      (assert (every? (in? valid-permissions) permissions))
-      (try (-> (sqlh/update :project-member)
-               (sset {:permissions (db/to-sql-array "text" permissions)})
-               (where [:and [:= :project-id project-id] [:= :user-id user-id]])
-               (returning :user-id :permissions)
-               do-query)
-           (finally (clear-project-cache project-id))))))
-;;;
-(s/fdef set-member-permissions
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id
-               :permissions ::sp/permissions)
-  :ret (s/nilable (s/coll-of map? :max-count 1)))
+(defn-spec set-member-permissions (s/nilable (s/coll-of map? :max-count 1))
+  [project-id int?, user-id int?,
+   permissions (s/and (s/coll-of string? :min-count 1)
+                      #(every? (in? valid-permissions) %)) ]
+  (db/with-clear-project-cache project-id
+    (q/modify :project-member {:project-id project-id :user-id user-id}
+              {:permissions (db/to-sql-array "text" permissions)}
+              :returning [:user-id :permissions])))
 
-(s/def ::parent-project-id (s/nilable ::sc/project-id))
+(s/def ::parent-project-id ::sp/project-id)
 
-(defn create-project
-  "Create a new project entry."
-  [project-name & {:keys [parent-project-id]}]
-  (-> (insert-into :project)
-      (values [{:name project-name
-                :enabled true
-                :project-uuid (UUID/randomUUID)
-                :settings (db/to-jsonb default-project-settings)
-                :parent-project-id parent-project-id}])
-      (returning :*)
-      do-query first))
-;;;
-(s/fdef create-project
-  :args (s/cat :project-name ::sp/name
-               :keys (s/keys* :opt-un [::parent-project-id]))
-  :ret ::sp/project)
+(defn-spec create-project ::sp/project
+  [project-name string? &
+   {:keys [parent-project-id]} (opt-keys ::parent-project-id)]
+  (q/create :project {:name project-name
+                      :enabled true
+                      :project-uuid (UUID/randomUUID)
+                      :settings (db/to-jsonb default-project-settings)
+                      :parent-project-id parent-project-id}
+            :returning :*))
 
-(defn delete-project
+(defn-spec delete-project int?
   "Deletes a project entry. All dependent entries should be deleted also by
   ON DELETE CASCADE constraints in Postgres."
-  [project-id]
-  (try (-> (delete-from :project)
-           (where [:= :project-id project-id])
-           do-execute first)
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef delete-project
-  :args (s/cat :project-id (s/nilable ::sc/project-id))
-  :ret int?)
+  [project-id int?]
+  (db/with-clear-project-cache project-id
+    (q/delete :project {:project-id project-id})))
 
-(defn enable-project!
-  "Set the enabled flag for project-id to false"
-  [project-id]
-  (try (-> (sqlh/update :project)
-           (sset {:enabled true})
-           (where [:= :project-id project-id])
-           do-execute first)
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef enable-project!
-  :args (s/cat :project-id int?)
-  :ret int?)
+(defn-spec enable-project! int?
+  [project-id int?]
+  (db/with-clear-project-cache project-id
+    (q/modify :project {:project-id project-id} {:enabled true})))
 
-(defn disable-project!
-  "Set the enabled flag for project-id to false"
-  [project-id]
-  (try (-> (sqlh/update :project)
-           (sset {:enabled false})
-           (where [:= :project-id project-id])
-           do-execute first)
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef disable-project!
-  :args (s/cat :project-id int?)
-  :ret int?)
+(defn-spec disable-project! int?
+  [project-id int?]
+  (db/with-clear-project-cache project-id
+    (q/modify :project {:project-id project-id} {:enabled false})))
 
 (defn change-project-setting [project-id setting new-value]
   (with-transaction
@@ -178,30 +131,19 @@
   (clear-project-cache project-id)
   project-name)
 
-(defn project-contains-public-id
+(defn-spec project-contains-public-id (s/nilable boolean?)
   "Test if project contains an article with given `public-id` value."
-  [public-id project-id]
-  (if (nil? (sutil/parse-integer public-id))
-    false
+  [public-id string?, project-id int?]
+  (when (sutil/parse-integer public-id)
     (-> (q/select-article-where
          project-id [:= :a.public-id (str public-id)] [:%count.*])
         do-query first :count pos?)))
-;;;
-(s/fdef project-contains-public-id
-  :args (s/cat :public-id ::sa/public-id
-               :project-id ::sc/project-id)
-  :ret boolean?)
 
-(defn project-article-count
-  "Return number of articles in project."
-  [project-id]
+(defn-spec project-article-count int?
+  [project-id int?]
   (with-project-cache project-id [:articles :count]
     (-> (q/select-project-articles project-id [:%count.*])
         do-query first :count)))
-;;;
-(s/fdef project-article-count
-  :args (s/cat :project-id ::sc/project-id)
-  :ret (s/and integer? nat-int?))
 
 (defn project-article-pdf-count
   "Return number of article pdfs in project."
@@ -211,61 +153,44 @@
         (merge-join [:article-pdf :apdf] [:= :apdf.article-id :a.article-id])
         do-query first :count)))
 
-(defn delete-project-articles
+(defn-spec delete-project-articles int?
   "Delete all articles from project."
-  [project-id]
-  (try (with-transaction
-         (-> (delete-from :article)
-             (where [:= :project-id project-id])
-             do-execute first))
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef delete-project-articles
-  :args (s/cat :project-id ::sc/project-id)
-  :ret (s/and integer? nat-int?))
+  [project-id int?]
+  (db/with-clear-project-cache project-id
+    (q/delete :article {:project-id project-id})))
 
-(defn project-labels [project-id & [include-disabled?]]
-  (with-project-cache project-id [:labels :all include-disabled?]
-    (-> (q/select-label-where
-         project-id true [:*] {:include-disabled? include-disabled?})
-        (->> do-query (index-by :label-id)))))
-;;;
-(s/fdef project-labels
-  :args (s/cat :project-id ::sc/project-id
-               :include-disabled? (s/? (s/nilable boolean?)))
-  :ret (s/map-of ::sc/label-id ::sl/label))
+(defn-spec project-labels (s/map-of ::sc/label-id ::sl/label)
+  [project-id int? &
+   [include-disabled] (s/cat :include-disabled (s/? (s/nilable boolean?)))]
+  (with-project-cache project-id [:labels :all include-disabled]
+    (qt/find-label {:project-id project-id} :*
+                   :include-disabled include-disabled
+                   :index-by :label-id)))
 
-(defn project-consensus-label-ids [project-id & [include-disabled?]]
-  (with-project-cache project-id [:labels :consensus include-disabled?]
-    (let [labels (project-labels project-id include-disabled?)
-          label-ids (keys labels)]
-      (->> label-ids (filter #(-> (get labels %) :consensus true?))))))
+(defn-spec project-consensus-label-ids (s/nilable (s/coll-of ::sc/label-id))
+  [project-id int? &
+   [include-disabled] (s/cat :include-disabled (s/? (s/nilable boolean?)))]
+  (with-project-cache project-id [:labels :consensus include-disabled]
+    (qt/find-label {:project-id project-id :consensus true} :label-id
+                   :include-disabled include-disabled)))
 
-(defn project-overall-label-id [project-id]
+(defn-spec project-overall-label-id (s/nilable ::sl/label-id)
+  [project-id int?]
   (with-project-cache project-id [:labels :overall-label-id]
-    (:label-id (-> (q/select-label-where project-id [:= :name "overall include"] [:label-id])
-                   do-query first))))
-;;;
-(s/fdef project-overall-label-id
-  :args (s/cat :project-id ::sc/project-id)
-  :ret (s/nilable ::sl/label-id))
+    (qt/find-one-label {:project-id project-id :name "overall include"} :label-id)))
 
-(defn member-has-permission?
-  "Does the user-id have the permission for project-id?"
-  [project-id user-id permission]
+(defn-spec member-has-permission? boolean?
+  [project-id int?, user-id int?, permission string?]
   (boolean (in? (:permissions (project-member project-id user-id)) permission)))
-;;;
-(s/fdef member-has-permission?
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id
-               :permission string?)
-  :ret boolean?)
 
-;; TODO: change result map to use spec-able keywords
-(defn project-member-article-labels
+(defn-spec project-member-article-labels
+  (s/and map?
+         #(->> % :labels :confirmed (s/valid? ::sl/member-answers))
+         #(->> % :labels :unconfirmed (s/valid? ::sl/member-answers))
+         #(->> % :articles (s/valid? (s/map-of ::sc/article-id ::sa/article-partial))))
   "Returns a map of labels saved by `user-id` in `project-id`,
   and a map of entries for all articles referenced in the labels."
-  [project-id user-id]
+  [project-id int?, user-id int?]
   (with-project-cache project-id [:users user-id :labels :member-labels]
     (let [predict-run-id (q/project-latest-predict-run-id project-id)
           [labels articles]
@@ -292,143 +217,77 @@
           [confirmed unconfirmed] (pvalues (labels-map true) (labels-map false))]
       {:labels {:confirmed confirmed, :unconfirmed unconfirmed}
        :articles articles})))
-;;;
-(s/fdef project-member-article-labels
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id)
-  :ret (s/and map?
-              #(->> % :labels :confirmed
-                    (s/valid? ::sl/member-answers))
-              #(->> % :labels :unconfirmed
-                    (s/valid? ::sl/member-answers))
-              #(->> % :articles
-                    (s/valid?
-                     (s/map-of ::sc/article-id ::sa/article-partial)))))
 
-(defn delete-member-labels-notes
+(defn-spec delete-member-labels-notes nil?
   "Deletes all labels and notes saved in `project-id` by `user-id`."
-  [project-id user-id]
-  (assert (integer? project-id))
-  (assert (integer? user-id))
-  (with-transaction
-    (-> (delete-from [:article-label :al])
-        (q/filter-label-user user-id)
-        (merge-where
-         [:exists (q/select-article-where
-                   project-id [:= :a.article-id :al.article-id] [:*])])
-        do-execute)
-    (-> (delete-from [:article-label-history :alh])
-        (merge-where
-         [:and
-          [:= :alh.user-id user-id]
-          [:exists (-> (select :*)
-                       (from [:article :a])
-                       (where [:and
-                               [:= :a.project-id project-id]
-                               [:= :a.article-id :alh.article-id]]))]])
-        do-execute)
-    (-> (delete-from [:article-note :an])
-        (merge-where
-         [:and
-          [:= :an.user-id user-id]
-          [:exists (-> (select :*)
-                       (from [:project-note :pn])
-                       (where [:and
-                               [:= :pn.project-note-id :an.project-note-id]
-                               [:= :pn.project-id project-id]]))]])
-        do-execute))
-  (clear-project-cache project-id)
-  true)
-;;;
-(s/fdef delete-member-labels-notes
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id)
-  :ret any?)
+  [project-id int?, user-id int?]
+  (db/with-clear-project-cache project-id
+    (q/delete [:article-label :al] {:al.user-id user-id}
+              :where (q/exists [:article :a] {:a.project-id project-id
+                                              :a.article-id :al.article-id}))
+    (q/delete [:article-label-history :alh] {:alh.user-id user-id}
+              :where (q/exists [:article :a] {:a.project-id project-id
+                                              :a.article-id :alh.article-id}))
+    (q/delete [:article-note :an] {:an.user-id user-id}
+              :where (q/exists [:project-note :pn] {:pn.project-id project-id
+                                                    :pn.project-note-id :an.project-note-id}))
+    nil))
 
-(defn ^:unused add-project-keyword
+(defn-spec ^:unused add-project-keyword map?
   "Creates an entry in `project-keyword` table, to be used by web client
   to highlight important words and link them to labels."
-  [project-id text category & [{:keys [user-id label-id label-value color]} :as optionals]]
-  (try (-> (insert-into :project-keyword)
-           (values [(cond-> {:project-id project-id :value text :category category}
-                      user-id           (assoc :user-id user-id)
-                      label-id          (assoc :label-id label-id)
-                      ((comp not nil?)
-                       label-value)     (assoc :label-value (db/to-jsonb label-value))
-                      color             (assoc :color color))])
-           (returning :*)
-           do-query)
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef add-project-keyword
-  :args (s/cat :project-id ::sc/project-id
-               :text ::skw/value
-               :category ::skw/category
-               :opts (s/keys :opt-un [::skw/user-id ::skw/label-id
-                                      ::skw/label-value ::skw/color]))
-  :ret any?)
+  [project-id int?, text string?, category string? &
+   {:keys [user-id label-id label-value color] :as optionals}
+   (opt-keys ::skw/user-id ::skw/label-id ::skw/label-value ::skw/color)]
+  (db/with-clear-project-cache project-id
+    (q/create :project-keyword (cond-> {:project-id project-id :value text :category category}
+                                 user-id (assoc :user-id user-id)
+                                 label-id (assoc :label-id label-id)
+                                 ((comp not nil?) label-value)
+                                 (assoc :label-value (db/to-jsonb label-value))
+                                 color (assoc :color color))
+              :returning :*)))
 
-(defn project-keywords
-  "Returns a vector with all `project-keyword` entries for the project."
-  [project-id]
+(defn-spec project-keywords ::skw/project-keywords-full
+  "Returns map of `project-keyword` entries for a project."
+  [project-id int?]
   (with-project-cache project-id [:keywords :all]
     (->> (do-query (q/select-project-keywords project-id [:*]))
          (map (fn [kw] (assoc kw :toks (->> (str/split (:value kw) #" ")
                                             (mapv canonical-keyword)))))
          (index-by :keyword-id))))
-;;;
-(s/fdef project-keywords
-  :args (s/cat :project-id ::sc/project-id)
-  :ret ::skw/project-keywords-full)
 
-(defn add-project-note
-  "Defines an entry for a note type that can be saved by users on articles
-  in the project.
-  The default `name` of \"default\" is used for a generic free-text field
-  shown alongside article labels during editing."
-  [project-id {:keys [name description max-length ordering] :as fields}]
-  (try (-> (sqlh/insert-into :project-note)
-           (values [(merge {:project-id project-id
-                            :name "default"
-                            :description "Notes"
-                            :max-length 1000}
-                           fields)])
-           (returning :*)
-           do-query first)
-       (finally (clear-project-cache project-id))))
-;;;
-(s/fdef add-project-note
-  :args (s/cat :project-id ::sc/project-id
-               :fields (s/keys :opt-un
-                               [::snt/name ::snt/description
-                                ::snt/max-length ::snt/ordering]))
-  :ret ::snt/project-note)
+(defn-spec add-project-note ::snt/project-note
+  "Defines an entry for a note type that can be saved by users on
+  articles in the project. The default `name` of \"default\" is used
+  for a generic free-text field shown alongside article labels during
+  editing."
+  [project-id int?,
+   {:keys [name description max-length ordering] :as fields}
+   (s/keys :opt-un [::snt/name ::snt/description ::snt/max-length ::snt/ordering])]
+  (db/with-clear-project-cache project-id
+    (q/create :project-note
+              (merge {:project-id project-id
+                      :max-length 1000 :name "default" :description "Notes"}
+                     fields)
+              :returning :*)))
 
-(defn project-notes
-  "Returns a vector with all `project-note` entries for the project."
-  [project-id]
+(defn-spec project-notes ::snt/project-notes-map
+  "Returns map of `project-note` entries for a project."
+  [project-id int?]
   (with-project-cache project-id [:notes :all]
-    (-> (q/select-project-where [:= :p.project-id project-id] [:pn.*])
-        (q/with-project-note)
-        (->> do-query (index-by :name)))))
-;;;
-(s/fdef project-notes
-  :args (s/cat :project-id ::sc/project-id)
-  :ret ::snt/project-notes-map)
+    (->> (q/find [:project :p] {:p.project-id project-id} :pn.*
+                 :join [:project-note:pn :p.project-id])
+         (index-by :name))))
 
-(defn project-settings
+(defn-spec project-settings ::sp/settings
   "Returns the current settings map for the project."
-  [project-id]
-  (-> (q/select-project-where [:= :p.project-id project-id] [:settings])
-      do-query first :settings))
-;;;
-(s/fdef project-settings
-  :args (s/cat :project-id ::sc/project-id)
-  :ret ::sp/settings)
+  [project-id int?]
+  (q/find-one :project {:project-id project-id} :settings))
 
-(defn project-member-article-notes
+(defn-spec project-member-article-notes ::snt/member-notes-map
   "Returns a map of article notes saved by `user-id` in `project-id`."
-  [project-id user-id]
+  [project-id int?, user-id int?]
   (with-project-cache project-id [:users user-id :notes]
     (-> (q/select-project-articles project-id [:an.article-id :an.content :pn.name])
         (merge-join [:project :p] [:= :p.project-id :a.project-id])
@@ -437,46 +296,30 @@
              (group-by :article-id)
              (map-values (partial group-by :name))
              (map-values (partial map-values (comp :content first)))))))
-;;;
-(s/fdef project-member-article-notes
-  :args (s/cat :project-id ::sc/project-id
-               :user-id ::sc/user-id)
-  :ret ::snt/member-notes-map)
 
-(defn project-user-ids
+(defn-spec project-user-ids (s/nilable (s/coll-of int?))
   "Returns sequence of user-id for all members of project."
-  [project-id]
+  [project-id int?]
   (q/find :project-member {:project-id project-id} :user-id))
-;;;
-(s/fdef project-user-ids
-  :args (s/cat :project-id ::sc/project-id)
-  :ret (s/nilable (s/coll-of int?)))
 
 (defn project-id-from-register-hash [register-hash]
   (-> (q/select-project-where true [:project-id :project-uuid])
       (->> do-query
            (filter (fn [{:keys [project-id project-uuid]}]
-                     (= register-hash (short-uuid project-uuid))))
+                     (= register-hash (sutil/short-uuid project-uuid))))
            first :project-id)))
 
-(defn project-exists?
+(defn-spec project-exists? boolean?
   "Does a project with project-id exist?"
-  [project-id & {:keys [include-disabled?] :or {include-disabled? true}}]
-  (= project-id (-> (select :project-id)
-                    (from [:project :p])
-                    (where [:and
-                            [:= :p.project-id project-id]
-                            (if include-disabled? true
-                                [:= :p.enabled true])])
-                    do-query first :project-id)))
-;;;
-(s/fdef project-exists?
-  :args (s/cat :project-id int?
-               :keys (s/keys* :opt-un [::include-disabled?]))
-  :ret boolean?)
+  [project-id int? &
+   {:keys [include-disabled?] :or {include-disabled? true}}
+   (opt-keys ::include-disabled?)]
+  (= project-id (q/find-one :project (cond-> {:project-id project-id}
+                                       (not include-disabled?) (assoc :enabled true))
+                            :project-id)))
 
-(defn project-has-labeled-articles?
-  [project-id]
+(defn-spec project-has-labeled-articles? boolean?
+  [project-id int?]
   (boolean (> (-> (select :%count.*)
                   (from :article-label)
                   (where [:in :article-id
@@ -485,10 +328,6 @@
                               (where [:= :project-id project-id]))])
                   do-query first :count)
               0)))
-;;;
-(s/fdef project-has-labeled-articles?
-  :args (s/cat :project-id int?)
-  :ret boolean?)
 
 (defn project-users-info [project-id]
   (with-project-cache project-id [:users-info]
@@ -503,7 +342,7 @@
       (where [:and [:= :project-id project-id] [:= :enabled true]])
       (->> do-query
            (mapv :public-id)
-           (mapv parse-number)
+           (mapv sutil/parse-number)
            (filterv (comp not nil?)))))
 
 (defn project-url-ids [project-id]

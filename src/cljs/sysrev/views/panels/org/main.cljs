@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [ajax.core :refer [GET]]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
@@ -14,9 +15,8 @@
             [sysrev.views.panels.org.users :refer [OrgUsers]]
             [sysrev.views.semantic :refer
              [Segment Header Menu MenuItem Dropdown Message MessageHeader]]
-            [sysrev.shared.util :as sutil :refer [ensure-pred parse-integer css]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [ensure-pred parse-integer css]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:org :main] {:state-var state
                                        :get-fn panel-get

@@ -1,5 +1,12 @@
 (ns sysrev.user
-  (:require sysrev.base
+  (:require [clojure.string :as str]
+            [clojure.spec.alpha :as s]
+            [cljs-time.core :as t]
+            [cognitect.transit :as transit]
+            [reagent.interop :refer-macros [$]]
+            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.db :refer [app-db]]
+            sysrev.base
             sysrev.core
             sysrev.util
             sysrev.routes
@@ -21,14 +28,7 @@
             [sysrev.spec.core :as csc]
             [sysrev.spec.db :as csd]
             [sysrev.spec.identity :as csi]
-            [clojure.string :as str]
-            [cljs-time.core :as t]
-            [clojure.spec.alpha :as s]
-            [re-frame.core :refer [subscribe dispatch]]
-            [re-frame.db :refer [app-db]]
-            [cognitect.transit :as transit])
-  (:require-macros [sysrev.macros :refer [import-vars]]
-                   [reagent.interop :refer [$]]))
+            [sysrev.macros :refer-macros [import-vars]]))
 
 (defn populate-user-ns []
   (import-vars 'sysrev.base)
@@ -50,3 +50,5 @@
   nil)
 
 (populate-user-ns)
+
+(sysrev.core/dev-setup)

@@ -12,8 +12,7 @@
             [sysrev.views.menu :refer [loading-indicator]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil]
-            [sysrev.macros])
-  (:require-macros [sysrev.macros :refer [defroute-app-id with-loader]]))
+            [sysrev.macros :refer-macros [defroute-app-id with-loader]]))
 
 (defn init-blog []
   (dispatch [:blog/load-default-panels])

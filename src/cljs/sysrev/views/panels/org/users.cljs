@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.org.users
   (:require [ajax.core :refer [GET POST PUT DELETE]]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe reg-sub dispatch reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -9,9 +10,8 @@
              [Segment Table TableHeader TableBody TableRow TableCell Search SearchResults Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
               Input Message MessageHeader Dropdown Menu Icon]]
-            [sysrev.util :as util])
-  (:require-macros [reagent.interop :refer [$ $!]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.util :as util]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:org :users] {:state-var state})
 

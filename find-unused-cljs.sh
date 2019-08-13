@@ -7,7 +7,7 @@ set -eu
 
 cd src/cljs
 
-for f in $(egrep -o -R "defn?-?(once)?( \^\:[^ ]+)* [^ ]*" * --include '*.cljs' |
+for f in $(egrep -o -R "defn?-?(once)?(spec)?( \^\:[^ ]+)* [^ ]*" * --include '*.cljs' |
                grep -v \/def |
                grep -v \^\:repl |
                grep -v \^\:unused |

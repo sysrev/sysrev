@@ -7,8 +7,8 @@
             [sysrev.views.article-list.base :as alist-b]
             [sysrev.views.article-list.core :as alist-c]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values css]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values css]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (def panel [:project :project :single-article])
 

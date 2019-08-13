@@ -7,8 +7,8 @@
              [Segment Header Grid Row Column Radio Message MessageHeader Icon]]
             [sysrev.base :refer [active-route]]
             [sysrev.util :as util :refer [mobile?]]
-            [sysrev.shared.util :as sutil :refer [css]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:user] {:get-fn panel-get
                                   :set-fn panel-set

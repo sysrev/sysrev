@@ -5,7 +5,7 @@ set -eu
 # https://gist.github.com/joelittlejohn/4729776
 # Very quick and dirty command to find unused functions and vars in a Clojure project
 
-for f in $(egrep -o -R "defn?-?(once)?( \^\:[^ ]+)* [^ ]*" * --include '*.clj' \
+for f in $(egrep -o -R "defn?-?(once)?(spec)?( \^\:[^ ]+)* [^ ]*" * --include '*.clj' \
                  --exclude-dir "custom" \
                  --exclude-dir "src-spark" \
                  --exclude 'misc.clj' |

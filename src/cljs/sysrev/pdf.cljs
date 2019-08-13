@@ -2,6 +2,7 @@
   (:require [cljsjs.semantic-ui-react]
             [goog.dom :as dom]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
             [sysrev.base :as base]
@@ -14,9 +15,8 @@
             [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.shared.util :as sutil :refer [css]])
-  (:require-macros [reagent.interop :refer [$ $!]]
-                   [sysrev.macros :refer [with-loader]]))
+            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (def view :pdf)
 

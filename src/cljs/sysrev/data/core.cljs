@@ -1,5 +1,6 @@
 (ns sysrev.data.core
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer-macros [defn-spec]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx
                                    trim-v reg-fx]]
             [re-frame.db :refer [app-db]]
@@ -31,7 +32,7 @@
 (s/def ::method keyword?)
 (s/def ::content-type string?)
 
-(defn def-data
+(defn-spec def-data map?
   "Create a definition for a data item to fetch from server.
 
   Required parameters:
@@ -74,10 +75,12 @@
   `:on-error` - Similar to `:process` but called on HTTP error
   status. cofx value includes an `:error` key, which is taken from
   the `:error` field of the server response."
-  [name & {:keys [uri loaded? prereqs content process on-error method content-type]
-           :or {prereqs (constantly [[:identity]])
-                method :get}
-           :as fields}]
+  [name ::item-name &
+   {:keys [uri loaded? prereqs content process on-error method content-type]
+    :or {method :get, prereqs (constantly [[:identity]])}
+    :as fields}
+   (s/? (s/keys* :req-un [::uri ::loaded? ::process]
+                 :opt-un [::prereqs ::content ::on-error ::method ::content-type]))]
   (s/assert ::item-name name)
   (s/assert ::uri uri)
   (s/assert ::loaded? loaded?)
@@ -89,12 +92,6 @@
   (when method (s/assert ::method method))
   (swap! data-defs assoc name
          (merge fields {:prereqs prereqs :method method})))
-
-(s/fdef def-data
-  :args (s/cat :name ::item-name
-               :keys (s/keys* :req-un [::uri ::loaded? ::process]
-                              :opt-un [::prereqs ::content ::on-error ::method ::content-type]))
-  :ret map?)
 
 ;; Gets raw list of data requirements
 (defn- get-needed-raw [db] (get db :needed []))

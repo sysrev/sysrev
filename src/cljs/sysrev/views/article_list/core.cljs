@@ -18,8 +18,8 @@
             [sysrev.views.article-list.filters :as f]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values css index-by]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values css index-by]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (reg-sub-raw
  ::prev-next-article-ids

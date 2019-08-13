@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.orgs
   (:require [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.nav :refer [nav-scroll-top]]
@@ -8,9 +9,8 @@
             [sysrev.views.semantic :refer [Segment Header Divider]]
             [sysrev.views.panels.user.profile :as user-profile]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 ;; Using same panel value as sysrev.views.panels.user.profile
 (setup-panel-state panel [:user :orgs] {})

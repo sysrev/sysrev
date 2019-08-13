@@ -1,6 +1,6 @@
 (ns sysrev.accounting
-  (:require [cljsjs.accounting])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require [cljsjs.accounting]
+            [reagent.interop :refer-macros [$]]))
 
 ;; https://stackoverflow.com/questions/2227370/currency-validation
 (def valid-usd-regex

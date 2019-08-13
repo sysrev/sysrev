@@ -9,8 +9,8 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
             [sysrev.views.semantic :refer
-             [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label Pagination]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute]]))
+             [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label Pagination]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 (setup-panel-state panel [:search])
 

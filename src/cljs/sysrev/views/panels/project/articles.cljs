@@ -10,8 +10,8 @@
             [sysrev.views.article-list.core :refer [ArticleListPanel]]
             [sysrev.views.article-list.filters :refer [export-type-default-filters]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values]])
-  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]
+            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 (setup-panel-state panel [:project :project :articles])
 

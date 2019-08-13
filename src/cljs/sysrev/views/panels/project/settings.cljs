@@ -11,8 +11,8 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? css]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in? css]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:project :project :settings] {:state-var state
                                                         :get-fn panel-get

@@ -9,8 +9,8 @@
             [sysrev.views.project-list :as plist]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.shared.text :as text]
-            [sysrev.util :as util])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.util :as util]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (def ^:private panel [:root])
 

@@ -12,19 +12,14 @@
 ;;; and writing state associated with a specific panel.
 ;;;
 
-(reg-sub
- ::panels
- (fn [db]
-   (get-in db [:state :panels])))
+(reg-sub ::panels #(get-in % [:state :panels]))
 
-(reg-sub
- ::panel-state
- (fn [_]
-   [(subscribe [::panels])
-    (subscribe [:active-panel])])
- (fn [[panels active-panel] [_ panel]]
-   (when-let [panel (or panel active-panel)]
-     (get panels panel))))
+(reg-sub ::panel-state
+         :<- [::panels]
+         :<- [:active-panel]
+         (fn [[panels active-panel] [_ panel]]
+           (when-let [panel (or panel active-panel)]
+             (get panels panel))))
 
 (defn get-panel-field [db path & [panel]]
   (let [panel (or panel (nav/active-panel db))
@@ -62,13 +57,12 @@
 ;;; state should be separate in each.
 ;;;
 
-(reg-sub
- ::view-state
- (fn [[_ view & [panel]]]
-   [(subscribe [::panel-state panel])])
- (fn [[pstate] [_ view & [panel]]]
-   (when (and pstate view)
-     (get-in pstate [:views view]))))
+(reg-sub ::view-state
+         (fn [[_ view & [panel]]]
+           (subscribe [::panel-state panel]))
+         (fn [pstate [_ view & [panel]]]
+           (when (and pstate view)
+             (get-in pstate [:views view]))))
 
 (defn get-view-field [db view path & [panel]]
   (let [panel (or panel (nav/active-panel db))
@@ -99,48 +93,15 @@
                   (assoc-in db (concat [:state :panels panel :views view] path) val))))
 
 ;;;
-;;; Notifications
-;;;
-;;; This is an old concept for popup notifications upon certain events.
-;;; Not currently in use.
-;;;
-
-(reg-sub
- :active-notification
- (fn [db]
-   nil))
-
-(defn- schedule-notify-display [entry]
-  (when-let [{:keys [display-ms]} entry]
-    (js/setTimeout #(do #_ something)
-                   display-ms)))
-
-(reg-event-fx
- :notify
- [trim-v]
- (fn [{:keys [db]} [message & {:keys [class display-ms]
-                               :or {class "blue" display-ms 1500}
-                               :as options}]]
-   (let [entry {:message message
-                :class class
-                :display-ms display-ms}
-         inactive? nil #_ (empty? (visible-notifications))]
-     #_ (add-notify-entry entry)
-     (when inactive?
-       (schedule-notify-display entry)))))
-
-;;;
 ;;; Misc
 ;;;
 
-(reg-sub
- :visible-article-id
- (fn [_]
-   [(subscribe [:review/on-review-task?])
-    (subscribe [:review/task-id])
-    (subscribe [:project-articles/article-id])
-    (subscribe [:article-view/article-id])])
- (fn [[on-review? id-review id-project id-single]]
-   (or (and on-review? id-review)
-       id-project
-       id-single)))
+(reg-sub :visible-article-id
+         :<- [:review/on-review-task?]
+         :<- [:review/task-id]
+         :<- [:project-articles/article-id]
+         :<- [:article-view/article-id]
+         (fn [[on-review? id-review id-project id-single]]
+           (or (and on-review? id-review)
+               id-project
+               id-single)))

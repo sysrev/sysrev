@@ -10,8 +10,8 @@
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? css]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.shared.util :as sutil :refer [in? css]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (defn set-label-value [db article-id label-id label-value]
   (assoc-in db [:state :review :labels article-id label-id]

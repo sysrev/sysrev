@@ -78,9 +78,6 @@
       [:div#logged-out
        [logged-out-content active-panel]])))
 
-(defn notifier [entry]
-  [:div])
-
 (defn SidebarAnnotationMenu []
   (r/create-class
    {:component-did-mount (fn [] (util/update-sidebar-height))
@@ -188,5 +185,4 @@
               [:div.thirteen.wide.column
                [active-panel-content]]]
              [active-panel-content])]]
-         [notifier @(subscribe [:active-notification])]
          [GlobalFooter]]))))

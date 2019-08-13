@@ -12,8 +12,8 @@
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? css filter-values]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.shared.util :as sutil :refer [in? css filter-values]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 #_
 (def-data :article/annotations

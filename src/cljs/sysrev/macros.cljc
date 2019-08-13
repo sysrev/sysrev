@@ -6,6 +6,8 @@
             [re-frame.db :refer [app-db]]
             [secretary.core :refer [defroute]]
             [sysrev.loading]
+            #?(:cljs [sysrev.state.ui])
+            #?(:cljs [sysrev.util])
             [sysrev.shared.util :refer [map-values parse-integer filter-values ensure-pred]]))
 
 (defmacro with-mount-hook [on-mount]

@@ -1,14 +1,13 @@
 (ns sysrev.paypal
   (:require [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.accounting :as acct]
             [sysrev.views.semantic :as s]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]]
-            [sysrev.macros])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:paypal] {:state-var state
                                     :get-fn panel-get :set-fn panel-set

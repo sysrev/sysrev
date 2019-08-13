@@ -8,8 +8,8 @@
             [sysrev.views.semantic :as sui :refer
              [Segment Header Grid Row Column Radio Message MessageHeader]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
-  (:require-macros [sysrev.macros :refer [setup-panel-state sr-defroute]]))
+            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;;;
 ;;; TODO: refactor to remove this inputs/values/... stuff

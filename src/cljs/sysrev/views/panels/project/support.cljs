@@ -4,6 +4,7 @@
             [cljsjs.accounting]
             [cljsjs.semantic-ui-react]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [dispatch subscribe]]
             [sysrev.accounting :as accounting]
             [sysrev.data.core :refer [def-data]]
@@ -14,9 +15,8 @@
              [Form FormButton FormField FormGroup FormInput FormRadio Label]]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [wrap-prevent-default]]
-            [sysrev.shared.util :as sutil :refer [in?]])
-  (:require-macros [reagent.interop :refer [$ $!]]
-                   [sysrev.macros :refer [setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in?]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:project :project :support] {:state-var state})
 

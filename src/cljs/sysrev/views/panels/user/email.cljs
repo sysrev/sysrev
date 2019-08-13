@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [ajax.core :refer [GET PUT POST DELETE]]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -10,9 +11,8 @@
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label LabelDetail]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [index-by parse-integer]])
-  (:require-macros [reagent.interop :refer [$]]
-                   [sysrev.macros :refer [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.shared.util :as sutil :refer [index-by parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 (setup-panel-state panel [:user :email] {:state-var state
                                          :get-fn panel-get :set-fn panel-set

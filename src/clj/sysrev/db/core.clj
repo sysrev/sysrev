@@ -1,5 +1,6 @@
 (ns sysrev.db.core
   (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [clojure.data.json :as json]
@@ -104,25 +105,17 @@
 (defn sql-array-contains [field val]
   [:= val (sql/call :any field)])
 
-(defn clj-identifier-to-sql
+(defn-spec clj-identifier-to-sql string?
   "Convert a Clojure keyword or string identifier to SQL format by
   replacing all '-' with '_', returning a string."
-  [identifier]
+  [identifier (s/or :k keyword? :s string?)]
   (-> identifier name str/lower-case (str/replace "-" "_")))
-;;;
-(s/fdef clj-identifier-to-sql
-  :args (s/cat :identifier (s/or :keyword keyword? :string string?))
-  :ret string?)
 
-(defn sql-identifier-to-clj
+(defn-spec sql-identifier-to-clj string?
   "Convert an SQL keyword or string identifier to Clojure format by
   replacing all '_' with '-', returning a string."
-  [identifier]
+  [identifier (s/or :k keyword? :s string?)]
   (-> identifier name str/lower-case (str/replace "_" "-")))
-;;;
-(s/fdef sql-identifier-to-clj
-  :args (s/cat :identifier (s/or :keyword keyword? :string string?))
-  :ret string?)
 
 (defn prepare-honeysql-map
   "Converts map values to jsonb strings as needed."
@@ -237,12 +230,9 @@
 
 (defonce query-cache-enabled (atom true))
 
-(defn ^:repl enable-query-cache [enable?]
-  (reset! query-cache-enabled enable?))
-;;
-(s/fdef enable-query-cache
-        :args (s/cat :enable? boolean?)
-        :ret boolean?)
+(defn-spec ^:repl enable-query-cache boolean?
+  [enabled boolean?]
+  (reset! query-cache-enabled enabled))
 
 (defmacro with-query-cache [field-path form]
   (let [field-path (if (keyword? field-path)

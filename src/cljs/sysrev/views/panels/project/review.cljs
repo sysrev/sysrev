@@ -3,8 +3,8 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.article :refer [ArticleInfo]]
-            [sysrev.views.review :refer [LabelAnswerEditor]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+            [sysrev.views.review :refer [LabelAnswerEditor]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (defmethod panel-content [:project :review] []
   (fn [child]

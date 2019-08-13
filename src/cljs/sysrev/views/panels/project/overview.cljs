@@ -16,8 +16,8 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.shared.util :as sutil :refer [in?]])
-  (:require-macros [sysrev.macros :refer [with-loader setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in?]]
+            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 (setup-panel-state panel [:project :project :overview])
 

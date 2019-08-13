@@ -4,11 +4,11 @@
             [cljsjs.semantic-ui-react]
             [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
+            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-sub-raw reg-event-db
                                    reg-event-fx trim-v]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [index-by]])
-  (:require-macros [reagent.interop :refer [$ $!]]))
+            [sysrev.shared.util :as sutil :refer [index-by]]))
 
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))

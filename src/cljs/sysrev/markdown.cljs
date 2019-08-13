@@ -4,10 +4,10 @@
             [clojure.spec.alpha :as s]
             [goog.dom :as gdom]
             [reagent.core :as r]
+            [reagent.interop :refer-macros [$]]
             [sysrev.views.semantic :refer [Segment TextArea]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [css]])
-  (:require-macros [reagent.interop :refer [$]]))
+            [sysrev.shared.util :as sutil :refer [css]]))
 
 ;; security, particularly regarding XSS attacks is a big concern when letting
 ;; users generate their own HTML
@@ -57,7 +57,7 @@
 (s/def ::editing? ::ratom)
 
 #_(s/fdef MarkdownComponent
-  :args (s/keys :req-un [::content ::set-content! ::loading? ::mutable? ::editing?]))
+    :args (s/keys :req-un [::content ::set-content! ::loading? ::mutable? ::editing?]))
 
 ;; refactor to use semantic js components to make it easier to read
 (defn MarkdownComponent
