@@ -48,6 +48,7 @@
                  [:p "The basics of Sysrev for every researcher"]]
                 [ListUI
                  [PricingItem {:content [PublicProjects]}]
+                 [PricingItem {:content "Unlimited project reviewers"}]
                  [PricingItem {:content "Project management"}]
                  [PricingItem {:content "Free lifetime storage for public projects"
                                :icon "cloud"}]]
@@ -68,6 +69,7 @@
                 [ListUI
                  [PricingItem {:icon "check" :content [PublicProjects]}]
                  [PricingItem {:icon "check" :content [PrivateProjects]}]
+                 [PricingItem {:content "Unlimited project reviewers"}]
                  [PricingItem {:icon "check" :content "Project management"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]]
@@ -86,11 +88,12 @@
                 [:div {:class "pricing-list-header"}
                  [:h3 "Team Pro"]
                  [:h2 "$10"]
-                 [:h4 "Per user / month"]
+                 [:h4 "Per member / month"]
                  [:p "Advanced collaboration and management tools for teams"]]
                 [ListUI
                  [PricingItem {:icon "check" :content [PublicProjects]}]
                  [PricingItem {:icon "check" :content [PrivateProjects]}]
+                 [PricingItem {:content "Unlimited project reviewers"}]
                  [PricingItem {:icon "check" :content "Project management"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]
