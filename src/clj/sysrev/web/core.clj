@@ -49,7 +49,9 @@
                                       anti-forgery false}}]
   (cond-> default/site-defaults
     session        (-> (assoc-in [:session :store] (sysrev-session-store))
-                       (assoc-in [:session :cookie-attrs :max-age] (* 60 60 24 365 2)))
+                       (assoc-in [:session :cookie-attrs :max-age] (* 60 60 24 365 2))
+                       (cond-> (env :sysrev-hostname)
+                         (assoc-in [:session :cookie-attrs :domain] (env :sysrev-hostname))))
     (not session)  (-> (assoc-in [:session :cookie-name] "ring-session-temp")
                        (assoc-in [:session :cookie-attrs :max-age] (* 60 60 24 2)))
     true           (assoc-in [:security :anti-forgery] (boolean anti-forgery))))
