@@ -9,6 +9,7 @@
             [sysrev.source.core :as s]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
+            [sysrev.stacktrace :as strace]
             [sysrev.shared.util :as sutil :refer [in?]])
   (:import java.util.UUID))
 
@@ -91,6 +92,7 @@
                       (on-article-added (get new-articles-map article-id)))
                     (catch Throwable e
                       (log/warn "import-articles-impl: exception in on-article-added")
+                      (log/warn (with-out-str (strace/print-cause-trace-custom e)))
                       (throw e)))))))]
     (try
       (doseq [articles (->> (get-articles article-refs) (partition-all 10))]
@@ -98,6 +100,7 @@
           (import-group articles)
           (catch Throwable e
             (log/warn "import-articles-impl: error importing group -" (.getMessage e))
+            (log/warn (with-out-str (strace/print-cause-trace-custom e)))
             (log/warn "attempting again with individual articles")
             (doseq [article articles]
               (try
@@ -107,7 +110,7 @@
       true
       (catch Throwable e
         (log/warn "import-articles-impl:" (.getMessage e))
-        (.printStackTrace e)
+        (log/warn (with-out-str (strace/print-cause-trace-custom e)))
         false)
       (finally
         (clear-project-cache project-id)))))

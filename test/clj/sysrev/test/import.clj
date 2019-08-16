@@ -69,8 +69,7 @@
           (let [query "animals and cancer and blood"]
             (is (= (:count (pubmed/get-search-query-response query 1))
                    (count (pubmed/get-all-pmids-for-query query)))))
-          (finally
-            (project/delete-project new-project-id)))))))
+          (finally (project/delete-project new-project-id)))))))
 
 (defn get-test-file [fname]
   (let [url (str "https://s3.amazonaws.com/sysrev-test-files/" fname)
@@ -83,13 +82,11 @@
     (util/with-print-time-elapsed "import-endnote-xml"
       (let [{:keys [file filename] :as input} (get-test-file "Sysrev_Articles_5505_20181128.xml")
             {:keys [project-id]} (project/create-project "autotest endnote import")]
-        (try
-          (is (= 0 (project/project-article-count project-id)))
-          (is (completes? (import/import-endnote-xml
-                           project-id input {:use-future? false})))
-          (is (= 112 (project/project-article-count project-id)))
-          (finally
-            (project/delete-project project-id))))
+        (try (is (= 0 (project/project-article-count project-id)))
+             (is (completes? (import/import-endnote-xml
+                              project-id input {:use-future? false})))
+             (is (= 112 (project/project-article-count project-id)))
+             (finally (project/delete-project project-id))))
       (let [filename "test2-endnote.xml.gz"
             gz-file (-> (str "test-files/" filename) io/resource io/file)
             {:keys [project-id]} (project/create-project "autotest endnote import 2")]
@@ -124,8 +121,7 @@
                         article-ids))
             (is (= articles-csv (-> (csv/write-csv articles-csv)
                                     (csv/parse-csv :strict true)))))
-          (finally
-            (project/delete-project project-id)))))))
+          (finally (project/delete-project project-id)))))))
 
 (deftest import-pdf-zip
   (when (not (test/remote-test?))
@@ -145,5 +141,4 @@
                                  do-query first :count)]
             (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
             (is (= 1 (title-count "Plosker Troglitazone.pdf"))))
-          (finally
-            (project/delete-project project-id)))))))
+          (finally (project/delete-project project-id)))))))

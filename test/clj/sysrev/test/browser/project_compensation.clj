@@ -19,7 +19,7 @@
             [sysrev.test.browser.review-articles :as review]
             [sysrev.test.browser.semantic :as s]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.stacktrace :as stack])
+            [sysrev.stacktrace :as strace])
   (:import clojure.lang.ExceptionInfo))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -506,7 +506,7 @@
         (if (= :paypal (:type (ex-data e)))
           (do (log/warnf "*** Exception in PayPal interaction ***\n%s"
                          (with-out-str
-                           (stack/print-cause-trace-custom (ex-cause e))))
+                           (strace/print-cause-trace-custom (ex-cause e))))
               (dotimes [i 3] (log/warn "*****************************"))
               (log/warn                "*** Ignoring PayPal Error ***")
               (dotimes [i 3] (log/warn "*****************************"))

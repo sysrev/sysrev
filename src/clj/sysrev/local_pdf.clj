@@ -1,4 +1,4 @@
-(ns sysrev.db.documents
+(ns sysrev.local-pdf
   (:require [me.raynes.fs :as fs]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

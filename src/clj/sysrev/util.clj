@@ -377,3 +377,6 @@
 
 (defn pp-str [x]
   (with-out-str (pp/pprint x)))
+
+(defn random-uuid []
+  (UUID/randomUUID))

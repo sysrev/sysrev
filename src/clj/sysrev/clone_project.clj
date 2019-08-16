@@ -8,8 +8,8 @@
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
-            [sysrev.db.documents :as docs]
-            [sysrev.db.files :as files]
+            [sysrev.local-pdf :as local-pdf]
+            [sysrev.file.article :as article-file]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
             [sysrev.source.core :as source]
@@ -184,9 +184,9 @@
                                   (article/article-to-sql))])
                      (returning :article-id)
                      do-query first :article-id)]
-        (doseq [s3-file (files/get-article-file-maps (:article-id article))]
+        (doseq [s3-file (article-file/get-article-file-maps (:article-id article))]
           (when (:s3-id s3-file)
-            (files/associate-s3-file-with-article (:s3-id s3-file) new-article-id)))))))
+            (article-file/associate-s3-file-with-article (:s3-id s3-file) new-article-id)))))))
 
 ;; TODO: copy actual sources instead of doing this
 (defn create-project-legacy-source
@@ -370,8 +370,8 @@
       (log/info (format "loaded %d articles"
                         (project/project-article-count child-id)))
       (copy-project-members parent-id child-id)
-      (docs/load-article-documents child-id pdfs-path)
-      (docs/load-project-document-ids child-id article-doc-ids)
+      (local-pdf/load-article-documents child-id pdfs-path)
+      (local-pdf/load-project-document-ids child-id article-doc-ids)
       (copy-project-label-defs parent-id child-id)
       (copy-project-keywords parent-id child-id)
       (log/info "clone-subproject-endnote done"))))

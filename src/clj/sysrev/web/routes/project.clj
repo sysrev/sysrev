@@ -19,19 +19,21 @@
             [sysrev.db.users :as users]
             [sysrev.project.core :as project]
             [sysrev.db.groups :as groups]
-            [sysrev.db.documents :as docs]
+            [sysrev.local-pdf :as local-pdf]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
             [sysrev.label.answer :as answer]
             [sysrev.article.assignment :as assign]
             [sysrev.source.core :as source]
-            [sysrev.db.files :as files]
+            [sysrev.file.core :as file]
+            [sysrev.file.s3 :as s3-file]
+            [sysrev.file.document :as doc-file]
+            [sysrev.file.article :as article-file]
             [sysrev.db.article-list :as alist]
             [sysrev.db.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.export.core :as export]
             [sysrev.export.endnote :refer [project-to-endnote-xml]]
-            [sysrev.filestore :as fstore]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.predict.report :as predict-report]
             [sysrev.shared.keywords :as keywords]
@@ -111,8 +113,8 @@
                       (catch Throwable e
                         (log/info "exception in project-url-ids")
                         []))
-                    (files/list-document-files-for-project project-id)
-                    (docs/all-article-document-paths project-id)
+                    (doc-file/list-project-documents project-id)
+                    (local-pdf/all-article-document-paths project-id)
                     (project/get-project-owner project-id)
                     (api/project-owner-plan project-id)
                     (api/subscription-lapsed? project-id)]
@@ -512,7 +514,7 @@
           (let [project-id (active-project request)
                 source-id (parse-integer (-> request :params :source-id))
                 {:keys [key filename]} (source/source-upload-file source-id)]
-            (-> (response/response (fstore/get-file-stream key :import))
+            (-> (response/response (s3-file/get-file-stream key :import))
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
 
@@ -524,7 +526,7 @@
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                files (files/list-document-files-for-project project-id)]
+                files (doc-file/list-project-documents project-id)]
             {:result (vec files)}))))
 
 (dr (GET "/api/files/:project-id/download/:file-key" request
@@ -532,33 +534,29 @@
           request {:allow-public true}
           (let [project-id (active-project request)
                 {:keys [file-key]} (:params request)
-                filename (:name (->> (files/list-document-files-for-project project-id)
-                                     (filter #(= file-key (str (:file-id %))))
-                                     first))]
-            (-> (response/response (fstore/get-file-stream file-key :document))
-                (response/header "Content-Disposition"
-                                 (format "attachment; filename=\"%s\"" filename)))))))
+                {:keys [filename]} (doc-file/lookup-document-file project-id file-key)]
+            (when filename
+              (-> (response/response (s3-file/get-file-stream file-key :document))
+                  (response/header "Content-Disposition"
+                                   (format "attachment; filename=\"%s\"" filename))))))))
 
 (dr (POST "/api/files/:project-id/upload" request
           (wrap-authorize
            request {:roles ["member"]}
            (let [project-id (active-project request)
-                 file-data (get-in request [:params :file])
-                 file (:tempfile file-data)
-                 filename (:filename file-data)
-                 user-id (current-user-id request)]
-             (fstore/save-document-file
-              project-id user-id filename file)
+                 user-id (current-user-id request)
+                 {:keys [file]} (:params request)
+                 {:keys [tempfile filename]} file]
+             (doc-file/save-document-file project-id user-id filename tempfile)
              {:result 1}))))
 
-(dr (POST "/api/files/:project-id/delete/:key" request
+(dr (POST "/api/files/:project-id/delete/:file-key" request
           (wrap-authorize
            ;; TODO: This should be file owner or admin?
            request {:roles ["member"]}
            (let [project-id (active-project request)
-                 key (-> request :params :key)
-                 deletion (files/mark-document-file-deleted (UUID/fromString key) project-id)]
-             {:result deletion}))))
+                 {:keys [file-key]} (:params request)]
+             {:result (doc-file/mark-document-file-deleted project-id file-key)}))))
 
 ;;
 ;; Project export files
@@ -693,7 +691,7 @@
 
 ;; TODO: article-id is ignored; check value or remove
 (dr (GET "/api/open-access/:article-id/view/:key" [article-id key]
-         (-> (response/response (fstore/get-file-stream key :pdf))
+         (-> (response/response (s3-file/get-file-stream key :pdf))
              (response/header "Content-Type" "application/pdf"))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
@@ -716,10 +714,10 @@
           request {:roles ["member"]}
           (let [key (-> request :params :key)
                 article-id (parse-integer (-> request :params :article-id))
-                {:keys [filename]} (->> (files/get-article-file-maps article-id)
+                {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
                                         (filter #(= key (str (:key %))))
                                         first)]
-            (-> (response/response (fstore/get-file-stream key :pdf))
+            (-> (response/response (s3-file/get-file-stream key :pdf))
                 (response/header "Content-Type" "application/pdf")
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
@@ -728,7 +726,7 @@
          (wrap-authorize
           request {:roles ["member"]}
           (let [{:keys [key]} (:params request)]
-            (-> (response/response (fstore/get-file-stream key :pdf))
+            (-> (response/response (s3-file/get-file-stream key :pdf))
                 (response/header "Content-Type" "application/pdf"))))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/delete/:key" request
@@ -736,7 +734,7 @@
            request {:roles ["admin"]}
            (let [key (-> request :params :key)
                  article-id (parse-integer (-> request :params :article-id))
-                 {:keys [filename]} (->> (files/get-article-file-maps article-id)
+                 {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
                                          (filter #(= key (str (:key %))))
                                          first)]
              (if (not= (article/article-project-id article-id) (active-project request))

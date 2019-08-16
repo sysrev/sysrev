@@ -11,7 +11,7 @@
             [sysrev.db.queries :as q]
             [sysrev.project.core :as p]
             [sysrev.article.core :as a]
-            [sysrev.filestore :as fstore]
+            [sysrev.file.s3 :as s3-file]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
 
 (defn get-source
@@ -309,6 +309,6 @@
 
 ;; FIX: handle duplicate file uploads, don't create new copy
 (defn save-import-file [source-id filename file]
-  (let [file-hash (fstore/save-file file :import)
+  (let [file-hash (s3-file/save-file file :import)
         file-meta {:filename filename :key file-hash} ]
     (alter-source-meta source-id #(assoc % :s3-file file-meta))))

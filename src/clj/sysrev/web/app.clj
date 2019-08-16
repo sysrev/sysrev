@@ -125,7 +125,19 @@
 (defn log-web-event [{:keys [event-type logged-in user-id project-id skey client-ip
                              browser-url request-url request-method is-error meta]
                       :as event}]
-  (q/create :web-event event :returning :*))
+  (letfn [(create-event []
+            (let [;; avoid SQL exceptions from missing referenced entries
+                  event (cond-> event
+                          user-id (assoc :user-id
+                                         (q/find-one :web-user {:user-id user-id} :user-id))
+                          project-id (assoc :project-id
+                                            (q/find-one :project {:project-id project-id}
+                                                        :project-id)))]
+              (try (q/create :web-event event)
+                   (catch Throwable e (log/warn "log-web-event failed" #_ (.getMessage e))))))]
+    (if db/*conn*
+      (create-event)
+      (future (db/with-transaction (create-event))))))
 
 (defn make-web-request-event [request & {:keys [error exception]}]
   {:event-type "ajax"
@@ -189,7 +201,7 @@
               :else response)
             session-meta (or (-> body meta :session)
                              (-> response meta :session))]
-        (future (log-web-event (make-web-request-event request :error error)))
+        (log-web-event (make-web-request-event request :error error))
         (cond-> response
           ;; If the request handler attached a :session meta value to
           ;; the result, set that session value in the response.
@@ -198,7 +210,7 @@
           (and (map? body) res/build-id)    (assoc-in [:body :build-id] res/build-id)
           (and (map? body) res/build-time)  (assoc-in [:body :build-time] res/build-time)))
       (catch Throwable e
-        (future (log-web-event (make-web-request-event request :exception e)))
+        (log-web-event (make-web-request-event request :exception e))
         (log-request-exception request e)
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))

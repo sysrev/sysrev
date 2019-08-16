@@ -1,26 +1,29 @@
 (ns sysrev.user
   (:refer-clojure :exclude [find])
-  (:use sysrev.util
+  (:use sysrev.logging
+        sysrev.util
         sysrev.entity
         sysrev.article.core
         sysrev.article.assignment
         sysrev.db.core
         sysrev.db.queries
         sysrev.db.query-types
-        sysrev.db.documents
         sysrev.db.users
         sysrev.label.core
         sysrev.project.core
         sysrev.db.migration
         sysrev.export.core
-        sysrev.db.files
         sysrev.source.core
         sysrev.db.article-list
         sysrev.db.annotations
         sysrev.db.plans
         sysrev.cassandra
         sysrev.clone-project
-        sysrev.filestore
+        sysrev.file.core
+        sysrev.file.s3
+        sysrev.file.article
+        sysrev.file.user-image
+        sysrev.file.document
         sysrev.source.endnote
         sysrev.source.pdf-zip
         sysrev.export.endnote

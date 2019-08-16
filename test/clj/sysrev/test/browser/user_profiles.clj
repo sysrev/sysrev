@@ -6,8 +6,8 @@
             [clojure.test :refer :all]
             [sysrev.api :as api]
             [sysrev.db.core :refer [with-transaction]]
-            [sysrev.db.files :as files]
-            [sysrev.filestore :as fstore]
+            [sysrev.file.user-image :as user-file]
+            [sysrev.file.s3 :as s3-file]
             [sysrev.db.groups :as groups]
             [sysrev.project.core :as project]
             [sysrev.db.users :as users :refer [user-by-email]]
@@ -276,14 +276,14 @@
                               "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
                               ;; another value (jeff chromium linux)
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
-                            (:key (files/avatar-image-key-filename user-id)))
+                            (:key (user-file/avatar-image-key-filename user-id)))
                  3000 200)
       (log/info "got file key")
       (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
       (log/info "got image meta")
-      (is (-> (:key (files/avatar-image-key-filename user-id))
-              (fstore/lookup-file :image)
+      (is (-> (:key (user-file/avatar-image-key-filename user-id))
+              (s3-file/lookup-file :image)
               :object-content))
       (log/info "found file on s3"))
   :cleanup (let [{:keys [success]} (api/delete-avatar! user-id)]

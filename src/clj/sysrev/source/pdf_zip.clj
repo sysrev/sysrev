@@ -6,8 +6,9 @@
             [me.raynes.fs :as fs]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.article.core :as article]
-            [sysrev.db.files :as files]
-            [sysrev.filestore :as fstore]
+            [sysrev.file.core :as file]
+            [sysrev.file.s3 :as s3-file]
+            [sysrev.file.article :as article-file]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util :refer [shell]])
@@ -35,27 +36,27 @@
   [{:keys [article-id filename byte-array]}]
   (with-transaction
     (let [file-hash (util/byte-array->sha-1-hash byte-array)
-          s3-id (files/s3-id-from-filename-key filename file-hash)
-          associated? (files/s3-article-association? s3-id article-id)]
+          s3-id (file/lookup-s3-id filename file-hash)
+          associated? (article-file/s3-article-association? s3-id article-id)]
       (cond
         ;; file is already associated with this article
         associated? nil
 
         ;; file exists but not associated with this article
-        s3-id (files/associate-s3-file-with-article s3-id article-id)
+        s3-id (article-file/associate-s3-file-with-article s3-id article-id)
 
         ;; file exists but under a different name
-        (files/s3-has-key? file-hash)
-        (do (files/insert-file-hash-s3-record filename file-hash)
-            (-> (files/s3-id-from-filename-key filename file-hash)
-                (files/associate-s3-file-with-article article-id)))
+        (file/s3-key-exists? file-hash)
+        (do (file/create-s3store {:key file-hash :filename filename})
+            (-> (file/lookup-s3-id filename file-hash)
+                (article-file/associate-s3-file-with-article article-id)))
 
         ;; file does not exist on s3
         :else
-        (do (fstore/save-byte-array byte-array :pdf)
-            (files/insert-file-hash-s3-record filename file-hash)
-            (-> (files/s3-id-from-filename-key filename file-hash)
-                (files/associate-s3-file-with-article article-id))))
+        (do (s3-file/save-byte-array byte-array :pdf)
+            (file/create-s3store {:key file-hash :filename filename})
+            (-> (file/lookup-s3-id filename file-hash)
+                (article-file/associate-s3-file-with-article article-id))))
       {:result {:success true :key file-hash :filename filename}})))
 
 (defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]

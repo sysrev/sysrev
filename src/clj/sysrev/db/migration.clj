@@ -10,6 +10,7 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
+            [sysrev.file.document :as doc-file]
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-sql-array
               with-debug-sql to-jsonb sql-cast]]
@@ -163,10 +164,8 @@
                      (from [:article :a])
                      (where [:= :a.project-id :p.project-id]))]])
               (->> do-query (mapv :project-id)))]
-      (if (empty? project-ids)
-        (log/info "No projects found with missing source entry")
-        (log/info "Creating legacy source entries for"
-                  (count project-ids) "projects"))
+      (when (seq project-ids)
+        (log/info "Creating legacy source entries for" (count project-ids) "projects"))
       (doseq [project-id project-ids]
         (clone/create-project-legacy-source project-id)))))
 
@@ -268,6 +267,7 @@
                       #'ensure-project-sources-exist
                       #'ensure-user-email-entries
                       #'ensure-groups
-                      #'migrate-all-project-article-resolve]]
+                      #'migrate-all-project-article-resolve
+                      #'doc-file/migrate-filestore-table]]
     (log/info "Running " (str migrate-fn))
     (time ((var-get migrate-fn)))))

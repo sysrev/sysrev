@@ -18,7 +18,6 @@
             [sysrev.db.compensation :as compensation]
             [sysrev.article.core :refer
              [set-article-flag remove-article-flag article-to-sql]]
-            [sysrev.db.documents :as docs]
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
             [sysrev.util :as util]

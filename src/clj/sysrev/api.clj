@@ -22,7 +22,10 @@
             [sysrev.db.annotations :as db-annotations]
             [sysrev.db.compensation :as compensation]
             [sysrev.db.core :as db :refer [with-transaction]]
-            [sysrev.db.files :as files]
+            [sysrev.file.core :as file]
+            [sysrev.file.s3 :as s3-file]
+            [sysrev.file.article :as article-file]
+            [sysrev.file.user-image :as user-file]
             [sysrev.db.funds :as funds]
             [sysrev.db.groups :as groups]
             [sysrev.db.invitation :as invitation]
@@ -35,7 +38,6 @@
             [sysrev.source.import :as import]
             [sysrev.source.pmid :as src-pmid]
             [sysrev.db.users :as users :refer [get-user user-by-email]]
-            [sysrev.filestore :as fstore]
             [sysrev.source.endnote :as endnote]
             [sysrev.pubmed :as pubmed]
             [sysrev.paypal :as paypal]
@@ -911,42 +913,41 @@
   "Handle saving a file on S3 and the associated accounting with it"
   [article-id file filename]
   (let [hash (util/file->sha-1-hash file)
-        s3-id (files/s3-id-from-filename-key
-               filename hash)
-        associated? (files/s3-article-association? s3-id article-id)]
+        s3-id (file/lookup-s3-id filename hash)
+        associated? (article-file/s3-article-association? s3-id article-id)]
     (cond
       ;; there is a file and it is already associated with this article
       associated?
       {:success true, :key hash}
       ;; there is a file, but it is not associated with this article
       (not (nil? s3-id))
-      (try (do (files/associate-s3-file-with-article s3-id article-id)
+      (try (do (article-file/associate-s3-file-with-article s3-id article-id)
                {:success true, :key hash})
            (catch Throwable e
              {:error {:exception e, :message "error (associate article file)"}}))
       ;; there is a file. but not with this filename
       (and (nil? s3-id)
-           (files/s3-has-key? hash))
+           (file/s3-key-exists? hash))
       (try (let [ ;; create association between filename and hash
-                 _ (files/insert-file-hash-s3-record filename hash)
+                 _ (file/create-s3store {:key hash :filename filename})
                  ;; get the new association's id
-                 s3-id (files/s3-id-from-filename-key filename hash)]
-             (files/associate-s3-file-with-article s3-id article-id)
+                 s3-id (file/lookup-s3-id filename hash)]
+             (article-file/associate-s3-file-with-article s3-id article-id)
              {:success true, :key hash})
            (catch Throwable e
              {:error {:exception e, :message "error (associate filename)"}}))
       ;; the file does not exist in our s3 store
       (and (nil? s3-id)
-           (not (files/s3-has-key? hash)))
+           (not (file/s3-key-exists? hash)))
       (try
         (let [ ;; create a new file on the s3 store
-              _ (fstore/save-file file :pdf)
+              _ (s3-file/save-file file :pdf)
               ;; create a new association between this file name
               ;; and the hash
-              _ (files/insert-file-hash-s3-record filename hash)
+              _ (file/create-s3store {:key hash :filename filename})
               ;; get the new association's id
-              s3-id (files/s3-id-from-filename-key filename hash)]
-          (files/associate-s3-file-with-article s3-id article-id)
+              s3-id (file/lookup-s3-id filename hash)]
+          (article-file/associate-s3-file-with-article s3-id article-id)
           {:success true, :key hash})
         (catch Throwable e
           {:error {:exception e, :message "error (store file)"}}))
@@ -959,7 +960,7 @@
     (cond
       ;; the pdf exists in the store already
       (article/pmcid-in-s3store? pmcid)
-      {:available? true, :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}
+      {:available? true, :key (-> pmcid article/pmcid->s3-id file/s3-key)}
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
@@ -970,13 +971,13 @@
               bytes (util/slurp-bytes file)
               save-article-result (save-article-pdf article-id file filename)
               key (:key save-article-result)
-              s3-id (files/s3-id-from-filename-key filename key)]
+              s3-id (file/lookup-s3-id filename key)]
           ;; delete the temporary file
           (fs/delete filename)
           ;; associate the pmcid with the s3store item
           (article/associate-pmcid-s3store pmcid s3-id)
           ;; finally, return the pdf from our own archive
-          {:available? true, :key (-> pmcid article/pmcid->s3-id files/s3-id->key)})
+          {:available? true, :key (-> pmcid article/pmcid->s3-id file/s3-key)})
         (catch Throwable e
           {:error {:message (str "open-access-available?: " (type e))}}))
 
@@ -988,15 +989,15 @@
   files associated with article-id"
   [article-id]
   (let [pmcid-s3-id (some-> article-id article/article-pmcid article/pmcid->s3-id)]
-    {:success true, :files (->> (files/get-article-file-maps article-id)
+    {:success true, :files (->> (article-file/get-article-file-maps article-id)
                                 (mapv #(assoc % :open-access?
                                               (= (:s3-id %) pmcid-s3-id))))}))
 
 (defn dissociate-article-pdf
   "Remove the association between an article and PDF file."
   [article-id key filename]
-  (if-let [s3-id (files/s3-id-from-filename-key filename key)]
-    (do (files/dissociate-s3-file-from-article s3-id article-id)
+  (if-let [s3-id (file/lookup-s3-id filename key)]
+    (do (article-file/dissociate-s3-file-from-article s3-id article-id)
         {:success true})
     {:error {:status not-found
              :message (str "No file found: " (pr-str [filename key]))}}))
@@ -1022,7 +1023,7 @@
                          article-id)]
       (db-annotations/associate-ann-user annotation-id user-id)
       (when pdf-key
-        (let [s3-id (files/s3-id-from-article-key article-id pdf-key)]
+        (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)]
           (db-annotations/associate-ann-s3 annotation-id s3-id)))
       {:success true, :annotation-id annotation-id})))
 
@@ -1032,7 +1033,7 @@
 
 (defn user-defined-pdf-annotations
   [article-id pdf-key]
-  (let [s3-id (files/s3-id-from-article-key article-id pdf-key)
+  (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)
         annotations (db-annotations/user-defined-article-pdf-annotations
                      article-id s3-id)]
     {:success true, :annotations annotations}))
@@ -1321,43 +1322,40 @@
 (defn create-profile-image!
   [user-id file filename]
   (let [hash (util/file->sha-1-hash file)
-        s3-id (files/s3-id-from-filename-key
-               filename hash)
-        profile-s3-association (files/get-profile-image-s3-association
-                                s3-id
-                                user-id)]
+        s3-id (file/lookup-s3-id filename hash)
+        profile-s3-association (user-file/get-profile-image-s3-association s3-id user-id)]
     (cond
       ;; there is a file and it is already associated with this user
       (not (nil? profile-s3-association))
-      (do (files/activate-profile-image s3-id user-id)
+      (do (user-file/activate-profile-image s3-id user-id)
           {:success true, :key hash})
       ;; there is a file, but it is not associated with this user
       (not (nil? s3-id))
       (do
         ;; associate this file with the user
-        (files/associate-profile-image-s3-with-user s3-id user-id)
+        (user-file/associate-profile-image-s3-with-user s3-id user-id)
         ;; activate this image
-        (files/activate-profile-image s3-id user-id)
+        (user-file/activate-profile-image s3-id user-id)
         {:success true, :key hash})
       ;; there is a file, but not with this filename
-      (and (nil? s3-id) (files/s3-has-key? hash))
+      (and (nil? s3-id) (file/s3-key-exists? hash))
       (let [;; create the association between this file name and the hash
-            _ (files/insert-file-hash-s3-record filename hash)
+            _ (file/create-s3store {:key hash :filename filename})
             ;; get the new associations's id
-            s3-id (files/s3-id-from-filename-key filename hash)]
-        (files/associate-profile-image-s3-with-user s3-id user-id)
-        (files/activate-profile-image user-id s3-id)
+            s3-id (file/lookup-s3-id filename hash)]
+        (user-file/associate-profile-image-s3-with-user s3-id user-id)
+        (user-file/activate-profile-image user-id s3-id)
         {:success true, :key hash})
       ;; the file does not exist in our s3 store
-      (and (nil? s3-id) (not (files/s3-has-key? hash)))
+      (and (nil? s3-id) (not (file/s3-key-exists? hash)))
       (let [;; create a new file on the s3 store
-            _ (fstore/save-file file :image)
+            _ (s3-file/save-file file :image)
             ;; create a new association between the file name and the hash
-            _ (files/insert-file-hash-s3-record filename hash)
+            _ (file/create-s3store {:key hash :filename filename})
             ;; get the new associations's id
-            s3-id (files/s3-id-from-filename-key filename hash)]
-        (files/associate-profile-image-s3-with-user s3-id user-id)
-        (files/activate-profile-image s3-id user-id)
+            s3-id (file/lookup-s3-id filename hash)]
+        (user-file/associate-profile-image-s3-with-user s3-id user-id)
+        (user-file/activate-profile-image s3-id user-id)
         {:success true, :key hash})
       :else
       {:error {:message "Unexpected Event"}})))
@@ -1365,9 +1363,9 @@
 (defn read-profile-image
   "Return the currently active profile image for user"
   [user-id]
-  (let [{:keys [key filename]} (files/active-profile-image-key-filename user-id)]
+  (let [{:keys [key filename]} (user-file/active-profile-image-key-filename user-id)]
     (if-not (empty? key)
-      (-> (response/response (fstore/get-file-stream key :image))
+      (-> (response/response (s3-file/get-file-stream key :image))
           (response/header "Content-Disposition"
                            (format "attachment: filename=\"" filename "\"")))
       {:error {:status not-found
@@ -1377,36 +1375,36 @@
   "Read the current profile image meta data"
   [user-id]
   {:success true
-   :meta (json/read-json (or (files/active-profile-image-meta user-id) "{}"))})
+   :meta (json/read-json (or (user-file/active-profile-image-meta user-id) "{}"))})
 
 (defn create-avatar! [user-id file filename meta]
   (with-transaction
     (let [hash (util/file->sha-1-hash file)
-          {:keys [s3-id]} (files/read-avatar user-id)
-          current-hash (files/s3-id->key s3-id)]
+          {:keys [s3-id]} (user-file/read-avatar user-id)
+          current-hash (file/s3-key s3-id)]
       ;; delete the current avatar
       (when current-hash
         ;; NOTE: what if multiple users with an image? include user-id in hash input?
-        (fstore/delete-file current-hash :image)
-        (files/delete-file! s3-id))
+        (s3-file/delete-file current-hash :image)
+        (file/delete-s3-id s3-id))
       ;; write the avatar
-      (fstore/save-file file :image :file-key hash)
-      (files/insert-file-hash-s3-record filename hash)
+      (s3-file/save-file file :image :file-key hash)
+      (file/create-s3store {:key hash :filename filename})
       ;; associate file with avatar
-      (-> (files/s3-id-from-filename-key filename hash)
-          (files/associate-avatar-image-with-user user-id))
+      (-> (file/lookup-s3-id filename hash)
+          (user-file/associate-avatar-image-with-user user-id))
       ;; change the coords on active profile img
-      (-> (:s3-id (files/active-profile-image-key-filename user-id))
-          (files/update-profile-image-meta! meta))
+      (-> (:s3-id (user-file/active-profile-image-key-filename user-id))
+          (user-file/update-profile-image-meta! meta))
       {:success true})))
 
 (defn delete-avatar! [user-id]
   (with-transaction
-    (let [{:keys [s3-id]} (files/read-avatar user-id)
-          current-hash (files/s3-id->key s3-id)]
+    (let [{:keys [s3-id]} (user-file/read-avatar user-id)
+          current-hash (file/s3-key s3-id)]
       (if s3-id
-        (do (fstore/delete-file current-hash :image)
-            (files/delete-file! s3-id)
+        (do (s3-file/delete-file current-hash :image)
+            (file/delete-s3-id s3-id)
             {:success true})
         {:error {:status internal-server-error}}))))
 
@@ -1414,10 +1412,10 @@
   "Return the url for the profile avatar"
   [user-id]
   (let [email (get-user user-id :email)
-        gravatar-img (files/gravatar-link email)
-        {:keys [key filename]} (files/avatar-image-key-filename user-id)]
+        gravatar-img (user-file/gravatar-image-data email)
+        {:keys [key filename]} (user-file/avatar-image-key-filename user-id)]
     (cond (not (empty? key))
-          (-> (response/response (fstore/get-file-stream key :image))
+          (-> (response/response (s3-file/get-file-stream key :image))
               (response/header "Content-Disposition"
                                (format "attachment: filename=\"" filename "\"")))
           (not (nil? gravatar-img))

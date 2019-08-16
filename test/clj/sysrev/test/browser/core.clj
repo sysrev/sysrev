@@ -266,13 +266,13 @@
   "Reads project id from current url. Waits a short time before
   returning nil if no project id is immediately found, unless now is
   true."
-  [& [now]]
+  [& [now wait-ms]]
   (letfn [(lookup-id []
             (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
               (some-> id-str parse-integer)))]
     (if now
       (lookup-id)
-      (when (try-wait wait-until #(integer? (lookup-id)) 2500)
+      (when (try-wait wait-until #(integer? (lookup-id)) (or wait-ms 2500))
         (lookup-id)))))
 
 (defn current-project-route

@@ -29,12 +29,18 @@
 (defn literal? [kw]
   (and (keyword? kw) (not (wildcard? kw))))
 
+(defn- sql-select-map?
+  "Test whether x is a honeysql map for a select query."
+  [x]
+  (and (map? x) (contains? x :select) (contains? x :from)))
+
 (defn- merge-match-by
   "Returns updated honeysql map based on `m`, merging a where clause
   generated from `match-by` map."
   [m match-by]
   (merge-where m (or (some->> (seq (for [[field match-value] (seq match-by)]
-                                     (if (sequential? match-value)
+                                     (if (or (sequential? match-value)
+                                             (sql-select-map? match-value))
                                        [:in field match-value]
                                        [:= field match-value])))
                               (apply vector :and))
@@ -136,9 +142,16 @@
   (assert (every? #{:index-by :group-by :join :left-join :where :limit :order-by :group
                     :prepare :return}
                   (keys opts)))
-  (let [single-field (some->> fields
-                              (ensure-pred literal?)
-                              (extract-column-name))
+  (let [single-field (or (some->> fields (ensure-pred literal?) extract-column-name)
+                         (some->> fields
+                                  (ensure-pred #(and (coll? %)
+                                                     (= 1 (count %))
+                                                     (coll? (first %))
+                                                     (= 2 (count (first %)))
+                                                     (every? keyword? (first %))))
+                                  first
+                                  extract-column-name
+                                  (ensure-pred literal?)))
         specified (some->> (cond (keyword? fields)  [fields]
                                  (empty? fields)    nil
                                  :else              fields)
@@ -234,6 +247,11 @@
 ;;;
 ;;; (:verified (find-one :web-user {:user-id 70}))
 ;;; => true
+
+(defn find-count
+  "Convenience function to return count of rows matching query."
+  [table match-by & opts]
+  (apply-keyargs find-one table match-by [[:%count.* :count]] opts))
 
 (defn exists
   "Runs (find ... :return :query) and wraps result in [:exists ...]."
@@ -692,3 +710,10 @@
                         (#(if where (merge-where % where) %))
                         (#(if prepare (prepare %) %))
                         do-query)))))
+
+(defn table-exists? [table]
+  (try (find table {} :*, :limit 1) true
+       (catch Throwable _ false)))
+
+(defn table-count [table]
+  (find-one table {} [[:%count.* :count]]))
