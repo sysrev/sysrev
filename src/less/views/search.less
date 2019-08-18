@@ -1,22 +1,27 @@
-#search-sysrev-bar {
-    background: @pageBackground;
-	height: 2em;
-    margin-top: 0.5em;
-    color: @text;    
-}
+#search-sysrev-form {
+    margin-right: 2em;
 
-#search-sysrev-bar::placeholder {
-    color: @greyButtonBackground;
-}
+    #search-sysrev-bar {
+        background: @pageBackground;
+        height: 2.1rem;
+        color: @text;
+    }
 
-#search-sysrev-bar::-ms-input-placeholder {
-    color: @greyButtonBackground;
-}
+    .ui.icon.button {
+        height: 2.1rem;
+        padding: 0 0.6rem;
+    }
 
-#search-sysrev-bar:-moz-placeholder {
-    color: @greyButtonBackground;
-}
-
-#search-sysrev-bar::-webkit-input-placeholder {
-    color: @greyButtonBackground;
+    #search-sysrev-bar::placeholder {
+        color: @mutedText;
+    }
+    #search-sysrev-bar::-ms-input-placeholder {
+        color: @mutedText;
+    }
+    #search-sysrev-bar:-moz-placeholder {
+        color: @mutedText;
+    }
+    #search-sysrev-bar::-webkit-input-placeholder {
+        color: @mutedText;
+    }
 }

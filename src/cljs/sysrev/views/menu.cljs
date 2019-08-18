@@ -46,7 +46,7 @@
                                         {:on-click #(toggle-ui-theme logged-in? settings)}
                                         [:span {:style {:font-size "22px"}}
                                          [:i.fitted.lightbulb.outline.icon]]]
-                                       {:delay {:show 500 :hide 0}
+                                       {:delay {:show 350 :hide 50}
                                         :hoverable false
                                         :position "left center"
                                         :transition "fade"
@@ -54,28 +54,24 @@
                                       ^{:key "tooltip-content"}
                                       [:div.ui.small.popup.transition.hidden.tooltip
                                        {:style {:min-width "0"
-                                                :padding-top "0.6em"
-                                                :padding-bottom "0.6em"}}
-                                       "Switch Theme"])))]
+                                                :padding "0.5em 1em"
+                                                :font-size "12px"}}
+                                       [:span.open-sans.medium-weight "Switch Theme"]])))]
     [:div.ui.menu.site-menu {:class (when landing? "landing")}
      [:div.ui.container
       [:a.header.item {:href "/"}
        [:img.ui.middle.aligned.image
         (merge {:src "/SysRev_header_2.png" :alt "SysRev"}
                (if mobile? {:width "80" :height "25"} {:width "90" :height "28"}))]]
-      (when (and (= "/" (uri-utils/getPath @active-route))
-                logged-in?)
-       [:a.item.distinct
-        {:id "pricing-link"
-         :href "/pricing"}
-        "Pricing"])
+      (when (and logged-in? (= "/" (uri-utils/getPath @active-route)))
+        [:a.item.distinct {:id "pricing-link" :href "/pricing"} "Pricing"])
       (when-not full? dev-menu)
       [loading-indicator]
       (if logged-in?
         [:div.right.menu
          (when full? dev-menu)
-         (when-not mobile? [SiteSearch])
          (toggle-theme-button)
+         (when-not mobile? [SiteSearch])
          [:a.item {:id "user-name-link"
                    :href (user-uri user-id)}
           [:div
@@ -87,8 +83,8 @@
          [:div.item {:style {:width "0" :padding "0"}}]]
         ;; not logged in
         [:div.right.menu
-         (when-not mobile? [SiteSearch])
          (toggle-theme-button)
+         (when-not mobile? [SiteSearch])
          (when (= :main @(subscribe [:app-id]))
            [:a.item.distinct
             {:id "log-in-link"

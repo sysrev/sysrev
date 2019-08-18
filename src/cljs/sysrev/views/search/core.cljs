@@ -1,5 +1,6 @@
 (ns sysrev.views.search.core
-  (:require [ajax.core :refer [GET]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET]]
             [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
             [sysrev.base :refer [active-route]]
@@ -10,7 +11,8 @@
             [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
             [sysrev.views.semantic :refer
              [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label Pagination]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]
+            [sysrev.util :as util]))
 
 (setup-panel-state panel [:search])
 
@@ -52,32 +54,30 @@
         ;; has been cleared
         (when (not (empty? route-search-term))
           (reset! cleared? false))
-        [Form {:on-submit (fn [e]
-                            (if (clojure.string/blank? @search-value)
-                              (reset! search-value "")
-                              (do (site-search @search-value 1)
-                                  (nav-scroll-top "/search" :params {:q @search-value
-                                                                     :p 1
-                                                                     :type "projects"}))))
-               :id "search-sysrev-form"}
-         [Input {:placeholder "Search Sysrev"
-                 :on-change (fn [e value]
-                              (let [input-value (-> value
-                                                    (js->clj :keywordize-keys true)
-                                                    :value)]
-                                (reset! search-value input-value)))
-                 :id "search-sysrev-bar"
-                 :value @search-value}]]))))
+        [:div.item
+         [Form {:id "search-sysrev-form"
+                :on-submit (fn [e]
+                             (if (str/blank? @search-value)
+                               (reset! search-value "")
+                               (do (site-search @search-value 1)
+                                   (nav-scroll-top "/search" :params {:q @search-value
+                                                                      :p 1
+                                                                      :type "projects"}))))}
+          [Input {:id "search-sysrev-bar"
+                  :size "small"
+                  :placeholder "Search Sysrev"
+                  :action {:type "submit" :size "small" :icon "search" :class "subtle-button"}
+                  :on-change (util/on-event-value #(reset! search-value %))
+                  :value @search-value}]]]))))
 
 (defn ProjectSearchResult
   [{:keys [project-id description name]}]
   (let [description-string (-> description markdown/create-markdown-html markdown/html->string)
-        token-string (clojure.string/split description-string #" ")
+        token-string (str/split description-string #" ")
         max-length 30]
     [:div
      [:a {:href (project-uri project-id)} [:h3 name]]
-     [:p (str (->> (take max-length token-string)
-                   (clojure.string/join " "))
+     [:p (str (->> (take max-length token-string) (str/join " "))
               (when (> (count token-string) max-length)
                 " ..."))]
      [Divider]]))
