@@ -76,7 +76,7 @@
   (str (str/join ", " (take nmax authors))
        (when (> (count authors) nmax) " et al")))
 
-(defn ArticleScoreLabel [score]
+(defn- ArticleScoreLabel [score]
   (when (some-> score pos?)
     [:div.ui.label.article-score "Prediction"
      [:div.detail
@@ -104,7 +104,7 @@
        {:class color}
        (str sstr)])))
 
-(defn WithProjectSourceTooltip [source-id element]
+(defn- WithProjectSourceTooltip [source-id element]
   (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
         source-info (some-> @(subscribe [:source/display-info source-id])
                             (sutil/string-ellipsis 150 "[.....]"))
@@ -118,13 +118,13 @@
      "25em"
      :delay 150]))
 
-(defn SourceLinkButton [source-id text]
+(defn- SourceLinkButton [source-id text]
   [WithProjectSourceTooltip source-id
    [:div.ui.tiny.button {:on-click (util/wrap-user-event
                                     #(dispatch [:articles/load-source-filters [source-id]]))}
     text]])
 
-(defn ArticleSourceLinks [article-id]
+(defn- ArticleSourceLinks [article-id]
   (let [source-ids @(subscribe [:article/sources article-id])]
     (when (not-empty source-ids)
       [:div.ui.small.left.aligned.form.article-source-links
@@ -134,7 +134,7 @@
                                     [SourceLinkButton source-id (str (inc i))])
                                   source-ids))]]])))
 
-(defn filter-annotations-by-field [annotations client-field text]
+(defn- filter-annotations-by-field [annotations client-field text]
   (filter-values #(let [{:keys [context]} %
                         {:keys [text-context]} context]
                     (or (and (string? text-context) (= (:client-field context) client-field))
@@ -142,7 +142,7 @@
                         (= text-context text)))
                  annotations))
 
-(defn ArticleAnnotatedField [article-id field-name text & {:keys [reader-error-render]}]
+(defn- ArticleAnnotatedField [article-id field-name text & {:keys [reader-error-render]}]
   (let [project-id @(subscribe [:active-project-id])
         self-id @(subscribe [:self/user-id])
         on-review? @(subscribe [:review/on-review-task?])
@@ -157,7 +157,7 @@
       :reader-error-render reader-error-render
       :field field-name]]))
 
-(defn ArticleInfoMain [article-id & {:keys [context]}]
+(defn- ArticleInfoMain [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
       (let [authors @(subscribe [:article/authors article-id])
@@ -167,7 +167,6 @@
             journal-render @(subscribe [:article/journal-render article-id])
             abstract @(subscribe [:article/abstract article-id])
             urls @(subscribe [:article/urls article-id])
-            documents @(subscribe [:article/documents article-id])
             date @(subscribe [:article/date article-id])
             pdfs @(subscribe [:article/pdfs article-id])
             [pdf] pdfs
@@ -225,12 +224,6 @@
                [render-abstract article-id])))
          [:div.ui.grid.article-links
           [:div.twelve.wide.left.aligned.middle.aligned.column
-           (when-not (empty? documents)
-             [:div.ui.content.horizontal.list
-              {:style {:padding-top "0.75em"}}
-              (doall (map-indexed (fn [i {:keys [fs-path url]}] ^{:key [i]}
-                                    [ui/document-link url fs-path])
-                                  documents))])
            (when-not (empty? urls)
              [:div.ui.content.horizontal.list
               {:style {:padding-top "0.75em"}}
@@ -257,7 +250,7 @@
                            [ArticleFlagLabel flag-name])
                          flag-names))]))
 
-(defn ArticleDuplicatesSegment [article-id]
+(defn- ArticleDuplicatesSegment [article-id]
   (when-let [duplicates @(subscribe [:article/duplicates article-id])]
     [:div.ui.segment {:key [:article-duplicates]}
      [:h5 "Duplicate articles:"

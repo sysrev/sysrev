@@ -8,7 +8,6 @@
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
-            [sysrev.local-pdf :as local-pdf]
             [sysrev.file.article :as article-file]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
@@ -293,7 +292,7 @@
         (predict-api/schedule-predict-update dest-id))
       dest-id)))
 
-(defn clone-subproject-articles
+(defn ^:unused clone-subproject-articles
   "Creates a copy of a project with a subset of the articles from a parent project.
 
   Copies most project definition entries over from the parent project
@@ -324,6 +323,7 @@
         (copy-project-article-labels src-id dest-id))))
   (log/info "clone-subproject-articles done"))
 
+#_
 (defn load-endnote-doc-ids
   "Parse an Endnote XML file mapping article-uuid values (custom5 field)
   to document-id values."
@@ -340,6 +340,7 @@
        (apply concat)
        (apply hash-map)))
 
+#_
 (defn clone-subproject-endnote
   "Clones a project from the subset of articles in `parent-id` project that
   are contained in Endnote XML export file `endnote-path`. Also imports
@@ -370,8 +371,8 @@
       (log/info (format "loaded %d articles"
                         (project/project-article-count child-id)))
       (copy-project-members parent-id child-id)
-      (local-pdf/load-article-documents child-id pdfs-path)
-      (local-pdf/load-project-document-ids child-id article-doc-ids)
+      ;; (local-pdf/load-article-documents child-id pdfs-path)
+      ;; (local-pdf/load-project-document-ids child-id article-doc-ids)
       (copy-project-label-defs parent-id child-id)
       (copy-project-keywords parent-id child-id)
       (log/info "clone-subproject-endnote done"))))

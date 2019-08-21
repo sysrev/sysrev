@@ -31,153 +31,98 @@
       {:db (-> db (load-article article))
        :dispatch [:reload [:annotator/article project-id article-id]]})))
 
-(reg-sub
- :articles/all
- (fn [db]
-   (get-in db [:data :articles])))
+(reg-sub :articles/all #(get-in % [:data :articles]))
 
-(reg-sub
- :article/raw
- :<- [:articles/all]
- (fn [articles [_ article-id]]
-   (get articles article-id)))
+(reg-sub :article/raw
+         :<- [:articles/all]
+         (fn [articles [_ article-id]]
+           (get articles article-id)))
 
-(reg-sub
- :article/sources
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]] (:sources article)))
+(reg-sub :article/sources
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:sources article)))
 
-(reg-sub
- :article/review-status
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:review-status article)))
+(reg-sub :article/review-status
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:review-status article)))
 
-(reg-sub
- :article/title
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:primary-title article)))
+(reg-sub :article/title
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:primary-title article)))
 
-(reg-sub
- :article/journal-name
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:secondary-title article)))
+(reg-sub :article/journal-name
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:secondary-title article)))
 
-(reg-sub
- :article/date
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:date article)))
+(reg-sub :article/date
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:date article)))
 
-(reg-sub
- :article/authors
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:authors article)))
+(reg-sub :article/authors
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:authors article)))
 
-(reg-sub
- :article/abstract
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:abstract article)))
+(reg-sub :article/abstract
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:abstract article)))
 
-(reg-sub
- :article/title-render
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:title-render article)))
+(reg-sub :article/title-render
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:title-render article)))
 
-(reg-sub
- :article/journal-render
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:journal-render article)))
+(reg-sub :article/journal-render
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:journal-render article)))
 
-(reg-sub
- :article/abstract-render
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:abstract-render article)))
+(reg-sub :article/abstract-render
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:abstract-render article)))
 
-(reg-sub
- ::urls
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:urls article)))
+(reg-sub ::urls
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:urls article)))
 
-(reg-sub
- :article/locations
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:locations article)))
+(reg-sub :article/locations
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:locations article)))
 
-(reg-sub
- :article/flags
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:flags article)))
+(reg-sub :article/flags
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:flags article)))
 
-(reg-sub
- :article/score
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]]
-   (:score article)))
+(reg-sub :article/score
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:score article)))
 
-(reg-sub
- :article/duplicates
- (fn [[_ article-id]]
-   [(subscribe [:article/flags article-id])])
- (fn [[flags] [_ article-id]]
-   (when-let [flag (get flags "auto-duplicate")]
-     {:article-ids (->> flag :meta :duplicate-of (remove #(= % article-id)))
-      :disabled? (:disable flag)})))
+(reg-sub :article/duplicates
+         (fn [[_ article-id]] (subscribe [:article/flags article-id]))
+         (fn [flags [_ article-id]]
+           (when-let [flag (get flags "auto-duplicate")]
+             {:article-ids (->> flag :meta :duplicate-of (remove #(= % article-id)))
+              :disabled? (:disable flag)})))
 
 (defn- article-location-urls [locations]
-  (let [sources [:pubmed :doi :pii :nct]]
-    (->>
-     sources
-     (map
-      (fn [source]
-        (let [entries (get locations (name source))]
-          (->>
-           entries
-           (map
-            (fn [{:keys [external-id]}]
-              (case source
-                :pubmed (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" external-id)
-                :doi (str "https://dx.doi.org/" external-id)
-                :pmc (str "https://www.ncbi.nlm.nih.gov/pmc/articles/" external-id "/")
-                :nct (str "https://clinicaltrials.gov/ct2/show/" external-id)
-                nil)))))))
-     (apply concat)
-     (filter identity))))
+  (->> (for [source [:pubmed :doi :pii :nct]]
+         (let [entries (get locations (name source))]
+           (for [{:keys [external-id]} entries]
+             (case source
+               :pubmed (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" external-id)
+               :doi (str "https://dx.doi.org/" external-id)
+               :pmc (str "https://www.ncbi.nlm.nih.gov/pmc/articles/" external-id "/")
+               :nct (str "https://clinicaltrials.gov/ct2/show/" external-id)
+               nil))))
+       (apply concat)
+       (remove nil?)))
 
-(reg-sub
- :article/urls
- (fn [[_ article-id]]
-   [(subscribe [::urls article-id])
-    (subscribe [:article/locations article-id])])
- (fn [[urls locations]]
-   (->> (concat urls (article-location-urls locations))
-        (filter #(or (re-matches #"^http://.*" %)
-                     (re-matches #"^https://.*" %)
-                     (re-matches #"^ftp://.*" %))))))
+(reg-sub :article/urls
+         (fn [[_ article-id]]
+           [(subscribe [::urls article-id])
+            (subscribe [:article/locations article-id])])
+         (fn [[urls locations]]
+           (->> (concat urls (article-location-urls locations))
+                (filter #(or (re-matches #"^http://.*" %)
+                             (re-matches #"^https://.*" %)
+                             (re-matches #"^ftp://.*" %))))))
 
 (defn article-labels [db article-id & [user-id label-id]]
   (when-let [labels (get-in db [:data :articles article-id :labels])]
@@ -185,89 +130,50 @@
       user-id                (get user-id)
       (and user-id label-id) (get label-id))))
 
-(reg-sub
- :article/labels
- (fn [[_ article-id user-id label-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article] [_ article-id user-id label-id]]
-   (cond-> (:labels article)
-     user-id                 (get user-id)
-     (and user-id label-id)  (get label-id))))
+(reg-sub :article/labels
+         (fn [[_ article-id user-id label-id]]
+           (subscribe [:article/raw article-id]))
+         (fn [article [_ article-id user-id label-id]]
+           (cond-> (:labels article)
+             user-id                 (get user-id)
+             (and user-id label-id)  (get label-id))))
 
-(reg-sub
- :article/resolve-user-id
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article] _] (-> article :resolve :user-id)))
+(reg-sub :article/resolve-user-id
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (-> article :resolve :user-id)))
 
-(reg-sub
- :article/resolve-labels
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article] _] (-> article :resolve :labels)))
+(reg-sub :article/resolve-labels
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (-> article :resolve :labels)))
 
 (defn- article-user-status-impl [user-id ulmap]
-  (cond (nil? user-id)
-        :logged-out
-
-        (empty? ulmap)
-        :none
-
-        (some :confirmed (vals ulmap))
-        :confirmed
-
-        :else
-        :unconfirmed))
+  (cond (nil? user-id)  :logged-out
+        (empty? ulmap)  :none
+        (some :confirmed (vals ulmap)) :confirmed
+        :else           :unconfirmed))
 
 (defn article-user-status [db article-id & [user-id]]
   (let [user-id (or user-id (self/current-user-id db))
         ulmap (article-labels db article-id user-id)]
     (article-user-status-impl user-id ulmap)))
 
-(reg-sub
- :article/user-status
- (fn [[_ article-id user-id]]
-   [(subscribe [:self/user-id])
-    (subscribe [:article/labels article-id])])
- (fn [[self-id alabels] [_ _ user-id]]
-   (let [user-id (or user-id self-id)
-         ulmap (get alabels user-id)]
-     (article-user-status-impl user-id ulmap))))
-
-(defn- article-document-url [project-id doc-id fs-path]
-  (str "/documents/PDF/" project-id "/" doc-id "/" fs-path))
-
-(reg-sub
- :article/documents
- (fn [[_ article-id]]
-   [(subscribe [:active-project-id])
-    (subscribe [:article/raw article-id])
-    (subscribe [:project/document-paths])])
- (fn [[project-id {:keys [document-ids]} doc-paths]]
-   (->> document-ids
-        (mapv
-         (fn [doc-id]
-           (->> (get doc-paths doc-id)
-                (mapv
-                 (fn [fs-path]
-                   {:document-id doc-id
-                    :fs-path fs-path
-                    :url (article-document-url project-id doc-id fs-path)})))))
-        (apply concat)
-        vec)))
+(reg-sub :article/user-status
+         (fn [[_ article-id user-id]]
+           [(subscribe [:self/user-id])
+            (subscribe [:article/labels article-id])])
+         (fn [[self-id alabels] [_ _ user-id]]
+           (let [user-id (or user-id self-id)
+                 ulmap (get alabels user-id)]
+             (article-user-status-impl user-id ulmap))))
 
 (reg-sub :article/pdfs
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:pdfs article)))
 
-(reg-sub
- :article/open-access-available?
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]] (-> article :open-access-available?)))
+(reg-sub :article/open-access-available?
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:open-access-available? article)))
 
-(reg-sub
- :article/key
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]] (-> article :key)))
+(reg-sub :article/key
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:key article)))

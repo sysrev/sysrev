@@ -19,7 +19,6 @@
             [sysrev.db.users :as users]
             [sysrev.project.core :as project]
             [sysrev.db.groups :as groups]
-            [sysrev.local-pdf :as local-pdf]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
             [sysrev.label.answer :as answer]
@@ -96,7 +95,8 @@
 
 (defn project-info [project-id]
   (with-project-cache project-id [:project-info]
-    (let [[[fields users labels keywords notes members predict importance url-ids files documents owner plan subscription-lapsed?]
+    (let [[[fields users labels keywords notes members predict importance
+            url-ids files owner plan subscription-lapsed?]
            [_ [status-counts progress]]
            [articles sources]]
           (pvalues [(q/query-project-by-id project-id [:*])
@@ -114,7 +114,6 @@
                         (log/info "exception in project-url-ids")
                         []))
                     (doc-file/list-project-documents project-id)
-                    (local-pdf/all-article-document-paths project-id)
                     (project/get-project-owner project-id)
                     (api/project-owner-plan project-id)
                     (api/subscription-lapsed? project-id)]
@@ -137,7 +136,6 @@
                  :notes notes
                  :settings (:settings fields)
                  :files files
-                 :documents documents
                  :sources sources
                  :importance importance
                  :url-ids url-ids

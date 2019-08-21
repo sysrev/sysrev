@@ -74,15 +74,6 @@
    [(subscribe [:project/settings project-id])])
  (fn [[settings]] (:public-access settings)))
 
-(reg-sub
- :project/document-paths
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ document-id _]]
-   (if (nil? document-id)
-     (get-in project [:documents])
-     (get-in project [:documents document-id]))))
-
 (defn get-source-by-id [sources source-id]
   (->> sources
        (filter #(= (:source-id %) source-id))
