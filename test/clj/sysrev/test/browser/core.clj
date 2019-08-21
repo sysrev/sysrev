@@ -416,8 +416,7 @@
   the user is associated with."
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
-  (assert (or (integer? user-id) (string? email)))
-  (assert (not (and (integer? user-id) (string? email))))
+  (sutil/assert-exclusive user-id email)
   (let [email (or email (users/get-user user-id :email))
         user-id (or user-id (users/user-by-email email :user-id))]
     (when (and email user-id)

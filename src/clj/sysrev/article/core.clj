@@ -206,30 +206,6 @@
       (where [:= :article-id article-id])
       do-query (some->> first :raw (re-find #"PMC\d+"))))
 
-(defn pmcid-in-s3store?
-  "Given a pmcid, do we have a file associated with it in the s3store?"
-  [pmcid]
-  (boolean (-> (select :pmcid)
-               (from :pmcid-s3store)
-               (where [:= :pmcid pmcid])
-               do-query first)))
-
-;; FIX: see docstring - add unique constraint or change function
-(defn pmcid->s3-id
-  "Returns first of any s3-id values associated with pmcid."
-  [pmcid]
-  (-> (select :s3-id)
-      (from :pmcid-s3store)
-      (where [:= :pmcid pmcid])
-      do-query first :s3-id))
-
-(defn associate-pmcid-s3store
-  "Given a pmcid and an s3-id, associate the two"
-  [pmcid s3-id]
-  (-> (insert-into :pmcid-s3store)
-      (values [{:pmcid pmcid :s3-id s3-id}])
-      do-execute))
-
 ;; TODO: replace with generic function
 (defn modify-articles-by-id
   "Runs SQL update setting `values` on articles in `article-ids`."

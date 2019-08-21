@@ -215,7 +215,7 @@
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))
 
-(defmacro wrap-authorize
+(defmacro with-authorize
   "Wrap request handler body to check if user is authorized to perform the
   request. If authorized then runs body and returns result; if not authorized,
   returns an error without running body.
@@ -325,6 +325,19 @@
                     :message "This action requires an upgraded plan"}}
 
            :else (body-fn#))))
+
+(defmacro wrap-authorize
+  [request
+   {:keys [logged-in developer roles allow-public authorize-fn bypass-subscription-lapsed?]
+    :or {logged-in nil
+         developer false
+         allow-public false
+         roles nil
+         authorize-fn nil
+         bypass-subscription-lapsed? false}
+    :as conditions}
+   & body]
+  `(with-authorize ~request ~conditions ~@body))
 
 ;; Overriding this to allow route handler functions to return result as
 ;; map value with the value being placed in response :body here.

@@ -25,7 +25,7 @@
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.article :as article-file]
-            [sysrev.file.user-image :as user-file]
+            [sysrev.file.user-image :as user-image]
             [sysrev.db.funds :as funds]
             [sysrev.db.groups :as groups]
             [sysrev.db.invitation :as invitation]
@@ -336,8 +336,7 @@
 (defn current-plan
   "Get the plan for user-id"
   [user-id]
-  {:result {:success true
-            :plan (plans/get-current-plan user-id)}})
+  {:success true, :plan (plans/get-current-plan user-id)})
 
 (defn current-group-plan
   "Get the plan for group-id"
@@ -909,58 +908,16 @@
   [project-id]
   {:data (charts/process-label-counts project-id)})
 
-(defn save-article-pdf
-  "Handle saving a file on S3 and the associated accounting with it"
-  [article-id file filename]
-  (let [hash (util/file->sha-1-hash file)
-        s3-id (file/lookup-s3-id filename hash)
-        associated? (article-file/s3-article-association? s3-id article-id)]
-    (cond
-      ;; there is a file and it is already associated with this article
-      associated?
-      {:success true, :key hash}
-      ;; there is a file, but it is not associated with this article
-      (not (nil? s3-id))
-      (try (do (article-file/associate-s3-file-with-article s3-id article-id)
-               {:success true, :key hash})
-           (catch Throwable e
-             {:error {:exception e, :message "error (associate article file)"}}))
-      ;; there is a file. but not with this filename
-      (and (nil? s3-id)
-           (file/s3-key-exists? hash))
-      (try (let [ ;; create association between filename and hash
-                 _ (file/create-s3store {:key hash :filename filename})
-                 ;; get the new association's id
-                 s3-id (file/lookup-s3-id filename hash)]
-             (article-file/associate-s3-file-with-article s3-id article-id)
-             {:success true, :key hash})
-           (catch Throwable e
-             {:error {:exception e, :message "error (associate filename)"}}))
-      ;; the file does not exist in our s3 store
-      (and (nil? s3-id)
-           (not (file/s3-key-exists? hash)))
-      (try
-        (let [ ;; create a new file on the s3 store
-              _ (s3-file/save-file file :pdf)
-              ;; create a new association between this file name
-              ;; and the hash
-              _ (file/create-s3store {:key hash :filename filename})
-              ;; get the new association's id
-              s3-id (file/lookup-s3-id filename hash)]
-          (article-file/associate-s3-file-with-article s3-id article-id)
-          {:success true, :key hash})
-        (catch Throwable e
-          {:error {:exception e, :message "error (store file)"}}))
-      :else
-      {:error {:message "error (unexpected event)"}})))
+(defn save-article-pdf [article-id file filename]
+  {:success true, :key (:key (article-file/save-article-pdf
+                              {:article-id article-id :filename filename :file file}))})
 
-(defn open-access-available?
-  [article-id]
+(defn open-access-available? [article-id]
   (let [pmcid (-> article-id article/article-pmcid)]
     (cond
       ;; the pdf exists in the store already
-      (article/pmcid-in-s3store? pmcid)
-      {:available? true, :key (-> pmcid article/pmcid->s3-id file/s3-key)}
+      (article-file/pmcid->s3-id pmcid)
+      {:available? true, :key (-> pmcid article-file/pmcid->s3-id file/s3-key)}
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
@@ -975,9 +932,9 @@
           ;; delete the temporary file
           (fs/delete filename)
           ;; associate the pmcid with the s3store item
-          (article/associate-pmcid-s3store pmcid s3-id)
+          (article-file/associate-pmcid-s3store pmcid s3-id)
           ;; finally, return the pdf from our own archive
-          {:available? true, :key (-> pmcid article/pmcid->s3-id file/s3-key)})
+          {:available? true, :key (-> pmcid article-file/pmcid->s3-id file/s3-key)})
         (catch Throwable e
           {:error {:message (str "open-access-available?: " (type e))}}))
 
@@ -988,7 +945,7 @@
   "Given an article-id, return a vector of maps that correspond to the
   files associated with article-id"
   [article-id]
-  (let [pmcid-s3-id (some-> article-id article/article-pmcid article/pmcid->s3-id)]
+  (let [pmcid-s3-id (some-> article-id article/article-pmcid article-file/pmcid->s3-id)]
     {:success true, :files (->> (article-file/get-article-file-maps article-id)
                                 (mapv #(assoc % :open-access?
                                               (= (:s3-id %) pmcid-s3-id))))}))
@@ -997,7 +954,7 @@
   "Remove the association between an article and PDF file."
   [article-id key filename]
   (if-let [s3-id (file/lookup-s3-id filename key)]
-    (do (article-file/dissociate-s3-file-from-article s3-id article-id)
+    (do (article-file/dissociate-article-pdf s3-id article-id)
         {:success true})
     {:error {:status not-found
              :message (str "No file found: " (pr-str [filename key]))}}))
@@ -1321,50 +1278,14 @@
 
 (defn create-profile-image!
   [user-id file filename]
-  (let [hash (util/file->sha-1-hash file)
-        s3-id (file/lookup-s3-id filename hash)
-        profile-s3-association (user-file/get-profile-image-s3-association s3-id user-id)]
-    (cond
-      ;; there is a file and it is already associated with this user
-      (not (nil? profile-s3-association))
-      (do (user-file/activate-profile-image s3-id user-id)
-          {:success true, :key hash})
-      ;; there is a file, but it is not associated with this user
-      (not (nil? s3-id))
-      (do
-        ;; associate this file with the user
-        (user-file/associate-profile-image-s3-with-user s3-id user-id)
-        ;; activate this image
-        (user-file/activate-profile-image s3-id user-id)
-        {:success true, :key hash})
-      ;; there is a file, but not with this filename
-      (and (nil? s3-id) (file/s3-key-exists? hash))
-      (let [;; create the association between this file name and the hash
-            _ (file/create-s3store {:key hash :filename filename})
-            ;; get the new associations's id
-            s3-id (file/lookup-s3-id filename hash)]
-        (user-file/associate-profile-image-s3-with-user s3-id user-id)
-        (user-file/activate-profile-image user-id s3-id)
-        {:success true, :key hash})
-      ;; the file does not exist in our s3 store
-      (and (nil? s3-id) (not (file/s3-key-exists? hash)))
-      (let [;; create a new file on the s3 store
-            _ (s3-file/save-file file :image)
-            ;; create a new association between the file name and the hash
-            _ (file/create-s3store {:key hash :filename filename})
-            ;; get the new associations's id
-            s3-id (file/lookup-s3-id filename hash)]
-        (user-file/associate-profile-image-s3-with-user s3-id user-id)
-        (user-file/activate-profile-image s3-id user-id)
-        {:success true, :key hash})
-      :else
-      {:error {:message "Unexpected Event"}})))
+  (let [image (user-image/save-user-profile-image user-id file filename)]
+    {:success true :key (:key image)}))
 
 (defn read-profile-image
   "Return the currently active profile image for user"
   [user-id]
-  (let [{:keys [key filename]} (user-file/active-profile-image-key-filename user-id)]
-    (if-not (empty? key)
+  (let [{:keys [key filename]} (user-image/user-active-profile-image user-id)]
+    (if key
       (-> (response/response (s3-file/get-file-stream key :image))
           (response/header "Content-Disposition"
                            (format "attachment: filename=\"" filename "\"")))
@@ -1375,69 +1296,35 @@
   "Read the current profile image meta data"
   [user-id]
   {:success true
-   :meta (json/read-json (or (user-file/active-profile-image-meta user-id) "{}"))})
+   :meta (json/read-json (or (:meta (user-image/user-active-profile-image user-id))
+                             "{}"))})
 
 (defn create-avatar! [user-id file filename meta]
-  (with-transaction
-    (let [hash (util/file->sha-1-hash file)
-          {:keys [s3-id]} (user-file/read-avatar user-id)
-          current-hash (file/s3-key s3-id)]
-      ;; delete the current avatar
-      (when current-hash
-        ;; NOTE: what if multiple users with an image? include user-id in hash input?
-        (s3-file/delete-file current-hash :image)
-        (file/delete-s3-id s3-id))
-      ;; write the avatar
-      (s3-file/save-file file :image :file-key hash)
-      (file/create-s3store {:key hash :filename filename})
-      ;; associate file with avatar
-      (-> (file/lookup-s3-id filename hash)
-          (user-file/associate-avatar-image-with-user user-id))
-      ;; change the coords on active profile img
-      (-> (:s3-id (user-file/active-profile-image-key-filename user-id))
-          (user-file/update-profile-image-meta! meta))
-      {:success true})))
+  (user-image/save-user-avatar-image user-id file filename meta)
+  {:success true})
 
-(defn delete-avatar! [user-id]
-  (with-transaction
-    (let [{:keys [s3-id]} (user-file/read-avatar user-id)
-          current-hash (file/s3-key s3-id)]
-      (if s3-id
-        (do (s3-file/delete-file current-hash :image)
-            (file/delete-s3-id s3-id)
-            {:success true})
-        {:error {:status internal-server-error}}))))
-
-(defn read-avatar
-  "Return the url for the profile avatar"
-  [user-id]
-  (let [email (get-user user-id :email)
-        gravatar-img (user-file/gravatar-image-data email)
-        {:keys [key filename]} (user-file/avatar-image-key-filename user-id)]
-    (cond (not (empty? key))
-          (-> (response/response (s3-file/get-file-stream key :image))
-              (response/header "Content-Disposition"
-                               (format "attachment: filename=\"" filename "\"")))
-          (not (nil? gravatar-img))
-          (-> (response/response gravatar-img)
-              (response/header "Content-Disposition"
-                               (str "attachment: filename=\"" (str user-id "-gravatar.jpeg") "\"")))
-
-          :else
-          (-> (response/response (-> "public/default_profile.jpeg" io/resource io/input-stream))
-              (response/header "Content-Disposition"
-                               (format "attachment: filename=\"" "default-profile.jpeg" "\""))))))
+(defn read-avatar [user-id]
+  (or (when-let [{:keys [key filename]} (user-image/user-active-avatar-image user-id)]
+        (-> (response/response (s3-file/get-file-stream key :image))
+            (response/header "Content-Disposition"
+                             (format "attachment: filename=\"%s\"" filename))))
+      (when-let [gravatar-img (user-image/gravatar-image-data (get-user user-id :email))]
+        (-> (response/response gravatar-img)
+            (response/header "Content-Disposition"
+                             (format "attachment: filename=\"%d-gravatar.jpeg\"" user-id))))
+      (-> (response/response (-> "public/default_profile.jpeg" io/resource io/input-stream))
+          (response/header "Content-Disposition"
+                           (format "attachment: filename=\"default-profile.jpeg\"")))))
 
 (defn read-orgs
   "Return all organzations user-id is a member of"
   [user-id]
   (with-transaction
-    {:result {:orgs
-              (->> (groups/read-groups user-id)
-                   (filterv #(not= (:group-name %) "public-reviewer"))
-                   (mapv #(assoc % :member-count (-> (groups/group-id->group-name (:id %))
-                                                     (groups/read-users-in-group)
-                                                     count))))}}))
+    {:orgs (->> (groups/read-groups user-id)
+                (filterv #(not= (:group-name %) "public-reviewer"))
+                (mapv #(assoc % :member-count (-> (groups/group-id->group-name (:id %))
+                                                  (groups/read-users-in-group)
+                                                  count))))}))
 
 (defn create-org! [user-id org-name]
   (with-transaction
@@ -1455,8 +1342,7 @@
           ;; set the user as group admin
           (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
           (stripe/create-subscription-org! new-org-id stripe-id)
-          {:result {:success true
-                    :id new-org-id}})))))
+          {:success true, :id new-org-id})))))
 
 (defn search-users [term]
   {:success true, :users (users/search-users term)})

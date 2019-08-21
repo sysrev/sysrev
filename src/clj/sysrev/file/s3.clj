@@ -6,17 +6,20 @@
             [sysrev.config.core :refer [env]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? opt-keys]])
-  (:import (java.io ByteArrayInputStream)
+  (:import (java.io File ByteArrayInputStream)
            java.util.UUID))
 
 (defonce ^:private byte-array-type (type (byte-array 1)))
+
+(s/def ::byte-array #(= (type %) byte-array-type))
 
 (s/def ::access-key string?)
 (s/def ::secret-key string?)
 (s/def ::endpoint string?)
 (s/def ::credentials (s/keys :req-un [::access-key ::secret-key ::endpoint]))
 
-(s/def ::bytes #(= (type %) byte-array-type))
+(s/def ::file #(= (type %) java.io.File))
+(s/def ::file-bytes ::byte-array)
 (s/def ::file-key string?)
 (s/def ::s3-response any?)
 
@@ -34,7 +37,7 @@
   (or (get (sysrev-buckets) bucket)
       (throw (Exception. (str "invalid bucket specifier: " (pr-str bucket))))))
 
-(defn s3-credentials []
+(defn-spec s3-credentials ::credentials []
   (-> (:filestore env)
       (select-keys [:access-key :secret-key :endpoint])))
 
@@ -52,17 +55,20 @@
                    :key file-key :file file)
     file-key))
 
+(defn-spec save-byte-array ::file-key
+  [file-bytes ::byte-array, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
+  (let [file-key (or (some-> file-key str)
+                     (some-> file-bytes util/byte-array->sha-1-hash))]
+    (s3/put-object (s3-credentials) :bucket-name (lookup-bucket bucket)
+                   :key file-key
+                   :input-stream (ByteArrayInputStream. file-bytes)
+                   :metadata {:content-length (count file-bytes)})
+    file-key))
+
 (defn-spec delete-file ::s3-response
   [file-key ::file-key, bucket ::bucket]
   (s3/delete-object (s3-credentials) :bucket-name (lookup-bucket bucket)
                     :key file-key))
-
-(defn-spec save-byte-array ::s3-response
-  [bytes ::bytes, bucket ::bucket]
-  (s3/put-object (s3-credentials) :bucket-name (lookup-bucket bucket)
-                 :key (util/byte-array->sha-1-hash bytes)
-                 :input-stream (ByteArrayInputStream. bytes)
-                 :metadata {:content-length (count bytes)}))
 
 (defn-spec lookup-file ::s3-response
   [file-key ::file-key, bucket ::bucket]
@@ -72,6 +78,6 @@
 (defn get-file-stream [file-key bucket]
   (:object-content (lookup-file file-key bucket)))
 
-(defn-spec get-file-bytes ::bytes
+(defn-spec get-file-bytes ::byte-array
   [file-key ::file-key, bucket ::bucket]
   (util/slurp-bytes (get-file-stream file-key bucket)))

@@ -6,8 +6,8 @@
             [clojure.test :refer :all]
             [sysrev.api :as api]
             [sysrev.db.core :refer [with-transaction]]
-            [sysrev.file.user-image :as user-file]
             [sysrev.file.s3 :as s3-file]
+            [sysrev.file.user-image :as user-image]
             [sysrev.db.groups :as groups]
             [sysrev.project.core :as project]
             [sysrev.db.users :as users :refer [user-by-email]]
@@ -270,28 +270,28 @@
       (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
       ;; check manually that the avatar matches what we would expect
       ;; (two possible values for some reason, depending on system)
-      (b/is-soon (contains? #{;; original test value (james mac)
+      (b/is-soon (contains? #{ ;; original test value (james mac)
                               "52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
                               ;; second test value (jeff/james mac, jenkins linux)
                               "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
                               ;; another value (jeff chromium linux)
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
-                            (:key (user-file/avatar-image-key-filename user-id)))
+                            (:key (user-image/user-active-avatar-image user-id)))
                  3000 200)
       (log/info "got file key")
       (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
       (log/info "got image meta")
-      (is (-> (:key (user-file/avatar-image-key-filename user-id))
+      (is (-> (:key (user-image/user-active-avatar-image user-id))
               (s3-file/lookup-file :image)
               :object-content))
       (log/info "found file on s3"))
-  :cleanup (let [{:keys [success]} (api/delete-avatar! user-id)]
-             (when-not success
-               ;; try again in case server handler (create-avatar!) was still running
-               (log/warn "api/delete-avatar! failed on first attempt")
-               (Thread/sleep 1500)
-               (api/delete-avatar! user-id))))
+  :cleanup (when-not (try (user-image/delete-user-avatar-image user-id)
+                          (catch Throwable _ nil))
+             ;; try again in case server handler (create-avatar!) was still running
+             (log/warn "delete-user-avatar-image failed on first attempt")
+             (Thread/sleep 1500)
+             (user-image/delete-user-avatar-image user-id)))
 
 (def opt-in-toggle (xpath "//input[@id='opt-in-public-reviewer']"))
 (def resend-verification-email (xpath "//button[contains(text(),'Resend Verification Email')]"))

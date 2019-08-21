@@ -124,7 +124,7 @@
            (if user-id
              (-> (merge {:identity (users/user-identity-info user-id true)}
                         (users/user-self-info user-id)
-                        (:result (api/read-orgs user-id)))
+                        {:orgs (:orgs (api/read-orgs user-id))})
                  (assoc-in [:identity :verified] verified))
              {:identity {:settings (:settings session)}}))))
 

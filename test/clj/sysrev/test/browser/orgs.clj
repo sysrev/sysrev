@@ -5,6 +5,7 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.api :as api]
             [sysrev.db.groups :as groups]
+            [sysrev.db.plans :refer [get-current-plan]]
             [sysrev.project.core :as project]
             [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -212,22 +213,17 @@
             :exp-date "0122"
             :cvc "123"
             :postal "11111"}
-   {:keys [email]} b/test-login]
+   {:keys [email]} b/test-login
+   user-id (user-by-email email :user-id)]
   (do
     ;; need to be a stripe customer
     (when-not (user-by-email email :stripe-id)
       (log/info (str "Stripe Customer created for " email))
       (users/create-sysrev-stripe-customer! (user-by-email email)))
-    (when-not (-> (user-by-email email :user-id)
-                  (api/current-plan)
-                  (get-in [:result :plan]))
+    (when-not (get-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
     ;; current plan
-    (b/is-soon (= (-> (user-by-email email :user-id)
-                      (api/current-plan)
-                      (get-in [:result :plan :name]))
-                  stripe/default-plan)
-               3000 50)
+    (b/is-soon (= stripe/default-plan (:name (get-current-plan user-id))) 3000 50)
     (plans/wait-until-stripe-id email)
     ;; start tests
     (nav/log-in)

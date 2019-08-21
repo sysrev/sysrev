@@ -287,6 +287,12 @@
 (defmacro opt-keys [& keys]
   `(s/? (s/cat :keys (s/keys* :opt-un ~(into [] keys)))))
 
+(defmacro assert-exclusive [& syms]
+  (let [show-syms (pr-str (seq syms))]
+    `(let [count# (count (remove nil? [~@syms]))]
+       (assert (> count# 0) (str "no value provided from " ~show-syms))
+       (assert (< count# 2) (str "multiple values provided from " ~show-syms)))))
+
 ;;;
 ;;; Not used, keeping in case needed later
 ;;;
