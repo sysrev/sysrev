@@ -238,7 +238,7 @@
             user-id (user-by-email email :user-id)
             project-id (review-articles/get-user-project-id user-id)
             article-id (first (project/project-article-ids project-id))
-            {:keys [annotations]} (api/user-defined-annotations article-id)
+            {:keys [annotations]} (api/article-user-annotations article-id)
             annotation (first annotations)
             annotations-csv (rest (export/export-annotations-csv project-id))
             [csv-row] annotations-csv]

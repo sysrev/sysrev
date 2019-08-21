@@ -120,66 +120,43 @@
   {:project-id project-id})
 
 (defn remove-current-owner [project-id]
-  (let [current-owner (project/get-project-owner project-id)
-        current-owner-type (-> current-owner keys first)
-        current-owner-id (-> current-owner vals first)]
-    ;; remove current owner
-    (when-not (empty? current-owner)
-      (condp = current-owner-type
-        :user-id
-        ;; there should only ever be one owner, so set that owner as a member
-        (project/set-member-permissions project-id current-owner-id ["member"])
-        :group-id
-        ;; this is a group owner, delete the group ownership
-        (groups/delete-project-group! project-id current-owner-id)))))
+  (db/with-clear-project-cache project-id
+    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
+      (cond user-id   (project/set-member-permissions project-id user-id ["member" "admin"])
+            group-id  (groups/delete-project-group! project-id group-id)))))
 
 (defn change-project-owner-to-user [project-id user-id]
-  (with-transaction
-    (assert (not= (-> (project/get-project-owner project-id)
-                      vals first)
-                  user-id))
+  (db/with-clear-project-cache project-id
     (remove-current-owner project-id)
-    ;; is the user-id a member of the project? not nil project-member
-    (if (empty? (project/project-member project-id user-id))
-      (project/add-project-member project-id user-id :permissions ["member" "admin" "owner"])
-      (project/set-member-permissions project-id user-id ["member" "admin" "owner"]))))
+    (if (project/project-member project-id user-id)
+      (project/set-member-permissions project-id user-id ["member" "admin" "owner"])
+      (project/add-project-member project-id user-id :permissions ["member" "admin" "owner"]))))
 
-(defn change-project-owner-to-group
-  [project-id group-id]
-  (with-transaction
-    (assert (not= (-> (project/get-project-owner project-id)
-                      vals first)
-                  group-id))
+(defn change-project-owner-to-group [project-id group-id]
+  (db/with-clear-project-cache project-id
     (remove-current-owner project-id)
-    ;; add an entry to project-group
+    ;; set project as owned by group
     (groups/create-project-group! project-id group-id)
-    ;; make the group owner the admin of the project
-    (let [group-owner-id (groups/get-group-owner group-id)]
-      (if (empty? (project/project-member project-id group-owner-id))
-        (project/add-project-member project-id group-owner-id :permissions ["member" "admin" "owner"])
-        (project/set-member-permissions project-id group-owner-id ["member" "admin" "owner"])))))
+    ;; make the group owner an admin of the project
+    (let [user-id (groups/get-group-owner group-id)]
+      (if (empty? (project/project-member project-id user-id))
+        ;; FIX: this breaks ownership logic? owned by user and group?
+        (project/add-project-member project-id user-id :permissions ["member" "admin" "owner"])
+        (project/set-member-permissions project-id user-id ["member" "admin" "owner"])))))
 
 (defn change-project-owner [project-id & {:keys [user-id group-id]}]
-  (cond user-id
-        (change-project-owner-to-user project-id user-id)
-        group-id
-        (change-project-owner-to-group project-id group-id)
-        :else
-        (throw (Exception. "No user-id or group-id given"))))
+  (sutil/assert-exclusive user-id group-id)
+  (cond user-id   (change-project-owner-to-user project-id user-id)
+        group-id  (change-project-owner-to-group project-id group-id)))
 
-;; example: transfer Tom's projects to InSilica
-;; (transfer-user-projects 139 :group-id 3)
 (defn transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
+  (sutil/assert-exclusive user-id group-id)
   (with-transaction
     (let [users-projects (->> (users/user-projects owner-user-id [:permissions])
                               (filter #(contains? (set (:permissions %)) "owner"))
                               (mapv :project-id))]
-      (cond user-id
-            (mapv #(change-project-owner % :user-id user-id) users-projects)
-            group-id
-            (mapv #(change-project-owner % :group-id group-id) users-projects)
-            :else
-            (throw (Exception. "No user-id or group-id given"))))))
+      (cond user-id   (mapv #(change-project-owner % :user-id user-id) users-projects)
+            group-id  (mapv #(change-project-owner % :group-id group-id) users-projects)))))
 
 (defn wrap-import-api [f]
   (let [{:keys [error]} (try (f)
@@ -195,33 +172,29 @@
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."
   [project-id search-term & {:keys [threads] :as options}]
-  (wrap-import-api
-   #(import/import-pubmed-search
-     project-id {:search-term search-term} options)))
+  (wrap-import-api #(import/import-pubmed-search
+                     project-id {:search-term search-term} options)))
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma
   separated file of PMIDs."
   [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api
-   #(import/import-pmid-file
-     project-id {:file file :filename filename} options)))
+  (wrap-import-api #(import/import-pmid-file
+                     project-id {:file file :filename filename} options)))
 
 (defn import-articles-from-endnote-file
   "Import articles from an Endnote XML file."
   [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api
-   #(import/import-endnote-xml
-     project-id {:file file :filename filename} options)))
+  (wrap-import-api #(import/import-endnote-xml
+                     project-id {:file file :filename filename} options)))
 
 (defn import-articles-from-pdf-zip-file
   "Import articles from the PDF files contained in a zip file. An
   article entry is created for each PDF, using filename as the article
   title."
   [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api
-   #(import/import-pdf-zip
-     project-id {:file file :filename filename} options)))
+  (wrap-import-api #(import/import-pdf-zip
+                     project-id {:file file :filename filename} options)))
 
 (s/def ::sources vector?)
 
@@ -232,11 +205,9 @@
 (defn-spec delete-source! (-> (req-un ::success) or-error)
   [source-id int?]
   (cond (source/source-has-labeled-articles? source-id)
-        {:error {:status forbidden
-                 :message "Source contains reviewed articles"}}
+        {:error {:status forbidden :message "Source contains reviewed articles"}}
         (not (source/source-exists? source-id))
-        {:error {:status not-found
-                 :message (str "source-id " source-id " does not exist")}}
+        {:error {:status not-found :message (str "source-id " source-id " does not exist")}}
         :else (let [project-id (source/source-id->project-id source-id)]
                 (source/delete-source source-id)
                 (predict-api/schedule-predict-update project-id)
@@ -264,14 +235,12 @@
     "http://localhost:4061"
     "https://sysrev.com"))
 
-(defn send-verification-email
-  "Send the verification email to user-id"
-  [user-id email]
-  (let [verify-code (users/email-verify-code user-id email)]
+(defn send-verification-email [user-id email]
+  (let [verify-code (users/email-verify-code user-id email)
+        url (str (sysrev-base-url) "/user/" user-id "/email/" verify-code)]
     (sendgrid/send-template-email
      email "Verify Your Email"
-     (str "Verify your email by clicking <a href='" (sysrev-base-url)
-          "/user/" user-id "/email/" verify-code "'>here</a>."))
+     (format "Verify your email by clicking <a href='%s'>here</a>." url))
     {:success true}))
 
 (defn register-user!
@@ -284,87 +253,60 @@
                       (try (users/create-user email password :project-id project-id)
                            true
                            (catch Throwable e e)))]
-      (cond
-        user
-        {:success false, :message "Account already exists for this email address"}
-        (isa? (type db-result) Throwable)
-        {:error {:status 500
-                 :message "Exception occurred while creating account"
-                 :exception db-result}}
-        (true? db-result)
-        (let [new-user (user-by-email email)]
-          ;; create-sysrev-stripe-customer! will handle
-          ;; logging any error messages related to not
-          ;; being able to create a stripe customer for the
-          ;; user
-          (users/create-sysrev-stripe-customer! new-user)
-          ;; create a subscription for the user. Uses default plan
-          (stripe/create-subscription-user! (user-by-email email))
-          ;; add email verification entry for email
-          (users/create-email-verification! (:user-id new-user) email :principal true)
-          ;; send verification email
-          (send-verification-email (:user-id new-user) email)
-          {:success true})
-        :else (throw (util/should-never-happen-exception))))))
+      (cond user
+            {:success false, :message "Account already exists for this email address"}
+            (isa? (type db-result) Throwable)
+            {:error {:status 500
+                     :message "Exception occurred while creating account"
+                     :exception db-result}}
+            (true? db-result)
+            (let [{:keys [user-id] :as new-user} (user-by-email email)]
+              (users/create-sysrev-stripe-customer! new-user)
+              ;; create default stripe subscription for user
+              (stripe/create-subscription-user! (user-by-email email))
+              ;; add email verification entry for email
+              (users/create-email-verification! user-id email :principal true)
+              ;; send verification email
+              (send-verification-email user-id email)
+              {:success true})
+            :else (throw (util/should-never-happen-exception))))))
 
-(defn update-user-stripe-payment-method!
-  "Using a stripe token, update the payment method for user-id"
-  [user-id token]
+(defn update-user-stripe-payment-method! [user-id stripe-token]
   (let [{:keys [stripe-id]} (get-user user-id)
-        stripe-response (stripe/update-customer-card! stripe-id token)]
+        stripe-response (stripe/update-customer-card! stripe-id stripe-token)]
     (if (:error stripe-response)
       stripe-response
       {:success true})))
 
-(defn update-org-stripe-payment-method!
-  "Using a stripe token, update the payment method for org-id"
-  [org-id token]
+(defn update-org-stripe-payment-method! [org-id stripe-token]
   (let [stripe-id (groups/get-stripe-id org-id)
-        stripe-response (stripe/update-customer-card! stripe-id token)]
+        stripe-response (stripe/update-customer-card! stripe-id stripe-token)]
     (if (:error stripe-response)
       stripe-response
       {:success true})))
 
-#_
-(defn plans
-  "Get available plans"
-  []
-  {:success true, :plans (->> (:data (stripe/get-plans))
-                              (filter #(not= (:name %) "ProjectSupport"))
-                              (mapv #(select-keys % [:name :amount :product])))})
-
-(defn current-plan
-  "Get the plan for user-id"
-  [user-id]
+(defn user-current-plan [user-id]
   {:success true, :plan (plans/get-current-plan user-id)})
 
-(defn current-group-plan
-  "Get the plan for group-id"
-  [group-id]
+(defn group-current-plan [group-id]
   {:success true, :plan (plans/get-current-plan-group group-id)})
 
-(defn subscribe-to-plan
-  "Subscribe user to plan-name"
-  [user-id plan-name]
+(defn subscribe-user-to-plan [user-id plan-name]
   (with-transaction
     (let [{:keys [stripe-id]} (get-user user-id)
           {:keys [sub-id]} (plans/get-current-plan user-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
           {:keys [body] :as stripe-response} (stripe/update-subscription-item!
-                                              {:id sub-item-id
-                                               :plan plan})]
+                                              {:id sub-item-id :plan plan})]
       (if (:error body)
         (update body :error #(merge % {:status not-found}))
         (do (plans/add-user-to-plan! user-id plan sub-id)
             (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
               (db/clear-project-cache project-id))
-            {:stripe-body body
-             :plan (plans/get-current-plan user-id)})))))
+            {:stripe-body body :plan (plans/get-current-plan user-id)})))))
 
-(defn subscribe-org-to-plan
-  "Subscribe the group to plan."
-  [group-id plan-name]
+(defn subscribe-org-to-plan [group-id plan-name]
   (with-transaction
     (let [stripe-id (groups/get-stripe-id group-id)
           {:keys [sub-id]} (plans/get-current-plan-group group-id)
@@ -372,43 +314,35 @@
           plan (stripe/get-plan-id plan-name)
           {:keys [body] :as stripe-response}
           (stripe/update-subscription-item!
-           {:id sub-item-id
-            :plan plan
-            :quantity (count (groups/read-users-in-group (groups/group-id->group-name group-id)))})]
+           {:id sub-item-id :plan plan :quantity (count (groups/read-users-in-group
+                                                         (groups/group-id->group-name group-id)))})]
       (if (:error body)
         (update body :error #(merge % {:status not-found}))
         (do (plans/add-group-to-plan! group-id plan sub-id)
             (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
               (db/clear-project-cache project-id))
-            {:stripe-body body
-             :plan (plans/get-current-plan-group group-id)})))))
+            {:stripe-body body :plan (plans/get-current-plan-group group-id)})))))
 
 (defn project-owner-plan
   "Return the plan name for the project owner of project-id"
   [project-id]
   (with-transaction
-    (let [project-owner (project/get-project-owner project-id)
-          owner-type (-> project-owner keys first)]
-      (condp = owner-type
-        :user-id (:name (plans/get-current-plan (:user-id project-owner)))
-        :group-id (:name (plans/get-current-plan-group (:group-id project-owner)))
-        ;; default
-        "Basic"))))
+    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
+      (cond user-id   (:name (plans/get-current-plan user-id))
+            group-id  (:name (plans/get-current-plan-group group-id))
+            :else     "Basic"))))
 
-(defn- project-grandfathered?
-  "Is the project grandfathered in?"
-  [project-id]
-  (let [created-clj-time (-> (project/get-project-by-id project-id) :date-created tc/from-sql-time)]
-    (t/before? created-clj-time (util/parse-time-string paywall-grandfather-date))))
+(defn- project-grandfathered? [project-id]
+  (let [{:keys [date-created]} (project/get-project-by-id project-id)]
+    (t/before? (tc/from-sql-time date-created)
+               (util/parse-time-string paywall-grandfather-date))))
 
-(defn project-unlimited-access?
-  [project-id]
+(defn project-unlimited-access? [project-id]
   (with-transaction
     (or (project-grandfathered? project-id)
         (contains? #{"Unlimited_Org" "Unlimited_User"} (project-owner-plan project-id)))))
 
-(defn change-project-settings
-  [project-id changes]
+(defn change-project-settings [project-id changes]
   (with-transaction
     (doseq [{:keys [setting value]} changes]
       (cond (and (= setting :public-access)
@@ -416,16 +350,11 @@
             (project/change-project-setting project-id (keyword setting) value)
             (and (= setting :public-access)
                  (= value false)
-                 (= "Basic" (project-owner-plan project-id)))
-            nil
-            ;; change option
-            :else
-            (project/change-project-setting project-id (keyword setting) value)))
+                 (= "Basic" (project-owner-plan project-id))) nil
+            :else (project/change-project-setting project-id (keyword setting) value)))
     {:success true, :settings (project/project-settings project-id)}))
 
-(defn support-project-monthly
-  "User supports project"
-  [user project-id amount]
+(defn support-project-monthly [user project-id amount]
   (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
     (cond
       (and (not (nil? amount))
@@ -451,23 +380,15 @@
       :else
       {:error {:message "Unexpected event in support-project"}})))
 
-(defn support-project-once
-  "User supports project-id by amount once"
-  [user project-id amount]
-  (cond
-    (and (not (nil? amount))
-         (< amount minimum-support-level))
-    {:error {:status forbidden
-             :type "amount_too_low"
+(defn support-project-once [user project-id amount]
+  (assert amount)
+  (if (< amount minimum-support-level)
+    {:error {:status forbidden :type "amount_too_low"
              :message {:minimum minimum-support-level}}}
-    (not (nil? amount))
-    (stripe/support-project-once! user project-id amount)
-    ;; something we hadn't planned for happened
-    :else
-    {:error {:message "Unexpected event in support-project"}}))
+    (stripe/support-project-once! user project-id amount)))
 
 (defn support-project
-  "User supports project-id by amount for duration of frequency"
+  "User supports project-id by amount, repeating by frequency"
   [user project-id amount frequency]
   (if (= frequency "monthly")
     (support-project-monthly user project-id amount)
@@ -498,57 +419,42 @@
           :else {:error {:status internal-server-error
                          :message "The PayPal response has an error"}})))
 
-(defn current-project-support-level
-  "The current level of support of this user for project-id"
-  [user project-id]
+(defn user-project-support-level [user project-id]
   {:result (select-keys (plans/user-current-project-support user project-id)
                         [:name :project-id :quantity])})
 
-(defn user-support-subscriptions
-  "The current support subscriptions for user"
-  [user]
+(defn user-support-subscriptions [user]
   {:result (mapv #(select-keys % [:name :project-id :quantity])
                  (plans/user-support-subscriptions user))})
 
-(defn cancel-project-support
-  "Cancel support for project-id by user"
-  [user project-id]
-  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
+(defn cancel-user-project-support [user project-id]
+  (let [{:keys [id]} (plans/user-current-project-support user project-id)]
     (stripe/cancel-subscription! id)
     {:success true}))
 
 (defn finalize-stripe-user!
   "Save a stripe user in our database for payouts"
   [user-id stripe-code]
-  (let [{:keys [body] :as finalize-response} (stripe/finalize-stripe-user! stripe-code)]
+  (let [{:keys [body] :as response} (stripe/finalize-stripe-user! stripe-code)]
     (if-let [stripe-user-id (:stripe_user_id body)]
-      ;; save the user information
-      (try (users/create-user-stripe stripe-user-id user-id)
-           {:success true}
-           (catch Throwable e
-             {:error {:status internal-server-error
-                      :message (.getMessage e)}}))
-      ;; return an error
-      {:error {:status (:status finalize-response)
+      (do (users/create-user-stripe stripe-user-id user-id)
+          {:success true})
+      {:error {:status (:status response)
                :message (:error_description body)}})))
 
-(defn user-stripe-default-source
-  [user-id]
+(defn user-default-stripe-source [user-id]
   (with-transaction
     {:default-source (or (some-> (:stripe-id (get-user user-id))
                                  (stripe/read-default-customer-source))
                          [])}))
 
-(defn org-stripe-default-source
-  [org-id]
+(defn org-default-stripe-source [org-id]
   (with-transaction
     {:default-source (or (some-> (groups/get-stripe-id org-id)
                                  (stripe/read-default-customer-source))
                          [])}))
 
-(defn user-has-stripe-account?
-  "Does the user have a stripe account associated with the platform?"
-  [user-id]
+(defn user-has-stripe-account? [user-id]
   {:connected (boolean (users/user-stripe-account user-id))})
 
 (defn read-project-compensations
@@ -556,17 +462,11 @@
   [project-id]
   {:compensations (compensation/read-project-compensations project-id)})
 
-(defn compensation-amount-exists?
-  [project-id rate]
-  (->> (compensation/read-project-compensations project-id)
-       (map #(get-in % [:rate]))
-       (filter #(= % rate))
-       empty?
-       not))
+(defn compensation-amount-exists? [project-id rate]
+  (boolean (seq (->> (compensation/read-project-compensations project-id)
+                     (filter #(= rate (get-in % [:rate])))))))
 
-(defn create-project-compensation!
-  "Create a compensation for project-id with rate"
-  [project-id rate]
+(defn create-project-compensation! [project-id rate]
   (if (compensation-amount-exists? project-id rate)
     {:error {:status bad-request, :message "That compensation already exists"}}
     (do (compensation/create-project-compensation! project-id rate)
@@ -602,40 +502,29 @@
   (let [current-compensation (->> (compensation/read-project-compensations project-id)
                                   (filterv #(= (:compensation-id %) compensation-id))
                                   first)]
-    (cond
-      ;; this compensation doesn't even exist
-      (nil? current-compensation)
-      {:error {:status not-found}}
-      ;; nothing changed, do nothing
-      (= enabled (:enabled current-compensation))
-      {:success true
-       :message (str "compensation-id " compensation-id
-                     " already has enabled = " enabled)}
-      ;; this compensation is being deactivated, so also disable all other compensations for users
-      (false? enabled)
-      (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
-          (compensation/end-compensation-period-for-all-users! project-id compensation-id)
-          {:success true})
-      (true? enabled)
-      (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
-          {:success true}))))
+    (cond (nil? current-compensation)
+          {:error {:status not-found}}
+          (= enabled (:enabled current-compensation))
+          {:success true :message (str "compensation-id " compensation-id
+                                       " already has enabled = " enabled)}
+          (false? enabled)
+          (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
+              (compensation/end-compensation-period-for-all-users! project-id compensation-id)
+              {:success true})
+          (true? enabled)
+          (do (compensation/set-project-compensation-enabled! project-id compensation-id enabled)
+              {:success true}))))
 
-(defn get-default-compensation
-  "Get the default compensation-id for project-id"
-  [project-id]
+(defn get-default-compensation [project-id]
   {:success true, :compensation-id (compensation/get-default-project-compensation project-id)})
 
-(defn set-default-compensation!
-  "Set the compensation-id to the default for project-id "
-  [project-id compensation-id]
-  (do (if (nil? compensation-id)
-        (compensation/delete-default-project-compensation! project-id)
-        (compensation/set-default-project-compensation! project-id compensation-id))
-      {:success true}))
+(defn set-default-compensation! [project-id compensation-id]
+  (if (nil? compensation-id)
+    (compensation/delete-default-project-compensation! project-id)
+    (compensation/set-default-project-compensation! project-id compensation-id))
+  {:success true})
 
-(defn set-user-compensation!
-  "Set the compensation-id for user-id in project-id"
-  [project-id user-id compensation-id]
+(defn set-user-compensation! [project-id user-id compensation-id]
   (let [project-compensations (set (->> (compensation/read-project-compensations project-id)
                                         (filter :enabled)
                                         (map :compensation-id)))
@@ -673,8 +562,7 @@
       :else {:error {:status precondition-failed
                      :message "An unknown error occurred"}})))
 
-(defn calculate-project-funds
-  [project-id]
+(defn calculate-project-funds [project-id]
   (let [available-funds (funds/project-funds project-id)
         compensation-outstanding (compensation/total-owed project-id)
         admin-fees (compensation/total-admin-fees project-id)
@@ -737,20 +625,14 @@
               :created now})
             {:result "success"}))))))
 
-(defn payments-owed
-  "A list of of payments owed by all projects to user-id that are compensating user-id"
-  [user-id]
+(defn user-payments-owed [user-id]
   {:payments-owed (compensation/payments-owed-user user-id)})
 
-(defn payments-paid
-  "A list of all payments made to user-id by project"
-  [user-id]
+(defn user-payments-paid [user-id]
   {:payments-paid (->> (compensation/payments-paid-user user-id)
                        (map #(update % :total-paid (partial * -1))))})
 
-(defn sync-labels
-  "Given a map of labels, sync them with project-id."
-  [project-id labels-map]
+(defn sync-labels [project-id labels-map]
   ;; first let's convert the labels to a set
   (with-transaction
     (let [client-labels (set (vals labels-map))
@@ -801,22 +683,17 @@
                       ;; finally, return a map
                       (apply merge))}))))
 
-(defn important-terms
-  "Given a project-id, return the term counts for the top n most used terms"
-  [project-id & [n]]
-  (let [n (or n 20)
+(defn project-important-terms [project-id & [max-terms]]
+  (let [max-terms (or max-terms 20)
         terms (importance/project-important-terms project-id)]
-    {:terms (->> terms (map-values #(->> %
-                                         (sort-by :instance-score >)
-                                         (take n)
+    {:terms (->> terms (map-values #(->> (sort-by :instance-score > %)
+                                         (take max-terms)
                                          (map (fn [term] (set/rename-keys
                                                           term {:instance-score :tfidf})))
                                          (into []))))
      :loading (importance/project-importance-loading? project-id)}))
 
-(defn prediction-histogram
-  "Given a project-id, return a vector of {:count <int> :score <float>}"
-  [project-id]
+(defn project-prediction-histogram [project-id]
   (db/with-project-cache project-id [:prediction-histogram]
     (let [all-score-vals (->> (range 0 1 0.02)
                               (mapv #(util/round-to % 0.02 2 :op :floor)))
@@ -898,14 +775,11 @@
     annotations))
 
 (defn article-abstract-annotations
-  "Given an article-id, return a vector of annotation maps for that
-  articles abstract"
+  "Returns a vector of annotation maps for an article abstract"
   [article-id]
   {:annotations (annotations-wrapper! (:abstract (article/get-article article-id)))})
 
-(defn label-count-data
-  "Given a project-id, return data for the label counts chart"
-  [project-id]
+(defn label-count-chart-data [project-id]
   {:data (charts/process-label-counts project-id)})
 
 (defn save-article-pdf [article-id file filename]
@@ -959,7 +833,7 @@
     {:error {:status not-found
              :message (str "No file found: " (pr-str [filename key]))}}))
 
-(defn process-annotation-context
+(defn- process-annotation-context
   "Convert the context annotation to the one saved on the server"
   [context article-id]
   (let [text-context (:text-context context)
@@ -984,16 +858,13 @@
           (db-annotations/associate-ann-s3 annotation-id s3-id)))
       {:success true, :annotation-id annotation-id})))
 
-(defn user-defined-annotations
-  [article-id]
+(defn article-user-annotations [article-id]
   {:success true, :annotations (db-annotations/user-defined-article-annotations article-id)})
 
-(defn user-defined-pdf-annotations
-  [article-id pdf-key]
-  (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)
-        annotations (db-annotations/user-defined-article-pdf-annotations
-                     article-id s3-id)]
-    {:success true, :annotations annotations}))
+(defn article-pdf-user-annotations [article-id pdf-key]
+  (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)]
+    {:success true, :annotations (db-annotations/user-defined-article-pdf-annotations
+                                  article-id s3-id)}))
 
 (defn delete-annotation! [annotation-id]
   (do (db-annotations/delete-annotation! annotation-id)
@@ -1017,62 +888,52 @@
 (defn pdf-download-url [article-id filename key]
   (str "/api/files/article/" article-id "/download/" key "/" filename))
 
-(defn project-annotations
-  "Retrieve all annotations for a project"
-  [project-id]
-  (let [annotations (db-annotations/project-annotations project-id)]
-    (->> annotations
-         (mapv #(assoc % :pmid (parse-integer (:public-id %))))
-         (mapv #(if-not (nil? (and (:filename %)
-                                   (:key %)))
-                  (assoc % :pdf-source (pdf-download-url
-                                        (:article-id %)
-                                        (:filename %)
-                                        (:key %)))
-                  %))
-         (mapv #(set/rename-keys % {:definition :semantic-class}))
-         (mapv (fn [result]
-                 (let [text-context (get-in result [:context :text-context])
-                       field (:field text-context)]
-                   (if (map? text-context)
-                     (assoc-in result [:context :text-context]
-                               (get result (keyword field)))
-                     (assoc-in result [:context :text-context]
-                               text-context)))))
-         (mapv #(select-keys % [:selection :annotation :semantic-class
-                                :pmid :article-id :pdf-source :context :user-id])))))
+(defn project-annotations [project-id]
+  (->> (db-annotations/project-annotations project-id)
+       (mapv #(assoc % :pmid (parse-integer (:public-id %))))
+       (mapv #(if-not (nil? (and (:filename %)
+                                 (:key %)))
+                (assoc % :pdf-source (pdf-download-url
+                                      (:article-id %)
+                                      (:filename %)
+                                      (:key %)))
+                %))
+       (mapv #(set/rename-keys % {:definition :semantic-class}))
+       (mapv (fn [result]
+               (let [text-context (get-in result [:context :text-context])
+                     field (:field text-context)]
+                 (if (map? text-context)
+                   (assoc-in result [:context :text-context]
+                             (get result (keyword field)))
+                   (assoc-in result [:context :text-context]
+                             text-context)))))
+       (mapv #(select-keys % [:selection :annotation :semantic-class
+                              :pmid :article-id :pdf-source :context :user-id]))))
 
 (defn project-annotation-status [project-id & {:keys [user-id]}]
   (with-transaction
-    (let [member? (and user-id (project/member-has-permission?
-                                project-id user-id "member"))]
+    (let [member? (and user-id (project/member-has-permission? project-id user-id "member"))]
       {:status (cond-> {:project (db-annotations/project-annotation-status project-id)}
                  member? (assoc :member (db-annotations/project-annotation-status
                                          project-id :user-id user-id)))})))
 
 (defn change-project-permissions [project-id users-map]
-  (do (assert project-id)
-      (with-transaction
-        (doseq [[user-id perms] (vec users-map)]
-          (project/set-member-permissions project-id user-id perms))
-        {:success true})))
+  (with-transaction
+    (doseq [[user-id perms] (vec users-map)]
+      (project/set-member-permissions project-id user-id perms))
+    {:success true}))
 
-(defn read-project-description
-  "Read project description of project-id"
-  [project-id]
+(defn read-project-description [project-id]
   {:success true, :project-description (markdown/read-project-description project-id)})
 
-(defn set-project-description!
-  "Set value for markdown description of project-id"
-  [project-id markdown]
+(defn set-project-description! [project-id markdown]
   (markdown/set-project-description! project-id markdown)
   {:success true, :project-description markdown})
 
 (defn public-projects []
   {:projects (project/all-public-projects)})
 
-(defn user-in-group-name?
-  [user-id group-name]
+(defn user-in-group-name? [user-id group-name]
   {:enabled (boolean (:enabled (groups/read-user-group-name user-id group-name)))})
 
 (defn set-user-group! [user-id group-name enabled]
@@ -1091,13 +952,10 @@
 (defn user-active-in-group? [user-id group-name]
   (groups/user-active-in-group? user-id group-name))
 
-(defn read-user-public-info
-  "Get the users public info"
-  [user-id]
+(defn read-user-public-info [user-id]
   (if-let [user (first (users/get-users-public-info [user-id]))]
     {:user user}
-    {:error {:status not-found
-             :message "That user does not exist"}}))
+    {:error {:status not-found :message "That user does not exist"}}))
 
 (defn send-invitation-email
   "Send an invitation email"
@@ -1149,14 +1007,12 @@
   (invitation/update-invitation-accepted! invitation-id accepted?)
   {:success true})
 
-(defn read-email-addresses
+(defn user-email-addresses
   "Given a user-id, return all email addresses associated with it"
   [user-id]
   {:addresses (users/get-user-emails user-id)})
 
-(defn verify-email!
-  "Verify the email for user-id with code"
-  [user-id code]
+(defn verify-user-email! [user-id code]
   ;; does the code match the one associated with user?
   (let [{:keys [verify-code verified email]} (users/user-email-status user-id code)]
     (cond
@@ -1183,9 +1039,7 @@
       {:error {:status internal-server-error
                :message "An unknown condition occured"}})))
 
-(defn create-email!
-  "Create an email entry to user-id"
-  [user-id new-email]
+(defn create-user-email! [user-id new-email]
   (let [current-email-entry (users/current-email-entry user-id new-email)]
     (cond
       ;; this email was already registerd to another user
@@ -1212,8 +1066,7 @@
       {:error {:status internal-server-error
                :message "An unknown condition occured"}})))
 
-(defn delete-email!
-  [user-id email]
+(defn delete-user-email! [user-id email]
   (let [current-email-entry (users/current-email-entry user-id email)]
     (cond (nil? current-email-entry)
           {:error {:status not-found
@@ -1228,8 +1081,7 @@
           {:error {:status bad-request
                    :messasge "An unkown error occured."}})))
 
-(defn set-primary-email!
-  [user-id email]
+(defn set-user-primary-email! [user-id email]
   (let [current-email-entry (users/current-email-entry user-id email)]
     (cond
       ;; already used for a main account
@@ -1253,10 +1105,6 @@
       {:error {:status internal-server-error
                :message "An unknown condition occured"}})))
 
-(defn update-project-predictions [project-id]
-  (future (predict-api/update-project-predictions project-id))
-  {:success true})
-
 (defn user-projects
   "Return a list of user projects for user-id, including non-public projects when self? is true"
   [user-id self?]
@@ -1270,14 +1118,11 @@
                                    (index-by :project-id labeled-summary)
                                    (index-by :project-id annotations-summary)))})))
 
-(defn update-user-introduction!
-  "Change the introduction for user-id"
-  [user-id introduction]
+(defn update-user-introduction! [user-id introduction]
   (users/update-user-introduction! user-id introduction)
   {:success true})
 
-(defn create-profile-image!
-  [user-id file filename]
+(defn create-profile-image! [user-id file filename]
   (let [image (user-image/save-user-profile-image user-id file filename)]
     {:success true :key (:key image)}))
 
@@ -1317,7 +1162,7 @@
                            (format "attachment: filename=\"default-profile.jpeg\"")))))
 
 (defn read-orgs
-  "Return all organzations user-id is a member of"
+  "Return all organizations user-id is a member of"
   [user-id]
   (with-transaction
     {:orgs (->> (groups/read-groups user-id)

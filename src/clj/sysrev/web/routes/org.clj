@@ -58,7 +58,7 @@
                      (GET "/default-source" request
                           (with-authorize request
                             {:authorize-fn (org-role? org-id ["owner" "admin"])}
-                            (api/org-stripe-default-source org-id)))
+                            (api/org-default-stripe-source org-id)))
                      (POST "/payment-method" request
                            (with-authorize request
                              {:authorize-fn (org-role? org-id ["owner" "admin"])}
@@ -67,7 +67,7 @@
                      (GET "/current-plan" request
                           (with-authorize request
                             {:authorize-fn (org-role? org-id ["owner" "admin" "member"])}
-                            (api/current-group-plan org-id)))
+                            (api/group-current-plan org-id)))
                      (POST "/subscribe-plan" request
                            (with-authorize request
                              {:authorize-fn (org-role? org-id ["owner" "admin"])}

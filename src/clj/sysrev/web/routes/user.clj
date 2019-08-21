@@ -47,10 +47,10 @@
            (api/read-orgs user-id)))
     (GET "/payments-owed" request
          (with-authorize request {:authorize-fn (user-authd? user-id)}
-           (api/payments-owed user-id)))
+           (api/user-payments-owed user-id)))
     (GET "/payments-paid" request
          (with-authorize request {:authorize-fn (user-authd? user-id)}
-           (api/payments-paid user-id)))
+           (api/user-payments-paid user-id)))
     (POST "/support-project" request
           (with-authorize request {:authorize-fn (user-authd? user-id)}
             (let [{:keys [project-id amount frequency]} (:body request)]
@@ -89,18 +89,18 @@
     (context "/stripe" []
              (GET "/default-source" request
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/user-stripe-default-source user-id)))
+                    (api/user-default-stripe-source user-id)))
              (POST "/payment-method" request
                    (with-authorize request {:authorize-fn (user-authd? user-id)}
                      (let [{:keys [token]} (:body request)]
                        (api/update-user-stripe-payment-method! user-id token))))
              (GET "/current-plan" request
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/current-plan user-id)))
+                    (api/user-current-plan user-id)))
              (POST "/subscribe-plan" request
                    (with-authorize request {:authorize-fn (user-authd? user-id)}
                      (let [{:keys [plan-name]} (:body request)]
-                       (api/subscribe-to-plan user-id plan-name)))))
+                       (api/subscribe-user-to-plan user-id plan-name)))))
     (GET "/invitations" request
          (with-authorize request {:authorize-fn (user-authd? user-id)}
            (api/read-user-invitations user-id)))
@@ -122,23 +122,23 @@
     (DELETE "/email" [:as request]
             (with-authorize request {:authorize-fn (user-authd? user-id)}
               (let [{:keys [email]} (:body request)]
-                (api/delete-email! user-id email))))
+                (api/delete-user-email! user-id email))))
     (POST "/email" [:as request]
           (with-authorize request {:authorize-fn (user-authd? user-id)}
             (let [{:keys [email]} (:body request)]
-              (api/create-email! user-id email))))
+              (api/create-user-email! user-id email))))
     (context "/email" []
              (GET "/addresses" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/read-email-addresses user-id)))
+                    (api/user-email-addresses user-id)))
              (PUT "/send-verification" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [email]} (:body request)]
                       (api/send-verification-email user-id email))))
              (PUT "/verify/:code" [code :as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/verify-email! user-id code)))
+                    (api/verify-user-email! user-id code)))
              (PUT "/set-primary" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [email]} (:body request)]
-                      (api/set-primary-email! user-id email))))))))
+                      (api/set-user-primary-email! user-id email))))))))

@@ -87,7 +87,7 @@
        (apply +)))
 
 (defn user-amount-paid [project-name email]
-  (->> (:payments-paid (api/payments-paid (user-by-email email :user-id)))
+  (->> (:payments-paid (api/user-payments-paid (user-by-email email :user-id)))
        (filter #(= (:project-name %) project-name))
        (map :total-paid)
        (apply +)))

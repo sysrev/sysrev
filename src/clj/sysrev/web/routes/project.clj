@@ -107,7 +107,7 @@
                     (labels/project-members-info project-id)
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
-                    (api/important-terms project-id)
+                    (api/project-important-terms project-id)
                     (try
                       (project/project-url-ids project-id)
                       (catch Throwable e
@@ -309,17 +309,17 @@
          (wrap-authorize
           request {:allow-public true}
           (let [{:keys [n]} (-> request :params)]
-            (api/important-terms (active-project request) (parse-integer n))))))
+            (api/project-important-terms (active-project request) (parse-integer n))))))
 
 (dr (GET "/api/prediction-histograms" request
          (wrap-authorize
           request {:allow-public true}
-          (api/prediction-histogram (active-project request)))))
+          (api/project-prediction-histogram (active-project request)))))
 
 (dr (GET "/api/charts/label-count-data" request
          (wrap-authorize
           request {:allow-public true}
-          (api/label-count-data (active-project request)))))
+          (api/label-count-chart-data (active-project request)))))
 
 ;;;
 ;;; Article import
@@ -669,14 +669,14 @@
 (dr (GET "/api/current-support" request
          (wrap-authorize
           request {:logged-in true}
-          (api/current-project-support-level
+          (api/user-project-support-level
            (users/get-user (current-user-id request))
            (active-project request)))))
 
 (dr (POST "/api/cancel-project-support" request
           (wrap-authorize
            request {:logged-in true}
-           (api/cancel-project-support
+           (api/cancel-user-project-support
             (users/get-user (current-user-id request))
             (active-project request)))))
 
@@ -795,12 +795,12 @@
 
 (dr (GET "/api/annotations/user-defined/:article-id" request
          (let [article-id (-> request :params :article-id parse-integer)]
-           (api/user-defined-annotations article-id))))
+           (api/article-user-annotations article-id))))
 
 (dr (GET "/api/annotations/user-defined/:article-id/pdf/:pdf-key" request
          (let [article-id (-> request :params :article-id parse-integer)
                pdf-key (-> request :params :pdf-key)]
-           (api/user-defined-pdf-annotations article-id pdf-key))))
+           (api/article-pdf-user-annotations article-id pdf-key))))
 
 #_(dr (GET "/api/annotations/:article-id" request
          (wrap-authorize
@@ -904,7 +904,7 @@
           (wrap-authorize
            request {:developer true}
            (let [project-id (active-project request)]
-             (assert (integer? project-id))
-             (api/update-project-predictions project-id)))))
+             (future (predict-api/update-project-predictions project-id))
+             {:success true}))))
 
 (finalize-routes)
