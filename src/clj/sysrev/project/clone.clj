@@ -213,30 +213,6 @@
               (doseq [ids-group (partition-all 200 article-ids)]
                 (source/add-articles-to-source ids-group source-id)))))))))
 
-(defn all-empty-legacy-sources
-  "Gets list of legacy sources with no articles."
-  []
-  (-> (select :ps.*)
-      (from [:project-source :ps])
-      (where
-       [:not
-        [:exists
-         (-> (select :*)
-             (from [:article-source :as])
-             (where [:= :as.source-id :ps.source-id]))]])
-      (->> do-query (filter #(-> % :meta :source (= "legacy"))))))
-
-(defn delete-empty-legacy-sources
-  "Deletes all legacy sources with no articles. This is needed because
-  these were being unintentionally created at one point."
-  []
-  (with-transaction
-    (let [source-ids (->> (all-empty-legacy-sources) (mapv :source-id))]
-      (when (not-empty source-ids)
-        (log/info "Deleting" (count source-ids) "empty legacy sources")
-        (doseq [source-id source-ids]
-          (source/delete-source source-id))))))
-
 ;; TODO: should copy "Project Documents" files
 ;; TODO: should copy project sources (not just articles)
 (defn clone-project

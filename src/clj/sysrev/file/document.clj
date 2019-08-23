@@ -46,12 +46,6 @@
 ;;; migration
 ;;;
 
-(defn migrate-filestore-table-needed? []
-  (and (q/table-exists? :project-document)
-       (zero? (q/table-count :project-document))
-       (try (pos? (q/table-count :filestore))
-            (catch Throwable _ false))))
-
 (defn- create-document-file [{:keys [key filename project-id user-id created delete-time]
                               :as fields}]
   (db/with-clear-project-cache project-id
@@ -59,8 +53,13 @@
                                            (update :key str)))]
       (q/create :project-document
                 (assoc (select-keys fields [:project-id :user-id :delete-time])
-                       :s3-id s3-id)
-                :returning :*))))
+                       :s3-id s3-id)))))
+
+(defn migrate-filestore-table-needed? []
+  (and (q/table-exists? :project-document)
+       (zero? (q/table-count :project-document))
+       (try (pos? (q/table-count :filestore))
+            (catch Throwable _ false))))
 
 (defn migrate-filestore-table []
   (when (migrate-filestore-table-needed?)
