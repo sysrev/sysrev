@@ -7,6 +7,10 @@
 * Major Tasks
 ** TODO [#A] Add support for article types
 *** TODO [#A] Support basic JSON type for article content
+** TODO [#A] Add support for generic project sources
+*** TODO Support using filtered articles from a referenced project
+*** TODO Support PubMed via new system
+*** TODO Support clinicaltrials.gov
 ** TODO [#A] Add documentation links
 *** TODO Create standard component for documentation links
 *** TODO Add links to GitHub wiki throughout app
@@ -25,6 +29,7 @@
 *** TODO [#B] Change window title to reflect current page + context (project, user, org, etc)
 *** TODO [#C] Return project description text in HTML meta element (project overview)
 ** TODO [#B] Add support for nested labels
+*** TODO Support conditional labels (appear based on value of another label)
 
 
 * Fixes
@@ -32,7 +37,8 @@
    If user is already editing an annotation ("Save" button shown),
    selecting new text will create a new entry but will not activate it,
    while the original entry remains active.
-** TODO [#B] Sidebar only when editing article (?)
+** TODO [#B] Check clicking "Articles" while source is importing
+** TODO [#B] Article list: "Inclusion" filter under "Label" doesn't work
 ** TODO [#B] Show an "Access Denied"-type message for PDFs instead of silently hiding
 ** TODO [#C] Fix clone-project issues
 *** TODO Copy sources along with articles
@@ -42,9 +48,16 @@
 * Improvements
 ** TODO [#A] Proper rendering of error messages on article import
 *** TODO Add test for display of these messages
+** TODO [#B] Send error events to a Slack channel
+   https://api.slack.com/incoming-webhooks
 ** TODO [#B] Allow removing members from project settings
+** TODO [#B] s3store table should have a file with bucket name string
+   Currently from Clojure we do lookup on key value from s3store table,
+   but s3store doesn't distinguish different S3 buckets, so could fail
+   on attempting to download from S3 (wrong bucket).
 ** TODO [#C] Allow dev users to delete account (user settings page)
 ** TODO [#C] Allow deleting projects with small number of labeled articles
+** TODO [#C] Add article list filter for inconsistent label inclusion values
 
 
 * Code Maintainence
@@ -53,18 +66,13 @@
 ** TODO [#A] Remove panel navigation subpanel logic (:navigate, load-default-panels)
 ** TODO [#B] Store error message/response automatically from {def-data,def-action}
 ** TODO [#B] Remove routes.cljs, move sr-defroute forms to panel namespaces
-** TODO [#B] Determine join field automatically in calls to q/find q/modify
 ** TODO [#C] Remove user default-project-id everywhere
 *** TODO Remove update-user-default-project function
 *** TODO Remove default-project-id from db
 ** TODO [#C] Add general mechanism for requiring login on a page
 ** TODO [#C] Remove unused project_member.membership_id field
 *** TODO Check that unique contraint exists for (project_id, user_id)
-** DONE Improve join syntax for q/find q/modify
-   CLOSED: [2019-08-09 Fri 09:33]
-** DONE Add more SQL clauses in q/find etc
-   CLOSED: [2019-08-09 Fri 09:34]
-   order-by, group, ...
+** TODO [#C] Support Postgres upsert in q/create
 
 
 * Test suite
@@ -76,11 +84,10 @@
 ** TODO [#C] Public review pages (logged out)
 ** TODO [#C] Public review pages (non-member)
 ** TODO [#C] Full testing for labels/annotations editor state
-** DONE [#A] Update test suite to use only ordinary (non-dev) accounts in tests
-   CLOSED: [2019-08-09 Fri 06:33]
 
 
 * Labels
+** TODO [#B] Make sure article_label.inclusion gets updated when label definition changes
 ** TODO [#C] Support changing/removing values in categorical label definitions
 ** TODO [#C] Add label editor field for string label regex requirement
 ** TODO [#C] Add keyword editor UI (within label definitions UI)
