@@ -1,4 +1,4 @@
-(ns sysrev.charts
+(ns sysrev.project.charts
   (:require [sysrev.db.core :refer [with-project-cache]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as labels]

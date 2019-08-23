@@ -4,7 +4,7 @@
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-project-cache clear-project-cache]]
-            [sysrev.entity :as e]
+            [sysrev.db.entity :as e]
             [sysrev.db.queries :as q]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]

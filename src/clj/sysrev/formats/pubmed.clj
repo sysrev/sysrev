@@ -1,4 +1,4 @@
-(ns sysrev.pubmed
+(ns sysrev.formats.pubmed
   (:require [clojure.tools.logging :as log]
             [clojure.set :as set]
             [clojure.string :as str]

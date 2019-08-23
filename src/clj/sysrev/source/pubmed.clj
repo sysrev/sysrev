@@ -1,6 +1,6 @@
 (ns sysrev.source.pubmed
   (:require [sysrev.config.core :as config]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))
 

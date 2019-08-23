@@ -16,7 +16,7 @@
             [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
-            [sysrev.clone-project :as clone]
+            [sysrev.project.clone :as clone]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.predict.core :as predict]

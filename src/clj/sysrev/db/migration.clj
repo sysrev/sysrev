@@ -28,10 +28,10 @@
             [sysrev.util :refer [parse-xml-str]]
             [sysrev.source.core :as source]
             [sysrev.source.endnote :refer [load-endnote-record]]
-            [sysrev.clone-project :as clone]
-            [sysrev.pubmed :refer
+            [sysrev.project.clone :as clone]
+            [sysrev.formats.pubmed :refer
              [extract-article-location-entries parse-pmid-xml]]
-            [sysrev.stripe :as stripe])
+            [sysrev.payment.stripe :as stripe])
   (:import java.util.UUID))
 
 (defn ensure-user-default-project-ids
@@ -175,8 +175,7 @@
   so that there is a record of their existence. If a plan is changed
   on the stripe, it is updated here."
   []
-  (let [plans (->> (stripe/get-plans)
-                   :data
+  (let [plans (->> (:data (stripe/all-plans))
                    (mapv #(select-keys % [:nickname :created :id]))
                    (mapv #(set/rename-keys % {:nickname :name})))]
     (-> (insert-into :stripe-plan)

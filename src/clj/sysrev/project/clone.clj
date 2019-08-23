@@ -1,4 +1,4 @@
-(ns sysrev.clone-project
+(ns sysrev.project.clone
   (:require [clojure.java.io :as io]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

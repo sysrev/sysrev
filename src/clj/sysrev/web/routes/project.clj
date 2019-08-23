@@ -37,7 +37,7 @@
             [sysrev.predict.report :as predict-report]
             [sysrev.shared.keywords :as keywords]
             [sysrev.shared.transit :as sr-transit]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.config.core :refer [env]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]])

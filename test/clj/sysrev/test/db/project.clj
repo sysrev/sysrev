@@ -10,7 +10,7 @@
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture completes?]]
             [sysrev.test.db.core :refer [test-project-ids]]))
 

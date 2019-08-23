@@ -5,7 +5,7 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.api :as api]
             [sysrev.db.groups :as groups]
-            [sysrev.db.plans :refer [get-current-plan]]
+            [sysrev.payment.plans :refer [user-current-plan]]
             [sysrev.project.core :as project]
             [sysrev.db.users :as users :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -15,7 +15,7 @@
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.core :as test]
-            [sysrev.stripe :as stripe]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -220,10 +220,10 @@
     (when-not (user-by-email email :stripe-id)
       (log/info (str "Stripe Customer created for " email))
       (users/create-sysrev-stripe-customer! (user-by-email email)))
-    (when-not (get-current-plan user-id)
-      (stripe/create-subscription-user! (user-by-email email)))
+    (when-not (user-current-plan user-id)
+      (stripe/create-user-subscription! (user-by-email email)))
     ;; current plan
-    (b/is-soon (= stripe/default-plan (:name (get-current-plan user-id))) 3000 50)
+    (b/is-soon (= stripe/default-plan (:name (user-current-plan user-id))) 3000 50)
     (plans/wait-until-stripe-id email)
     ;; start tests
     (nav/log-in)

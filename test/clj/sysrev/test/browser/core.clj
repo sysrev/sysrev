@@ -17,7 +17,7 @@
             [sysrev.db.users :as users]
             [sysrev.project.core :as project]
             [sysrev.db.groups :as groups]
-            [sysrev.stripe :as stripe]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
             [sysrev.util :as util]

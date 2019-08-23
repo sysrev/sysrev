@@ -15,38 +15,38 @@
             [sysrev.biosource.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.cache :refer [db-memo]]
-            [sysrev.charts :as charts]
+            [sysrev.project.charts :as charts]
             [sysrev.config.core :refer [env]]
             [sysrev.article.core :as article]
             [sysrev.db.queries :as q]
             [sysrev.db.annotations :as db-annotations]
-            [sysrev.db.compensation :as compensation]
+            [sysrev.project.compensation :as compensation]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.article :as article-file]
             [sysrev.file.user-image :as user-image]
-            [sysrev.db.funds :as funds]
+            [sysrev.project.funds :as funds]
             [sysrev.db.groups :as groups]
-            [sysrev.db.invitation :as invitation]
+            [sysrev.project.invitation :as invitation]
             [sysrev.label.core :as labels]
             [sysrev.label.define :as ldefine]
             [sysrev.db.markdown :as markdown]
-            [sysrev.db.plans :as plans]
+            [sysrev.payment.plans :as plans]
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.source.pmid :as src-pmid]
             [sysrev.db.users :as users :refer [get-user user-by-email]]
             [sysrev.source.endnote :as endnote]
-            [sysrev.pubmed :as pubmed]
-            [sysrev.paypal :as paypal]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.payment.paypal :as paypal]
             [sysrev.sendgrid :as sendgrid]
-            [sysrev.stripe :as stripe]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.util :refer [parse-integer]]
-            [sysrev.util :as util]
+            [sysrev.util :as util :refer [to-clj-time]]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un]]
             [sysrev.biosource.predict :as predict-api])
   (:import [java.io ByteArrayInputStream]
@@ -263,7 +263,7 @@
             (let [{:keys [user-id] :as new-user} (user-by-email email)]
               (users/create-sysrev-stripe-customer! new-user)
               ;; create default stripe subscription for user
-              (stripe/create-subscription-user! (user-by-email email))
+              (stripe/create-user-subscription! (user-by-email email))
               ;; add email verification entry for email
               (users/create-email-verification! user-id email :principal true)
               ;; send verification email
@@ -286,15 +286,15 @@
       {:success true})))
 
 (defn user-current-plan [user-id]
-  {:success true, :plan (plans/get-current-plan user-id)})
+  {:success true, :plan (plans/user-current-plan user-id)})
 
 (defn group-current-plan [group-id]
-  {:success true, :plan (plans/get-current-plan-group group-id)})
+  {:success true, :plan (plans/group-current-plan group-id)})
 
 (defn subscribe-user-to-plan [user-id plan-name]
   (with-transaction
     (let [{:keys [stripe-id]} (get-user user-id)
-          {:keys [sub-id]} (plans/get-current-plan user-id)
+          {:keys [sub-id]} (plans/user-current-plan user-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
           {:keys [body] :as stripe-response} (stripe/update-subscription-item!
@@ -304,12 +304,12 @@
         (do (plans/add-user-to-plan! user-id plan sub-id)
             (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
               (db/clear-project-cache project-id))
-            {:stripe-body body :plan (plans/get-current-plan user-id)})))))
+            {:stripe-body body :plan (plans/user-current-plan user-id)})))))
 
 (defn subscribe-org-to-plan [group-id plan-name]
   (with-transaction
     (let [stripe-id (groups/get-stripe-id group-id)
-          {:keys [sub-id]} (plans/get-current-plan-group group-id)
+          {:keys [sub-id]} (plans/group-current-plan group-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
           {:keys [body] :as stripe-response}
@@ -321,15 +321,15 @@
         (do (plans/add-group-to-plan! group-id plan sub-id)
             (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
               (db/clear-project-cache project-id))
-            {:stripe-body body :plan (plans/get-current-plan-group group-id)})))))
+            {:stripe-body body :plan (plans/group-current-plan group-id)})))))
 
 (defn project-owner-plan
   "Return the plan name for the project owner of project-id"
   [project-id]
   (with-transaction
     (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
-      (cond user-id   (:name (plans/get-current-plan user-id))
-            group-id  (:name (plans/get-current-plan-group group-id))
+      (cond user-id   (:name (plans/user-current-plan user-id))
+            group-id  (:name (plans/group-current-plan group-id))
             :else     "Basic"))))
 
 (defn- project-grandfathered? [project-id]
@@ -404,8 +404,8 @@
           (let [amount (-> response :transactions first (get-in [:amount :total])
                            read-string (* 100) (Math/round))
                 transaction-id (:id response)
-                created (-> response :transactions first :related_resources
-                            first :sale :create_time paypal/paypal-date->unix-epoch)]
+                created (to-clj-time (-> response :transactions first :related_resources first
+                                         :sale :create_time paypal/paypal-date->unix-epoch))]
             ;; all paypal transactions will be considered pending
             (funds/create-project-fund-pending-entry!
              {:project-id project-id
@@ -519,9 +519,7 @@
   {:success true, :compensation-id (compensation/get-default-project-compensation project-id)})
 
 (defn set-default-compensation! [project-id compensation-id]
-  (if (nil? compensation-id)
-    (compensation/delete-default-project-compensation! project-id)
-    (compensation/set-default-project-compensation! project-id compensation-id))
+  (compensation/set-default-project-compensation! project-id compensation-id)
   {:success true})
 
 (defn set-user-compensation! [project-id user-id compensation-id]
@@ -564,8 +562,8 @@
 
 (defn calculate-project-funds [project-id]
   (let [available-funds (funds/project-funds project-id)
-        compensation-outstanding (compensation/total-owed project-id)
-        admin-fees (compensation/total-admin-fees project-id)
+        compensation-outstanding (compensation/project-total-owed project-id)
+        admin-fees (compensation/project-total-admin-fees project-id)
         current-balance (- available-funds compensation-outstanding admin-fees)
         pending-funds (->> (funds/pending-funds project-id)
                            (map :amount)
@@ -592,44 +590,38 @@
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 (defn pay-user!
   [project-id user-id compensation admin-fee]
-  (let [available-funds (:available-funds (calculate-project-funds project-id))
-        user (get-user user-id)
-        total-amount (+ compensation admin-fee)]
-    (cond
-      (> total-amount available-funds)
+  (let [user (get-user user-id)
+        total-amount (+ compensation admin-fee)
+        {:keys [available-funds]} (calculate-project-funds project-id)]
+    (if (> total-amount available-funds)
       {:error {:status payment-required
                :message "Not enough available funds to fulfill this payment"}}
-      (<= total-amount available-funds)
-      (let [{:keys [status body]}
-            (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
-        (if-not (= status 201)
-          {:error {:status bad-request
-                   :message (get-in body [:message])}}
-          (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
-                now (util/to-epoch (db/sql-now))]
+      (let [{:keys [status body]} (paypal/paypal-oauth-request
+                                   (paypal/send-payout! user compensation))]
+        (if (not= status 201)
+          {:error {:status bad-request :message (get-in body [:message])}}
+          (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])]
             ;; deduct for funds to the user
             (funds/create-project-fund-entry!
              {:project-id project-id
               :user-id user-id
               :amount (- compensation)
               :transaction-id payout-batch-id
-              :transaction-source (:paypal-payout funds/transaction-source-descriptor)
-              :created now})
+              :transaction-source (:paypal-payout funds/transaction-source-descriptor)})
             ;; deduct admin fee
             (funds/create-project-fund-entry!
              {:project-id project-id
               :user-id user-id
               :amount (- admin-fee)
               :transaction-id (str (UUID/randomUUID))
-              :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
-              :created now})
+              :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)})
             {:result "success"}))))))
 
 (defn user-payments-owed [user-id]
-  {:payments-owed (compensation/payments-owed-user user-id)})
+  {:payments-owed (compensation/payments-owed-to-user user-id)})
 
 (defn user-payments-paid [user-id]
-  {:payments-paid (->> (compensation/payments-paid-user user-id)
+  {:payments-paid (->> (compensation/payments-paid-to-user user-id)
                        (map #(update % :total-paid (partial * -1))))})
 
 (defn sync-labels [project-id labels-map]
@@ -1186,7 +1178,7 @@
               stripe-id (groups/get-stripe-id new-org-id)]
           ;; set the user as group admin
           (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
-          (stripe/create-subscription-org! new-org-id stripe-id)
+          (stripe/create-org-subscription! new-org-id stripe-id)
           {:success true, :id new-org-id})))))
 
 (defn search-users [term]

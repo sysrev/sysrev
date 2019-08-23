@@ -15,7 +15,7 @@
             [sysrev.shared.spec.notes :as snt]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction with-project-cache clear-project-cache]]
-            [sysrev.db.compensation :as compensation]
+            [sysrev.project.compensation :as compensation]
             [sysrev.article.core :refer
              [set-article-flag remove-article-flag article-to-sql]]
             [sysrev.db.queries :as q]

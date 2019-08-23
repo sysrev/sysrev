@@ -1,4 +1,4 @@
-(ns sysrev.paypal
+(ns sysrev.payment.paypal
   (:require [clj-http.client :as client]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
@@ -6,7 +6,7 @@
             [clj-time.local :as l]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db]
-            [sysrev.db.funds :as funds]
+            [sysrev.project.funds :as funds]
             [sysrev.util :as util]))
 
 ;; entrypoint for dashboard:
@@ -154,24 +154,17 @@
 (defn check-transaction!
   "Given a payment-id, check to see what the current status of the sale is. Update its status if it has changed, if it has changed to complete, insert it into the project-fund"
   [payment-id]
-  (let [{:keys [status project-id user-id amount transaction-id transaction-source] :as pending-transaction} (funds/get-pending-payment payment-id)
+  (let [{:keys [status project-id user-id amount transaction-id
+                transaction-source]} (funds/get-pending-payment payment-id)
         payment-response (paypal-oauth-request (get-payment payment-id))
-        sale-state (-> (get-in payment-response [:body :transactions]) first :related_resources first :sale :state)]
-    (cond (= sale-state "completed")
-          (do (funds/update-project-fund-pending-entry! {:transaction-id payment-id
-                                                         :status sale-state})
-              (funds/create-project-fund-entry! {:project-id project-id
-                                                 :user-id user-id
-                                                 :amount amount
-                                                 :transaction-id transaction-id
-                                                 :transaction-source transaction-source
-                                                 :created (util/to-epoch (db/sql-now))}))
-          ;; nothing has changed, do nothing
-          (= sale-state status)
-          nil
-          ;; status has changed, update it
-          (not= sale-state status)
-          (funds/update-project-fund-pending-entry! {:transaction-id transaction-id
-                                                     :status sale-state})
-          :else
-          (throw (Exception. (str "Something unexpected occured in " (util/current-function-name)))))))
+        sale-state (-> (get-in payment-response [:body :transactions])
+                       first :related_resources first :sale :state)]
+    (cond (= sale-state "completed") ; payment completed
+          (do (funds/update-project-fund-pending-entry!
+               {:transaction-id payment-id :status sale-state})
+              (funds/create-project-fund-entry!
+               {:project-id project-id :user-id user-id :amount amount
+                :transaction-id transaction-id :transaction-source transaction-source}))
+          (not= sale-state status) ; status has changed, update it
+          (funds/update-project-fund-pending-entry!
+           {:transaction-id transaction-id :status sale-state}))))

@@ -146,8 +146,7 @@
             (= (type t) java.sql.Timestamp)   (tc/from-sql-time t)
             (= (type t) java.sql.Date)        (tc/from-sql-date t)
             (integer? t)                      (tc/from-epoch t)
-            (string? t)                       (parse-time-string t)
-            :else                             nil)
+            (string? t)                       (parse-time-string t))
       (throw (ex-info "to-clj-time: unable to convert value" {:value t}))))
 
 (defn to-epoch

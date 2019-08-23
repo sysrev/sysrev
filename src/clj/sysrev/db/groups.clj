@@ -3,7 +3,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :as db :refer [do-query do-execute sql-now to-sql-array with-transaction]]
             [sysrev.db.users :as users]
-            [sysrev.stripe :as stripe]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 

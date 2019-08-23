@@ -6,7 +6,7 @@
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
             [sysrev.db.users :as users :refer [user-by-email]]
-            [sysrev.stripe :as stripe]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]

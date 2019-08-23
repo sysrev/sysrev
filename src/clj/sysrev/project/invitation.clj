@@ -1,4 +1,4 @@
-(ns sysrev.db.invitation
+(ns sysrev.project.invitation
   (:require [sysrev.db.core :refer [do-query do-execute sql-now]]
             [honeysql.helpers :as sqlh :refer [select from insert-into where values join sset]]
             [honeysql-postgres.helpers :refer [returning]]

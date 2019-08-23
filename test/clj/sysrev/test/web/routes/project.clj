@@ -9,7 +9,7 @@
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
 

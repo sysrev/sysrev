@@ -16,7 +16,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.migration :as migrate]
             [sysrev.label.core :as labels]
-            [sysrev.stripe :as stripe]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.util :as util :refer [shell]]
             [sysrev.shared.util :as sutil :refer [in?]]))
 

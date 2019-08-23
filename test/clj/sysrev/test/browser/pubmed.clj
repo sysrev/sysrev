@@ -6,7 +6,7 @@
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.db.core :as db]
             [sysrev.source.import :as import]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :as x :refer [xpath]]

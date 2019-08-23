@@ -4,7 +4,7 @@
 ;;; refactoring
 ;;;
 
-(ns sysrev.entity
+(ns sysrev.db.entity
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]

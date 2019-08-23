@@ -2,7 +2,7 @@
   (:refer-clojure :exclude [find])
   (:use sysrev.logging
         sysrev.util
-        sysrev.entity
+        sysrev.db.entity
         sysrev.article.core
         sysrev.article.assignment
         sysrev.db.core
@@ -16,9 +16,9 @@
         sysrev.source.core
         sysrev.db.article-list
         sysrev.db.annotations
-        sysrev.db.plans
+        sysrev.payment.plans
         sysrev.cassandra
-        sysrev.clone-project
+        sysrev.project.clone
         sysrev.file.core
         sysrev.file.s3
         sysrev.file.article
@@ -27,8 +27,8 @@
         sysrev.source.endnote
         sysrev.source.pdf-zip
         sysrev.export.endnote
-        sysrev.paypal
-        sysrev.stripe
+        sysrev.payment.paypal
+        sysrev.payment.stripe
         sysrev.predict.core
         sysrev.predict.report
         sysrev.biosource.predict
@@ -94,7 +94,7 @@
             sysrev.test.all
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])
   (:import java.util.UUID))
 

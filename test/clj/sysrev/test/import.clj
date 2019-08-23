@@ -7,7 +7,7 @@
             [clojure.java.io :as io]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.test.core :as test :refer [completes?]]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]

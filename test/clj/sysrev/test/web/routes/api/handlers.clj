@@ -4,7 +4,7 @@
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.db.users :as users]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]

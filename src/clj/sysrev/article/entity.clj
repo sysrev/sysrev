@@ -6,7 +6,7 @@
 (ns sysrev.article.entity
   (:require [sysrev.article.core :as a]
             [sysrev.file.article :as article-file]
-            [sysrev.entity :as e]))
+            [sysrev.db.entity :as e]))
 
 (e/def-entity :article {:primary-key :article-id})
 

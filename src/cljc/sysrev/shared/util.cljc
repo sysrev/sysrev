@@ -293,6 +293,9 @@
        (assert (> count# 0) (str "no value provided from " ~show-syms))
        (assert (< count# 2) (str "multiple values provided from " ~show-syms)))))
 
+(defmacro nilable-coll [pred & opts]
+  `(s/nilable (s/coll-of ~pred ~@opts)))
+
 ;;;
 ;;; Not used, keeping in case needed later
 ;;;
