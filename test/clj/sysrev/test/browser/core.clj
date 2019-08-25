@@ -383,8 +383,8 @@
                          (catch Throwable e2#
                            (log/info "test cleanup - wait-until-loading-completes timed out")))
                     (when-not ~repl?
-                      (ensure-logged-out)
-                      ~cleanup)))))))))
+                      ~cleanup
+                      (ensure-logged-out))))))))))
 
 (defn current-frame-names []
   (->> (taxi/xpath-finder "//iframe")
