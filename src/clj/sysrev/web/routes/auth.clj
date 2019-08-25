@@ -10,7 +10,7 @@
             [sysrev.mail.core :refer [send-email]]
             [sysrev.db.core :as db]
             [sysrev.web.routes.core :refer [setup-local-routes]]
-            [sysrev.web.app :as web :refer [wrap-authorize]]
+            [sysrev.web.app :as web :refer [with-authorize]]
             [sysrev.config.core :refer [env]])
   (:import com.google.api.client.http.javanet.NetHttpTransport
            com.google.api.client.json.jackson2.JacksonFactory
@@ -157,16 +157,14 @@
             {:success true})))
 
 (dr (GET "/api/stripe/connected/:user-id" request
-         (wrap-authorize
-          request {:logged-in true}
-          (let [user-id (-> request :params :user-id Integer/parseInt)]
-            (api/user-has-stripe-account? user-id)))))
+         (with-authorize request {:logged-in true}
+           (let [user-id (-> request :params :user-id Integer/parseInt)]
+             (api/user-has-stripe-account? user-id)))))
 
 (dr (POST "/api/stripe/finalize-user" request
-          (wrap-authorize
-           request {:logged-in true}
-           (let [{:keys [user-id stripe-code]} (-> request :body)]
-             (api/finalize-stripe-user! user-id stripe-code)))))
+          (with-authorize request {:logged-in true}
+            (let [{:keys [user-id stripe-code]} (-> request :body)]
+              (api/finalize-stripe-user! user-id stripe-code)))))
 
 (finalize-routes)
 

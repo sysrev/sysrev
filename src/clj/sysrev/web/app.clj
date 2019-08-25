@@ -250,11 +250,11 @@
     :as conditions}
    & body]
   (assert ((comp not empty?) body)
-          "wrap-authorize: missing body form")
+          "with-authorize: missing body form")
   (assert (not (and (contains? conditions :allow-public)
                     (or (contains? conditions :logged-in)
                         (contains? conditions :roles))))
-          (str "wrap-authorize: `logged-in` and `roles` are not"
+          (str "with-authorize: `logged-in` and `roles` are not"
                " allowed when `allow-public` is set"))
   `(let [ ;; macro parameter gensyms
          request# ~request
@@ -306,7 +306,7 @@
            {:error {:status 403 :type :project
                     :message "No project selected"}}
 
-           (and (not-empty roles#) ; member role requirements are set
+           (and (not-empty roles#)  ; member role requirements are set
                 (not (some (in? mperms#) roles#)) ; member doesn't have any permitted role
                 (not dev-user?#)) ; allow dev users to ignore project role conditions
            {:error {:status 403 :type :project
@@ -324,19 +324,6 @@
                     :message "This action requires an upgraded plan"}}
 
            :else (body-fn#))))
-
-(defmacro wrap-authorize
-  [request
-   {:keys [logged-in developer roles allow-public authorize-fn bypass-subscription-lapsed?]
-    :or {logged-in nil
-         developer false
-         allow-public false
-         roles nil
-         authorize-fn nil
-         bypass-subscription-lapsed? false}
-    :as conditions}
-   & body]
-  `(with-authorize ~request ~conditions ~@body))
 
 ;; Overriding this to allow route handler functions to return result as
 ;; map value with the value being placed in response :body here.
