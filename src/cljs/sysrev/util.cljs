@@ -385,3 +385,9 @@
   (if (> i 999)
     (-> (/ i 1000) ($ toFixed 1) (str "K"))
     (str i)))
+
+(defn ui-theme-from-dom-css []
+  (cond (pos? (-> (js/$ "link[href='/css/style.dark.css']") ($ :length)))
+        "Dark"
+        (pos? (-> (js/$ "link[href='/css/style.default.css']") ($ :length)))
+        "Default"))

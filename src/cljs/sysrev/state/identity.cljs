@@ -6,7 +6,7 @@
             [sysrev.state.nav :refer [get-login-redirect-url]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :refer [dissoc-in]]
+            [sysrev.util :as util :refer [dissoc-in]]
             [sysrev.shared.util :refer [in? to-uuid]]))
 
 (defn have-identity? [db]
@@ -20,9 +20,9 @@
   :process
   (fn [{:keys [db]} _ {:keys [identity projects orgs]}]
     (let [have-user? (contains? identity :user-id)
-          cur-theme (get-in db [:state :identity :settings :ui-theme])
-          new-theme (get-in identity [:settings :ui-theme])
-          theme-changed? (and cur-theme (not= new-theme cur-theme))
+          cur-theme (util/ui-theme-from-dom-css)
+          new-theme (or (get-in identity [:settings :ui-theme]) "Default")
+          theme-changed? (and cur-theme (not= cur-theme new-theme))
           identity (some-> identity (update :user-uuid to-uuid))
           url-ids-map (->> projects
                            (map (fn [{:keys [project-id url-ids]}]
@@ -75,11 +75,6 @@
        (list [:ga-event "auth" "register_failure"]
              [:set-login-error-msg message])})))
 
-(reg-event-db
- :self/unset-identity
- (fn [db]
-   (dissoc-in db [:state :identity])))
-
 (reg-sub ::identity #(get-in % [:state :identity]))
 
 (reg-sub :self/email
@@ -124,25 +119,26 @@
            ((comp :permissions first)
             (filter #(= (:group-id %) org-id) orgs))))
 
-(reg-sub
- :self/member?
- :<- [:self/user-id]
- :<- [:self/projects false]
- :<- [:active-project-id]
- (fn [[user-id projects active-id] [_ project-id]]
-   (let [project-id (or project-id active-id)]
-     (when (and user-id project-id)
-       (in? (map :project-id projects) project-id)))))
+(reg-sub :self/member?
+         :<- [:self/user-id]
+         :<- [:self/projects false]
+         :<- [:active-project-id]
+         (fn [[user-id projects active-id] [_ project-id]]
+           (let [project-id (or project-id active-id)]
+             (when (and user-id project-id)
+               (in? (map :project-id projects) project-id)))))
 
-(reg-sub
- :self/settings
- :<- [::identity]
- (fn [identity] (:settings identity)))
+(reg-sub :self/settings
+         :<- [::identity]
+         (fn [identity] (:settings identity)))
 
-(reg-sub
- :self/dark-theme?
- :<- [:self/settings]
- (fn [settings] (-> settings :ui-theme (= "Dark"))))
+(reg-sub :self/ui-theme
+         :<- [:self/settings]
+         (fn [settings] (if (-> settings :ui-theme (= "Dark")) "Dark" "Default")))
+
+(reg-sub :self/dark-theme?
+         :<- [:self/ui-theme]
+         (fn [ui-theme] (= ui-theme "Dark")))
 
 (def-action :user/change-settings
   :uri (fn [_] "/api/change-user-settings")
@@ -160,9 +156,10 @@
   :content (fn [settings] {:settings settings})
   :process (fn [{:keys [db]} _ {:keys [settings]}]
              (when (nil? (current-user-id db))
-               (let [old-settings (get-in db [:state :identity :settings])]
-                 (if (not= (:ui-theme settings)
-                           (:ui-theme old-settings))
+               (let [cur-theme (util/ui-theme-from-dom-css)
+                     new-theme (or (:ui-theme settings) "Default")
+                     theme-changed? (and cur-theme (not= cur-theme new-theme))]
+                 (if theme-changed?
                    {:reload-page [true]}
                    {:db (assoc-in db [:state :identity :settings]
                                   settings)})))))
@@ -171,8 +168,7 @@
   :uri (fn [_] "/api/delete-user")
   :content (fn [verify-user-id] {:verify-user-id verify-user-id})
   :process (fn [{:keys [db]} _ result]
-             {:db (-> db
-                      (assoc-in [:state :identity] nil)
+             {:db (-> (assoc-in db [:state :identity] nil)
                       (dissoc-in [:state :self]))
               :reset-data true
               :nav-scroll-top "/"
