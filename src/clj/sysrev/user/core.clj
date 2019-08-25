@@ -1,4 +1,4 @@
-(ns sysrev.db.users
+(ns sysrev.user.core
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clojure.spec.alpha :as s]

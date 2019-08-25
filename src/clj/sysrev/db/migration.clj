@@ -18,16 +18,16 @@
             [sysrev.project.core :as project :refer
              [add-project-member set-member-permissions
               default-project-settings]]
-            [sysrev.db.groups :as groups]
+            [sysrev.group.core :as group]
             [sysrev.article.core :as article]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
             [sysrev.source.core :as source]
-            [sysrev.source.endnote :refer [load-endnote-record]]
+            [sysrev.formats.endnote :refer [load-endnote-record]]
             [sysrev.project.clone :as clone]
             [sysrev.formats.pubmed :refer
              [extract-article-location-entries parse-pmid-xml]]
@@ -89,13 +89,13 @@
     (doseq [{:keys [user-id email]} (-> (select :user-id :email)
                                         (from :web-user)
                                         do-query)]
-      (users/create-email-verification! user-id email :principal true))))
+      (user/create-email-verification! user-id email :principal true))))
 
 (defn ensure-groups
   "Ensure that there are always the required SysRev groups"
   []
-  (when-not (groups/group-name->group-id "public-reviewer")
-    (groups/create-group! "public-reviewer")))
+  (when-not (group/group-name->group-id "public-reviewer")
+    (group/create-group! "public-reviewer")))
 
 ;; only meant to be used once
 (defn set-project-owners []

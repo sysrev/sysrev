@@ -1,4 +1,4 @@
-(ns sysrev.db.article-list
+(ns sysrev.project.article-list
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
@@ -17,7 +17,7 @@
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.db.queries :as q]
-            [sysrev.db.annotations :refer [project-article-annotations]]
+            [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]))

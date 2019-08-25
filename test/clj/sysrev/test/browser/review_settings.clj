@@ -1,16 +1,13 @@
 (ns sysrev.test.browser.review-settings
   (:require [clojure.test :refer :all]
             [clojure.tools.logging :as log]
-            [clj-webdriver.taxi :as taxi]
-            [sysrev.db.users :as users]
             [sysrev.project.core :as project]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.review-articles :as review]
-            [sysrev.test.browser.pubmed :as pm]))
+            [sysrev.test.browser.review-articles :as review]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

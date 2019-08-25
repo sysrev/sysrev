@@ -14,9 +14,9 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.project.core :as project]
-            [sysrev.db.groups :as groups]
+            [sysrev.group.core :as group]
             [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
@@ -144,13 +144,13 @@
 (defn delete-test-user [& {:keys [email] :or {email (:email test-login)}}]
   (with-transaction
     (when-let [{:keys [user-id stripe-id]
-                :as user} (users/user-by-email email)]
+                :as user} (user/user-by-email email)]
       (when stripe-id
         (try (stripe/delete-customer! user)
              (catch Throwable t nil)))
       (when user-id
         (q/delete :compensation-user-period {:user-id user-id}))
-      (users/delete-user-by-email email))))
+      (user/delete-user-by-email email))))
 
 (defn create-test-user [& {:keys [email password project-id]
                            :or {email (:email test-login)
@@ -158,8 +158,8 @@
                                 project-id nil}}]
   (with-transaction
     (delete-test-user :email email)
-    (let [{:keys [user-id] :as user} (users/create-user email password :project-id project-id)]
-      (users/change-user-setting user-id :ui-theme "Dark")
+    (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
+      (user/change-user-setting user-id :ui-theme "Dark")
       user)))
 
 (defn displayed-now?
@@ -403,13 +403,13 @@
     []))
 
 (defn delete-test-user-projects! [user-id & [compensations]]
-  (doseq [{:keys [project-id]} (users/user-projects user-id)]
+  (doseq [{:keys [project-id]} (user/user-projects user-id)]
     (when compensations (project/delete-project-compensations project-id))
     (project/delete-project project-id)))
 
 (defn delete-test-user-groups! [user-id]
-  (doseq [{:keys [group-id]} (groups/read-groups user-id)]
-    (groups/delete-group! group-id)))
+  (doseq [{:keys [group-id]} (group/read-groups user-id)]
+    (group/delete-group! group-id)))
 
 (defn cleanup-test-user!
   "Deletes a test user by user-id or email, along with other entities
@@ -417,8 +417,8 @@
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
   (sutil/assert-exclusive user-id email)
-  (let [email (or email (users/get-user user-id :email))
-        user-id (or user-id (users/user-by-email email :user-id))]
+  (let [email (or email (user/get-user user-id :email))
+        user-id (or user-id (user/user-by-email email :user-id))]
     (when (and email user-id)
       (when projects (delete-test-user-projects! user-id compensations))
       (when groups (delete-test-user-groups! user-id))
@@ -521,3 +521,9 @@
                (move-to-element (taxi/element q) x y)
                (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))
     (Thread/sleep 25)))
+
+(defn check-for-error-message [error-message]
+  (exists?
+   (xpath
+    "//div[contains(@class,'negative') and contains(@class,'message') and contains(text(),'"
+    error-message "')]")))

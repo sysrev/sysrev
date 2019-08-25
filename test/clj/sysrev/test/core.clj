@@ -1,24 +1,20 @@
 (ns sysrev.test.core
-  (:import [java.util UUID])
-  (:require [amazonica.aws.s3 :as s3]
-            [clj-time.core :as time]
-            [clojure.string :as str]
-            [clojure.java.jdbc :as jdbc]
-            [clojure.test :refer :all]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [orchestra.spec.test :as t]
+            [clojure.test :refer :all]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [clojure.java.jdbc :as jdbc]
+            [clj-time.core :as time]
             [sysrev.config.core :refer [env]]
             [sysrev.init :refer [start-app]]
-            [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
-            [sysrev.db.users :as users]
-            [sysrev.db.migration :as migrate]
+            [sysrev.db.migration :refer [ensure-updated-db]]
             [sysrev.label.core :as labels]
-            [sysrev.payment.stripe :as stripe]
             [sysrev.util :as util :refer [shell]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]])
+  (:import [java.util UUID]))
 
 (def test-dbname "sysrev_auto_test")
 (def test-db-host (get-in env [:postgres :host]))
@@ -119,7 +115,7 @@
                 :out log/info))
           (start-app config nil true)
           (log/info "Applying Clojure DB migrations...")
-          (migrate/ensure-updated-db)
+          (ensure-updated-db)
           (reset! db-initialized? true))))))
 
 (defonce db-shutdown-hook (atom nil))

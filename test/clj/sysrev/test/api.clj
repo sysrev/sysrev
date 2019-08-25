@@ -8,7 +8,7 @@
             [sysrev.test.browser.core :refer [test-login create-test-user]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.project.core :as project]
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
@@ -30,12 +30,12 @@
         (is (contains? response :result))
         (is (string? (-> response :result :api-token))))
       (finally
-        (when user-id (users/delete-user user-id))))))
+        (when user-id (user/delete-user user-id))))))
 
 (deftest test-import-pmids
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
-        _ (users/set-user-permissions user-id ["user" "admin"])
+        _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id] :as project} (project/create-project "test-import-pmids")]
     (try
       (let [response (webapi-post "import-pmids"
@@ -46,13 +46,13 @@
         (is (true? (-> response :result :success)))
         (is (= 2 (-> response :result :project-articles))))
       (finally
-        (when user-id (users/delete-user user-id))
+        (when user-id (user/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
 
 (deftest test-import-article-text
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
-        _ (users/set-user-permissions user-id ["user" "admin"])
+        _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id] :as project} (project/create-project "test-import-article-text")]
     (try
       (let [response (webapi-post "import-article-text"
@@ -67,14 +67,14 @@
         (is (= 2 (-> response :result :attempted)))
         (is (= 2 (-> response :result :project-articles))))
       (finally
-        (when user-id (users/delete-user user-id))
+        (when user-id (user/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
 
 #_
 (deftest test-copy-articles
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
-        _ (users/set-user-permissions user-id ["user" "admin"])
+        _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id] :as project} (project/create-project "test-copy-articles")
         dest-project (project/create-project "test-copy-articles-dest")]
     (try
@@ -97,7 +97,7 @@
             (is (= 1 (-> response :result :success))
                 (str "response = " (pr-str response))))))
       (finally
-        (when user-id (users/delete-user user-id))
+        (when user-id (user/delete-user user-id))
         (when project-id (project/delete-project project-id))
         (when dest-project (project/delete-project (:project-id dest-project)))))))
 
@@ -122,13 +122,13 @@
         (is (true? (-> response :result :success)))
         (is (= 2 (-> response :result :project-articles))))
       (finally
-        (when user-id (users/delete-user user-id))
+        (when user-id (user/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
 
 (deftest test-create-project
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
-        _ (users/set-user-permissions user-id ["user" "admin"])
+        _ (user/set-user-permissions user-id ["user" "admin"])
         project-name "test-create-project"]
     (try
       (let [response (webapi-post "create-project"
@@ -153,12 +153,12 @@
             (when project-id
               (project/delete-project project-id)))))
       (finally
-        (when user-id (users/delete-user user-id))))))
+        (when user-id (user/delete-user user-id))))))
 
 (deftest test-check-allow-answers
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
-        _ (users/set-user-permissions user-id ["user" "admin"])
+        _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id]} (project/create-project "test-check-allow-answers")]
     (try
       (label/add-label-entry-boolean
@@ -194,7 +194,7 @@
           (is (contains? response :error))
           (is (not (-> response :result :success)))))
       (finally
-        (when user-id (users/delete-user user-id))
+        (when user-id (user/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
 
 (deftest test-clone-project
@@ -202,7 +202,7 @@
         dest-project-name (str "[cloned] " source-project-name)
         {:keys [url]} (get-selenium-config)
         {:keys [user-id api-token]} (create-test-user)
-        _ (users/set-user-permissions user-id ["user" "admin"])
+        _ (user/set-user-permissions user-id ["user" "admin"])
         source-project-id (-> (webapi-post "create-project"
                                            {:api-token api-token
                                             :project-name source-project-name
@@ -238,5 +238,5 @@
         (is (= 0 (count (label/query-public-article-labels dest-id))))
         (when dest-id (project/delete-project dest-id)))
       (finally
-        (when user-id (users/delete-user user-id))
+        (when user-id (user/delete-user user-id))
         (when source-project-id (project/delete-project source-project-id))))))

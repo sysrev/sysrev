@@ -4,7 +4,6 @@
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [clj-webdriver.taxi :as taxi]
-            [sysrev.db.users :as users]
             [sysrev.project.core :as project]
             [sysrev.export.core :as export]
             [sysrev.source.import :as import]

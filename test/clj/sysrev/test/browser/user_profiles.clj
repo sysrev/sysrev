@@ -8,9 +8,9 @@
             [sysrev.db.core :refer [with-transaction]]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.user-image :as user-image]
-            [sysrev.db.groups :as groups]
+            [sysrev.group.core :as group]
             [sysrev.project.core :as project]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.annotator :as annotator]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.markdown :as markdown]
@@ -18,7 +18,6 @@
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.review-articles :as ra]
-            [sysrev.test.browser.semantic :as s]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]
             [sysrev.util :as util]
@@ -81,13 +80,13 @@
 
 (defn make-public-reviewer [user-id email]
   (with-transaction
-    (users/create-email-verification! user-id email)
-    (users/verify-email!
-     email (users/email-verify-code user-id email) user-id)
-    (users/set-primary-email! user-id email)
-    (if-let [user-group-id (:id (groups/read-user-group-name user-id "public-reviewer"))]
-      (groups/set-user-group-enabled! user-group-id true)
-      (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
+    (user/create-email-verification! user-id email)
+    (user/verify-email!
+     email (user/email-verify-code user-id email) user-id)
+    (user/set-primary-email! user-id email)
+    (if-let [user-group-id (:id (group/read-user-group-name user-id "public-reviewer"))]
+      (group/set-user-group-enabled! user-group-id true)
+      (group/add-user-to-group! user-id (group/group-name->group-id "public-reviewer")))))
 
 (defn change-project-public-access
   "Change public access setting for current project."
@@ -351,21 +350,21 @@
       (is (taxi/attribute opt-in-toggle "disabled"))
       ;; verify the email address
       (let [{:keys [user-id email]} (user-by-email (:email user1))
-            verify-code (users/email-verify-code user-id email)]
+            verify-code (user/email-verify-code user-id email)]
         (b/init-route (str "/user/" user-id "/email/" verify-code))
         (is (email-verified? email))
         ;; add a new email address
         (b/click add-new-email-address)
         ;; check for a basic error
         (b/click submit-new-email-address)
-        (is (s/check-for-error-message "New email address can not be blank!"))
+        (is (b/check-for-error-message "New email address can not be blank!"))
         ;; add a new email address
         (b/set-input-text-per-char new-email-address-input new-email-address)
         (b/click submit-new-email-address)
         (is (email-unverified? new-email-address))
         ;; verify new email address
         (b/init-route (str "/user/" user-id "/email/"
-                           (users/email-verify-code user-id new-email-address)))
+                           (user/email-verify-code user-id new-email-address)))
         (is (email-verified? new-email-address))
         ;;make this email address primary
         (make-primary new-email-address)

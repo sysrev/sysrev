@@ -6,7 +6,7 @@
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.payment.plans :as plans]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
@@ -15,8 +15,6 @@
             [sysrev.test.browser.plans :as test-plans]
             [sysrev.test.browser.stripe :as bstripe]))
 
-;; if a user is created in the db, they won't have a stripe customer associated with them
-;; to add them: (users/create-sysrev-stripe-customer! (user-by-email "browser+test@insilica.co"))
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 

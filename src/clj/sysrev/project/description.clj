@@ -1,4 +1,4 @@
-(ns sysrev.db.markdown
+(ns sysrev.project.description
   (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer

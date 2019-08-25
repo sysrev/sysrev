@@ -6,7 +6,7 @@
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.payment.plans :as plans]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
@@ -79,7 +79,7 @@
   [email password]
   (when-not (get-user-customer email)
     (log/info (str "Stripe Customer created for " email))
-    (users/create-sysrev-stripe-customer! (user-by-email email)))
+    (user/create-sysrev-stripe-customer! (user-by-email email)))
   (wait-until-stripe-id email)
   (stripe/create-user-subscription! (user-by-email email))
   (Thread/sleep 100)
@@ -105,7 +105,7 @@
   [{:keys [email password]} b/test-login
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)]
-  (do (users/create-sysrev-stripe-customer! (get-test-user))
+  (do (user/create-sysrev-stripe-customer! (get-test-user))
       (stripe/create-user-subscription! (get-test-user))
       ;; after registering, does the stripe customer exist?
       (wait-until-stripe-id email)
@@ -115,7 +115,7 @@
       (is (= stripe/default-plan (user-stripe-plan email)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (user-db-plan email))))
-  :cleanup (do (users/delete-sysrev-stripe-customer! (user-by-email email))
+  :cleanup (do (user/delete-sysrev-stripe-customer! (user-by-email email))
                (b/cleanup-test-user! :email email)))
 
 ;; need to disable sending emails in this test
@@ -128,7 +128,7 @@
    get-db-plan #(user-db-plan email)]
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
-      (users/create-sysrev-stripe-customer! (get-test-user))
+      (user/create-sysrev-stripe-customer! (get-test-user))
       (stripe/create-user-subscription! (get-test-user))
       (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?
@@ -234,5 +234,5 @@
       (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (get-db-plan))))
-  :cleanup (do (users/delete-sysrev-stripe-customer! (user-by-email email))
+  :cleanup (do (user/delete-sysrev-stripe-customer! (user-by-email email))
                (b/cleanup-test-user! :email email)))

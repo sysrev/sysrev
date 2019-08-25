@@ -6,7 +6,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.annotations :as ann]
+            [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.shared.util :refer [in? map-values index-by]]))

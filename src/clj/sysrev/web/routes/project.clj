@@ -1,7 +1,6 @@
 (ns sysrev.web.routes.project
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure.data.json :as json]
             [clojure-csv.core :as csv]
             [clojure.tools.logging :as log]
             [compojure.core :refer :all]
@@ -16,9 +15,12 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.project.core :as project]
-            [sysrev.db.groups :as groups]
+            [sysrev.project.description
+             :refer [read-project-description set-project-description!]]
+            [sysrev.project.article-list :as alist]
+            [sysrev.group.core :as group]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
             [sysrev.label.answer :as answer]
@@ -28,17 +30,12 @@
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.document :as doc-file]
             [sysrev.file.article :as article-file]
-            [sysrev.db.article-list :as alist]
-            [sysrev.db.annotations :as annotations]
-            [sysrev.biosource.importance :as importance]
             [sysrev.export.core :as export]
             [sysrev.export.endnote :refer [project-to-endnote-xml]]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.predict.report :as predict-report]
             [sysrev.shared.keywords :as keywords]
-            [sysrev.shared.transit :as sr-transit]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.config.core :refer [env]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]])
   (:import [java.util UUID]
@@ -55,8 +52,8 @@
     (when (and user-id project-id)
       (future
         (try
-          (users/set-user-default-project user-id project-id)
-          (users/update-member-access-time user-id project-id)
+          (user/set-user-default-project user-id project-id)
+          (user/update-member-access-time user-id project-id)
           (catch Throwable e
             (log/info "error updating default project")
             nil))))))
@@ -209,7 +206,7 @@
              (assert (nil? (project/project-member project-id user-id))
                      "join-project: User is already a member of this project")
              (project/add-project-member project-id user-id)
-             (users/set-user-default-project user-id project-id)
+             (user/set-user-default-project user-id project-id)
              (with-meta
                {:result {:project-id project-id}}
                {:session session})))))
@@ -238,8 +235,8 @@
                          ;; TODO: lookup project-id from combination of owner/project names
                          project-id (project/project-id-from-url-id project-url-id)
                          owner (some-> project-id project/get-project-owner)
-                         user-id (some-> user-url-id users/user-id-from-url-id)
-                         org-id (some-> org-url-id groups/group-id-from-url-id)
+                         user-id (some-> user-url-id user/user-id-from-url-id)
+                         org-id (some-> org-url-id group/group-id-from-url-id)
                          user-match? (and user-id (= user-id (:user-id owner)))
                          org-match? (and org-id (= org-id (:group-id owner)))
                          owner-url? (boolean (or user-url-id org-url-id))
@@ -438,8 +435,7 @@
                    :bypass-subscription-lapsed? true}
           (let [project-id (active-project request)]
             {:settings (project/project-settings project-id)
-             :project-name (-> (q/select-project-where [:= :project-id project-id] [:name])
-                               do-query first :name)}))))
+             :project-name (q/find-one :project {:project-id project-id} :name)}))))
 
 (dr (POST "/api/change-project-settings" request
           (wrap-authorize
@@ -474,14 +470,16 @@
 (dr (GET "/api/project-description" request
          (wrap-authorize
           request {:allow-public true}
-          (api/read-project-description (active-project request)))))
+          (let [project-id (active-project request)]
+            {:project-description (read-project-description project-id)}))))
 
 (dr (POST "/api/project-description" request
           (wrap-authorize
            request {:roles ["admin"]}
            (let [project-id (active-project request)
-                 markdown (-> request :body :markdown)]
-             (api/set-project-description! project-id markdown)))))
+                 {:keys [markdown]} (:body request)]
+             (set-project-description! project-id markdown)
+             {:project-description markdown}))))
 
 ;;;
 ;;; Project sources
@@ -664,20 +662,20 @@
          (wrap-authorize
           request {:logged-in true}
           (api/user-support-subscriptions
-           (users/get-user (current-user-id request))))))
+           (user/get-user (current-user-id request))))))
 
 (dr (GET "/api/current-support" request
          (wrap-authorize
           request {:logged-in true}
           (api/user-project-support-level
-           (users/get-user (current-user-id request))
+           (user/get-user (current-user-id request))
            (active-project request)))))
 
 (dr (POST "/api/cancel-project-support" request
           (wrap-authorize
            request {:logged-in true}
            (api/cancel-user-project-support
-            (users/get-user (current-user-id request))
+            (user/get-user (current-user-id request))
             (active-project request)))))
 
 ;;;

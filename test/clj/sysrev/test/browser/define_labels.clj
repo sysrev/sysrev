@@ -5,7 +5,6 @@
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
-            [sysrev.db.users :as users]
             [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
             [sysrev.test.browser.core :as b]

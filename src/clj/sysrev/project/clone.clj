@@ -12,7 +12,6 @@
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
             [sysrev.source.core :as source]
-            [sysrev.source.endnote :as endnote]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance-api]
             [sysrev.shared.util :refer [in? to-uuid]]

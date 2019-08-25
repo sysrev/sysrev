@@ -1,8 +1,8 @@
-(ns sysrev.db.groups
+(ns sysrev.group.core
   (:require [honeysql-postgres.helpers :refer [returning]]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :as db :refer [do-query do-execute sql-now to-sql-array with-transaction]]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.payment.stripe :as stripe]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [index-by]]))
@@ -82,11 +82,11 @@
                                      [:= :group-id (group-name->group-id group-name)]])
                              do-query)
           users-public-info (->> (map :user-id users-in-group)
-                                 (users/get-users-public-info)
+                                 (user/get-users-public-info)
                                  (index-by :user-id))]
       (vec (some->> (seq users-in-group)
                     (map #(assoc % :primary-email-verified
-                                 (users/primary-email-verified? (:user-id %))))
+                                 (user/primary-email-verified? (:user-id %))))
                     (map #(merge % (get users-public-info (:user-id %)))))))))
 
 (defn user-active-in-group?

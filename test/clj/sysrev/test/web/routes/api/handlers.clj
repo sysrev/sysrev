@@ -1,14 +1,13 @@
 (ns sysrev.test.web.routes.api.handlers
-  (:require [clojure.data.json :as json]
-            [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
+            [clojure.data.json :as json]
+            [ring.mock.request :as mock]
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
-            [sysrev.db.users :as users]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
-            [sysrev.test.browser.core :as b]
-            [ring.mock.request :as mock]))
+            [sysrev.test.browser.core :as b]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)

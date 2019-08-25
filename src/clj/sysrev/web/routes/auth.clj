@@ -3,7 +3,7 @@
             [compojure.core :refer :all]
             [ring.util.response :as response]
             [sysrev.api :as api]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.shared.util :refer [in?]]
@@ -95,11 +95,11 @@
                  {:keys [email password] :as body} :body} request
                 valid (or (and (= :dev (:profile env))
                                (= password "override"))
-                          (users/valid-password? email password))
+                          (user/valid-password? email password))
                 user (when valid (user-by-email email))
                 success (boolean valid)
                 session-identity (select-keys user [:user-id :user-uuid :email :default-project-id])
-                verified (users/primary-email-verified? (:user-id session-identity))]
+                verified (user/primary-email-verified? (:user-id session-identity))]
             (cond-> {:success success, :valid valid, :verified verified}
               (not valid) (assoc :message "Invalid username or password")
               success     (with-meta {:session (assoc session :identity session-identity)})))))
@@ -120,10 +120,10 @@
 (dr (GET "/api/auth/identity" request
          (let [{{{:keys [user-id] :as identity} :identity
                  :as session} :session} request
-               verified (users/primary-email-verified? user-id)]
+               verified (user/primary-email-verified? user-id)]
            (if user-id
-             (-> (merge {:identity (users/user-identity-info user-id true)}
-                        (users/user-self-info user-id)
+             (-> (merge {:identity (user/user-identity-info user-id true)}
+                        (user/user-self-info user-id)
                         {:orgs (:orgs (api/read-orgs user-id))})
                  (assoc-in [:identity :verified] verified))
              {:identity {:settings (:settings session)}}))))
@@ -137,7 +137,7 @@
 
 (dr (GET "/api/auth/lookup-reset-code" request
          (let [{{:keys [reset-code] :as params} :params} request
-               {:keys [email]} (users/user-by-reset-code reset-code)]
+               {:keys [email]} (user/user-by-reset-code reset-code)]
            {:email email})))
 
 (dr (POST "/api/auth/request-password-reset" request
@@ -150,10 +150,10 @@
 (dr (POST "/api/auth/reset-password" request
           (let [{{:keys [reset-code password] :as body}
                  :body} request
-                {:keys [email user-id]} (users/user-by-reset-code reset-code)]
+                {:keys [email user-id]} (user/user-by-reset-code reset-code)]
             (assert user-id "No user account found for reset code")
-            (users/set-user-password email password)
-            (users/clear-password-reset-code user-id)
+            (user/set-user-password email password)
+            (user/clear-password-reset-code user-id)
             {:success true})))
 
 (dr (GET "/api/stripe/connected/:user-id" request
@@ -172,12 +172,12 @@
 
 (defn send-password-reset-email [user-id & {:keys [url-base]
                                             :or {url-base "https://sysrev.com"}}]
-  (let [email (users/get-user user-id :email)]
-    (users/create-password-reset-code user-id)
+  (let [email (user/get-user user-id :email)]
+    (user/create-password-reset-code user-id)
     (send-email
      email "Sysrev Password Reset Requested"
      (with-out-str
        (printf "A password reset has been requested for email address %s on %s\n\n"
                email url-base)
        (printf "If you made this request, follow this link to reset your password: %s\n\n"
-               (users/user-password-reset-url user-id :url-base url-base))))))
+               (user/user-password-reset-url user-id :url-base url-base))))))

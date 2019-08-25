@@ -13,7 +13,7 @@
             [sysrev.shared.spec.web-api :as swa]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
             [sysrev.project.clone :as clone]
@@ -65,9 +65,9 @@
     (let [{:keys [email password]} (-> request
                                        :query-params
                                        walk/keywordize-keys)
-          valid (users/valid-password? email password)
+          valid (user/valid-password? email password)
           user (when valid (user-by-email email))
-          verified (users/primary-email-verified? (:user-id user))
+          verified (user/primary-email-verified? (:user-id user))
           success (boolean valid)]
       (if success
         {:api-token (:api-token user)}
@@ -223,7 +223,7 @@
           {:keys [user-id] :as user} (user-by-email email)]
       (cond (nil? user) (make-error-response
                          500 :api (format "user not found (email=%s)" email))
-            :else       (do (users/delete-user user-id)
+            :else       (do (user/delete-user user-id)
                             {:result {:success true}})))))
 
 ;; TODO: remove for now, use web interface
@@ -239,8 +239,8 @@
       (if (nil? user)
         {:result {:success true
                   :user (if (nil? permissions)
-                          (users/create-user email password)
-                          (users/create-user email password :permissions permissions))}}
+                          (user/create-user email password)
+                          (user/create-user email password :permissions permissions))}}
         (make-error-response
          500 :api "A user with that email already exists")))))
 
@@ -250,7 +250,7 @@
   {:required [:project-name]}
   (fn [request]
     (let [{:keys [api-token project-name add-self?]} (:body request)
-          {:keys [user-id]} (users/user-by-api-token api-token)]
+          {:keys [user-id]} (user/user-by-api-token api-token)]
       {:result (merge {:success true}
                       (api/create-project-for-user! project-name user-id))} )))
 
@@ -264,7 +264,7 @@
    :doc "Deletes project and all database entries belonging to it."}
   (fn [request]
     (let [{:keys [project-id api-token] :as body} (:body request)
-          {:keys [user-id]} (users/user-by-api-token api-token)]
+          {:keys [user-id]} (user/user-by-api-token api-token)]
       {:result (merge {:success true}
                       (api/delete-project! project-id user-id))})))
 

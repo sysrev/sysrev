@@ -1,4 +1,4 @@
-(ns sysrev.db.annotations
+(ns sysrev.annotations
   (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.helpers :refer [returning]]
             [clj-time.coerce :as tc]

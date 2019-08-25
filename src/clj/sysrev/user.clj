@@ -2,33 +2,31 @@
   (:refer-clojure :exclude [find])
   (:use sysrev.logging
         sysrev.util
+        sysrev.db.core
         sysrev.db.entity
+        sysrev.db.migration
+        sysrev.user.core
+        sysrev.cassandra
         sysrev.article.core
         sysrev.article.assignment
-        sysrev.db.core
-        sysrev.db.queries
-        sysrev.db.query-types
-        sysrev.db.users
         sysrev.label.core
+        sysrev.annotations
         sysrev.project.core
-        sysrev.db.migration
-        sysrev.export.core
-        sysrev.source.core
-        sysrev.db.article-list
-        sysrev.db.annotations
-        sysrev.payment.plans
-        sysrev.cassandra
         sysrev.project.clone
+        sysrev.project.article-list
+        sysrev.export.core
+        sysrev.export.endnote
+        sysrev.source.core
+        sysrev.source.endnote
+        sysrev.source.pdf-zip
+        sysrev.payment.paypal
+        sysrev.payment.stripe
+        sysrev.payment.plans
         sysrev.file.core
         sysrev.file.s3
         sysrev.file.article
         sysrev.file.user-image
         sysrev.file.document
-        sysrev.source.endnote
-        sysrev.source.pdf-zip
-        sysrev.export.endnote
-        sysrev.payment.paypal
-        sysrev.payment.stripe
         sysrev.predict.core
         sysrev.predict.report
         sysrev.biosource.predict
@@ -39,18 +37,18 @@
         sysrev.web.session
         sysrev.web.index
         sysrev.web.app
+        sysrev.web.build
         sysrev.web.routes.site
         sysrev.web.routes.auth
         sysrev.web.routes.project
         sysrev.web.routes.api.core
         sysrev.web.routes.api.handlers
         sysrev.mail.core
-        sysrev.custom.immuno
-        sysrev.custom.ebtc
-        sysrev.custom.insilica
+        #_ sysrev.custom.immuno
+        #_ sysrev.custom.ebtc
+        #_ sysrev.custom.insilica
         sysrev.misc
         sysrev.init
-        sysrev.resources
         sysrev.shared.util
         sysrev.shared.keywords
         sysrev.shared.transit
@@ -93,6 +91,7 @@
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
             [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
             [sysrev.api :as api]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])

@@ -12,10 +12,9 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users :refer
-             [get-user user-by-api-token update-member-access-time]]
+            [sysrev.user.core :refer [get-user user-by-api-token update-member-access-time]]
             [sysrev.project.core :as project]
-            [sysrev.resources :as res]
+            [sysrev.web.build :as build]
             [sysrev.web.index :as index]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.util :as util :refer [pp-str]]
@@ -207,8 +206,8 @@
           ;; the result, set that session value in the response.
           session-meta                      (assoc :session session-meta)
           ;; Attach :build-id and :build-time fields to all response maps
-          (and (map? body) res/build-id)    (assoc-in [:body :build-id] res/build-id)
-          (and (map? body) res/build-time)  (assoc-in [:body :build-time] res/build-time)))
+          (and (map? body) build/build-id)    (assoc-in [:body :build-id] build/build-id)
+          (and (map? body) build/build-time)  (assoc-in [:body :build-time] build/build-time)))
       (catch Throwable e
         (log-web-event (make-web-request-event request :exception e))
         (log-request-exception request e)

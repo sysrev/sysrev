@@ -12,43 +12,41 @@
             [clj-time.coerce :as tc]
             [me.raynes.fs :as fs]
             [ring.util.response :as response]
-            [sysrev.biosource.annotations :as annotations]
-            [sysrev.biosource.importance :as importance]
             [sysrev.cache :refer [db-memo]]
-            [sysrev.project.charts :as charts]
             [sysrev.config.core :refer [env]]
-            [sysrev.article.core :as article]
-            [sysrev.db.queries :as q]
-            [sysrev.db.annotations :as db-annotations]
-            [sysrev.project.compensation :as compensation]
             [sysrev.db.core :as db :refer [with-transaction]]
+            [sysrev.db.queries :as q]
+            [sysrev.biosource.annotations :as api-ann]
+            [sysrev.biosource.importance :as importance]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.project.core :as project]
+            [sysrev.project.charts :as charts]
+            [sysrev.project.funds :as funds]
+            [sysrev.project.compensation :as compensation]
+            [sysrev.project.invitation :as invitation]
+            [sysrev.article.core :as article]
+            [sysrev.annotations :as ann]
+            [sysrev.label.core :as labels]
+            [sysrev.label.define :as ldefine]
+            [sysrev.user.core :as user :refer [get-user user-by-email]]
+            [sysrev.group.core :as group]
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.article :as article-file]
             [sysrev.file.user-image :as user-image]
-            [sysrev.project.funds :as funds]
-            [sysrev.db.groups :as groups]
-            [sysrev.project.invitation :as invitation]
-            [sysrev.label.core :as labels]
-            [sysrev.label.define :as ldefine]
-            [sysrev.db.markdown :as markdown]
+            [sysrev.payment.stripe :as stripe]
+            [sysrev.payment.paypal :as paypal]
             [sysrev.payment.plans :as plans]
-            [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.source.pmid :as src-pmid]
-            [sysrev.db.users :as users :refer [get-user user-by-email]]
-            [sysrev.source.endnote :as endnote]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.payment.paypal :as paypal]
             [sysrev.sendgrid :as sendgrid]
-            [sysrev.payment.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util :refer [to-clj-time]]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un]]
-            [sysrev.biosource.predict :as predict-api])
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un]])
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
 
@@ -97,7 +95,7 @@
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (labels/add-label-overall-include project-id)
       (project/add-project-note project-id {})
-      (groups/create-project-group! project-id group-id)
+      (group/create-project-group! project-id group-id)
       (project/add-project-member project-id user-id
                                   ;; NOT owner, create-project-group!
                                   ;; makes the group the owner of this project
@@ -123,7 +121,7 @@
   (db/with-clear-project-cache project-id
     (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
       (cond user-id   (project/set-member-permissions project-id user-id ["member" "admin"])
-            group-id  (groups/delete-project-group! project-id group-id)))))
+            group-id  (group/delete-project-group! project-id group-id)))))
 
 (defn change-project-owner-to-user [project-id user-id]
   (db/with-clear-project-cache project-id
@@ -136,9 +134,9 @@
   (db/with-clear-project-cache project-id
     (remove-current-owner project-id)
     ;; set project as owned by group
-    (groups/create-project-group! project-id group-id)
+    (group/create-project-group! project-id group-id)
     ;; make the group owner an admin of the project
-    (let [user-id (groups/get-group-owner group-id)]
+    (let [user-id (group/get-group-owner group-id)]
       (if (empty? (project/project-member project-id user-id))
         ;; FIX: this breaks ownership logic? owned by user and group?
         (project/add-project-member project-id user-id :permissions ["member" "admin" "owner"])
@@ -152,7 +150,7 @@
 (defn transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
   (sutil/assert-exclusive user-id group-id)
   (with-transaction
-    (let [users-projects (->> (users/user-projects owner-user-id [:permissions])
+    (let [users-projects (->> (user/user-projects owner-user-id [:permissions])
                               (filter #(contains? (set (:permissions %)) "owner"))
                               (mapv :project-id))]
       (cond user-id   (mapv #(change-project-owner % :user-id user-id) users-projects)
@@ -236,7 +234,7 @@
     "https://sysrev.com"))
 
 (defn send-verification-email [user-id email]
-  (let [verify-code (users/email-verify-code user-id email)
+  (let [verify-code (user/email-verify-code user-id email)
         url (str (sysrev-base-url) "/user/" user-id "/email/" verify-code)]
     (sendgrid/send-template-email
      email "Verify Your Email"
@@ -250,7 +248,7 @@
   (with-transaction
     (let [user (user-by-email email)
           db-result (when-not user
-                      (try (users/create-user email password :project-id project-id)
+                      (try (user/create-user email password :project-id project-id)
                            true
                            (catch Throwable e e)))]
       (cond user
@@ -261,11 +259,11 @@
                      :exception db-result}}
             (true? db-result)
             (let [{:keys [user-id] :as new-user} (user-by-email email)]
-              (users/create-sysrev-stripe-customer! new-user)
+              (user/create-sysrev-stripe-customer! new-user)
               ;; create default stripe subscription for user
               (stripe/create-user-subscription! (user-by-email email))
               ;; add email verification entry for email
-              (users/create-email-verification! user-id email :principal true)
+              (user/create-email-verification! user-id email :principal true)
               ;; send verification email
               (send-verification-email user-id email)
               {:success true})
@@ -279,7 +277,7 @@
       {:success true})))
 
 (defn update-org-stripe-payment-method! [org-id stripe-token]
-  (let [stripe-id (groups/get-stripe-id org-id)
+  (let [stripe-id (group/get-stripe-id org-id)
         stripe-response (stripe/update-customer-card! stripe-id stripe-token)]
     (if (:error stripe-response)
       stripe-response
@@ -302,24 +300,24 @@
       (if (:error body)
         (update body :error #(merge % {:status not-found}))
         (do (plans/add-user-to-plan! user-id plan sub-id)
-            (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
+            (doseq [{:keys [project-id]} (user/user-owned-projects user-id)]
               (db/clear-project-cache project-id))
             {:stripe-body body :plan (plans/user-current-plan user-id)})))))
 
 (defn subscribe-org-to-plan [group-id plan-name]
   (with-transaction
-    (let [stripe-id (groups/get-stripe-id group-id)
+    (let [stripe-id (group/get-stripe-id group-id)
           {:keys [sub-id]} (plans/group-current-plan group-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
           {:keys [body] :as stripe-response}
           (stripe/update-subscription-item!
-           {:id sub-item-id :plan plan :quantity (count (groups/read-users-in-group
-                                                         (groups/group-id->group-name group-id)))})]
+           {:id sub-item-id :plan plan :quantity (count (group/read-users-in-group
+                                                         (group/group-id->group-name group-id)))})]
       (if (:error body)
         (update body :error #(merge % {:status not-found}))
         (do (plans/add-group-to-plan! group-id plan sub-id)
-            (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
+            (doseq [{:keys [project-id]} (group/group-projects group-id :private-projects? true)]
               (db/clear-project-cache project-id))
             {:stripe-body body :plan (plans/group-current-plan group-id)})))))
 
@@ -437,7 +435,7 @@
   [user-id stripe-code]
   (let [{:keys [body] :as response} (stripe/finalize-stripe-user! stripe-code)]
     (if-let [stripe-user-id (:stripe_user_id body)]
-      (do (users/create-user-stripe stripe-user-id user-id)
+      (do (user/create-user-stripe stripe-user-id user-id)
           {:success true})
       {:error {:status (:status response)
                :message (:error_description body)}})))
@@ -450,12 +448,12 @@
 
 (defn org-default-stripe-source [org-id]
   (with-transaction
-    {:default-source (or (some-> (groups/get-stripe-id org-id)
+    {:default-source (or (some-> (group/get-stripe-id org-id)
                                  (stripe/read-default-customer-source))
                          [])}))
 
 (defn user-has-stripe-account? [user-id]
-  {:connected (boolean (users/user-stripe-account user-id))})
+  {:connected (boolean (user/user-stripe-account user-id))})
 
 (defn read-project-compensations
   "Return all project compensations for project-id"
@@ -486,7 +484,7 @@
   "Return compensations owed for all users by project-id"
   [project-id]
   (let [public-info (->> (project/project-user-ids project-id)
-                         (users/get-users-public-info)
+                         (user/get-users-public-info)
                          (index-by :user-id))
         compensation-owed-by-project (compensation/compensation-owed-by-project project-id)]
     {:compensation-owed (map #(merge % (get public-info (:user-id %)))
@@ -749,7 +747,7 @@
   "Returns the annotations by hash (.hashCode <string>). Assumes
   annotations-atom has already been set by a previous fn"
   [hash]
-  (annotations/get-annotations (get @annotations-atom hash)))
+  (api-ann/get-annotations (get @annotations-atom hash)))
 
 (def db-annotations-by-hash!
   (db-memo db/active-db annotations-by-hash!))
@@ -829,7 +827,7 @@
   "Convert the context annotation to the one saved on the server"
   [context article-id]
   (let [text-context (:text-context context)
-        article-field-match (db-annotations/text-context-article-field-match
+        article-field-match (ann/text-context-article-field-match
                              text-context article-id)]
     (cond-> context
       (not= text-context article-field-match)
@@ -840,34 +838,34 @@
 (defn save-article-annotation
   [project-id article-id user-id selection annotation & {:keys [pdf-key context]}]
   (db/with-clear-project-cache project-id
-    (let [annotation-id (db-annotations/create-annotation!
+    (let [annotation-id (ann/create-annotation!
                          selection annotation
                          (process-annotation-context context article-id)
                          article-id)]
-      (db-annotations/associate-ann-user annotation-id user-id)
+      (ann/associate-ann-user annotation-id user-id)
       (when pdf-key
         (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)]
-          (db-annotations/associate-ann-s3 annotation-id s3-id)))
+          (ann/associate-ann-s3 annotation-id s3-id)))
       {:success true, :annotation-id annotation-id})))
 
 (defn article-user-annotations [article-id]
-  {:success true, :annotations (db-annotations/user-defined-article-annotations article-id)})
+  {:success true, :annotations (ann/user-defined-article-annotations article-id)})
 
 (defn article-pdf-user-annotations [article-id pdf-key]
   (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)]
-    {:success true, :annotations (db-annotations/user-defined-article-pdf-annotations
+    {:success true, :annotations (ann/user-defined-article-pdf-annotations
                                   article-id s3-id)}))
 
 (defn delete-annotation! [annotation-id]
-  (do (db-annotations/delete-annotation! annotation-id)
+  (do (ann/delete-annotation! annotation-id)
       {:success true, :annotation-id annotation-id}))
 
 (defn update-annotation!
   "Update the annotation for user-id. Only users can edit their own annotations"
   [annotation-id annotation semantic-class user-id]
   (with-transaction
-    (if (= user-id (db-annotations/ann-user-id annotation-id))
-      (do (db-annotations/update-annotation! annotation-id annotation semantic-class)
+    (if (= user-id (ann/ann-user-id annotation-id))
+      (do (ann/update-annotation! annotation-id annotation semantic-class)
           {:success true
            :annotation-id annotation-id
            :annotation annotation
@@ -881,7 +879,7 @@
   (str "/api/files/article/" article-id "/download/" key "/" filename))
 
 (defn project-annotations [project-id]
-  (->> (db-annotations/project-annotations project-id)
+  (->> (ann/project-annotations project-id)
        (mapv #(assoc % :pmid (parse-integer (:public-id %))))
        (mapv #(if-not (nil? (and (:filename %)
                                  (:key %)))
@@ -905,8 +903,8 @@
 (defn project-annotation-status [project-id & {:keys [user-id]}]
   (with-transaction
     (let [member? (and user-id (project/member-has-permission? project-id user-id "member"))]
-      {:status (cond-> {:project (db-annotations/project-annotation-status project-id)}
-                 member? (assoc :member (db-annotations/project-annotation-status
+      {:status (cond-> {:project (ann/project-annotation-status project-id)}
+                 member? (assoc :member (ann/project-annotation-status
                                          project-id :user-id user-id)))})))
 
 (defn change-project-permissions [project-id users-map]
@@ -915,37 +913,30 @@
       (project/set-member-permissions project-id user-id perms))
     {:success true}))
 
-(defn read-project-description [project-id]
-  {:success true, :project-description (markdown/read-project-description project-id)})
-
-(defn set-project-description! [project-id markdown]
-  (markdown/set-project-description! project-id markdown)
-  {:success true, :project-description markdown})
-
 (defn public-projects []
   {:projects (project/all-public-projects)})
 
 (defn user-in-group-name? [user-id group-name]
-  {:enabled (boolean (:enabled (groups/read-user-group-name user-id group-name)))})
+  {:enabled (boolean (:enabled (group/read-user-group-name user-id group-name)))})
 
 (defn set-user-group! [user-id group-name enabled]
   (with-transaction
-    (if-let [user-group-id (:id (groups/read-user-group-name user-id group-name))]
-      (groups/set-user-group-enabled! user-group-id enabled)
-      (groups/add-user-to-group! user-id (groups/group-name->group-id group-name)))
+    (if-let [user-group-id (:id (group/read-user-group-name user-id group-name))]
+      (group/set-user-group-enabled! user-group-id enabled)
+      (group/add-user-to-group! user-id (group/group-name->group-id group-name)))
     ;; change any existing permissions to default permission of "member"
-    (let [user-group (groups/read-user-group-name user-id group-name)]
-      (groups/set-user-group-permissions! (:id user-group) ["member"])
+    (let [user-group (group/read-user-group-name user-id group-name)]
+      (group/set-user-group-permissions! (:id user-group) ["member"])
       {:enabled (:enabled user-group)})))
 
 (defn users-in-group [group-name]
-  {:users (groups/read-users-in-group group-name)})
+  {:users (group/read-users-in-group group-name)})
 
 (defn user-active-in-group? [user-id group-name]
-  (groups/user-active-in-group? user-id group-name))
+  (group/user-active-in-group? user-id group-name))
 
 (defn read-user-public-info [user-id]
-  (if-let [user (first (users/get-users-public-info [user-id]))]
+  (if-let [user (first (user/get-users-public-info [user-id]))]
     {:user user}
     {:error {:status not-found :message "That user does not exist"}}))
 
@@ -1002,14 +993,14 @@
 (defn user-email-addresses
   "Given a user-id, return all email addresses associated with it"
   [user-id]
-  {:addresses (users/get-user-emails user-id)})
+  {:addresses (user/get-user-emails user-id)})
 
 (defn verify-user-email! [user-id code]
   ;; does the code match the one associated with user?
-  (let [{:keys [verify-code verified email]} (users/user-email-status user-id code)]
+  (let [{:keys [verify-code verified email]} (user/user-email-status user-id code)]
     (cond
       ;; this email is already verified and set as primary, for this account or another
-      (users/verified-primary-email? email)
+      (user/verified-primary-email? email)
       {:error {:status precondition-failed
                :message "This email address is already verified and set as primary."}}
       verified
@@ -1021,18 +1012,18 @@
       {:error {:status precondition-failed
                :message "Verification code does not match our records"}}
       (= verify-code code)
-      (do (users/verify-email! email verify-code user-id)
+      (do (user/verify-email! email verify-code user-id)
           ;; set this as primary when the user doesn't have any other verified email addresses
-          (when (= 1 (count (->> (users/get-user-emails user-id)
+          (when (= 1 (count (->> (user/get-user-emails user-id)
                                  (filter :verified))))
-            (users/set-primary-email! user-id email))
+            (user/set-primary-email! user-id email))
           {:success true})
       :else
       {:error {:status internal-server-error
                :message "An unknown condition occured"}})))
 
 (defn create-user-email! [user-id new-email]
-  (let [current-email-entry (users/current-email-entry user-id new-email)]
+  (let [current-email-entry (user/current-email-entry user-id new-email)]
     (cond
       ;; this email was already registerd to another user
       (-> (user-by-email new-email) empty? not)
@@ -1040,13 +1031,13 @@
                :message "This email address was already used to register an account."}}
       ;; this email doesn't exist for this user
       (not current-email-entry)
-      (do (users/create-email-verification! user-id new-email)
+      (do (user/create-email-verification! user-id new-email)
           (send-verification-email user-id new-email)
           {:success true})
       ;; this email address has already been entered for this user
       ;; but it is not enabled, re-enable it
       (not (:enabled current-email-entry))
-      (do (users/set-user-email-enabled! user-id new-email true)
+      (do (user/set-user-email-enabled! user-id new-email true)
           (when-not (:verified current-email-entry)
             (send-verification-email user-id new-email))
           {:success true})
@@ -1059,7 +1050,7 @@
                :message "An unknown condition occured"}})))
 
 (defn delete-user-email! [user-id email]
-  (let [current-email-entry (users/current-email-entry user-id email)]
+  (let [current-email-entry (user/current-email-entry user-id email)]
     (cond (nil? current-email-entry)
           {:error {:status not-found
                    :message "That email address is not associated with user-id"}}
@@ -1067,14 +1058,14 @@
           {:error {:status forbidden
                    :message "Primary email addresses can not be deleted"}}
           (not (:principal current-email-entry))
-          (do (users/set-user-email-enabled! user-id email false)
+          (do (user/set-user-email-enabled! user-id email false)
               {:success true})
           :else
           {:error {:status bad-request
                    :messasge "An unkown error occured."}})))
 
 (defn set-user-primary-email! [user-id email]
-  (let [current-email-entry (users/current-email-entry user-id email)]
+  (let [current-email-entry (user/current-email-entry user-id email)]
     (cond
       ;; already used for a main account
       (-> (user-by-email email) empty? not)
@@ -1084,14 +1075,14 @@
       {:error {:status precondition-failed
                :message "This email address is already the primary email account"}}
       ;; this email is already verified and set as primary, for this account or another
-      (users/verified-primary-email? email)
+      (user/verified-primary-email? email)
       {:error {:status precondition-failed
                :message "This email address is already verified and set as primary for an account."}}
       (not (:verified current-email-entry))
       {:error {:status precondition-failed
                :message "This email address has not been verified. Only verified email addresses can be set as primary"}}
       (:verified current-email-entry)
-      (do (users/set-primary-email! user-id email)
+      (do (user/set-primary-email! user-id email)
           {:success true})
       :else
       {:error {:status internal-server-error
@@ -1101,17 +1092,17 @@
   "Return a list of user projects for user-id, including non-public projects when self? is true"
   [user-id self?]
   (with-transaction
-    (let [projects ((if self? users/user-projects users/user-public-projects)
+    (let [projects ((if self? user/user-projects user/user-public-projects)
                     user-id [:p.name :p.settings])
-          labeled-summary (users/projects-labeled-summary user-id)
-          annotations-summary (users/projects-annotated-summary user-id)]
+          labeled-summary (user/projects-labeled-summary user-id)
+          annotations-summary (user/projects-annotated-summary user-id)]
       {:projects (vals (merge-with merge
                                    (index-by :project-id projects)
                                    (index-by :project-id labeled-summary)
                                    (index-by :project-id annotations-summary)))})))
 
 (defn update-user-introduction! [user-id introduction]
-  (users/update-user-introduction! user-id introduction)
+  (user/update-user-introduction! user-id introduction)
   {:success true})
 
 (defn create-profile-image! [user-id file filename]
@@ -1157,42 +1148,42 @@
   "Return all organizations user-id is a member of"
   [user-id]
   (with-transaction
-    {:orgs (->> (groups/read-groups user-id)
+    {:orgs (->> (group/read-groups user-id)
                 (filterv #(not= (:group-name %) "public-reviewer"))
-                (mapv #(assoc % :member-count (-> (groups/group-id->group-name (:id %))
-                                                  (groups/read-users-in-group)
+                (mapv #(assoc % :member-count (-> (group/group-id->group-name (:id %))
+                                                  (group/read-users-in-group)
                                                   count))))}))
 
 (defn create-org! [user-id org-name]
   (with-transaction
     ;; check to see if group already exists
-    (if (groups/group-name->group-id org-name)
+    (if (group/group-name->group-id org-name)
       ;; alredy exists
       {:error {:status conflict
                :message (str "An organization with the name '" org-name "' already exists")}}
       (with-transaction
         ;; create the group
-        (let [new-org-id (groups/create-group! org-name)
+        (let [new-org-id (group/create-group! org-name)
               user (get-user user-id)
-              _ (groups/create-sysrev-stripe-customer! new-org-id)
-              stripe-id (groups/get-stripe-id new-org-id)]
+              _ (group/create-sysrev-stripe-customer! new-org-id)
+              stripe-id (group/get-stripe-id new-org-id)]
           ;; set the user as group admin
-          (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
+          (group/add-user-to-group! user-id (group/group-name->group-id org-name) :permissions ["owner"])
           (stripe/create-org-subscription! new-org-id stripe-id)
           {:success true, :id new-org-id})))))
 
 (defn search-users [term]
-  {:success true, :users (users/search-users term)})
+  {:success true, :users (user/search-users term)})
 
 (defn set-user-group-permissions! [user-id org-id permissions]
   (with-transaction
-    (if-let [user-group-id (:id (groups/read-user-group-name
-                                 user-id (groups/group-id->group-name org-id)))]
-      {:group-perm-id (groups/set-user-group-permissions! user-group-id permissions)}
+    (if-let [user-group-id (:id (group/read-user-group-name
+                                 user-id (group/group-id->group-name org-id)))]
+      {:group-perm-id (group/set-user-group-permissions! user-group-id permissions)}
       {:error {:message (str "user-id: " user-id " is not part of org-id: " org-id)}})))
 
 (defn group-projects [group-id & {:keys [private-projects?]}]
-  {:projects (->> (groups/group-projects group-id :private-projects? private-projects?)
+  {:projects (->> (group/group-projects group-id :private-projects? private-projects?)
                   (map #(assoc %
                                :member-count (project/member-count (:project-id %))
                                :admins (project/get-project-admins (:project-id %))
@@ -1216,9 +1207,9 @@
         max-results (* page-size max-pages)
         projects (project/search-projects q :limit max-results)
         projects-partition (partition-all page-size projects)
-        users (users/search-users q :limit max-results)
+        users (user/search-users q :limit max-results)
         users-partition (partition-all page-size users)
-        orgs (groups/search-groups q :limit max-results)
+        orgs (group/search-groups q :limit max-results)
         orgs-partition (partition-all page-size orgs)]
     {:results {:projects {:items (nth projects-partition (- p 1) [])
                           :count (count projects)}

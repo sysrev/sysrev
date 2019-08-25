@@ -5,7 +5,7 @@
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.export.core :as export]
             [sysrev.source.import :as import]

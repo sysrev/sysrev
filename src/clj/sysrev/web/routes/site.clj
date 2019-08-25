@@ -10,7 +10,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query]]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.project.core :as project]
             [sysrev.db.queries :as q]
             [sysrev.config.core :refer [env]]
@@ -136,11 +136,11 @@
          (let [{{:keys [verify-user-id]
                  :as body} :body} request
                user-id (current-user-id request)
-               {:keys [permissions]} (users/user-identity-info user-id)]
+               {:keys [permissions]} (user/user-identity-info user-id)]
            (assert (= user-id verify-user-id) "verify-user-id mismatch")
            (when-not (in? permissions "admin")
              (throw (should-never-happen-exception)))
-           (users/delete-user user-id)
+           (user/delete-user user-id)
            (with-meta
              {:success true}
              {:session {}}))))
@@ -157,9 +157,9 @@
          (let [user-id (current-user-id request)
                {:keys [changes]} (:body request)]
            (doseq [{:keys [setting value]} changes]
-             (users/change-user-setting
+             (user/change-user-setting
               user-id (keyword setting) value))
-           {:success true, :settings (users/user-settings user-id)})))
+           {:success true, :settings (user/user-settings user-id)})))
 
   (GET "/api/terms-of-use.md" request
        (app/text-file-response

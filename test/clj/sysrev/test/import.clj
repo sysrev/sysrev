@@ -13,7 +13,7 @@
             [sysrev.project.core :as project]
             [sysrev.export.core :as export]
             [sysrev.source.import :as import]
-            [sysrev.source.endnote :as endnote]
+            [sysrev.formats.endnote :refer [load-endnote-library-xml]]
             [sysrev.util :as util :refer [parse-xml-str xml-find]]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
@@ -96,8 +96,7 @@
                                 project-id {:file file :filename filename}
                                 {:use-future? false})))
                (is (= 100 (project/project-article-count project-id)))
-               (is (->> file io/reader
-                        endnote/load-endnote-library-xml
+               (is (->> file io/reader load-endnote-library-xml
                         (map :primary-title)
                         (every? (every-pred string? not-empty)))))
              (finally (project/delete-project project-id)))))))

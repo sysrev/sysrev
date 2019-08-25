@@ -4,7 +4,7 @@
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]
@@ -99,7 +99,7 @@
         {:keys [email password]} b/test-login
         ;; create user
         {:keys [user-id]} (b/create-test-user)
-        _ (users/set-user-permissions user-id ["user"])
+        _ (user/set-user-permissions user-id ["user"])
         route-response (route-response-fn handler)]
     (is (integer? user-id))
     ;; the projects array in identity is empty
@@ -113,7 +113,7 @@
     (let [create-response (route-response :post "/api/create-project"
                                           {:project-name test-project-name})]
       (is (true? (-> create-response :result :success))))
-    (let [projects (->> (:projects (users/user-self-info user-id))
+    (let [projects (->> (:projects (user/user-self-info user-id))
                         (filter :member?))]
       (is (= 1 (count projects)))
       (is (integer? (-> projects first :project-id))))

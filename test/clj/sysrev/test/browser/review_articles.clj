@@ -5,7 +5,7 @@
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email user-self-info]]
             [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -29,10 +29,10 @@
 ;; (b/delete-test-user)
 
 ;; find the project
-;; (users/user-self-info (user-by-email (:email b/test-login) :user-id))
+;; (user-self-info (user-by-email (:email b/test-login) :user-id))
 
 ;; delete the project
-;; (let [project-ids (->> (user-by-email (:email b/test-login)) :user-id users/user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
+;; (let [project-ids (->> (user-by-email (:email b/test-login)) :user-id user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
 
 ;; useful definitions after basic values have been set by tests
 ;; (def email (:email b/test-login))
@@ -124,7 +124,7 @@
 (defn get-user-project-id
   "Return the first project-id of user-id"
   [user-id]
-  (-> user-id users/user-self-info :projects first :project-id))
+  (-> user-id user-self-info :projects first :project-id))
 
 (defn set-label-answer
   "Set answer value for a single label on current article."

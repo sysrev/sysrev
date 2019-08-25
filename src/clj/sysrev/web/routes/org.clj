@@ -2,7 +2,7 @@
   (:require [compojure.coercions :refer [as-int]]
             [compojure.core :refer [POST GET PUT DELETE defroutes context]]
             [sysrev.api :as api]
-            [sysrev.db.groups :as groups]
+            [sysrev.group.core :as group]
             [sysrev.web.app :refer [current-user-id with-authorize]]))
 
 (defn org-role?
@@ -11,10 +11,10 @@
   (fn [request]
     (boolean
      (let [user-id (current-user-id request)
-           group-name (groups/group-id->group-name org-id)]
-       (and (groups/user-active-in-group? user-id group-name)
+           group-name (group/group-id->group-name org-id)]
+       (and (group/user-active-in-group? user-id group-name)
             ;; test if they have the correct permissions
-            (some (set permissions) (groups/user-group-permission user-id org-id)))))))
+            (some (set permissions) (group/user-group-permission user-id org-id)))))))
 
 (defroutes org-routes
   (context
@@ -29,12 +29,12 @@
    (context "/org/:org-id" [org-id :<< as-int :as request]
             (GET "/users" request
                  (with-authorize request {}
-                   (-> (groups/group-id->group-name org-id)
+                   (-> (group/group-id->group-name org-id)
                        (api/users-in-group))))
             (POST "/user" request
                   (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                     (let [user-id (get-in request [:body :user-id])]
-                      (api/set-user-group! user-id (groups/group-id->group-name org-id) true))))
+                      (api/set-user-group! user-id (group/group-id->group-name org-id) true))))
             (PUT "/user" request
                  (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                    (let [user-id (get-in request [:body :user-id])
@@ -43,7 +43,7 @@
             (DELETE "/user" request
                     (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                       (let [user-id (get-in request [:body :user-id])]
-                        (api/set-user-group! user-id (groups/group-id->group-name org-id) false))))
+                        (api/set-user-group! user-id (group/group-id->group-name org-id) false))))
             (POST "/project" request
                   (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                     (let [project-name (-> request :body :project-name)

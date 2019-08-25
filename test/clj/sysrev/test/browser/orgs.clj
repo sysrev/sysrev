@@ -4,10 +4,10 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.api :as api]
-            [sysrev.db.groups :as groups]
+            [sysrev.group.core :as group]
             [sysrev.payment.plans :refer [user-current-plan]]
             [sysrev.project.core :as project]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.user-profiles :as user-profiles]
@@ -49,7 +49,7 @@
 
 (defn user-group-permission
   [user-id group-name]
-  (groups/user-group-permission user-id (groups/group-name->group-id group-name)))
+  (group/user-group-permission user-id (group/group-name->group-id group-name)))
 
 (defn org-user-table-entries []
   (b/wait-until-exists org-user-table)
@@ -195,8 +195,8 @@
     #_ (stripe/delete-customer-card! stripe-id source-id))
 
 ;; delete a org's card:
-#_(let [group-id (-> (groups/read-groups user-id) first :id)
-        stripe-id (groups/get-stripe-id group-id)
+#_(let [group-id (-> (group/read-groups user-id) first :id)
+        stripe-id (group/get-stripe-id group-id)
         source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
     (stripe/delete-customer-card! stripe-id source-id))
 
@@ -219,7 +219,7 @@
     ;; need to be a stripe customer
     (when-not (user-by-email email :stripe-id)
       (log/info (str "Stripe Customer created for " email))
-      (users/create-sysrev-stripe-customer! (user-by-email email)))
+      (user/create-sysrev-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
       (stripe/create-user-subscription! (user-by-email email)))
     ;; current plan
@@ -361,7 +361,7 @@
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
     (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-  :cleanup (do (some-> email (user-by-email) (users/delete-sysrev-stripe-customer!))
+  :cleanup (do (some-> email (user-by-email) (user/delete-sysrev-stripe-customer!))
                (b/cleanup-test-user! :email email :groups true)))
 
 ;; from repl in sysrev.user ns:

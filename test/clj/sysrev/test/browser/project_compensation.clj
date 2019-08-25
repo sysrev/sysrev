@@ -9,7 +9,7 @@
             [sysrev.api :as api]
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb clear-project-cache sql-now]]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
             [sysrev.test.core :as test :refer [succeeds?]]
@@ -17,7 +17,6 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
-            [sysrev.test.browser.semantic :as s]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.stacktrace :as strace])
   (:import clojure.lang.ExceptionInfo))

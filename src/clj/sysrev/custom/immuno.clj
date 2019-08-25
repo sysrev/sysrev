@@ -4,19 +4,11 @@
 
 (ns sysrev.custom.immuno
   (:require [clojure.string :as str]
-            [clojure.java.io :as io]
-            [clojure.data.xml :as dxml]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.queries :as q]
             [sysrev.db.core :refer [do-query do-execute]]
-            [sysrev.db.users :as users]
-            [sysrev.label.core :as labels]
-            [sysrev.source.endnote :refer [parse-endnote-file]]
-            [sysrev.misc :refer [articles-matching-regex-clause
-                                 merge-article-labels]]
-            [sysrev.util :as util :refer [xml-find]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.misc :refer [merge-article-labels]]))
 
 (defn match-article-id
   "Attempt to find an article-id in the database which is the best match
