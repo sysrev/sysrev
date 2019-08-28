@@ -116,7 +116,7 @@
        (if (secretary/locate-route route)
          (do (when (not= url @active-route)
                (let [user-uuid (subscribe [:user/uuid])]
-                 (ga "set" "location" (str js/window.location.origin))
+                 (ga "set" "location" (str js/document.location))
                  (ga "set" "page" (str route))
                  (when @user-uuid
                    (ga "set" "userId" (str @user-uuid)))
