@@ -11,6 +11,7 @@
         sysrev.article.assignment
         sysrev.label.core
         sysrev.annotations
+        sysrev.datasource.core
         sysrev.project.core
         sysrev.project.clone
         sysrev.project.article-list

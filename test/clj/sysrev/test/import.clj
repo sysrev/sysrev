@@ -135,9 +135,8 @@
                            {:use-future? false})))
           (is (= 4 (project/project-article-count project-id)))
           (is (= 4 (project/project-article-pdf-count project-id)))
-          (let [title-count #(-> (q/select-project-articles project-id [:%count.*])
-                                 (merge-where [:= :a.primary-title %])
-                                 do-query first :count)]
+          (let [title-count #(q/find-count [:article :a] {:ad.title %}
+                                           :join [:article-data:ad :a.article-data-id])]
             (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
             (is (= 1 (title-count "Plosker Troglitazone.pdf"))))
           (finally (project/delete-project project-id)))))))

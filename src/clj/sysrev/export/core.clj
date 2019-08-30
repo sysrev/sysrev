@@ -6,6 +6,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
             [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
@@ -31,12 +32,19 @@
   (with-transaction
     (let [all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
                          (order-by :label-id-local) do-query)
-          all-articles (-> (q/select-project-articles
-                            project-id [:a.article-id :a.primary-title :a.secondary-title :a.authors])
-                           (merge-where [:exists (-> (q/select-project-article-labels
-                                                      project-id true [:al.*])
-                                                     (merge-where [:= :l.enabled true]))])
-                           (->> do-query (index-by :article-id)))
+          all-articles (->> (qt/find-article
+                             {:a.project-id project-id} [:a.article-id :ad.content]
+                             :join [:article-data:ad :a.article-data-id]
+                             :where (q/exists [:article-label :al] {:a.project-id project-id
+                                                                    :l.enabled true}
+                                              :join [[:article:a :al.article-id]
+                                                     [:label:l :al.label-id]]
+                                              :prepare #(q/filter-valid-article-label % true)))
+                            (map (fn [{:keys [article-id content]}]
+                                   (merge {:article-id article-id}
+                                          (->> [:primary-title :secondary-title :authors]
+                                               (select-keys content)))))
+                            (index-by :article-id))
           user-answers (-> (q/select-project-articles
                             project-id [:al.article-id :al.label-id :al.user-id :al.answer
                                         :al.resolve :al.updated-time :u.email])
@@ -89,12 +97,19 @@
     (let [project-url (str "https://sysrev.com/p/" project-id)
           all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
                          (order-by :label-id-local) do-query)
-          all-articles (-> (q/select-project-articles
-                            project-id [:a.article-id :a.primary-title :a.secondary-title :a.authors])
-                           (merge-where [:exists (-> (q/select-project-article-labels
-                                                      project-id true [:al.*])
-                                                     (merge-where [:= :l.enabled true]))])
-                           (->> do-query (index-by :article-id)))
+          all-articles (->> (qt/find-article
+                             {:a.project-id project-id} [:a.article-id :ad.content]
+                             :join [:article-data:ad :a.article-data-id]
+                             :where (q/exists [:article-label :al]
+                                              {:a.project-id project-id :l.enabled true}
+                                              :join [[:article:a :al.article-id]
+                                                     [:label:l :al.label-id]]
+                                              :prepare #(q/filter-valid-article-label % true)))
+                            (map (fn [{:keys [article-id content]}]
+                                   (merge {:article-id article-id}
+                                          (->> [:primary-title :secondary-title :authors]
+                                               (select-keys content)))))
+                            (index-by :article-id))
           anotes (-> (q/select-project-articles
                       project-id [:anote.article-id :anote.user-id :anote.content])
                      (merge-join [:article-note :anote]
@@ -153,11 +168,17 @@
     (let [project-url (str "https://sysrev.com/p/" project-id)
           article-ids (or (seq article-ids) (project/project-article-ids project-id))
           all-articles (->> (q/query-multiple-by-id
-                             :article [:article-id :primary-title :secondary-title
-                                       :authors :abstract]
+                             [:article :a] [:a.article-id :ad.content]
                              :article-id article-ids
-                             :where [:= :enabled true])
-                            (index-by :article-id))
+                             :where [:= :enabled true]
+                             :prepare #(-> % (join [:article-data :ad]
+                                                   [:= :ad.article-data-id :a.article-data-id])))
+                            (index-by :article-id)
+                            (map-values
+                             #(merge {:article-id (:article-id %)}
+                                     (select-keys (:content %)
+                                                  [:primary-title :secondary-title
+                                                   :authors :abstract]))))
           predict-run-id (q/project-latest-predict-run-id project-id)
           predict-label-ids [(project/project-overall-label-id project-id)]
           ;; TODO: select labels by presence of label_predicts entries

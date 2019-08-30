@@ -15,6 +15,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
             [sysrev.user.core :as user]
             [sysrev.project.core :as project]
             [sysrev.project.description
@@ -684,7 +685,8 @@
                   {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
                                           (filter #(= key (str (:key %))))
                                           first)]
-              (if (not= (article/article-project-id article-id) (active-project request))
+              (if (not= (qt/get-article article-id :project-id)
+                        (active-project request))
                 {:error {:status api/not-found
                          :message (str "Article " article-id " not found in project")}}
                 (api/dissociate-article-pdf article-id key filename))))))

@@ -250,7 +250,7 @@
 
 (defn find-count
   "Convenience function to return count of rows matching query."
-  [table match-by & opts]
+  [table match-by & {:as opts}]
   (apply-keyargs find-one table match-by [[:%count.* :count]] opts))
 
 (defn exists
@@ -300,19 +300,20 @@
         insert-values (if (map? insert-values) [insert-values] insert-values)
         single-returning? (literal? returning)
         returning (if (keyword? returning) [returning] returning)]
-    (-> (sqlh/insert-into table)
-        (values insert-values)
-        (cond-> returning (#(apply sqlh-pg/returning % returning)))
-        (cond-> prepare (prepare))
-        ((fn [query]
-           (case return
-             :query   query
-             :string  (db/to-sql-string query)
-             :execute (if returning
-                        (cond->> (do-query query)
-                          single-returning? (map (first returning))
-                          single-value? first)
-                        (first (do-execute query)))))))))
+    (when (seq insert-values)
+      (-> (sqlh/insert-into table)
+          (values insert-values)
+          (cond-> returning (#(apply sqlh-pg/returning % returning)))
+          (cond-> prepare (prepare))
+          ((fn [query]
+             (case return
+               :query   query
+               :string  (db/to-sql-string query)
+               :execute (if returning
+                          (cond->> (do-query query)
+                            single-returning? (map (first returning))
+                            single-value? first)
+                          (first (do-execute query))))))))))
 
 (defn modify
   "Runs update query on `table` filtered according to `match-by`.

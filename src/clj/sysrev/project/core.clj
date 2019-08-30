@@ -141,8 +141,7 @@
 (defn-spec project-article-count int?
   [project-id int?]
   (with-project-cache project-id [:articles :count]
-    (-> (q/select-project-articles project-id [:%count.*])
-        do-query first :count)))
+    (q/find-count :article {:project-id project-id :enabled true})))
 
 (defn project-article-pdf-count
   "Return number of article pdfs in project."
@@ -176,7 +175,7 @@
 (defn-spec project-overall-label-id (s/nilable ::sl/label-id)
   [project-id int?]
   (with-project-cache project-id [:labels :overall-label-id]
-    (qt/find-one-label {:project-id project-id :name "overall include"} :label-id)))
+    (qt/find-label-1 {:project-id project-id :name "overall include"} :label-id)))
 
 (defn-spec member-has-permission? boolean?
   [project-id int?, user-id int?, permission string?]

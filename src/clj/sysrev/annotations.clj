@@ -4,6 +4,7 @@
             [clj-time.coerce :as tc]
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
+            [sysrev.article.core :as article]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [in? map-values assert-pred] :as sutil]))
 
@@ -70,17 +71,21 @@
                                          [:ann-user:ann-u :ann.annotation-id]
                                          [:ann-s3store:ann-s3 :ann.annotation-id]
                                          [:s3store:s3 :ann-s3.s3-id]
-                                         [:article:a :ann.article-id]]
+                                         [:article:a :ann.article-id]
+                                         [:article-data:ad :a.article-data-id]]
                                         (:left-join opts))}))))
 
 (defn project-annotations
   "Retrieve all annotations for project-id"
   [project-id]
-  (find-annotation {:a.project-id project-id}
-                   ;; some of these fields are needed to match `text-context-article-field-match`
-                   [:ann.selection :ann.annotation :ann.context :ann-sc.definition :ann-u.user-id
-                    :a.public-id :a.article-id :a.primary-title :a.secondary-title :a.abstract
-                    :s3.key :s3.filename]))
+  (->> (find-annotation {:a.project-id project-id}
+                        ;; some of these fields are needed to match `text-context-article-field-match`
+                        [:ann.selection :ann.annotation :ann.context :ann-sc.definition :ann-u.user-id
+                         :a.article-id :ad.content :s3.key :s3.filename])
+       (mapv (fn [entry]
+               (article/merge-article-data-content
+                (update entry :content
+                        #(select-keys % [:primary-title :secondary-title :abstract])))))))
 
 (defn project-annotations-basic
   "Retrieve all annotations for project-id"
@@ -115,8 +120,9 @@
 (defn text-context-article-field-match
   "Determine which field of an article text-context matches in article-id."
   [text-context article-id]
-  (let [article (q/find-one :article {:article-id article-id}
-                            [:primary-title :secondary-title :abstract])]
+  (let [article (-> (q/find-one [:article :a] {:article-id article-id} :ad.content
+                                :join [:article-data:ad :a.article-data-id])
+                    (select-keys [:primary-title :secondary-title :abstract]))]
     (or (->> (keys article)
              (filter #(= text-context (get article %)))
              first)

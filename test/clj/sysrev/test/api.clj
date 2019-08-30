@@ -171,25 +171,17 @@
                                   :url url)]
         (is (true? (-> response :result :success)))
         (is (= 2 (-> response :result :project-articles))))
-      (let [article-id
-            (-> (q/select-article-where
-                 project-id [:= :public-id "12345"] [:article-id])
-                do-query first :article-id)
-            label-id
-            (-> (q/select-label-where project-id true [:label-id])
-                do-query first :label-id)]
+      (let [article-id (q/find-one [:article :a] {:ad.external-id 12345} :article-id
+                                   :join [:article-data:ad :a.article-data-id])
+            label-id (q/find-one :label {:project-id project-id} :label-id)]
         (is (s/valid? ::sc/article-id article-id))
         (is (s/valid? ::sc/label-id label-id))
         (answer/set-user-article-labels
          user-id article-id {label-id true}
-         :imported? false
-         :change? false
-         :confirm? true
-         :resolve? false)
-        (let [response (webapi-post "import-pmids"
-                                    {:api-token api-token
-                                     :project-id project-id
-                                     :pmids [12347]}
+         :imported? false :change? false :confirm? true :resolve? false)
+        (let [response (webapi-post "import-pmids" {:api-token api-token
+                                                    :project-id project-id
+                                                    :pmids [12347]}
                                     :url url)]
           (is (contains? response :error))
           (is (not (-> response :result :success)))))

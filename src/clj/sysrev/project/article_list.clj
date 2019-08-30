@@ -17,6 +17,7 @@
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
             [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
             [sysrev.shared.spec.core :as sc]
@@ -171,11 +172,17 @@ WHERE project_id=%d
       (some (in? source-ids) (get sources article-id)))))
 
 ;; TODO: include user notes in search
+#_
 (defn article-text-filter [context text]
   (let [{:keys [project-id]} context
         search-ids (set (article-ids-from-text-search project-id text))]
     (fn [{:keys [article-id]}]
       (contains? search-ids article-id))))
+
+;; TODO: replace with actual text search from datasource
+(defn article-text-filter [context text]
+  (fn [{:keys [article-id]}]
+    true))
 
 (defn article-user-filter
   [{:keys [project-id] :as context} {:keys [user content confirmed]}]
@@ -284,15 +291,16 @@ WHERE project_id=%d
 
 (defn lookup-article-entries [project-id article-ids]
   (when (seq article-ids)
-    (-> (q/select-project-articles project-id [:a.article-id :a.primary-title])
-        (merge-where [:in :a.article-id (vec article-ids)])
-        (->> do-query
-             (map (fn [{:keys [article-id] :as a}]
-                    (merge a
-                           {:labels (get (project-article-labels project-id) article-id)
+    (->> (qt/find-article {:a.project-id project-id :a.article-id article-ids}
+                          [:a.article-id :ad.title]
+                          :join [:article-data:ad :a.article-data-id])
+         (map (fn [{:keys [article-id title] :as a}]
+                (-> (assoc a :primary-title title)
+                    (dissoc :title)
+                    (merge {:labels (get (project-article-labels project-id) article-id)
                             :notes  (get (project-article-notes project-id) article-id)}
-                           (get (project-article-consensus project-id) article-id))))
-             (index-by :article-id)))))
+                           (get (project-article-consensus project-id) article-id)))))
+         (index-by :article-id))))
 
 (defn query-project-article-list
   [project-id {:keys [filters sort-by sort-dir n-offset n-count user-id]
