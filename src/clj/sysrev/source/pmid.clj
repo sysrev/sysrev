@@ -53,7 +53,9 @@
                          :pmid-file {:filename filename})]
         (import-source-impl
          project-id source-meta
-         {:get-article-refs (constantly pmids), :get-articles pubmed-get-articles}
+         {:types {:article-type "academic" :article-subtype "pubmed"}
+          :get-article-refs (constantly pmids)
+          :get-articles pubmed-get-articles}
          options)))))
 
 (defmethod import-source :pmid-vector
@@ -71,5 +73,7 @@
       (let [source-meta (source/make-source-meta :pmid-vector {})]
         (import-source-impl
          project-id source-meta
-         {:get-article-refs (constantly pmids), :get-articles pubmed-get-articles}
+         {:types {:article-type "academic" :article-subtype "pubmed"}
+          :get-article-refs (constantly pmids)
+          :get-articles pubmed-get-articles}
          options)))))

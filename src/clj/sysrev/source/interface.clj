@@ -2,9 +2,7 @@
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction *conn*
-              clear-project-cache]]
+            [sysrev.db.core :as db :refer [*conn*]]
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
             [sysrev.datasource.core :as data]
@@ -62,14 +60,14 @@
   project articles."
   [project-id articles]
   (let [ ;; check for matches of PMID value
-        public-ids (->> articles (map :public-id) (map str) (remove empty?))
+        public-ids (->> articles (map :public-id) (map parse-integer) (remove nil?) (map str))
         existing (when (seq public-ids)
                    (q/find [:article :a] {:a.project-id project-id
-                                          :ad.external-id (map parse-integer public-ids)}
+                                          :ad.external-id (map db/to-jsonb public-ids)}
                            [:a.article-id :ad.external-id]
                            :join [:article-data:ad :a.article-data-id]))
         existing-article-ids (map :article-id existing)
-        existing-public-ids (->> existing (map :external-id) (map str))
+        existing-public-ids (map :external-id existing)
         have-article? #(some->> % :public-id (in? existing-public-ids))]
     {:new-articles (remove have-article? articles)
      :existing-article-ids existing-article-ids}))
@@ -82,7 +80,7 @@
   [project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added types] :as impl}]
   (letfn [(import-group [articles]
-            (with-transaction
+            (db/with-transaction
               (let [{:keys [new-articles existing-article-ids]}
                     (match-existing-articles project-id articles)
                     new-article-ids (add-articles project-id new-articles types prepare-article)
@@ -146,7 +144,7 @@
 (defn- after-source-import
   "Handles success or failure after an import attempt has finished."
   [project-id source-id success?]
-  (with-transaction
+  (db/with-transaction
     ;; update source metadata
     (if success?
       (s/alter-source-meta source-id #(assoc % :importing-articles? false))

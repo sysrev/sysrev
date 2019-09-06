@@ -44,6 +44,7 @@
                                   :search-count pmids-count})]
         (import-source-impl
          project-id source-meta
-         {:get-article-refs #(pubmed/get-all-pmids-for-query search-term),
+         {:types {:article-type "academic" :article-subtype "pubmed"}
+          :get-article-refs #(pubmed/get-all-pmids-for-query search-term)
           :get-articles pubmed-get-articles}
          options)))))

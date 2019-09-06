@@ -18,5 +18,7 @@
   (import-source-impl
    project-id
    (make-source-meta :api-text-manual {:article-count (count articles)})
-   {:get-article-refs (constantly articles), :get-articles identity}
+   {:types {:article-type "text" :article-subtype "generic"}
+    :get-article-refs (constantly articles)
+    :get-articles identity}
    options))

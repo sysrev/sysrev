@@ -2,18 +2,16 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-project-cache clear-project-cache]]
-            [sysrev.db.entity :as e]
-            [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.util :as u :refer [in? map-values index-by]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.shared.util :as sutil :refer
+             [in? map-values index-by ensure-pred parse-integer]]))
 
 (defn merge-article-data-content [article]
   (merge (dissoc article :content)
@@ -78,7 +76,7 @@
 
 (defn-spec article-user-notes-map (s/map-of int? any?)
   [project-id int?, article-id int?]
-  (with-project-cache project-id [:article article-id :notes :user-notes-map]
+  (db/with-project-cache project-id [:article article-id :notes :user-notes-map]
     (->> (q/find [:article :a] {:a.article-id article-id} [:an.* :pn.name]
                  :join [[:article-note:an :a.article-id]
                         [:project-note:pn :an.project-note-id]])

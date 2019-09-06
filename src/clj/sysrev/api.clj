@@ -42,11 +42,11 @@
             [sysrev.source.pmid :as src-pmid]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.sendgrid :as sendgrid]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util :refer [to-clj-time]]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un]])
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un parse-integer]])
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
 
@@ -157,12 +157,12 @@
             group-id  (mapv #(change-project-owner % :group-id group-id) users-projects)))))
 
 (defn wrap-import-api [f]
-  (let [{:keys [error]} (try (f)
-                             (catch Throwable e
-                               (log/warn "wrap-import-handler - unexpected error -"
-                                         (.getMessage e))
-                               (.printStackTrace e)
-                               {:error {:message "Import error"}}))]
+  (let [{:keys [error]}
+        (try (f)
+             (catch Throwable e
+               (log/warn "wrap-import-handler -" (.getMessage e))
+               (log/warn (with-out-str (print-cause-trace-custom e)))
+               {:error {:message "Import error"}}))]
     (if error
       {:error error}
       {:result {:success true}})))

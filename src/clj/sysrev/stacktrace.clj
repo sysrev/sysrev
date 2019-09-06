@@ -28,7 +28,8 @@
 (defn filter-stacktrace?
   "Check whether stacktrace element filtering should be used."
   [elements]
-  (some #(str/includes? (.getClassName %) "default_fixture") elements))
+  #_ (some #(str/includes? (.getClassName %) "default_fixture") elements)
+  (some #(str/includes? (.getClassName %) "sysrev") elements))
 
 (defn filter-stacktrace-elements
   "Filter a sequence of stacktrace elements to remove unhelpful entries."

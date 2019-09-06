@@ -51,7 +51,8 @@
                              {:filename (fs/base-name (.getName zip-entry))
                               :file-byte-array (-> (.getInputStream zip-file zip-entry)
                                                    (util/slurp-bytes))})
-            impl {:get-article-refs #(-> zip-file pdf-zip-entries)
+            impl {:types {:article-type "file" :article-subtype "pdf"}
+                  :get-article-refs #(-> zip-file pdf-zip-entries)
                   :get-articles #(map pdf-to-article %)
                   :on-article-added #(article-file/save-article-pdf
                                       (-> (select-keys % [:article-id :filename])

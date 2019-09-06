@@ -285,7 +285,7 @@
                         parsed-html)
              first
              (get-in [:attrs :href]))))
-     :fname "pdf-ftp-link" :max-retries 5 :retry-delay 1000)))
+     :fname "pdf-ftp-link" :retry-delay 1000)))
 
 (defn article-pmcid-pdf-filename
   "Return filename of the pdf for a pmcid (\"PMC*\") if exists."
