@@ -69,7 +69,7 @@
                            [:a.article-id :ad.external-id]
                            :join [:article-data:ad :a.article-data-id]))
         existing-article-ids (map :article-id existing)
-        existing-public-ids (->> existing (map :public-id) (map str))
+        existing-public-ids (->> existing (map :external-id) (map str))
         have-article? #(some->> % :public-id (in? existing-public-ids))]
     {:new-articles (remove have-article? articles)
      :existing-article-ids existing-article-ids}))
