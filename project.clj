@@ -30,6 +30,9 @@
                  [org.clojure/data.zip "0.1.3"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
+;;; GraphQL
+                 [com.walmartlabs/lacinia "0.34.0"]
+                 [vincit/venia "0.2.5"]
 
 ;;; Postgres
                  [org.clojure/java.jdbc "0.7.9"]

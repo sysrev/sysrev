@@ -86,9 +86,17 @@
               (some #(= x %) coll)))
   ([coll] #(in? coll %)))
 
+(defn map-keys
+  "Map a function over the keys of a collection of pairs (vector of vectors,
+  hash-map, etc.) Optionally accepts a collection to put result into."
+  ([f rescoll m]
+   (into rescoll (->> m (map (fn [[k v]] [(f k) v])))))
+  ([f m]
+   (map-keys f {} m)))
+
 (defn map-values
   "Map a function over the values of a collection of pairs (vector of vectors,
-  hash-map, etc.) Optionally accept a result collection to put values into."
+  hash-map, etc.) Optionally accepts a collection to put result into."
   ([f rescoll m]
    (into rescoll (->> m (map (fn [[k v]] [k (f v)])))))
   ([f m]

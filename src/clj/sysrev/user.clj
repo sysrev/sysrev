@@ -12,6 +12,7 @@
         sysrev.label.core
         sysrev.annotations
         sysrev.datasource.core
+        sysrev.datasource.api
         sysrev.project.core
         sysrev.project.clone
         sysrev.project.article-list
@@ -82,6 +83,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [venia.core :refer [graphql-query]]
             [sysrev.config.core :refer [env]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
