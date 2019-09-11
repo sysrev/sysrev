@@ -5,8 +5,10 @@
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? map-values assert-pred] :as sutil]))
+            [sysrev.shared.util :as sutil
+             :refer [in? map-values assert-pred parse-integer]]))
 
 (defn create-annotation! [selection annotation context article-id]
   (q/create :annotation {:selection selection
@@ -78,14 +80,15 @@
 (defn project-annotations
   "Retrieve all annotations for project-id"
   [project-id]
-  (->> (find-annotation {:a.project-id project-id}
-                        ;; some of these fields are needed to match `text-context-article-field-match`
-                        [:ann.selection :ann.annotation :ann.context :ann-sc.definition :ann-u.user-id
-                         :a.article-id :ad.content :s3.key :s3.filename])
-       (mapv (fn [entry]
-               (article/merge-article-data-content
-                (update entry :content
-                        #(select-keys % [:primary-title :secondary-title :abstract])))))))
+  (let [entries (find-annotation {:a.project-id project-id}
+                                 [:ann.selection :ann.annotation :ann.context :ann-sc.definition
+                                  :ann-u.user-id :a.article-id :s3.key :s3.filename])
+        articles (-> (distinct (map :article-id entries))
+                     (ds-api/get-articles-content))]
+    (mapv (fn [{:keys [article-id] :as entry}]
+            (merge entry (select-keys (get articles article-id)
+                                      [:primary-title :secondary-title :abstract])))
+          entries)))
 
 (defn project-annotations-basic
   "Retrieve all annotations for project-id"
@@ -120,10 +123,9 @@
 (defn text-context-article-field-match
   "Determine which field of an article text-context matches in article-id."
   [text-context article-id]
-  (let [article (-> (q/find-one [:article :a] {:article-id article-id} :ad.content
-                                :join [:article-data:ad :a.article-data-id])
-                    (select-keys [:primary-title :secondary-title :abstract]))]
-    (or (->> (keys article)
-             (filter #(= text-context (get article %)))
-             first)
-        text-context)))
+  (when-let [article (ds-api/get-article-content article-id)]
+    (let [fields (select-keys article [:primary-title :secondary-title :abstract])]
+      (or (->> (keys fields)
+               (filter #(= text-context (get fields %)))
+               first)
+          text-context))))

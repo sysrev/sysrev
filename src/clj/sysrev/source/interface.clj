@@ -15,7 +15,7 @@
 
 (defn- add-articles-data [{:keys [article-type article-subtype] :as types} articles]
   (doall (for [article articles]
-           (-> (data/article-data-from-legacy types article)
+           (-> (data/make-article-data types article)
                (data/save-article-data)))))
 
 (defn- add-articles
@@ -68,7 +68,7 @@
                            :join [:article-data:ad :a.article-data-id]))
         existing-article-ids (map :article-id existing)
         existing-public-ids (map :external-id existing)
-        have-article? #(some->> % :public-id (in? existing-public-ids))]
+        have-article? #(some->> % :public-id str (in? existing-public-ids))]
     {:new-articles (remove have-article? articles)
      :existing-article-ids existing-article-ids}))
 

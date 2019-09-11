@@ -3,16 +3,12 @@
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.shared.util :as sutil]))
-
-(defn get-article-content [external-id]
-  (q/find-one :article-data {:external-id external-id} :content))
+            [sysrev.shared.util :as sutil :refer [parse-integer]]))
 
 (defn match-existing-article-data
   "Returns `article-data-id` value for an existing `article-data` entry
   that matches `fields`, or nil if no entry exists."
-  [{:keys [article-type article-subtype datasource-name external-id title content]
-    :as article-data}]
+  [{:keys [datasource-name external-id] :as article-data}]
   (when (and datasource-name external-id)
     (q/find-one :article-data {:datasource-name datasource-name
                                :external-id (db/to-jsonb external-id)}
@@ -25,7 +21,7 @@
     :as article-data}]
   (db/with-transaction
     (or (match-existing-article-data article-data)
-        (q/create :article-data (-> (update article-data :content db/to-jsonb)
+        (q/create :article-data (-> (update article-data :content #(some-> % db/to-jsonb))
                                     (update :external-id #(some-> % db/to-jsonb)))
                   :returning :article-data-id))))
 
@@ -40,16 +36,18 @@
     "legacy"           ["academic"  "unknown"]
     nil))
 
-(defn article-data-from-legacy
-  [{:keys [article-type article-subtype] :as extra} article]
+(defn make-article-data
+  [{:keys [article-type article-subtype] :as extra}
+   {:keys [public-id primary-title] :as article}]
   {:article-type article-type
    :article-subtype article-subtype
    :datasource-name (when (= article-subtype "pubmed") "pubmed")
    :external-id (when (= article-subtype "pubmed")
-                  (some-> (:public-id article) sutil/parse-integer str))
-   :title (:primary-title article)
-   :content (dissoc article :source-meta :text-search :enabled :article-data-id
-                    :article-id :article-uuid :parent-article-uuid :raw)})
+                  (some-> public-id parse-integer str))
+   :title primary-title
+   :content (when (not= article-subtype "pubmed")
+              (dissoc article :source-meta :text-search :enabled :article-data-id
+                      :article-id :article-uuid :parent-article-uuid :raw))})
 
 (defn copy-legacy-article-content [article-id]
   (db/with-transaction
@@ -63,9 +61,9 @@
                 (pr-str (:source-meta article)))
         (assert (:primary-title article))
         (let [article-data-id (save-article-data
-                               (article-data-from-legacy {:article-type article-type
-                                                          :article-subtype article-subtype}
-                                                         article))]
+                               (make-article-data {:article-type article-type
+                                                   :article-subtype article-subtype}
+                                                  article))]
           (q/modify :article {:article-id article-id} {:article-data-id article-data-id}))))))
 
 ;; note: projects #2062 and #3440 have article entries with no article-source somehow
@@ -95,7 +93,7 @@
                    (partition-all 100))]
     (doseq [{:keys [article-data-id content]}
             (q/find :article-data {:article-data-id ids} [:article-data-id :content])]
-      (when-let [public-id (some-> content :public-id sutil/parse-integer)]
+      (when-let [public-id (some-> content :public-id parse-integer)]
         (q/modify :article-data {:article-data-id article-data-id}
                   {:external-id (-> public-id str db/to-jsonb)})))))
 
@@ -117,3 +115,7 @@
           (db/with-transaction
             (q/modify :article {:article-data-id ids} {:article-data-id (first ids)})
             (q/delete :article-data {:article-data-id (rest ids)})))))))
+
+(defn pubmed-data? [{:keys [datasource-name external-id] :as article-data}]
+  (boolean (and (= datasource-name "pubmed")
+                (parse-integer external-id))))

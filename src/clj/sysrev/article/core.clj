@@ -9,6 +9,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.util :as sutil :refer
              [in? map-values index-by ensure-pred parse-integer]]))
@@ -132,10 +133,7 @@
                  :or {items [:locations :score :flags :sources]}
                  :as opts}]
   (assert (->> items (every? #(in? [:locations :score :flags :sources] %))))
-  (let [article-data (q/find-one [:article :a] {:article-id article-id} [:a.* :ad.content]
-                                 :join [:article-data:ad :a.article-data-id])
-        article (merge (select-keys article-data [:article-id :project-id])
-                       (:content article-data))
+  (let [article (ds-api/get-article-content article-id)
         get-item (fn [item-key f] (when (in? items item-key)
                                     (constantly {item-key (f)})))
         item-values

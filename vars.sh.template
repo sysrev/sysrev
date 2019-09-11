@@ -5,6 +5,8 @@ export PAYPAL_URL="https://api.sandbox.paypal.com"
 export PAYPAL_CLIENT_ID=
 export PAYPAL_SECRET=
 export GOOGLE_CLIENT_SECRET=
+export DATASOURCE_AUTH_KEY=
 
 ## Optional
-# export SYSREV_REUSE_WEBDRIVER=1
+# export DATASOURCE_HOST="http://hostname:port"
+# export SYSREV_REUSE_WEBDRIVER=0

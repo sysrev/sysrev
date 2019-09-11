@@ -2,18 +2,17 @@
   (:require [sysrev.config.core :as config]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.source.core :as source :refer [make-source-meta]]
-            [sysrev.source.interface :refer [import-source import-source-impl]]))
+            [sysrev.source.interface :refer [import-source import-source-impl]]
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.shared.util :as sutil :refer [parse-integer]]))
 
 (defn pubmed-get-articles [pmids]
-  (->> (sort pmids)
-       (partition-all (if pubmed/use-cassandra-pubmed? 300 40))
-       (map #(if pubmed/use-cassandra-pubmed?
-               (pubmed/fetch-pmid-entries-cassandra %)
-               (pubmed/fetch-pmid-entries %)))
-       (apply concat)
-       (filter #(and %
-                     (:public-id %)
-                     (not-empty (:primary-title %))))))
+  (let [pmids (sort (map parse-integer pmids))
+        articles (ds-api/fetch-pubmed-articles pmids :fields [:primary-title])]
+    (->> pmids
+         (map #(merge (select-keys (get articles %) [:primary-title])
+                      {:public-id %}))
+         (filter #(and % (:public-id %) (not-empty (:primary-title %)))))))
 
 (defn- pubmed-source-exists? [project-id search-term]
   (->> (source/project-sources project-id)
