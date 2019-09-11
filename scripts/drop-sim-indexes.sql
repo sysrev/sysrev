@@ -1,5 +1,0 @@
-drop index article_similarity_hi_id;
-drop index article_similarity_lo_id;
-drop index article_similarity_sim_version_fk;
-drop index article_similarity_similarity_idx;
-alter table only article_similarity drop constraint article_similarity_sim_version_id_fkey;

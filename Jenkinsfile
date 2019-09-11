@@ -5,7 +5,7 @@ node {
     script: 'git rev-parse HEAD',
     returnStdout: true
   ).trim()
-  
+
   gitUrl = 'git@bitbucket.org:insilica/systematic_review.git'
 
   if (env.BRANCH_NAME != null) {
@@ -14,29 +14,6 @@ node {
     branch = env.CHANGE_TARGET
   } else {
     branch = null
-  }
-  
-  def sendFlowdockMsgFull = {
-    msg,status,color ->
-    cmd = "./scripts/flowdock-msg pipeline"
-    cmd += " -j sysrev"
-    cmd += " -b ${branch}"
-    cmd += " -n ${env.BUILD_NUMBER}"
-    cmd += " -m '${msg}'"
-    if (currentBuild.result != null) {
-      cmd += " -r ${currentBuild.result}"
-    }
-    if (status != null) {
-      cmd += " -s ${status}"
-    }
-    if (color != null) {
-      cmd += " -c ${color}"
-    }
-    try {
-      sh (cmd)
-    } catch (exc) {
-      echo "sendFlowdockMsgFull failed"
-    }
   }
 
   jenkinsHost = "builds.insilica.co"
@@ -68,21 +45,15 @@ node {
     }
   }
 
-  def sendFlowdockMsg = {
-    msg ->
-    sendFlowdockMsgFull (msg, null, null)
-  }
-
   def sendSlackMsg = {
     msg ->
     sendSlackMsgFull (msg, null)
   }
-  
+
   stage('Init') {
     echo "branch = ${branch}"
     echo "CHANGE_TARGET = ${env.CHANGE_TARGET}"
     echo "BRANCH_NAME = ${env.BRANCH_NAME}"
-    // sendFlowdockMsg ('Build started')
     sendSlackMsgFull ('Build started','blue')
     echo 'Setting up workspace...'
     try {
@@ -93,7 +64,6 @@ node {
       }
     } catch (exc) {
       currentBuild.result = 'FAILURE'
-      // sendFlowdockMsg ('Init stage failed')
       sendSlackMsg ('Init stage failed')
       throw exc
     }
@@ -106,15 +76,12 @@ node {
         currentBuild.result = 'SUCCESS'
         if (branch == 'staging' ||
             branch == 'production') {
-          // sendFlowdockMsgFull ('Tests passed','running','blue')
           sendSlackMsgFull ('Tests passed','blue')
         } else {
-          // sendFlowdockMsg ('Tests passed')
           sendSlackMsg ('Tests passed')
         }
       } catch (exc) {
         currentBuild.result = 'UNSTABLE'
-        // sendFlowdockMsg ('Tests failed')
         sendSlackMsg ('Tests failed')
         sh 'cat target/junit-all.xml'
         try {
@@ -135,7 +102,6 @@ node {
           sh './jenkins/build'
         } catch (exc) {
           currentBuild.result = 'FAILURE'
-          // sendFlowdockMsg ('Build stage failed')
           sendSlackMsg ('Build stage failed')
           throw exc
         }
@@ -152,7 +118,6 @@ node {
               sh './jenkins/migrate.dev'
               sh './jenkins/deploy'
             }
-            // sh './jenkins/clone-db-to-dev'
             try {
               sh './jenkins/test-aws-dev-all'
               currentBuild.result = 'SUCCESS'
@@ -167,11 +132,9 @@ node {
           currentBuild.result = 'UNSTABLE'
         } finally {
           if (currentBuild.result == 'SUCCESS') {
-            // sendFlowdockMsgFull ('PreDeployTest passed','running','blue')
             sendSlackMsgFull ('PreDeployTest passed','blue')
           }
           if (currentBuild.result == 'UNSTABLE') {
-            // sendFlowdockMsg ('PreDeployTest failed')
             sendSlackMsg ('PreDeployTest failed')
           }
         }
@@ -206,10 +169,8 @@ node {
           throw exc
         } finally {
           if (currentBuild.result == 'SUCCESS') {
-            // sendFlowdockMsg ('Deployed to AWS')
             sendSlackMsgFull ('Deployed to AWS', 'blue')
           } else {
-            // sendFlowdockMsg ('Deploy failed')
             sendSlackMsg ('Deploy failed')
           }
         }
@@ -225,7 +186,6 @@ node {
           }
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
-          // sendFlowdockMsg ('GitPublish failed')
           sendSlackMsg ('GitPublish failed')
         }
       }
@@ -247,7 +207,6 @@ node {
           sendSlackMsg ('PostDeployTest passed')
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
-          // sendFlowdockMsg ('PostDeployTest failed')
           sendSlackMsg ('PostDeployTest failed')
           if (branch == 'staging') {
             sh 'cat target/junit-all.xml'

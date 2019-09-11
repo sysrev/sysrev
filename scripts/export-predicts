@@ -1,8 +1,0 @@
-#!/bin/bash
-set -eu
-db=$SYSREV_DB
-port=$SYSREV_PORT
-date_string=$(date +%F_%H-%M)
-fname="sysrev-predicts-${date_string}.pgdumpc"
-pg_dump -h localhost -p $port -U postgres -Fc -t sim_version -t predict_version -t predict_run -t label_similarity -t label_predicts $db > "$fname"
-echo "wrote to $fname"
