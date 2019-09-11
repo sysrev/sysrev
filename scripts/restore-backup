@@ -4,8 +4,7 @@ set -eu
 
 fname="$SR_BACKUP_FILE"
 
-opts=( '--data-only'
-       '--disable-triggers'
+opts=( '--disable-triggers'
        '--single-transaction'
        "--dbname=$SR_DEST_DB"
        '--format=custom'
@@ -18,6 +17,23 @@ opts=( '--data-only'
 opts=$(printf " %s" "${opts[@]}")
 opts=${opts:1}
 
-(>&2 echo "running pg_restore")
+readonly_user="readaccess"
 
-pg_restore $opts $fname
+psql -U postgres postgres --list > /dev/null
+
+psql -U $readonly_user postgres --list > /dev/null || (
+    echo "postgres user \"$readonly_user\" is required"
+    echo "run to create: \"createuser -U postgres $readonly_user\""
+    false
+)
+
+echo "dropping database (if exists)..."
+dropdb -h localhost -p $SR_DEST_PORT -U postgres $SR_DEST_DB || true
+
+echo "creating database..."
+createdb -h localhost -p $SR_DEST_PORT -U postgres -T template0 $SR_DEST_DB
+
+echo "running pg_restore..."
+
+set -x
+time pg_restore $opts $fname
