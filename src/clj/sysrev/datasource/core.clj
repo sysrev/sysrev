@@ -74,13 +74,13 @@
   (let [article-ids (q/find :article {:article-data-id nil} :article-id)]
     (log/infof "migrating data for %d articles" (count article-ids))
     (->> (map-indexed (fn [i article-id] [i article-id]) article-ids)
-         (map (fn [[i article-id]]
-                (when (zero? (mod i 10000))
-                  (log/infof "copying article #%d...." i))
-                (try (copy-legacy-article-content article-id)
-                     (catch Throwable e
-                       (log/warnf "got error on article-id=%d" article-id)
-                       (log/warn (.getMessage e))))))
+         (pmap (fn [[i article-id]]
+                 (when (zero? (mod i 10000))
+                   (log/infof "copying article #%d...." i))
+                 (try (copy-legacy-article-content article-id)
+                      (catch Throwable e
+                        (log/warnf "got error on article-id=%d" article-id)
+                        (log/warn (.getMessage e))))))
          doall)
     nil))
 

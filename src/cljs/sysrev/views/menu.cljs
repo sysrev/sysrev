@@ -12,7 +12,7 @@
             [sysrev.macros :refer-macros [with-mount-hook]]))
 
 (defn loading-indicator []
-  (if @(loading/loading-indicator)
+  (if @loading/loading-indicator
     [:div.item.loading-indicator
      [:div.ui.small.active.inline.loader.loading-indicator]]
     [:div.item.loading-indicator-disabled]))

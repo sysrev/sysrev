@@ -7,12 +7,16 @@
             [sysrev.shared.util :as sutil :refer [parse-integer]]))
 
 (defn pubmed-get-articles [pmids]
-  (let [pmids (sort (map parse-integer pmids))
-        articles (ds-api/fetch-pubmed-articles pmids :fields [:primary-title])]
-    (->> pmids
-         (map #(merge (select-keys (get articles %) [:primary-title])
-                      {:public-id %}))
-         (filter #(and % (:public-id %) (not-empty (:primary-title %)))))))
+  (->> (map parse-integer pmids)
+       sort
+       (partition-all 1000)
+       (map (fn [pmids]
+              (let [articles (ds-api/fetch-pubmed-articles pmids :fields [:primary-title])]
+                (->> pmids
+                     (map #(merge (select-keys (get articles %) [:primary-title])
+                                  {:public-id (str %)}))
+                     (filter #(and % (:public-id %) (not-empty (:primary-title %))))))))
+       (apply concat)))
 
 (defn- pubmed-source-exists? [project-id search-term]
   (->> (source/project-sources project-id)

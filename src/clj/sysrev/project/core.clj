@@ -333,42 +333,30 @@
          (index-by :user-id)
          (map-values #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
 
-(defn project-pmids
-  "Given a project-id, return all PMIDs associated with the project"
-  [project-id]
-  (-> (select :public-id) (from :article)
-      (where [:and [:= :project-id project-id] [:= :enabled true]])
-      (->> do-query
-           (mapv :public-id)
-           (mapv sutil/parse-number)
-           (filterv (comp not nil?)))))
+(defn project-pmids [project-id]
+  (->> (q/find [:article :a] {:a.project-id project-id
+                              :ad.datasource-name "pubmed"
+                              :a.enabled true}
+               :ad.external-id
+               :join [:article-data:ad :a.article-data-id]
+               :where [:!= :ad.external-id nil])
+       (map sutil/parse-number)
+       (remove nil?) distinct vec))
 
 (defn project-url-ids [project-id]
-  (-> (select :url-id :user-id :date-created)
-      (from [:project-url-id :purl])
-      (where [:= :project-id project-id])
-      (order-by [:date-created :desc])
-      (->> do-query vec)))
+  (vec (q/find :project-url-id {:project-id project-id} [:url-id :user-id :date-created]
+               :order-by [:date-created :desc])))
 
-;; TODO: support filtering by project owner
 (defn project-id-from-url-id [url-id]
   (or (sutil/parse-integer url-id)
-      (-> (select :project-id)
-          (from [:project-url-id :purl])
-          (where [:= :url-id url-id])
-          do-query first :project-id)))
+      (first (q/find :project-url-id {:url-id url-id} :project-id))))
 
 (defn add-project-url-id
   "Adds a project-url-id entry (custom URL)"
   [project-id url-id & {:keys [user-id]}]
-  (try (with-transaction
-         (-> (delete-from :project-url-id)
-             (where [:and [:= :project-id project-id] [:= :url-id url-id]])
-             do-execute)
-         (-> (insert-into :project-url-id)
-             (values [{:project-id project-id, :url-id url-id, :user-id user-id}])
-             do-execute))
-       (finally (clear-project-cache project-id))))
+  (db/with-clear-project-cache project-id
+    (q/delete :project-url-id {:project-id project-id :url-id url-id})
+    (q/create :project-url-id {:project-id project-id :url-id url-id :user-id user-id})))
 
 (defn all-public-projects []
   (-> (select :project-id :name :settings)
@@ -392,35 +380,17 @@
 ;;; These are intended only for testing
 ;;;
 (defn delete-compensation-by-id [project-id compensation-id]
-  ;; delete from compensation-user-period
-  (-> (delete-from :compensation-user-period)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation-project-default
-  (-> (delete-from :compensation-project-default)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation-project
-  (-> (delete-from :compensation-project)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation
-  (-> (delete-from :compensation)
-      (where [:= :compensation-id compensation-id])
-      do-execute))
+  (q/delete :compensation-user-period      {:compensation-id compensation-id})
+  (q/delete :compensation-project-default  {:compensation-id compensation-id})
+  (q/delete :compensation-project          {:compensation-id compensation-id})
+  (q/delete :compensation                  {:compensation-id compensation-id}))
 
 (defn delete-project-compensations [project-id]
-  (doseq [{:keys [compensation-id]} (-> (select :compensation-id)
-                                        (from :compensation-project)
-                                        (where [:= :project-id project-id])
-                                        do-query)]
-    (delete-compensation-by-id project-id compensation-id)))
+  (doseq [id (q/find :compensation-project {:project-id project-id} :compensation-id)]
+    (delete-compensation-by-id project-id id)))
 
 (defn member-count [project-id]
-  (-> (select :%count.user-id)
-      (from :project-member)
-      (where [:= :project-id project-id])
-      do-query first :count))
+  (q/find-count :project-member {:project-id project-id}))
 
 (defn delete-solo-projects-from-user [user-id]
   (doseq [project-id (get-single-user-project-ids user-id)]
@@ -432,21 +402,12 @@
   passed as true or false to filter by enabled status."
   [project-id & [enabled]]
   (assert (contains? #{nil true false} enabled))
-  (-> (select :article-id) (from :article)
-      (where [:and
-              [:= :project-id project-id]
-              (if (nil? enabled) true
-                  [:= :enabled enabled])])
-      (->> do-query (mapv :article-id))))
+  (q/find :article (cond-> {:project-id project-id}
+                     (boolean? enabled) (merge {:enabled enabled}))
+          :article-id))
 
-(defn get-project-by-id
-  "Return a project by its id"
-  [project-id]
-  (-> (select :*)
-      (from :project)
-      (where [:= :project-id project-id])
-      do-query
-      first))
+(defn get-project-by-id [project-id]
+  (q/find-one :project {:project-id project-id}))
 
 (defn get-project-admins [project-id]
   (-> (select :pm.user-id :wb.email)

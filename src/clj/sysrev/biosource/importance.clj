@@ -86,13 +86,9 @@
            (with-transaction
              (when (and (not-empty entries)
                         (project/project-exists? project-id :include-disabled? true))
-               (-> (delete-from :project-entity)
-                   (where [:= :project-id project-id])
-                   do-execute)
+               (q/delete :project-entity {:project-id project-id})
                (doseq [entries-group (partition-all 500 entries)]
-                 (-> (insert-into :project-entity)
-                     (values entries-group)
-                     do-execute))))
+                 (q/create :project-entity entries-group))))
            nil))
        (catch Throwable e
          (let [msg (.getMessage e)]

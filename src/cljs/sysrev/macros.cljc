@@ -171,8 +171,8 @@
                      ;; body function (dispatch is asynchronous).
                      (not= url-id# cur-id#)
                      (do #_ (js/console.log (str "url-id changed to " (pr-str url-id#)))
-                         #_ (js/setTimeout body-fn# 30)
-                         (body-fn#))
+                         (js/setTimeout body-fn# 30)
+                         #_ (body-fn#))
                      ;; Otherwise run route body function immediately.
                      :else (body-fn#))))
                (route-fn-when-ready# []

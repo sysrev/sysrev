@@ -182,7 +182,7 @@
        (mapv #(q/find :article {:article-id %} :article-uuid))
        (apply concat)))
 
-;; TODO: get this PMCID value from somewhere other than raw xml
+;; FIX: get this PMCID value from somewhere other than raw xml
 (defn article-pmcid [article-id]
   nil
   #_ (some->> (qt/get-article article-id :raw) (re-find #"PMC\d+")))

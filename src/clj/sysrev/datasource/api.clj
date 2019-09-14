@@ -83,7 +83,7 @@
                    (map #(when (ds/pubmed-data? %)
                            (parse-integer (:external-id %))))
                    (remove nil?))
-        data (some-> pmids fetch-pubmed-articles)]
+        data (some-> (seq pmids) fetch-pubmed-articles)]
     (zipmap (map :article-id articles)
             (mapv #(merge (select-keys % [:article-id :project-id])
                           (or (get data (-> % :external-id parse-integer))

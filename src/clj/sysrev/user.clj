@@ -16,6 +16,7 @@
         sysrev.project.core
         sysrev.project.clone
         sysrev.project.article-list
+        sysrev.formats.pubmed
         sysrev.export.core
         sysrev.export.endnote
         sysrev.source.core
