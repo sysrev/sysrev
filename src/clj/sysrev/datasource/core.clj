@@ -70,52 +70,36 @@
 #_ (q/find [:article :a] {} :article-id
            :where (q/not-exists [:article-source :as] {:as.article-id :a.article-id})
            :group-by :project-id)
-(defn migrate-article-data []
+
+(defn migrate-article-data
+  "Runs migration to update `article` table format by creating
+  `article-data` entries and linking to `article`.
+
+  Procedure:
+  1. Apply flyway migration V0.0153__article_data.sql
+  2. Run this function
+  3. Apply flyway migration V0.0154__remove_article_fields.sql"
+  []
   (let [article-ids (q/find :article {:article-data-id nil} :article-id)]
     (log/infof "migrating data for %d articles" (count article-ids))
-    (->> (map-indexed (fn [i article-id] [i article-id]) article-ids)
+    (->> (map-indexed vector article-ids)
          (pmap (fn [[i article-id]]
-                 (when (zero? (mod i 10000))
-                   (log/infof "copying article #%d...." i))
+                 (when (and (pos? i) (zero? (mod i 10000)))
+                   (log/infof "copying article #%d" i))
                  (try (copy-legacy-article-content article-id)
                       (catch Throwable e
-                        (log/warnf "got error on article-id=%d" article-id)
-                        (log/warn (.getMessage e))))))
+                        (log/infof "exception on article-id=%d, retrying..." article-id)
+                        (Thread/sleep 250)
+                        (try (copy-legacy-article-content article-id)
+                             (log/infof "success on retry for article-id=%d" article-id)
+                             (catch Throwable e2
+                               (log/warnf "copy failed for article-id=%d" article-id)
+                               (log/warn (.getMessage e))))))
+                 nil))
          doall)
+    (log/infof "migrate finished - %d articles not linked to article-data"
+               (q/find-count :article {:article-data-id nil}))
     nil))
-
-(defn migrate-article-data-public-ids
-  "Populate `external-id` values for PubMed articles in `article-data` using
-  values from `:public-id` field in `content`."
-  []
-  (doseq [ids (->> (q/find :article-data {:article-type "academic" :article-subtype "pubmed"
-                                          :external-id nil}
-                           :article-data-id)
-                   (partition-all 100))]
-    (doseq [{:keys [article-data-id content]}
-            (q/find :article-data {:article-data-id ids} [:article-data-id :content])]
-      (when-let [public-id (some-> content :public-id parse-integer)]
-        (q/modify :article-data {:article-data-id article-data-id}
-                  {:external-id (-> public-id str db/to-jsonb)})))))
-
-(defn migrate-datasource-name []
-  (q/modify :article-data {:article-type "academic" :article-subtype "pubmed"
-                           :datasource-name nil}
-            {:datasource-name "pubmed"}))
-
-(defn migrate-article-data-duplicates []
-  (doseq [datasource-name (q/find :article-data {} [[:%distinct.datasource-name :x]]
-                                  :where [:!= :datasource-name nil])]
-    (let [id-map (->> (q/find :article-data {:datasource-name datasource-name} :article-data-id
-                              :group-by :external-id, :where [:!= :external-id nil])
-                      (sutil/filter-values #(>= (count %) 2)))]
-      (when (seq id-map)
-        (log/infof "merging %d article-data duplicates for %s"
-                   (count id-map) (pr-str datasource-name))
-        (doseq [[external-id ids] id-map]
-          (db/with-transaction
-            (q/modify :article {:article-data-id ids} {:article-data-id (first ids)})
-            (q/delete :article-data {:article-data-id (rest ids)})))))))
 
 (defn pubmed-data? [{:keys [datasource-name external-id] :as article-data}]
   (boolean (and (= datasource-name "pubmed")
