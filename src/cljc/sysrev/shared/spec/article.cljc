@@ -8,7 +8,6 @@
 (s/def ::primary-title string?)
 (s/def ::secondary-title (s/nilable string?))
 (s/def ::abstract (s/nilable string?))
-(s/def ::public-id (s/nilable string?))
 
 ;; NOTE: work-type field may help to identity conference abstracts
 ;;       from endnote xml exports
@@ -48,26 +47,7 @@
 (s/def ::article-partial
   (s/keys :opt-un
           [::article-id ::primary-title ::secondary-title
-           ::abstract ::public-id ::work-type ::notes ::remote-database-name
-           ::year ::authors ::urls ::document-ids ::project-id ::raw
-           ::keywords ::article-uuid ::enabled ::duplicate-of
-           ::score ::locations ::flags]))
-
-;; article map with all columns of `article` table required
-(s/def ::article
-  (s/keys :req-un
-          [::article-id ::primary-title ::secondary-title
-           ::abstract ::public-id ::work-type ::notes ::remote-database-name
-           ::year ::authors ::urls ::document-ids ::project-id ::raw
-           ::keywords ::article-uuid ::enabled ::duplicate-of]
-          :opt-un
-          [::score ::locations ::flags]))
-
-;; article map with all columns and extra fields required
-(s/def ::article-full
-  (s/keys :req-un
-          [::article-id ::primary-title ::secondary-title
-           ::abstract ::public-id ::work-type ::notes ::remote-database-name
+           ::abstract ::work-type ::notes ::remote-database-name
            ::year ::authors ::urls ::document-ids ::project-id ::raw
            ::keywords ::article-uuid ::enabled ::duplicate-of
            ::score ::locations ::flags]))

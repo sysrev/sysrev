@@ -75,14 +75,30 @@
     (-> (apply-keyargs fetch-pubmed-articles [pmid] opts)
         (get pmid))))
 
+(defn fetch-nct-entries [nctids & {:keys [fields]}]
+  (assert (every? string? nctids))
+  (zipmap nctids (-> (graphql-query
+                      {:venia/queries
+                       [[:clinicalTrialEntities {:nctids nctids}
+                         (-> (mapv field-to-graphql (or fields [:json]))
+                             (conj :id))]]})
+                     (run-ds-query)
+                     (parse-ds-response #(get-in % [:data :clinicalTrialEntities]))
+                     (->> (map (fn [entry]
+                                 (update entry :json #(json/read-str % :key-fn keyword))))))))
+
+(defn fetch-nct-entry [nctid & {:as opts}]
+  (-> (apply-keyargs fetch-nct-entries [nctid] opts)
+      (get nctid)))
+
 (defn get-articles-content [article-ids]
   (let [articles (q/find [:article :a] {:article-id article-ids}
                          [:a.* :ad.datasource-name :ad.external-id :ad.content]
                          :join [:article-data:ad :a.article-data-id])
-        pmids (->> articles
-                   (map #(when (ds/pubmed-data? %)
-                           (parse-integer (:external-id %))))
-                   (remove nil?))
+        pmids (sort (->> articles
+                         (map #(when (ds/pubmed-data? %)
+                                 (parse-integer (:external-id %))))
+                         (remove nil?)))
         data (some-> (seq pmids) fetch-pubmed-articles)]
     (zipmap (map :article-id articles)
             (mapv #(merge (select-keys % [:article-id :project-id])

@@ -36,6 +36,7 @@
         els (xml-find pxml [:test :A])]
     (is (= (count els) 3))))
 
+#_
 (deftest pubmed-article-parse
   (let [[parsed] (pubmed/fetch-pmid-entries-cassandra [11592337])]
     (is (str/starts-with? (:abstract parsed) "OBJECTIVE: To determine"))
@@ -43,6 +44,7 @@
     (is (= (str/join "; " (:authors parsed)) "Hendrix, DV.; Ward, DA.; Barnhill, MA."))
     (is (= (:public-id parsed) "11592337"))))
 
+#_
 (deftest pubmed-article-public-id
   (let [[parsed] (pubmed/fetch-pmid-entries-cassandra [28280522])]
     (is (= (:public-id parsed) "28280522"))))

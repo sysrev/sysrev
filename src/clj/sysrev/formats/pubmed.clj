@@ -122,32 +122,29 @@
                   (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Day]
                        (xml-find [pxml])
                        first :content first))]
-      (cond->
-          {:remote-database-name "MEDLINE"
-           :primary-title title
-           :secondary-title journal
-           :abstract abstract
-           :authors (mapv str/trim authors)
-           :year year
-           :keywords keywords
-           :public-id (some-> pmid str)
-           :locations locations
-           :date (cond-> (str year)
-                   month           (str "-" (if (and (integer? month)
-                                                     (<= 1 month 9))
-                                              "0" "")
-                                        month)
-                   (and month day) (str "-" (if (and (integer? day)
-                                                     (<= 1 day 9))
-                                              "0" "")
-                                        day))}
-          create-raw?
-          (merge {:raw (dxml/emit-str pxml)})))
+      (cond-> {:remote-database-name "MEDLINE"
+               :primary-title title
+               :secondary-title journal
+               :abstract abstract
+               :authors (mapv str/trim authors)
+               :year year
+               :keywords keywords
+               :public-id (some-> pmid str)
+               :locations locations
+               :date (-> (str year)
+                         (cond-> month
+                           (str "-" (if (and (integer? month) (<= 1 month 9))
+                                      "0" "")
+                                month))
+                         (cond-> (and month day)
+                           (str "-" (if (and (integer? day) (<= 1 day 9))
+                                      "0" "")
+                                day)))}
+        create-raw? (assoc :raw (dxml/emit-str pxml))))
     (catch Throwable e
       (log/warn "parse-pmid-xml:" "error while parsing article -" (.getMessage e))
-      (try
-        (log/warn "xml =" (dxml/emit-str pxml))
-        (catch Throwable e1 nil))
+      (try (log/warn "xml =" (dxml/emit-str pxml))
+           (catch Throwable e1 nil))
       nil)))
 
 (defn fetch-pmids-xml [pmids]
@@ -167,22 +164,19 @@
        (remove nil?)))
 
 (defn fetch-pmid-entries-cassandra [pmids]
-  (let [result
-        (when @cdb/active-session
-          (try (->> (cdb/get-pmids-xml pmids)
-                    (pmap #(some-> % parse-xml-str
-                                   (parse-pmid-xml :create-raw? false)
-                                   (merge {:raw %})))
-                    vec)
-               (catch Throwable e
-                 (log/warn "fetch-pmid-entries-cassandra:"
-                           "error while fetching or parsing")
-                 nil)))]
+  (let [result (when @cdb/active-session
+                 (try (->> (cdb/get-pmids-xml pmids)
+                           (pmap #(some-> % parse-xml-str
+                                          (parse-pmid-xml :create-raw? false)
+                                          (merge {:raw %})))
+                           vec)
+                      (catch Throwable e
+                        (log/warn "fetch-pmid-entries-cassandra:"
+                                  "error while fetching or parsing"))))]
     (if (empty? result)
       (fetch-pmid-entries pmids)
       (->> (if (< (count result) (count pmids))
-             (let [result-pmids
-                   (->> result (map #(some-> % :public-id parse-integer)))
+             (let [result-pmids (->> result (map #(some-> % :public-id parse-integer)))
                    diff (set/difference (set pmids) (set result-pmids))
                    have (set/difference (set pmids) (set diff))
                    from-pubmed (fetch-pmid-entries (vec diff))]
@@ -192,7 +186,9 @@
 
 ;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
 (defn get-search-query
-  "Given a query and retstart value, fetch the json associated with that query. Return a EDN map of that data. A page size is 20 PMIDs and starts on page 1"
+  "Given a query and retstart value, fetch the json associated with that
+  query. Return a EDN map of that data. A page size is 20 PMIDs and
+  starts on page 1."
   [query retmax retstart]
   (util/wrap-retry
    (fn []
@@ -208,7 +204,8 @@
    :fname "get-search-query"))
 
 (defn get-search-query-response
-  "Given a query and page number, return a EDN map corresponding to a JSON response. A page size is 20 PMIDs and starts on page 1"
+  "Given a query and page number, return a EDN map corresponding to a
+  JSON response. A page size is 20 PMIDs and starts on page 1."
   [query page-number]
   (let [retmax 20
         esearch-result (:esearchresult (get-search-query query retmax (* (- page-number 1) retmax)))]
@@ -272,7 +269,7 @@
 (def oa-root-link "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi")
 
 (defn pdf-ftp-link
-  "Given a pmicd (PMC*), return the ftp link for the pdf, if it exists, nil otherwise"
+  "Returns an ftp url (if exists) for a Pubmed PMCID pdf reference."
   [pmcid]
   (when pmcid
     (util/wrap-retry

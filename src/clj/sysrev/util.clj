@@ -244,7 +244,7 @@
 
 (defn wrap-retry
   [f & {:keys [fname max-retries retry-delay throttle-delay]
-        :or {max-retries 3, retry-delay 1500, throttle-delay nil}}]
+        :or {max-retries 3, retry-delay 1000, throttle-delay nil}}]
   (letfn [(result-fn [retry-count]
             (when throttle-delay
               (Thread/sleep throttle-delay))

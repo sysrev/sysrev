@@ -21,7 +21,8 @@
     :as article-data}]
   (db/with-transaction
     (or (match-existing-article-data article-data)
-        (q/create :article-data (-> (update article-data :content #(some-> % db/to-jsonb))
+        (q/create :article-data (-> article-data
+                                    (update :content #(some-> % db/to-jsonb))
                                     (update :external-id #(some-> % db/to-jsonb)))
                   :returning :article-data-id))))
 
@@ -36,18 +37,30 @@
     "legacy"           ["academic"  "unknown"]
     nil))
 
+(defn datasource-name-for-type [{:keys [article-type article-subtype] :as types}]
+  (condp = article-type
+    "academic"   (condp = article-subtype
+                   "pubmed"   "pubmed"
+                   nil)
+    nil))
+
 (defn make-article-data
   [{:keys [article-type article-subtype] :as extra}
-   {:keys [public-id primary-title] :as article}]
-  {:article-type article-type
-   :article-subtype article-subtype
-   :datasource-name (when (= article-subtype "pubmed") "pubmed")
-   :external-id (when (= article-subtype "pubmed")
-                  (some-> public-id parse-integer str))
-   :title primary-title
-   :content (when (not= article-subtype "pubmed")
-              (dissoc article :source-meta :text-search :enabled :article-data-id
-                      :article-id :article-uuid :parent-article-uuid :raw))})
+   {:keys [public-id external-id primary-title] :as article}]
+  ;; allow alternate :public-id key to support legacy article migration
+  (let [external-id (or external-id public-id)
+        datasource-name (datasource-name-for-type extra)]
+    {:article-type article-type
+     :article-subtype article-subtype
+     :datasource-name datasource-name
+     :external-id (when datasource-name
+                    (if (= datasource-name "pubmed")
+                      (some-> external-id parse-integer str)
+                      external-id))
+     :title primary-title
+     :content (when-not datasource-name
+                (dissoc article :source-meta :text-search :enabled :article-data-id
+                        :article-id :article-uuid :parent-article-uuid :raw))}))
 
 (defn copy-legacy-article-content [article-id]
   (db/with-transaction
@@ -60,10 +73,10 @@
         (assert (and article-type article-subtype)
                 (pr-str (:source-meta article)))
         (assert (:primary-title article))
-        (let [article-data-id (save-article-data
-                               (make-article-data {:article-type article-type
-                                                   :article-subtype article-subtype}
-                                                  article))]
+        (let [article-data-id (-> (make-article-data {:article-type article-type
+                                                      :article-subtype article-subtype}
+                                                     article)
+                                  (save-article-data))]
           (q/modify :article {:article-id article-id} {:article-data-id article-data-id}))))))
 
 ;; note: projects #2062 and #3440 have article entries with no article-source somehow

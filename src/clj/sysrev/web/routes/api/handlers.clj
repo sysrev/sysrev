@@ -140,10 +140,6 @@
               "  primary-title: string"
               "  abstract: string"
               ""
-              "Optional fields include:"
-              "  authors: vector of strings"
-              "  public-id: string (PMID value)"
-              ""
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
   (fn [request]

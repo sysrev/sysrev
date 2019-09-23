@@ -5,7 +5,7 @@
             [sysrev.db.core :as db :refer [*conn*]]
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
-            [sysrev.datasource.core :as data]
+            [sysrev.datasource.core :as ds]
             [sysrev.source.core :as s]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
@@ -15,8 +15,8 @@
 
 (defn- add-articles-data [{:keys [article-type article-subtype] :as types} articles]
   (doall (for [article articles]
-           (-> (data/make-article-data types article)
-               (data/save-article-data)))))
+           (-> (ds/make-article-data types article)
+               (ds/save-article-data)))))
 
 (defn- add-articles
   "Implements adding article entries to db from sequence of article maps.
@@ -45,8 +45,8 @@
                                    (dissoc :raw :abstract :date :urls :document-ids :keywords
                                            :year :nct-arm-name :notes :nct-arm-desc
                                            :remote-database-name :authors :secondary-title
-                                           :work-type :public-id :text-search
-                                           :primary-title)))
+                                           :work-type :text-search
+                                           :primary-title :public-id :external-id)))
                              articles-prepared article-data-ids)
         ;; create `article` entries
         article-ids (article/add-articles articles-basic project-id *conn*)]
@@ -54,21 +54,25 @@
     (map (fn [id article] {id (merge article {:article-id id})})
          article-ids articles)))
 
-;; TODO: this should be customizable by source type (keep this as default)
 (defn- match-existing-articles
   "Implements checking list of article maps for matches against existing
   project articles."
-  [project-id articles]
-  (let [ ;; check for matches of PMID value
-        public-ids (->> articles (map :public-id) (map parse-integer) (remove nil?) (map str))
-        existing (when (seq public-ids)
+  [project-id articles {:keys [article-type article-subtype] :as types}]
+  (let [datasource-name (ds/datasource-name-for-type types)
+        ;; check for matches of PMID value
+        external-ids (when datasource-name
+                       (if (= datasource-name "pubmed")
+                         (->> articles (map :external-id) (map parse-integer) (remove nil?) (map str))
+                         (->> articles (map :external-id) (remove nil?))))
+        existing (when (seq external-ids)
                    (q/find [:article :a] {:a.project-id project-id
-                                          :ad.external-id (map db/to-jsonb public-ids)}
+                                          :ad.external-id (map db/to-jsonb external-ids)
+                                          :ad.datasource-name datasource-name}
                            [:a.article-id :ad.external-id]
                            :join [:article-data:ad :a.article-data-id]))
         existing-article-ids (map :article-id existing)
-        existing-public-ids (map :external-id existing)
-        have-article? #(some->> % :public-id str (in? existing-public-ids))]
+        existing-external-ids (map :external-id existing)
+        have-article? #(some->> % :external-id str (in? existing-external-ids))]
     {:new-articles (remove have-article? articles)
      :existing-article-ids existing-article-ids}))
 
@@ -82,7 +86,7 @@
   (letfn [(import-group [articles]
             (db/with-transaction
               (let [{:keys [new-articles existing-article-ids]}
-                    (match-existing-articles project-id articles)
+                    (match-existing-articles project-id articles types)
                     new-article-ids (add-articles project-id new-articles types prepare-article)
                     new-articles-map (apply merge new-article-ids)
                     new-locations
@@ -166,21 +170,23 @@
   `:article-subtype`.
 
   `get-article-refs` is a function returning a sequence of
-  values (article-refs) that can be used to obtain an article.
+  values (`article-refs`) that can be used to obtain an article.
 
-  `get-articles` is a function that accepts an article-refs sequence and
-  returns a sequence of corresponding article values. The article
+  `get-articles` is a function that accepts an `article-refs` sequence
+  and returns a sequence of corresponding article values. The article
   values should be maps, and may contain extra custom fields (e.g. for
-  use by on-article-added)
+  use by `on-article-added`). `:primary-title` is a required value;
+  `:external-id` should be provided for article types that reference
+  an external datasource.
 
   `prepare-article` is an optional function that will be applied to
-  transform article values for inserting to database.
+  transform article values when inserting to database.
 
   `on-article-added` is an optional function that will be called for
   each article value immediately after the article has been
   successfully added to database. `on-article-added` will receive the
   same article value that was obtained from `get-articles`, with
-  an :article-id key added to reference the new article entry.
+  an `:article-id` key added to reference the new article entry.
 
   `use-future?` is a boolean value (defaults to true) that controls
   whether this function will wrap the top-level import call in a

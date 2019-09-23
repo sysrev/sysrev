@@ -10,28 +10,20 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
-            [sysrev.file.document :as doc-file]
-            [sysrev.db.core :refer
-             [do-query do-execute with-transaction to-sql-array
-              with-debug-sql to-jsonb sql-cast]]
+            [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project :refer
-             [add-project-member set-member-permissions
-              default-project-settings]]
-            [sysrev.group.core :as group]
-            [sysrev.article.core :as article]
-            [sysrev.user.core :as user]
-            [sysrev.label.core :as label]
-            [sysrev.label.answer :as answer]
-            [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
-            [sysrev.shared.util :refer [map-values in?]]
-            [sysrev.util :refer [parse-xml-str]]
-            [sysrev.source.core :as source]
-            [sysrev.formats.endnote :refer [load-endnote-record]]
+             [add-project-member set-member-permissions default-project-settings]]
             [sysrev.project.clone :as clone]
-            [sysrev.formats.pubmed :refer
-             [extract-article-location-entries parse-pmid-xml]]
-            [sysrev.payment.stripe :as stripe])
+            [sysrev.group.core :as group]
+            [sysrev.user.core :as user]
+            [sysrev.formats.endnote :refer [load-endnote-record]]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.payment.stripe :as stripe]
+            [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
+            [sysrev.file.document :refer [migrate-filestore-table]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :refer [map-values in?]])
   (:import java.util.UUID))
 
 (defn update-stripe-plans-table
@@ -55,7 +47,7 @@
   the corresponding date field"
   []
   (let [pubmed-extract-date
-        #(->> % parse-xml-str parse-pmid-xml :date)
+        #(->> % util/parse-xml-str pubmed/parse-pmid-xml :date)
         endnote-extract-date
         #(-> % dxml/parse-str load-endnote-record :date)
         article-xml-extract-date
@@ -83,12 +75,8 @@
   "Migrate to new email verification system, should only be run when the
   user-email table is essentially empty"
   []
-  (when (= 0 (-> (select :%count.*)
-                 (from :user-email)
-                 do-query first :count))
-    (doseq [{:keys [user-id email]} (-> (select :user-id :email)
-                                        (from :web-user)
-                                        do-query)]
+  (when (zero? (q/find-count :user-email {}))
+    (doseq [{:keys [user-id email]} (q/find :web-user {})]
       (user/create-email-verification! user-id email :principal true))))
 
 (defn ensure-groups
@@ -99,25 +87,20 @@
 
 ;; only meant to be used once
 (defn set-project-owners []
-  (let [projects (->> (-> (select :project_id)
-                          (from :project)
-                          do-query)
-                      (mapv :project-id))]
-    (mapv #(if (nil? (project/get-project-owner %))
-             (if-let [project-admin (-> (project/get-project-admins %)
-                                        first :user-id)]
-               ;; set the project-admin to owner
-               (api/change-project-owner % :user-id project-admin)
-               ;; set the member with the lowest user-id as owner
-               (if-let [first-member (-> (project/project-user-ids %) sort first)]
-                 ;; set the project-admin to first-member
-                 (api/change-project-owner % :user-id first-member)
-                 ;; this is an orphaned project
-                 ;; the following projects are orphaned:
-                 ;;   12962 (data extraction rct)
-                 ;;   11214 (EBT Course Assignment Copy 2)
-                 (println "orphaned project: " %))))
-          projects)))
+  (doseq [project-id (q/find :project {} :project-id)]
+    (when-not (project/get-project-owner project-id)
+      (if-let [project-admin (-> (project/get-project-admins project-id) first :user-id)]
+        ;; set the project-admin to owner
+        (api/change-project-owner project-id :user-id project-admin)
+        ;; set the member with the lowest user-id as owner
+        (if-let [first-member (-> (project/project-user-ids project-id) sort first)]
+          ;; set the project-admin to first-member
+          (api/change-project-owner project-id :user-id first-member)
+          ;; this is an orphaned project
+          ;; the following projects are orphaned:
+          ;;   12962 (data extraction rct)
+          ;;   11214 (EBT Course Assignment Copy 2)
+          (log/warn "orphaned project: " project-id))))))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
@@ -126,6 +109,6 @@
                       #'ensure-user-email-entries
                       #'ensure-groups
                       #'migrate-all-project-article-resolve
-                      #'doc-file/migrate-filestore-table]]
+                      #'migrate-filestore-table]]
     (log/info "Running " (str migrate-fn))
     (time ((var-get migrate-fn)))))

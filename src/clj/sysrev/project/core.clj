@@ -130,14 +130,6 @@
   (clear-project-cache project-id)
   project-name)
 
-(defn-spec project-contains-public-id (s/nilable boolean?)
-  "Test if project contains an article with given `public-id` value."
-  [public-id string?, project-id int?]
-  (when (sutil/parse-integer public-id)
-    (-> (q/select-article-where
-         project-id [:= :a.public-id (str public-id)] [:%count.*])
-        do-query first :count pos?)))
-
 (defn-spec project-article-count int?
   [project-id int?]
   (with-project-cache project-id [:articles :count]

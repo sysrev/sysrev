@@ -293,7 +293,7 @@
   `(s/keys :req-un ~(into [] keys)))
 
 (defmacro opt-keys [& keys]
-  `(s/? (s/cat :keys (s/keys* :opt-un ~(into [] keys)))))
+  `(s/? (s/keys* :opt-un ~(into [] keys))))
 
 (defmacro assert-exclusive [& syms]
   (let [show-syms (pr-str (seq syms))]

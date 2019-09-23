@@ -36,8 +36,8 @@
 
 ;;; Postgres
                  [org.clojure/java.jdbc "0.7.10"]
-                 [org.postgresql/postgresql "42.2.7"]
-                 [joda-time "2.10.3"]
+                 [org.postgresql/postgresql "42.2.8"]
+                 [joda-time "2.10.4"]
                  [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
                  [hikari-cp "2.9.0"]

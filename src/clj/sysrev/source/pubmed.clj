@@ -9,13 +9,13 @@
 (defn pubmed-get-articles [pmids]
   (->> (map parse-integer pmids)
        sort
-       (partition-all 1000)
+       (partition-all 500)
        (map (fn [pmids]
               (let [articles (ds-api/fetch-pubmed-articles pmids :fields [:primary-title])]
                 (->> pmids
                      (map #(merge (select-keys (get articles %) [:primary-title])
-                                  {:public-id (str %)}))
-                     (filter #(and % (:public-id %) (not-empty (:primary-title %))))))))
+                                  {:external-id (str %)}))
+                     (filter #(and % (:external-id %) (not-empty (:primary-title %))))))))
        (apply concat)))
 
 (defn- pubmed-source-exists? [project-id search-term]

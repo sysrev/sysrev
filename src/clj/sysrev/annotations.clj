@@ -82,7 +82,8 @@
   [project-id]
   (let [entries (find-annotation {:a.project-id project-id}
                                  [:ann.selection :ann.annotation :ann.context :ann-sc.definition
-                                  :ann-u.user-id :a.article-id :s3.key :s3.filename])
+                                  :ann-u.user-id :a.article-id :s3.key :s3.filename
+                                  :ad.external-id :ad.datasource-name])
         articles (-> (distinct (map :article-id entries))
                      (ds-api/get-articles-content))]
     (mapv (fn [{:keys [article-id] :as entry}]

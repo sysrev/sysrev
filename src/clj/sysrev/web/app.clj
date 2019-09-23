@@ -123,20 +123,22 @@
 
 (defn log-web-event [{:keys [event-type logged-in user-id project-id skey client-ip
                              browser-url request-url request-method is-error meta]
-                      :as event}]
-  (letfn [(create-event []
-            (let [;; avoid SQL exceptions from missing referenced entries
-                  event (cond-> event
-                          user-id (assoc :user-id
-                                         (q/find-one :web-user {:user-id user-id} :user-id))
-                          project-id (assoc :project-id
-                                            (q/find-one :project {:project-id project-id}
-                                                        :project-id)))]
-              (try (q/create :web-event event)
-                   (catch Throwable e (log/warn "log-web-event failed" #_ (.getMessage e))))))]
-    (if db/*conn*
-      (create-event)
-      (future (db/with-transaction (create-event))))))
+                      :as event}
+                     & {:keys [force-log]}]
+  (when (or force-log (not= :test (:profile env)))
+    (letfn [(create-event []
+              (let [ ;; avoid SQL exceptions from missing referenced entries
+                    event (cond-> event
+                            user-id (assoc :user-id
+                                           (q/find-one :web-user {:user-id user-id} :user-id))
+                            project-id (assoc :project-id
+                                              (q/find-one :project {:project-id project-id}
+                                                          :project-id)))]
+                (try (q/create :web-event event)
+                     (catch Throwable e (log/warn "log-web-event failed" #_ (.getMessage e))))))]
+      (if db/*conn*
+        (create-event)
+        (future (db/with-transaction (create-event)))))))
 
 (defn make-web-request-event [request & {:keys [error exception]}]
   {:event-type "ajax"

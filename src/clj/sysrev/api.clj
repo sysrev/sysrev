@@ -880,7 +880,9 @@
 
 (defn project-annotations [project-id]
   (->> (ann/project-annotations project-id)
-       (mapv #(assoc % :pmid (parse-integer (:public-id %))))
+       (mapv #(condp = (:datasource-name %)
+                "pubmed" (assoc % :pmid (parse-integer (:external-id %)))
+                %))
        (mapv #(if-not (nil? (and (:filename %)
                                  (:key %)))
                 (assoc % :pdf-source (pdf-download-url
