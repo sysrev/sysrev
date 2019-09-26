@@ -1,7 +1,8 @@
 (ns sysrev.test.browser.review-articles
-  (:require [clj-webdriver.taxi :as taxi]
+  (:require [clojure.test :refer :all]
             [clojure.string :as str]
-            [clojure.test :refer :all]
+            [clojure.tools.logging :as log]
+            [clj-webdriver.taxi :as taxi]
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
@@ -13,7 +14,8 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.define-labels :as define]
-            [clojure.tools.logging :as log]))
+            [sysrev.util :as util :refer [wrap-retry]]
+            [sysrev.shared.util :as sutil]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -55,7 +57,7 @@
   (b/click (xpath (label-div-with-name name)
                   "/descendant::div[contains(text(),'"
                   (if select? "Yes" "No") "')]"))
-  (Thread/sleep 50))
+  (Thread/sleep 25))
 
 (defn input-string-with-label-name
   "Input string into label with name"
@@ -71,8 +73,8 @@
                             "/descendant::div[contains(@class,'dropdown')]")
         entry-div (xpath (label-div-with-name name)
                          "/descendant::div[contains(text(),'" text "')]")]
-    (b/click dropdown-div :displayed? true :delay 100)
-    (b/click entry-div :displayed? true :delay 100)))
+    (b/click dropdown-div :displayed? true :delay 60)
+    (b/click entry-div :displayed? true :delay 60)))
 
 (defn article-title-div [title]
   (xpath "//div[contains(@class,'article-title') and contains(text(),'" title "')]"))
@@ -263,8 +265,7 @@
                                           (:short-label categorical-label-definition)))))
         (log/info "checking label values from editor")
 ;;;; Let's check the actual UI for this
-        (nav/go-project-route "/articles")
-        (b/wait-until-loading-completes :pre-wait 50)
+        (nav/go-project-route "/articles" :wait-ms 50)
         (b/click "a.article-title")
         (b/wait-until-displayed ".ui.button.change-labels")
         ;; check overall include

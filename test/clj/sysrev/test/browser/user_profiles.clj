@@ -223,8 +223,8 @@
     (nav/log-in email-test-user password-test-user)
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to the user profile
-    (b/click user-name-link :delay 50)
-    (b/click user-profile-tab :delay 50)
+    (b/click user-name-link)
+    (b/click user-profile-tab)
     ;; edit introduction
     (b/click edit-introduction :delay 50)
     (b/wait-until-displayed "textarea")
@@ -236,9 +236,8 @@
     (nav/log-in)
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to users
-    (nav/go-route "/users" :wait-ms 200)
-    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']")
-             :delay 100)
+    (nav/go-route "/users" :wait-ms 100)
+    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']"))
     ;; the introduction still reads the same
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; there is no edit introduction option
@@ -251,9 +250,9 @@
   (do (nav/log-in)
       ;; go to the user profile
       (b/click "#user-name-link")
-      (b/click "#user-profile" :delay 50)
+      (b/click "#user-profile" :delay 30)
       ;; click the user profile avatar
-      (b/click avatar :displayed? true :delay 200)
+      (b/click avatar :displayed? true :delay 100)
       ;; "upload" file
       (log/info "uploading image")
       (taxi/execute-script upload-image-blob-js)
@@ -261,9 +260,7 @@
       ;; set position of avatar
       (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]"))
       (log/info "got image interface")
-      (Thread/sleep 150)
-      (b/click-drag-element "div.cr-viewport" :offset-x 83)
-      (Thread/sleep 150)
+      (b/click-drag-element "div.cr-viewport" :offset-x 83 :delay 100)
       ;; set avatar
       (log/info "setting avatar")
       (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
@@ -281,9 +278,10 @@
       (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
       (log/info "got image meta")
-      (is (-> (:key (user-image/user-active-avatar-image user-id))
-              (s3-file/lookup-file :image)
-              :object-content))
+      (b/is-soon (-> (:key (user-image/user-active-avatar-image user-id))
+                     (s3-file/lookup-file :image)
+                     :object-content)
+                 3000 200)
       (log/info "found file on s3"))
   :cleanup (when-not (try (user-image/delete-user-avatar-image user-id)
                           (catch Throwable _ nil))

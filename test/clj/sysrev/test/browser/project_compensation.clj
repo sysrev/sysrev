@@ -7,8 +7,8 @@
             [clj-webdriver.taxi :as taxi]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.api :as api]
-            [sysrev.db.core :refer
-             [do-query do-execute with-transaction to-jsonb clear-project-cache sql-now]]
+            [sysrev.db.core :as db :refer [do-query do-execute]]
+            [sysrev.db.queries :as q]
             [sysrev.user.core :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
@@ -42,17 +42,17 @@
   "Create a compensation in an integer amount of cents"
   [amount]
   (log/info "creating compensation:" amount "cents")
-  (b/wait-until-loading-completes :pre-wait 50)
-  (nav/go-project-route "/compensations" :wait-ms 100)
+  (b/wait-until-loading-completes :pre-wait 30)
+  (nav/go-project-route "/compensations")
   (b/wait-until-displayed ".ui.form.add-rate")
   (b/set-input-text-per-char "input#create-compensation-amount"
                              (subs (cents->string amount) 1)
                              :delay 25 :char-delay 25)
-  (b/click ".ui.form.add-rate button[type=submit]" :delay 50)
+  (b/click ".ui.form.add-rate button[type=submit]")
   (b/wait-until-exists
    (xpath "//div[@id='project-rates']"
           "/descendant::span[contains(text(),'" (cents->string amount) "')]"))
-  (b/wait-until-loading-completes :pre-wait 50))
+  (b/wait-until-loading-completes :pre-wait 25))
 
 (defn compensation-select [name]
   (let [name (first (str/split name #"@"))]
@@ -132,26 +132,15 @@
   (when project
     (nav/open-project (:name project))))
 
-(defn articles-reviewed-by-user
-  [project-id user-id]
-  (-> (select :al.article-id)
-      (from [:article-label :al])
-      (join [:article :a] [:= :a.article-id :al.article-id])
-      (where [:and [:= :a.project-id project-id] [:= :al.user-id user-id]])
-      do-query))
+(defn articles-reviewed-by-user [project-id user-id]
+  (q/find [:article-label :al] {:a.project-id project-id, :al.user-id user-id}
+          :al.article-id, :join [:article:a :al.article-id]))
 
-(defn articles-unreviewed-by-user
-  [project-id user-id]
-  (let [review-articles (->> (articles-reviewed-by-user project-id user-id)
-                             (map :article-id))]
-    (-> (select :article-id)
-        (from :article)
-        (where [:and
-                (when-not (empty? review-articles)
-                  [:not-in :article-id review-articles])
-                [:= :project-id project-id]])
-        do-query
-        (->> (map :article-id)))))
+(defn articles-unreviewed-by-user [project-id user-id]
+  (let [review-articles (articles-reviewed-by-user project-id user-id)]
+    (q/find :article {:project-id project-id} :article-id
+            :where (when (seq review-articles)
+                     [:not-in :article-id review-articles]))))
 
 (defn click-paypal-button []
   (log/info "clicking paypal button")
@@ -172,30 +161,17 @@
 ;; FIX: remove this function
 (defn randomly-set-labels
   [project-id user-id article-id]
-  (try
-    (with-transaction
-      (let [project-labels (-> (select :label-id :value-type :definition :label-id-local)
-                               (from :label)
-                               (where [:= :project-id project-id])
-                               do-query)]
-        (doall (map (fn [label]
-                      (condp = (:value-type label)
-                        "boolean"
-                        ;;
-                        (-> (insert-into :article-label)
-                            (values [{:article-label-local-id (:label-id-local label)
-                                      :article-id article-id
-                                      :label-id (:label-id label)
-                                      :user-id user-id
-                                      :answer (-> [true false]
-                                                  (nth (rand-int 2))
-                                                  to-jsonb)
-                                      :imported false
-                                      :confirm-time (sql-now)}])
-                            do-execute)))
-                    project-labels))))
-    (finally
-      (clear-project-cache project-id))))
+  (db/with-clear-project-cache project-id
+    (doseq [label (q/find :label {:project-id project-id})]
+      (condp = (:value-type label)
+        "boolean"   (q/create :article-label
+                              {:article-label-local-id (:label-id-local label)
+                               :article-id article-id
+                               :label-id (:label-id label)
+                               :user-id user-id
+                               :answer (db/to-jsonb (nth [true false] (rand-int 2)))
+                               :imported false
+                               :confirm-time (db/sql-now)})))))
 
 ;; this does not check to see if n unreviewed articles really exist
 (defn randomly-set-unreviewed-articles

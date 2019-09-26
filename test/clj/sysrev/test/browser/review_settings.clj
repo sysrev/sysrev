@@ -52,14 +52,12 @@
       (is (b/exists? ".ui.segments.article-info"))
       (project/change-project-setting @project-id :unlimited-reviews false)
       (b/init-route (str "/p/" @project-id "/add-articles"))
-      (b/wait-until-loading-completes :pre-wait 50)
       (nav/go-project-route "/review")
       ;; can not review after unlimited setting disabled
       (is (b/exists? ".no-review-articles"))
       (project/change-project-setting @project-id :unlimited-reviews true)
       ;; re-enable setting, finish reviewing last article
       (b/init-route (str "/p/" @project-id "/add-articles"))
-      (b/wait-until-loading-completes :pre-wait 50)
       (nav/go-project-route "/review")
       (is (b/exists? ".ui.segments.article-info"))
       (review-n-articles 1)

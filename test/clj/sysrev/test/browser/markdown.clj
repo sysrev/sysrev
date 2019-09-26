@@ -15,7 +15,7 @@
 
 (defn click-save []
   (b/wait-until-loading-completes :pre-wait 50)
-  (b/click ".markdown-component .ui.save-button" :delay 100))
+  (b/click ".markdown-component .ui.save-button" :delay 50))
 
 (deftest-browser happy-path-project-description
   true
@@ -30,8 +30,8 @@
       (nav/new-project "Markdown Test")
       (pm/import-pubmed-search-via-db "foo bar")
 ;;; project description
-      (b/click "#project a.item.overview" :delay 100)
-      (b/wait-until-loading-completes :pre-wait 100)
+      (b/click "#project a.item.overview")
+      (b/wait-until-loading-completes :pre-wait 50 :loop 2)
       (log/info "creating project description")
       (b/click create-button)
       ;; enter markdown

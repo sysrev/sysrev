@@ -62,7 +62,7 @@
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"
   [username]
-  (b/click org-users :delay 30)
+  (b/click org-users)
   (b/click "#add-member-button" :delay 400)
   (b/set-input-text-per-char "#org-search-users-input" username)
   (b/click "#submit-add-member" :delay 400))
@@ -129,7 +129,6 @@
 ;;; an owner can add a user to the org
     ;; add a user
     (sutil/apply-keyargs b/create-test-user user1)
-    (Thread/sleep 100)
     (add-user-to-org (:name user1))
     (b/is-soon (= "member" (user-role "foo")) 3000 50)
     ;;an owner can change permissions of a member
@@ -140,7 +139,7 @@
     (nav/log-in (:email user1) (:password user1))
     (b/click user-profiles/user-name-link)
     (b/click user-orgs)
-    (b/click (xpath "//a[text()='" org-name-1 "']") :delay 20)
+    (b/click (xpath "//a[text()='" org-name-1 "']"))
     (b/is-soon (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))
     ;; an org is switched, the correct user list shows up
     (nav/log-in)
@@ -156,7 +155,7 @@
     (b/click org-projects :delay 30)
     (create-project-org org-name-1-project)
     ;; add user1 to Baz Qux as an owner
-    (nav/go-route "/org/users" :wait-ms 50)
+    (nav/go-route "/org/users")
     (switch-to-org org-name-2)
     (add-user-to-org (:name user1))
     (change-user-permission (:name user1) "Owner")
@@ -239,7 +238,7 @@
     (b/click "a.payment-method.add-method")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
-    (plans/click-use-card :delay 100)
+    (plans/click-use-card :delay 50)
     (plans/click-upgrade-plan)
     ;; should be back at project settings
     (b/click set-private-button)
@@ -258,7 +257,7 @@
     (b/click "a.payment-method.add-method")
     (b/is-current-path "/user/payment")
     (bstripe/enter-cc-information user-cc)
-    (plans/click-use-card :delay 100)
+    (plans/click-use-card :delay 50)
     (plans/click-upgrade-plan)
     (b/click set-private-button)
     (b/click save-options-button)
@@ -266,32 +265,31 @@
     (log/info "set project to private access")
     ;; user downgrades to basic plan
     (b/click user-profiles/user-name-link)
-    (b/click "#user-billing" :delay 30)
-    (b/click ".button.nav-plans.unsubscribe" :delay 25)
-    (Thread/sleep 250) ;; wait for created seconds value to advance
-    (b/click ".button.unsubscribe-plan" :delay 25)
+    (b/click "#user-billing")
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
     (b/exists? ".button.nav-plans.subscribe")
     (log/info "downgraded user plan")
     ;; paywall is in place for their project they set private
     (b/click "#user-projects")
-    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 30)
+    (b/click (xpath "//a[contains(text(),'" user-project "')]"))
     ;; this is a user project, should redirect to /user/plans
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; set the project publicly viewable
     (b/click ".ui.button.set-publicly-viewable")
-    (b/click "#confirm-cancel-form-confirm" :delay 25)
+    (b/click "#confirm-cancel-form-confirm")
     (log/info "set project to public access")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to Unlimited
     (b/click user-profiles/user-name-link)
-    (b/click "#user-billing" :delay 30)
+    (b/click "#user-billing")
     (b/click ".button.nav-plans.subscribe" :delay 50)
     (plans/click-upgrade-plan :delay 50)
     (b/exists? ".button.nav-plans.unsubscribe")
     (log/info "upgraded user plan")
     ;; go back to projects
-    (b/click "#user-projects" :delay 30)
-    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 30)
+    (b/click "#user-projects")
+    (b/click (xpath "//a[contains(text(),'" user-project "')]"))
     ;; set the project private
     (nav/go-project-route "/settings" :wait-ms 30)
     (b/click set-private-button :delay 30)
@@ -299,18 +297,18 @@
     (is (b/exists? active-set-private-button))
     (log/info "set project to private access")
     ;; downgrade to basic plan again
-    (b/click user-profiles/user-name-link :delay 30)
-    (b/click "#user-billing" :delay 30)
-    (b/click ".button.nav-plans.unsubscribe" :delay 25)
-    (b/click ".button.unsubscribe-plan" :delay 25)
+    (b/click user-profiles/user-name-link)
+    (b/click "#user-billing")
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
     (b/exists? ".button.nav-plans.subscribe")
     ;; go to user project again
-    (b/click "#user-projects" :delay 30)
-    (b/click (xpath "//a[contains(text(),'" user-project "')]") :delay 30)
+    (b/click "#user-projects")
+    (b/click (xpath "//a[contains(text(),'" user-project "')]"))
     ;; paywall is in place
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; upgrade plans
-    (b/click (xpath "//a[contains(@href,'/user/plans')]") :delay 30)
+    (b/click (xpath "//a[contains(@href,'/user/plans')]"))
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
@@ -319,17 +317,17 @@
     (log/info "Testing Org Paywall")
     (switch-to-org org-name-1)
     (b/click org-billing :delay 30)
-    (b/click ".button.nav-plans.unsubscribe" :delay 25)
-    (b/click ".button.unsubscribe-plan" :delay 25)
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
     (is (b/exists? ".button.nav-plans.subscribe"))
     ;; go to org projects
     (b/click org-projects :delay 30)
-    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 30)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     ;; should redirect to /org/<org-id>/plans
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     ;; set the project publicly viewable
     (b/click ".ui.button.set-publicly-viewable")
-    (b/click "#confirm-cancel-form-confirm" :delay 25)
+    (b/click "#confirm-cancel-form-confirm")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to unlimited
     (switch-to-org org-name-1 :silent true)
@@ -340,20 +338,20 @@
     ;; set project to private again
     (switch-to-org org-name-1 :silent true)
     (b/click org-projects :delay 30)
-    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 30)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     (nav/go-project-route "/settings" :pre-wait-ms 50 :wait-ms 50)
     (b/click set-private-button)
-    (b/click save-options-button :delay 25)
+    (b/click save-options-button)
     ;; downgrade to basic plan again
     (switch-to-org org-name-1 :silent true)
     (b/click org-billing :delay 30)
-    (b/click ".button.nav-plans.unsubscribe" :delay 25)
-    (b/click ".button.unsubscribe-plan" :delay 25)
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
     (log/info "downgraded org plan")
     (b/exists? ".button.nav-plans.subscribe")
     ;; go to project again
     (b/click org-projects :delay 30)
-    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]") :delay 30)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     ;; paywall is in place
     (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]"))
     (b/click (xpath "//a[contains(text(),'Upgrade your plan')]") :delay 50)

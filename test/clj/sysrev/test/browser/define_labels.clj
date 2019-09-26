@@ -152,7 +152,7 @@
     (b/set-input-text
      (field-input-xpath xpath "field-examples")
      (str/join "," examples)
-     :delay 50)))
+     :delay 30)))
 
 (defn set-categorical-label-definition
   [xpath label-map]
@@ -185,7 +185,7 @@
     (b/set-input-text
      (field-input-xpath xpath "field-all-values")
      (str/join "," all-values)
-     :delay 50)
+     :delay 30)
     ;;  inclusion values
     (b/wait-until #(= (taxi/value (field-input-xpath xpath "field-all-values"))
                       (str/join "," all-values)))

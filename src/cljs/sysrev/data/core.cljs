@@ -209,11 +209,11 @@
        (cond (loading/item-spammed? item)
              {:data-failed item}
 
-             (< elapsed-millis 20)
-             {:dispatch-later [{:dispatch [:fetch item] :ms (- 30 elapsed-millis)}]}
+             (< elapsed-millis 15)
+             {:dispatch-later [{:dispatch [:fetch item] :ms (- 25 elapsed-millis)}]}
 
              (not (loading/ajax-action-inactive?))
-             {:dispatch-later [{:dispatch [:fetch item] :ms 20}]}
+             {:dispatch-later [{:dispatch [:fetch item] :ms 10}]}
 
              :else
              (let [content-val (some-> content (apply args))]

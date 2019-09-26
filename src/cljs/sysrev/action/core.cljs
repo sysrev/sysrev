@@ -83,7 +83,7 @@
          content-val (some-> content (apply args))]
      (assert entry (str "def-action not found - " (pr-str name)))
      (cond (not (loading/ajax-status-inactive?))
-           {:dispatch-later [{:dispatch [:action item] :ms 20}]}
+           {:dispatch-later [{:dispatch [:action item] :ms 10}]}
            :else
            (merge {:action-sent item}
                   (run-ajax (cond-> {:db db

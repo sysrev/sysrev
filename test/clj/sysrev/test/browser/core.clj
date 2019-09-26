@@ -288,17 +288,17 @@
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
-    (Thread/sleep delay)
+    (Thread/sleep (quot delay 2))
     (taxi/input-text q text)
     (Thread/sleep (quot delay 2))))
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
-             :or {delay 15 char-delay 20 clear? true}}]
+             :or {delay 15 char-delay 15 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
-    (Thread/sleep delay)
+    (Thread/sleep (quot delay 2))
     (let [e (taxi/element q)]
       (doseq [c text]
         (taxi/input-text e (str c))
@@ -379,7 +379,7 @@
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
                         (log-console-messages (if failed# :error :info))))
-                    (try (wait-until-loading-completes :pre-wait 25 :timeout 400)
+                    (try (wait-until-loading-completes :pre-wait 40 :timeout 1000)
                          (catch Throwable e2#
                            (log/info "test cleanup - wait-until-loading-completes timed out")))
                     (when-not ~repl?
@@ -492,8 +492,9 @@
                        parse-integer)
                   0))))
 
-(defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y]
-                               :or {start-x 0 offset-x 0 start-y 0 offset-y 0}}]
+(defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y delay]
+                               :or {start-x 0 offset-x 0 start-y 0 offset-y 0
+                                    delay 25}}]
   (let [start-x (or start-x 0)
         offset-x (or offset-x 0)
         start-y (or start-y 0)
@@ -516,11 +517,11 @@
                           :start-x start-x :offset-x offset-x
                           :start-y start-y :offset-y offset-y
                           :x x :y y}))
-    (Thread/sleep 25)
+    (Thread/sleep delay)
     (->actions @active-webdriver
                (move-to-element (taxi/element q) x y)
                (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))
-    (Thread/sleep 25)))
+    (Thread/sleep delay)))
 
 (defn check-for-error-message [error-message]
   (exists?

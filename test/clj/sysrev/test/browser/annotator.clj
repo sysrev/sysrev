@@ -15,6 +15,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review-articles]
             [sysrev.test.browser.pubmed :as pm]
+            [sysrev.util :as util :refer [wrap-retry]]
             [sysrev.shared.util :as sutil :refer [in? ensure-pred css]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -112,32 +113,27 @@
                 annotations-csv)))))
 
 (defn input-semantic-class [semantic-class]
-  ;; check if have text input field (no default selected)
-  (if-let [el (taxi/element (b/not-disabled semantic-class-input))]
-    ;; enter value into text input
-    (do #_ (log/info "entering text input")
-        (b/input-text el semantic-class))
-    ;; otherwise have dropdown menu
-    (if-let [el (taxi/element (b/not-disabled semantic-class-dropdown-input))]
-      (do ;; click dropdown input to expand menu
-        #_ (log/info "clicking dropdown menu")
-        (b/click el :delay 50)
-        ;; check if the value we want is already in the list
-        (if-let [item-el (taxi/element (semantic-class-dropdown-item semantic-class))]
-          ;; value found, click to select
-          (do #_ (log/info "clicking dropdown item")
-              (b/click item-el :delay 50))
-          ;; menu doesn't have this value
-          (do ;; click button to add a new value
-            #_ (log/info "clicking new class button")
-            (b/click semantic-class-new-button)
-            ;; enter the new value into text input
-            #_ (log/info "entering text input")
-            (b/input-text (b/not-disabled semantic-class-input) semantic-class))))
-      (log/warn "no dropdown input found"))))
+  (let [input-q (b/not-disabled semantic-class-input)
+        dd-menu-q (b/not-disabled semantic-class-dropdown-input)
+        dd-item-q (b/not-disabled (semantic-class-dropdown-item semantic-class))]
+    (cond
+      ;; check if have text input field (no default selected)
+      (taxi/element input-q)           ; enter value into text input
+      ;; otherwise have dropdown menu
+      (b/input-text input-q semantic-class)
+      (taxi/element dd-menu-q)
+      (do (b/click dd-menu-q :delay 50) ; click dropdown input to expand menu
+          (if (taxi/element dd-item-q) ; check if the value we want is already in the list
+            (b/click dd-item-q :delay 50) ; value found, click to select
+            ;; menu doesn't have this value
+            (do (b/click semantic-class-new-button) ; click button to add a new value
+                (b/input-text input-q semantic-class) ; enter the new value into text input
+                )))
+      :else (log/warn "no dropdown input found"))))
 
-(defn check-db-annotation [project-id match-fields {:keys [selection value semantic-class client-field user-id]
-                                                    :as check-values}]
+(defn check-db-annotation
+  [project-id match-fields {:keys [selection value semantic-class client-field user-id]
+                            :as check-values}]
   (let [entry (some->> (api/project-annotations project-id)
                        (map #(-> (assoc % :client-field (:client-field (:context %)))
                                  (assoc :value (:annotation %))

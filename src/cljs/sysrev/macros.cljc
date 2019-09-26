@@ -96,7 +96,7 @@
           (when sync-notes?
             (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
           (if (or send-labels? sync-notes?)
-            #?(:cljs (js/setTimeout route-fn 100)
+            #?(:cljs (js/setTimeout route-fn 75)
                :clj (route-fn))
             (route-fn))
           (dispatch [:review/reset-saving])))
@@ -171,7 +171,7 @@
                      ;; body function (dispatch is asynchronous).
                      (not= url-id# cur-id#)
                      (do #_ (js/console.log (str "url-id changed to " (pr-str url-id#)))
-                         (js/setTimeout body-fn# 30)
+                         (js/setTimeout body-fn# 25)
                          #_ (body-fn#))
                      ;; Otherwise run route body function immediately.
                      :else (body-fn#))))
