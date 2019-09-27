@@ -4,34 +4,38 @@ set -eu
 
 fname="$SR_BACKUP_FILE"
 
-opts=( '--disable-triggers'
-       '--single-transaction'
-       "--dbname=$SR_DEST_DB"
-       '--format=custom'
-       '--no-owner'
-       '--username=postgres'
-       '--host=localhost'
+opts=( '--host=localhost'
        "--port=$SR_DEST_PORT"
-       '--no-password')
+       "--dbname=$SR_DEST_DB"
+       '--username=postgres'
+       '--no-password'
+       '--format=custom'
+       '--disable-triggers'
+       '--single-transaction'
+       '--no-owner' )
 
 opts=$(printf " %s" "${opts[@]}")
 opts=${opts:1}
 
 readonly_user="readaccess"
 
-psql -U postgres postgres --list > /dev/null
+default_db="postgres"
+pgconn="-h localhost -p $SR_DEST_PORT"
+pguser="-U postgres"
 
-psql -U $readonly_user postgres --list > /dev/null || (
+psql $pgconn $pguser $default_db --list > /dev/null
+
+psql $pgconn -U $readonly_user $default_db --list > /dev/null || (
     echo "postgres user \"$readonly_user\" is required"
-    echo "run to create: \"createuser -U postgres $readonly_user\""
+    echo "run to create: \"createuser $pgconn $pguser $readonly_user\""
     false
 )
 
 echo "dropping database (if exists)..."
-dropdb -h localhost -p $SR_DEST_PORT -U postgres $SR_DEST_DB || true
+dropdb $pgconn $pguser $SR_DEST_DB || true
 
 echo "creating database..."
-createdb -h localhost -p $SR_DEST_PORT -U postgres -T template0 $SR_DEST_DB
+createdb $pgconn $pguser -T template0 $SR_DEST_DB
 
 echo "running pg_restore..."
 
