@@ -117,3 +117,7 @@
 (defn pubmed-data? [{:keys [datasource-name external-id] :as article-data}]
   (boolean (and (= datasource-name "pubmed")
                 (parse-integer external-id))))
+
+(defn delete-unlinked-article-data []
+  (q/delete [:article-data :ad] {}
+            :where (q/not-exists [:article :a] {:a.article-data-id :ad.article-data-id})))

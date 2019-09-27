@@ -62,13 +62,15 @@
   (let [pmids (mapv parse-integer pmids)]
     (assert (every? integer? pmids))
     #_ (log/infof "fetching %d pubmed articles" (count pmids))
-    (zipmap pmids (-> (graphql-query
-                       {:venia/queries
-                        [[:pubmedEntities {:pmids pmids}
-                          (-> (mapv field-to-graphql (or fields (all-pubmed-fields)))
-                              (conj :id))]]})
-                      (run-ds-query)
-                      (parse-ds-response #(get-in % [:data :pubmedEntities]))))))
+    (-> (graphql-query
+         {:venia/queries
+          [[:pubmedEntities {:pmids pmids}
+            (-> (mapv field-to-graphql (or fields (all-pubmed-fields)))
+                (conj :id)
+                (conj :pmid))]]})
+        (run-ds-query)
+        (parse-ds-response #(get-in % [:data :pubmedEntities]))
+        (->> (sutil/index-by :pmid)))))
 
 (defn fetch-pubmed-article [pmid & {:as opts}]
   (let [pmid (parse-integer pmid)]
@@ -77,15 +79,17 @@
 
 (defn fetch-nct-entries [nctids & {:keys [fields]}]
   (assert (every? string? nctids))
-  (zipmap nctids (-> (graphql-query
-                      {:venia/queries
-                       [[:clinicalTrialEntities {:nctids nctids}
-                         (-> (mapv field-to-graphql (or fields [:json]))
-                             (conj :id))]]})
-                     (run-ds-query)
-                     (parse-ds-response #(get-in % [:data :clinicalTrialEntities]))
-                     (->> (map (fn [entry]
-                                 (update entry :json #(json/read-str % :key-fn keyword))))))))
+  (-> (graphql-query
+       {:venia/queries
+        [[:clinicalTrialEntities {:nctids nctids}
+          (-> (mapv field-to-graphql (or fields [:json]))
+              (conj :id)
+              (conj :nctid))]]})
+      (run-ds-query)
+      (parse-ds-response #(get-in % [:data :clinicalTrialEntities]))
+      (->> (map (fn [entry]
+                  (update entry :json #(json/read-str % :key-fn keyword))))
+           (sutil/index-by :nctid))))
 
 (defn fetch-nct-entry [nctid & {:as opts}]
   (-> (apply-keyargs fetch-nct-entries [nctid] opts)
@@ -100,11 +104,11 @@
                                  (parse-integer (:external-id %))))
                          (remove nil?)))
         data (some-> (seq pmids) fetch-pubmed-articles)]
-    (zipmap (map :article-id articles)
-            (mapv #(merge (select-keys % [:article-id :project-id])
-                          (or (get data (-> % :external-id parse-integer))
-                              (:content %)))
-                  articles))))
+    (->> articles
+         (mapv #(merge (select-keys % [:article-id :project-id])
+                       (or (get data (-> % :external-id parse-integer))
+                           (:content %))))
+         (sutil/index-by :article-id))))
 
 (defn get-article-content [article-id]
   (-> (get-articles-content [article-id])

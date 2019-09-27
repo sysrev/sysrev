@@ -11,12 +11,14 @@
        sort
        (partition-all 500)
        (map (fn [pmids]
-              (let [articles (ds-api/fetch-pubmed-articles pmids :fields [:primary-title])]
-                (->> pmids
-                     (map #(merge (select-keys (get articles %) [:primary-title])
-                                  {:external-id (str %)}))
-                     (filter #(and % (:external-id %) (not-empty (:primary-title %))))))))
-       (apply concat)))
+              (->> (vals (ds-api/fetch-pubmed-articles pmids :fields [:primary-title]))
+                   (map (fn [{:keys [primary-title pmid]}]
+                          (when (and pmid (not-empty primary-title))
+                            {:external-id (str pmid) :primary-title primary-title})))
+                   (remove nil?)
+                   vec)))
+       (apply concat)
+       vec))
 
 (defn- pubmed-source-exists? [project-id search-term]
   (->> (source/project-sources project-id)

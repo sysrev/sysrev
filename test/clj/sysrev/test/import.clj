@@ -10,6 +10,7 @@
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :as project]
             [sysrev.export.core :as export]
             [sysrev.source.import :as import]
@@ -52,8 +53,7 @@
 (deftest import-pubmed-search
   (when (and (test/full-tests?) (not (test/remote-test?)))
     (util/with-print-time-elapsed "import-pubmed-search"
-      (let [result-count (fn [result] (-> result first :count))
-            search-term "foo bar"
+      (let [search-term "foo bar"
             pmids (:pmids (pubmed/get-search-query-response search-term 1))
             new-project (project/create-project "test project")
             new-project-id (:project-id new-project)]
@@ -142,3 +142,24 @@
             (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
             (is (= 1 (title-count "Plosker Troglitazone.pdf"))))
           (finally (project/delete-project project-id)))))))
+
+(deftest import-ds-pubmed-titles
+  (when (not (test/remote-test?))
+    (util/with-print-time-elapsed "import-ds-pubmed-titles"
+      (let [search-term "mouse rat computer six"
+            {:keys [project-id]} (project/create-project "test import-ds-pubmed-titles")]
+        (try (import/import-pubmed-search
+              project-id {:search-term search-term}
+              {:use-future? false :threads 4})
+             (let [adata (q/find [:article :a] {:a.project-id project-id}
+                                 :ad.*, :join [:article-data:ad :a.article-data-id])
+                   db-titles (->> adata
+                                  (sutil/index-by #(-> % :external-id sutil/parse-integer))
+                                  (sutil/map-values :title))
+                   ds-titles (->> (ds-api/fetch-pubmed-articles
+                                   (keys db-titles) :fields [:primary-title])
+                                  (sutil/map-values :primary-title))]
+               (log/infof "loaded %d pubmed titles" (count db-titles))
+               (is (= (count db-titles) (count ds-titles)))
+               (is (= db-titles ds-titles)))
+             (finally (project/delete-project project-id)))))))
