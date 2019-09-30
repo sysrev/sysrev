@@ -47,13 +47,13 @@
        (drop 4)
        first))
 
-;; Checks if item has been fetched 5 times within last 2.5s
+;; Checks if item has been fetched 5 times within last 1.25s
 (defn item-spammed? [item]
   (let [spam-ms (get-spam-time item)]
     (if (nil? spam-ms)
       false
       (let [now-ms (js/Date.now)]
-        (< (- now-ms spam-ms) 2500)))))
+        (< (- now-ms spam-ms) 1250)))))
 
 (defn data-failed [item]
   (swap! (ajax-data-counts) assoc-in [:failed item] true)
