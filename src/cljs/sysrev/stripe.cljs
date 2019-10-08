@@ -188,7 +188,8 @@
   (let [params {"client_id" stripe-client-id
                 "response_type" "code"
                 "redirect_uri" (str js/window.location.origin "/user/settings")
-                "state" @(subscribe [:csrf-token])}]
+                "state" @(subscribe [:csrf-token])
+                "suggest_capabilities[]" "transfers"}]
     [s/Button {:href (str "https://connect.stripe.com/express/oauth/authorize?"
                           (generate-query-string params))}
      "Connect with Stripe"]))
