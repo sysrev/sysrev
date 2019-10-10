@@ -10,6 +10,13 @@
   (or @(subscribe [:member/admin?])
       @(subscribe [:user/admin?])))
 
+(def beta-compensation-users
+  #{"eliza.grames@uconn.edu"})
+
+(defn beta-compensation-user?
+  [email]
+  (contains? beta-compensation-users email))
+
 (defn project-submenu-full []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
@@ -28,7 +35,8 @@
          :content [:span [:i.download.icon] "Export"]
          :action (project-uri project-id "/export")})
       (when (and (admin?)
-                 (re-matches #".*@insilica.co" @(subscribe [:user/email])))
+                 (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+                     (beta-compensation-user? @(subscribe [:user/email]))))
         {:tab-id :compensations
          :content "Compensation"
          :action (project-uri project-id "/compensations")})
@@ -62,7 +70,8 @@
          :content [:span "Export"]
          :action (list [:project :project :export-data] action-params)})
       (when (and (admin?)
-                 (re-matches #".*@insilica.co" @(subscribe [:user/email])))
+                 (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+                     (beta-compensation-user? @(subscribe [:user/email]))))
         {:tab-id :compensations
          :content "Compensation"
          :action (project-uri project-id "/compensations")})
