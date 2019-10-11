@@ -171,21 +171,20 @@
 
     [source nil]))
 
-(reg-sub
- :source/display-type
- (fn [[_ source-id project-id]]
-   [(subscribe [:project/sources source-id project-id])])
- (fn [[source] _]
-   (let [stype (-> source :meta :source)]
-     (condp = stype
-       "PubMed search"   "PubMed Search"
-       "PMID file"       "PMIDs from File"
-       "PMID vector"     "PMIDs from API"
-       "fact"            "PMIDs from FACTS"
-       "EndNote file"    "EndNote XML"
-       "legacy"          "Legacy Import"
-       "PDF Zip file"    "PDF Zip File"
-       stype))))
+(reg-sub :source/display-type
+         (fn [[_ source-id project-id]]
+           (subscribe [:project/sources source-id project-id]))
+         (fn [source]
+           (let [stype (-> source :meta :source)]
+             (condp = stype
+               "PubMed search"   "PubMed Search"
+               "PMID file"       "PMIDs from File"
+               "PMID vector"     "PMIDs from API"
+               "fact"            "PMIDs from FACTS"
+               "EndNote file"    "EndNote XML"
+               "legacy"          "Legacy Import"
+               "PDF Zip file"    "PDF Zip File"
+               stype))))
 
 (reg-sub
  :source/display-info
@@ -232,10 +231,9 @@
 (defn source-name
   "Given a source-id, return the source name vector"
   [source-id]
-  (let [sources (subscribe [:project/sources])]
-    (->> @sources
-         (filter #(= source-id (:source-id %)))
-         first :meta meta->source-name-vector)))
+  (->> @(subscribe [:project/sources])
+       (filter #(= source-id (:source-id %)))
+       first :meta meta->source-name-vector))
 
 (defonce polling-sources? (r/atom false))
 
@@ -445,8 +443,11 @@
 (defn ProjectSourcesPanel []
   (ensure-state)
   (let [project-id @(subscribe [:active-project-id])
-        read-only-message-closed? (r/cursor state [:read-only-message-closed?])]
-    (with-loader [[:project/sources project-id]] {}
+        read-only-message-closed? (r/cursor state [:read-only-message-closed?])
+        project? @(subscribe [:have? [:project project-id]])
+        lapsed? @(subscribe [:project/subscription-lapsed?])]
+    (with-loader [(when (and project? (not lapsed?))
+                    [:project/sources project-id])] {}
       [:div
        (when (admin?)
          [ImportArticlesView])

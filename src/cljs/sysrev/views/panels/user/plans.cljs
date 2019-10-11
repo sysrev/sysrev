@@ -24,11 +24,6 @@
                                    :get-sub ::get
                                    :set-event ::set})
 
-;; TODO: remove this, potentially very expensive (load only :plan and :subscription-lapsed?)
-(reg-event-fx :self/reload-all-projects
-              (fn [] {:dispatch-n (doall (map (fn [p] [:reload [:project (:project-id p)]])
-                                              @(subscribe [:self/projects])))}))
-
 (defn- load-user-current-plan [db plan]
   (assoc-in db [:data :plans :current-plan] plan))
 
@@ -49,18 +44,14 @@
 (def-action :user/subscribe-plan
   :uri (fn [user-id plan-name] (str "/api/user/" user-id "/stripe/subscribe-plan"))
   :content (fn [user-id plan-name]
-             #_ (js/console.log ":user/subscribe-plan running " (pr-str [user-id plan-name]))
              {:plan-name plan-name})
   :process (fn [{:keys [db]} [user-id _] {:keys [stripe-body plan] :as result}]
-             #_ (js/console.log ":user/subscribe-plan result = " (pr-str result))
              (if (:created stripe-body)
                (let [nav-url (panel-get db :on-subscribe-nav-to-url)]
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
                           (load-user-current-plan plan))
-                  :dispatch-n (list [:self/reload-all-projects]
-                                    [:nav-scroll-top nav-url]
-                                    #_ [:data/load [:user/current-plan user-id]])})))
+                  :dispatch [:nav-reload nav-url]})))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"

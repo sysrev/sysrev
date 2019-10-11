@@ -26,7 +26,7 @@
   "Wraps a UI component to define required data and delay rendering until
   data has been loaded."
   [reqs options content-form]
-  `(let [reqs# ~reqs
+  `(let [reqs# (->> ~reqs (remove nil?) vec)
          options# ~options
          dimmer# (:dimmer options#)
          force-dimmer# (:force-dimmer options#)

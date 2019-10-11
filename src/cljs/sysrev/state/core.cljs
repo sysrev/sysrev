@@ -9,16 +9,15 @@
 
 (reg-event-db :initialize-db (constantly base/default-db))
 
-(reg-event-fx
- :reset-data
- (fn [{:keys [db]}]
-   {:db (-> (assoc db :data {} :needed [])
-            (dissoc-in [:state :identity])
-            (dissoc-in [:state :self])
-            (dissoc-in [:state :review])
-            (dissoc-in [:state :panels])
-            (dissoc-in [:state :navigation :subpanels]))
-    :dispatch [:data/load [:identity]]}))
+(reg-event-fx :reset-data
+              (fn [{:keys [db]}]
+                {:db (-> (assoc db :data {} :needed [])
+                         (dissoc-in [:state :identity])
+                         (dissoc-in [:state :self])
+                         (dissoc-in [:state :review])
+                         (dissoc-in [:state :panels])
+                         (dissoc-in [:state :navigation :subpanels]))
+                 :dispatch [:data/load [:identity]]}))
 
 (reg-fx :reset-data
         (fn [reset?] (when reset? (dispatch [:reset-data]))))
@@ -41,15 +40,13 @@
 (reg-fx :reset-project-ui
         (fn [reset?] (when reset? (dispatch [:reset-project-ui]))))
 
-(reg-event-fx
- :reset-needed
- (fn [{:keys [db]}]
-   {:db (-> db (assoc :needed []))
-    :dispatch [:require [:identity]]}))
+(reg-event-fx :reset-needed
+              (fn [{:keys [db]}]
+                {:db (assoc db :needed [])
+                 :dispatch [:require [:identity]]}))
 
-(reg-fx
- :reset-needed
- (fn [reset?] (when reset? (dispatch [:reset-needed]))))
+(reg-fx :reset-needed
+        (fn [reset?] (when reset? (dispatch [:reset-needed]))))
 
 (reg-sub
  :initialized?

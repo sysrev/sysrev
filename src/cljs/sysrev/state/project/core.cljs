@@ -80,25 +80,21 @@
        first))
 
 ;; TODO: this should be a map, not a sequence
-(reg-sub
- :project/sources
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ source-id _]]
-   (cond-> (:sources project)
-     source-id (get-source-by-id source-id))))
+(reg-sub :project/sources
+         (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project [_ source-id _]]
+           (cond-> (:sources project)
+             source-id (get-source-by-id source-id))))
 
-(reg-sub
- :project/source-ids
- (fn [[_ _ project-id]]
-   [(subscribe [:project/sources project-id])])
- (fn [[sources] [_ enabled? _]]
-   (let [include? (cond (true? enabled?)   true?
-                        (false? enabled?)  false?
-                        :else              (constantly true))]
-     (->> sources
-          (filter #(-> % :enabled include?))
-          (mapv :source-id)))))
+(reg-sub :project/source-ids
+         (fn [[_ _ project-id]] (subscribe [:project/sources project-id]))
+         (fn [sources [_ enabled? _]]
+           (let [include? (cond (true? enabled?)   true?
+                                (false? enabled?)  false?
+                                :else              (constantly true))]
+             (->> sources
+                  (filter #(-> % :enabled include?))
+                  (mapv :source-id)))))
 
 (reg-sub
  :project/keywords

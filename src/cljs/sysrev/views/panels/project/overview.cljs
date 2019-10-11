@@ -259,21 +259,16 @@
   (fn [{:keys [db]} [project-id] result]
     {:db (assoc-in db [:data :project project-id :importance] result)}))
 
-(reg-sub
- :project/important-terms
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ entity-type project-id]]
-   (if (nil? entity-type)
-     (get-in project [:importance :terms])
-     (get-in project [:importance :terms entity-type]))))
+(reg-sub :project/important-terms
+         (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project [_ entity-type project-id]]
+           (cond-> (get-in project [:importance :terms])
+             entity-type (get entity-type))))
 
-(reg-sub
- :project/important-terms-loading?
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ entity-type project-id]]
-   (true? (get-in project [:importance :loading]))))
+(reg-sub :project/important-terms-loading?
+         (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project [_ entity-type project-id]]
+           (true? (get-in project [:importance :loading]))))
 
 (defonce polling-important-terms? (r/atom false))
 
@@ -313,9 +308,12 @@
         loading? (if (= js/window.location.hostname "staging.sysrev.com")
                    false
                    @(subscribe [:project/important-terms-loading?]))
-        {:keys [mesh #_ chemical #_ gene]} terms]
+        {:keys [mesh #_ chemical #_ gene]} terms
+        project? @(subscribe [:have? [:project project-id]])
+        lapsed? @(subscribe [:project/subscription-lapsed?])]
     (with-loader [[:project project-id]
-                  [:project/important-terms project-id]] {}
+                  (when (and project? (not lapsed?))
+                    [:project/important-terms project-id])] {}
       (when (or (not-empty terms) loading?)
         [:div.ui.segment
          [:h4.ui.dividing.header "Important MeSH Terms"]
