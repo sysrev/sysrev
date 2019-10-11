@@ -39,9 +39,9 @@
 (s/def ::location
   (s/keys :req-un [::source ::external-id]))
 (s/def ::locations
-  (s/map-of ::source (s/coll-of ::location)))
+  (s/nilable (s/map-of ::source (s/coll-of ::location))))
 (s/def ::flags
-  (s/map-of string? map?))
+  (s/nilable (s/map-of string? map?)))
 
 ;; article map with fields optional
 (s/def ::article-partial
