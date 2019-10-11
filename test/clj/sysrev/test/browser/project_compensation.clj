@@ -152,7 +152,7 @@
     (taxi/switch-to-frame (xpath (str "//iframe[@name='" paypal-frame-name "']")))
     (b/wait-until-displayed button)
     (Thread/sleep 50)
-    (taxi/click button)
+    (b/click button :external? true)
     (Thread/sleep 100)))
 
 ;; this function is incomplete as it only handles the case of boolean labels
@@ -207,7 +207,7 @@
   (b/wait-until-displayed "a#createAccount" 15000 30)
   (Thread/sleep 200)
   (log/info "clicking to pay as guest")
-  (taxi/click "a#createAccount")
+  (b/click "a#createAccount" :external? true)
   (b/wait-until-displayed "input#cc" 15000 30)
   (log/info "setting payment fields")
   (Thread/sleep 200)
@@ -226,11 +226,12 @@
     (enter-text "input#billingPostalCode" "21209")
     (enter-text "input#telephone" "222-333-4444")
     (enter-text "input#email" "browser+test@insilica.co")
-    (taxi/click (xpath "//input[@id='guestSignup2']"
-                       "/ancestor::div[contains(@class,'radioButton')]"))
+    (b/click (xpath "//input[@id='guestSignup2']"
+                    "/ancestor::div[contains(@class,'radioButton')]")
+             :external? true)
     (Thread/sleep 100))
   (log/info "submitting paypal payment")
-  (taxi/click "button#guestSubmit")
+  (b/click "button#guestSubmit" :external? true)
   (Thread/sleep 100)
   (taxi/switch-to-window 0)
   (taxi/switch-to-default))

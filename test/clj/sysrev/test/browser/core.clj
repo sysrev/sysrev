@@ -320,21 +320,26 @@
     (when wait? (wait-until-loading-completes))
     result))
 
-(defn click [q & {:keys [if-not-exists delay displayed?]
-                  :or {if-not-exists :wait, delay 20, displayed? false}}]
-  ;; auto-exclude "disabled" class when q is css
-  (let [q (-> q (not-disabled) (not-loading))]
-    (when (= if-not-exists :wait)
-      (if displayed?
-        (is-soon (displayed-now? q))
-        (is-soon (taxi/exists? q))))
-    (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
-      (try (taxi/click q)
-           (catch Throwable e
-             (log/warnf "got exception clicking %s, trying again..." (pr-str q))
-             (wait-until-loading-completes :pre-wait (+ delay 100))
-             (taxi/click q))))
-    (wait-until-loading-completes :pre-wait delay)))
+(defn click [q & {:keys [if-not-exists delay displayed? external?]
+                  :or {if-not-exists :wait, delay 20}}]
+  (letfn [(wait [ms]
+            (if external?
+              (Thread/sleep (+ ms 20))
+              (wait-until-loading-completes :pre-wait ms)))]
+    ;; auto-exclude "disabled" class when q is css
+    (let [q (if external? q
+                (-> q (not-disabled) (not-loading)))]
+      (when (= if-not-exists :wait)
+        (if displayed?
+          (is-soon (displayed-now? q))
+          (is-soon (taxi/exists? q))))
+      (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
+        (try (taxi/click q)
+             (catch Throwable e
+               (log/warnf "got exception clicking %s, trying again..." (pr-str q))
+               (wait (+ delay 100))
+               (taxi/click q))))
+      (wait delay))))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
