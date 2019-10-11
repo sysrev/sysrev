@@ -35,12 +35,13 @@
          (not include-disabled-source)) (merge {:a.enabled true}))
   fields
   (-> (dissoc opts :include-disabled :include-disabled-source)
+      (update :join #(vec (conj (seq %) [:article-data:ad :a.article-data-id])))
       (cond-> include-disabled-source
-        (assoc :prepare #(-> (merge-where
-                              % (q/not-exists [:article-flag :af-1]
-                                              {:af-1.article-id :a.article-id
-                                               :af-1.disable true}))
-                             (cond-> (:prepare opts) ((:prepare opts))))))))
+        (update :prepare (fn [prepare]
+                           #((or prepare identity)
+                             (merge-where % (q/not-exists [:article-flag :af-1]
+                                                          {:af-1.article-id :a.article-id
+                                                           :af-1.disable true}))))))))
 
 (defn get-article [article-id & [fields & {:as opts}]]
   (apply-keyargs find-article-1 {:a.article-id article-id} (or fields :*)

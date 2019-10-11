@@ -63,16 +63,16 @@
                         :article-id :article-uuid :parent-article-uuid :raw))}))
 
 (defn copy-legacy-article-content [article-id]
-  (db/with-transaction
-    (when-let [article (first (q/find [:article :a] {:a.article-id article-id}
-                                      [:a.* [:ps.meta :source-meta]]
-                                      :join [[:article-source:as :a.article-id]
-                                             [:project-source:ps :as.source-id]]))]
-      (let [[article-type article-subtype]
-            (project-source-meta->article-type (:source-meta article))]
-        (assert (and article-type article-subtype)
-                (pr-str (:source-meta article)))
-        (assert (:primary-title article))
+  (when-let [article (first (q/find [:article :a] {:a.article-id article-id}
+                                    [:a.* [:ps.meta :source-meta]]
+                                    :join [[:article-source:as :a.article-id]
+                                           [:project-source:ps :as.source-id]]))]
+    (let [[article-type article-subtype]
+          (project-source-meta->article-type (:source-meta article))]
+      (assert (and article-type article-subtype)
+              (pr-str (:source-meta article)))
+      (assert (:primary-title article))
+      (db/with-transaction
         (let [article-data-id (-> (make-article-data {:article-type article-type
                                                       :article-subtype article-subtype}
                                                      article)

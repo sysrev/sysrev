@@ -19,6 +19,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
             [sysrev.annotations :refer [project-article-annotations]]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]))
@@ -121,18 +122,27 @@
 ;;; Filter helper functions
 ;;;
 
+#_
 (defn article-ids-from-text-search [project-id text]
   (with-project-cache project-id [:text-search-ids text]
-    (let [tokens (-> text (str/lower-case) (str/split #"[ \t\r\n]+"))]
-      (->> (format "
-SELECT article_id FROM article
-WHERE project_id=%d
-  AND enabled=true
-  AND text_search @@ to_tsquery('%s');"
-                   project-id
-                   (->> tokens (map #(str "(" % ")")) (str/join " & ")))
-           (db/raw-query)
-           (mapv :article-id)))))
+    (->> (format
+          (str/join " " ["SELECT article_id FROM article"
+                         "WHERE project_id=%d"
+                         "AND enabled=true"
+                         "AND text_search @@ plainto_tsquery('%s');"])
+          project-id (str/lower-case text))
+         (db/raw-query)
+         (mapv :article-id))))
+
+;; FIX: support local/endnote articles (search locally from article_data.content)
+(defn article-ids-from-text-search [project-id text]
+  (with-project-cache project-id [:text-search-ids text]
+    (let [pmid->id (->> (qt/find-article
+                         {:a.project-id project-id :ad.datasource-name "pubmed"}
+                         :article-id, :index-by :external-id, :where [:!= :ad.external-id nil])
+                        (sutil/map-keys sutil/parse-integer))]
+      (mapv (partial get pmid->id)
+            (ds-api/search-text-by-pmid text (sort (keys pmid->id)))))))
 
 (defn filter-labels-confirmed [confirmed? labels]
   (assert (in? [true false nil] confirmed?))
@@ -165,24 +175,16 @@ WHERE project_id=%d
 ;;; Top-level filter functions
 ;;;
 
-(defn article-source-filter [context {:keys [source-ids]}]
-  (let [{:keys [project-id]} context
-        sources (project-article-sources project-id)]
+(defn article-source-filter [{:keys [project-id] :as context} {:keys [source-ids]}]
+  (let [sources (project-article-sources project-id)]
     (fn [{:keys [article-id]}]
       (some (in? source-ids) (get sources article-id)))))
 
 ;; TODO: include user notes in search
-#_
-(defn article-text-filter [context text]
-  (let [{:keys [project-id]} context
-        search-ids (set (article-ids-from-text-search project-id text))]
+(defn article-text-filter [{:keys [project-id] :as context} context text]
+  (let [search-ids (set (article-ids-from-text-search project-id text))]
     (fn [{:keys [article-id]}]
       (contains? search-ids article-id))))
-
-;; TODO: replace with actual text search from datasource
-(defn article-text-filter [context text]
-  (fn [{:keys [article-id]}]
-    true))
 
 (defn article-user-filter
   [{:keys [project-id] :as context} {:keys [user content confirmed]}]
@@ -292,8 +294,7 @@ WHERE project_id=%d
 (defn lookup-article-entries [project-id article-ids]
   (when (seq article-ids)
     (->> (qt/find-article {:a.project-id project-id :a.article-id article-ids}
-                          [:a.article-id :ad.title]
-                          :join [:article-data:ad :a.article-data-id])
+                          [:a.article-id :ad.title])
          (map (fn [{:keys [article-id title] :as a}]
                 (-> (assoc a :primary-title title)
                     (dissoc :title)
