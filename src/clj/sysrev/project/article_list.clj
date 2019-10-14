@@ -181,7 +181,7 @@
       (some (in? source-ids) (get sources article-id)))))
 
 ;; TODO: include user notes in search
-(defn article-text-filter [{:keys [project-id] :as context} context text]
+(defn article-text-filter [{:keys [project-id] :as context} text]
   (let [search-ids (set (article-ids-from-text-search project-id text))]
     (fn [{:keys [article-id]}]
       (contains? search-ids article-id))))
