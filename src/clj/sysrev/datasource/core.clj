@@ -7,7 +7,7 @@
 
 (defn match-existing-article-data
   "Returns `article-data-id` value for an existing `article-data` entry
-  that matches `fields`, or nil if no entry exists."
+  that matches argument, or nil if no entry exists."
   [{:keys [datasource-name external-id] :as article-data}]
   (when (and datasource-name external-id)
     (q/find-one :article-data {:datasource-name datasource-name
@@ -59,20 +59,22 @@
                       external-id))
      :title primary-title
      :content (when-not datasource-name
-                (dissoc article :source-meta :text-search :enabled :article-data-id
-                        :article-id :article-uuid :parent-article-uuid :raw))}))
+                (->> (dissoc article
+                             :source-meta :text-search :enabled :article-data-id
+                             :article-id :article-uuid :parent-article-uuid)
+                     (sutil/filter-values (comp not nil?))))}))
 
 (defn copy-legacy-article-content [article-id]
-  (when-let [article (first (q/find [:article :a] {:a.article-id article-id}
-                                    [:a.* [:ps.meta :source-meta]]
-                                    :join [[:article-source:as :a.article-id]
-                                           [:project-source:ps :as.source-id]]))]
-    (let [[article-type article-subtype]
-          (project-source-meta->article-type (:source-meta article))]
-      (assert (and article-type article-subtype)
-              (pr-str (:source-meta article)))
-      (assert (:primary-title article))
-      (db/with-transaction
+  (db/with-transaction
+    (when-let [article (first (q/find [:article :a] {:a.article-id article-id}
+                                      [:a.* [:ps.meta :source-meta]]
+                                      :join [[:article-source:as :a.article-id]
+                                             [:project-source:ps :as.source-id]]))]
+      (let [[article-type article-subtype]
+            (project-source-meta->article-type (:source-meta article))]
+        (assert (and article-type article-subtype)
+                (pr-str (:source-meta article)))
+        (assert (:primary-title article))
         (let [article-data-id (-> (make-article-data {:article-type article-type
                                                       :article-subtype article-subtype}
                                                      article)
