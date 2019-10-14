@@ -6,8 +6,8 @@
             [sysrev.state.nav :refer [get-login-redirect-url]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :as util :refer [dissoc-in]]
-            [sysrev.shared.util :refer [in? to-uuid]]))
+            [sysrev.util :as util]
+            [sysrev.shared.util :refer [in? to-uuid dissoc-in]]))
 
 (defn have-identity? [db]
   (contains? (:state db) :identity))

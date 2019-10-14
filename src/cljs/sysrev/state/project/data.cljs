@@ -10,8 +10,7 @@
             [sysrev.views.panels.project.articles :as project-articles]
             [sysrev.views.article-list.base :as al]
             [sysrev.shared.transit :as sr-transit]
-            [sysrev.util :refer [dissoc-in]]
-            [sysrev.shared.util :as sutil :refer [in? index-by]]))
+            [sysrev.shared.util :as sutil :refer [in? index-by dissoc-in]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))

@@ -45,12 +45,6 @@
                "seven" "eight" "nine" "ten" "eleven" "twelve"
                "thirteen" "fourteen" "fifteen" "sixteen"])))
 
-(defn dissoc-in [m ks]
-  (assert (sequential? ks) "dissoc-in: invalid ks")
-  (if (= 1 (count ks))
-    (dissoc m (last ks))
-    (update-in m (butlast ks) #(dissoc % (last ks)))))
-
 (defn today-string []
   (tformat/unparse (tformat/formatters :basic-date) (t/now)))
 

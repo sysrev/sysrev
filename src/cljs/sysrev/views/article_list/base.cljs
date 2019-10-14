@@ -10,7 +10,7 @@
             [sysrev.state.nav :refer [active-panel active-project-id project-uri]]
             [sysrev.state.ui :as ui-state]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values dissoc-in]]))
 
 (def view :article-list)
 
@@ -158,7 +158,7 @@
  (fn [db [context key value]]
    (let [state (get-state db context)]
      (if (nil? value)
-       (set-state db context nil (util/dissoc-in state [:display key]))
+       (set-state db context nil (dissoc-in state [:display key]))
        (set-state db context [:display key] value)))))
 
 (defn- filter-to-json [entry]

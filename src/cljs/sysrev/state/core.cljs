@@ -4,8 +4,7 @@
             [sysrev.base :as base :refer [ga-event]]
             [sysrev.nav :refer [nav-scroll-top force-dispatch]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :refer [dissoc-in]]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.shared.util :as sutil :refer [dissoc-in]]))
 
 (reg-event-db :initialize-db (constantly base/default-db))
 

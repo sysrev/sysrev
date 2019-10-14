@@ -7,7 +7,6 @@
             [sysrev.nav :refer [nav-scroll-top force-dispatch]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.project.base :refer [get-project-raw]]
-            [sysrev.util :refer [dissoc-in]]
             [sysrev.shared.util :as sutil :refer
              [in? parse-integer ensure-pred filter-values]]))
 

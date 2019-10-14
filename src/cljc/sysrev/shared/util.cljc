@@ -284,6 +284,12 @@
         (assoc! ret k x)))
     (transient {}) coll)))
 
+(defn dissoc-in [m ks]
+  (assert (sequential? ks) "dissoc-in: invalid ks")
+  (if (= 1 (count ks))
+    (dissoc m (last ks))
+    (update-in m (butlast ks) #(dissoc % (last ks)))))
+
 (defn or-default
   "If `value` is nil, returns `default`; otherwise returns `value`."
   [default value]

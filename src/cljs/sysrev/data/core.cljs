@@ -7,7 +7,7 @@
             [sysrev.loading :as loading]
             [sysrev.ajax :refer [reg-event-ajax reg-event-ajax-fx run-ajax]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in? dissoc-in]]))
 
 (defonce
   ^{:doc "Holds static definitions for data items fetched from server"}
@@ -124,7 +124,7 @@
   (assoc-in db [:on-load item trigger-id] action))
 
 (defn- remove-load-triggers [db item]
-  (util/dissoc-in db [:on-load item]))
+  (dissoc-in db [:on-load item]))
 
 (defn- lookup-load-triggers [db item]
   (get-in db [:on-load item]))
