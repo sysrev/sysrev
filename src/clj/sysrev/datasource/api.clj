@@ -125,9 +125,9 @@
                          (remove nil?)))
         data (some-> (seq pmids) fetch-pubmed-articles)]
     (->> articles
-         (mapv #(merge (select-keys % [:article-id :project-id])
-                       (or (get data (-> % :external-id parse-integer))
-                           (:content %))))
+         (mapv #(merge (or (get data (-> % :external-id parse-integer))
+                           (:content %))
+                       (select-keys % [:article-id :project-id])))
          (sutil/index-by :article-id))))
 
 (defn get-article-content
