@@ -33,7 +33,7 @@
                        [:project/important-terms project-id]
                        [:project/prediction-histograms project-id]]]
    (dispatch [:set-active-panel panel])
-   (doseq [item all-data-items] (dispatch [:require item]))
+   #_ (doseq [item all-data-items] (dispatch [:require item]))
    (when diff-panel
      (doseq [item all-data-items] (dispatch [:reload item])))))
 

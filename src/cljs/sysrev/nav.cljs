@@ -29,8 +29,6 @@
 (defn load-url [url]
   (set! js/window.location.href url))
 
-(reg-fx :nav-reload #(when % (nav-reload %)))
-
 (defn nav
   "Change the current route."
   [route & {:keys [params]}]
@@ -59,11 +57,15 @@
 
 (reg-fx :nav-scroll-top (fn [url] (nav-scroll-top url)))
 
+(reg-fx :nav-reload (fn [url] (nav-reload url)))
+
 (reg-fx :scroll-top (fn [_] (scroll-top)))
 
 (reg-event-fx :nav-redirect (fn [_ [_ url]] {:nav-redirect url}))
 
 (reg-event-fx :nav-scroll-top (fn [_ [_ url]] {:nav-scroll-top url}))
+
+(reg-event-fx :nav-reload (fn [_ [_ url]] {:nav-reload url}))
 
 (defn- reload-page []
   (-> js/window .-location (.reload true)))

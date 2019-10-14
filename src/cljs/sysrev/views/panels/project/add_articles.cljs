@@ -12,7 +12,7 @@
             [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components.core :as ui]
-            [sysrev.util :as util]
+            [sysrev.util :as util :refer [log format]]
             [sysrev.shared.util :as sutil :refer [in?]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
@@ -171,21 +171,20 @@
 
     [source nil]))
 
-(reg-sub
- :source/display-type
- (fn [[_ source-id project-id]]
-   [(subscribe [:project/sources source-id project-id])])
- (fn [[source] _]
-   (let [stype (-> source :meta :source)]
-     (condp = stype
-       "PubMed search"   "PubMed Search"
-       "PMID file"       "PMIDs from File"
-       "PMID vector"     "PMIDs from API"
-       "fact"            "PMIDs from FACTS"
-       "EndNote file"    "EndNote XML"
-       "legacy"          "Legacy Import"
-       "PDF Zip file"    "PDF Zip File"
-       stype))))
+(reg-sub :source/display-type
+         (fn [[_ source-id project-id]]
+           (subscribe [:project/sources source-id project-id]))
+         (fn [source]
+           (let [stype (-> source :meta :source)]
+             (condp = stype
+               "PubMed search"   "PubMed Search"
+               "PMID file"       "PMIDs from File"
+               "PMID vector"     "PMIDs from API"
+               "fact"            "PMIDs from FACTS"
+               "EndNote file"    "EndNote XML"
+               "legacy"          "Legacy Import"
+               "PDF Zip file"    "PDF Zip File"
+               stype))))
 
 (reg-sub
  :source/display-info
@@ -232,10 +231,9 @@
 (defn source-name
   "Given a source-id, return the source name vector"
   [source-id]
-  (let [sources (subscribe [:project/sources])]
-    (->> @sources
-         (filter #(= source-id (:source-id %)))
-         first :meta meta->source-name-vector)))
+  (->> @(subscribe [:project/sources])
+       (filter #(= source-id (:source-id %)))
+       first :meta meta->source-name-vector))
 
 (defonce polling-sources? (r/atom false))
 
@@ -245,37 +243,26 @@
     (dispatch [:fetch [:project/sources project-id]])
     (let [sources (subscribe [:project/sources])
           article-counts (subscribe [:project/article-counts])
-          browser-test? (some->
-                         @(subscribe [:user/display])
-                         (str/includes? "browser+test"))
-          first-source?
-          (->> @sources
-               (remove #(-> % :meta :importing-articles?))
-               empty?)
+          browser-test? (some-> @(subscribe [:user/display]) (str/includes? "browser+test"))
+          first-source? (empty? (->> @sources (remove #(-> % :meta :importing-articles?))))
           source-updating?
           (fn [source-id]
             (or (loading/action-running? [:sources/delete project-id source-id])
-                (->>
-                 @sources
-                 (filter #(= (:source-id %) source-id))
-                 first
-                 ((fn [source]
-                    (let [{:keys [importing-articles?
-                                  deleting?]}
-                          (:meta source)]
-                      (or (and (true? importing-articles?)
-                               (not (source-import-timed-out? source)))
-                          (true? deleting?))))))))]
+                (let [[source] (filter #(= (:source-id %) source-id) @sources)]
+                  (let [{:keys [importing-articles? deleting?]} (:meta source)]
+                    (or (and (true? importing-articles?)
+                             (not (source-import-timed-out? source)))
+                        (true? deleting?))))))]
       (util/continuous-update-until
-       #(dispatch [:fetch [:project/sources project-id]])
-       #(not (source-updating? source-id))
-       #(do (reset! polling-sources? false)
-            (dispatch [:reload [:project project-id]])
-            (when (and first-source? (not browser-test?))
-              (dispatch [:data/after-load [:project project-id] :poll-source-redirect
-                         (list (fn []
-                                 (when (some-> @article-counts :total (> 0))
-                                   (nav/nav-scroll-top (project-uri project-id "/articles")))))])))
+       (fn [] (dispatch [:fetch [:project/sources project-id]]))
+       (fn [] (not (source-updating? source-id)))
+       (fn []
+         (reset! polling-sources? false)
+         (dispatch [:reload [:project project-id]])
+         (when (and first-source? (not browser-test?))
+           (dispatch [:data/after-load [:project project-id] :poll-source-redirect
+                      #(when (some-> @article-counts :total pos?)
+                         (nav/nav-scroll-top (project-uri project-id "/articles")))])))
        600))))
 
 (defn ArticleSource [source]
@@ -456,8 +443,11 @@
 (defn ProjectSourcesPanel []
   (ensure-state)
   (let [project-id @(subscribe [:active-project-id])
-        read-only-message-closed? (r/cursor state [:read-only-message-closed?])]
-    (with-loader [[:project/sources project-id]] {}
+        read-only-message-closed? (r/cursor state [:read-only-message-closed?])
+        project? @(subscribe [:have? [:project project-id]])
+        lapsed? @(subscribe [:project/subscription-lapsed?])]
+    (with-loader [(when (and project? (not lapsed?))
+                    [:project/sources project-id])] {}
       [:div
        (when (admin?)
          [ImportArticlesView])

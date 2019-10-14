@@ -5,7 +5,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.entity :as e]
+            [sysrev.db.entity :as e]
             [sysrev.article.core :as article]
             [sysrev.project.core :as project]
             [sysrev.shared.spec.core :as sc]

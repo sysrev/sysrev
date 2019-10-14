@@ -1,16 +1,13 @@
 (ns sysrev.test.browser.review-settings
   (:require [clojure.test :refer :all]
             [clojure.tools.logging :as log]
-            [clj-webdriver.taxi :as taxi]
-            [sysrev.db.users :as users]
             [sysrev.project.core :as project]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.review-articles :as review]
-            [sysrev.test.browser.pubmed :as pm]))
+            [sysrev.test.browser.review-articles :as review]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -55,14 +52,12 @@
       (is (b/exists? ".ui.segments.article-info"))
       (project/change-project-setting @project-id :unlimited-reviews false)
       (b/init-route (str "/p/" @project-id "/add-articles"))
-      (b/wait-until-loading-completes :pre-wait 50)
       (nav/go-project-route "/review")
       ;; can not review after unlimited setting disabled
       (is (b/exists? ".no-review-articles"))
       (project/change-project-setting @project-id :unlimited-reviews true)
       ;; re-enable setting, finish reviewing last article
       (b/init-route (str "/p/" @project-id "/add-articles"))
-      (b/wait-until-loading-completes :pre-wait 50)
       (nav/go-project-route "/review")
       (is (b/exists? ".ui.segments.article-info"))
       (review-n-articles 1)

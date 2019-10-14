@@ -5,11 +5,10 @@
             [clj-webdriver.taxi :as taxi]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-execute]]
-            [sysrev.db.groups :as groups]
-            [sysrev.project.core :as project]
-            [sysrev.db.users :as users]
+            [sysrev.group.core :as group :refer [search-groups]]
+            [sysrev.project.core :as project :refer [search-projects]]
+            [sysrev.user.core :refer [search-users]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :refer [xpath]]
@@ -94,11 +93,11 @@
     ;; create fake test users
     (doseq [user users] (insert-fake-user user))
     ;; create fake org names
-    (doseq [name group-names] (groups/create-group! name))
+    (doseq [name group-names] (group/create-group! name))
     ;; make sure the projects, users and orgs are populated
-    (b/is-soon (= 35 (count (project/search-projects "foo" :limit 100))))
-    (b/is-soon (= 10 (count (users/search-users "foo" :limit 100))))
-    (b/is-soon (= 35 (count (groups/search-groups "foo" :limit 100))))
+    (b/is-soon (= 35 (count (search-projects "foo" :limit 100))))
+    (b/is-soon (= 10 (count (search-users "foo" :limit 100))))
+    (b/is-soon (= 35 (count (search-groups "foo" :limit 100))))
     ;; search for foo
     (search-for "foo")
     (b/is-soon (= (search-counts) {:projects 35 :users 10 :orgs 35}))

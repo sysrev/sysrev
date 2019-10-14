@@ -8,43 +8,46 @@
                  [com.fasterxml.jackson.core/jackson-databind "2.9.9.1"]
                  [cheshire "5.8.1"]
                  [commons-io/commons-io "2.6"]
-                 [commons-codec "1.12"]
-                 [org.apache.commons/commons-compress "1.18"]
+                 [commons-codec "1.13"]
+                 [org.apache.commons/commons-compress "1.19"]
 
 ;;; Logging
-                 [org.clojure/tools.logging "0.4.1"]
+                 [org.clojure/tools.logging "0.5.0"]
                  [ch.qos.logback/logback-classic "1.2.3"]
-                 [org.slf4j/jul-to-slf4j "1.7.26"]
+                 [org.slf4j/jul-to-slf4j "1.7.28"]
 
 ;;; Libraries
-                 [org.clojure/test.check "0.9.0"]
+                 [org.clojure/test.check "0.10.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
-                 [org.clojure/math.combinatorics "0.1.5"]
+                 [org.clojure/math.combinatorics "0.1.6"]
                  [crypto-random "1.2.0"]
                  [me.raynes/fs "1.4.6"]
 
 ;;; Data formats
                  [org.clojure/data.json "0.2.6"]
-                 [com.cognitect/transit-clj "0.8.313"]
+                 [com.cognitect/transit-clj "0.8.319"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.3"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
+;;; GraphQL
+                 [com.walmartlabs/lacinia "0.35.0"]
+                 [vincit/venia "0.2.5"]
 
 ;;; Postgres
-                 [org.clojure/java.jdbc "0.7.9"]
-                 [org.postgresql/postgresql "42.2.6"]
-                 [joda-time "2.10.3"]
-                 [clj-time "0.15.1" :exclusions [joda-time]]
+                 [org.clojure/java.jdbc "0.7.10"]
+                 [org.postgresql/postgresql "42.2.8"]
+                 [joda-time "2.10.4"]
+                 [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "2.8.0"]
+                 [hikari-cp "2.9.0"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.4"]
-                 [nilenso/honeysql-postgres "0.2.5"]
+                 [nilenso/honeysql-postgres "0.2.6"]
 
 ;;; Cassandra
-                 [cc.qbits/alia-all "4.3.1"]
+                 [cc.qbits/alia-all "4.3.2"]
                  [cc.qbits/hayt "4.1.0"]
 
 ;;; Web server
@@ -54,7 +57,7 @@
                  [ring "1.7.1"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
-                 [ring/ring-json "0.4.0" :exclusions [cheshire]]
+                 [ring/ring-json "0.5.0" :exclusions [cheshire]]
                  [ring/ring-mock "0.4.0" :exclusions [cheshire]]
                  [compojure "1.6.1"]
 ;;; profiling
@@ -122,7 +125,7 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Xmx1500m"]
+             {:jvm-opts ["-Xmx1200m"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]

@@ -74,40 +74,27 @@
    [(subscribe [:project/settings project-id])])
  (fn [[settings]] (:public-access settings)))
 
-(reg-sub
- :project/document-paths
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ document-id _]]
-   (if (nil? document-id)
-     (get-in project [:documents])
-     (get-in project [:documents document-id]))))
-
 (defn get-source-by-id [sources source-id]
   (->> sources
        (filter #(= (:source-id %) source-id))
        first))
 
 ;; TODO: this should be a map, not a sequence
-(reg-sub
- :project/sources
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ source-id _]]
-   (cond-> (:sources project)
-     source-id (get-source-by-id source-id))))
+(reg-sub :project/sources
+         (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project [_ source-id _]]
+           (cond-> (:sources project)
+             source-id (get-source-by-id source-id))))
 
-(reg-sub
- :project/source-ids
- (fn [[_ _ project-id]]
-   [(subscribe [:project/sources project-id])])
- (fn [[sources] [_ enabled? _]]
-   (let [include? (cond (true? enabled?)   true?
-                        (false? enabled?)  false?
-                        :else              (constantly true))]
-     (->> sources
-          (filter #(-> % :enabled include?))
-          (mapv :source-id)))))
+(reg-sub :project/source-ids
+         (fn [[_ _ project-id]] (subscribe [:project/sources project-id]))
+         (fn [sources [_ enabled? _]]
+           (let [include? (cond (true? enabled?)   true?
+                                (false? enabled?)  false?
+                                :else              (constantly true))]
+             (->> sources
+                  (filter #(-> % :enabled include?))
+                  (mapv :source-id)))))
 
 (reg-sub
  :project/keywords
@@ -134,7 +121,7 @@
                     [:project/navigate id])}))
 
 (def-action :project/delete-file
-  :uri (fn [project-id file-id] (str "/api/files/" project-id "/delete/" file-id))
+  :uri (fn [project-id file-key] (str "/api/files/" project-id "/delete/" file-key))
   :process (fn [_ [project-id _] result]
              {:dispatch [:reload [:project/files project-id]]}))
 

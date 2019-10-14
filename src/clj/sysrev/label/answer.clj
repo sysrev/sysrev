@@ -5,6 +5,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
             [sysrev.project.core :as project]
             [sysrev.article.core :as article]
             [sysrev.label.core :as l]
@@ -57,7 +58,7 @@
   for an article at current time and for current consensus labels."
   [article-id user-id & {:keys [resolve-time label-ids]}]
   (with-transaction
-    (let [project-id (article/article-project-id article-id)
+    (let [project-id (qt/get-article article-id :project-id)
           label-ids (or label-ids (project/project-consensus-label-ids project-id))
           resolve-time (or resolve-time (db/sql-now))]
       (-> (insert-into :article-resolve)

@@ -1,0 +1,15 @@
+#!/bin/bash
+set -eu
+
+date_string=$(date +%F_%H-%M-%S)
+fname="sysrev-dump-db-${date_string}.pgdumpc"
+
+port="$SYSREV_PORT"
+db="$SYSREV_DB"
+
+options=""
+
+set -x
+time pg_dump -h localhost -p "$port" -U postgres -Fc $options "$db" > "$fname"
+set +x
+echo "wrote backup to $fname"

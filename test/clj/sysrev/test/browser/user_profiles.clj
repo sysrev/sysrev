@@ -6,11 +6,11 @@
             [clojure.test :refer :all]
             [sysrev.api :as api]
             [sysrev.db.core :refer [with-transaction]]
-            [sysrev.db.files :as files]
-            [sysrev.filestore :as fstore]
-            [sysrev.db.groups :as groups]
+            [sysrev.file.s3 :as s3-file]
+            [sysrev.file.user-image :as user-image]
+            [sysrev.group.core :as group]
             [sysrev.project.core :as project]
-            [sysrev.db.users :as users :refer [user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.annotator :as annotator]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.markdown :as markdown]
@@ -18,7 +18,6 @@
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.review-articles :as ra]
-            [sysrev.test.browser.semantic :as s]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]
             [sysrev.util :as util]
@@ -81,13 +80,13 @@
 
 (defn make-public-reviewer [user-id email]
   (with-transaction
-    (users/create-email-verification! user-id email)
-    (users/verify-email!
-     email (users/email-verify-code user-id email) user-id)
-    (users/set-primary-email! user-id email)
-    (if-let [user-group-id (:id (groups/read-user-group-name user-id "public-reviewer"))]
-      (groups/set-user-group-enabled! user-group-id true)
-      (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
+    (user/create-email-verification! user-id email)
+    (user/verify-email!
+     email (user/email-verify-code user-id email) user-id)
+    (user/set-primary-email! user-id email)
+    (if-let [user-group-id (:id (group/read-user-group-name user-id "public-reviewer"))]
+      (group/set-user-group-enabled! user-group-id true)
+      (group/add-user-to-group! user-id (group/group-name->group-id "public-reviewer")))))
 
 (defn change-project-public-access
   "Change public access setting for current project."
@@ -224,8 +223,8 @@
     (nav/log-in email-test-user password-test-user)
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to the user profile
-    (b/click user-name-link :delay 50)
-    (b/click user-profile-tab :delay 50)
+    (b/click user-name-link)
+    (b/click user-profile-tab)
     ;; edit introduction
     (b/click edit-introduction :delay 50)
     (b/wait-until-displayed "textarea")
@@ -237,9 +236,8 @@
     (nav/log-in)
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to users
-    (nav/go-route "/users" :wait-ms 200)
-    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']")
-             :delay 100)
+    (nav/go-route "/users" :wait-ms 100)
+    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']"))
     ;; the introduction still reads the same
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; there is no edit introduction option
@@ -252,9 +250,9 @@
   (do (nav/log-in)
       ;; go to the user profile
       (b/click "#user-name-link")
-      (b/click "#user-profile" :delay 50)
+      (b/click "#user-profile" :delay 30)
       ;; click the user profile avatar
-      (b/click avatar :displayed? true :delay 200)
+      (b/click avatar :displayed? true :delay 100)
       ;; "upload" file
       (log/info "uploading image")
       (taxi/execute-script upload-image-blob-js)
@@ -262,36 +260,35 @@
       ;; set position of avatar
       (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]"))
       (log/info "got image interface")
-      (Thread/sleep 150)
-      (b/click-drag-element "div.cr-viewport" :offset-x 83)
-      (Thread/sleep 150)
+      (b/click-drag-element "div.cr-viewport" :offset-x 83 :delay 100)
       ;; set avatar
       (log/info "setting avatar")
       (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
       ;; check manually that the avatar matches what we would expect
       ;; (two possible values for some reason, depending on system)
-      (b/is-soon (contains? #{;; original test value (james mac)
+      (b/is-soon (contains? #{ ;; original test value (james mac)
                               "52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
                               ;; second test value (jeff/james mac, jenkins linux)
                               "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
                               ;; another value (jeff chromium linux)
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
-                            (:key (files/avatar-image-key-filename user-id)))
+                            (:key (user-image/user-active-avatar-image user-id)))
                  3000 200)
       (log/info "got file key")
       (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
       (log/info "got image meta")
-      (is (-> (:key (files/avatar-image-key-filename user-id))
-              (fstore/lookup-file :image)
-              :object-content))
+      (b/is-soon (-> (:key (user-image/user-active-avatar-image user-id))
+                     (s3-file/lookup-file :image)
+                     :object-content)
+                 3000 200)
       (log/info "found file on s3"))
-  :cleanup (let [{:keys [success]} (api/delete-avatar! user-id)]
-             (when-not success
-               ;; try again in case server handler (create-avatar!) was still running
-               (log/warn "api/delete-avatar! failed on first attempt")
-               (Thread/sleep 1500)
-               (api/delete-avatar! user-id))))
+  :cleanup (when-not (try (user-image/delete-user-avatar-image user-id)
+                          (catch Throwable _ nil))
+             ;; try again in case server handler (create-avatar!) was still running
+             (log/warn "delete-user-avatar-image failed on first attempt")
+             (Thread/sleep 1500)
+             (user-image/delete-user-avatar-image user-id)))
 
 (def opt-in-toggle (xpath "//input[@id='opt-in-public-reviewer']"))
 (def resend-verification-email (xpath "//button[contains(text(),'Resend Verification Email')]"))
@@ -351,21 +348,21 @@
       (is (taxi/attribute opt-in-toggle "disabled"))
       ;; verify the email address
       (let [{:keys [user-id email]} (user-by-email (:email user1))
-            verify-code (users/email-verify-code user-id email)]
+            verify-code (user/email-verify-code user-id email)]
         (b/init-route (str "/user/" user-id "/email/" verify-code))
         (is (email-verified? email))
         ;; add a new email address
         (b/click add-new-email-address)
         ;; check for a basic error
         (b/click submit-new-email-address)
-        (is (s/check-for-error-message "New email address can not be blank!"))
+        (is (b/check-for-error-message "New email address can not be blank!"))
         ;; add a new email address
         (b/set-input-text-per-char new-email-address-input new-email-address)
         (b/click submit-new-email-address)
         (is (email-unverified? new-email-address))
         ;; verify new email address
         (b/init-route (str "/user/" user-id "/email/"
-                           (users/email-verify-code user-id new-email-address)))
+                           (user/email-verify-code user-id new-email-address)))
         (is (email-verified? new-email-address))
         ;;make this email address primary
         (make-primary new-email-address)

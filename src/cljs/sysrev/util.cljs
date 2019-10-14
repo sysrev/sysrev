@@ -1,5 +1,6 @@
 (ns sysrev.util
-  (:require [goog.string :refer [unescapeEntities]]
+  (:require [goog.string :as gstring :refer [unescapeEntities]]
+            [goog.string.format]
             [clojure.string :as str]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
@@ -97,6 +98,11 @@
       (>= days 1)    (pluralize days "day")
       (>= hours 1)   (pluralize hours "hour")
       :else          (pluralize minutes "minute"))))
+
+(defn now-ms
+  "Returns current time in epoch milliseconds."
+  []
+  (tc/to-long (t/now)))
 
 (defn go-back []
   (-> js/window .-history (.back)))
@@ -385,3 +391,29 @@
   (if (> i 999)
     (-> (/ i 1000) ($ toFixed 1) (str "K"))
     (str i)))
+
+(defn ui-theme-from-dom-css []
+  (cond (pos? (-> (js/$ "link[href='/css/style.dark.css']") ($ :length)))
+        "Dark"
+        (pos? (-> (js/$ "link[href='/css/style.default.css']") ($ :length)))
+        "Default"))
+
+(defn format
+  "Wrapper to provide goog.string/format functionality from this namespace."
+  [format-string & args]
+  (apply goog.string/format format-string args))
+
+(defn log
+  "Wrapper to run js/console.log using printf-style formatting."
+  [format-string & args]
+  (js/console.log (apply format format-string args)))
+
+(defn log-err
+  "Wrapper to run js/console.error using printf-style formatting."
+  [format-string & args]
+  (js/console.error (apply format format-string args)))
+
+(defn log-warn
+  "Wrapper to run js/console.error using printf-style formatting."
+  [format-string & args]
+  (js/console.warn (apply format format-string args)))

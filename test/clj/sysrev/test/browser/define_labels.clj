@@ -5,8 +5,7 @@
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
-            [sysrev.db.users :as users]
-            [sysrev.stripe :as stripe]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -153,7 +152,7 @@
     (b/set-input-text
      (field-input-xpath xpath "field-examples")
      (str/join "," examples)
-     :delay 50)))
+     :delay 30)))
 
 (defn set-categorical-label-definition
   [xpath label-map]
@@ -186,7 +185,7 @@
     (b/set-input-text
      (field-input-xpath xpath "field-all-values")
      (str/join "," all-values)
-     :delay 50)
+     :delay 30)
     ;;  inclusion values
     (b/wait-until #(= (taxi/value (field-input-xpath xpath "field-all-values"))
                       (str/join "," all-values)))

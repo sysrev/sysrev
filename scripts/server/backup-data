@@ -4,7 +4,7 @@ set -eu
 backup_dir=/data/sysrev/backups
 date_string=$(date +%F_%H-%M-%S)
 fname="sysrev-${date_string}.pgdumpc"
-options="-T schema_version"
+options=""
 
 cd "$backup_dir"
 pg_dump -h localhost -p 5470 -U postgres -Fc $options sysrev > "$fname"

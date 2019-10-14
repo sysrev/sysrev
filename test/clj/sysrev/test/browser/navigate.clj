@@ -91,7 +91,7 @@
   (b/click (x/project-title-value name) :delay 30))
 
 (defn delete-current-project []
-  (when (b/current-project-id true)
+  (when (b/current-project-id nil 1000)
     (log/info "deleting current project")
     (go-project-route "/settings" :silent true :wait-ms 50)
     (b/click (xpath "//button[contains(text(),'Project...')]"))

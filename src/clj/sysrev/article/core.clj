@@ -2,35 +2,35 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-project-cache clear-project-cache]]
-            [sysrev.entity :as e]
-            [sysrev.db.queries :as q]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.util :as u :refer [in? map-values index-by]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
+            [sysrev.db.query-types :as qt]
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.shared.util :as sutil :refer
+             [in? map-values index-by ensure-pred parse-integer]]))
 
-(defn article-project-id
-  "Get project-id value from article-id."
-  [article-id]
-  (-> (select :project-id)
-      (from :article)
-      (where [:= :article-id article-id])
-      do-query first :project-id))
+(defn merge-article-data-content [article]
+  (merge (dissoc article :content)
+         (:content article)))
 
 (defn-spec article-to-sql map?
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
   [article ::sa/article-partial, & [conn] (s/? any?)]
   (try (-> article
-           (update :authors #(db/to-sql-array "text" % conn))
-           (update :keywords #(db/to-sql-array "text" % conn))
-           (update :urls #(db/to-sql-array "text" % conn))
-           (update :document-ids #(db/to-sql-array "text" % conn)))
+           (cond-> (:authors article)
+             (update :authors #(db/to-sql-array "text" % conn)))
+           (cond-> (:keywords article)
+             (update :keywords #(db/to-sql-array "text" % conn)))
+           (cond-> (:urls article)
+             (update :urls #(db/to-sql-array "text" % conn)))
+           (cond-> (:document-ids article)
+             (update :document-ids #(db/to-sql-array "text" % conn))))
        (catch Throwable e
          (log/warn "article-to-sql: error converting article")
          (log/warn "article =" (pr-str article))
@@ -52,13 +52,14 @@
 (defn-spec set-user-article-note map?
   [article-id int?, user-id int?, note-name string?, content (s/nilable string?)]
   (let [{:keys [project-id project-note-id] :as pnote}
-        (-> (q/select-article-by-id article-id [:pn.*])
-            (merge-join [:project :p] [:= :p.project-id :a.project-id])
-            (q/with-project-note note-name)
-            do-query first)
-        anote (-> (q/select-article-by-id article-id [:an.*])
-                  (q/with-article-note note-name user-id)
-                  do-query first)]
+        (q/find-one [:article :a] {:a.article-id article-id :pn.name note-name}
+                    :pn.*, :join [[:project:p :a.project-id]
+                                  [:project-note:pn :p.project-id]])
+        anote (q/find-one [:article :a] {:a.article-id article-id
+                                         :an.user-id user-id
+                                         :pn.name note-name}
+                          :an.*, :join [[:article-note:an :a.article-id]
+                                        [:project-note:pn :an.project-note-id]])]
     (assert pnote "note type not defined in project")
     (assert project-id "project-id not found")
     (db/with-clear-project-cache project-id
@@ -76,13 +77,12 @@
 
 (defn-spec article-user-notes-map (s/map-of int? any?)
   [project-id int?, article-id int?]
-  (with-project-cache project-id [:article article-id :notes :user-notes-map]
-    (-> (q/select-article-by-id article-id [:an.* :pn.name])
-        (q/with-article-note)
-        (->> do-query
-             (group-by :user-id)
-             (map-values #(->> (index-by :name %)
-                               (map-values :content)))))))
+  (db/with-project-cache project-id [:article article-id :notes :user-notes-map]
+    (->> (q/find [:article :a] {:a.article-id article-id} [:an.* :pn.name]
+                 :join [[:article-note:an :a.article-id]
+                        [:project-note:pn :an.project-note-id]])
+         (group-by :user-id)
+         (map-values #(->> % (index-by :name) (map-values :content))))))
 
 (defn-spec remove-article-flag int?
   [article-id int?, flag-name string?]
@@ -100,31 +100,25 @@
               :returning :*)))
 
 (defn article-locations-map [article-id]
-  (-> (select :al.source :al.external-id)
-      (from [:article-location :al])
-      (where [:= :al.article-id article-id])
-      (->> do-query (group-by :source))))
+  (q/find :article-location {:article-id article-id}
+          [:source :external-id], :group-by :source))
 
 (defn article-flags-map [article-id]
-  (-> (q/select-article-by-id
-       article-id (db/table-fields :aflag [:flag-name :disable :date-created :meta]))
-      (q/join-article-flags)
-      (->> do-query
-           (index-by :flag-name)
-           (map-values #(dissoc % :flag-name)))))
+  (q/find [:article :a] {:a.article-id article-id}
+          (db/table-fields :aflag [:disable :date-created :meta])
+          :join [:article-flag:aflag :a.article-id]
+          :index-by :flag-name))
 
 (defn article-sources-list [article-id]
-  (-> (q/select-article-by-id article-id [:asrc.source-id])
-      (q/join-article-source)
-      (->> do-query (mapv :source-id))))
+  (q/find [:article :a] {:a.article-id article-id} :as.source-id
+          :join [:article-source:as :a.article-id]))
 
 (defn article-score
   [article-id & {:keys [predict-run-id] :as opts}]
   (db/with-transaction
-    (-> (q/select-article-by-id article-id [:a.article-id])
-        (q/with-article-predict-score
-          (or predict-run-id (q/article-latest-predict-run-id article-id)))
-        do-query first :score)))
+    (let [predict-run-id (or predict-run-id (q/article-latest-predict-run-id article-id))]
+      (:score (q/find-one [:article :a] {:a.article-id article-id} :*
+                          :prepare #(q/with-article-predict-score % predict-run-id))))))
 
 ;; TODO: replace with generic interface for querying db entities with added values
 (defn get-article
@@ -139,8 +133,7 @@
                  :or {items [:locations :score :flags :sources]}
                  :as opts}]
   (assert (->> items (every? #(in? [:locations :score :flags :sources] %))))
-  (let [article (-> (q/query-article-by-id article-id [:a.*])
-                    (dissoc :text-search))
+  (let [article (ds-api/get-article-content article-id)
         get-item (fn [item-key f] (when (in? items item-key)
                                     (constantly {item-key (f)})))
         item-values
@@ -173,70 +166,30 @@
 
 (defn project-prediction-scores
   "Given a project-id, return the prediction scores for all articles"
-  [project-id & {:keys [include-disabled? predict-run-id]
-                 :or {include-disabled? false
-                      predict-run-id (-> (select :predict-run-id)
-                                         (from [:predict-run :pr])
-                                         (where [:= :pr.project-id project-id])
-                                         (order-by [:pr.create-time :desc])
-                                         (limit 1)
-                                         do-query first :predict-run-id)}}]
-  (-> (select :lp.article-id :lp.val)
-      (from [:label-predicts :lp])
-      (join [:article :a] [:= :lp.article-id :a.article-id])
-      (where [:and (when-not include-disabled? [:= :a.enabled true])
-              [:= :a.project-id project-id]
-              [:= :lp.predict-run-id predict-run-id]])
-      do-query))
+  [project-id &
+   {:keys [include-disabled? predict-run-id]
+    :or {include-disabled? false
+         predict-run-id (first (q/find :predict-run {:project-id project-id} :predict-run-id
+                                       :order-by [:create-time :desc] :limit 1))}}]
+  (q/find [:label-predicts :lp] (cond-> {:a.project-id project-id
+                                         :lp.predict-run-id predict-run-id}
+                                  (not include-disabled?) (merge {:a.enabled true}))
+          [:a.article-id :lp.val]
+          :join [:article:a :lp.article-id]))
 
-;; TODO: replace with a generic select-by-field-values function
 (defn article-ids-to-uuids [article-ids]
   (->> (partition-all 500 article-ids)
-       (mapv #(-> (select :article-uuid)
-                  (from [:article :a])
-                  (where [:in :article-id %])
-                  (->> do-query (map :article-uuid))))
+       (mapv #(q/find :article {:article-id %} :article-uuid))
        (apply concat)))
 
-(defn article-pmcid
-  "Given an article id, return it's pmcid. Returns nil if it does not exist"
-  [article-id]
-  (-> (select :raw)
-      (from :article)
-      (where [:= :article-id article-id])
-      do-query (some->> first :raw (re-find #"PMC\d+"))))
+;; FIX: get this PMCID value from somewhere other than raw xml
+(defn article-pmcid [article-id]
+  nil
+  #_ (some->> (qt/get-article article-id :raw) (re-find #"PMC\d+")))
 
-(defn pmcid-in-s3store?
-  "Given a pmcid, do we have a file associated with it in the s3store?"
-  [pmcid]
-  (boolean (-> (select :pmcid)
-               (from :pmcid-s3store)
-               (where [:= :pmcid pmcid])
-               do-query first)))
-
-;; FIX: see docstring - add unique constraint or change function
-(defn pmcid->s3-id
-  "Returns first of any s3-id values associated with pmcid."
-  [pmcid]
-  (-> (select :s3-id)
-      (from :pmcid-s3store)
-      (where [:= :pmcid pmcid])
-      do-query first :s3-id))
-
-(defn associate-pmcid-s3store
-  "Given a pmcid and an s3-id, associate the two"
-  [pmcid s3-id]
-  (-> (insert-into :pmcid-s3store)
-      (values [{:pmcid pmcid :s3-id s3-id}])
-      do-execute))
-
-;; TODO: replace with generic function
 (defn modify-articles-by-id
   "Runs SQL update setting `values` on articles in `article-ids`."
   [article-ids values]
   (doseq [id-group (partition-all 100 article-ids)]
     (when (seq id-group)
-      (-> (sqlh/update :article)
-          (sset values)
-          (where [:in :article-id (vec id-group)])
-          do-execute))))
+      (q/modify :article {:article-id id-group} values))))

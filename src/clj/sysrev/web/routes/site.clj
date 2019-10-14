@@ -10,11 +10,11 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query]]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.project.core :as project]
             [sysrev.db.queries :as q]
             [sysrev.config.core :refer [env]]
-            [sysrev.web.app :as app :refer [wrap-authorize current-user-id]]
+            [sysrev.web.app :as app :refer [with-authorize current-user-id]]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.shared.util :refer [in? map-values index-by]]))
 
@@ -131,35 +131,32 @@
        {:stats (sysrev-global-stats)})
 
   (POST "/api/delete-user" request
-        (wrap-authorize
-         request {:developer true}
-         (let [{{:keys [verify-user-id]
-                 :as body} :body} request
-               user-id (current-user-id request)
-               {:keys [permissions]} (users/user-identity-info user-id)]
-           (assert (= user-id verify-user-id) "verify-user-id mismatch")
-           (when-not (in? permissions "admin")
-             (throw (should-never-happen-exception)))
-           (users/delete-user user-id)
-           (with-meta
-             {:success true}
-             {:session {}}))))
+        (with-authorize request {:developer true}
+          (let [{{:keys [verify-user-id]
+                  :as body} :body} request
+                user-id (current-user-id request)
+                {:keys [permissions]} (user/user-identity-info user-id)]
+            (assert (= user-id verify-user-id) "verify-user-id mismatch")
+            (when-not (in? permissions "admin")
+              (throw (should-never-happen-exception)))
+            (user/delete-user user-id)
+            (with-meta
+              {:success true}
+              {:session {}}))))
 
   (POST "/api/clear-query-cache" request
-        (wrap-authorize
-         request {:developer true}
-         (db/clear-query-cache)
-         {:success true}))
+        (with-authorize request {:developer true}
+          (db/clear-query-cache)
+          {:success true}))
 
   (POST "/api/change-user-settings" request
-        (wrap-authorize
-         request {:logged-in true}
-         (let [user-id (current-user-id request)
-               {:keys [changes]} (:body request)]
-           (doseq [{:keys [setting value]} changes]
-             (users/change-user-setting
-              user-id (keyword setting) value))
-           {:success true, :settings (users/user-settings user-id)})))
+        (with-authorize request {:logged-in true}
+          (let [user-id (current-user-id request)
+                {:keys [changes]} (:body request)]
+            (doseq [{:keys [setting value]} changes]
+              (user/change-user-setting
+               user-id (keyword setting) value))
+            {:success true, :settings (user/user-settings user-id)})))
 
   (GET "/api/terms-of-use.md" request
        (app/text-file-response

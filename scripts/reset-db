@@ -5,7 +5,8 @@ set -eu
 function env_help {
  echo "SYSREV_PORT and SYSREV_DB must be defined as shell or environment variables, referring to the localhost port number and postgres database name to be reset."
  echo
- echo "Example: bash -c 'SYSREV_PORT=5432 SYSREV_DB=sysrev ./scripts/reset-db'"
+ echo "Example:"
+ echo "SYSREV_PORT=5432 SYSREV_DB=sysrev ./scripts/reset-db"
  exit
 }
 

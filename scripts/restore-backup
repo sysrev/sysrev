@@ -4,20 +4,40 @@ set -eu
 
 fname="$SR_BACKUP_FILE"
 
-opts=( '--data-only'
+opts=( '--host=localhost'
+       "--port=$SR_DEST_PORT"
+       "--dbname=$SR_DEST_DB"
+       '--username=postgres'
+       '--no-password'
+       '--format=custom'
        '--disable-triggers'
        '--single-transaction'
-       "--dbname=$SR_DEST_DB"
-       '--format=custom'
-       '--no-owner'
-       '--username=postgres'
-       '--host=localhost'
-       "--port=$SR_DEST_PORT"
-       '--no-password')
+       '--no-owner' )
 
 opts=$(printf " %s" "${opts[@]}")
 opts=${opts:1}
 
-(>&2 echo "running pg_restore")
+readonly_user="readaccess"
 
-pg_restore $opts $fname
+default_db="postgres"
+pgconn="-h localhost -p $SR_DEST_PORT"
+pguser="-U postgres"
+
+psql $pgconn $pguser $default_db --list > /dev/null
+
+psql $pgconn -U $readonly_user $default_db --list > /dev/null || (
+    echo "postgres user \"$readonly_user\" is required"
+    echo "run to create: \"createuser $pgconn $pguser $readonly_user\""
+    false
+)
+
+echo "dropping database (if exists)..."
+dropdb $pgconn $pguser $SR_DEST_DB || true
+
+echo "creating database..."
+createdb $pgconn $pguser -T template0 $SR_DEST_DB
+
+echo "running pg_restore..."
+
+set -x
+time pg_restore $opts $fname

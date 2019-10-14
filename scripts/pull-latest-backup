@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+
+fname=$(ssh ubuntu@builds.insilica.co 'ls /data/sysrev/backups | tail -n1')
+
+scp ubuntu@builds.insilica.co:/data/sysrev/backups/"$fname" .
+
+echo "wrote $fname"

@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.user.billing
-  (:require [ajax.core :refer [GET]]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]

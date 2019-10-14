@@ -4,11 +4,11 @@
             [sitemap.core :refer [generate-sitemap]]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
-            [sysrev.paypal :refer [paypal-env paypal-client-id]]
-            [sysrev.resources :as res]
-            [sysrev.stripe :refer [stripe-public-key stripe-client-id]]
+            [sysrev.payment.paypal :refer [paypal-env paypal-client-id]]
+            [sysrev.web.build :as build]
+            [sysrev.payment.stripe :refer [stripe-public-key stripe-client-id]]
             [sysrev.util :refer [today-string]]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :refer [get-user]]
             [sysrev.project.core :as project]
             [sysrev.shared.text :as text]))
 
@@ -24,7 +24,7 @@
   (let [{{{:keys [user-id] :as identity} :identity
           :as session} :session} request]
     (if user-id
-      (or (some-> user-id (users/get-user) :settings :ui-theme str/lower-case)
+      (or (some-> user-id get-user :settings :ui-theme str/lower-case)
           "default")
       (or (some-> session :settings :ui-theme str/lower-case)
           "default"))))
@@ -107,7 +107,7 @@
         [:i.warning.icon]
         [:div.content maintainence-msg]]]
       (let [js-name (if (= (:profile env) :prod)
-                      (str "sysrev-" res/build-id ".js")
+                      (str "sysrev-" build/build-id ".js")
                       "sysrev.js")]
         (page/include-js (str @web-asset-path "/" js-name))))]))
 

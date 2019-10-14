@@ -47,21 +47,14 @@
 (def-action :org/subscribe-plan
   :uri (fn [org-id plan-name] (str "/api/org/" org-id "/stripe/subscribe-plan"))
   :content (fn [org-id plan-name]
-             #_ (js/console.log ":org/subscribe-plan running " (pr-str [org-id plan-name]))
              {:plan-name plan-name})
   :process (fn [{:keys [db]} [org-id _] {:keys [stripe-body plan] :as result}]
-             #_ (js/console.log ":org/subscribe-plan result = " (pr-str result))
              (if (:created stripe-body)
                (let [nav-url (panel-get db [org-id :on-subscribe-nav-to-url])]
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
                           (load-org-current-plan org-id plan))
-                  :dispatch-n (list
-                               #_ [:data/load [:org/current-plan org-id]]
-                               ;; need to download all projects associated with the user
-                               ;; to update [:project/subscription-lapsed?] for MakePublic
-                               [:self/reload-all-projects]
-                               [:nav-scroll-top nav-url])})))
+                  :dispatch [:nav-reload nav-url]})))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"

@@ -12,7 +12,7 @@
              [do-query do-execute with-transaction]]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
-            [sysrev.resources :as res]
+            [sysrev.web.build :as build]
             [sysrev.web.index :as index]
             [sysrev.web.app :refer [not-found-response]]
             [clj-http.client :as http]
@@ -51,7 +51,7 @@
    [:body
     [:div {:id "blog-app"} (loading-content :logo-url "https://sysrev.com/")]
     (let [js-name (if (= (:profile env) :prod)
-                    (str "sysrev-" res/build-id ".js")
+                    (str "sysrev-" build/build-id ".js")
                     "sysrev.js")]
       (page/include-js (str @index/web-asset-path "/" js-name)))]))
 

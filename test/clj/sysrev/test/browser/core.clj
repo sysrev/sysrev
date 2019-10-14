@@ -14,10 +14,10 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.project.core :as project]
-            [sysrev.db.groups :as groups]
-            [sysrev.stripe :as stripe]
+            [sysrev.group.core :as group]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
             [sysrev.util :as util]
@@ -144,13 +144,13 @@
 (defn delete-test-user [& {:keys [email] :or {email (:email test-login)}}]
   (with-transaction
     (when-let [{:keys [user-id stripe-id]
-                :as user} (users/user-by-email email)]
+                :as user} (user/user-by-email email)]
       (when stripe-id
         (try (stripe/delete-customer! user)
              (catch Throwable t nil)))
       (when user-id
         (q/delete :compensation-user-period {:user-id user-id}))
-      (users/delete-user-by-email email))))
+      (user/delete-user-by-email email))))
 
 (defn create-test-user [& {:keys [email password project-id]
                            :or {email (:email test-login)
@@ -158,8 +158,8 @@
                                 project-id nil}}]
   (with-transaction
     (delete-test-user :email email)
-    (let [{:keys [user-id] :as user} (users/create-user email password :project-id project-id)]
-      (users/change-user-setting user-id :ui-theme "Dark")
+    (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
+      (user/change-user-setting user-id :ui-theme "Dark")
       user)))
 
 (defn displayed-now?
@@ -266,13 +266,13 @@
   "Reads project id from current url. Waits a short time before
   returning nil if no project id is immediately found, unless now is
   true."
-  [& [now]]
+  [& [now wait-ms]]
   (letfn [(lookup-id []
             (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
               (some-> id-str parse-integer)))]
     (if now
       (lookup-id)
-      (when (try-wait wait-until #(integer? (lookup-id)) 2500)
+      (when (try-wait wait-until #(integer? (lookup-id)) (or wait-ms 2500))
         (lookup-id)))))
 
 (defn current-project-route
@@ -288,17 +288,17 @@
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
-    (Thread/sleep delay)
+    (Thread/sleep (quot delay 2))
     (taxi/input-text q text)
     (Thread/sleep (quot delay 2))))
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
-             :or {delay 15 char-delay 20 clear? true}}]
+             :or {delay 15 char-delay 15 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
-    (Thread/sleep delay)
+    (Thread/sleep (quot delay 2))
     (let [e (taxi/element q)]
       (doseq [c text]
         (taxi/input-text e (str c))
@@ -320,21 +320,26 @@
     (when wait? (wait-until-loading-completes))
     result))
 
-(defn click [q & {:keys [if-not-exists delay displayed?]
-                  :or {if-not-exists :wait, delay 20, displayed? false}}]
-  ;; auto-exclude "disabled" class when q is css
-  (let [q (-> q (not-disabled) (not-loading))]
-    (when (= if-not-exists :wait)
-      (if displayed?
-        (is-soon (displayed-now? q))
-        (is-soon (taxi/exists? q))))
-    (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
-      (try (taxi/click q)
-           (catch Throwable e
-             (log/warnf "got exception clicking %s, trying again..." (pr-str q))
-             (wait-until-loading-completes :pre-wait (+ delay 100))
-             (taxi/click q))))
-    (wait-until-loading-completes :pre-wait delay)))
+(defn click [q & {:keys [if-not-exists delay displayed? external?]
+                  :or {if-not-exists :wait, delay 20}}]
+  (letfn [(wait [ms]
+            (if external?
+              (Thread/sleep (+ ms 20))
+              (wait-until-loading-completes :pre-wait ms)))]
+    ;; auto-exclude "disabled" class when q is css
+    (let [q (if external? q
+                (-> q (not-disabled) (not-loading)))]
+      (when (= if-not-exists :wait)
+        (if displayed?
+          (is-soon (displayed-now? q))
+          (is-soon (taxi/exists? q))))
+      (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
+        (try (taxi/click q)
+             (catch Throwable e
+               (log/warnf "got exception clicking %s, trying again..." (pr-str q))
+               (wait (+ delay 100))
+               (taxi/click q))))
+      (wait delay))))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -379,12 +384,12 @@
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
                         (log-console-messages (if failed# :error :info))))
-                    (try (wait-until-loading-completes :pre-wait 25 :timeout 400)
+                    (try (wait-until-loading-completes :pre-wait 40 :timeout 1000)
                          (catch Throwable e2#
                            (log/info "test cleanup - wait-until-loading-completes timed out")))
                     (when-not ~repl?
-                      (ensure-logged-out)
-                      ~cleanup)))))))))
+                      ~cleanup
+                      (ensure-logged-out))))))))))
 
 (defn current-frame-names []
   (->> (taxi/xpath-finder "//iframe")
@@ -403,23 +408,22 @@
     []))
 
 (defn delete-test-user-projects! [user-id & [compensations]]
-  (doseq [{:keys [project-id]} (users/user-projects user-id)]
+  (doseq [{:keys [project-id]} (user/user-projects user-id)]
     (when compensations (project/delete-project-compensations project-id))
     (project/delete-project project-id)))
 
 (defn delete-test-user-groups! [user-id]
-  (doseq [{:keys [group-id]} (groups/read-groups user-id)]
-    (groups/delete-group! group-id)))
+  (doseq [{:keys [group-id]} (group/read-groups user-id)]
+    (group/delete-group! group-id)))
 
 (defn cleanup-test-user!
   "Deletes a test user by user-id or email, along with other entities
   the user is associated with."
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
-  (assert (or (integer? user-id) (string? email)))
-  (assert (not (and (integer? user-id) (string? email))))
-  (let [email (or email (users/get-user user-id :email))
-        user-id (or user-id (users/user-by-email email :user-id))]
+  (sutil/assert-exclusive user-id email)
+  (let [email (or email (user/get-user user-id :email))
+        user-id (or user-id (user/user-by-email email :user-id))]
     (when (and email user-id)
       (when projects (delete-test-user-projects! user-id compensations))
       (when groups (delete-test-user-groups! user-id))
@@ -493,8 +497,9 @@
                        parse-integer)
                   0))))
 
-(defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y]
-                               :or {start-x 0 offset-x 0 start-y 0 offset-y 0}}]
+(defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y delay]
+                               :or {start-x 0 offset-x 0 start-y 0 offset-y 0
+                                    delay 25}}]
   (let [start-x (or start-x 0)
         offset-x (or offset-x 0)
         start-y (or start-y 0)
@@ -517,8 +522,14 @@
                           :start-x start-x :offset-x offset-x
                           :start-y start-y :offset-y offset-y
                           :x x :y y}))
-    (Thread/sleep 25)
+    (Thread/sleep delay)
     (->actions @active-webdriver
                (move-to-element (taxi/element q) x y)
                (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))
-    (Thread/sleep 25)))
+    (Thread/sleep delay)))
+
+(defn check-for-error-message [error-message]
+  (exists?
+   (xpath
+    "//div[contains(@class,'negative') and contains(@class,'message') and contains(text(),'"
+    error-message "')]")))

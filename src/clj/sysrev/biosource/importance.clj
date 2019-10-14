@@ -40,13 +40,18 @@
         (where [:= :project-id project-id])
         (->> do-query (group-by #(-> % :entity-type keyword))))))
 
+;; TODO: fix API to handle 30k+ pmids without error
 (defn fetch-important-terms
   "Given a coll of pmids, return a map of important term counts from biosource"
   [pmids]
-  (try (-> (http/post (str api-host "sysrev/importance")
-                      {:content-type "application/json"
-                       :body (json/write-str pmids)})
-           :body (json/read-str :key-fn keyword))
+  (try (let [pmids (->> pmids sort reverse (take 25000))
+             response (http/post (str api-host "sysrev/importance")
+                                 {:content-type "application/json"
+                                  :body (json/write-str pmids)})]
+         (try (-> (:body response) (json/read-str :key-fn keyword))
+              (catch Throwable e
+                (log/warnf "error parsing response:\n%s" (pr-str response))
+                (throw e))))
        (catch Throwable e
          (if-let [{:keys [status reason-phrase body]} (ex-data e)]
            (do (log/warn "error in fetch-important-terms")
@@ -86,13 +91,9 @@
            (with-transaction
              (when (and (not-empty entries)
                         (project/project-exists? project-id :include-disabled? true))
-               (-> (delete-from :project-entity)
-                   (where [:= :project-id project-id])
-                   do-execute)
+               (q/delete :project-entity {:project-id project-id})
                (doseq [entries-group (partition-all 500 entries)]
-                 (-> (insert-into :project-entity)
-                     (values entries-group)
-                     do-execute))))
+                 (q/create :project-entity entries-group))))
            nil))
        (catch Throwable e
          (let [msg (.getMessage e)]
@@ -100,8 +101,7 @@
                                         ["Connection is closed"
                                          "This statement has been closed"]))
              (log/info "load-project-important-terms: DB connection closed")
-             (do (log/info "Exception in load-project-important-terms:" msg)
-                 (.printStackTrace e))))
+             (log/info "load-project-important-terms:" msg)))
          nil)
        (finally (record-importance-load-stop project-id)
                 (clear-project-cache project-id))))

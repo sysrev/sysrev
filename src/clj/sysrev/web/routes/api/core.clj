@@ -13,7 +13,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :refer [user-by-api-token]]
             [sysrev.project.core :as project]
             [sysrev.web.app :refer
              [current-user-id active-project make-error-response]]
@@ -100,7 +100,7 @@
     (if-let [route (web-api-route request)]
       (let [{:keys [require-token? require-admin? project-role required]} route
             {:keys [api-token project-id]} (-> request :body)
-            user (and api-token (users/user-by-api-token api-token))
+            user (and api-token (user-by-api-token api-token))
             admin? (and user (in? (:permissions user) "admin"))
             member-roles
             (and user project-id

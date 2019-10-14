@@ -4,7 +4,7 @@
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
             [sysrev.db.queries :as q]
-            [sysrev.clone-project :as clone]
+            [sysrev.project.clone :as clone]
             [sysrev.shared.util :refer [in? parse-integer]]))
 
 (defn article-label-value-present? [article-labels label-id value]

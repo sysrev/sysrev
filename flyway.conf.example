@@ -1,3 +1,5 @@
+flyway.table=schema_version
+flyway.ignoreIgnoredMigrations=true
 flyway.url=jdbc:postgresql://localhost:5432/sysrev
 flyway.user=postgres
 flyway.password=

@@ -52,5 +52,3 @@
   (let [required-headers-fn (required-headers handler)]
     (fn [method uri & [parameters]]
       (route-response-builder handler required-headers-fn method uri parameters))))
-
-

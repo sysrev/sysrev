@@ -4,12 +4,12 @@
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
-            [sysrev.db.users :as users]
+            [sysrev.user.core :as user]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
-            [sysrev.test.browser.core :refer [test-login create-test-user]]
+            [sysrev.test.browser.core :as b]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
 
@@ -20,10 +20,10 @@
 
 (deftest pubmed-search-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} test-login
+        {:keys [email password]} b/test-login
         route-response (route-response-fn handler)]
     ;; create user
-    (create-test-user)
+    (b/create-test-user)
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login"
                                 {:email email :password password})
@@ -44,14 +44,13 @@
 
 (deftest create-project-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} test-login
+        {:keys [email password]} b/test-login
         search-term "foo bar"
         route-response (route-response-fn handler)]
     ;; create user
-    (create-test-user)
+    (b/create-test-user)
     ;; login this user
-    (is (get-in (route-response :post "/api/auth/login"
-                                {:email email :password password})
+    (is (get-in (route-response :post "/api/auth/login" {:email email :password password})
                 [:result :valid]))
     ;; Create a project
     (let [create-project-response
@@ -65,23 +64,20 @@
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
-      (is (= 0
-             (project/project-article-count new-project-id)))
+      (is (= 0 (project/project-article-count new-project-id)))
       ;; add articles to this project
-      (import/import-pubmed-search
-       new-project-id {:search-term search-term}
-       {:use-future? false :threads 1})
+      (import/import-pubmed-search new-project-id {:search-term search-term}
+                                   {:use-future? false :threads 1})
       ;; Does the new project have the correct amount of articles?
       ;; I would like a 'get-project' route
       ;;
       ;; deletion can't happen for a user who isn't part of the project
       (let [non-member-email "non@member.com"
             non-member-password "nonmember"
-            {:keys [user-id]} (create-test-user
-                               :email non-member-email
-                               :password non-member-password)]
-        (route-response :post "/api/auth/login"
-                        {:email non-member-email :password non-member-password})
+            {:keys [user-id]} (b/create-test-user :email non-member-email
+                                                  :password non-member-password)]
+        (route-response :post "/api/auth/login" {:email non-member-email
+                                                 :password non-member-password})
         (is (= "Not authorized (project member)"
                (get-in (route-response :post "/api/delete-project"
                                        {:project-id new-project-id})
@@ -100,84 +96,74 @@
 
 (deftest identity-project-response-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} test-login
+        {:keys [email password]} b/test-login
         ;; create user
-        {:keys [user-id]} (create-test-user :project-id nil)
-        _ (users/set-user-permissions user-id ["user"])
+        {:keys [user-id]} (b/create-test-user)
+        _ (user/set-user-permissions user-id ["user"])
         route-response (route-response-fn handler)]
     (is (integer? user-id))
     ;; the projects array in identity is empty
-    (route-response :post "/api/auth/login"
-                    {:email email :password password})
+    (route-response :post "/api/auth/login" {:email email :password password})
     (let [ident-response (route-response :get "/api/auth/identity")]
-      (is (-> ident-response :result :projects empty?)
+      (is (empty? (-> ident-response :result :projects))
           (format "response = %s" (pr-str ident-response)))
-      (is (= (-> ident-response :result :identity :user-id) user-id)
+      (is (= user-id (-> ident-response :result :identity :user-id))
           (format "response = %s" (pr-str ident-response))))
     ;; create a new project
-    (let [create-response
-          (route-response :post "/api/create-project"
-                          {:project-name test-project-name})]
+    (let [create-response (route-response :post "/api/create-project"
+                                          {:project-name test-project-name})]
       (is (true? (-> create-response :result :success))))
-    (let [projects (->> (:projects (users/user-self-info user-id))
+    (let [projects (->> (:projects (user/user-self-info user-id))
                         (filter :member?))]
       (is (= 1 (count projects)))
-      (let [project-id (-> projects first :project-id)]
-        (is (integer? project-id))))
-
+      (is (integer? (-> projects first :project-id))))
     ;; the projects array in identity contains one entry
     (let [response (route-response :get "/api/auth/identity")
-          projects (->> response :result :projects
-                        (filter :member?))]
+          projects (->> response :result :projects (filter :member?))]
       (is (= 1 (count projects))
           (format "response = %s" (pr-str response))))))
 
 (deftest add-articles-from-pubmed-search-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} test-login
+        {:keys [email password]} b/test-login
         search-term "foo bar"
-        route-response (route-response-fn handler)]
+        route-response (route-response-fn handler)
+        new-user-email "baz@qux.com"
+        new-user-password "bazqux"]
     ;; create user
-    (create-test-user)
+    (b/create-test-user)
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login"
                                 {:email email :password password})
                 [:result :valid]))
-    ;; Create a project
-    (let [create-project-response
-          (route-response :post "/api/create-project"
-                          {:project-name test-project-name})
+    ;; create a project
+    (let [create-project-response (route-response :post "/api/create-project"
+                                                  {:project-name test-project-name})
           project-id (get-in create-project-response [:result :project :project-id])]
       ;; confirm project is created for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
-      (is (= 0
-             (project/project-article-count project-id)))
+      (is (= 0 (project/project-article-count project-id)))
       ;; these should be no sources for this project yet
       (let [response (route-response :get "/api/project-sources"
                                      {:project-id project-id})]
         (is (empty? (get-in response [:result :sources]))))
       ;; add a member to a project
-      (let [new-user-email "baz@qux.com"
-            new-user-password "bazqux"]
-        ;; create and log the new member in
-        (create-test-user :email new-user-email
-                          :password new-user-password)
-        ;; login this user
-        (is (get-in (route-response :post "/api/auth/login"
-                                    {:email new-user-email :password new-user-password})
-                    [:result :valid]))
-        ;; add member to project
-        (is (= project-id
-               (get-in (route-response :post "/api/join-project"
-                                       {:project-id project-id})
-                       [:result :project-id])))
-        ;; that member can't add articles to a project
-        (is (= "Not authorized (project member)"
-               (get-in (route-response :post "/api/import-articles/pubmed"
-                                       {:project-id project-id
-                                        :search-term search-term :source "PubMed"})
-                       [:error :message]))))
+      (b/create-test-user :email new-user-email :password new-user-password)
+      ;; login this user
+      (is (get-in (route-response :post "/api/auth/login"
+                                  {:email new-user-email :password new-user-password})
+                  [:result :valid]))
+      ;; add member to project
+      (is (= project-id (get-in (route-response :post "/api/join-project"
+                                                {:project-id project-id})
+                                [:result :project-id])))
+      ;; that member can't add articles to a project
+      (is (= "Not authorized (project member)"
+             (get-in (route-response :post "/api/import-articles/pubmed"
+                                     {:project-id project-id
+                                      :search-term search-term :source "PubMed"})
+                     [:error :message])))
       ;; log back in as admin
       (is (get-in (route-response :post "/api/auth/login"
                                   {:email email :password password})
@@ -188,43 +174,35 @@
                                    :search-term search-term :source "PubMed"})
                   [:result :success]))
       ;; meta data looks right
-      (is (= 1
-             (count
-              (filter #(= (:project-id %) project-id)
-                      (get-in (route-response :get "/api/project-sources"
-                                              {:project-id project-id})
-                              [:result :sources])))))
+      (is (= 1 (count (filter #(= (:project-id %) project-id)
+                              (get-in (route-response :get "/api/project-sources"
+                                                      {:project-id project-id})
+                                      [:result :sources])))))
       ;; repeat search, check to see that the import is not happening over and over
       (dotimes [n 10]
         (route-response :post "/api/import-articles/pubmed"
-                        {:project-id project-id
-                         :search-term search-term :source "PubMed"}))
+                        {:project-id project-id :search-term search-term :source "PubMed"}))
       ;; sources would be added multiple times if the same import was being run
       ;; if only one occurs, the count should be 1
-      (is (= 1
-             (count
-              (filter #(= (:project-id %) project-id)
-                      (get-in (route-response :get "/api/project-sources"
-                                              {:project-id project-id})
-                              [:result :sources])))))
+      (is (= 1 (count (filter #(= (:project-id %) project-id)
+                              (get-in (route-response :get "/api/project-sources"
+                                                      {:project-id project-id})
+                                      [:result :sources])))))
       ;; let's do another search, multiple times and see that only one import occurred
       (dotimes [n 10]
         (route-response :post "/api/import-articles/pubmed"
-                        {:project-id project-id
-                         :search-term "grault" :source "PubMed"}))
-      (is (= 2
-             (count (filter #(= (:project-id %) project-id)
-                            (get-in (route-response :get "/api/project-sources"
-                                                    {:project-id project-id})
-                                    [:result :sources]))))))))
+                        {:project-id project-id :search-term "grault" :source "PubMed"}))
+      (is (= 2 (count (filter #(= (:project-id %) project-id)
+                              (get-in (route-response :get "/api/project-sources"
+                                                      {:project-id project-id})
+                                      [:result :sources]))))))))
 
 (deftest delete-project-and-sources
   (let [handler (sysrev-handler)
-        {:keys [email password]} test-login
+        {:keys [email password]} b/test-login
         route-response (route-response-fn handler)
-        _ (create-test-user)
-        _ (route-response :post "/api/auth/login"
-                          {:email email :password password})
+        _ (b/create-test-user)
+        _ (route-response :post "/api/auth/login" {:email email :password password})
         create-project-response (route-response :post "/api/create-project"
                                                 {:project-name test-project-name})
         project-id (get-in create-project-response [:result :project :project-id])
@@ -232,8 +210,7 @@
         import-articles-response (route-response :post "/api/import-articles/pubmed"
                                                  {:project-id project-id
                                                   :search-term "foo bar" :source "PubMed"})
-        project-info (route-response :get "/api/project-info"
-                                     {:project-id project-id})
+        project-info (route-response :get "/api/project-info" {:project-id project-id})
         project-label (second (first (get-in project-info [:result :project :labels])))
         label-id (get-in project-label [:label-id])
         article-to-label (route-response :get "/api/label-task"
@@ -247,13 +224,12 @@
     ;; be true
     (is (not (project/project-has-labeled-articles? project-id)))
     ;; set an article label to true
-    (route-response :post "/api/set-labels"
-                    {:project-id project-id
-                     :article-id article-id
-                     :label-values {label-id true}
-                     :confirm? true
-                     :resolve? false
-                     :change? false})
+    (route-response :post "/api/set-labels" {:project-id project-id
+                                             :article-id article-id
+                                             :label-values {label-id true}
+                                             :confirm? true
+                                             :resolve? false
+                                             :change? false})
     ;; now the project has labeled articles
     (is (project/project-has-labeled-articles? project-id))
     (is (get-in (route-response :post "/api/delete-project"

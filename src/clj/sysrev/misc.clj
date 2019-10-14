@@ -8,7 +8,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction to-sql-array to-jsonb]]
             [sysrev.db.queries :as q]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values]]))
 

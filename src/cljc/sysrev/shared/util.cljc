@@ -86,9 +86,17 @@
               (some #(= x %) coll)))
   ([coll] #(in? coll %)))
 
+(defn map-keys
+  "Map a function over the keys of a collection of pairs (vector of vectors,
+  hash-map, etc.) Optionally accepts a collection to put result into."
+  ([f rescoll m]
+   (into rescoll (->> m (map (fn [[k v]] [(f k) v])))))
+  ([f m]
+   (map-keys f {} m)))
+
 (defn map-values
   "Map a function over the values of a collection of pairs (vector of vectors,
-  hash-map, etc.) Optionally accept a result collection to put values into."
+  hash-map, etc.) Optionally accepts a collection to put result into."
   ([f rescoll m]
    (into rescoll (->> m (map (fn [[k v]] [k (f v)])))))
   ([f m]
@@ -285,50 +293,13 @@
   `(s/keys :req-un ~(into [] keys)))
 
 (defmacro opt-keys [& keys]
-  `(s/? (s/cat :keys (s/keys* :opt-un ~(into [] keys)))))
+  `(s/? (s/keys* :opt-un ~(into [] keys))))
 
-;;;
-;;; Not used, keeping in case needed later
-;;;
-#_
-(defn ^:unused integerify-map-keys
-  "Maps parsed from JSON with integer keys will have the integers changed
-  to keywords. This converts any integer keywords back to integers, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-int (and (keyword? k)
-                                  (re-matches #"^\d+$" (name k))
-                                  (sutil/parse-number (name k)))
-                       k-new (if (integer? k-int) k-int k)
-                       v-new (if (map? v) ; convert sub-maps recursively
-                               (integerify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
-#_
-(defn ^:unused uuidify-map-keys
-  "Maps parsed from JSON with UUID keys will have the UUID values changed
-  to keywords. This converts any UUID keywords back to UUID values, operating
-  recursively through nested maps."
-  [m]
-  (if-not (map? m)
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-uuid (and (keyword? k)
-                                   (->> (name k)
-                                        (re-matches
-                                         #"^[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+$"))
-                                   (to-uuid (name k)))
-                       k-new (if (uuid? k-uuid) k-uuid k)
-                       v-new (if (map? v) ; convert sub-maps recursively
-                               (uuidify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
+(defmacro assert-exclusive [& syms]
+  (let [show-syms (pr-str (seq syms))]
+    `(let [count# (count (remove nil? [~@syms]))]
+       (assert (> count# 0) (str "no value provided from " ~show-syms))
+       (assert (< count# 2) (str "multiple values provided from " ~show-syms)))))
+
+(defmacro nilable-coll [pred & opts]
+  `(s/nilable (s/coll-of ~pred ~@opts)))

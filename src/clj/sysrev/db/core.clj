@@ -18,7 +18,8 @@
             [sysrev.util :as util :refer [map-to-arglist]]
             [sysrev.shared.util :as sutil :refer [map-values in?]])
   (:import (java.sql Timestamp Date Connection)
-           java.util.UUID))
+           java.util.UUID
+           (org.joda.time DateTime)))
 
 (declare clear-query-cache)
 
@@ -28,7 +29,7 @@
 ;; This is used to bind a transaction connection in with-transaction.
 (defonce ^:dynamic *conn* nil)
 
-;; Used by sysrev.entity; must be defined here to allow resetting in set-active-db!
+;; Used by sysrev.db.entity; must be defined here to allow resetting in set-active-db!
 (defonce entity-columns-cache (atom {}))
 
 (defn make-db-config
@@ -221,6 +222,10 @@
 (extend java.util.UUID
   json/JSONWriter
   {:-write write-object-str})
+
+(extend-protocol j/ISQLValue
+  DateTime
+  (sql-value [v] (tc/to-sql-date v)))
 
 ;;
 ;; Facility for caching results of expensive data queries

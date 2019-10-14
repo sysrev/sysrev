@@ -1,24 +1,23 @@
 (ns sysrev.test.web.routes.api.handlers
-  (:require [clojure.data.json :as json]
-            [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
+            [clojure.data.json :as json]
+            [ring.mock.request :as mock]
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
-            [sysrev.db.users :as users]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
-            [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
-            [sysrev.test.browser.core :refer [test-login create-test-user]]
-            [ring.mock.request :as mock]))
+            [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
+            [sysrev.test.browser.core :as b]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
 (deftest create-project-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} test-login
+        {:keys [email password]} b/test-login
         search-term "foo bar"]
     ;; create user
-    (create-test-user)
+    (b/create-test-user)
     ;; login this user
     (let [web-api-token (-> (handler
                              (-> (mock/request :get "/web-api/get-api-token")

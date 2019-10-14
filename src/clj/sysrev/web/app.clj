@@ -12,10 +12,9 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.db.users :as users :refer
-             [get-user user-by-api-token update-member-access-time]]
+            [sysrev.user.core :refer [get-user user-by-api-token update-member-access-time]]
             [sysrev.project.core :as project]
-            [sysrev.resources :as res]
+            [sysrev.web.build :as build]
             [sysrev.web.index :as index]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.util :as util :refer [pp-str]]
@@ -124,8 +123,22 @@
 
 (defn log-web-event [{:keys [event-type logged-in user-id project-id skey client-ip
                              browser-url request-url request-method is-error meta]
-                      :as event}]
-  (q/create :web-event event :returning :*))
+                      :as event}
+                     & {:keys [force-log]}]
+  (when (or force-log (not= :test (:profile env)))
+    (letfn [(create-event []
+              (let [ ;; avoid SQL exceptions from missing referenced entries
+                    event (cond-> event
+                            user-id (assoc :user-id
+                                           (q/find-one :web-user {:user-id user-id} :user-id))
+                            project-id (assoc :project-id
+                                              (q/find-one :project {:project-id project-id}
+                                                          :project-id)))]
+                (try (q/create :web-event event)
+                     (catch Throwable e (log/warn "log-web-event failed" #_ (.getMessage e))))))]
+      (if db/*conn*
+        (create-event)
+        (future (db/with-transaction (create-event)))))))
 
 (defn make-web-request-event [request & {:keys [error exception]}]
   {:event-type "ajax"
@@ -189,21 +202,21 @@
               :else response)
             session-meta (or (-> body meta :session)
                              (-> response meta :session))]
-        (future (log-web-event (make-web-request-event request :error error)))
+        (log-web-event (make-web-request-event request :error error))
         (cond-> response
           ;; If the request handler attached a :session meta value to
           ;; the result, set that session value in the response.
           session-meta                      (assoc :session session-meta)
           ;; Attach :build-id and :build-time fields to all response maps
-          (and (map? body) res/build-id)    (assoc-in [:body :build-id] res/build-id)
-          (and (map? body) res/build-time)  (assoc-in [:body :build-time] res/build-time)))
+          (and (map? body) build/build-id)    (assoc-in [:body :build-id] build/build-id)
+          (and (map? body) build/build-time)  (assoc-in [:body :build-time] build/build-time)))
       (catch Throwable e
-        (future (log-web-event (make-web-request-event request :exception e)))
+        (log-web-event (make-web-request-event request :exception e))
         (log-request-exception request e)
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))
 
-(defmacro wrap-authorize
+(defmacro with-authorize
   "Wrap request handler body to check if user is authorized to perform the
   request. If authorized then runs body and returns result; if not authorized,
   returns an error without running body.
@@ -239,11 +252,11 @@
     :as conditions}
    & body]
   (assert ((comp not empty?) body)
-          "wrap-authorize: missing body form")
+          "with-authorize: missing body form")
   (assert (not (and (contains? conditions :allow-public)
                     (or (contains? conditions :logged-in)
                         (contains? conditions :roles))))
-          (str "wrap-authorize: `logged-in` and `roles` are not"
+          (str "with-authorize: `logged-in` and `roles` are not"
                " allowed when `allow-public` is set"))
   `(let [ ;; macro parameter gensyms
          request# ~request
@@ -295,7 +308,7 @@
            {:error {:status 403 :type :project
                     :message "No project selected"}}
 
-           (and (not-empty roles#) ; member role requirements are set
+           (and (not-empty roles#)  ; member role requirements are set
                 (not (some (in? mperms#) roles#)) ; member doesn't have any permitted role
                 (not dev-user?#)) ; allow dev users to ignore project role conditions
            {:error {:status 403 :type :project

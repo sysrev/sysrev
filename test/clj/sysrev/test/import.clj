@@ -7,13 +7,14 @@
             [clojure.java.io :as io]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.test.core :as test :refer [completes?]]
-            [sysrev.pubmed :as pubmed]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :as project]
             [sysrev.export.core :as export]
             [sysrev.source.import :as import]
-            [sysrev.source.endnote :as endnote]
+            [sysrev.formats.endnote :refer [load-endnote-library-xml]]
             [sysrev.util :as util :refer [parse-xml-str xml-find]]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
@@ -36,6 +37,7 @@
         els (xml-find pxml [:test :A])]
     (is (= (count els) 3))))
 
+#_
 (deftest pubmed-article-parse
   (let [[parsed] (pubmed/fetch-pmid-entries-cassandra [11592337])]
     (is (str/starts-with? (:abstract parsed) "OBJECTIVE: To determine"))
@@ -43,6 +45,7 @@
     (is (= (str/join "; " (:authors parsed)) "Hendrix, DV.; Ward, DA.; Barnhill, MA."))
     (is (= (:public-id parsed) "11592337"))))
 
+#_
 (deftest pubmed-article-public-id
   (let [[parsed] (pubmed/fetch-pmid-entries-cassandra [28280522])]
     (is (= (:public-id parsed) "28280522"))))
@@ -50,8 +53,7 @@
 (deftest import-pubmed-search
   (when (and (test/full-tests?) (not (test/remote-test?)))
     (util/with-print-time-elapsed "import-pubmed-search"
-      (let [result-count (fn [result] (-> result first :count))
-            search-term "foo bar"
+      (let [search-term "foo bar"
             pmids (:pmids (pubmed/get-search-query-response search-term 1))
             new-project (project/create-project "test project")
             new-project-id (:project-id new-project)]
@@ -69,8 +71,7 @@
           (let [query "animals and cancer and blood"]
             (is (= (:count (pubmed/get-search-query-response query 1))
                    (count (pubmed/get-all-pmids-for-query query)))))
-          (finally
-            (project/delete-project new-project-id)))))))
+          (finally (project/delete-project new-project-id)))))))
 
 (defn get-test-file [fname]
   (let [url (str "https://s3.amazonaws.com/sysrev-test-files/" fname)
@@ -83,13 +84,11 @@
     (util/with-print-time-elapsed "import-endnote-xml"
       (let [{:keys [file filename] :as input} (get-test-file "Sysrev_Articles_5505_20181128.xml")
             {:keys [project-id]} (project/create-project "autotest endnote import")]
-        (try
-          (is (= 0 (project/project-article-count project-id)))
-          (is (completes? (import/import-endnote-xml
-                           project-id input {:use-future? false})))
-          (is (= 112 (project/project-article-count project-id)))
-          (finally
-            (project/delete-project project-id))))
+        (try (is (= 0 (project/project-article-count project-id)))
+             (is (completes? (import/import-endnote-xml
+                              project-id input {:use-future? false})))
+             (is (= 112 (project/project-article-count project-id)))
+             (finally (project/delete-project project-id))))
       (let [filename "test2-endnote.xml.gz"
             gz-file (-> (str "test-files/" filename) io/resource io/file)
             {:keys [project-id]} (project/create-project "autotest endnote import 2")]
@@ -99,8 +98,7 @@
                                 project-id {:file file :filename filename}
                                 {:use-future? false})))
                (is (= 100 (project/project-article-count project-id)))
-               (is (->> file io/reader
-                        endnote/load-endnote-library-xml
+               (is (->> file io/reader load-endnote-library-xml
                         (map :primary-title)
                         (every? (every-pred string? not-empty)))))
              (finally (project/delete-project project-id)))))))
@@ -124,8 +122,7 @@
                         article-ids))
             (is (= articles-csv (-> (csv/write-csv articles-csv)
                                     (csv/parse-csv :strict true)))))
-          (finally
-            (project/delete-project project-id)))))))
+          (finally (project/delete-project project-id)))))))
 
 (deftest import-pdf-zip
   (when (not (test/remote-test?))
@@ -140,10 +137,29 @@
                            {:use-future? false})))
           (is (= 4 (project/project-article-count project-id)))
           (is (= 4 (project/project-article-pdf-count project-id)))
-          (let [title-count #(-> (q/select-project-articles project-id [:%count.*])
-                                 (merge-where [:= :a.primary-title %])
-                                 do-query first :count)]
+          (let [title-count #(q/find-count [:article :a] {:ad.title %}
+                                           :join [:article-data:ad :a.article-data-id])]
             (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
             (is (= 1 (title-count "Plosker Troglitazone.pdf"))))
-          (finally
-            (project/delete-project project-id)))))))
+          (finally (project/delete-project project-id)))))))
+
+(deftest import-ds-pubmed-titles
+  (when (not (test/remote-test?))
+    (util/with-print-time-elapsed "import-ds-pubmed-titles"
+      (let [search-term "mouse rat computer six"
+            {:keys [project-id]} (project/create-project "test import-ds-pubmed-titles")]
+        (try (import/import-pubmed-search
+              project-id {:search-term search-term}
+              {:use-future? false :threads 4})
+             (let [adata (q/find [:article :a] {:a.project-id project-id}
+                                 :ad.*, :join [:article-data:ad :a.article-data-id])
+                   db-titles (->> adata
+                                  (sutil/index-by #(-> % :external-id sutil/parse-integer))
+                                  (sutil/map-values :title))
+                   ds-titles (->> (ds-api/fetch-pubmed-articles
+                                   (keys db-titles) :fields [:primary-title])
+                                  (sutil/map-values :primary-title))]
+               (log/infof "loaded %d pubmed titles" (count db-titles))
+               (is (= (count db-titles) (count ds-titles)))
+               (is (= db-titles ds-titles)))
+             (finally (project/delete-project project-id)))))))

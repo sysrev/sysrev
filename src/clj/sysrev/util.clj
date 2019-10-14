@@ -146,8 +146,7 @@
             (= (type t) java.sql.Timestamp)   (tc/from-sql-time t)
             (= (type t) java.sql.Date)        (tc/from-sql-date t)
             (integer? t)                      (tc/from-epoch t)
-            (string? t)                       (parse-time-string t)
-            :else                             nil)
+            (string? t)                       (parse-time-string t))
       (throw (ex-info "to-clj-time: unable to convert value" {:value t}))))
 
 (defn to-epoch
@@ -245,9 +244,7 @@
 
 (defn wrap-retry
   [f & {:keys [fname max-retries retry-delay throttle-delay]
-        :or {max-retries 10
-             retry-delay 2000
-             throttle-delay nil}}]
+        :or {max-retries 3, retry-delay 1000, throttle-delay nil}}]
   (letfn [(result-fn [retry-count]
             (when throttle-delay
               (Thread/sleep throttle-delay))
@@ -377,3 +374,6 @@
 
 (defn pp-str [x]
   (with-out-str (pp/pprint x)))
+
+(defn random-uuid []
+  (UUID/randomUUID))
