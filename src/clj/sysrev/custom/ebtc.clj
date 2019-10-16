@@ -72,26 +72,15 @@
     (csv/write-csv (concat [titles] output) :force-quote true)))
 
 (defn disable-missing-abstracts [project-id min-length]
-  (db/with-transaction
-    (-> (select :article-id)
-        (from [:article :a])
-        (where [:and
-                [:= :a.project-id project-id]
-                [:or
-                 [:= :a.abstract nil]
-                 [:= (sql/call "char_length" :a.abstract) 0]]])
-        (->> do-query
-             (map :article-id)
-             (mapv #(set-article-flag % "no abstract" true))))
-    (-> (select :article-id)
-        (from [:article :a])
-        (where [:and
-                [:= :a.project-id project-id]
-                [:!= :a.abstract nil]
-                [:< (sql/call "char_length" :a.abstract) min-length]])
-        (->> do-query
-             (map :article-id)
-             (mapv #(set-article-flag % "short abstract" true
-                                      {:min-length min-length}))))
-    (db/clear-project-cache project-id)
+  (db/with-clear-project-cache project-id
+    (doseq [article-id (q/find :article {:project-id project-id} :article-id
+                               :where [:or
+                                       [:= :abstract nil]
+                                       [:= :%char_length.abstract 0]])]
+      (set-article-flag article-id "no abstract" true))
+    (doseq [article-id (q/find :article {:project-id project-id} :article-id
+                               :where [:and
+                                       [:!= :abstract nil]
+                                       [:< :%char_length.abstract min-length]])]
+      (set-article-flag article-id "short abstract" true {:min-length min-length}))
     true))

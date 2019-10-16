@@ -295,7 +295,7 @@
 
 (defn set-input-text-per-char
   [q text & {:keys [delay char-delay clear?]
-             :or {delay 15 char-delay 15 clear? true}}]
+             :or {delay 15 char-delay 20 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
@@ -385,7 +385,7 @@
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
                         (log-console-messages (if failed# :error :info))))
-                    (try (wait-until-loading-completes :pre-wait 40 :timeout 1000)
+                    (try (wait-until-loading-completes :pre-wait 30 :timeout 1000)
                          (catch Throwable e2#
                            (log/info "test cleanup - wait-until-loading-completes timed out")))
                     (when-not ~repl?

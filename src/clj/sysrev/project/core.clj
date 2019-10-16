@@ -444,15 +444,15 @@
 ;; https://dba.stackexchange.com/questions/107801/full-text-search-on-multiple-joined-tables?noredirect=1#comment196534_107801
 ;; https://dba.stackexchange.com/questions/108005/full-text-search-on-two-tsvector-columns
 (defn search-projects
-  [q  & {:keys [limit]
-         :or {limit 10}}]
   "Return a list of projects using the search query q"
+  [q & {:keys [limit] :or {limit 10}}]
   (->> [(str "SELECT md.string as description, p.project_id, p.name, p.settings "
              "FROM project_description pd "
              "RIGHT JOIN project p on p.project_id = pd.project_id "
              "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
              "WHERE p.enabled = true AND p.settings->>'public-access' = 'true' "
-             "AND to_tsvector('english', coalesce(md.string,'') || ' ' || (coalesce(p.name,''))) @@ plainto_tsquery(?) "
+             "AND to_tsvector('english', coalesce(md.string,'') || ' ' || "
+             "                           (coalesce(p.name,''))) @@ plainto_tsquery(?) "
              "LIMIT ? ")
         q limit]
        db/raw-query))
