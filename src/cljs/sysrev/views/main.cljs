@@ -103,7 +103,7 @@
         editing-id @(subscribe [:review/editing-id])
         interface @(subscribe [:review-interface])]
     (when (review/display-sidebar?)
-      [:div.three.wide.column.panel-side-column
+      [:div.four.wide.column.panel-side-column
        [ui/WrapFixedVisibility 10
         [:div.review-menu
          [ui/tabbed-panel-menu
@@ -182,7 +182,6 @@
            (if (review/display-sidebar?)
              [:div.ui.grid
               [SidebarColumn]
-              [:div.thirteen.wide.column
-               [active-panel-content]]]
+              [:div.twelve.wide.column [active-panel-content]]]
              [active-panel-content])]]
          [GlobalFooter]]))))

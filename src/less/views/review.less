@@ -92,8 +92,7 @@ div.ui.segments.label-editor-view {
         // height: 100%;
 
         .row.label-edit-name {
-            padding-bottom: 6px;
-            padding-top: 5px;
+            padding: 6px 0;
             text-align: center;
 
             i {
@@ -116,13 +115,13 @@ div.ui.segments.label-editor-view {
                 font-size: 13px;
             }
             span.name.small-text {
-                font-size: 11px;
+                font-size: 12px;
             }
         }
 
         .row.label-edit-value {
             padding-top: 0px;
-            padding-bottom: 8px;
+            padding-bottom: 12px;
         }
         .row.label-edit-value.boolean {
             div.inner {
@@ -154,8 +153,12 @@ div.ui.segments.label-editor-view {
                 padding-top: 0.15em;
 
                 .ui.selection.dropdown {
-                    padding-bottom: 0;
-                    font-size: 12px;
+                    padding-top: 0.3em;
+                    padding-bottom: 0.2em;
+                    padding-left: 0.5em;
+                    font-size: 13px;
+
+                    // > .ui.label { font-size: 12px; }
 
                     > div.menu {
                         > div.item {
