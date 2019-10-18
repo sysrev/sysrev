@@ -18,29 +18,29 @@
 ;; https://developer.paypal.com/developer/accounts/
 
 ;; https://developer.paypal.com/developer/applications/
-;; note: you WILL have to udpate paypal-client-id and paypal-secret for the app
+;; note: you WILL have to update paypal-client-id and paypal-secret for the app
 
 ;; https://developer.paypal.com/developer/applications
 ;; REST API apps -> click on <app-name>
 ;; Client ID
-(def paypal-client-id (env :paypal-client-id))
+(defn paypal-client-id [] (env :paypal-client-id))
 ;; Secret (click 'Show')
-(def paypal-secret (env :paypal-secret))
+(defn paypal-secret [] (env :paypal-secret))
 
-(def paypal-url (env :paypal-url))
+(defn paypal-url [] (env :paypal-url))
 
 ;; this is for client code
-(def paypal-env (condp = paypal-url
-                  "https://api.sandbox.paypal.com"  "sandbox"
-                  "https://api.paypal.com"          "production"))
+(defn paypal-env [] (condp = (paypal-url)
+                      "https://api.sandbox.paypal.com"  "sandbox"
+                      "https://api.paypal.com"          "production"))
 
 (defonce current-access-token (atom nil))
 
 (defn get-access-token []
-  (-> (client/post (str paypal-url "/v1/oauth2/token")
+  (-> (client/post (str (paypal-url) "/v1/oauth2/token")
                    {:headers {"Accept" "application/json"
                               "Accept-Language" "en_US"}
-                    :basic-auth [paypal-client-id paypal-secret]
+                    :basic-auth [(paypal-client-id) (paypal-secret)]
                     :form-params {"grant_type" "client_credentials"}
                     :as :json
                     :throw-exceptions false})
@@ -78,7 +78,7 @@
 (defn send-payout!
   "Send a payout to a user"
   [user amount]
-  (client/post (str paypal-url "/v1/payments/payouts")
+  (client/post (str (paypal-url) "/v1/payments/payouts")
                {:content-type :json
                 :headers (default-headers (:access_token @current-access-token))
                 :form-params {:sender_batch_header
@@ -96,21 +96,23 @@
 
 (defn date->paypal-end-date
   [date]
-  (-> (f/parse (f/formatter :date) date) (t/plus (t/hours 23)) (t/plus (t/minutes 59)) (t/plus (t/seconds 59)) .toString))
+  (-> (f/parse (f/formatter :date) date)
+      (t/plus (t/hours 23))
+      (t/plus (t/minutes 59))
+      (t/plus (t/seconds 59))
+      .toString))
 
 (defn paypal-date->unix-epoch
   [paypal-date]
   (-> (f/parse (f/formatter :date-time-no-ms) paypal-date)
-      c/to-long
-      (/ 1000)))
+      c/to-epoch))
 
 ;; this won't show direct deposits
 (defn get-transactions
   "Get the transactions for the account from start-date to end-date in the format of YYYY-MM-dd"
   [& {:keys [start-date end-date]
-      :or {start-date "2018-01-01"
-           end-date "2018-05-11"}}]
-  (client/get (str paypal-url "/v1/reporting/transactions")
+      :or {start-date "2018-01-01" end-date "2018-05-11"}}]
+  (client/get (str (paypal-url) "/v1/reporting/transactions")
               {:content-type :json
                :headers (default-headers (:access_token @current-access-token))
                :query-params {"start_date" (date->paypal-start-date start-date)
@@ -144,7 +146,7 @@
 ;; https://developer.paypal.com/docs/api/payments/v1/#payment_get
 (defn get-payment
   [payment-id]
-  (client/get (str paypal-url "/v1/payments/payment/" payment-id)
+  (client/get (str (paypal-url) "/v1/payments/payment/" payment-id)
               {:content-type :json
                :headers (default-headers (:access_token @current-access-token))
                :throw-exceptions false
@@ -152,7 +154,9 @@
                :coerce :always}))
 
 (defn check-transaction!
-  "Given a payment-id, check to see what the current status of the sale is. Update its status if it has changed, if it has changed to complete, insert it into the project-fund"
+  "Given a payment-id, check to see what the current status of the sale
+  is. Update its status if it has changed, if it has changed to
+  complete, insert it into the project-fund"
   [payment-id]
   (let [{:keys [status project-id user-id amount transaction-id
                 transaction-source]} (funds/get-pending-payment payment-id)

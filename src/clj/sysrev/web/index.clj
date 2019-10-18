@@ -96,10 +96,10 @@
            :data-stripe-client-id stripe-client-id}]
     [:div {:style "display: none;"
            :id "paypal-env"
-           :data-paypal-env paypal-env}]
+           :data-paypal-env (paypal-env)}]
     [:div {:style "display: none;"
            :id "paypal-client-id"
-           :data-paypal-client-id paypal-client-id}]
+           :data-paypal-client-id (paypal-client-id)}]
     [:div {:id "app"} (loading-content)]
     (if maintainence-msg
       [:div.ui.container
