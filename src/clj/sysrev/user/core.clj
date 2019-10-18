@@ -251,10 +251,9 @@
 
 ;; for testing purposes
 (defn delete-sysrev-stripe-customer!
-  [user]
+  [{:keys [stripe-id user-id]}]
   (with-transaction
-    (let [{:keys [email user-uuid user-id stripe-id]} user
-          stripe-source-id (:id (stripe/read-default-customer-source stripe-id))]
+    (let [stripe-source-id (:id (stripe/read-default-customer-source stripe-id))]
       (when stripe-source-id
         (stripe/delete-customer-card! stripe-id stripe-source-id))
       (q/modify :web-user {:user-id user-id} {:stripe-id nil}))))

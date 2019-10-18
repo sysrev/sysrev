@@ -17,25 +17,31 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+;; for manual testing purposes, this is handy:
+;;
+#_(let [email "james@insilica.co"]
+  (b/cleanup-test-user! :email email :groups true))
+
+;; recreate
+#_(let [email "james@insilica.co" password "testing"]
+  (b/create-test-user :email email :password password)
+  (users/create-sysrev-stripe-customer! (user-by-email email))
+  (stripe/create-subscription-user! (user-by-email email)))
+
 (def use-card "form.StripeForm button.ui.button.use-card")
 
 (def upgrade-link (xpath "//a[text()='Upgrade']"))
 
 (defn click-use-card [& {:keys [wait delay error?]
                          :or {wait true delay 50 error? false}}]
+  (b/wait-until-loading-completes :timeout 10000 :interval 100)
   (b/click use-card :displayed? true)
-  ;; try clicking again if the first click didn't do anything
-  ;; (button should usually be either disabled or gone)
-  #_ (when (and wait (not (b/try-wait b/wait-until
-                                      #(not (taxi/exists? (b/not-disabled use-card)))
-                                      2000 25)))
-       (b/click use-card))
-  (when-not error?
-    (b/is-soon (not (taxi/exists? (b/not-disabled use-card)))))
   (log/info "clicked \"Use Card\"")
   (b/wait-until-loading-completes :pre-wait delay))
 
 (defn click-upgrade-plan [& {:keys [delay] :or {delay 50}}]
+  (b/wait-until-loading-completes)
+  (b/wait-until-displayed ".ui.button.upgrade-plan" 30000 100)
   (b/click ".ui.button.upgrade-plan" :displayed? true)
   (b/is-soon (not (taxi/exists? (b/not-disabled ".ui.button.upgrade-plan"))))
   (log/info "clicked \"Upgrade Plan\"")
@@ -81,7 +87,7 @@
     (log/info (str "Stripe Customer created for " email))
     (user/create-sysrev-stripe-customer! (user-by-email email)))
   (wait-until-stripe-id email)
-  (stripe/create-user-subscription! (user-by-email email))
+  (stripe/create-subscription-user! (user-by-email email))
   (Thread/sleep 100)
   (nav/log-in email password)
   ;; go to plans
@@ -106,7 +112,7 @@
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)]
   (do (user/create-sysrev-stripe-customer! (get-test-user))
-      (stripe/create-user-subscription! (get-test-user))
+      (stripe/create-subscription-user! (get-test-user))
       ;; after registering, does the stripe customer exist?
       (wait-until-stripe-id email)
       (is (= email (:email (get-customer))))
@@ -115,8 +121,7 @@
       (is (= stripe/default-plan (user-stripe-plan email)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (user-db-plan email))))
-  :cleanup (do (user/delete-sysrev-stripe-customer! (user-by-email email))
-               (b/cleanup-test-user! :email email)))
+  :cleanup (b/cleanup-test-user! :email email))
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
@@ -129,7 +134,7 @@
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
       (user/create-sysrev-stripe-customer! (get-test-user))
-      (stripe/create-user-subscription! (get-test-user))
+      (stripe/create-subscription-user! (get-test-user))
       (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?
       (is (= email (:email (get-customer))))
@@ -153,7 +158,8 @@
       (b/is-soon (every? #(taxi/exists? (error-msg-xpath %))
                          [bstripe/incomplete-card-number-error
                           bstripe/incomplete-expiration-date-error
-                          bstripe/incomplete-security-code-error]))
+                          bstripe/incomplete-security-code-error])
+                 10000 100)
       (if (test/full-tests?)
         (log/info "running full stripe tests")
         (log/info "skipping full stripe tests"))
@@ -234,5 +240,5 @@
       (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (get-db-plan))))
-  :cleanup (do (user/delete-sysrev-stripe-customer! (user-by-email email))
-               (b/cleanup-test-user! :email email)))
+  :cleanup (b/cleanup-test-user! :email email))
+

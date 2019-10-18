@@ -22,7 +22,7 @@
                  ;; only provides ext.js for stripe.js
                  [cljsjs/stripe "2.0-0"]
                  ;; stripe provided form components
-                 [cljsjs/react-stripe-elements "1.4.1-1"]
+                 [jborden/react-stripe-elements "5.0.1-0"]
                  [org.clojars.jeffwk/semantic-ui "2.4.0-0"]
                  [cljsjs/semantic-ui-react "0.83.0-0"]
                  [cljsjs/chartjs "2.7.3-0"]

@@ -16,8 +16,8 @@
   [:div.bold
    [Icon {:name "credit card"}]
    (if (seq default-source)
-     (let [{:keys [brand exp_month exp_year last4]} default-source]
-       (str brand " expiring on " exp_month "/" (subs (str exp_year) 2 4)
+     (let [{:keys [exp_month exp_year last4]} (:card default-source)]
+       (str "Card expiring on " exp_month "/" (subs (str exp_year) 2 4)
             " and ending in " last4))
      "No payment method on file.")])
 
@@ -42,7 +42,6 @@
   (let [basic? (= (:name current-plan) "Basic")
         unlimited? (in? #{"Unlimited_User" "Unlimited_Org"} (:name current-plan))
         mobile? (util/mobile?)]
-    #_ (js/console.log "Plan: current-plan = " (:name current-plan))
     (if mobile?
       (if (nil? (:name current-plan))
         [Grid
@@ -88,8 +87,6 @@
       (dispatch [:user/set-on-subscribe-nav-to-url! billing-url])
       (dispatch [:data/load [:user/default-source self-id]])
       (dispatch [:data/load [:user/current-plan self-id]])
-      #_ (js/console.log "UserBilling: current-plan = " (:name @(subscribe [:user/current-plan])))
-      #_ (js/console.log "UserBilling: default-source = " (str @(subscribe [:user/default-source])))
       [Segment
        [Header {:as "h4" :dividing true} "Billing"]
        [ListUI {:divided true :relaxed true}

@@ -60,16 +60,18 @@
                             {:authorize-fn (org-role? org-id ["owner" "admin"])}
                             (api/org-default-stripe-source org-id)))
                      (POST "/payment-method" request
-                           (with-authorize request
-                             {:authorize-fn (org-role? org-id ["owner" "admin"])}
-                             (let [{:keys [token]} (:body request)]
-                               (api/update-org-stripe-payment-method! org-id token))))
+                           (with-authorize
+                            request
+                            {:authorize-fn (org-role? org-id ["owner" "admin"])}
+                            (let [{:keys [payment_method]} (:body request)]
+                              (api/update-org-stripe-payment-method! org-id payment_method))))
                      (GET "/current-plan" request
                           (with-authorize request
                             {:authorize-fn (org-role? org-id ["owner" "admin" "member"])}
                             (api/group-current-plan org-id)))
                      (POST "/subscribe-plan" request
-                           (with-authorize request
-                             {:authorize-fn (org-role? org-id ["owner" "admin"])}
-                             (let [{:keys [plan-name]} (:body request)]
-                               (api/subscribe-org-to-plan org-id plan-name))))))))
+                           (with-authorize
+                            request {:authorize-fn (org-role? org-id ["owner" "admin"])}
+                            (let [{:keys [plan-name]} (:body request)]
+                              (api/subscribe-org-to-plan org-id plan-name))))))))
+

@@ -84,8 +84,7 @@
       (b/click ".button.update-payment")
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc
                                      :exp-date "0120"
-                                     :cvc "123"
-                                     :postal "11111"})
+                                     :cvc "123"})
       (test-plans/click-use-card)
       ;; support the project at $10 per month
       (b/click {:xpath "//label[contains(text(),'$10')]/parent::div"})

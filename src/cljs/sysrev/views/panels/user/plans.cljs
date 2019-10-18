@@ -51,7 +51,8 @@
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
                           (load-user-current-plan plan))
-                  :dispatch [:nav-reload nav-url]})))
+                  :dispatch-n (list [:self/reload-all-projects]
+                                    [:nav-scroll-top nav-url])})))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"
@@ -220,39 +221,56 @@
                                                 (on-upgrade))
                                  :class "upgrade-plan"
                                  :loading @changing-plan?}
-               "Upgrade Plan"]]
+               "Upgrade Plan"]
+              ;; https://stripe.com/docs/payments/cards/reusing-cards#mandates
+              [:p {:style {:margin-top "1em"}} "By clicking 'Upgrade Plan' you authorize InSilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms"]]
              (when @error-message
                [s/Message {:negative true}
                 [s/MessageHeader "Change Plan Error"]
                 [:p @error-message]])]]]])]]]))
 
+(defn on-mount-user-plans
+  []
+  (let [self-id @(subscribe [:self/user-id])]
+    (dispatch [::set :changing-plan? nil])
+    (dispatch [::set :error-message nil])
+    (dispatch [:set-active-panel [:plans]])
+    (when self-id
+      (dispatch [:data/load [:user/current-plan self-id]])
+      (dispatch [:data/load [:user/default-source self-id]]))))
+
 (defn UserPlans []
-  (when-let [self-id @(subscribe [:self/user-id])]
-    (let [current-plan @(subscribe [:user/current-plan])
-          default-source @(subscribe [:user/default-source])
-          plan-args {:state state
-                     :billing-settings-uri (str "/user/" self-id "/billing")
-                     :unlimited-plan-price 1000
-                     :unlimited-plan-name "Pro Plan"}]
-      #_ (js/console.log "UserPlans: current-plan = " (:name current-plan))
-      (condp = (:name current-plan)
-        "Basic"
-        [UpgradePlan
-         (merge plan-args
-                {:default-source default-source
-                 :on-upgrade #(dispatch [:action [:user/subscribe-plan self-id "Unlimited_User"]])
-                 :on-add-payment-method
-                 #(do (dispatch [:stripe/set-calling-route! "/user/plans"])
-                      (nav-scroll-top "/user/payment"))})]
-        "Unlimited_User"
-        [DowngradePlan
-         (merge plan-args
-                {:on-downgrade #(dispatch [:action [:user/subscribe-plan self-id "Basic"]])})]
-        [s/Message {:negative true}
-         [s/MessageHeader "User Plans Error"]
-         [:div.content
-          [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " self-id)]
-          [:p (str "Active route: " @active-route)]]]))))
+  (r/create-class
+   {:reagent-render
+    (fn [this]
+      (when-let [self-id @(subscribe [:self/user-id])]
+        (let [current-plan @(subscribe [:user/current-plan])
+              default-source @(subscribe [:user/default-source])
+              plan-args {:state state
+                         :billing-settings-uri (str "/user/" self-id "/billing")
+                         :unlimited-plan-price 1000
+                         :unlimited-plan-name "Pro Plan"}]
+          (condp = (:name current-plan)
+            "Basic"
+            [UpgradePlan
+             (merge plan-args
+                    {:default-source default-source
+                     :on-upgrade #(dispatch [:action [:user/subscribe-plan self-id "Unlimited_User"]])
+                     :on-add-payment-method
+                     #(do
+                        (dispatch [:stripe/set-calling-route! "/user/plans"])
+                        (nav-scroll-top "/user/payment"))})]
+            "Unlimited_User"
+            [DowngradePlan
+             (merge plan-args
+                    {:on-downgrade #(dispatch [:action [:user/subscribe-plan self-id "Basic"]])})]
+            [s/Message {:negative true}
+             [s/MessageHeader "User Plans Error"]
+             [:div.content
+              [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " self-id)]
+              [:p (str "Active route: " @active-route)]]]))))
+    :component-did-mount (fn [this]
+                           (on-mount-user-plans))}))
 
 (defmethod panel-content [:plans] []
   (fn [child] [UserPlans]))
@@ -261,10 +279,4 @@
   (logged-out-content :logged-out))
 
 (sr-defroute user-plans "/user/plans" []
-             (let [self-id @(subscribe [:self/user-id])]
-               (dispatch [::set :changing-plan? nil])
-               (dispatch [::set :error-message nil])
-               (dispatch [:set-active-panel [:plans]])
-               (when self-id
-                 (dispatch [:data/load [:user/current-plan self-id]])
-                 (dispatch [:data/load [:user/default-source self-id]]))))
+             (on-mount-user-plans))

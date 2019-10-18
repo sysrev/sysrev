@@ -1,9 +1,10 @@
 (ns sysrev.group.core
   (:require [honeysql-postgres.helpers :refer [returning]]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql.helpers :as sqlh :refer [select from where insert-into values sset modifiers join delete-from]]
             [sysrev.db.core :as db :refer [do-query do-execute sql-now to-sql-array with-transaction]]
             [sysrev.user.core :as user]
             [sysrev.payment.stripe :as stripe]
+            [sysrev.payment.plans :as plans]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 
@@ -116,8 +117,24 @@
       (returning :group-id)
       do-query first :group-id))
 
+(defn get-stripe-id
+  "Return the stripe-id for org-id"
+  [org-id]
+  (-> (select :stripe-id)
+      (from :groups)
+      (where [:= :group-id org-id])
+      do-query first :stripe-id))
+
 (defn delete-group!
   [group-id]
+  (when-let [stripe-id (get-stripe-id group-id)]
+    ;; delete subscriptions
+    (when-let [{:keys [sub-id]}
+               (plans/group-current-plan group-id)]
+      (stripe/delete-subscription! sub-id))
+    ;; delete customer
+    (stripe/delete-customer! {:stripe-id stripe-id
+                              :user-id (str "group-id: " group-id)}))
   (-> (delete-from :groups)
       (where [:= :group-id group-id])
       do-execute))
@@ -160,31 +177,26 @@
       (cond->> (not private-projects?) (filter #(-> % :settings :public-access true?)))))
 
 (defn create-sysrev-stripe-customer!
-  "Create a stripe customer for group-id"
-  [group-id]
-  (let [group-name (group-id->group-name group-id)
-        stripe-response (stripe/create-customer! :description (str "Sysrev group name: " group-name))
+  "Create a stripe customer for group-id owned by owner"
+  [group-id owner]
+  (let [{:keys [email]} owner
+        group-name (group-id->group-name group-id)
+        stripe-response (stripe/create-customer!
+                         :description (str "Sysrev group name: " group-name)
+                         :email email)
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
       (try
-        (do (-> (sqlh/update :groups)
-                (sset {:stripe-id stripe-customer-id})
-                (where [:= :group-id group-id])
-                do-execute)
-            {:success true})
+        (-> (sqlh/update :groups)
+            (sset {:stripe-id stripe-customer-id})
+            (where [:= :group-id group-id])
+            do-execute)
+        {:success true}
         (catch Throwable e
           {:error {:message (str "Exception in " (util/current-function-name))
                    :exception e}}))
       {:error {:message
                (str "No customer id returned by stripe.com for group-id: " group-id)}})))
-
-(defn get-stripe-id
-  "Return the stripe-id for org-id"
-  [org-id]
-  (-> (select :stripe-id)
-      (from :groups)
-      (where [:= :group-id org-id])
-      do-query first :stripe-id))
 
 (defn group-id-from-url-id [url-id]
   ;; TODO: implement url-id strings for groups

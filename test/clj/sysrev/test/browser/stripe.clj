@@ -45,29 +45,32 @@
 
 (defn enter-cc-number
   [cc-number]
+  (b/wait-until-loading-completes :timeout 15000 :interval 100)
   (taxi/switch-to-default)
   (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
   ;; switch the the proper iframe. note that the name could change if stripe updates their library
   (taxi/switch-to-frame {:xpath (str "//iframe[@name='" (nth (get-stripe-frame-names) 0) "']")})
-  (b/backspace-clear 20 cardnumber-input)
+  ;;(taxi/click cardnumber-input)
   ;; clear anything that could be in the form
+  (taxi/clear cardnumber-input)
+  ;;(b/backspace-clear 20 cardnumber-input)
+  ;; set the input
   (b/set-input-text-per-char cardnumber-input cc-number)
   ;; switch back to default
   (taxi/switch-to-default))
 
-(defn enter-cc-information [{:keys [cardnumber exp-date cvc postal]
-                             :or {exp-date "0121" cvc "123" postal "11111"}}]
-  (Thread/sleep 10)
+(defn enter-cc-information [{:keys [cardnumber exp-date cvc]
+                             :or {exp-date "0121" cvc "123"}}]
   (log/info "entering stripe card information")
+  (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
+  (taxi/switch-to-default)
   (let [ ;; note: stripe could change the frame names
-        _ (b/wait-until #(>= (count (get-stripe-frame-names)) 4))
+        _ (b/wait-until #(>= (count (get-stripe-frame-names)) 3))
         frame-names (get-stripe-frame-names)
         exp-date-iframe {:xpath (str "//iframe[@name='" (nth frame-names 1) "']")}
         exp-date-input "input[name~='exp-date']"
         cvc-iframe {:xpath (str "//iframe[@name='" (nth frame-names 2) "']")}
-        cvc-input "input[name~='cvc']"
-        postal-iframe {:xpath (str "//iframe[@name='" (nth frame-names 3) "']")}
-        postal-input "input[name~='postal']"]
+        cvc-input "input[name~='cvc']"]
     ;; let's reset to be sure we are in the default iframe
     (enter-cc-number cardnumber)
     ;; switch to month input iframe
@@ -80,9 +83,6 @@
     (b/set-input-text-per-char cvc-input cvc)
     ;; switch back to default frame
     (taxi/switch-to-default)
-    ;; switch to post code frame
-    (taxi/switch-to-frame postal-iframe)
-    (b/set-input-text-per-char postal-input postal)
     ;; we're done, return back to default
     (taxi/switch-to-default)
     (log/info "finished entering stripe card")

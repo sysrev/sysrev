@@ -32,7 +32,7 @@
   so that there is a record of their existence. If a plan is changed
   on the stripe, it is updated here."
   []
-  (let [plans (->> (:data (stripe/all-plans))
+  (let [plans (->> (:data (stripe/get-plans))
                    (mapv #(select-keys % [:nickname :created :id]))
                    (mapv #(set/rename-keys % {:nickname :name})))]
     (-> (insert-into :stripe-plan)

@@ -25,6 +25,7 @@
       [ListItem
        [PaymentSource
         {:default-source @(subscribe [:org/default-source org-id])
-         :on-add-payment-method #(do (dispatch [:stripe/set-calling-route!
-                                                (str "/org/" org-id "/billing")])
-                                     (nav-scroll-top (str "/org/" org-id "/plans")))}]]]]))
+         :on-add-payment-method
+         (fn []
+           (dispatch [:stripe/set-calling-route! (str "/org/" org-id "/billing")])
+           (nav-scroll-top (str "/org/" org-id "/payment")))}]]]]))

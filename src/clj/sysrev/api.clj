@@ -21,6 +21,7 @@
             [sysrev.biosource.predict :as predict-api]
             [sysrev.project.core :as project]
             [sysrev.project.charts :as charts]
+            [sysrev.project.description :as description]
             [sysrev.project.funds :as funds]
             [sysrev.project.compensation :as compensation]
             [sysrev.project.invitation :as invitation]
@@ -39,17 +40,16 @@
             [sysrev.payment.plans :as plans]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
-            [sysrev.source.pmid :as src-pmid]
             [sysrev.formats.pubmed :as pubmed]
+            [sysrev.user.core :as users :refer [get-user user-by-email]]
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util :refer [to-clj-time]]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un parse-integer]])
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un parse-integer]]
+            [sysrev.biosource.predict :as predict-api])
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
-
 
 ;; HTTP error codes
 (def payment-required 402)
@@ -261,7 +261,7 @@
             (let [{:keys [user-id] :as new-user} (user-by-email email)]
               (user/create-sysrev-stripe-customer! new-user)
               ;; create default stripe subscription for user
-              (stripe/create-user-subscription! (user-by-email email))
+              (stripe/create-subscription-user! (user-by-email email))
               ;; add email verification entry for email
               (user/create-email-verification! user-id email :principal true)
               ;; send verification email
@@ -269,16 +269,21 @@
               {:success true})
             :else (throw (util/should-never-happen-exception))))))
 
-(defn update-user-stripe-payment-method! [user-id stripe-token]
+(defn update-user-stripe-payment-method!
+  "Update the payment method for user-id"
+  [user-id payment-method]
   (let [{:keys [stripe-id]} (get-user user-id)
-        stripe-response (stripe/update-customer-card! stripe-id stripe-token)]
+        stripe-response (stripe/update-customer-payment-method! stripe-id payment-method)]
     (if (:error stripe-response)
       stripe-response
       {:success true})))
 
-(defn update-org-stripe-payment-method! [org-id stripe-token]
+
+(defn update-org-stripe-payment-method!
+  "Using a stripe token, update the payment method for org-id"
+  [org-id payment-method]
   (let [stripe-id (group/get-stripe-id org-id)
-        stripe-response (stripe/update-customer-card! stripe-id stripe-token)]
+        stripe-response (stripe/update-customer-payment-method! stripe-id payment-method)]
     (if (:error stripe-response)
       stripe-response
       {:success true})))
@@ -286,17 +291,29 @@
 (defn user-current-plan [user-id]
   {:success true, :plan (plans/user-current-plan user-id)})
 
+(defn get-setup-intent
+  "Get a Stripe SetupIntent object"
+  []
+  (stripe/get-setup-intent))
+
+(defn current-plan
+  "Get the plan for user-id"
+  [user-id]
+  {:result {:success true
+            :plan (plans/user-current-plan user-id)}})
+
 (defn group-current-plan [group-id]
   {:success true, :plan (plans/group-current-plan group-id)})
 
 (defn subscribe-user-to-plan [user-id plan-name]
   (with-transaction
-    (let [{:keys [stripe-id]} (get-user user-id)
-          {:keys [sub-id]} (plans/user-current-plan user-id)
+    (let [{:keys [sub-id]} (plans/user-current-plan user-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
-          {:keys [body] :as stripe-response} (stripe/update-subscription-item!
-                                              {:id sub-item-id :plan plan})]
+          {:keys [body]}
+          (stripe/update-subscription-item!
+           {:id sub-item-id
+            :plan plan})]
       (if (:error body)
         (update body :error #(merge % {:status not-found}))
         (do (plans/add-user-to-plan! user-id plan sub-id)
@@ -306,11 +323,10 @@
 
 (defn subscribe-org-to-plan [group-id plan-name]
   (with-transaction
-    (let [stripe-id (group/get-stripe-id group-id)
-          {:keys [sub-id]} (plans/group-current-plan group-id)
+    (let [{:keys [sub-id]} (plans/group-current-plan group-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
-          {:keys [body] :as stripe-response}
+          {:keys [body]}
           (stripe/update-subscription-item!
            {:id sub-item-id :plan plan :quantity (count (group/read-users-in-group
                                                          (group/group-id->group-name group-id)))})]
@@ -443,13 +459,13 @@
 (defn user-default-stripe-source [user-id]
   (with-transaction
     {:default-source (or (some-> (:stripe-id (get-user user-id))
-                                 (stripe/read-default-customer-source))
+                                 (stripe/get-customer-invoice-default-payment-method))
                          [])}))
 
 (defn org-default-stripe-source [org-id]
   (with-transaction
     {:default-source (or (some-> (group/get-stripe-id org-id)
-                                 (stripe/read-default-customer-source))
+                                 (stripe/get-customer-invoice-default-payment-method))
                          [])}))
 
 (defn user-has-stripe-account? [user-id]
@@ -464,7 +480,9 @@
   (boolean (seq (->> (compensation/read-project-compensations project-id)
                      (filter #(= rate (get-in % [:rate])))))))
 
-(defn create-project-compensation! [project-id rate]
+(defn create-project-compensation!
+  "Create a compensation for project-id with rate"
+  [project-id rate]
   (if (compensation-amount-exists? project-id rate)
     {:error {:status bad-request, :message "That compensation already exists"}}
     (do (compensation/create-project-compensation! project-id rate)
@@ -520,7 +538,9 @@
   (compensation/set-default-project-compensation! project-id compensation-id)
   {:success true})
 
-(defn set-user-compensation! [project-id user-id compensation-id]
+(defn set-user-compensation!
+  "Set the compensation-id for user-id in project-id"
+  [project-id user-id compensation-id]
   (let [project-compensations (set (->> (compensation/read-project-compensations project-id)
                                         (filter :enabled)
                                         (map :compensation-id)))
@@ -789,7 +809,6 @@
                            article/article-pmcid
                            pubmed/article-pmcid-pdf-filename)
               file (java.io.File. filename)
-              bytes (util/slurp-bytes file)
               save-article-result (save-article-pdf article-id file filename)
               key (:key save-article-result)
               s3-id (file/lookup-s3-id filename key)]
@@ -856,10 +875,11 @@
     {:success true, :annotations (ann/user-defined-article-pdf-annotations
                                   article-id s3-id)}))
 
+;; todo: this needs better error handling
 (defn delete-annotation! [annotation-id]
   (do (ann/delete-annotation! annotation-id)
       {:success true, :annotation-id annotation-id}))
-
+  
 (defn update-annotation!
   "Update the annotation for user-id. Only users can edit their own annotations"
   [annotation-id annotation semantic-class user-id]
@@ -909,11 +929,24 @@
                  member? (assoc :member (ann/project-annotation-status
                                          project-id :user-id user-id)))})))
 
+;; todo: this needs better error handling
 (defn change-project-permissions [project-id users-map]
+  (assert project-id)
   (with-transaction
     (doseq [[user-id perms] (vec users-map)]
       (project/set-member-permissions project-id user-id perms))
     {:success true}))
+
+(defn read-project-description
+  "Read project description of project-id"
+  [project-id]
+  {:success true, :project-description (description/read-project-description project-id)})
+
+(defn set-project-description!
+  "Set value for markdown description of project-id"
+  [project-id markdown]
+  (description/set-project-description! project-id markdown)
+  {:success true, :project-description markdown})
 
 (defn public-projects []
   {:projects (project/all-public-projects)})
@@ -1028,7 +1061,7 @@
   (let [current-email-entry (user/current-email-entry user-id new-email)]
     (cond
       ;; this email was already registerd to another user
-      (-> (user-by-email new-email) empty? not)
+      (-> (user-by-email new-email) seq)
       {:error {:status forbidden
                :message "This email address was already used to register an account."}}
       ;; this email doesn't exist for this user
@@ -1070,7 +1103,7 @@
   (let [current-email-entry (user/current-email-entry user-id email)]
     (cond
       ;; already used for a main account
-      (-> (user-by-email email) empty? not)
+      (-> (user-by-email email) seq)
       {:error {:status forbidden
                :message "This email address was already used to register an account."}}
       (:principal current-email-entry)
@@ -1133,6 +1166,9 @@
   (user-image/save-user-avatar-image user-id file filename meta)
   {:success true})
 
+(defn delete-avatar! [user-id]
+  (user-image/delete-user-avatar-image user-id))
+
 (defn read-avatar [user-id]
   (or (when-let [{:keys [key filename]} (user-image/user-active-avatar-image user-id)]
         (-> (response/response (s3-file/get-file-stream key :image))
@@ -1162,16 +1198,16 @@
     (if (group/group-name->group-id org-name)
       ;; alredy exists
       {:error {:status conflict
-               :message (str "An organization with the name '" org-name "' already exists")}}
+               :message (str "An organization with the name '" org-name "' already exists. Please try using another name.")}}
       (with-transaction
         ;; create the group
         (let [new-org-id (group/create-group! org-name)
               user (get-user user-id)
-              _ (group/create-sysrev-stripe-customer! new-org-id)
+              _ (group/create-sysrev-stripe-customer! new-org-id user)
               stripe-id (group/get-stripe-id new-org-id)]
           ;; set the user as group admin
           (group/add-user-to-group! user-id (group/group-name->group-id org-name) :permissions ["owner"])
-          (stripe/create-org-subscription! new-org-id stripe-id)
+          (stripe/create-subscription-org! new-org-id stripe-id)
           {:success true, :id new-org-id})))))
 
 (defn search-users [term]
@@ -1219,3 +1255,11 @@
                        :count (count users)}
                :orgs {:items (nth orgs-partition (- p 1) [])
                       :count (count orgs)}}}))
+
+(defonce stripe-hooks-atom nil)
+
+(defn handle-stripe-hooks
+  [request]
+  (println "I was triggered")
+  (reset! stripe-hooks-atom request)
+  {})

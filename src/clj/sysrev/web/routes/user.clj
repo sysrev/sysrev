@@ -91,9 +91,10 @@
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
                     (api/user-default-stripe-source user-id)))
              (POST "/payment-method" request
-                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                     (let [{:keys [token]} (:body request)]
-                       (api/update-user-stripe-payment-method! user-id token))))
+                   (with-authorize
+                    request {:authorize-fn (user-authd? user-id)}
+                    (let [{:keys [payment_method]} (:body request)]
+                      (api/update-user-stripe-payment-method! user-id payment_method))))
              (GET "/current-plan" request
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
                     (api/user-current-plan user-id)))

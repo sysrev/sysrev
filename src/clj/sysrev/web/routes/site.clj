@@ -166,6 +166,12 @@
   (GET "/api/search" [q p :<< as-int]
        (api/search-site q p))
 
+  (POST "/api/stripe/setup-intent" request
+        (api/get-setup-intent))
+
+  (POST "/api/stripe/hooks" request
+        (api/handle-stripe-hooks request))
+
   #_ (POST "/api/activity" request
            (let []))
 

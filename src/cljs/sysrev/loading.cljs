@@ -49,9 +49,13 @@
              (get-in counts [:returned %] 0)))
    boolean))
 
-(defn-spec any-loading? boolean?
+#_(defn-spec any-loading? boolean?
   "Tests if any AJAX data request is currently pending."
   [& {:keys [only ignore] :as opts} (opt-keys ::only ::ignore)]
+  (apply-keyargs any-pending-impl @ajax-data-counts opts))
+
+(defn any-loading?
+  [& {:keys [only ignore] :as opts}]
   (apply-keyargs any-pending-impl @ajax-data-counts opts))
 
 (defn-spec item-failed? boolean?
@@ -104,10 +108,17 @@
   (> (or @(action-sent-count item) 0)
      (or @(action-returned-count item) 0)))
 
-(defn-spec any-action-running? boolean?
+#_(defn-spec any-action-running? boolean?
   "Tests if any AJAX action request is currently pending."
   [& {:keys [only ignore] :as opts} (opt-keys ::only ::ignore)]
   (apply-keyargs any-pending-impl @ajax-action-counts opts))
+
+(defn any-action-running?
+  "Tests if any AJAX action request is currently pending."
+  [& {:keys [only ignore] :as opts}]
+  (apply-keyargs any-pending-impl @ajax-action-counts opts))
+
+
 
 ;;;
 ;;; Loading indicator

@@ -206,12 +206,10 @@
    user-project "Baz Qux"
    org-cc {:cardnumber bstripe/valid-visa-cc
            :exp-date "0125"
-           :cvc "123"
-           :postal "12345"}
+           :cvc "123"}
    user-cc {:cardnumber bstripe/valid-visa-cc
             :exp-date "0122"
-            :cvc "123"
-            :postal "11111"}
+            :cvc "123"}
    {:keys [email]} b/test-login
    user-id (user-by-email email :user-id)]
   (do
@@ -220,9 +218,9 @@
       (log/info (str "Stripe Customer created for " email))
       (user/create-sysrev-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
-      (stripe/create-user-subscription! (user-by-email email)))
+      (stripe/create-subscription-user! (user-by-email email)))
     ;; current plan
-    (b/is-soon (= stripe/default-plan (:name (user-current-plan user-id))) 3000 50)
+    (b/is-soon (= stripe/default-plan (:name (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
     ;; start tests
     (nav/log-in)
@@ -241,7 +239,7 @@
     (plans/click-use-card :delay 50)
     (plans/click-upgrade-plan)
     ;; should be back at project settings
-    (b/click set-private-button)
+    (b/click set-private-button :delay 100)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button))
 ;;; user pay wall
@@ -359,12 +357,5 @@
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
     (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-  :cleanup (do (some-> email (user-by-email) (user/delete-sysrev-stripe-customer!))
-               (b/cleanup-test-user! :email email :groups true)))
-
-;; from repl in sysrev.user ns:
-#_ (let [email (:email test-login)]
-     (some-> email (user-by-email) (delete-sysrev-stripe-customer!))
-     (cleanup-test-user! :email email :groups true)
-     (create-test-user)
-     (sysrev.test.browser.orgs/org-plans))
+  :cleanup
+  (do (b/cleanup-test-user! :email email :groups true)))
