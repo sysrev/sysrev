@@ -34,7 +34,8 @@
   []
   (let [plans (->> (:data (stripe/get-plans))
                    (mapv #(select-keys % [:nickname :created :id]))
-                   (mapv #(set/rename-keys % {:nickname :name})))]
+                   (mapv #(set/rename-keys % {:nickname :name}))
+                   (mapv #(update % :created (partial util/to-clj-time))))]
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :name)

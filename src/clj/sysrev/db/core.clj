@@ -8,6 +8,7 @@
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
             clj-postgresql.core
+            clj-postgresql.types
             [hikari-cp.core :refer [make-datasource close-datasource]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -20,6 +21,16 @@
   (:import (java.sql Timestamp Date Connection)
            java.util.UUID
            (org.joda.time DateTime)))
+
+;;; Disable jdbc conversion from numeric to timestamp values
+;;; (defined in clj-postgresql.types)
+(extend-protocol j/ISQLParameter
+  java.lang.Number
+  (set-parameter [num ^java.sql.PreparedStatement s ^long i]
+    (let [conn (.getConnection s)
+          meta (.getParameterMetaData s)
+          type-name (.getParameterTypeName meta i)]
+      (.setObject s i num))))
 
 (declare clear-query-cache)
 
