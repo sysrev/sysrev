@@ -309,3 +309,10 @@
 
 (defmacro nilable-coll [pred & opts]
   `(s/nilable (s/coll-of ~pred ~@opts)))
+
+(defmacro defspec-keys+partial
+  "Defines spec from s/keys on `fields` using each of :req-un and :opt-un."
+  [k-full k-partial fields]
+  `(do (s/def ~k-full     (s/keys :req-un [~@fields]))
+       (s/def ~k-partial  (s/keys :opt-un [~@fields]))
+       [~k-full ~k-partial]))

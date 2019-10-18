@@ -1,9 +1,10 @@
 (ns sysrev.label.core
-  (:require [bouncer.validators :as v]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
             [clojure.string :as str]
             [clojure.set :as set]
             [clojure.tools.logging :as log]
+            [bouncer.validators :as v]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
@@ -21,55 +22,45 @@
             [sysrev.article.core :as article]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]
+            [sysrev.shared.spec.labels :as sl]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by or-default]]))
 
-(def valid-label-categories
-  ["inclusion criteria" "extra"])
-(def valid-label-value-types
-  ["boolean" "categorical" "string"])
+(def valid-label-categories   ["inclusion criteria" "extra"])
+(def valid-label-value-types  ["boolean" "categorical" "string"])
 
-(defn get-label-by-id
-  "Get a label by its UUID label_id."
-  [label-id]
-  (-> (select :*)
-      (from :label)
-      (where [:= :label-id label-id])
-      do-query first))
+(defn-spec get-label (s/nilable ::sl/label)
+  [label-id ::sl/label-id, & args (s/? any?)]
+  (apply q/find-one :label {:label-id label-id} args))
 
-(defn- next-project-ordering [project-id]
-  (or-default 0 (some-> (select [:%max.project-ordering :max])
-                        (from :label)
-                        (where [:= :project-id project-id])
-                        do-query first :max inc)))
+(defn next-project-ordering [project-id]
+  (or-default 0 (some-> (q/find-one :label {:project-id project-id}
+                                    [[:%max.project-ordering :max]])
+                        inc)))
 
 (defn add-label-entry
   "Creates an entry for a label definition.
 
   Ordinarily this will be directly called only by one of the type-specific
   label creation functions."
-  [project-id {:keys [name question short-label category
-                      required consensus value-type definition]}]
+  [project-id {:keys [name question short-label category enabled
+                      required consensus value-type definition]
+               :or {enabled true}}]
   (assert (in? valid-label-categories category))
   (assert (in? valid-label-value-types value-type))
-  (try
-    (-> (insert-into :label)
-        (values [(cond-> {:project-id project-id
-                          :project-ordering (next-project-ordering project-id)
-                          :value-type value-type
-                          :name name
-                          :question question
-                          :short-label short-label
-                          :required required
-                          :category category
-                          :definition (to-jsonb definition)
-                          :enabled true}
-                   (boolean? consensus)
-                   (merge {:consensus consensus})
-                   (= name "overall include")
-                   (merge {:consensus true}))])
-        do-execute)
-    (finally
-      (db/clear-project-cache project-id)))
+  (db/with-clear-project-cache project-id
+    (q/create :label
+              (cond-> {:project-id project-id
+                       :project-ordering (when enabled (next-project-ordering project-id))
+                       :value-type value-type
+                       :name name
+                       :question question
+                       :short-label short-label
+                       :required required
+                       :category category
+                       :definition (to-jsonb definition)
+                       :enabled enabled}
+                (boolean? consensus)        (assoc :consensus consensus)
+                (= name "overall include")  (assoc :consensus true))))
   true)
 
 (defn add-label-entry-boolean
@@ -85,21 +76,16 @@
   `custom-category` is optional, unless specified the label category will be
   determined from the value of `inclusion-value`."
   [project-id
-   {:keys [name question short-label inclusion-value required
-           consensus custom-category]
+   {:keys [name question short-label inclusion-value required consensus custom-category]
     :as entry-values}]
   (add-label-entry
-   project-id
-   (merge
-    (->> [:name :question :short-label :required :consensus]
-         (select-keys entry-values))
-    {:value-type "boolean"
-     :category (or custom-category
-                   (if (nil? inclusion-value)
-                     "extra" "inclusion criteria"))
-     :definition (if (nil? inclusion-value)
-                   nil
-                   {:inclusion-values [inclusion-value]})})))
+   project-id (merge (->> [:name :question :short-label :required :consensus]
+                          (select-keys entry-values))
+                     {:value-type "boolean"
+                      :category (or custom-category (if (nil? inclusion-value)
+                                                      "extra" "inclusion criteria"))
+                      :definition (when-not (nil? inclusion-value)
+                                    {:inclusion-values [inclusion-value]})})))
 
 (defn add-label-entry-categorical
   "Creates an entry for a categorical label definition.
@@ -119,23 +105,19 @@
   `custom-category` is optional, unless specified the label category will be
   determined from the value of `inclusion-value`."
   [project-id
-   {:keys [name question short-label all-values inclusion-values
-           required consensus multi? custom-category]
-    :as entry-values}]
+   {:keys [name question short-label all-values inclusion-values required consensus
+           multi? custom-category] :as entry-values}]
   (assert (sequential? all-values))
   (assert (sequential? inclusion-values))
   (add-label-entry
-   project-id
-   (merge
-    (->> [:name :question :short-label :required :consensus]
-         (select-keys entry-values))
-    {:value-type "categorical"
-     :category (or custom-category
-                   (if (empty? inclusion-values)
-                     "extra" "inclusion criteria"))
-     :definition {:all-values all-values
-                  :inclusion-values inclusion-values
-                  :multi? (boolean multi?)}})))
+   project-id (merge (->> [:name :question :short-label :required :consensus]
+                          (select-keys entry-values))
+                     {:value-type "categorical"
+                      :category (or custom-category (if (empty? inclusion-values)
+                                                      "extra" "inclusion criteria"))
+                      :definition {:all-values all-values
+                                   :inclusion-values inclusion-values
+                                   :multi? (boolean multi?)}})))
 
 (defn add-label-entry-string
   "Creates an entry for a string label definition. Value is provided by user
@@ -153,31 +135,22 @@
 
   `multi?` if true allows multiple string values in answer."
   [project-id
-   {:keys [name question short-label required consensus custom-category
-           max-length regex entity examples multi?]
-    :as entry-values}]
+   {:keys [name question short-label required consensus custom-category max-length regex
+           entity examples multi?] :as entry-values}]
   (assert (= (type multi?) Boolean))
   (assert (integer? max-length))
-  (assert (or (nil? regex)
-              (and (coll? regex)
-                   (every? string? regex))))
-  (assert (or (nil? examples)
-              (and (coll? examples)
-                   (every? string? examples))))
+  (assert (or (nil? regex) (and (coll? regex) (every? string? regex))))
+  (assert (or (nil? examples) (and (coll? examples) (every? string? examples))))
   (assert ((some-fn nil? string?) entity))
   (add-label-entry
-   project-id
-   (merge
-    (->> [:name :question :short-label :required :consensus]
-         (select-keys entry-values))
-    {:value-type "string"
-     :category (or custom-category "extra")
-     :definition (cond->
-                     {:multi? multi?
-                      :max-length max-length}
-                   regex (assoc :regex regex)
-                   entity (assoc :entity entity)
-                   examples (assoc :examples examples))})))
+   project-id (merge (->> [:name :question :short-label :required :consensus]
+                          (select-keys entry-values))
+                     {:value-type "string"
+                      :category (or custom-category "extra")
+                      :definition (cond-> {:multi? multi? :max-length max-length}
+                                    regex     (assoc :regex regex)
+                                    entity    (assoc :entity entity)
+                                    examples  (assoc :examples examples))})))
 
 (defn add-label-overall-include [project-id]
   (add-label-entry-boolean
@@ -189,11 +162,60 @@
                :consensus true}))
 
 (defn alter-label-entry [project-id label-id values-map]
-  (try (-> (sqlh/update :label)
-           (sset (dissoc values-map :label-id :project-id))
-           (where [:and [:= :label-id label-id] [:= :project-id project-id]])
-           do-execute)
-       (finally (db/clear-project-cache project-id))))
+  (db/with-clear-project-cache project-id
+    (let [current (->> (q/find-one :label {:label-id label-id})
+                       (sutil/assert-pred map?)
+                       (sutil/assert-pred #(= project-id (:project-id %))))
+          old-enabled (:enabled current)
+          new-enabled (get values-map :enabled old-enabled)
+          ;; Ensure project-ordering consistency with enabled value
+          ordering (cond (not new-enabled) nil
+                         (and new-enabled (not old-enabled)) (next-project-ordering project-id)
+                         :else (get values-map :project-ordering (:project-ordering current)))]
+      ;; If changing project-ordering value for this label and the
+      ;; value already exists in project, increment values for all
+      ;; labels where >= this. This avoids setting duplicate ordering
+      ;; values and creating an indeterminate label order in the
+      ;; project.
+      (when (and new-enabled old-enabled ordering
+                 (q/find :label {:project-id project-id
+                                 :project-ordering ordering}
+                         :label-id, :where [:!= :label-id label-id]))
+        (q/modify :label {:project-id project-id}
+                  {:project-ordering (sql/raw "project_ordering + 1")}
+                  :where [:and
+                          [:!= :project-ordering nil]
+                          [:>= :project-ordering ordering]]))
+      (q/modify :label {:label-id label-id}
+                (-> (assoc values-map :project-ordering ordering)
+                    (dissoc :label-id :project-id))))))
+
+(defn adjust-label-project-ordering-values
+  "Adjusts project-ordering values for all labels in project to ensure consistency
+  with `enabled` value and ensure that the ordering values for enabled labels form
+  a continuous sequence."
+  [project-id]
+  (db/with-clear-project-cache project-id
+    (let [labels (q/find :label {:project-id project-id})
+          l-enabled (filter :enabled labels)
+          l-disabled (remove :enabled labels)]
+      ;; ensure nil project-ordering for disabled labels
+      (doseq [{:keys [label-id project-ordering]} l-disabled]
+        (when-not (nil? project-ordering)
+          (q/modify :label {:label-id label-id} {:project-ordering nil})))
+      ;; ensure non-nil project-ordering for enabled labels
+      (doseq [{:keys [label-id project-ordering]} l-enabled]
+        (when (nil? project-ordering)
+          (q/modify :label {:label-id label-id}
+                    {:project-ordering (next-project-ordering project-id)})))
+      ;; set project-ordering sequence to (range n-enabled) using
+      ;; existing sort order
+      (doseq [{:keys [label-id project-ordering i]}
+              (->> (q/find :label {:project-id project-id :enabled true}
+                           :*, :order-by [:project-ordering :asc])
+                   (map-indexed (fn [i label] (merge label {:i i}))))]
+        (when (not= i project-ordering)
+          (q/modify :label {:label-id label-id} {:project-ordering i}))))))
 
 ;; TODO: move into article entity
 (defn article-user-labels-map [project-id article-id]
@@ -412,43 +434,25 @@
   (let [articles (query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)]
     (when overall-id
-      (->> articles
-           (mapv
-            (fn [[article-id article-labels]]
-              (let [labels (get-in article-labels [:labels overall-id])
-                    group-status
-                    (article-consensus-status project-id article-id)
-                    inclusion-status
-                    (case group-status
-                      :conflict nil
-                      :resolved (-> (article-resolved-labels project-id article-id)
-                                    (get overall-id))
-                      (->> labels (map :inclusion) first))]
-                (hash-map :group-status group-status
-                          :article-id article-id
-                          :answer (:answer (first labels))))))))))
+      (vec (for [[article-id article-labels] articles]
+             (let [labels (get-in article-labels [:labels overall-id])
+                   group-status (article-consensus-status project-id article-id)
+                   inclusion-status (case group-status
+                                      :conflict nil
+                                      :resolved (-> (article-resolved-labels project-id article-id)
+                                                    (get overall-id))
+                                      (->> labels (map :inclusion) first))]
+               {:group-status group-status
+                :article-id article-id
+                :answer (:answer (first labels))}))))))
 
 (defn project-members-info [project-id]
   (with-project-cache project-id [:members-info]
     (let [users (-> (q/select-project-members
                      project-id [:u.* [:m.permissions :project-permissions]])
                     (->> do-query (index-by :user-id)))
-          inclusions (project-user-inclusions project-id)
-          #_ in-progress
-          #_ (-> (q/select-project-articles
-                  project-id [:al.user-id :%count.%distinct.al.article-id])
-                 (q/join-article-labels)
-                 (q/filter-valid-article-label false)
-                 (group :al.user-id)
-                 (->> do-query
-                      (index-by :user-id)
-                      (map-values :count)))]
-      (->> users
-           (mapv (fn [[user-id user]]
-                   [user-id
-                    {:permissions (:project-permissions user)
-                     :articles (get inclusions user-id)
-                     #_ :in-progress #_ (if-let [count (get in-progress user-id)]
-                                          count 0)}]))
-           (apply concat)
-           (apply hash-map)))))
+          inclusions (project-user-inclusions project-id)]
+      (map-values (fn [{:keys [user-id project-permissions]}]
+                    {:permissions project-permissions
+                     :articles (get inclusions user-id)})
+                  users))))

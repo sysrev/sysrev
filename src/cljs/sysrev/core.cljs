@@ -113,6 +113,7 @@
   (-> js/window (.addEventListener "mousedown" on-mousedown)))
 
 (defn ^:export spec-instrument []
+  (reset! base/tests-running true)
   (count (t/instrument)))
 
 (defn ^:export init []

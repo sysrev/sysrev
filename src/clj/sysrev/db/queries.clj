@@ -226,13 +226,18 @@
 (defn find-one
   "Runs `find` and returns a single result entry (or nil if none found),
   throwing an exception if the query returns more than one result."
-  [table match-by & [fields & {:keys [where prepare join left-join] :as opts}]]
-  (assert (every? #{:where :prepare :join :left-join} (keys opts)))
-  (first (->> (apply-keyargs find table match-by fields
-                             (assoc opts :prepare #(-> (cond-> % prepare (prepare))
-                                                       (sqlh/limit 2))))
-              (assert-pred {:pred #(<= (count %) 1)
-                            :message "find-one - multiple results from query"})) ))
+  [table match-by & [fields & {:keys [where prepare join left-join return] :as opts
+                               :or {return :execute}}]]
+  (assert (every? #{:where :prepare :join :left-join :return} (keys opts)))
+  (let [execute? (= return :execute)
+        result (apply-keyargs find table match-by fields
+                              (assoc opts :prepare #(cond-> %
+                                                      prepare   (prepare)
+                                                      execute?  (sqlh/limit 2))))]
+    (if execute?
+      (first (->> result (assert-pred {:pred #(<= (count %) 1)
+                                       :message "find-one - multiple results from query"})))
+      result)))
 
 ;;; Examples:
 ;;;

@@ -191,25 +191,27 @@
   (assert (= (first params) 'project-id)
           (str "sr-defroute-project: params must start with project-id\n"
                "params = " (pr-str params)))
-  (let [suffix-name (fn [suffix] (-> name clojure.core/name (str "__" suffix) symbol))]
+  (let [suffix-name (fn [suffix] (-> name clojure.core/name (str "__" suffix) symbol))
+        body-full `(let [~(first params) @(subscribe [:active-project-id])]
+                     ~@body)]
     `(do (sr-defroute-project--impl nil
                                     ~(suffix-name "legacy")
                                     ~(str "/p/:project-id" suburi)
                                     ~suburi
                                     ~params
-                                    ~@body)
+                                    ~body-full)
          (sr-defroute-project--impl :user-url-id
                                     ~(suffix-name "user")
                                     ~(str "/u/:owner-id/p/:project-id" suburi)
                                     ~suburi
                                     ~(vec (concat '(owner-id) params))
-                                    ~@body)
+                                    ~body-full)
          (sr-defroute-project--impl :org-url-id
                                     ~(suffix-name "org")
                                     ~(str "/o/:owner-id/p/:project-id" suburi)
                                     ~suburi
                                     ~(vec (concat '(owner-id) params))
-                                    ~@body))))
+                                    ~body-full))))
 
 (defmacro setup-panel-state
   "Creates standard definitions at the top of a UI panel namespace.

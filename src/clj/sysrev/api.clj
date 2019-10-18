@@ -26,7 +26,7 @@
             [sysrev.project.invitation :as invitation]
             [sysrev.article.core :as article]
             [sysrev.annotations :as ann]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.label.define :as ldefine]
             [sysrev.user.core :as user :refer [get-user user-by-email]]
             [sysrev.group.core :as group]
@@ -78,7 +78,7 @@
   [project-name string?, user-id int?]
   (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
-      (labels/add-label-overall-include project-id)
+      (label/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (project/add-project-member project-id user-id
                                   :permissions ["member" "admin" "owner"])
@@ -90,7 +90,7 @@
   [project-name string?, user-id int?, group-id int?]
   (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
-      (labels/add-label-overall-include project-id)
+      (label/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (group/create-project-group! project-id group-id)
       (project/add-project-member project-id user-id
@@ -632,7 +632,7 @@
 
 (defn sync-labels [project-id labels-map]
   ;; first let's convert the labels to a set
-  (with-transaction
+  (db/with-clear-project-cache project-id
     (let [client-labels (set (vals labels-map))
           all-labels-valid? (->> client-labels
                                  (map #(b/valid? % (ldefine/label-validations %)))
@@ -640,16 +640,13 @@
       ;; labels must be valid
       (if all-labels-valid?
         ;; labels are valid
-        (let [server-labels (set (vals (project/project-labels project-id true)))
+        (let [server-labels-map (project/project-labels project-id true)
+              server-labels (set (vals server-labels-map))
               ;; new labels are given a randomly generated string id on
               ;; the client, so labels that are non-existent on the server
               ;; will have string as opposed to UUID label-ids
-              new-client-labels (set (filter #(= java.lang.String
-                                                 (type (:label-id %)))
-                                             client-labels))
-              current-client-labels (set (filter #(= java.util.UUID
-                                                     (type (:label-id %)))
-                                                 client-labels))
+              new-client-labels (set (filter (comp string? :label-id) client-labels))
+              current-client-labels (set (filter (comp uuid? :label-id) client-labels))
               modified-client-labels (set/difference current-client-labels server-labels)]
           ;; creation/modification of labels should be done
           ;; on labels that have been validated.
@@ -661,9 +658,10 @@
           ;; modified, add a validator for that case so that
           ;; the error can easily be reported in the client
           (doseq [label new-client-labels]
-            (labels/add-label-entry project-id label))
+            (label/add-label-entry project-id label))
           (doseq [{:keys [label-id] :as label} modified-client-labels]
-            (labels/alter-label-entry project-id label-id label))
+            (label/alter-label-entry project-id label-id label))
+          (label/adjust-label-project-ordering-values project-id)
           {:valid? true
            :labels (project/project-labels project-id true)})
         ;; labels are invalid
@@ -701,7 +699,7 @@
                              (-> (:val %) (util/round-to 0.02 2 :op :floor)))))
           predictions-map (zipmap (mapv :article-id prediction-scores)
                                   (mapv :rounded-score prediction-scores))
-          project-article-statuses (labels/project-article-statuses project-id)
+          project-article-statuses (label/project-article-statuses project-id)
           reviewed-articles-no-conflicts
           (->> project-article-statuses
                (group-by :group-status)

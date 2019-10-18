@@ -66,8 +66,7 @@
     (used-label? label-id)
     ;; ... so determine if a category has been deleted
     (set/superset? (set all-values)
-                   (set (get-in (label/get-label-by-id label-id)
-                                [:definition :all-values])))))
+                   (set (get-in (label/get-label label-id) [:definition :all-values])))))
 
 (def boolean-definition-validations
   {:inclusion-values
@@ -107,8 +106,7 @@
      (str "An option can not be removed from a category if the label has already been set for an article. "
           "The options for this label were originally "
           (when-not (string? label-id)
-            (str/join "," (get-in (label/get-label-by-id label-id)
-                                  [:definition :all-values]))))]]
+            (str/join "," (get-in (label/get-label label-id) [:definition :all-values]))))]]
 
    :inclusion-values
    [[sequential?

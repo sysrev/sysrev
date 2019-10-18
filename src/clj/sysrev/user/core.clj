@@ -33,8 +33,8 @@
   (q/find-one :web-user {} (or fields :*)
               :where [:= (sql/call :lower :email) (sql/call :lower email)]))
 
-(defn get-user [user-id & [fields]]
-  (q/find-one :web-user {:user-id user-id} (or fields :*)))
+(defn get-user [user-id & args]
+  (apply q/find-one :web-user {:user-id user-id} args))
 
 (defn user-projects
   "Returns sequence of projects for which user-id is a

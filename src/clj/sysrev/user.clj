@@ -11,6 +11,7 @@
         sysrev.article.core
         sysrev.article.assignment
         sysrev.label.core
+        sysrev.label.migrate
         sysrev.annotations
         sysrev.datasource.core
         sysrev.datasource.api

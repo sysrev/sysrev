@@ -7,7 +7,6 @@
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
-            [sysrev.state.label :refer [sort-project-labels]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
@@ -15,7 +14,7 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values css]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 ;; Convention -
 ;; A (new) label that exists in the client but not on the
@@ -590,17 +589,17 @@
                      @(subscribe [:user/admin?]))
           labels (r/cursor state [:labels])
           read-only-message-closed? (r/cursor state [:read-only-message-closed?])
-          saved-ids (subscribe [:project/label-ids nil true])
+          saved-ids-all (subscribe [:project/label-ids nil true])
+          saved-ids-enabled (subscribe [:project/label-ids])
           sort-label-ids (fn [enabled?]
-                           (->> (concat @saved-ids
-                                        (->> @labels
-                                             (sutil/filter-keys #(not (uuid? %)))
-                                             (sort-by (fn [[label-id label]]
-                                                        (:project-ordering label)))
-                                             (map first)))
-                                (filter (if (boolean? enabled?)
-                                          #(= enabled? (:enabled (get @labels %)))
-                                          (constantly true)))))
+                           (let [saved-ids (if enabled? saved-ids-enabled saved-ids-all)]
+                             (->> (concat @saved-ids
+                                          (->> @labels
+                                               (sutil/filter-keys #(not (uuid? %)))
+                                               (sort-by (fn [[label-id label]]
+                                                          (:project-ordering label)))
+                                               (map first)))
+                                  (filter #(= enabled? (:enabled (get @labels %)))))))
           active-ids (sort-label-ids true)
           disabled-ids (sort-label-ids false)]
       (ensure-state)
@@ -615,15 +614,13 @@
                   ;; let's pass a cursor to the state
                   [:div.column [LabelItem i (r/cursor state [:labels label-id])]])
                 active-ids))]
-       (when (not-empty disabled-ids)
+       (when (seq disabled-ids)
          [:h4.ui.block.header "Disabled Labels"])
        ;; FIX: collapse disabled labels by default, display on click
-       (when (not-empty disabled-ids)
+       (when (seq disabled-ids)
          [:div.ui.two.column.stackable.grid.label-items
           (doall (map-indexed
-                  (fn [i label-id]
-                    ^{:key [:label-id label-id]}
-                    ;; let's pass a cursor to the state
+                  (fn [i label-id] ^{:key [:label-id label-id]}
                     [:div.column [LabelItem i (r/cursor state [:labels label-id])]])
                   disabled-ids))])
        (when admin?
@@ -634,4 +631,7 @@
 
 (defmethod panel-content [:project :project :labels] []
   (fn [child]
-    [:div.project-content child]))
+    [:div.project-content
+     (when-let [project-id @(subscribe [:active-project-id])]
+       (when @(subscribe [:have? [:project project-id]])
+         child))]))

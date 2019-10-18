@@ -23,8 +23,7 @@
 
 (sr-defroute-project
  project "" [project-id]
- (let [project-id @(subscribe [:active-project-id])
-       panel [:project :project :overview]
+ (let [panel [:project :project :overview]
        prev-panel @(subscribe [:active-panel])
        diff-panel (and prev-panel (not= panel prev-panel))
        all-data-items [[:project project-id]
@@ -39,8 +38,7 @@
 
 (sr-defroute-project
  articles "/articles" [project-id]
- (let [project-id @(subscribe [:active-project-id])
-       panel [:project :project :articles]
+ (let [panel [:project :project :articles]
        context (project-articles/get-context)
        active-panel @(subscribe [:active-panel])
        panel-changed? (not= panel active-panel)
@@ -49,29 +47,23 @@
        have-project? @(subscribe [:have? [:project project-id]])
        load-params [:article-list/load-url-params context]
        sync-params #(article-list/sync-url-params context)
-       set-transition [::article-list/set-recent-nav-action
-                       context :transition]]
-   (cond
-     (not have-project?)
-     (do (dispatch [:require [:project project-id]])
-         (dispatch
-          [:data/after-load [:project project-id] :project-articles-project
-           (list load-params set-panel)]))
-
-     panel-changed?
-     (do (dispatch
-          [:data/after-load data-item :project-articles-route
-           (list set-panel #(js/setTimeout sync-params 25))])
-         (dispatch set-transition)
-         (article-list/require-list context)
-         (article-list/reload-list context))
-
-     :else (do (dispatch load-params)))))
+       set-transition [::article-list/set-recent-nav-action context :transition]]
+   (cond (not have-project?)
+         (do (dispatch [:require [:project project-id]])
+             (dispatch [:data/after-load [:project project-id] :project-articles-project
+                        (list load-params set-panel)]))
+         panel-changed?
+         (do (dispatch [:data/after-load data-item :project-articles-route
+                        (list set-panel #(js/setTimeout sync-params 30))])
+             (dispatch set-transition)
+             (article-list/require-list context)
+             (article-list/reload-list context))
+         :else
+         (dispatch load-params))))
 
 (sr-defroute-project
  article-id "/article/:article-id" [project-id article-id]
- (let [project-id @(subscribe [:active-project-id])
-       panel [:project :project :single-article]
+ (let [panel [:project :project :single-article]
        article-id (parse-integer article-id)
        item [:article project-id article-id]
        have-project? @(subscribe [:have? [:project project-id]])
@@ -80,8 +72,7 @@
    (if (integer? article-id)
      (do (if (not have-project?)
            (do (dispatch set-panel) (dispatch set-article))
-           (dispatch [:data/after-load item :article-route
-                      (list set-panel set-article)]))
+           (dispatch [:data/after-load item :article-route (list set-panel set-article)]))
          (dispatch [:require item])
          (dispatch [:reload item]))
      (do (js/console.log "invalid article id")
@@ -89,45 +80,40 @@
 
 (sr-defroute-project
  project-labels-edit "/labels/edit" [project-id]
- (define-labels/ensure-state)
+ (dispatch [:reload [:project project-id]])
  (dispatch [:set-active-panel [:project :project :labels :edit]]))
 
 (sr-defroute-project
  review "/review" [project-id]
- (let [project-id @(subscribe [:active-project-id])
-       panel [:project :review]
+ (let [panel [:project :review]
        have-project? (and project-id @(subscribe [:have? [:project project-id]]))
        set-panel [:set-active-panel panel]
        set-panel-after #(dispatch [:data/after-load % :review-route set-panel])]
-   (when (not have-project?)
-     (dispatch set-panel))
+   (when-not have-project? (dispatch set-panel))
    (let [task-id @(subscribe [:review/task-id])]
      (if (integer? task-id)
        (do (set-panel-after [:article project-id task-id])
            (dispatch [:reload [:article project-id task-id]]))
-       (do (set-panel-after [:review/task project-id])))
+       (set-panel-after [:review/task project-id]))
      (when (= task-id :none)
        (dispatch [:reload [:review/task project-id]]))
      (dispatch [:require [:review/task project-id]]))))
 
 (sr-defroute-project
  manage-project "/manage" [project-id]
- (let [project-id @(subscribe [:active-project-id])]
-   (nav-redirect (project-uri project-id "/add-articles"))))
+ (nav-redirect (project-uri project-id "/add-articles")))
 
 (sr-defroute-project
  add-articles "/add-articles" [project-id]
- (let [project-id @(subscribe [:active-project-id])]
-   (dispatch [:reload [:project/sources project-id]])
-   (dispatch [:set-active-panel [:project :project :add-articles]])))
+ (dispatch [:reload [:project/sources project-id]])
+ (dispatch [:set-active-panel [:project :project :add-articles]]))
 
 (sr-defroute-project
  project-settings "/settings" [project-id]
- (let [project-id @(subscribe [:active-project-id])]
-   (dispatch [:reload [:project/settings project-id]])
-   ;; run this to make sure :project/plan is updated
-   (dispatch [:reload [:project project-id]])
-   (dispatch [:set-active-panel [:project :project :settings]])))
+ #_ (dispatch [:reload [:project/settings project-id]])
+ ;; run this to make sure :project/plan is updated
+ (dispatch [:reload [:project project-id]])
+ (dispatch [:set-active-panel [:project :project :settings]]))
 
 (sr-defroute-project
  project-export "/export" [project-id]
@@ -135,8 +121,7 @@
 
 (sr-defroute-project
  project-compensations "/compensations" [project-id]
- (let [project-id @(subscribe [:active-project-id])]
-   (dispatch [:set-active-panel [:project :project :compensations]])))
+ (dispatch [:set-active-panel [:project :project :compensations]]))
 
 ;;
 ;; non-project routes
@@ -179,8 +164,7 @@
 #_
 (sr-defroute-project
  support "/support" [project-id]
- (let [project-id @(subscribe [:active-project-id])]
-   (dispatch [:set-active-panel [:project :project :support]])))
+ (dispatch [:set-active-panel [:project :project :support]]))
 
 (sr-defroute
  plans "/user/payment" []

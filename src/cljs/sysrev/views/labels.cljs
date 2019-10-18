@@ -19,13 +19,13 @@
                 true   "green"
                 false  "orange"
                 nil)
-        values (if @(subscribe [:label/boolean? label-id])
+        values (if (= "boolean" @(subscribe [:label/value-type label-id]))
                  (if (boolean? answer)
                    [answer] [])
                  (cond (nil? answer)        nil
                        (sequential? answer) answer
                        :else                [answer]))
-        display-label (if @(subscribe [:label/boolean? label-id])
+        display-label (if (= "boolean" @(subscribe [:label/value-type label-id]))
                         (str display "?")
                         display)
         dark-theme? @(subscribe [:self/dark-theme?])]

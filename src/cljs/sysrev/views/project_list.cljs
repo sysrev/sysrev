@@ -112,4 +112,4 @@
            [ProjectsListSegment "Your Projects" member-projects true]]
           [:div.eight.wide.column.public-projects
            [FeaturedProjectsList]
-           [ProjectsListSegment "Available Projects" available-projects false]]]]))))
+           [ProjectsListSegment "Available Projects" (reverse available-projects) false]]]]))))

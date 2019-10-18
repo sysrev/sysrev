@@ -16,6 +16,8 @@
 
 (def debug? ^boolean js/goog.DEBUG)
 
+(defonce tests-running (atom nil))
+
 (defonce default-console-fns (atom {}))
 
 (defonce console-logs (atom {}))

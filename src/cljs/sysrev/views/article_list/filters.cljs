@@ -305,8 +305,8 @@
      opts]))
 
 (defn- LabelValueDropdown [context label-id value on-change include-nil?]
-  (let [boolean? @(subscribe [:label/boolean? label-id])
-        categorical? @(subscribe [:label/categorical? label-id])
+  (let [boolean? (= "boolean" @(subscribe [:label/value-type label-id]))
+        categorical? (= "categorical" @(subscribe [:label/value-type label-id]))
         all-values @(subscribe [:label/all-values label-id])
         entries (cond->> (cond boolean?      [nil true false]
                                categorical?  (concat [nil] all-values)

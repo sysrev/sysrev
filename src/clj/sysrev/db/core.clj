@@ -81,10 +81,10 @@
   (sql/call :cast x sql-type))
 
 (defn to-jsonb [x]
-  ;; don't convert to jsonb if `x` is a honeysql function call
+  ;; don't convert to jsonb if `x` is a honeysql map
   (if (and (map? x)
-           (= (set (keys x))
-              (set [:name :args])))
+           (or (= (set (keys x)) (set [:name :args]))
+               (-> x type str (str/includes? "honeysql"))))
     x
     (sql-cast (clojure.data.json/write-str x) :jsonb)))
 
@@ -97,11 +97,7 @@
     (if conn
       (.createArrayOf (:connection conn) sql-type (into-array elts))
       (j/with-db-transaction [conn (or *conn* @active-db)]
-        (try
-          (.createArrayOf (:connection conn) sql-type (into-array elts))
-          #_ (finally
-               (when (nil? *conn*)
-                 (.close (:connection conn)))))))))
+        (.createArrayOf (:connection conn) sql-type (into-array elts))))))
 
 (defn sql-array-contains [field val]
   [:= val (sql/call :any field)])
@@ -121,14 +117,10 @@
 (defn prepare-honeysql-map
   "Converts map values to jsonb strings as needed."
   [m]
-  (let [mapvals-to-json
-        (partial map-values
-                 #(if (map? %) (to-jsonb %) %))]
+  (let [mapvals-to-json (partial map-values #(if (map? %) (to-jsonb %) %))]
     (cond-> m
-      (contains? m :set)
-      (update :set mapvals-to-json)
-      (contains? m :values)
-      (update :values (partial mapv mapvals-to-json)))))
+      (contains? m :set)     (update :set mapvals-to-json)
+      (contains? m :values)  (update :values (partial mapv mapvals-to-json)))))
 
 (defn do-query
   "Run SQL query defined by honeysql SQL map."

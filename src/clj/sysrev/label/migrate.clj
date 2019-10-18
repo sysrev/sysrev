@@ -6,8 +6,9 @@
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.label.answer :as answer]
+            [sysrev.shared.labels :refer [sort-project-labels]]
             [sysrev.article.core :as article]
-            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.shared.util :refer [map-values in? index-by]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -21,67 +22,47 @@
   "(DB format migration) Get sequence of article ids in project that have
   resolved answers based on old-format article_label entries."
   [project-id]
-  (-> (select :%distinct.a.article-id)
-      (from [:article-label :al])
-      (join [:article :a] [:= :a.article-id :al.article-id])
-      (where [:and
-              [:= :a.project-id project-id]
-              [:= :resolve true]])
-      (->> do-query (mapv :article-id))))
+  (q/find [:article :a] {:a.project-id project-id :resolve true}
+          [[:%distinct.a.article-id :article-id]]
+          :join [:article-label:al :a.article-id]))
 
 (defn article-resolve-info
   "(DB format migration) Get map of resolved answer status for
   article-id based on old-format article_label entries."
   [article-id]
-  (-> (select :article-id :user-id :updated-time)
-      (from :article-label)
-      (where [:and
-              [:= :article-id article-id]
-              [:= :resolve true]])
-      (order-by [:updated-time :desc])
-      (limit 1)
-      do-query first))
+  (first (q/find :article-label {:article-id article-id :resolve true}
+                 [:article-id :user-id :updated-time]
+                 :order-by [:updated-time :desc] :limit 1)))
 
 (defn project-has-article-resolve?
   "(DB format migration) Test for presence of new-format article_resolve
   entries in project."
   [project-id]
-  (-> (select :%count.%distinct.aresolve.article-id)
-      (from [:article-resolve :aresolve])
-      (join [:article :a] [:= :a.article-id :aresolve.article-id])
-      (where [:= :a.project-id project-id])
-      do-query first :count pos-int?))
+  (pos-int? (q/find-one [:article-resolve :aresolve] {:a.project-id project-id}
+                        [[:%count.%distinct.aresolve.article-id :count]]
+                        :join [:article:a :aresolve.article-id])))
 
 (defn migrate-project-article-resolve
   "Create article_resolve entries in project-id using old-format values
   from article_label."
   [project-id]
-  (with-transaction
+  (db/with-clear-project-cache project-id
     (when-not (project-has-article-resolve? project-id)
+      (log/infof "migrating article resolve for project #%d" project-id)
       (let [overall-id (project/project-overall-label-id project-id)
-            article-ids (try
-                          (project-resolved-articles project-id)
-                          (catch Throwable e
-                            (log/info "unable to query on article.resolve")
-                            nil))]
-        (when (not-empty article-ids)
-          (doseq [article-id article-ids]
-            (let [{:keys [user-id updated-time] :as e}
-                  (article-resolve-info article-id)]
-              (when e
-                (answer/resolve-article-answers
-                 article-id user-id :resolve-time updated-time))))))
-      (clear-project-cache project-id))))
+            article-ids (try (project-resolved-articles project-id)
+                             (catch Throwable _ (log/info "unable to query on article.resolve")))]
+        (doseq [article-id article-ids]
+          (when-let [{:keys [user-id updated-time] :as e} (article-resolve-info article-id)]
+            (answer/resolve-article-answers article-id user-id :resolve-time updated-time)))))))
 
 (defn projects-with-resolve
   "(DB format migration) Get project ids with resolved articles based on
   old-format article_label entries."
   []
-  (-> (select :%distinct.a.project-id)
-      (from [:article-label :al])
-      (join [:article :a] [:= :a.article-id :al.article-id])
-      (where [:= :al.resolve true])
-      (->> do-query (map :project-id) sort vec)))
+  (vec (sort (q/find [:article-label :al] {:al.resolve true}
+                     [[:%distinct.a.project-id :project-id]]
+                     :join [:article:a :al.article-id]))))
 
 (defn migrate-all-project-article-resolve
   "Create article_resolve entries for all projects."
@@ -89,6 +70,24 @@
   (with-transaction
     (doseq [project-id (projects-with-resolve)]
       (migrate-project-article-resolve project-id))))
+
+(defn migrate-labels-project-ordering
+  "Set label.project_ordering values to match legacy label ordering logic.
+  Should only be run manually one time to avoid reverting new and
+  reordered labels."
+  []
+  (doseq [project-id (project/project-ids-where-labels-defined)]
+    (db/with-clear-project-cache project-id
+      (let [labels (q/find :label {:project-id project-id})
+            labels-enabled (filter :enabled labels)
+            enabled-ids-sorted (sort-project-labels (index-by :label-id labels-enabled))
+            disabled-ids (mapv :label-id (remove :enabled labels))]
+        (log/infof "migrating label ordering for project #%d (%d+%d labels)"
+                   project-id (count enabled-ids-sorted) (count disabled-ids))
+        (doseq [[i label-id] (map-indexed vector enabled-ids-sorted)]
+          (q/modify :label {:label-id label-id} {:project-ordering i}))
+        (when (seq disabled-ids)
+          (q/modify :label {:label-id disabled-ids} {:project-ordering nil}))))))
 
 ;; TODO: do this later maybe
 ;;
