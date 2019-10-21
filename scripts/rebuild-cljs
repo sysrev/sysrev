@@ -6,5 +6,6 @@ source vars.sh
 set -x
 
 cd client
-lein do clean, cljsbuild once production
+rm -rf .shadow-cljs/builds/prod || true
+shadow-cljs release prod --source-maps --force-spawn
 cd ..

@@ -15,7 +15,8 @@ cd semantic/src
 rm -f site
 ln -s "site.$theme" site
 cd ..
-gulp clean > /dev/null
+rm -rf ./target
+# gulp clean > /dev/null
 gulp build-css > /dev/null
 gulp build-assets > /dev/null
 cd ..

@@ -1,8 +1,6 @@
 (ns sysrev.views.panels.project.support
   (:require [clojure.string :as str]
             [ajax.core :refer [GET]]
-            [cljsjs.accounting]
-            [cljsjs.semantic-ui-react]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [dispatch subscribe]]

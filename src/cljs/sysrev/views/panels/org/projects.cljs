@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.org.projects
   (:require [ajax.core :refer [GET]]
-            [cljsjs.moment]
+            ["moment" :as moment]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub reg-event-db trim-v dispatch]]
@@ -63,8 +63,7 @@
                }
      [TableCell
       [:a {:href (project-uri project-id)
-           :style {;;:margin-bottom "0.5em"
-                   :display "inline-block"}} name]
+           :style {:display "inline-block"}} name]
       (when (and
              ;; user has proper perms for this project
              (some #{"admin" "owner"}
@@ -75,7 +74,7 @@
              @(subscribe [:project/subscription-lapsed? project-id]))
         [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]])]
      [TableCell {:text-align "center"} (if-not (nil? last-active)
-                                         (-> last-active js/moment ($ fromNow))
+                                         (-> last-active (moment.) ($ fromNow))
                                          "never")]
      [TableCell {:text-align "center"} (doall (for [user admins]
                                                 ^{:key (str (:user-id user) "-" project-id)}

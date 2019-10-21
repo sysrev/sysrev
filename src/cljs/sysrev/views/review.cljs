@@ -1,5 +1,6 @@
 (ns sysrev.views.review
-  (:require [clojure.string :as str]
+  (:require ["fomantic-ui" :as semantic-ui]
+            [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
                                    reg-event-db reg-event-fx reg-fx trim-v]]

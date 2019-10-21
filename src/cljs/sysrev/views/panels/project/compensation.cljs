@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.project.compensation
   (:require [ajax.core :refer [POST GET DELETE PUT]]
-            [cljsjs.moment]
             [clojure.string :as str]
             [reagent.core :as r]
             [reagent.interop :refer [$]]

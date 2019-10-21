@@ -1,6 +1,5 @@
 (ns sysrev.views.main
-  (:require [cljsjs.jquery]
-            [cljsjs.semantic-ui]
+  (:require ["jquery" :as jquery]
             [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]

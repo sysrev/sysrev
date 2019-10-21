@@ -1,87 +1,86 @@
 (ns sysrev.views.semantic
-  (:require [cljsjs.semantic-ui-react]
+  (:require ["fomantic-ui" :as semantic-ui]
+            ["semantic-ui-react" :as S]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]))
 
-(def semantic-ui js/semanticUIReact)
-
 ;; from https://gist.github.com/TimoKramer/7e93758afb81dcad985fafccc613153a
-(defn component
+(defn- component
   "Get a component from sematic-ui-react:
     (component \"Button\")
     (component \"Menu\" \"Item\")"
-  [k & ks]
+  [sui-class & ks]
   (r/adapt-react-class
    (if (seq ks)
-     (apply goog.object/getValueByKeys semantic-ui k ks)
-     (goog.object/get semantic-ui k))))
+     (apply goog.object/getValueByKeys sui-class ks)
+     sui-class)))
 
 ;; general
-(def Segment (component "Segment"))
-(def Header (component "Header"))
-(def Icon (component "Icon"))
-(def Loader (component "Loader"))
-(def Image (component "Image"))
-(def Divider (component "Divider"))
+(def Segment (component S/Segment))
+(def Header (component S/Header))
+(def Icon (component S/Icon))
+(def Loader (component S/Loader))
+(def Image (component S/Image))
+(def Divider (component S/Divider))
 
 ;; form
-(def Form (component "Form"))
-(def FormButton (component "Form" "Button"))
-(def FormField (component "Form" "Field"))
-(def FormGroup (component "Form" "Group"))
-(def FormInput (component "Form" "Input"))
-(def FormRadio (component "Form" "Radio"))
-(def TextArea (component "TextArea"))
-(def Checkbox (component "Checkbox"))
+(def Form (component S/Form))
+(def FormButton (component S/Form "Button"))
+(def FormField (component S/Form "Field"))
+(def FormGroup (component S/Form "Group"))
+(def FormInput (component S/Form "Input"))
+(def FormRadio (component S/Form "Radio"))
+(def TextArea (component S/TextArea))
+(def Checkbox (component S/Checkbox))
 
 ;; input
-(def Input (component "Input"))
+(def Input (component S/Input))
 ;; components
-(def Label (component "Label"))
-(def LabelDetail (component "Label" "Detail"))
-(def Button (component "Button"))
-(def Dropdown (component "Dropdown"))
-(def Message (component "Message"))
-(def MessageHeader (component "Message" "Header"))
-(def Radio (component "Radio"))
-(def Select (component "Select"))
+(def Label (component S/Label))
+(def LabelDetail (component S/Label "Detail"))
+(def Button (component S/Button))
+(def Dropdown (component S/Dropdown))
+(def Message (component S/Message))
+(def MessageHeader (component S/Message "Header"))
+(def Radio (component S/Radio))
+(def Select (component S/Select))
 
 ;; grid
-(def Grid (component "Grid"))
-(def Row (component "Grid" "Row"))
-(def Column (component "Grid" "Column"))
+(def Grid (component S/Grid))
+(def Row (component S/Grid "Row"))
+(def Column (component S/Grid "Column"))
 
 ;; list
-(def ListUI (component "List"))
-(def ListItem (component "List" "Item"))
-(def ListIcon (component "List" "Icon"))
-(def ListContent (component "List" "Content"))
+(def ListUI (component S/List))
+(def ListItem (component S/List "Item"))
+(def ListIcon (component S/List "Icon"))
+(def ListContent (component S/List "Content"))
 
 ;; popup
-(def Popup (component "Popup"))
-(def PopupHeader (component "Popup" "Header"))
+(def Popup (component S/Popup))
+(def PopupHeader (component S/Popup "Header"))
 
 ;; modal
-(def Modal (component "Modal"))
-(def ModalHeader (component "Modal" "Header"))
-(def ModalContent (component "Modal" "Content"))
-(def ModalDescription (component "Modal" "Description"))
+(def Modal (component S/Modal))
+(def ModalHeader (component S/Modal "Header"))
+(def ModalContent (component S/Modal "Content"))
+(def ModalDescription (component S/Modal "Description"))
 
 ;; menu
-(def Menu (component "Menu"))
-(def MenuItem (component "Menu" "Item"))
+(def Menu (component S/Menu))
+(def MenuItem (component S/Menu "Item"))
 
 ;; tables
-(def Table (component "Table"))
-(def TableHeader (component "Table" "Header"))
-(def TableHeaderCell (component "Table" "HeaderCell"))
-(def TableRow (component "Table" "Row"))
-(def TableBody (component "Table" "Body"))
-(def TableCell (component "Table" "Cell"))
+(def Table (component S/Table))
+(def TableHeader (component S/Table "Header"))
+(def TableHeaderCell (component S/Table "HeaderCell"))
+(def TableRow (component S/Table "Row"))
+(def TableBody (component S/Table "Body"))
+(def TableCell (component S/Table "Cell"))
 
 ;; search
-(def Search (component "Search"))
-(def SearchResults (component "Search" "Results"))
+(def Search (component S/Search))
+(def SearchResults (component S/Search "Results"))
 
 ;; pagination
-(def Pagination (component "Pagination"))
+(def Pagination (component S/Pagination))

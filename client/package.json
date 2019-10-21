@@ -1,0 +1,30 @@
+{
+  "name": "sysrev-client",
+  "version": "0.0.1",
+  "private": true,
+  "devDependencies": {
+    "shadow-cljs": "2.8.65"
+  },
+  "dependencies": {
+    "@types/react": "16.8.6",
+    "accounting": "0.4.1",
+    "chart.js": "2.7.3",
+    "clipboard": "1.6.1",
+    "create-react-class": "15.6.3",
+    "croppie": "2.6.3",
+    "dompurify": "1.0.11",
+    "dropzone": "5.5.1",
+    "fomantic-ui": "2.7.8",
+    "form-data": "2.5.1",
+    "jquery": "3.4.1",
+    "moment": "2.22.2",
+    "prop-types": "15.7.2",
+    "react": "16.8.6",
+    "react-dnd": "9.4.0",
+    "react-dom": "16.8.6",
+    "react-stripe-elements": "5.0.1",
+    "semantic-ui-react": "0.83.0",
+    "showdown": "1.8.6",
+    "stripe": "2.0.1"
+  }
+}

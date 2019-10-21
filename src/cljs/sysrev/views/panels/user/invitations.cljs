@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.user.invitations
   (:require [clojure.string :as str]
             [ajax.core :refer [GET PUT]]
-            [cljsjs.moment]
+            ["moment" :as moment]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
@@ -59,13 +59,13 @@
         [:h3 project-name]]
        [Column {:width 8}
         [:h5 {:style {:text-align "right"}}
-         (-> created js/moment ($ format "YYYY-MM-DD h:mm A"))]]]
+         (-> created (moment.) ($ format "YYYY-MM-DD h:mm A"))]]]
       [Row
        [Column {:width 16}
         (when-not (nil? accepted)
           [:div (space-join ["You" (if accepted "accepted" "declined")
-                             "this invitation on" (-> updated js/moment ($ format "YYYY-MM-DD"))
-                             "at" (-> updated js/moment ($ format "h:mm A"))])])]]]
+                             "this invitation on" (-> updated (moment.) ($ format "YYYY-MM-DD"))
+                             "at" (-> updated (moment.) ($ format "h:mm A"))])])]]]
      (when (nil? accepted)
        [:div
         [:h3 (str "You've been invited as a " description ".")]

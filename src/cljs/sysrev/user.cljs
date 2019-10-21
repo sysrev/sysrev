@@ -7,6 +7,7 @@
             [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
+            ["react-dnd" :as react-dnd]
             sysrev.base
             sysrev.core
             sysrev.util

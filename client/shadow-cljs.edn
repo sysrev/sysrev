@@ -1,0 +1,35 @@
+{:nrepl {:port 7888}
+ :source-paths ["src/cljs" "src/cljc"]
+ :builds {:dev {:target :browser
+                :output-dir "resources/public/out-dev"
+                :asset-path "/out"
+                :modules {:sysrev {:entries [sysrev.user]
+                                   :init-fn sysrev.core/on-jsload}}}
+          :prod {:target :browser
+                 :output-dir "resources/public/out-production"
+                 :asset-path "/out"
+                 :modules {:sysrev {:entries [sysrev.core]}}
+                 :compiler-options {:infer-externs :auto}
+                 :release {:compiler-options {:optimizations :advanced}}}}
+ :dependencies [#_ [org.clojure/clojure "1.10.1"]
+                #_ [org.clojure/clojurescript "1.10.520"]
+;;; CLJ/CLJS libraries
+                [orchestra "2018.12.06-2" #_ "2019.02.06-1"]
+                [org.clojure/tools.logging "0.5.0"]
+                [ch.qos.logback/logback-classic "1.2.3"]
+                [org.slf4j/jul-to-slf4j "1.7.28"]
+                [org.clojure/test.check "0.10.0"]
+;;; Client libraries (CLJS)
+                [com.cognitect/transit-cljs "0.8.256"]
+                [reagent "0.8.1"]
+                [re-frame "0.10.9"]
+                #_ [reagent "0.9.0-rc2"]
+                #_ [re-frame "0.11.0-rc2"]
+                [day8.re-frame/http-fx "0.1.6"]
+                [clj-commons/secretary "1.2.4"]
+                [kibu/pushy "0.3.8"]
+                [cljs-http "0.1.46"]
+                [com.andrewmcveigh/cljs-time "0.5.2"]
+;;; Cider
+                [cider/cider-nrepl "0.22.1"]
+                [refactor-nrepl "2.4.1-SNAPSHOT"]]}

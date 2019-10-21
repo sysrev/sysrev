@@ -1,12 +1,13 @@
 (ns sysrev.util
-  (:require [goog.string :as gstring :refer [unescapeEntities]]
+  (:require ["jquery" :as jquery]
+            ["moment" :as moment]
+            ["dropzone" :as Dropzone]
+            [goog.string :as gstring :refer [unescapeEntities]]
             [goog.string.format]
             [clojure.string :as str]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
             [cljs-time.format :as tformat]
-            [cljsjs.jquery]
-            [cljsjs.moment]
             [reagent.interop :refer-macros [$]]
             [sysrev.shared.util :refer [parse-integer ensure-pred]]))
 
@@ -377,7 +378,7 @@
       (-> (js/$ annotate-css) (.css "max-height" (str annotate-height-em "em"))))))
 
 (defn unix-epoch->date-string [unix]
-  (-> unix (js/moment.unix) ($ format "YYYY-MM-DD HH:mm:ss")))
+  (-> unix (moment/unix) ($ format "YYYY-MM-DD HH:mm:ss")))
 
 (defn condensed-number
   "Condense numbers over 1000 to be factors of k"
@@ -411,3 +412,8 @@
   "Wrapper to run js/console.error using printf-style formatting."
   [format-string & args]
   (js/console.warn (apply format format-string args)))
+
+(defn ^:export add-dropzone-file-blob [to-blob base64-image]
+  (let [zone (Dropzone/forElement ".dropzone")
+        blob (to-blob base64-image "image / png")]
+    (.addFile zone blob)))

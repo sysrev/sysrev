@@ -1,6 +1,0 @@
-#!/bin/bash
-set -eu
-
-source ../vars.sh
-
-lein with-profile +dev,+repl,+local-repl,+figwheel figwheel

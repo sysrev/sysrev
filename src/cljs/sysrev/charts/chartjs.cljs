@@ -1,5 +1,5 @@
 (ns sysrev.charts.chartjs
-  (:require [cljsjs.chartjs]
+  (:require ["chart.js" :as chartjs]
             [reagent.core :as r]))
 
 ;; React component implementation based on core functionality from:
@@ -9,13 +9,13 @@
   (let [{:keys [type data options width height]} (r/props chart)]
     (swap! (r/state-atom chart) assoc
            :chart-instance
-           (js/Chart. (-> (r/dom-node chart) .-firstChild .-firstChild)
-                      (clj->js {:type type
-                                :data data
-                                :options
-                                (merge {:responsive true
-                                        :maintainAspectRatio false}
-                                       options)})))))
+           (chartjs/Chart. (-> (r/dom-node chart) .-firstChild .-firstChild)
+                           (clj->js {:type type
+                                     :data data
+                                     :options
+                                     (merge {:responsive true
+                                             :maintainAspectRatio false}
+                                            options)})))))
 
 (defn- chart-component [{:keys [type data options width height]}]
   (let [ref (atom nil)]

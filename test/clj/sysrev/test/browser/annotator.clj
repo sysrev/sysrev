@@ -25,7 +25,8 @@
 (def edit-annotation-icon ".ui.form.edit-annotation i.pencil.icon")
 (def sidebar-el
   (-> "div.panel-side-column > div.visibility-wrapper"
-      (b/not-class "placeholder")))
+      (b/not-class "placeholder")
+      (b/not-class "constraint")))
 (def annotation-value-input
   (b/not-disabled (css sidebar-el "div.field.value" "input")))
 (def semantic-class-input
@@ -118,16 +119,17 @@
         dd-item-q (b/not-disabled (semantic-class-dropdown-item semantic-class))]
     (cond
       ;; check if have text input field (no default selected)
-      (taxi/element input-q)           ; enter value into text input
+      (taxi/element input-q)
+      (b/set-input-text input-q semantic-class) ; enter value into text input
       ;; otherwise have dropdown menu
-      (b/input-text input-q semantic-class)
       (taxi/element dd-menu-q)
       (do (b/click dd-menu-q :delay 50) ; click dropdown input to expand menu
           (if (taxi/element dd-item-q) ; check if the value we want is already in the list
             (b/click dd-item-q :delay 50) ; value found, click to select
             ;; menu doesn't have this value
-            (do (b/click semantic-class-new-button) ; click button to add a new value
-                (b/input-text input-q semantic-class) ; enter the new value into text input
+            (do (b/click dd-menu-q :delay 50) ; collapse dropdown menu
+                (b/click semantic-class-new-button) ; click button to add a new value
+                (b/set-input-text input-q semantic-class) ; enter the new value into text input
                 )))
       :else (log/warn "no dropdown input found"))))
 
@@ -160,6 +162,7 @@
                        (Thread/sleep 20)
                        (let [fields (cond-> [:semantic-class :value]
                                       selection (conj :selection))]
+                         #_ (is )
                          (in? (->> (sidebar-annotations)
                                    (map #(select-keys % fields) ))
                               (select-keys entry fields))))]
@@ -171,7 +174,7 @@
                           :start-x start-x :offset-x offset-x
                           :start-y (+ 2 (or start-y 0)) :offset-y offset-y)
     (input-semantic-class semantic-class)
-    (b/input-text annotation-value-input value)
+    (b/set-input-text annotation-value-input value)
     (check-values)
     (b/click save-annotation-button)
     (b/wait-until-exists edit-annotation-icon)

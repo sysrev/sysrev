@@ -201,3 +201,8 @@ profiles.clj
 /vars.sh
 /flyway.cmd
 /vars.deploy.sh
+
+boot-cljsjs-checksums.edn
+client/node_modules
+client/semantic
+cljsjs/react-dnd

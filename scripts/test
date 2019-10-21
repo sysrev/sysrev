@@ -6,7 +6,7 @@ source vars.sh
 set -x
 
 cd client
-lein cljsbuild once production
+shadow-cljs release prod --source-maps
 cd ..
 
 time lein test

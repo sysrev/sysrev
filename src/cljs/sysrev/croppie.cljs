@@ -1,14 +1,13 @@
 (ns sysrev.croppie
   (:require [clojure.string :as str]
             [ajax.core :refer [GET POST HEAD]]
-            [jborden.croppie]
+            ["form-data" :as FormData]
+            ["croppie" :as Croppie]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe]]
             [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.semantic :refer [Button Loader]]))
-
-(def Croppie js/Croppie)
 
 (def error-atom (atom {}))
 
@@ -53,7 +52,7 @@
                                                                  {:type "blob"
                                                                   :format "png"}))]
                          ($ result then (fn [result]
-                                          (let [form-data (doto (js/FormData.)
+                                          (let [form-data (doto (FormData.)
                                                             ($ append "filename" (str user-id "-avatar.png"))
                                                             ($ append "file" result)
                                                             ($ append "meta" ($ js/JSON stringify

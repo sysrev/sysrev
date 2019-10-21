@@ -4,7 +4,8 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-fx]]
             [sysrev.util :as util :refer [now-ms]]
-            [sysrev.shared.util :as sutil :refer [in? opt-keys apply-keyargs]]))
+            [sysrev.shared.util :as sutil :refer [in? apply-keyargs]
+             :refer-macros [opt-keys]]))
 
 (defonce ^:private ajax-db (r/atom {}))
 
@@ -49,15 +50,9 @@
              (get-in counts [:returned %] 0)))
    boolean))
 
-#_
 (defn-spec any-loading? boolean?
   "Tests if any AJAX data request is currently pending."
   [& {:keys [only ignore] :as opts} (opt-keys ::only ::ignore)]
-  (apply-keyargs any-pending-impl @ajax-data-counts opts))
-
-(defn any-loading?
-  "Tests if any AJAX data request is currently pending."
-  [& {:keys [only ignore] :as opts}]
   (apply-keyargs any-pending-impl @ajax-data-counts opts))
 
 (defn-spec item-failed? boolean?
@@ -110,15 +105,9 @@
   (> (or @(action-sent-count item) 0)
      (or @(action-returned-count item) 0)))
 
-#_
 (defn-spec any-action-running? boolean?
   "Tests if any AJAX action request is currently pending."
   [& {:keys [only ignore] :as opts} (opt-keys ::only ::ignore)]
-  (apply-keyargs any-pending-impl @ajax-action-counts opts))
-
-(defn any-action-running?
-  "Tests if any AJAX action request is currently pending."
-  [& {:keys [only ignore] :as opts}]
   (apply-keyargs any-pending-impl @ajax-action-counts opts))
 
 ;;;

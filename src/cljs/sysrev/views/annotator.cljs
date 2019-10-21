@@ -1,5 +1,5 @@
 (ns sysrev.views.annotator
-  (:require [cljsjs.semantic-ui-react]
+  (:require ["jquery" :as jquery]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
@@ -381,7 +381,7 @@
       (for [ann-id (->> (keys annotations) (filter integer?) sort reverse)] ^{:key ann-id}
         [AnnotationEditor context ann-id]))]))
 
-(def js-text-type (type (js/Text.)))
+(defonce js-text-type (type (js/Text.)))
 
 (defn previous-text
   "Get all previous text from nodes up until node with attribute
@@ -464,7 +464,8 @@
                   (set [:new-annotation] entry)
                   (set-ann (:annotation-id entry) nil entry)
                   (when (not touchscreen?)
-                    (-> #(.focus (js/$ ".annotation-view.new-annotation .field.value input"))
+                    (-> (fn [] (-> (js/$ ".annotation-view.new-annotation .field.value input")
+                                   (jquery/focus)))
                         (js/setTimeout 50))))))
             true))]
     [:div.annotation-capture {:on-mouse-up update-selection

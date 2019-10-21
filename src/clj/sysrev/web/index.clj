@@ -79,9 +79,9 @@
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"
               :integrity "sha384-FVC5kR7Wzc7qaZ3O99Q7bSdrAYQJU4eDVt3icJnuHwfTMiM27DfvBF3nJuPQ1Ybe"
               :crossorigin "anonymous"}]
-    [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"
-              :integrity "sha384-HENZbXzFIaIvM6Lf55V7Bt1g1e2I57cJ/ChnBirhGwF0drEO78qhs24L8mfC2Wh6"
-              :crossorigin "anonymous"}]
+    #_ [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"
+                 :integrity "sha384-HENZbXzFIaIvM6Lf55V7Bt1g1e2I57cJ/ChnBirhGwF0drEO78qhs24L8mfC2Wh6"
+                 :crossorigin "anonymous"}]
     (favicon-headers)
     (apply page/include-css (css-paths :theme (user-theme request)))
     (page/include-js "/ga.js")

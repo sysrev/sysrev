@@ -261,10 +261,10 @@
      ;; define re-frame sub for reading panel state.
      ;; behavior should be equivalent to :panel-field.
      ~(when get-sub
-        `(reg-sub ~get-sub (fn [db# [_ path#]]
+        `(reg-sub ~get-sub (fn [db# [_# path#]]
                              (~get-fn db# path#))))
      ;; define re-frame event for setting panel state.
      ;; behavior should be equivalent to :set-panel-field.
      ~(when set-event
-        `(reg-event-db ~set-event (fn [db# [_ path# val#]]
+        `(reg-event-db ~set-event (fn [db# [_# path# val#]]
                                     (~set-fn db# path# val#))))))

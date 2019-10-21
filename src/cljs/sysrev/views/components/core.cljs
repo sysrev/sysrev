@@ -1,10 +1,10 @@
 (ns sysrev.views.components.core
-  (:require [clojure.spec.alpha :as s]
+  (:require ["clipboard" :as Clipboard]
+            ["dropzone" :as Dropzone]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [cljsjs.clipboard]
-            [cljsjs.dropzone]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer [in? css]]))
 
@@ -31,7 +31,7 @@
           (clj->js
            (cond-> {}
              onChange (merge {:onChange onChange})))))
-    :reagent-render (fn [elt] elt)}))
+    :reagent-render (fn [elt & opts] elt)}))
 
 (defn selection-dropdown [selected-item items &
                           [{:keys [id class onChange]
@@ -388,7 +388,7 @@
               (-> js/window
                   (.setTimeout reset-ui transtime)))
             (get-clipboard [el]
-              (let [clip (js/Clipboard. (r/dom-node el))]
+              (let [clip (Clipboard. (r/dom-node el))]
                 (.on clip "success" clip-success)
                 clip))
             (reset-clip! [el] (reset! clip (get-clipboard el)))
@@ -604,7 +604,7 @@
               :timeout (* 1000 60 60 4)}
         error-msg (r/atom nil)]
     (letfn [(init-dropzone [url]
-              (-> (js/Dropzone.
+              (-> (Dropzone.
                    (str "#" id)
                    (clj->js
                     (->> {:previewTemplate

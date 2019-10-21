@@ -1,18 +1,15 @@
 (ns sysrev.annotation
   (:require cljs.reader
             [clojure.string :as str]
-            [cljsjs.semantic-ui-react]
             [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
             [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-sub-raw reg-event-db
                                    reg-event-fx trim-v]]
+            [sysrev.views.semantic :refer [Popup]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 
-(def semantic-ui js/semanticUIReact)
-(def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
-(def Dropdown (r/adapt-react-class (goog.object/get semantic-ui "Dropdown")))
 ;; accessing state for testing:
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
 ;; @(subscribe [:article/abstract 7978])

@@ -1,6 +1,5 @@
 (ns sysrev.core
   (:require [orchestra-cljs.spec.test :as t]
-            [cljsjs.jquery]
             [reagent.core :as reagent]
             [re-frame.core :as re-frame :refer
              [dispatch dispatch-sync subscribe reg-sub reg-event-db]]
@@ -68,7 +67,7 @@
     (enable-console-print!)
     (t/instrument)))
 
-(defn on-jsload []
+(defn ^:export on-jsload []
   (dev-setup)
   (mount-root))
 

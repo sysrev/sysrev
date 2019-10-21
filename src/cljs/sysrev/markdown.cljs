@@ -1,10 +1,12 @@
 (ns sysrev.markdown
   (:require [clojure.string :as str]
-            [cljsjs.showdown]
+            ["showdown" :as showdown]
+            ["dompurify" :as DOMPurify]
             [clojure.spec.alpha :as s]
             [goog.dom :as gdom]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
+            [reagent.ratom :as ratom]
             [sysrev.views.semantic :refer [Segment TextArea]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]]))
@@ -29,16 +31,15 @@
 ;; marked-sanitizer-github: https://www.npmjs.com/package/marked-sanitizer-github
 
 (defn create-markdown-html [markdown]
-  (let [converter (js/showdown.Converter. (clj->js {:simpleLineBreaks true}))]
+  (let [converter (showdown/Converter. (clj->js {:simpleLineBreaks true}))]
     ;; this is a hook to add target=_blank to anything with a href
-    ($ js/DOMPurify addHook "afterSanitizeAttributes"
-       (fn [node] (when ($ node hasAttribute "href")
-                    ($ node setAttribute "target" "_blank"))))
-    (->> markdown ($ converter makeHtml) ($ js/DOMPurify sanitize))))
+    (DOMPurify/addHook "afterSanitizeAttributes"
+                       (fn [node] (when (.hasAttribute node "href")
+                                    (.setAttribute node "target" "_blank"))))
+    (->> markdown (.makeHtml converter) (DOMPurify/sanitize))))
 
-(defn html->string
-  [s]
-  (let [div-container (.createElement js/document "div")]
+(defn html->string [s]
+  (let [div-container (js/document.createElement "div")]
     (set! (.-innerHTML div-container) s)
     (gdom/getTextContent div-container)))
 
@@ -47,8 +48,8 @@
          :style {:word-wrap "break-word"}
          :dangerouslySetInnerHTML {:__html (create-markdown-html markdown)}}])
 
-(s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
-                    (instance? reagent.ratom/RCursor %)))
+(s/def ::ratom #(or (instance? ratom/RAtom %)
+                    (instance? ratom/RCursor %)))
 
 (s/def ::content string?)
 (s/def ::set-content! fn?)

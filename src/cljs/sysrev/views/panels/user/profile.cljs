@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.user.profile
   (:require [clojure.string :as str]
             [ajax.core :refer [GET POST PUT]]
-            [cljsjs.moment]
+            ["moment" :as moment]
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
@@ -66,7 +66,7 @@
     [Message (cond-> {}
                accepted (merge {:positive true})
                (false? accepted) (merge {:negative true}))
-     [:div (-> created js/moment ($ format "YYYY-MM-DD h:mm A"))]
+     [:div (-> created (moment.) ($ format "YYYY-MM-DD h:mm A"))]
      [:div (str "This user was invited as a " description " to " project-name ".")]
      (when-not (nil? accepted)
        [:div (str "Invitation " (if accepted "accepted " "declined "))])]))

@@ -1,6 +1,5 @@
 (ns sysrev.pdf
-  (:require [cljsjs.semantic-ui-react]
-            [goog.dom :as dom]
+  (:require [goog.dom :as dom]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer
@@ -83,21 +82,6 @@
  [trim-v]
  (fn [db [context & [panel]]]
    (ui-state/set-view-field db view [context] initial-view-state panel)))
-
-(def semantic-ui js/semanticUIReact)
-(def Button (r/adapt-react-class (goog.object/get semantic-ui "Button")))
-(def Header (r/adapt-react-class (goog.object/get semantic-ui "Header")))
-(def ModalHeader (r/adapt-react-class
-                  ($ (goog.object/get semantic-ui "Modal")
-                     :Header)))
-(def ModalContent (r/adapt-react-class
-                   ($ (goog.object/get semantic-ui "Modal")
-                      :Content)))
-(def ModalDescription (r/adapt-react-class
-                       ($ (goog.object/get semantic-ui "Modal")
-                          :Description)))
-
-(def Modal (r/adapt-react-class (goog.object/get semantic-ui "Modal")))
 
 ;; this in lieu of an externs file
 (when (= (base/app-id) :main)

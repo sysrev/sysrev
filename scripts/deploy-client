@@ -16,7 +16,8 @@ rm -f $dir/deploy/client.tgz
 
 if [[ $SYSREV_REBUILD == "1" ]]; then
     cd client
-    lein do clean, cljsbuild once production
+    rm -rf .shadow-cljs/builds/prod || true
+    shadow-cljs release prod --source-maps --force-spawn
     cd ..
 
     ./scripts/build-css

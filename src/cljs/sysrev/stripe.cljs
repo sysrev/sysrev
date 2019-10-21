@@ -1,7 +1,7 @@
 (ns sysrev.stripe
-  (:require [ajax.core :refer [POST GET]]
+  (:require ["react-stripe-elements" :as RStripe]
+            [ajax.core :refer [POST GET]]
             [cljs-http.client :refer [generate-query-string]]
-            [jborden.react-stripe-elements]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [reg-sub subscribe dispatch reg-event-db trim-v]]
@@ -28,12 +28,12 @@
           (.getAttribute "data-stripe-client-id")))
 
 ;; Stripe elements
-(def Elements (r/adapt-react-class js/ReactStripeElements.Elements))
-(def CardCVCElement (r/adapt-react-class js/ReactStripeElements.CardCVCElement))
-(def CardElement (r/adapt-react-class js/ReactStripeElements.CardElement))
-(def CardExpiryElement (r/adapt-react-class js/ReactStripeElements.CardExpiryElement))
-(def CardNumberElement (r/adapt-react-class js/ReactStripeElements.CardNumberElement))
-(def StripeProvider (r/adapt-react-class js/ReactStripeElements.StripeProvider))
+(def Elements (r/adapt-react-class RStripe/Elements))
+(def CardCVCElement (r/adapt-react-class RStripe/CardCVCElement))
+(def CardElement (r/adapt-react-class RStripe/CardElement))
+(def CardExpiryElement (r/adapt-react-class RStripe/CardExpiryElement))
+(def CardNumberElement (r/adapt-react-class RStripe/CardNumberElement))
+(def StripeProvider (r/adapt-react-class RStripe/StripeProvider))
 
 (def element-style {:base {:color "#424770"
                            :letterSpacing "0.025em"
@@ -132,7 +132,7 @@
 (defn inject-stripe [comp]
   (-> comp
       (r/reactify-component)
-      (js/ReactStripeElements.injectStripe)
+      (RStripe/injectStripe)
       (r/adapt-react-class)))
 
 ;; https://stripe.com/docs/payments/cards/saving-cards-without-payment

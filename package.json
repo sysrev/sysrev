@@ -4,10 +4,10 @@
   "description": "FIXME: Write a one-line description of your library/project.",
   "main": "index.js",
   "dependencies": {
-    "gulp": "^3.9.1",
     "jquery": "3.2.1",
-    "natives": "^1.1.6",
-    "semantic-ui": "^2.4.2"
+    "fomantic-ui": "2.7.8",
+    "graceful-fs": "4.2.2",
+    "gulp": "^4.0.2"
   },
   "devDependencies": {},
   "scripts": {
