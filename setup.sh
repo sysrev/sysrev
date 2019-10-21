@@ -14,6 +14,12 @@ echo "Building CSS"
 ./scripts/build-all-css
 echo
 
+echo "Installing client packages from NPM"
+cd client
+npm install
+cd ..
+echo
+
 echo
 echo "You will need to create file vars.sh (see vars.sh.template) and manually add the required private values"
 
