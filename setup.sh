@@ -14,9 +14,14 @@ echo "Building CSS"
 ./scripts/build-all-css
 echo
 
+echo "Copying semantic directory to client/"
+rm -rf client/semantic || true
+cp -r semantic client/
+echo
+
 echo "Installing client packages from NPM"
 cd client
-npm install
+npm install > /dev/null
 cd ..
 echo
 
