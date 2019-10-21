@@ -49,7 +49,7 @@
 
 (defn user-group-permission
   [user-id group-name]
-  (group/user-group-permission user-id (group/group-name->group-id group-name)))
+  (group/user-group-permission user-id (group/group-name->id group-name)))
 
 (defn org-user-table-entries []
   (b/wait-until-exists org-user-table)
@@ -195,7 +195,7 @@
 
 ;; delete a org's card:
 #_(let [group-id (-> (group/read-groups user-id) first :id)
-        stripe-id (group/get-stripe-id group-id)
+        stripe-id (group/group-stripe-id group-id)
         source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
     (stripe/delete-customer-card! stripe-id source-id))
 
@@ -216,7 +216,7 @@
     ;; need to be a stripe customer
     (when-not (user-by-email email :stripe-id)
       (log/info (str "Stripe Customer created for " email))
-      (user/create-sysrev-stripe-customer! (user-by-email email)))
+      (user/create-user-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
     ;; current plan
@@ -357,5 +357,4 @@
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
     (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-  :cleanup
-  (do (b/cleanup-test-user! :email email :groups true)))
+  :cleanup (b/cleanup-test-user! :email email :groups true))

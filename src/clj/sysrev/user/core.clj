@@ -233,7 +233,7 @@
                                                             (:project-id %)))))))]
     {:projects (->> [projects all-projects] (apply concat) vec)}))
 
-(defn create-sysrev-stripe-customer!
+(defn create-user-stripe-customer!
   "Create a stripe customer from user"
   [user]
   (let [{:keys [email user-uuid user-id]} user
@@ -244,14 +244,13 @@
       (try (do (q/modify :web-user {:user-id user-id} {:stripe-id stripe-customer-id})
                {:success true})
            (catch Throwable e
-             {:error {:message "Exception in create-sysrev-stripe-customer!"
+             {:error {:message "Exception in create-user-stripe-customer!"
                       :exception e}}))
       {:error {:message (str "No customer id returned by stripe.com for email: "
                              email " and uuid: " user-uuid)}})))
 
 ;; for testing purposes
-(defn delete-sysrev-stripe-customer!
-  [{:keys [stripe-id user-id]}]
+(defn delete-user-stripe-customer! [{:keys [stripe-id user-id] :as user}]
   (with-transaction
     (let [stripe-source-id (:id (stripe/read-default-customer-source stripe-id))]
       (when stripe-source-id

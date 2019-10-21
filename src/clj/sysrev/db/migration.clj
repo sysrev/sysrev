@@ -82,7 +82,7 @@
 (defn ensure-groups
   "Ensure that there are always the required SysRev groups"
   []
-  (when-not (group/group-name->group-id "public-reviewer")
+  (when-not (group/group-name->id "public-reviewer")
     (group/create-group! "public-reviewer")))
 
 ;; only meant to be used once

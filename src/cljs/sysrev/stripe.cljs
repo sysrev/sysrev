@@ -8,7 +8,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.views.semantic :as semantic :refer [Button Form]]
+            [sysrev.views.semantic :refer [Button Form]]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
@@ -46,13 +46,11 @@
                 (assoc-in db [:state :stripe :calling-route] calling-route)))
 
 (reg-event-db :stripe/set-disable-form! [trim-v]
-              (fn [db [bool]]
-                (assoc-in db [:state :stripe :disable-form]
-                          bool)))
+              (fn [db [disabled]]
+                (assoc-in db [:state :stripe :disable-form] disabled)))
 
 (reg-sub :stripe/form-disabled?
-         (fn [db [_ & _]]
-           (get-in db [:state :stripe :disable-form])))
+         (fn [db] (get-in db [:state :stripe :disable-form])))
 
 (def-action :stripe/add-payment-user
   :uri (fn [user-id _] (str "/api/user/" user-id "/stripe/payment-method"))
@@ -113,7 +111,7 @@
              (-> (get-in db [:data :default-stripe-source :org])
                  (contains? org-id)))
   :process (fn [{:keys [db]} [org-id] {:keys [default-source]}]
-             {:db (-> (assoc-in db [:data :default-stripe-source :org org-id] default-source))}))
+             {:db (assoc-in db [:data :default-stripe-source :org org-id] default-source)}))
 
 (reg-sub :org/default-source
          (fn [db [_ org-id]]
@@ -125,8 +123,7 @@
              {:db (assoc-in db [:state :stripe :client-secret] client_secret)}))
 
 (reg-sub :stripe/payment-intent-client-secret
-         (fn [db [_ & _]]
-           (get-in db [:state :stripe :client-secret])))
+         (fn [db] (get-in db [:state :stripe :client-secret])))
 
 (reg-event-db :stripe/clear-setup-intent! [trim-v]
               (fn [db _]
@@ -246,8 +243,8 @@
                 "redirect_uri" (str js/window.location.origin "/user/settings")
                 "state" @(subscribe [:csrf-token])
                 "suggest_capabilities[]" "transfers"}]
-    [semantic/Button {:href (str "https://connect.stripe.com/express/oauth/authorize?"
-                                 (generate-query-string params))}
+    [Button {:href (str "https://connect.stripe.com/express/oauth/authorize?"
+                        (generate-query-string params))}
      "Connect with Stripe"]))
 
 (defn check-if-stripe-user! []

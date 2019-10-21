@@ -28,31 +28,24 @@
                   :throw-exceptions false
                   :as :json})
 
-(defn execute-action
-  [action]
+(defn execute-action [action]
   (common/with-token stripe-secret-key
     (common/execute action)))
 
-(defn stripe-get
-  [uri & [query-params]]
-  (-> (http/get (str stripe-url uri)
+(defn stripe-get [uri & [query-params]]
+  (:body (http/get (str stripe-url uri)
                    (cond-> default-req
                      query-params
-                     (assoc :query-params (clojure.walk/stringify-keys query-params))))
-      :body))
+                     (assoc :query-params (clojure.walk/stringify-keys query-params))))))
 
-(defn stripe-post
-  [uri & [form-params]]
-  (-> (http/post (str stripe-url uri)
+(defn stripe-post [uri & [form-params]]
+  (:body (http/post (str stripe-url uri)
                     (assoc default-req
                            :form-params
-                           (clojure.walk/stringify-keys form-params)))
-      :body))
+                           (clojure.walk/stringify-keys form-params)))))
 
-(defn stripe-delete
-  [uri]
-  (:body (http/delete (str stripe-url uri)
-                      default-req)))
+(defn stripe-delete [uri]
+  (:body (http/delete (str stripe-url uri) default-req)))
 
 (defn create-customer!
   "Create a stripe customer"
@@ -73,22 +66,15 @@
 (defn read-customer-sources
   "Return the customer fund sources"
   [stripe-id]
-  (let [customer (get-customer stripe-id)
-        sources (:sources customer)
-        default-source (:default_source customer)]
-    (assoc sources :default-source default-source)))
+  (let [{:keys [sources default_source]} (get-customer stripe-id)]
+    (assoc sources :default-source default_source)))
 
-(defn get-customer-payment-methods
-  [stripe-id]
-  (stripe-get "/payment_methods"
-              {:customer stripe-id
-               :type "card"}))
+(defn read-default-customer-source [stripe-id]
+  (let [{:keys [data default-source] :as sources} (read-customer-sources stripe-id)]
+    (first (->> data (filter #(= (:id %) default-source))))))
 
-(defn read-default-customer-source
-  [stripe-id]
-  (let [customer-sources (read-customer-sources stripe-id)
-        default-source (:default-source customer-sources)]
-    (first (filter #(= (:id %) default-source) (:data customer-sources)))))
+(defn get-customer-payment-methods [stripe-id]
+  (stripe-get "/payment_methods" {:customer stripe-id :type "card"}))
 
 (defn get-payment-method
   "Get the payment-method by its id "
@@ -143,8 +129,7 @@
 ;;
 ;;
 ;; !!! WARNING !!
-(defn- delete-all-customers!
-  []
+(defn- delete-all-customers! []
   (if (and (re-matches #"pk_test_.*" (env :stripe-public-key))
            (re-matches #"sk_test_.*" (env :stripe-secret-key)))
     (let [do-action (fn [action]
@@ -154,24 +139,16 @@
             ;; note that even the limit-count is hard coded here
             ;; you may have to run this function more than once if you have
             ;; created a lot of stray stripe customers
-            (->> (do-action (customers/get-customers (common/limit-count 100)))
-                 :data
-                 (mapv :id))))
-    (log/info (str "Error in " (current-function-name) ": " "attempt to run with non-test keys"))))
+            (mapv :id (:data (do-action (customers/get-customers (common/limit-count 100)))))))
+    (log/info "Error in" (current-function-name) "- attempt to run with non-test keys")))
 
-(defn list-subscriptions
-  [& {:keys [limit]
-      :or {limit 10}}]
-  (stripe-get "/subscriptions"
-              {:limit (str limit)}))
+(defn list-subscriptions [& {:keys [limit] :or {limit 10}}]
+  (stripe-get "/subscriptions" {:limit (str limit)}))
 
-(defn delete-subscription!
-  [subscription-id]
+(defn delete-subscription! [subscription-id]
   (stripe-delete (str "/subscriptions/" subscription-id)))
 
-(defn- delete-all-subscriptions!
-  [& {:keys [limit]
-      :or {limit 10}}]
+(defn- delete-all-subscriptions! [& {:keys [limit] :or {limit 10}}]
   (if (and (re-matches #"pk_test_.*" (env :stripe-public-key))
            (re-matches #"sk_test_.*" (env :stripe-secret-key)))
     (let [subscriptions (:data (list-subscriptions :limit limit))
@@ -185,12 +162,9 @@
   []
   (execute-action (plans/get-all-plans)))
 
-(defn get-plan-id
-  "Given a plan nickname, return the plan-id"
-  [nickname]
-  (->
-   (filter #(= (:nickname %) nickname) (:data (get-plans)))
-   first :id))
+(defn get-plan-id [nickname]
+  (:id (first (->> (:data (get-plans))
+                   (filter #(= nickname (:nickname %)))))))
 
 ;; prorating does occur, but only on renewal day (e.g. day payment is due)
 ;; it is not prorated at the time of upgrade/downgrade
@@ -209,7 +183,9 @@
     response))
 
 (defn create-subscription-org!
-  "Create a subscription using the basic plan for group-id. This subscription is used for all subsequent subscription plans. Return the stripe response."
+  "Create a subscription using the basic plan for group-id. This
+  subscription is used for all subsequent subscription plans. Return
+  the stripe response."
   [group-id stripe-id]
   (let [{:keys [plan id error] :as response}
         (stripe-post "/subscriptions"
@@ -222,7 +198,7 @@
     response))
 
 ;; not needed for main application, needed only in tests
-(defn unsubscribe-customer!
+(defn ^:unused unsubscribe-customer!
   "Unsubscribe a user. This just removes user from all plans"
   [stripe-id]
   ;; need to remove the user from plan_user table!!!
@@ -231,56 +207,49 @@
 ;; https://stripe.com/docs/billing/subscriptions/quantities#setting-quantities
 
 (defn support-project-monthly!
-  "User supports a project-id for amount (integer cents). Does not handle overhead of increasing / decreasing already supported projects"
-  [user project-id amount]
-  (let [stripe-response
+  "User supports a project-id for amount (integer cents). Does not
+  handle overhead of increasing / decreasing already supported
+  projects"
+  [{:keys [user-id stripe-id] :as user} project-id amount]
+  (let [{:keys [body status] :as stripe-response}
         (http/post (str stripe-url "/subscriptions")
                    (assoc default-req
                           :form-params
-                          {"customer" (:stripe-id user)
+                          {"customer" stripe-id
                            "items[0][plan]" (:id (db-plans/stripe-support-project-plan))
                            "items[0][quantity]" amount
                            "metadata[project-id]" project-id}))]
-    (cond ;; there was some kind of error
-      (not= (:status stripe-response)
-            200)
-      {:status (:status stripe-response)
-       :body (-> stripe-response
-                 :body
-                 (json/read-str :key-fn keyword))}
-      :else
-      ;; everything seems to be fine, let's update our records
-      (let [{:keys [id created customer quantity status] :as body}
-            (-> stripe-response
-                :body
-                (json/read-str :key-fn keyword))]
-        (db-plans/upsert-support!
-         {:id id
-          :project-id project-id
-          :user-id (:user-id user)
-          :stripe-id customer
-          :quantity quantity
-          :status status
-          :created created})
-        body))))
+    (if (= status 200)
+      ;; success
+      (let [{:keys [id created customer quantity status] :as body-map}
+            (json/read-str body :key-fn keyword)]
+        (db-plans/upsert-support! {:id id
+                                   :project-id project-id
+                                   :user-id user-id
+                                   :stripe-id customer
+                                   :quantity quantity
+                                   :status status
+                                   :created (some-> created util/to-clj-time)})
+        body-map)
+      ;; unknown error
+      {:status status :body (json/read-str body :key-fn keyword)})))
 
 ;;https://stripe.com/docs/api/subscriptions/create
 #_(defn subscribe-plan!
-  "Subscribe to plan-name with stripe-id in quantity "
-  [{:keys [stripe-id plan-id quantity]
-    :or {quantity 1}}]
-  (http/post (str stripe-url "/subscriptions")
-             {:basic-auth stripe-secret-key
-              :coerce :always
-              :throw-exceptions false
-              :as :json
-              :form-params
-              {"customer" stripe-id
-               "items[0][plan]" plan-id
-               "items[0][quantity]" quantity}}))
+    "Subscribe to plan-name with stripe-id in quantity "
+    [{:keys [stripe-id plan-id quantity]
+      :or {quantity 1}}]
+    (http/post (str stripe-url "/subscriptions")
+               {:basic-auth stripe-secret-key
+                :coerce :always
+                :throw-exceptions false
+                :as :json
+                :form-params
+                {"customer" stripe-id
+                 "items[0][plan]" plan-id
+                 "items[0][quantity]" quantity}}))
 
-(defn get-subscription
-  [sub-id]
+(defn get-subscription [sub-id]
   (stripe-get (str "/subscriptions/" sub-id)))
 
 (defn get-subscription-item
@@ -291,68 +260,54 @@
       (-> subscription :items :data first :id))))
 
 (defn update-subscription-item!
-  "Update subscription item with id with optional quantity and optional plan (plan-id)"
-  [{:keys [id plan quantity]
-    :or {quantity 1}}]
+  "Update subscription item with id with optional quantity and optional
+  plan (plan-id)"
+  [{:keys [id plan quantity] :or {quantity 1}}]
   (http/post (str stripe-url "/subscription_items/" id)
-             (assoc default-req
-                    :form-params
-                    (cond-> {}
-                      quantity (assoc "quantity" quantity)
-                      plan (assoc "plan" plan)))))
+             (assoc default-req :form-params (cond-> {}
+                                               quantity (assoc "quantity" quantity)
+                                               plan (assoc "plan" plan)))))
 
-(defn cancel-subscription!
-  "Cancels subscription id"
-  [{:keys [subscription-id]}]
-  (let [{:keys [project-id user-id]}
-        (db-plans/lookup-support-subscription subscription-id)
-        stripe-response
-        (http/delete (str stripe-url "/subscriptions/" subscription-id)
-                     default-req)]
-    (cond ;; there is an error, report it
-      (= (:status stripe-response) 404)
-      (-> stripe-response
-          :body
-          (json/read-str :key-fn keyword)
-          :error)
+(defn cancel-subscription! [sub-id]
+  (let [{:keys [project-id user-id]} (db-plans/lookup-support-subscription sub-id)
+        {:keys [status body]} (http/delete (str stripe-url "/subscriptions/" sub-id)
+                                           default-req)]
+    (if (= status 200)
       ;; everything is ok, cancel this subscription
-      (= (:status stripe-response) 200)
       (let [{:keys [id created customer quantity status]}
-            (-> stripe-response
-                :body
-                (json/read-str :key-fn keyword))]
-        (db-plans/upsert-support!
-         {:id id
-          :project-id project-id
-          :user-id user-id
-          :stripe-id customer
-          :quantity quantity
-          :status status
-          :created created})))))
+            (json/read-str body :key-fn keyword)]
+        (db-plans/upsert-support! {:id id
+                                   :project-id project-id
+                                   :user-id user-id
+                                   :stripe-id customer
+                                   :quantity quantity
+                                   :status status
+                                   :created (some-> created util/to-clj-time)}))
+      ;; there is an error, report it
+      (:error (json/read-str body :key-fn keyword)))))
 
 (defn support-project-once!
   "Make a one-time contribution to a project for amount"
-  [user project-id amount]
-  (try
-    (let [{:keys [id created] :as stripe-response}
-          (execute-action (merge (charges/create-charge
-                                  (common/money-quantity amount "usd")
-                                  (common/description "one time")
-                                  (common/customer (:stripe-id user)))
-                                 {"metadata" {"project-id" project-id}}))]
-      (if-not (nil? (and id created))
-        ;; charge was a success, insert into the db
-        (do (funds/create-project-fund-entry! {:project-id project-id
-                                               :user-id (:user-id user)
-                                               :transaction-id id
-                                               :transaction-source (:stripe-charge funds/transaction-source-descriptor)
-                                               :amount amount
-                                               :created created})
-            {:success true})
-        ;; charge was not success, return response
-        stripe-response))
-    (catch Throwable e
-      {:error {:message (.getMessage e)}})))
+  [{:keys [stripe-id user-id] :as user} project-id amount]
+  (try (let [transaction-source (:stripe-charge funds/transaction-source-descriptor)
+             {:keys [id created] :as stripe-response}
+             (execute-action (merge (charges/create-charge (common/money-quantity amount "usd")
+                                                           (common/description "one time")
+                                                           (common/customer stripe-id))
+                                    {"metadata" {"project-id" project-id}}))]
+         (if (and id created)
+           ;; charge was a success, insert into the db
+           (do (funds/create-project-fund-entry! {:project-id project-id
+                                                  :user-id user-id
+                                                  :transaction-id id
+                                                  :transaction-source transaction-source
+                                                  :amount amount
+                                                  :created (some-> created util/to-clj-time)})
+               {:success true})
+           ;; charge was not success, return response
+           stripe-response))
+       (catch Throwable e
+         {:error {:message (.getMessage e)}})))
 
 ;;https://stripe.com/docs/connect/quickstart?code=ac_Dqv4kl5grW1R7eRtNRQHahcuO6TGcQIq&state=state#express-account-creation
 (defn finalize-stripe-user!
@@ -366,76 +321,56 @@
                      "grant_type" "authorization_code"})))
 
 ;; https://stripe.com/docs/api/transfers/create
-(defn pay-stripe-user!
-  [stripe-account-id amount]
+(defn pay-stripe-user! [stripe-account-id amount]
   (http/post (str stripe-url "/transfers")
-             (assoc default-req
-                    :form-params {"amount" amount
-                                  "currency" "usd"
-                                  "destination" stripe-account-id} )))
+             (assoc default-req :form-params {"amount" amount
+                                              "currency" "usd"
+                                              "destination" stripe-account-id})))
+
 ;;https://stripe.com/docs/api/balance/balance_retrieve
-(defn current-balance
-  []
-  (http/get (str stripe-url "/balance")
-            default-req))
+(defn current-balance []
+  (http/get (str stripe-url "/balance") default-req))
 
 ;;; charge for payments: (- 1000 (* (/ 2.9 100) 1000) 30)
 
 ;; https://stripe.com/docs/api/transfers/retrieve
-(defn retrieve-transfer
-  [transfer-id]
-  (http/get (str stripe-url "/transfers/" transfer-id)
-            default-req))
+(defn retrieve-transfer [transfer-id]
+  (http/get (str stripe-url "/transfers/" transfer-id) default-req))
 
-(defn retrieve-charge
-  [charge-id]
-  (http/get (str stripe-url "/charges/" charge-id)
-            default-req))
+(defn retrieve-charge [charge-id]
+  (http/get (str stripe-url "/charges/" charge-id) default-req))
 
 (defn transaction-history
   "Given a charge-id (ch_*), return the balance history"
   [charge-id]
   (let [{:keys [body]} (retrieve-charge charge-id)
         balance-transaction (:balance_transaction body)]
-    (http/get (str stripe-url "/balance/history/" balance-transaction)
-              default-req)))
+    (http/get (str stripe-url "/balance/history/" balance-transaction) default-req)))
 
-(defn get-setup-intent
-  []
-  (:body (http/post (str stripe-url "/setup_intents")
-                    default-req)))
+(defn get-setup-intent []
+  (:body (http/post (str stripe-url "/setup_intents") default-req)))
 
-(defn get-invoice
-  [invoice-id]
+(defn get-invoice [invoice-id]
   (stripe-get (str "/invoices/" invoice-id)))
 
-(defn get-payment-intent
-  [intent-id]
+(defn get-payment-intent [intent-id]
   (stripe-get (str "/payment_intents/" intent-id)))
 
 ;; "sub_FzYzrXeEK3bHOK"
 
-(defn get-subscription-latest-invoice-intent
-  [subscription-id]
+(defn get-subscription-latest-invoice-intent [subscription-id]
   (-> (get-subscription subscription-id)
       :latest_invoice
       (get-invoice)
       :payment_intent
-      (get-payment-intent)
-      ))
+      (get-payment-intent)))
 
-(defn get-invoices
-  [stripe-id]
-  (stripe-get "/invoices"
-              {:customer stripe-id}))
+(defn get-invoices [stripe-id]
+  (stripe-get "/invoices" {:customer stripe-id}))
 
-(defn get-invoice-ids
-  [stripe-id]
-  (->> (get-invoices stripe-id)
-       :data
-       (map :id)))
+(defn get-invoice-ids [stripe-id]
+  (map :id (:data (get-invoices stripe-id))))
 
 ;; "You can't delete invoices created by subscriptions."
-(defn delete-invoice!
-  [invoice-id]
+(defn delete-invoice! [invoice-id]
   (stripe-delete (str "/invoices/" invoice-id)))

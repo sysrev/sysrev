@@ -33,13 +33,9 @@
   [amount]
   (str "You are currently supporting this project at " amount " per month"))
 
-(defn unsubscribe-user-from-all-support-plans
-  [user]
-  (let [user-subscriptions (plans/user-support-subscriptions user)
-        subscriptions (map :id user-subscriptions)]
-    (when-not (empty? subscriptions)
-      (doall
-       (map #(stripe/cancel-subscription! %) subscriptions)))))
+(defn unsubscribe-user-from-all-support-plans [user]
+  (doseq [{:keys [id]} (plans/user-support-subscriptions user)]
+    (stripe/cancel-subscription! id)))
 
 ;; if you need need to unsubscribe all plans between tests:
 ;; (unsubscribe-user-from-all-support-plans (user-by-email (:email b/test-login)))

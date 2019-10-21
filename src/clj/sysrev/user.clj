@@ -6,6 +6,7 @@
         sysrev.db.entity
         sysrev.db.migration
         sysrev.user.core
+        sysrev.group.core
         sysrev.cassandra
         sysrev.article.core
         sysrev.article.assignment

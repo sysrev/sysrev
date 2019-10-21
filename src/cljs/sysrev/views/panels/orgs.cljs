@@ -26,9 +26,9 @@
                         (let [new-org-id (:id result)]
                           (reset! create-org-retrieving? false)
                           (nav-scroll-top (str "/org/" new-org-id redirect-subpath))))
-             :error-handler (fn [{:keys [response]}]
+             :error-handler (fn [{:keys [error]}]
                               (reset! create-org-retrieving? false)
-                              (reset! create-org-error (-> response :error :message)))}))))
+                              (reset! create-org-error (:message error)))}))))
 
 (defn CreateOrgForm []
   (let [new-org (r/cursor state [:new-org])

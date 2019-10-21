@@ -86,7 +86,7 @@
     (user/set-primary-email! user-id email)
     (if-let [user-group-id (:id (group/read-user-group-name user-id "public-reviewer"))]
       (group/set-user-group-enabled! user-group-id true)
-      (group/add-user-to-group! user-id (group/group-name->group-id "public-reviewer")))))
+      (group/add-user-to-group! user-id (group/group-name->id "public-reviewer")))))
 
 (defn change-project-public-access
   "Change public access setting for current project."

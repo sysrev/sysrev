@@ -321,12 +321,12 @@
     (when wait? (wait-until-loading-completes))
     result))
 
-(defn click [q & {:keys [if-not-exists delay displayed? external?]
+(defn click [q & {:keys [if-not-exists delay displayed? external? timeout]
                   :or {if-not-exists :wait, delay 20}}]
   (letfn [(wait [ms]
             (if external?
               (Thread/sleep (+ ms 20))
-              (wait-until-loading-completes :pre-wait ms)))]
+              (wait-until-loading-completes :pre-wait ms :timeout timeout)))]
     ;; auto-exclude "disabled" class when q is css
     (let [q (if external? q
                 (-> q (not-disabled) (not-loading)))]
@@ -418,7 +418,8 @@
     (group/delete-group! group-id)))
 
 (defn cleanup-test-user!
-  "Deletes a test user by user-id or email, along with other entities the user is associated with."
+  "Deletes a test user by user-id or email, along with other entities
+  the user is associated with."
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
   (sutil/assert-exclusive user-id email)
@@ -426,17 +427,11 @@
         user-id (or user-id (user/user-by-email email :user-id))]
     (when (and email user-id)
       (when projects (delete-test-user-projects! user-id compensations))
-      (when groups
-        (delete-test-user-groups! user-id))
+      (when groups (delete-test-user-groups! user-id))
       (when-let [stripe-id (user/get-user user-id :stripe-id)]
-        ;; delete subscriptions
-        (when-let [{:keys [sub-id]}
-                   (plans/user-current-plan user-id)]
+        (when-let [{:keys [sub-id]} (plans/user-current-plan user-id)]
           (stripe/delete-subscription! sub-id))
-        ;; delete stripe customer
-        (user/delete-sysrev-stripe-customer!
-         {:stripe-id stripe-id
-          :user-id user-id}))
+        (user/delete-user-stripe-customer! {:stripe-id stripe-id :user-id user-id}))
       (delete-test-user :email email))))
 
 (defn url->path

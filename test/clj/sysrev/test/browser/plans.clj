@@ -24,9 +24,9 @@
 
 ;; recreate
 #_(let [email "james@insilica.co" password "testing"]
-  (b/create-test-user :email email :password password)
-  (users/create-sysrev-stripe-customer! (user-by-email email))
-  (stripe/create-subscription-user! (user-by-email email)))
+    (b/create-test-user :email email :password password)
+    (users/create-user-stripe-customer! (user-by-email email))
+    (stripe/create-subscription-user! (user-by-email email)))
 
 (def use-card "form.StripeForm button.ui.button.use-card")
 
@@ -35,14 +35,14 @@
 (defn click-use-card [& {:keys [wait delay error?]
                          :or {wait true delay 50 error? false}}]
   (b/wait-until-loading-completes :timeout 10000 :interval 100)
-  (b/click use-card :displayed? true)
+  (b/click use-card :displayed? true :timeout 15000)
   (log/info "clicked \"Use Card\"")
   (b/wait-until-loading-completes :pre-wait delay))
 
 (defn click-upgrade-plan [& {:keys [delay] :or {delay 50}}]
   (b/wait-until-loading-completes)
-  (b/wait-until-displayed ".ui.button.upgrade-plan" 30000 100)
-  (b/click ".ui.button.upgrade-plan" :displayed? true)
+  (b/wait-until-displayed ".ui.button.upgrade-plan" 30000 50)
+  (b/click ".ui.button.upgrade-plan" :displayed? true :timeout 15000)
   (b/is-soon (not (taxi/exists? (b/not-disabled ".ui.button.upgrade-plan"))))
   (log/info "clicked \"Upgrade Plan\"")
   (b/wait-until-loading-completes :pre-wait delay))
@@ -85,7 +85,7 @@
   [email password]
   (when-not (get-user-customer email)
     (log/info (str "Stripe Customer created for " email))
-    (user/create-sysrev-stripe-customer! (user-by-email email)))
+    (user/create-user-stripe-customer! (user-by-email email)))
   (wait-until-stripe-id email)
   (stripe/create-subscription-user! (user-by-email email))
   (Thread/sleep 100)
@@ -111,7 +111,7 @@
   [{:keys [email password]} b/test-login
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)]
-  (do (user/create-sysrev-stripe-customer! (get-test-user))
+  (do (user/create-user-stripe-customer! (get-test-user))
       (stripe/create-subscription-user! (get-test-user))
       ;; after registering, does the stripe customer exist?
       (wait-until-stripe-id email)
@@ -133,7 +133,7 @@
    get-db-plan #(user-db-plan email)]
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
-      (user/create-sysrev-stripe-customer! (get-test-user))
+      (user/create-user-stripe-customer! (get-test-user))
       (stripe/create-subscription-user! (get-test-user))
       (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?

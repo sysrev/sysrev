@@ -11,7 +11,7 @@
   (fn [request]
     (boolean
      (let [user-id (current-user-id request)
-           group-name (group/group-id->group-name org-id)]
+           group-name (group/group-id->name org-id)]
        (and (group/user-active-in-group? user-id group-name)
             ;; test if they have the correct permissions
             (some (set permissions) (group/user-group-permission user-id org-id)))))))
@@ -29,12 +29,12 @@
    (context "/org/:org-id" [org-id :<< as-int :as request]
             (GET "/users" request
                  (with-authorize request {}
-                   (-> (group/group-id->group-name org-id)
+                   (-> (group/group-id->name org-id)
                        (api/users-in-group))))
             (POST "/user" request
                   (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                     (let [user-id (get-in request [:body :user-id])]
-                      (api/set-user-group! user-id (group/group-id->group-name org-id) true))))
+                      (api/set-user-group! user-id (group/group-id->name org-id) true))))
             (PUT "/user" request
                  (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                    (let [user-id (get-in request [:body :user-id])
@@ -43,7 +43,7 @@
             (DELETE "/user" request
                     (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                       (let [user-id (get-in request [:body :user-id])]
-                        (api/set-user-group! user-id (group/group-id->group-name org-id) false))))
+                        (api/set-user-group! user-id (group/group-id->name org-id) false))))
             (POST "/project" request
                   (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                     (let [project-name (-> request :body :project-name)
@@ -60,18 +60,17 @@
                             {:authorize-fn (org-role? org-id ["owner" "admin"])}
                             (api/org-default-stripe-source org-id)))
                      (POST "/payment-method" request
-                           (with-authorize
-                            request
-                            {:authorize-fn (org-role? org-id ["owner" "admin"])}
-                            (let [{:keys [payment_method]} (:body request)]
-                              (api/update-org-stripe-payment-method! org-id payment_method))))
+                           (with-authorize request
+                             {:authorize-fn (org-role? org-id ["owner" "admin"])}
+                             (let [{:keys [payment_method]} (:body request)]
+                               (api/update-org-stripe-payment-method! org-id payment_method))))
                      (GET "/current-plan" request
                           (with-authorize request
                             {:authorize-fn (org-role? org-id ["owner" "admin" "member"])}
                             (api/group-current-plan org-id)))
                      (POST "/subscribe-plan" request
-                           (with-authorize
-                            request {:authorize-fn (org-role? org-id ["owner" "admin"])}
-                            (let [{:keys [plan-name]} (:body request)]
-                              (api/subscribe-org-to-plan org-id plan-name))))))))
+                           (with-authorize request
+                             {:authorize-fn (org-role? org-id ["owner" "admin"])}
+                             (let [{:keys [plan-name]} (:body request)]
+                               (api/subscribe-org-to-plan org-id plan-name))))))))
 

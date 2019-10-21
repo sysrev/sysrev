@@ -1,87 +1,57 @@
 (ns sysrev.group.core
-  (:require [honeysql-postgres.helpers :refer [returning]]
-            [honeysql.helpers :as sqlh :refer [select from where insert-into values sset modifiers join delete-from]]
-            [sysrev.db.core :as db :refer [do-query do-execute sql-now to-sql-array with-transaction]]
+  (:require [honeysql.helpers :as sqlh]
+            [sysrev.db.core :as db :refer [with-transaction]]
+            [sysrev.db.queries :as q]
             [sysrev.user.core :as user]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 
-(defn group-name->group-id
-  "Given a group-name, get the group-id associated with it"
-  [group-name]
-  (-> (select :group-id)
-      (from :groups)
-      (where [:= :group-name group-name])
-      do-query first :group-id))
+(defn group-name->id [group-name]
+  (q/find-one :groups {:group-name group-name} :group-id))
 
-(defn group-id->group-name
-  "Given a group-id, the the group name"
-  [group-id]
-  (-> (select :group-name)
-      (from :groups)
-      (where [:= :group-id group-id])
-      do-query first :group-name))
+(defn group-id->name [group-id]
+  (q/find-one :groups {:group-id group-id} :group-name))
 
 (defn add-user-to-group!
   "Create a user-group association between group-id and user-id
   with optional :permissions vector (default of [\"member\"])"
   [user-id group-id & {:keys [permissions]}]
-  (-> (insert-into :user-group)
-      (values [(cond-> {:user-id user-id
-                        :group-id group-id}
-                 permissions (assoc :permissions (to-sql-array "text" permissions) ))])
-      (returning :id)
-      do-query first :id))
+  (q/create :user-group (cond-> {:user-id user-id :group-id group-id}
+                          permissions (assoc :permissions (db/to-sql-array "text" permissions)))
+            :returning :id))
 
 (defn get-group-owner [group-id]
-  (-> (select :user-id)
-      (from :user-group)
-      (where [:and
-              [:= :group-id group-id]
-              [:= "owner" :%any.permissions]])
-      do-query first :user-id))
+  (q/find-one :user-group {:group-id group-id} :user-id
+              :where [:= "owner" :%any.permissions]))
 
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"
   [user-id group-name]
-  (-> (select :id :enabled)
-      (from :user-group)
-      (where [:and
-              [:= :user-id user-id]
-              [:= :group-id (group-name->group-id group-name)]])
-      do-query
-      first))
+  (q/find-one :user-group {:user-id user-id
+                           :group-id (group-name->id group-name)}
+              [:id :enabled]))
 
 (defn set-user-group-enabled!
   "Set boolean enabled status for user-group entry"
   [user-group-id enabled]
-  (-> (sqlh/update :user-group)
-      (sset {:enabled enabled
-             :updated (sql-now)})
-      (where [:= :id user-group-id])
-      do-execute))
+  (q/modify :user-group {:id user-group-id}
+            {:enabled enabled, :updated :%now}))
 
 (defn set-user-group-permissions!
   "Set the permissions for user-group-id"
   [user-group-id permissions]
-  (-> (sqlh/update :user-group)
-      (sset {:permissions (to-sql-array "text" permissions)
-             :updated (sql-now)})
-      (where [:= :id user-group-id])
-      do-execute))
+  (q/modify :user-group {:id user-group-id}
+            {:permissions (db/to-sql-array "text" permissions), :updated :%now}))
 
 (defn read-users-in-group
   "Return all of the users in group-name"
   [group-name]
   (with-transaction
-    (let [users-in-group (-> (select :user-id :permissions)
-                             (from :user-group)
-                             (where [:and
-                                     [:= :enabled true]
-                                     [:= :group-id (group-name->group-id group-name)]])
-                             do-query)
+    (let [users-in-group (q/find :user-group {:enabled true
+                                              :group-id (group-name->id group-name)}
+                                 [:user-id :permissions])
           users-public-info (->> (map :user-id users-in-group)
                                  (user/get-users-public-info)
                                  (index-by :user-id))]
@@ -94,107 +64,64 @@
   "Test for presence of enabled user-group entry"
   [user-id group-name]
   (with-transaction
-    (-> (select :enabled)
-        (from :user-group)
-        (where [:and
-                [:= :user-id user-id]
-                [:= :group-id (group-name->group-id group-name)]])
-        do-query first :enabled boolean)))
+    (boolean (q/find-one :user-group
+                         {:user-id user-id, :group-id (group-name->id group-name)}
+                         :enabled))))
 
-(defn read-groups
-  [user-id]
-  (-> (select :g.* :ug.permissions)
-      (modifiers :distinct)
-      (from [:user-group :ug])
-      (join [:groups :g] [:= :ug.group-id :g.group-id])
-      (where [:and [:= :ug.user-id user-id] [:= :ug.enabled true]])
-      do-query))
+(defn read-groups [user-id]
+  (q/find [:user-group :ug] {:ug.user-id user-id :ug.enabled true}
+          [:g.* :ug.permissions], :join [:groups:g :ug.group-id]
+          :prepare #(sqlh/modifiers % :distinct)))
 
-(defn create-group!
-  [group-name]
-  (-> (insert-into :groups)
-      (values [{:group-name group-name}])
-      (returning :group-id)
-      do-query first :group-id))
+(defn create-group! [group-name]
+  (q/create :groups {:group-name group-name}
+            :returning :group-id))
 
-(defn get-stripe-id
-  "Return the stripe-id for org-id"
-  [org-id]
-  (-> (select :stripe-id)
-      (from :groups)
-      (where [:= :group-id org-id])
-      do-query first :stripe-id))
+(defn group-stripe-id [group-id]
+  (q/find-one :groups {:group-id group-id} :stripe-id))
 
-(defn delete-group!
-  [group-id]
-  (when-let [stripe-id (get-stripe-id group-id)]
-    ;; delete subscriptions
-    (when-let [{:keys [sub-id]}
-               (plans/group-current-plan group-id)]
+(defn delete-group! [group-id]
+  (when-let [stripe-id (group-stripe-id group-id)]
+    (when-let [{:keys [sub-id]} (plans/group-current-plan group-id)]
       (stripe/delete-subscription! sub-id))
-    ;; delete customer
-    (stripe/delete-customer! {:stripe-id stripe-id
-                              :user-id (str "group-id: " group-id)}))
-  (-> (delete-from :groups)
-      (where [:= :group-id group-id])
-      do-execute))
+    (stripe/delete-customer! {:stripe-id stripe-id :user-id (str "group-id: " group-id)}))
+  (q/delete :groups {:group-id group-id}))
 
-(defn create-project-group!
-  [project-id group-id]
-  (-> (insert-into :project-group)
-      (values [{:project-id project-id
-                :group-id group-id}])
-      (returning :id)
-      do-query first :id))
+(defn create-project-group! [project-id group-id]
+  (q/create :project-group {:project-id project-id :group-id group-id}
+            :returning :id))
 
-(defn delete-project-group!
-  [project-id group-id]
-  (-> (delete-from :project-group)
-      (where [:and
-              [:= :project-id project-id]
-              [:= :group-id group-id]])
-      do-execute))
+(defn delete-project-group! [project-id group-id]
+  (q/delete :project-group {:project-id project-id :group-id group-id}))
 
 (defn user-group-permission
   "Return the permissions for user-id in group-id"
   [user-id group-id]
-  (-> (select :permissions)
-      (from :user-group)
-      (where [:and
-              [:= :user-id user-id]
-              [:= :group-id group-id]])
-      do-query first :permissions))
+  (q/find-one :user-group {:user-id user-id :group-id group-id}
+              :permissions))
 
 (defn group-projects
   "Return all projects group-id owns"
   [group-id & {:keys [private-projects?]}]
-  (-> (select :p.project-id :p.name :p.settings)
-      (from [:project :p])
-      (join [:project-group :pg]
-            [:= :pg.project-id :p.project-id])
-      (where [:= :pg.group-id group-id])
-      do-query
+  (-> (q/find [:project :p] {:pg.group-id group-id} [:p.project-id :p.name :p.settings]
+              :join [:project-group:pg :p.project-id])
       (cond->> (not private-projects?) (filter #(-> % :settings :public-access true?)))))
 
-(defn create-sysrev-stripe-customer!
+(defn create-group-stripe-customer!
   "Create a stripe customer for group-id owned by owner"
   [group-id owner]
   (let [{:keys [email]} owner
-        group-name (group-id->group-name group-id)
+        group-name (group-id->name group-id)
         stripe-response (stripe/create-customer!
                          :description (str "Sysrev group name: " group-name)
                          :email email)
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
-      (try
-        (-> (sqlh/update :groups)
-            (sset {:stripe-id stripe-customer-id})
-            (where [:= :group-id group-id])
-            do-execute)
-        {:success true}
-        (catch Throwable e
-          {:error {:message (str "Exception in " (util/current-function-name))
-                   :exception e}}))
+      (try (q/modify :groups {:group-id group-id} {:stripe-id stripe-customer-id})
+           {:success true}
+           (catch Throwable e
+             {:error {:message (str "Exception in " (util/current-function-name))
+                      :exception e}}))
       {:error {:message
                (str "No customer id returned by stripe.com for group-id: " group-id)}})))
 
@@ -204,12 +131,14 @@
 
 (defn search-groups
   "Return groups whose name matches search term q"
-  [q & {:keys [limit]
-        :or {limit 5}}]
+  [q & {:keys [limit] :or {limit 5}}]
   (with-transaction
-    (let [user-ids (->> ["SELECT group_id,group_name FROM groups WHERE (group_name ilike ?) AND group_name != 'public-reviewer' ORDER BY group_name LIMIT ?"
-                         (str "%" q "%")
-                         limit]
-                        db/raw-query)]
+    (let [user-ids (db/raw-query
+                    [(str "SELECT group_id,group_name FROM groups "
+                          "WHERE (group_name ilike ?) AND group_name != 'public-reviewer' "
+                          "ORDER BY group_name "
+                          "LIMIT ?")
+                     (str "%" q "%")
+                     limit])]
       ;; check to see if we have results before returning the public info
       user-ids)))
