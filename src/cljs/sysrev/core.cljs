@@ -67,7 +67,7 @@
     (enable-console-print!)
     (t/instrument)))
 
-(defn ^:export on-jsload []
+(defn ^:dev/after-load on-jsload []
   (dev-setup)
   (mount-root))
 

@@ -7,7 +7,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.semantic :refer
-             [Segment Table TableHeader TableBody TableRow TableCell Search SearchResults Button
+             [Segment Table TableHeader TableBody TableRow TableCell Search Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
               Input Message MessageHeader Dropdown Menu Icon]]
             [sysrev.util :as util]
@@ -202,13 +202,13 @@
 (defn UsersTable
   [{:keys [org-users org-id]}]
   (when-not (empty? org-users)
-    [Table {:basic "true"
+    [Table {:basic true
             :id "org-user-table"}
      #_[TableHeader
       [TableRow
        [TableCell ;; select all goes here
         ]
-       [TableCell ;; filter by row goes herev
+       [TableCell ;; filter by row goes here
         ]]]
      [TableBody
       (map (fn [user]
@@ -225,17 +225,20 @@
                            set)]
     (when-not (empty? term)
       (reset! retrieving? true)
-      (reset! user-search-results [])
+      (reset! user-search-results nil)
       (GET "/api/users/search"
            {:params {:term term}
             :handler (fn [response]
                        (reset! retrieving? false)
                        ;; need to add a key value for the render-results fn of the
                        ;; search component
-                       (reset! user-search-results (map #(assoc % :key (:user-id %))
+                       (reset! user-search-results (map #(assoc %
+                                                                :key (:user-id %)
+                                                                :title "<empty>")
                                                         (-> (get-in response [:result :users])
                                                             set
-                                                            (clojure.set/difference org-users-set)))))
+                                                            (clojure.set/difference org-users-set))))
+)
             :error-handler (fn [response]
                              (reset! retrieving? false)
                              ($ js/console log "[sysrev.views.panels.org.users/user-suggestions] Error retrieving search results"))}))))
@@ -355,4 +358,3 @@
          [RemoveModal {:org-id org-id}]
          [UsersTable {:org-users @org-users
                       :org-id org-id}]])})))
-

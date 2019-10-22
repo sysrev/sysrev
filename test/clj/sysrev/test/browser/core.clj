@@ -464,6 +464,7 @@
       #_(assert (> fn-count 0) "no spec functions were instrumented")))
   nil)
 
+;; if this doesn't do anything, why not take it out? - James
 (defn webdriver-fixture-once [f]
   (f))
 
@@ -536,5 +537,5 @@
 (defn check-for-error-message [error-message]
   (exists?
    (xpath
-    "//div[contains(@class,'negative') and contains(@class,'message') and contains(text(),'"
-    error-message "')]")))
+    "//div[contains(@class,'negative') and contains(@class,'message') and contains(text(),\""
+    error-message "\")]")))

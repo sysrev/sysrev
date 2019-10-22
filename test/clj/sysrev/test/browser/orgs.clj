@@ -182,7 +182,18 @@
     (b/click org-users)
     (b/wait-until-exists (change-user-permission-dropdown "browser+test"))
     ;; billing link is available
-    (b/exists? org-billing))
+    (b/exists? org-billing)
+    ;; duplicate orgs can't be created
+    (nav/log-in)
+    (b/click user-profiles/user-name-link)
+    (b/click user-orgs)
+    (b/set-input-text-per-char create-org-input org-name-1)
+    (b/click create-org-button)
+    (is (b/check-for-error-message (str "An organization with the name '" org-name-1 "' already exists. Please try using another name.")))
+    ;; blank orgs can't be created
+    (b/backspace-clear (count org-name-1) create-org-input)
+    (b/click create-org-button)
+    (is (b/check-for-error-message "Organization names can't be blank")))
   :cleanup (doseq [{:keys [email]} [b/test-login user1]]
              (b/cleanup-test-user! :email email :groups true)))
 

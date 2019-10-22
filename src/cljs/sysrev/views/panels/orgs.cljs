@@ -26,9 +26,9 @@
                         (let [new-org-id (:id result)]
                           (reset! create-org-retrieving? false)
                           (nav-scroll-top (str "/org/" new-org-id redirect-subpath))))
-             :error-handler (fn [{:keys [error]}]
+             :error-handler (fn [resp]
                               (reset! create-org-retrieving? false)
-                              (reset! create-org-error (:message error)))}))))
+                              (reset! create-org-error (-> resp :response :error :message)))}))))
 
 (defn CreateOrgForm []
   (let [new-org (r/cursor state [:new-org])
@@ -51,8 +51,10 @@
                    :action (r/as-element [Button {:primary true
                                                   :class "create-organization"
                                                   :id "create-org-button"} "Create"])
-                   :on-change #(reset! new-org
-                                       (-> ($ % :target.value)))}]]]
+                   :on-change (fn [e]
+                                (reset! create-org-error nil)
+                                (reset! new-org
+                                        (-> ($ e :target.value))))}]]]
          (when-not (empty? @create-org-error)
            [Message {:negative true
                      :onDismiss #(reset! create-org-error nil)}

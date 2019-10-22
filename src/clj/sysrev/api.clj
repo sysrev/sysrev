@@ -1167,19 +1167,23 @@
 (defn create-org! [user-id org-name]
   (with-transaction
     ;; check to see if group already exists
-    (if (group/group-name->id org-name)
-      ;; alredy exists
-      {:error {:status conflict
-               :message (str "An organization with the name '" org-name "' already exists."
-                             " Please try using another name.")}}
-      (with-transaction
-        ;; create the group
-        (let [new-org-id (group/create-group! org-name)
-              user (get-user user-id)
-              _ (group/create-group-stripe-customer! new-org-id user)
-              stripe-id (group/group-stripe-id new-org-id)]
-          ;; set the user as group admin
-          (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
+    (cond (group/group-name->id org-name)
+          ;; alredy exists
+          {:error {:status conflict
+                   :message (str "An organization with the name '" org-name "' already exists."
+                                 " Please try using another name.")}}
+          (clojure.string/blank? org-name)
+          {:error {:status bad-request
+                   :message (str "Organization names can't be blank!")}}
+          :else
+          (with-transaction
+            ;; create the group
+            (let [new-org-id (group/create-group! org-name)
+                  user (get-user user-id)
+                  _ (group/create-group-stripe-customer! new-org-id user)
+                  stripe-id (group/group-stripe-id new-org-id)]
+              ;; set the user as group admin
+              (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
           (stripe/create-subscription-org! new-org-id stripe-id)
           {:success true, :id new-org-id})))))
 
