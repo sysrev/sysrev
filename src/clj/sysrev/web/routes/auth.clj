@@ -160,7 +160,7 @@
          (with-authorize request {:logged-in true}
            (let [user-id (-> request :params :user-id Integer/parseInt)]
              (api/user-has-stripe-account? user-id)))))
-
+;; unused
 (dr (POST "/api/stripe/finalize-user" request
           (with-authorize request {:logged-in true}
             (let [{:keys [user-id stripe-code]} (-> request :body)]

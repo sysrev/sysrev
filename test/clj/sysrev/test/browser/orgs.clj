@@ -186,19 +186,6 @@
   :cleanup (doseq [{:keys [email]} [b/test-login user1]]
              (b/cleanup-test-user! :email email :groups true)))
 
-;; for manual testing:
-;; delete a customer's card:
-#_(let [stripe-id (user-by-email email :stripe-id)
-        source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
-    source-id
-    #_ (stripe/delete-customer-card! stripe-id source-id))
-
-;; delete a org's card:
-#_(let [group-id (-> (group/read-groups user-id) first :id)
-        stripe-id (group/group-stripe-id group-id)
-        source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
-    (stripe/delete-customer-card! stripe-id source-id))
-
 (deftest-browser org-plans
   (and (test/db-connected?) (not (test/remote-test?)))
   [org-name-1 "Foo Bar, Inc."

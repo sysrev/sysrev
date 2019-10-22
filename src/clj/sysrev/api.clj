@@ -301,29 +301,29 @@
     (let [{:keys [sub-id]} (plans/user-current-plan user-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
-          {:keys [body]} (stripe/update-subscription-item! {:id sub-item-id :plan plan})]
-      (if (:error body)
-        (update body :error #(merge % {:status not-found}))
+          sub-resp (stripe/update-subscription-item! {:id sub-item-id :plan plan})]
+      (if (:error sub-resp)
+        (update sub-resp :error #(merge % {:status not-found}))
         (do (plans/add-user-to-plan! user-id plan sub-id)
             (doseq [{:keys [project-id]} (user/user-owned-projects user-id)]
               (db/clear-project-cache project-id))
-            {:stripe-body body :plan (plans/user-current-plan user-id)})))))
+            {:stripe-body sub-resp :plan (plans/user-current-plan user-id)})))))
 
 (defn subscribe-org-to-plan [group-id plan-name]
   (with-transaction
     (let [{:keys [sub-id]} (plans/group-current-plan group-id)
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
-          {:keys [body]} (stripe/update-subscription-item!
+          sub-resp (stripe/update-subscription-item!
                           {:id sub-item-id :plan plan
                            :quantity (count (group/read-users-in-group
                                              (group/group-id->name group-id)))})]
-      (if (:error body)
-        (update body :error #(merge % {:status not-found}))
+      (if (:error sub-resp)
+        (update sub-resp :error #(merge % {:status not-found}))
         (do (plans/add-group-to-plan! group-id plan sub-id)
             (doseq [{:keys [project-id]} (group/group-projects group-id :private-projects? true)]
               (db/clear-project-cache project-id))
-            {:stripe-body body :plan (plans/group-current-plan group-id)})))))
+            {:stripe-body sub-resp :plan (plans/group-current-plan group-id)})))))
 
 (defn project-owner-plan
   "Return the plan name for the project owner of project-id"
@@ -356,7 +356,7 @@
             :else (project/change-project-setting project-id (keyword setting) value)))
     {:success true, :settings (project/project-settings project-id)}))
 
-(defn support-project-monthly [user project-id amount]
+(defn ^:unused support-project-monthly [user project-id amount]
   (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
     (cond
       (and (not (nil? amount))
@@ -429,12 +429,12 @@
   {:result (mapv #(select-keys % [:name :project-id :quantity])
                  (plans/user-support-subscriptions user))})
 
-(defn cancel-user-project-support [user project-id]
+(defn ^:unused cancel-user-project-support [user project-id]
   (let [{:keys [id]} (plans/user-current-project-support user project-id)]
     (stripe/cancel-subscription! id)
     {:success true}))
 
-(defn finalize-stripe-user!
+(defn ^:unused finalize-stripe-user!
   "Save a stripe user in our database for payouts"
   [user-id stripe-code]
   (let [{:keys [body] :as response} (stripe/finalize-stripe-user! stripe-code)]

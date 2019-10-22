@@ -1,6 +1,5 @@
 (ns sysrev.test.browser.project-support
-  (:require [clj-stripe.customers :as customers]
-            [clj-webdriver.taxi :as taxi]
+  (:require [clj-webdriver.taxi :as taxi]
             [clojure.test :refer :all]
             [clojure.tools.logging :as log]
             [sysrev.api :as api]

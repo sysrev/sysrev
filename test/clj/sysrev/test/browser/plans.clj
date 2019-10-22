@@ -1,6 +1,5 @@
 (ns sysrev.test.browser.plans
-  (:require [clj-stripe.customers :as customers]
-            [clj-webdriver.taxi :as taxi]
+  (:require [clj-webdriver.taxi :as taxi]
             [clojure.test :refer :all]
             [clojure.tools.logging :as log]
             [sysrev.api :as api]
@@ -49,8 +48,7 @@
 
 (defn get-user-customer [email]
   (some-> email (user-by-email) :stripe-id
-          (customers/get-customer)
-          (stripe/execute-action)))
+          (stripe/get-customer)))
 
 (defn customer-plan [customer]
   (some-> customer :subscriptions :data first :items :data first :plan))

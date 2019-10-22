@@ -3,9 +3,6 @@
             [sysrev.test.browser.core :as b]
             [clojure.tools.logging :as log]))
 
-;; for manual testing purposes, this is handy:
-;; (do (stripe/unsubscribe-customer! (users/user-by-email "foo@bar.com")) (stripe/delete-customer! (users/user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/user-by-email "foo@bar.com"))))
-
 ;; valid number
 (def valid-visa-cc "4242424242424242")
 

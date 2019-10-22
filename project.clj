@@ -76,7 +76,6 @@
                  ;; =1.23.0 because version conflict in latest
                  ;; (1.30.2 breaks selenium)
                  [com.google.api-client/google-api-client "1.23.0"]
-                 [abengoa/clj-stripe "1.0.4"]
                  [environ "1.1.0"]
                  [bouncer "1.0.1"] ;; validation
                  [hickory "0.7.1"] ;; html parser

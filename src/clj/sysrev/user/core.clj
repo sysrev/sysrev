@@ -251,11 +251,10 @@
 
 ;; for testing purposes
 (defn delete-user-stripe-customer! [{:keys [stripe-id user-id] :as user}]
+  (stripe/delete-customer! {:stripe-id stripe-id
+                            :user-id user-id})
   (with-transaction
-    (let [stripe-source-id (:id (stripe/read-default-customer-source stripe-id))]
-      (when stripe-source-id
-        (stripe/delete-customer-card! stripe-id stripe-source-id))
-      (q/modify :web-user {:user-id user-id} {:stripe-id nil}))))
+    (q/modify :web-user {:user-id user-id} {:stripe-id nil})))
 
 (defn set-user-default-project [user-id project-id]
   (q/modify :web-user {:user-id user-id} {:default-project-id project-id}))
