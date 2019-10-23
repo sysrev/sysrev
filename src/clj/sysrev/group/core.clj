@@ -23,8 +23,22 @@
             :returning :id))
 
 (defn get-group-owner [group-id]
-  (q/find-one :user-group {:group-id group-id} :user-id
-              :where [:= "owner" :%any.permissions]))
+  ;; asserting that there should only be one result
+  ;; with q/find-one ignores the fact that a group
+  ;; can have multiple owners
+  #_(q/find-one :user-group {:group-id group-id} :user-id
+              :where [:= "owner" :%any.permissions])
+  ;; just get the oldest owner
+  (-> (sqlh/select :user-id)
+      (sqlh/from :user-group)
+      (sqlh/where [:and
+                   [:= "owner" :%any.permissions]
+                   [:= :group-id group-id]])
+      (sqlh/order-by :created)
+      (sqlh/limit 1)
+      db/do-query
+      first
+      :user-id))
 
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"
