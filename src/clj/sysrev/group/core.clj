@@ -1,5 +1,7 @@
 (ns sysrev.group.core
-  (:require [honeysql.helpers :as sqlh]
+  (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
+            [honeysql.helpers :as sqlh]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user]
@@ -22,23 +24,11 @@
                           permissions (assoc :permissions (db/to-sql-array "text" permissions)))
             :returning :id))
 
-(defn get-group-owner [group-id]
-  ;; asserting that there should only be one result
-  ;; with q/find-one ignores the fact that a group
-  ;; can have multiple owners
-  #_(q/find-one :user-group {:group-id group-id} :user-id
-              :where [:= "owner" :%any.permissions])
-  ;; just get the oldest owner
-  (-> (sqlh/select :user-id)
-      (sqlh/from :user-group)
-      (sqlh/where [:and
-                   [:= "owner" :%any.permissions]
-                   [:= :group-id group-id]])
-      (sqlh/order-by :created)
-      (sqlh/limit 1)
-      db/do-query
-      first
-      :user-id))
+(defn-spec get-group-owner (s/nilable int?)
+  "Return earliest owner `user-id` among current owners of `group-id`."
+  [group-id int?]
+  (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
+                 :user-id, :order-by :created, :limit 1)))
 
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"
