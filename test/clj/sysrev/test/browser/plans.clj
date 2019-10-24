@@ -31,7 +31,7 @@
 (def upgrade-link (xpath "//a[text()='Upgrade']"))
 (def back-to-user-settings (xpath "//a[contains(text(),'Back to user settings')]"))
 
-;; pricing flow elements
+;; pricing workflow elements
 (def choose-pro-button (xpath "//button[contains(text(),'Choose Pro')]"))
 (def create-account-h4 (xpath "//h4[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
 (def upgrade-plan-h2 (xpath "//h1[contains(text(),'Upgrade your plan')]"))
@@ -292,6 +292,7 @@
    get-customer #(get-user-customer email)
    get-db-plan #(user-db-plan email)]
   (do
+    (nav/go-route "/")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
     (b/wait-until-displayed choose-pro-button)
     (b/click choose-pro-button)

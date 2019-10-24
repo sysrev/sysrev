@@ -5,7 +5,8 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.api :as api]
             [sysrev.group.core :as group]
-            [sysrev.payment.plans :refer [user-current-plan]]
+            [sysrev.payment.plans :refer [user-current-plan
+                                          group-current-plan]]
             [sysrev.project.core :as project]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -30,6 +31,11 @@
 (def create-org-input "#create-org-input")
 (def create-org-button "#create-org-button")
 (def org-user-table "#org-user-table")
+
+;; pricing workflow elements
+(def choose-team-pro-button (xpath "//button[contains(text(),'Choose Team Pro')]"))
+(def create-account-h4 (xpath "//h4[contains(text(),'Create a free account before moving on to team creation')]"))
+(def create-team-h4 (xpath "//h4[contains(text(),'Next, create a Sysrev organization for your team')]"))
 
 (defn change-user-permission-dropdown [username]
   (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
@@ -354,8 +360,61 @@
     (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
   :cleanup (b/cleanup-test-user! :email email :groups true))
 
+(defn user-groups [email]
+  (-> (user-by-email email :user-id)
+      (group/read-groups)))
+
 ;; test no-account pricing org sign up
-
+(deftest-browser subscribe-to-org-unlimited-through-pricing-no-account
+  (and (test/db-connected?) (not (test/remote-test?)))
+  [org-name "Foo Bar, Inc."
+   email "foo@bar.com"
+   password "foobar"
+   get-test-user #(user-by-email email)]
+  (do
+    (nav/go-route "/")
+    (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
+    (b/wait-until-displayed choose-team-pro-button)
+    (b/click choose-team-pro-button)
+    ;; register
+    (b/wait-until-displayed create-account-h4)
+    (b/set-input-text "input[name='email']" email)
+    (b/set-input-text "input[name='password']" password)
+    (b/click "button[name='submit']")
+    ;; create a team
+    (b/wait-until-displayed create-team-h4)
+    (b/set-input-text-per-char create-org-input org-name)
+    (b/click create-org-button)
+    ;; upgrade plan
+    (b/wait-until-displayed plans/upgrade-plan-h2)
+    (is (= "Basic" (-> (user-groups email)
+                       first
+                       :group-id
+                       group-current-plan
+                       :name)))
+    ;; refresh to make sure state isn't an issue
+    (taxi/refresh)
+    (b/wait-until-displayed plans/upgrade-plan-h2)
+    ;; update payment method
+    (b/click "a.payment-method.add-method" :delay 50)
+    ;; refresh to test redirect uri
+    (taxi/refresh)
+    (bstripe/enter-cc-information
+     {:cardnumber bstripe/valid-visa-cc})
+    (plans/click-use-card :delay 50)
+    (plans/click-upgrade-plan)
+    ;; ;; we have an unlimited plan
+    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+    (is (= "Unlimited_Org" (-> (user-groups email)
+                               first
+                               :group-id
+                               group-current-plan
+                               :name))))
+  :cleanup (b/cleanup-test-user! :email email :groups true))
 ;; test pricing 'cold feet'
-
+;; 1. test that user makes an account, but not a team
+;; 2. test that user makes an account and a team
+;; but gets cold feed when putting in payment information
+;; 3. test that pricing flow will work when user has account and team
+;; 4. test that pricing flow will work when user has an account, but doesn't have a org 
 ;; test pricing with an existing org
