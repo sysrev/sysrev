@@ -226,15 +226,18 @@
     (b/click edit-introduction :delay 50)
     (b/wait-until-displayed "textarea")
     (b/wait-until-loading-completes :pre-wait 50)
-    (b/set-input-text "textarea" user-introduction :delay 50)
+    (b/set-input-text-per-char "textarea" user-introduction :delay 50)
     (markdown/click-save)
-    (b/is-soon (b/exists? (xpath "//p[text()='" user-introduction "']")))
+    (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; log in as test user
     (nav/log-in)
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to users
     (nav/go-route "/users" :wait-ms 100)
-    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']"))
+    (let [url (format "/user/%s/profile" user-id-test-user)]
+      (if (test/remote-test?)
+        (nav/go-route url)
+        (b/click (xpath (format "//a[@href='%s']" url)))))
     ;; the introduction still reads the same
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; there is no edit introduction option
