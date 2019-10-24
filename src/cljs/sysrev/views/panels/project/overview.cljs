@@ -149,8 +149,6 @@
              [:div.column.pie-chart-help
               [label-status-help-column colors]]]]])]])))
 
-
-
 (defn MemberActivityChart []
   (let [project-id @(subscribe [:active-project-id])
         visible-user-ids (->> @(subscribe [:project/member-user-ids])

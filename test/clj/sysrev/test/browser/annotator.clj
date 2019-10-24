@@ -136,7 +136,8 @@
 (defn check-db-annotation
   [project-id match-fields {:keys [selection value semantic-class client-field user-id]
                             :as check-values}]
-  (let [entry (some->> (api/project-annotations project-id)
+  (let [value-keys [:selection :value :semantic-class :client-field :user-id]
+        entry (some->> (api/project-annotations project-id)
                        (map #(-> (assoc % :client-field (:client-field (:context %)))
                                  (assoc :value (:annotation %))
                                  (dissoc :annotation)))
@@ -146,39 +147,67 @@
                        first)]
     (is entry "no matching annotation found")
     (when entry
-      (is (= check-values (select-keys entry (keys check-values))))
+      (is (= (select-keys check-values value-keys)
+             (select-keys entry value-keys)))
       (is (= (:selection entry) (subs (-> entry :context :text-context)
                                       (-> entry :context :start-offset)
                                       (-> entry :context :end-offset)))))))
 
-(defn annotate-article [{:keys [client-field semantic-class value selection] :as entry} &
-                        {:keys [start-x offset-x start-y offset-y]}]
-  (log/info "creating annotation")
+(defn annotate-article [{:keys [client-field semantic-class value selection
+                                start-x offset-x start-y offset-y] :as entry}
+                        & {:keys [retry] :or {retry 0}}]
   (let [q (format "div.annotated-text-toplevel[data-field='%s'] > div > div" client-field)
-        entry {:selection selection
-               :semantic-class semantic-class
-               :value value}
+        entry-vals {:selection selection
+                    :semantic-class semantic-class
+                    :value value}
         check-values (fn []
                        (Thread/sleep 20)
                        (let [fields (cond-> [:semantic-class :value]
                                       selection (conj :selection))]
-                         #_ (is )
-                         (in? (->> (sidebar-annotations)
-                                   (map #(select-keys % fields) ))
-                              (select-keys entry fields))))]
-    (b/wait-until-loading-completes :pre-wait 50)
-    (b/click ".ui.button.change-labels" :if-not-exists :skip)
-    (b/click x/review-annotator-tab)
-    (b/wait-until-displayed ".annotation-menu .menu-header")
+                         (is (in? (->> (sidebar-annotations)
+                                       (map #(select-keys % fields) ))
+                                  (select-keys entry-vals fields)))))
+        retry-with #(annotate-article % :retry (inc retry))
+        throw-mismatch #(throw (ex-info "annotate-article selection mismatch"
+                                        {:expected selection :actual %}))]
+    (if (zero? retry)
+      (do (log/info "creating annotation")
+          (b/wait-until-loading-completes :pre-wait 50)
+          (b/click ".ui.button.change-labels" :if-not-exists :skip)
+          (b/click x/review-annotator-tab)
+          (b/wait-until-displayed ".annotation-menu .menu-header"))
+      (do (log/info "retrying annotation:" (pr-str entry))
+          (b/click ".ui.button.cancel-edit" :if-not-exists :skip)))
     (b/click-drag-element q
                           :start-x start-x :offset-x offset-x
                           :start-y (+ 2 (or start-y 0)) :offset-y offset-y)
-    (input-semantic-class semantic-class)
-    (b/set-input-text annotation-value-input value)
-    (check-values)
-    (b/click save-annotation-button)
-    (b/wait-until-exists edit-annotation-icon)
-    (check-values)))
+    (let [new-ann (first (sidebar-annotations))
+          new-sel (:selection new-ann)
+          len-diff (Math/abs (- (count new-sel) (count selection)))]
+      (cond (or (nil? selection) (= new-sel selection))
+            (do (input-semantic-class semantic-class)
+                (b/set-input-text annotation-value-input value)
+                (check-values)
+                (b/click save-annotation-button)
+                (b/wait-until-exists edit-annotation-icon)
+                (check-values))
+            (and (<= retry 3) (<= 1 len-diff 2))
+            (cond (and (< (count new-sel) (count selection))
+                       (str/starts-with? selection new-sel))
+                  (retry-with (update entry :offset-x #(+ (or % 0) 2)))
+                  (and (< (count new-sel) (count selection))
+                       (str/ends-with? selection new-sel))
+                  (retry-with (-> (update entry :offset-x #(+ (or % 0) 2))
+                                  (update :start-x #(- (or % 0) 2))))
+                  (and (> (count new-sel) (count selection))
+                       (str/starts-with? new-sel selection))
+                  (retry-with (update entry :offset-x #(- (or % 0) 2)))
+                  (and (> (count new-sel) (count selection))
+                       (str/ends-with? new-sel selection))
+                  (retry-with (-> (update entry :offset-x #(- (or % 0) 2))
+                                  (update :start-x #(+ (or % 0) 2))))
+                  :else (throw-mismatch new-sel))
+            :else (throw-mismatch new-sel)))))
 
 (defn edit-annotation [{:keys [semantic-class value] :as lookup} new-values]
   (log/info "editing annotation")
@@ -215,7 +244,8 @@
    ann1 {:client-field "primary-title"
          :selection "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"
          :semantic-class "foo"
-         :value "bar"}
+         :value "bar"
+         :offset-x 670}
    project-id (atom nil)]
   (do (nav/log-in)
       (nav/new-project project-name)
@@ -231,7 +261,7 @@
       ;; select one article and annotate it
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click "a.article-title")
-      (annotate-article ann1 :offset-x 670)
+      (annotate-article ann1)
       ;;check the annotation
       (let [{:keys [email password]} b/test-login
             user-id (user-by-email email :user-id)
@@ -276,15 +306,18 @@
      :selection
      "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"
      :semantic-class "class1"
-     :value "value1"}
+     :value "value1"
+     :offset-x 670}
     {:client-field "abstract"
      :selection "The measurement"
      :semantic-class "class2"
-     :value ""}
+     :value ""
+     :offset-x 111}
     {:client-field "abstract"
      :selection "amine sites"
      :semantic-class "class1"
-     :value "value2"}]
+     :value "value2"
+     :start-y 20 :start-x 26 :offset-x 68}]
    [ann1-def ann2-def ann3-def] ann-defs
    ann-vals (mapv #(select-keys % [:selection :semantic-class :value]) ann-defs)
    [ann1 ann2 ann3] ann-vals]
@@ -302,7 +335,7 @@
       ;; switch to annotator interface
       (b/click "a.item.tab-annotations")
       ;; save an annotation
-      (annotate-article ann1-def :offset-x 670)
+      (annotate-article ann1-def)
       (b/click ".ui.button.save-labels")
       (b/wait-until-exists ".no-review-articles")
       (is (not (taxi/exists? sidebar-el)))
@@ -325,7 +358,7 @@
       (check-highlights [ann1])
       ;; check that saved annotation appears in sidebar interface
       (is (= (sidebar-annotations) [ann1]))
-      (annotate-article ann2-def :offset-x 111)
+      (annotate-article ann2-def)
       ;; check that both annotations appear in article view
       (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2])) 2000 30)
       (check-highlights [ann1 ann2])
@@ -345,7 +378,7 @@
       ;; switch to annotator interface
       (b/click "a.item.tab-annotations")
       ;; save an annotation with user2
-      (annotate-article ann3-def :start-y 20 :start-x 26 :offset-x 68)
+      (annotate-article ann3-def)
       ;; save article labels
       (b/click ".ui.button.save-labels")
       (b/wait-until-exists ".no-review-articles")

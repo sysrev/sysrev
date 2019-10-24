@@ -459,7 +459,9 @@
     (wait-until-loading-completes :pre-wait true)
     (taxi/execute-script "sysrev.base.toggle_analytics(false);")
     (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
-      (log/info "instrumented" fn-count "cljs functions")
+      (if (pos-int? fn-count)
+        nil #_ (log/info "instrumented" fn-count "cljs functions")
+        (log/warn "no cljs functions were instrumented"))
       ;; test aren't passing locally in docker with this assert - James
       #_(assert (> fn-count 0) "no spec functions were instrumented")))
   nil)
