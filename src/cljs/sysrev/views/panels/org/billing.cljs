@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.org.billing
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.nav :as nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
             [sysrev.views.panels.user.billing :refer [Plan PaymentSource]]
             [sysrev.views.semantic :refer [Segment Header ListUI ListItem]]
@@ -13,7 +13,6 @@
   (when org-id
     (dispatch [:data/load [:org/default-source org-id]])
     (dispatch [:data/load [:org/current-plan org-id]])
-    (dispatch [:org/set-on-subscribe-nav-to-url! org-id (str "/org/" org-id "/billing")])
     #_ (js/console.log "OrgBilling: current-plan = " (:name @(subscribe [:org/current-plan org-id])))
     #_ (js/console.log "OrgBilling: default-source = " (str @(subscribe [:org/default-source org-id])))
     [Segment
@@ -27,5 +26,11 @@
         {:default-source @(subscribe [:org/default-source org-id])
          :on-add-payment-method
          (fn []
-           (dispatch [:stripe/set-calling-route! (str "/org/" org-id "/billing")])
-           (nav-scroll-top (str "/org/" org-id "/payment")))}]]]]))
+           (nav-scroll-top
+            (str "/org/" org-id "/payment")
+            :params
+            (assoc (nav/get-url-params)
+                   :redirect_uri
+                   (if-let [current-redirect-uri (:redirect_uri (nav/get-url-params))]
+                     current-redirect-uri
+                     (str "/org/" org-id "/plans")))))}]]]]))

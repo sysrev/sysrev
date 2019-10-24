@@ -89,7 +89,8 @@
   When using this, test functions should be run directly (not with `run-tests`).
 
   Can be closed with `stop-webdriver` when finished."
-  [& [restart?]]
+  [& {:keys [restart?]
+      :or {restart? false}}]
   (if (and @active-webdriver (not restart?))
     @active-webdriver
     (do (when @active-webdriver

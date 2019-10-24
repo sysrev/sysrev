@@ -79,14 +79,12 @@
             project-url @(subscribe [:project/uri project-id])]
         [:div "This private project is currently inaccessible"
          (when @(subscribe [:project/controlled-by? project-id self-id])
-           (when (= :user-id project-owner-type)
-             (dispatch [:user/set-on-subscribe-nav-to-url! project-url]))
-           (when (= :group-id project-owner-type)
-             (dispatch [:org/set-on-subscribe-nav-to-url! project-owner-id project-url]))
            [:div
-            [:a {:href (if (= :user-id project-owner-type)
-                         "/user/plans"
-                         (str "/org/" project-owner-id "/plans"))}
+            [:a {:href (nav/make-url (if (= :user-id project-owner-type)
+                                       "/user/plans"
+                                       (str "/org/" project-owner-id "/plans"))
+                                     {:on_subscribe_uri
+                                      project-url})}
              "Upgrade your plan"]
             " or "
             [MakePublic {:project-id project-id}]])]))))

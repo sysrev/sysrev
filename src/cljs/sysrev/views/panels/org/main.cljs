@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.org.main
   (:require [clojure.string :as str]
             [ajax.core :refer [GET]]
+            [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
@@ -83,7 +84,8 @@
                                :position "right"}
                      "Billing"])]]])
              [:div {:id "org-content"}
-              (condp re-matches @active-route
+              (condp re-matches (-> @active-route
+                                    (uri-utils/getPath))
                 #"/org/(\d*)/users"     [OrgUsers {:org-id org-id}]
                 #"/org/(\d*)/projects"  [OrgProjects {:org-id org-id}]
                 #"/org/(\d*)/billing"   [OrgBilling {:org-id org-id}]

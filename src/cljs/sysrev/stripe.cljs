@@ -9,6 +9,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.semantic :refer [Button Form]]
+            [sysrev.nav :as nav]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
@@ -41,10 +42,6 @@
                            "::placeholder" {:color "#aab7c4"}}
                     :invalid {:color "#9e2146"}})
 
-(reg-event-db :stripe/set-calling-route! [trim-v]
-              (fn [db [calling-route]]
-                (assoc-in db [:state :stripe :calling-route] calling-route)))
-
 (reg-event-db :stripe/set-disable-form! [trim-v]
               (fn [db [disabled]]
                 (assoc-in db [:state :stripe :disable-form] disabled)))
@@ -56,19 +53,17 @@
   :uri (fn [user-id _] (str "/api/user/" user-id "/stripe/payment-method"))
   :content (fn [_ payment_method] {:payment_method payment_method})
   :process (fn [{:keys [db]} [user-id _] _]
-             (let [ ;; calling-route should be set by the :stripe/set-calling-route! event
-                   ;; this is just in case it wasn't set
-                   ;; e.g. user went directly to /payment route
-                   calling-route (or (get-in db [:state :stripe :calling-route])
-                                     (str "/user/" user-id "/billing"))]
+             (let [calling-route
+                   (nav/make-url (or (:redirect_uri (nav/get-url-params))
+                                     (str "/user/" user-id "/billing"))
+                                 (dissoc (nav/get-url-params)
+                                         :redirect_uri))]
                ;; clear any error message that was present in plans
                ;;(dispatch [:plans/clear-error-message!])
                { ;; don't need to ask for a card anymore
                 :db (-> (panel-set db :need-card? false)
                         ;; clear any error message
                         (panel-set :error-message nil)
-                        ;; reset the calling-route value upon redirect
-                        (assoc-in [:state :stripe :calling-route] nil)
                         ;; enable the form again
                         (assoc-in [:state :stripe :disabled-form] false))
                 ;; go back to where this panel was called from
@@ -81,11 +76,13 @@
   :uri (fn [org-id _] (str "/api/org/" org-id "/stripe/payment-method"))
   :content (fn [_ payment_method] {:payment_method payment_method})
   :process (fn [{:keys [db]} [org-id _] _]
-             (let [calling-route (or (get-in db [:state :stripe :calling-route])
-                                     (str "/org/" org-id "/billing"))]
+             (let [calling-route
+                   (nav/make-url (or (:redirect_uri (nav/get-url-params))
+                                     (str "/org/" org-id "/billing"))
+                                 (dissoc (nav/get-url-params)
+                                         :redirect_uri))]
                {:db (-> (panel-set db :need-card? false)
                         (panel-set :error-message nil)
-                        (assoc-in [:state :stripe :calling-route] nil)
                         ;; enable the form again
                         (assoc-in [:state :stripe :disabled-form] false))
                 :nav-scroll-top calling-route}))
@@ -141,8 +138,6 @@
 
 ;; when migrating existing customers, will need to use this
 ;;https://stripe.com/docs/payments/payment-methods#compatibility
-
-
 ;; https://stripe.com/docs/strong-customer-authentication/faqs
 ;; https://stripe.com/docs/payments/cards/charging-saved-cards#notify
 ;; https://stripe.com/docs/billing/subscriptions/payment#handling-action-required - for subscriptions

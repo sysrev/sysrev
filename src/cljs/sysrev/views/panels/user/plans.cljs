@@ -3,17 +3,19 @@
             [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
+            [reagent.ratom :refer [track!]]
             [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub reg-event-fx]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.stripe :as stripe]
             [sysrev.views.semantic :as s :refer
-             [Segment Grid Column Row ListUI ListItem Button]]
+             [Segment Grid Column Row ListUI ListItem Button Loader]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
-            [sysrev.nav :refer [nav nav-scroll-top]]
+            [sysrev.nav :as nav :refer [nav nav-scroll-top]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state sr-defroute]]))
@@ -36,18 +38,15 @@
 
 (reg-sub :user/current-plan #(get-in % [:data :plans :current-plan]))
 
-(reg-sub :user/on-subscribe-nav-to-url #(panel-get % :on-subscribe-nav-to-url))
-
-(reg-event-db :user/set-on-subscribe-nav-to-url!
-              (fn [db [_ url]] (panel-set db :on-subscribe-nav-to-url url)))
-
 (def-action :user/subscribe-plan
   :uri (fn [user-id plan-name] (str "/api/user/" user-id "/stripe/subscribe-plan"))
   :content (fn [user-id plan-name]
              {:plan-name plan-name})
   :process (fn [{:keys [db]} [user-id _] {:keys [stripe-body plan] :as result}]
              (if (:created stripe-body)
-               (let [nav-url (panel-get db :on-subscribe-nav-to-url)]
+               (let [nav-url ;;(panel-get db :on-subscribe-nav-to-url)
+                     (-> (or (:on_subscribe_uri (nav/get-url-params))
+                             (str "/user/" user-id "/billing")))]
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
                           (load-user-current-plan plan))
@@ -245,7 +244,8 @@
           plan-args {:state state
                      :billing-settings-uri (str "/user/" self-id "/billing")
                      :unlimited-plan-price 1000
-                     :unlimited-plan-name "Pro Plan"}]
+                     :unlimited-plan-name "Pro Plan"}
+          loading? (track! loading/any-loading?)]
       (condp = (:name current-plan)
         "Basic"
         [UpgradePlan
@@ -253,17 +253,27 @@
                 {:default-source default-source
                  :on-upgrade #(dispatch [:action [:user/subscribe-plan self-id "Unlimited_User"]])
                  :on-add-payment-method
-                 #(do (dispatch [:stripe/set-calling-route! "/user/plans"])
-                      (nav-scroll-top "/user/payment"))})]
+                 (fn [] (nav-scroll-top
+                         "/user/payment"
+                         :params
+                         (assoc (nav/get-url-params)
+                                :redirect_uri
+                                (if-let [current-redirect-uri (:redirect_uri (nav/get-url-params))]
+                                  current-redirect-uri
+                                  "/user/plans"))))})]
         "Unlimited_User"
         [DowngradePlan
          (merge plan-args
                 {:on-downgrade #(dispatch [:action [:user/subscribe-plan self-id "Basic"]])})]
+        (not @loading?)
         [s/Message {:negative true}
          [s/MessageHeader "User Plans Error"]
          [:div.content
           [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " self-id)]
-          [:p (str "Active route: " @active-route)]]]))))
+          [:p (str "Active route: " @active-route)]]]
+        ;; default
+        [Loader {:active true
+                 :inline "centered"}]))))
 
 (defn UserPlans []
   (r/create-class {:reagent-render (fn [] [UserPlansContent])

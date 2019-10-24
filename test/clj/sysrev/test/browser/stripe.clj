@@ -21,6 +21,10 @@
 (def attach-success-charge-fail-cc "4000000000000341")
 (def highest-risk-fraudulent-cc "4100000000000019")
 
+;; 3D Secure 2
+(def three-d-secure-successful "4000000000003220")
+(def three-d-secure-card-declined "4000008400001629")
+
 ;; error messages
 (def no-payment-method-error "You must enter a valid payment method before subscribing to this plan")
 (def invalid-card-number-error "Your card number is invalid")
@@ -32,8 +36,6 @@
 (def card-expired-error "Your card has expired")
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 (def no-payment-method "You must provide a valid payment method")
-
-(def cardnumber-input-iframe {:xpath "//iframe[@name='__privateStripeFrame4']"})
 (def cardnumber-input "input[name~='cardnumber']")
 
 (defn get-stripe-frame-names []
@@ -57,10 +59,10 @@
   (taxi/switch-to-default))
 
 (defn enter-cc-information [{:keys [cardnumber exp-date cvc]
-                             :or {exp-date "0121" cvc "123"}}]
+                             :or {exp-date "0130" cvc "123"}}]
   (log/info "entering stripe card information")
-  (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
   (taxi/switch-to-default)
+  (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
   (let [ ;; note: stripe could change the frame names
         _ (b/wait-until #(>= (count (get-stripe-frame-names)) 3))
         frame-names (get-stripe-frame-names)

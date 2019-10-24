@@ -84,7 +84,6 @@
 (defn UserBilling []
   (when-let [self-id @(subscribe [:self/user-id])]
     (let [billing-url (str "/user/" self-id "/billing")]
-      (dispatch [:user/set-on-subscribe-nav-to-url! billing-url])
       (dispatch [:data/load [:user/default-source self-id]])
       (dispatch [:data/load [:user/current-plan self-id]])
       [Segment

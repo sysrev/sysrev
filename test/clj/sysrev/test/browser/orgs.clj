@@ -30,6 +30,7 @@
 (def create-org-input "#create-org-input")
 (def create-org-button "#create-org-button")
 (def org-user-table "#org-user-table")
+
 (defn change-user-permission-dropdown [username]
   (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
          "/ancestor::tr"
@@ -202,18 +203,14 @@
   [org-name-1 "Foo Bar, Inc."
    org-name-1-project "Foo Bar Article Reviews"
    user-project "Baz Qux"
-   org-cc {:cardnumber bstripe/valid-visa-cc
-           :exp-date "0125"
-           :cvc "123"}
-   user-cc {:cardnumber bstripe/valid-visa-cc
-            :exp-date "0122"
-            :cvc "123"}
+   org-cc {:cardnumber bstripe/valid-visa-cc}
+   user-cc {:cardnumber bstripe/valid-visa-cc}
    {:keys [email]} b/test-login
    user-id (user-by-email email :user-id)]
   (do
     ;; need to be a stripe customer
     (when-not (user-by-email email :stripe-id)
-      (log/info (str "Stripe Customer created for " email))
+      (log/info (str "stripe customer created for " email))
       (user/create-user-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
@@ -242,7 +239,7 @@
     (is (b/exists? active-set-private-button))
 ;;; user pay wall
     ;;
-    (log/info "Testing User Paywall")
+    (log/info "testing user paywall")
     (nav/new-project user-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
@@ -356,3 +353,9 @@
     ;; paywall has been lifted
     (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
   :cleanup (b/cleanup-test-user! :email email :groups true))
+
+;; test no-account pricing org sign up
+
+;; test pricing 'cold feet'
+
+;; test pricing with an existing org

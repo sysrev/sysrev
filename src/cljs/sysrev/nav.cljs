@@ -1,5 +1,6 @@
 (ns sysrev.nav
   (:require [clojure.string :as str]
+            [goog.uri.utils :as uri-utils]
             [secretary.core :as secretary]
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
@@ -55,7 +56,12 @@
 
 (reg-fx :nav-redirect (fn [url] (nav-redirect url)))
 
-(reg-fx :nav-scroll-top (fn [url] (nav-scroll-top url)))
+(reg-fx :nav-scroll-top (fn [url]
+                          (let [uri (uri-utils/getPath url)
+                                params (-> url
+                                           uri-utils/getQueryData
+                                           (cljs-http.client/parse-query-params))]
+                            (nav-scroll-top uri :params params))))
 
 (reg-fx :nav-reload (fn [url] (nav-reload url)))
 

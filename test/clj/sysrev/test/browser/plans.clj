@@ -28,8 +28,14 @@
     (stripe/create-subscription-user! (user-by-email email)))
 
 (def use-card "form.StripeForm button.ui.button.use-card")
-
 (def upgrade-link (xpath "//a[text()='Upgrade']"))
+(def back-to-user-settings (xpath "//a[contains(text(),'Back to user settings')]"))
+
+;; pricing flow elements
+(def choose-pro-button (xpath "//button[contains(text(),'Choose Pro')]"))
+(def create-account-h4 (xpath "//h4[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
+(def upgrade-plan-h2 (xpath "//h1[contains(text(),'Upgrade your plan')]"))
+(def pricing-link (xpath "//a[@id='pricing-link']"))
 
 (defn click-use-card [& {:keys [wait delay error?]
                          :or {wait true delay 50 error? false}}]
@@ -240,3 +246,83 @@
       (is (= stripe/default-plan (get-db-plan))))
   :cleanup (b/cleanup-test-user! :email email))
 
+(deftest-browser subscribe-to-unlimited-through-pricing-no-account
+  (and (test/db-connected?) (not (test/remote-test?)))
+  [email "baz@qux.com"
+   password "bazqux"
+   get-test-user #(user-by-email email)
+   get-customer #(get-user-customer email)
+   get-db-plan #(user-db-plan email)]
+  (do
+    (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
+    (b/wait-until-displayed choose-pro-button)
+    (b/click choose-pro-button)
+    ;; register
+    (b/wait-until-displayed create-account-h4)
+    (b/set-input-text "input[name='email']" email)
+    (b/set-input-text "input[name='password']" password)
+    (b/click "button[name='submit']")
+    ;; upgrade plan
+    (b/wait-until-displayed upgrade-plan-h2)
+    (is (= "Basic" (get-db-plan)))
+    ;; refresh to make sure state isn't an issue
+    (taxi/refresh)
+    (b/wait-until-displayed upgrade-plan-h2)
+    ;; update payment method
+    (b/click "a.payment-method.add-method" :delay 50)
+    ;; refresh to test redirect uri
+    (taxi/refresh)
+    (bstripe/enter-cc-information
+     {:cardnumber bstripe/valid-visa-cc})
+    (click-use-card :delay 50)
+    (click-upgrade-plan)
+    ;; we have an unlimited plan
+    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+    (is (= "Unlimited_User" (get-db-plan))))
+  :cleanup (b/cleanup-test-user! :email email))
+
+;; the user changes their mind in the filling
+;; out information but eventually does sign up anyway
+;; through the pricing workflow
+(deftest-browser subscribe-to-unlimited-through-pricing-cold-feet
+  (and (test/db-connected?) (not (test/remote-test?)))
+  [email "baz@qux.com"
+   password "bazqux"
+   get-test-user #(user-by-email email)
+   get-customer #(get-user-customer email)
+   get-db-plan #(user-db-plan email)]
+  (do
+    (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
+    (b/wait-until-displayed choose-pro-button)
+    (b/click choose-pro-button)
+    ;; register
+    (b/wait-until-displayed create-account-h4)
+    (b/set-input-text "input[name='email']" email)
+    (b/set-input-text "input[name='password']" password)
+    (b/click "button[name='submit']")
+    ;; go to upgrade plan
+    (b/wait-until-displayed upgrade-plan-h2)
+    ;; refresh to make sure state isn't an issue
+    (taxi/refresh)
+    (b/wait-until-displayed upgrade-plan-h2)
+    ;; got cold feet, decides against upgrading
+    (b/click back-to-user-settings)
+    (is (= "Basic" (get-db-plan)))
+    ;; go back to main page and go through pricing
+    (nav/go-route "/")
+    ;; click on pricing
+    (b/click pricing-link :delay 50)
+    (b/wait-until-displayed choose-pro-button)
+    (b/click choose-pro-button)
+    ;; update payment method
+    (b/click "a.payment-method.add-method" :delay 50)
+    ;; refresh to test redirect uri
+    (taxi/refresh)
+    (bstripe/enter-cc-information
+     {:cardnumber bstripe/valid-visa-cc})
+    (click-use-card :delay 50)
+    (click-upgrade-plan)
+    ;; we have an unlimited plan
+    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+    (is (= "Unlimited_User" (get-db-plan))))
+  :cleanup (b/cleanup-test-user! :email email))

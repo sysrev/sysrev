@@ -5,6 +5,7 @@
              [subscribe dispatch reg-sub reg-event-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
+            [sysrev.nav :as nav]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
@@ -279,14 +280,11 @@
      (when (and (= project-plan "Basic")
                 @(subscribe [:project/controlled-by? project-id self-id]))
        (fn []
-         [:p [:a {:href (if (= owner-type :user-id)
-                          "/user/plans"
-                          (str "/org/" owner-id "/plans"))
-                  :on-click #(if (= owner-type :user-id)
-                               (dispatch [:user/set-on-subscribe-nav-to-url!
-                                          (str project-url "/settings")])
-                               (dispatch [:org/set-on-subscribe-nav-to-url!
-                                          owner-id (str project-url "/settings")]))}
+         [:p [:a {:href (nav/make-url (if (= owner-type :user-id)
+                                        "/user/plans"
+                                        (str "/org/" owner-id "/plans"))
+                                      {:on_subscribe_uri
+                                       (str project-url "/settings")})}
               "Upgrade"] (str " " (if (= owner-type :user-id)
                                     "your"
                                     "the organization's")
