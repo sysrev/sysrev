@@ -6,9 +6,10 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
-             [Form FormField FormInput Button Segment Header Input Message MessageHeader]]
+             [Form FormField FormInput Button Segment Header Input Message MessageHeader Divider]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 (setup-panel-state panel [:orgs] {:state-var state})
@@ -73,23 +74,52 @@
    [Header {:as "h4" :dividing true} "Create a New Organization"]
    [CreateOrgForm]])
 
-(defn CreateOrgPanel
+(defn- UserOrganization [{:keys [group-id group-name]}]
+  [:div {:id (str "org-" group-id)
+         :class "user-org-entry"}
+   [:a {:href (str "/org/" group-id "/plans") :on-click #(util/scroll-top)}
+    group-name]])
+
+(defn SubscribeOrgPanel
   []
   (let [current-path (uri-utils/getPath @active-route)
-        panel-type (uri-utils/getParamValue @active-route "type")]
-    [:div
-     (when (= panel-type "new-account")
-       [:h4 {:style {:text-align "center"}} "Next, create a Sysrev organization for your team"])
-     (when (= panel-type "existing-account")
-       [:h4 {:style {:text-align "center"}} "First, create a Sysrev organization for your team"])
-     [Segment {:secondary true
-               :class "ui segment auto-margin auth-segment"}
-      [Header {:as "h4" :dividing true} "Create a New Organization"]
-      [CreateOrgForm]]]))
+        panel-type (uri-utils/getParamValue @active-route "type")
+        user-id (subscribe [:self/user-id])
+        user-owned-orgs (fn [orgs]
+                          (filter #(contains? (-> % :permissions set) "owner") orgs))
+        orgs (subscribe [:user/orgs @user-id])]
+    (r/create-class
+     {:reagent-render
+      (fn [_]
+        [:div
+         (when (= panel-type "new-account")
+           [:h4 {:style {:text-align "center"}} "Next, create a Sysrev organization for your team"])
+         (when (= panel-type "existing-account")
+           [:h4 {:style {:text-align "center"}} "First, create a Sysrev organization for your team"])
+         [Segment {:secondary true
+                   :class "ui segment auto-margin auth-segment"}
+          [Header {:as "h4" :dividing true} "Create a New Organization"]
+          [CreateOrgForm]]
+         (when (seq (user-owned-orgs @orgs))
+           [:div [:h4 {:style {:text-align "center"}}
+                  "...or select an existing Sysrev organzation"]
+            [Segment {:secondary true
+                      :class "ui segment auto-margin auth-segment"}
+             [:div {:id "user-pricing-organizations"}
+              (doall (map-indexed
+                      (fn [idx org]
+                        ^{:key (:group-id org)}
+                        [:div
+                         [UserOrganization org]
+                         (when (> idx 0)
+                           [Divider])])
+                      (user-owned-orgs @orgs)))]]])])
+      :component-did-mount (fn [this]
+                             (dispatch [:fetch [:user/orgs @user-id]]))})))
 
 (defmethod panel-content panel []
   (fn [child]
-    [CreateOrgPanel]))
+    [SubscribeOrgPanel]))
 
 (defmethod logged-out-content panel []
   (logged-out-content :logged-out))

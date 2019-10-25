@@ -1,7 +1,8 @@
 (ns sysrev.test.browser.stripe
   (:require [clj-webdriver.taxi :as taxi]
+            [clojure.tools.logging :as log]
             [sysrev.test.browser.core :as b]
-            [clojure.tools.logging :as log]))
+            [sysrev.test.browser.xpath :refer [xpath]]))
 
 ;; valid number
 (def valid-visa-cc "4242424242424242")
@@ -36,7 +37,7 @@
 (def card-expired-error "Your card has expired")
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 (def no-payment-method "You must provide a valid payment method")
-(def cardnumber-input "input[name~='cardnumber']")
+(def cardnumber-input (xpath "//input[@name='cardnumber']"))
 
 (defn get-stripe-frame-names []
   (->> (b/current-frame-names)

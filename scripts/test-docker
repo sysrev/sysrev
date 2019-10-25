@@ -3,10 +3,38 @@ set -eu
 
 source vars.sh
 
-set -x
+compile=true
+namespace=''
 
-cd client
-shadow-cljs release prod --source-maps
-cd ..
+# https://stackoverflow.com/questions/7069682/how-to-get-arguments-with-flags-in-bash/21128172
+print_usage() {
+    echo "test-docker - run tests in docker"
+    echo " "
+    echo "options:"
+    echo "-h  show this help section"
+    echo "-c  when false, don't compile clojurescript before teting. defaults to true"
+    echo "-n  a single namespace to test, defaults to all of them"
+}
 
-time docker exec sysrev bash -c 'cd /systematic_review && lein test'
+while getopts 'hc:n:' flag; do
+      case "${flag}" in
+	  h) print_usage
+	     exit 1;;
+	  c) compile="${OPTARG}" ;;
+	  n) namespace="${OPTARG}" ;;
+	  *) print_usage
+	     exit 1 ;;
+      esac
+done
+
+if [ $compile = true ]; then
+    cd client
+    shadow-cljs release prod --source-maps
+    cd ..
+fi
+
+if [ -z $namespace ]; then
+    time docker exec sysrev bash -c "cd /systematic_review && lein test"
+else
+    time docker exec sysrev bash -c "cd /systematic_review && lein test :only $namespace"  
+fi

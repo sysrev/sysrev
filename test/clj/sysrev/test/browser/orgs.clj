@@ -35,7 +35,7 @@
 ;; pricing workflow elements
 (def choose-team-pro-button (xpath "//button[contains(text(),'Choose Team Pro')]"))
 (def create-account-h4 (xpath "//h4[contains(text(),'Create a free account before moving on to team creation')]"))
-(def create-team-h4 (xpath "//h4[contains(text(),'Next, create a Sysrev organization for your team')]"))
+(def create-team-h4 (xpath "//h4[contains(text(),'create a Sysrev organization for your team')]"))
 
 (defn change-user-permission-dropdown [username]
   (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
@@ -291,6 +291,7 @@
     (b/click (xpath "//a[contains(text(),'" user-project "')]"))
     ;; set the project private
     (nav/go-project-route "/settings" :wait-ms 30)
+    (b/wait-until-displayed set-private-button)
     (b/click set-private-button :delay 30)
     (b/click save-options-button :delay 30)
     (is (b/exists? active-set-private-button))
@@ -411,10 +412,69 @@
                                group-current-plan
                                :name))))
   :cleanup (b/cleanup-test-user! :email email :groups true))
-;; test pricing 'cold feet'
-;; 1. test that user makes an account, but not a team
-;; 2. test that user makes an account and a team
-;; but gets cold feed when putting in payment information
-;; 3. test that pricing flow will work when user has account and team
-;; 4. test that pricing flow will work when user has an account, but doesn't have a org 
-;; test pricing with an existing org
+
+;; test that pricing works from any point in the workflow
+(deftest-browser org-pricing-flow-intermittent
+  (and (test/db-connected?) (not (test/remote-test?)))
+  [email "baz@qux.com"
+   password "bazqux"
+   org-name "Foo Bar, Inc."]
+  (do
+    (nav/go-route "/")
+    (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
+    (b/wait-until-displayed choose-team-pro-button)
+    (b/click choose-team-pro-button)
+    (b/wait-until-displayed create-account-h4)
+    (b/set-input-text "input[name='email']" email)
+    (b/set-input-text "input[name='password']" password)
+    (b/click "button[name='submit']")
+    ;; don't create a team
+    (b/wait-until-displayed create-team-h4)
+    (nav/go-route "/")
+    ;; let's go through pricing again for a team pro account
+    (b/wait-until-displayed plans/pricing-link)
+    (b/click plans/pricing-link)
+    (b/wait-until-displayed choose-team-pro-button)
+    (b/click choose-team-pro-button)
+    ;; create a team
+    (b/wait-until-displayed create-team-h4)
+    (b/set-input-text-per-char create-org-input org-name)
+    (b/click create-org-button)
+    (b/wait-until-displayed plans/upgrade-plan-h2)
+    (b/wait-until-loading-completes :pre-wait 100)
+    ;; whoops nevermind, got cold feet
+    (nav/go-route "/")
+    ;; let's try to pay again
+    (b/click plans/pricing-link)
+    (b/wait-until-displayed choose-team-pro-button)
+    (b/click choose-team-pro-button)
+    ;; click the existing team
+    (taxi/refresh)
+    (b/wait-until-displayed (xpath "//a[text()='" org-name"']") 5000 100)
+    (b/click (xpath "//a[text()='" org-name"']"))
+    ;; upgrade plan
+    (b/wait-until-displayed plans/upgrade-plan-h2)
+     (is (= "Basic" (-> (user-groups email)
+                       first
+                       :group-id
+                       group-current-plan
+                       :name)))
+    ;; refresh to make sure state isn't an issue
+    (taxi/refresh)
+    (b/wait-until-displayed plans/upgrade-plan-h2)
+    ;; update payment method
+    (b/click "a.payment-method.add-method" :delay 50)
+    ;; refresh to test redirect uri
+    (taxi/refresh)
+    (bstripe/enter-cc-information
+     {:cardnumber bstripe/valid-visa-cc})
+    (plans/click-use-card :delay 50)
+    (plans/click-upgrade-plan)
+    ;; ;; we have an unlimited plan
+    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+    (is (= "Unlimited_Org" (-> (user-groups email)
+                               first
+                               :group-id
+                               group-current-plan
+                               :name))))
+  :cleanup (b/cleanup-test-user! :email email :groups true))
