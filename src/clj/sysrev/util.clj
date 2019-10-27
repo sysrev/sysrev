@@ -8,13 +8,12 @@
             [clojure.tools.logging :as log]
             [clojure.data.xml :as dxml]
             [crypto.random]
-            [cognitect.transit :as transit]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [me.raynes.fs :as fs]
             [sysrev.config.core :refer [env]]
-            [sysrev.shared.util :as sutil :refer [ensure-pred]])
+            [sysrev.shared.util :as sutil])
   (:import java.util.UUID
            (java.io File ByteArrayInputStream ByteArrayOutputStream)
            (java.util.zip GZIPInputStream)
@@ -27,20 +26,17 @@
   (ex-info "this should never happen" {:type :should-never-happen}))
 
 (defn xml-find [roots path]
-  (try
-    (let [roots (if (map? roots) [roots] roots)]
-      (if (empty? path)
-        roots
-        (xml-find
-         (flatten
-          (map (fn [root]
-                 (filter (fn [child]
-                           (= (:tag child) (first path)))
-                         (:content root)))
-               roots))
-         (rest path))))
-    (catch Throwable e
-      nil)))
+  (try (let [roots (if (map? roots) [roots] roots)]
+         (if (empty? path)
+           roots
+           (xml-find (flatten
+                      (map (fn [root]
+                             (filter (fn [child]
+                                       (= (:tag child) (first path)))
+                                     (:content root)))
+                           roots))
+                     (rest path))))
+       (catch Throwable _ nil)))
 
 (defn xml-find-value [roots path]
   (-> (xml-find roots path) first :content first))
@@ -79,11 +75,11 @@
   []
   (let [ ;; Reload project namespaces
         failed (->> (all-project-ns)
-                    (mapv #(try
-                             (do (require (ns-name %) :reload) nil)
-                             (catch Throwable e
-                               (log/warn (ns-name %) "failed:" (.getMessage e))
-                               %)))
+                    (mapv #(try (require (ns-name %) :reload)
+                                nil
+                                (catch Throwable e
+                                  (log/warn (ns-name %) "failed:" (.getMessage e))
+                                  %)))
                     (remove nil?))]
     ;; Try again for any that failed
     ;; (may have depended on changes from another namespace)
@@ -134,7 +130,7 @@
 (defn parse-time-string
   "Returns DateTime (clj-time) object from :mysql format time
   string. Compatible with `write-time-string`."
-  [s & [formatter]]
+  [s]
   (tf/parse (tf/formatter :mysql) s))
 
 (defn to-clj-time

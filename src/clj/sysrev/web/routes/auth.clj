@@ -1,14 +1,10 @@
 (ns sysrev.web.routes.auth
   (:require [clojure.tools.logging :as log]
-            [compojure.core :refer :all]
+            [compojure.core :refer [GET POST]]
             [ring.util.response :as response]
             [sysrev.api :as api]
             [sysrev.user.core :as user :refer [user-by-email]]
-            [sysrev.project.core :as project]
-            [sysrev.util :refer [should-never-happen-exception]]
-            [sysrev.shared.util :refer [in?]]
             [sysrev.mail.core :refer [send-email]]
-            [sysrev.db.core :as db]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.web.app :as web :refer [with-authorize]]
             [sysrev.config.core :refer [env]])
@@ -22,6 +18,9 @@
            (com.google.api.client.googleapis.auth.oauth2
             GoogleIdToken GoogleIdTokenVerifier
             GoogleIdTokenVerifier$Builder GoogleIdToken$Payload)))
+
+;; for clj-kondo
+(declare auth-routes dr finalize-routes)
 
 (declare send-password-reset-email)
 
@@ -77,22 +76,22 @@
          (let [{:keys [params scheme server-name session]} request
                {:keys [code]} params
                base-url (str (name scheme) "://" server-name)
-               {:keys [email google-user-id] :as user-info}
+               {:keys [email #_ google-user-id] :as user-info}
                (try (get-google-user-info base-url code)
                     (catch Throwable e
                       (log/warn "get-google-user-info login failure")
                       (log/warn (.getMessage e))
                       nil))
                user (when user-info (user-by-email email))
-               {verified :verified :or {verified false}} user
-               success (not-empty user)
+               {_verified :verified :or {_verified false}} user
+               _success (not-empty user)
                session-identity (select-keys user [:user-id :user-uuid :email :default-project-id])]
            (with-meta (response/redirect base-url)
              {:session (assoc session :identity session-identity)}))))
 
 (dr (POST "/api/auth/login" request
-          (let [{session :session
-                 {:keys [email password] :as body} :body} request
+          (let [{:keys [session body]} request
+                {:keys [email password]} body
                 valid (or (and (= :dev (:profile env))
                                (= password "override"))
                           (user/valid-password? email password))
@@ -105,21 +104,20 @@
               success     (with-meta {:session (assoc session :identity session-identity)})))))
 
 (dr (POST "/api/auth/logout" request
-          (let [{{identity :identity :as session} :session} request
+          (let [{:keys [session]} request
+                {:keys [identity]} session
                 settings (user-by-email (:email identity) :settings)
                 success ((comp not nil?) identity)]
             (with-meta {:success success}
               {:session {:settings (select-keys settings [:ui-theme])}}))))
 
 (dr (POST "/api/auth/register" request
-          (let [{{:keys [email password project-id]
-                  :or {project-id nil}
-                  :as body} :body} request]
+          (let [{:keys [email password project-id]} (:body request)]
             (api/register-user! email password project-id))))
 
 (dr (GET "/api/auth/identity" request
-         (let [{{{:keys [user-id] :as identity} :identity
-                 :as session} :session} request
+         (let [{:keys [session]} request
+               {:keys [user-id]} (:identity session)
                verified (user/primary-email-verified? user-id)]
            (if user-id
              (-> (merge {:identity (user/user-identity-info user-id true)}
@@ -136,20 +134,19 @@
               {:session (merge session {:settings settings})}))))
 
 (dr (GET "/api/auth/lookup-reset-code" request
-         (let [{{:keys [reset-code] :as params} :params} request
+         (let [{:keys [reset-code]} (:params request)
                {:keys [email]} (user/user-by-reset-code reset-code)]
            {:email email})))
 
 (dr (POST "/api/auth/request-password-reset" request
-          (let [{{:keys [email url-base] :as body} :body} request]
+          (let [{:keys [email url-base]} (:body request)]
             (if-let [user-id (user-by-email email :user-id)]
               (do (send-password-reset-email user-id :url-base url-base)
                   {:success true, :exists true})
               {:success false, :exists false}))))
 
 (dr (POST "/api/auth/reset-password" request
-          (let [{{:keys [reset-code password] :as body}
-                 :body} request
+          (let [{:keys [reset-code password]} (:body request)
                 {:keys [email user-id]} (user/user-by-reset-code reset-code)]
             (assert user-id "No user account found for reset code")
             (user/set-user-password email password)

@@ -2,19 +2,14 @@
   (:require [clojure.string :as str]
             [clojure.set :as set]
             [clojure.tools.logging :as log]
-            [clojure.stacktrace :refer [print-cause-trace]]
-            [clojure.data.json :as json]
             [clojure.data.xml :as dxml]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [select from where order-by
+                                               insert-into values sset]]
+            [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :as project :refer
-             [add-project-member set-member-permissions default-project-settings]]
-            [sysrev.project.clone :as clone]
+            [sysrev.project.core :as project]
             [sysrev.group.core :as group]
             [sysrev.user.core :as user]
             [sysrev.formats.endnote :refer [load-endnote-record]]
@@ -22,8 +17,7 @@
             [sysrev.payment.stripe :as stripe]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.file.document :refer [migrate-filestore-table]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values in?]])
+            [sysrev.util :as util])
   (:import java.util.UUID))
 
 (defn update-stripe-plans-table

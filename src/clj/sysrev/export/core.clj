@@ -1,9 +1,6 @@
 (ns sysrev.export.core
   (:require [clojure.string :as str]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [order-by merge-where merge-join]]
             [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]

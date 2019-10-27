@@ -3,19 +3,11 @@
             [clj-http.client :as http]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer
-             [do-query do-execute with-transaction to-jsonb
-              clear-project-cache]]
+            [honeysql.helpers :as sqlh :refer [select from where insert-into values delete-from]]
+            [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
             [sysrev.source.core :as source]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values parse-number in?]]
-            [sysrev.config.core :as config]
+            [sysrev.shared.util :refer [in?]]
             [sysrev.biosource.core :refer [api-host]]))
 
 (def flag-name "auto-duplicate")
@@ -61,7 +53,7 @@
     (->> article-dups (map lookup-group-matches) distinct)))
 
 (defn update-project-duplicates [project-id]
-  (with-transaction
+  (db/with-clear-project-cache project-id
     (-> (delete-from [:article-flag :af])
         (where [:and
                 [:= :af.flag-name flag-name]
@@ -85,8 +77,7 @@
                            :flag-name flag-name
                            ;; keep first id enabled
                            :disable (not= article-id (first article-ids))
-                           :meta (to-jsonb
-                                  {:duplicate-of article-ids})})))))
+                           :meta (db/to-jsonb {:duplicate-of article-ids})})))))
                (apply concat))]
       (log/info (format "marking %d article duplicates..." (count entries)))
       (doseq [entry-group (partition-all 100 entries)]
@@ -94,5 +85,4 @@
             (values (vec entry-group))
             do-execute)))
     (source/update-project-articles-enabled project-id)
-    (clear-project-cache project-id)
     nil))

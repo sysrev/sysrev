@@ -1,16 +1,11 @@
 (ns sysrev.misc
   (:require [clojure.string :as str]
-            [clojure-csv.core :refer [write-csv]]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [delete-from where insert-into values]]
             [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction to-sql-array to-jsonb]]
+             [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [map-values]]))
 
 (defn articles-matching-regex-clause [field-name regexs]
   (sql/raw
@@ -26,17 +21,13 @@
 
 (defn fix-duplicate-label-values [label-id]
   (let [label (->> (q/select-label-by-id label-id [:*])
-                   do-query first)]
-    (let [{:keys [all-values inclusion-values]}
-          (:definition label)]
-      (let [label (cond-> label
-                    all-values
-                    (update-in [:definition :all-values]
-                               #(->> % (remove empty?) distinct))
-                    inclusion-values
-                    (update-in [:definition :inclusion-values]
-                               #(->> % (remove empty?) distinct)))]
-        label))))
+                   do-query first)
+        {:keys [all-values inclusion-values]} (:definition label)]
+    (cond-> label
+      all-values        (update-in [:definition :all-values]
+                                   #(->> % (remove empty?) distinct))
+      inclusion-values  (update-in [:definition :inclusion-values]
+                                   #(->> % (remove empty?) distinct)))))
 
 (defn merge-article-labels [article-ids]
   (let [labels
@@ -52,20 +43,15 @@
              (map-values #(sort-by (comp count second) > %)))]
     (doseq [[user-id ulabels] labels]
       (let [confirmed-labels
-            (->> ulabels
-                 (filter
-                  (fn [[article-id alabels]]
-                    (some #(not= (:confirm-time %) nil)
-                          alabels))))
-            keep-labels
-            (cond (not (empty? confirmed-labels))
-                  (second (first confirmed-labels))
-                  :else
-                  (second (first ulabels)))]
-        (when (not (empty? keep-labels))
-          (println
-           (format "keeping %d labels for user=%s"
-                   (count keep-labels) user-id))
+            (->> ulabels (filter (fn [[_article-id alabels]]
+                                   (some #(not= (:confirm-time %) nil)
+                                         alabels))))
+            keep-labels (if (seq confirmed-labels)
+                          (second (first confirmed-labels))
+                          (second (first ulabels)))]
+        (when (seq keep-labels)
+          (println (format "keeping %d labels for user=%s"
+                           (count keep-labels) user-id))
           (with-transaction
             (doseq [article-id article-ids]
               (-> (delete-from :article-label)

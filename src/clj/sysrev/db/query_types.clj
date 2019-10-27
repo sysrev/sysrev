@@ -1,13 +1,10 @@
 (ns sysrev.db.query-types
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :as sqlh-pg :refer :all :exclude [partition-by]]
-            [sysrev.db.core :as db]
+  (:require [honeysql.helpers :as sqlh :refer [merge-where]]
             [sysrev.db.queries :as q]
             [sysrev.shared.util :as sutil :refer [apply-keyargs]]))
+
+;; for clj-kondo
+(declare find-label find-label-1 find-article find-article-1)
 
 (defmacro def-find-type [[table alias] [match-by fields opt-keys opts] & find-args]
   (let [find-name (symbol (str "find-" (name table)))

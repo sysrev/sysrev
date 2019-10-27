@@ -1,14 +1,9 @@
 (ns sysrev.annotations
-  (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.helpers :refer [returning]]
-            [clj-time.coerce :as tc]
-            [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
+  (:require [clj-time.coerce :as tc]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.article.core :as article]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil
-             :refer [in? map-values assert-pred parse-integer]]))
+            [sysrev.shared.util :as sutil :refer [map-values]]))
 
 (defn create-annotation! [selection annotation context article-id]
   (q/create :annotation {:selection selection

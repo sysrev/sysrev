@@ -1,6 +1,6 @@
 (ns sysrev.all-test-main
   (:gen-class)
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [*test-out* run-all-tests]]
             [clojure.java.io :as io]
             [clojure.test.junit :refer [with-junit-output]]
             [clojure.tools.logging :as log]
@@ -12,7 +12,7 @@
             [sysrev.db.migration :as migration]
             [sysrev.init :as init]))
 
-(defn -main [& args]
+(defn -main [& _args]
   (log/info (str "running database tests with config:\n"
                  (pprint/write (-> env :postgres) :stream nil)))
   (log/info (str "running browser tests with config:\n"

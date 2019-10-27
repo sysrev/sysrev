@@ -3,17 +3,11 @@
             [clj-http.client :as http]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer
-             [do-query do-execute with-transaction
-              with-project-cache clear-project-cache]]
+            [honeysql.helpers :as sqlh :refer [select from where]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values parse-number in?]]
+            [sysrev.shared.util :refer [in?]]
             [sysrev.config.core :as config]
             [sysrev.biosource.core :refer [api-host]]))
 
@@ -34,7 +28,7 @@
     (and (integer? load-count) (>= load-count 1))))
 
 (defn project-important-terms [project-id]
-  (with-project-cache project-id [:important-terms]
+  (db/with-project-cache project-id [:important-terms]
     (-> (select :entity-type :instance-name :instance-count :instance-score)
         (from :project-entity)
         (where [:= :project-id project-id])
@@ -67,7 +61,7 @@
   [project-id]
   (try (when (project/project-exists? project-id :include-disabled? true)
          (record-importance-load-start project-id)
-         (clear-project-cache project-id)
+         (db/clear-project-cache project-id)
          (let [max-count 100
                pmids (project/project-pmids project-id)
                response-entries (some-> pmids not-empty fetch-important-terms)
@@ -88,7 +82,7 @@
                                       (or (-> % :instance-score number?)
                                           (-> % :instance-score nil?))))
                         (mapv #(assoc % :project-id project-id)))]
-           (with-transaction
+           (db/with-transaction
              (when (and (not-empty entries)
                         (project/project-exists? project-id :include-disabled? true))
                (q/delete :project-entity {:project-id project-id})
@@ -104,7 +98,7 @@
              (log/info "load-project-important-terms:" msg)))
          nil)
        (finally (record-importance-load-stop project-id)
-                (clear-project-cache project-id))))
+                (db/clear-project-cache project-id))))
 
 (defn schedule-important-terms-update [project-id]
   (when-not (in? [:test :remote-test] (-> config/env :profile))

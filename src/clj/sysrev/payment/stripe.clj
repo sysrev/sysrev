@@ -174,8 +174,8 @@
   "User supports a project-id for amount (integer cents). Does not
   handle overhead of increasing / decreasing already supported
   projects"
-  [{:keys [user-id stripe-id] :as user} project-id amount]
-  (let [{:keys [body status] :as stripe-response}
+  [{:keys [user-id stripe-id] :as _user} project-id amount]
+  (let [{:keys [body status]}
         (http/post (str stripe-url "/subscriptions")
                    (assoc default-req
                           :form-params
@@ -237,14 +237,14 @@
 
 (defn ^:unused support-project-once!
   "Make a one-time contribution to a project for amount"
-  [{:keys [stripe-id user-id] :as user} project-id amount]
+  [{:keys [user-id stripe-id] :as _user} project-id amount]
   (try (let [transaction-source (:stripe-charge funds/transaction-source-descriptor)
              {:keys [id created] :as stripe-response}
-             
+
              ;; this will need to be upgraded to use PaymentIntents
              #_(execute-action (merge (charges/create-charge (common/money-quantity amount "usd")
-                                                           (common/description "one time")
-                                                           (common/customer stripe-id))
+                                                             (common/description "one time")
+                                                             (common/customer stripe-id))
                                       {"metadata" {"project-id" project-id}}))
              "foo"]
          (if (and id created)

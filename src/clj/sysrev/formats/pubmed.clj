@@ -13,9 +13,7 @@
             [sysrev.cassandra :as cdb]
             [sysrev.util :as util :refer
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil
-             :refer [in? map-values parse-integer ensure-pred]]))
+            [sysrev.shared.util :as sutil :refer [parse-integer ensure-pred]]))
 
 (def use-cassandra-pubmed? true)
 
@@ -46,11 +44,11 @@
   (distinct
    (concat
     (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
-         (map (fn [{tag :tag, {source :EIdType} :attrs, content :content}]
+         (map (fn [{_tag :tag, {source :EIdType} :attrs, content :content}]
                 (map #(hash-map :source source, :external-id %) content)))
          (apply concat))
     (->> (xml-find pxml [:PubmedData :ArticleIdList :ArticleId])
-         (map (fn [{tag :tag, {source :IdType} :attrs, content :content}]
+         (map (fn [{_tag :tag, {source :IdType} :attrs, content :content}]
                 (map #(hash-map :source source, :external-id %) content)))
          (apply concat)))))
 
@@ -144,7 +142,7 @@
     (catch Throwable e
       (log/warn "parse-pmid-xml:" "error while parsing article -" (.getMessage e))
       (try (log/warn "xml =" (dxml/emit-str pxml))
-           (catch Throwable e1 nil))
+           (catch Throwable _ nil))
       nil)))
 
 (defn fetch-pmids-xml [pmids]
@@ -170,7 +168,7 @@
                                           (parse-pmid-xml :create-raw? false)
                                           (merge {:raw %})))
                            vec)
-                      (catch Throwable e
+                      (catch Throwable _
                         (log/warn "fetch-pmid-entries-cassandra:"
                                   "error while fetching or parsing"))))]
     (if (empty? result)
@@ -178,7 +176,7 @@
       (->> (if (< (count result) (count pmids))
              (let [result-pmids (->> result (map #(some-> % :public-id parse-integer)))
                    diff (set/difference (set pmids) (set result-pmids))
-                   have (set/difference (set pmids) (set diff))
+                   ;; _have (set/difference (set pmids) (set diff))
                    from-pubmed (fetch-pmid-entries (vec diff))]
                (concat result from-pubmed))
              result)

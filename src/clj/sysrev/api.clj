@@ -15,7 +15,6 @@
             [sysrev.cache :refer [db-memo]]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer [with-transaction]]
-            [sysrev.db.queries :as q]
             [sysrev.biosource.annotations :as api-ann]
             [sysrev.biosource.importance :as importance]
             [sysrev.biosource.predict :as predict-api]
@@ -863,8 +862,8 @@
 
 ;; todo: this needs better error handling
 (defn delete-annotation! [annotation-id]
-  (do (ann/delete-annotation! annotation-id)
-      {:success true, :annotation-id annotation-id}))
+  (ann/delete-annotation! annotation-id)
+  {:success true, :annotation-id annotation-id})
 
 (defn update-annotation!
   "Update the annotation for user-id. Only users can edit their own annotations"
@@ -994,7 +993,7 @@
   [invitation-id accepted?]
   ;; user joins project when invitation is accepted
   (when accepted?
-    (let [{:keys [project-id user-id]} (invitation/read-invitation invitation-id)]
+    (let [{:keys [project-id user-id]} (invitation/get-invitation invitation-id)]
       (when (nil? (project/project-member project-id user-id))
         (project/add-project-member project-id user-id))))
   (invitation/update-invitation-accepted! invitation-id accepted?)

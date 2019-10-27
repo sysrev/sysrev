@@ -1,7 +1,6 @@
 (ns sysrev.project.invitation
-  (:require [sysrev.db.core :refer [do-query do-execute sql-now]]
-            [honeysql.helpers :as sqlh :refer [select from insert-into where values join sset]]
-            [honeysql-postgres.helpers :refer [returning]]
+  (:require [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defn create-invitation!
@@ -9,60 +8,35 @@
   the invitation is from. Optional description is a text field,
   defaults to 'view-project'."
   [invitee project-id inviter description]
-  (let [invitation-id (-> (insert-into :invitation)
-                          (values [{:user-id invitee
-                                    :project-id project-id
-                                    :description description}])
-                          (returning :id)
-                          do-query
-                          first
-                          :id)]
-    (when-not (nil? invitation-id)
-      (-> (insert-into :invitation-from)
-          (values [{:invitation-id invitation-id
-                    :user-id inviter}])
-          do-execute))
-    invitation-id))
-
-(defn invitations-for-projects
-  "Get all invitations associated projects in coll project-ids"
-  [project-ids]
-  (if-not (empty? project-ids)
-    (-> (select :*)
-        (from :invitation)
-        (where [:in :project-id project-ids])
-        do-query)))
+  (db/with-transaction
+    (when-let [invitation-id (q/create :invitation {:user-id invitee
+                                                    :project-id project-id
+                                                    :description description}
+                                       :returning :id)]
+      (q/create :invitation-from {:invitation-id invitation-id
+                                  :user-id inviter})
+      invitation-id)))
 
 (defn invitations-for-admined-projects
-  "Get all invitations that have been sent for projects admined by user-id"
+  "Get all invitations that have been sent for projects where `user-id`
+  is an admin."
   [user-id]
-  (let [admined-projects (-> (select :permissions :project-id)
-                             (from :project-member)
-                             (where [:= :user-id user-id])
-                             do-query
-                             (->> (filter #(in? (:permissions %) "admin"))
-                                  (map :project-id)))]
-    (invitations-for-projects admined-projects)))
+  (db/with-transaction
+    (when-let [project-ids (seq (->> (q/find :project-member {:user-id user-id}
+                                             [:permissions :project-id])
+                                     (filter #(in? (:permissions %) "admin"))
+                                     (map :project-id)))]
+      (q/find :invitation {:project-id project-ids}))))
 
 (defn invitations-for-user
-  "Return all invitations for user-id"
+  "Returns a sequence of all invitations for `user-id`."
   [user-id]
-  (-> (select :i.* [:p.name :project-name])
-      (from [:invitation :i])
-      (join [:project :p]
-            [:= :p.project-id :i.project-id])
-      (where [:= :user-id user-id])
-      do-query))
+  (q/find [:invitation :i] {:user-id user-id} [:i.* [:p.name :project-name]]
+          :join [:project:p :i.project-id]))
 
-(defn update-invitation-accepted!
-  [invitation-id accepted?]
-  (-> (sqlh/update :invitation)
-      (sset {:accepted accepted?
-             :updated (sql-now)})
-      (where [:= :id invitation-id])
-      do-execute))
+(defn update-invitation-accepted! [invitation-id accepted?]
+  (q/modify :invitation {:id invitation-id}
+            {:accepted accepted?, :updated :%now}))
 
-(defn read-invitation
-  "Given an invitation-id, return the invitation"
-  [invitation-id]
-  (-> (select :*) (from :invitation) (where [:= :id invitation-id]) do-query first))
+(defn get-invitation [invitation-id]
+  (q/find-one :invitation {:id invitation-id}))

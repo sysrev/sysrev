@@ -1,8 +1,6 @@
 (ns sysrev.shared.keywords
-  (:require
-   [clojure.string :as str]
-   [clojure.core.reducers :refer [fold]]
-   [sysrev.shared.util :refer [re-pos map-values]]))
+  (:require [clojure.string :as str]
+            [sysrev.shared.util :refer [re-pos map-values]]))
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]

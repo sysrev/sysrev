@@ -1,21 +1,13 @@
 (ns sysrev.article.assignment
-  (:require [clojure.spec.alpha :as s]
-            [clojure.tools.logging :as log]
-            [clojure.math.numeric-tower :as math]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-project-cache clear-project-cache]]
+  (:require [clojure.math.numeric-tower :as math]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer [merge-where]]
+            [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.entity :as e]
             [sysrev.article.core :as article]
             [sysrev.project.core :as project]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
 
 (defn query-assignment-articles [project-id & [predict-run-id]]
   (with-project-cache project-id [:label-values :saved :articles predict-run-id]

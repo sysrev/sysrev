@@ -2,17 +2,14 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.datasource.api :as ds-api]
             [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.util :as sutil :refer
-             [in? map-values index-by ensure-pred parse-integer]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
+
+;; for clj-kondo
+(declare article-to-sql)
 
 (defn merge-article-data-content [article]
   (merge (dissoc article :content)
@@ -113,8 +110,7 @@
   (q/find [:article :a] {:a.article-id article-id} :as.source-id
           :join [:article-source:as :a.article-id]))
 
-(defn article-score
-  [article-id & {:keys [predict-run-id] :as opts}]
+(defn article-score [article-id & {:keys [predict-run-id]}]
   (db/with-transaction
     (let [predict-run-id (or predict-run-id (q/article-latest-predict-run-id article-id))]
       (:score (q/find-one [:article :a] {:a.article-id article-id} :*
@@ -130,8 +126,7 @@
   `predict-run-id` allows for specifying a non-default prediction run to
   use for the prediction score."
   [article-id & {:keys [items predict-run-id]
-                 :or {items [:locations :score :flags :sources]}
-                 :as opts}]
+                 :or {items [:locations :score :flags :sources]}}]
   (assert (->> items (every? #(in? [:locations :score :flags :sources] %))))
   (let [article (ds-api/get-article-content article-id)
         get-item (fn [item-key f] (when (in? items item-key)
@@ -183,9 +178,9 @@
        (apply concat)))
 
 ;; FIX: get this PMCID value from somewhere other than raw xml
-(defn article-pmcid [article-id]
+(defn article-pmcid [_article-id]
   nil
-  #_ (some->> (qt/get-article article-id :raw) (re-find #"PMC\d+")))
+  #_ (some->> (qt/get-article _article-id :raw) (re-find #"PMC\d+")))
 
 (defn modify-articles-by-id
   "Runs SQL update setting `values` on articles in `article-ids`."

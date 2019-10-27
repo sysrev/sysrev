@@ -1,14 +1,11 @@
 (ns sysrev.custom.ebtc
   (:require [clojure.math.combinatorics :as combo]
             [clojure-csv.core :as csv]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :as db :refer [do-query do-execute]]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.article.core :refer [set-article-flag]]
             [sysrev.label.core :as labels]
-            [sysrev.label.answer :as answer]
             [sysrev.shared.util :refer [in?]]))
 
 (defn label-possible-values [{:keys [label-id] :as label}]

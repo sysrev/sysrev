@@ -10,14 +10,12 @@
 (defn get-annotations
   "Given a string of text, return a vector of annotation maps"
   [string]
-  (try
-    (when-not (str/blank? string)
-      (-> (http/post annotations-route
-                     {:content-type "application/json"
-                      :body (json/write-str {:postData (-> string (str/replace "\n" ""))})})
-          :body
-          (json/read-str :key-fn keyword)
-          (->> (mapv #(assoc % :name (str/replace (:name %) #"\"" ""))))))
-    (catch Throwable e
-      (log/warn (str "error loading annotations from " annotations-route) )
-      nil)))
+  (try (when-not (str/blank? string)
+         (-> (http/post annotations-route
+                        {:content-type "application/json"
+                         :body (json/write-str {:postData (-> string (str/replace "\n" ""))})})
+             :body
+             (json/read-str :key-fn keyword)
+             (->> (mapv #(assoc % :name (str/replace (:name %) #"\"" ""))))))
+       (catch Throwable _
+         (log/warn (str "error loading annotations from " annotations-route) ))))

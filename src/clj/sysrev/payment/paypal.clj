@@ -3,9 +3,7 @@
             [clj-time.coerce :as c]
             [clj-time.core :as t]
             [clj-time.format :as f]
-            [clj-time.local :as l]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.core :as db]
             [sysrev.project.funds :as funds]
             [sysrev.util :as util]))
 

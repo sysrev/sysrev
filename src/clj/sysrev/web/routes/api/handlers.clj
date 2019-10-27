@@ -1,31 +1,17 @@
 (ns sysrev.web.routes.api.handlers
-  (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [clojure.data.json :as json]
+  (:require [clojure.string :as str]
             [clojure.walk :as walk]
-            [compojure.core :refer :all]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [select from]]
             [sysrev.api :as api]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.web-api :as swa]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.project.core :as project]
-            [sysrev.label.core :as labels]
             [sysrev.project.clone :as clone]
-            [sysrev.source.core :as source]
             [sysrev.source.import :as import]
-            [sysrev.predict.core :as predict]
-            [sysrev.web.app :refer
-             [current-user-id active-project make-error-response]]
+            [sysrev.web.app :refer [make-error-response]]
             [sysrev.web.routes.api.core :refer
              [def-webapi web-api-routes web-api-routes-order]]
-            [sysrev.config.core :refer [env]]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
 ;; weird bug in cider:
@@ -39,7 +25,7 @@
   :doc :get
   {:require-token? false
    :doc "Returns a listing of available API calls."}
-  (fn [request]
+  (fn [_request]
     (let [api-info
           (->>
            @web-api-routes-order
@@ -67,7 +53,7 @@
                                        walk/keywordize-keys)
           valid (user/valid-password? email password)
           user (when valid (user-by-email email))
-          verified (user/primary-email-verified? (:user-id user))
+          _verified (user/primary-email-verified? (:user-id user))
           success (boolean valid)]
       (if success
         {:api-token (:api-token user)}
@@ -80,22 +66,20 @@
   {:required [:project-id]
    :project-role "member"}
   (fn [request]
-    (let [{:keys [project-id] :as body}
-          (-> request :body)]
-      (let [project (q/query-project-by-id project-id [:*])
-            members (-> (select :u.user-id)
-                        (from [:web-user :u])
-                        (q/filter-admin-user false)
-                        (q/join-user-member-entries project-id)
-                        do-query)
-            labels (-> (q/select-label-where project-id true [:name])
-                       (->> do-query (map :name)))]
-        (merge
-         (->> [:project-id :name :date-created :settings]
-              (select-keys project))
-         {:members members
-          :articles (project/project-article-count project-id)
-          :labels labels})))))
+    (let [{:keys [project-id]} (:body request)
+          project (q/query-project-by-id project-id [:*])
+          members (-> (select :u.user-id)
+                      (from [:web-user :u])
+                      (q/filter-admin-user false)
+                      (q/join-user-member-entries project-id)
+                      do-query)
+          labels (-> (q/select-label-where project-id true [:name])
+                     (->> do-query (map :name)))]
+      (merge (->> [:project-id :name :date-created :settings]
+                  (select-keys project))
+             {:members members
+              :articles (project/project-article-count project-id)
+              :labels labels}))))
 
 (def-webapi
   :import-pmids :post
@@ -108,8 +92,7 @@
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
   (fn [request]
-    (let [{:keys [api-token project-id pmids] :as body}
-          (-> request :body)]
+    (let [{:keys [project-id pmids]} (:body request)]
       (cond
         (or (not (seqable? pmids))
             (empty? pmids)
@@ -143,8 +126,7 @@
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
   (fn [request]
-    (let [{:keys [api-token project-id articles] :as body}
-          (-> request :body)]
+    (let [{:keys [project-id articles]} (:body request)]
       (cond
         (or (not (seqable? articles))
             (empty? articles)
@@ -245,7 +227,7 @@
   :create-project :post
   {:required [:project-name]}
   (fn [request]
-    (let [{:keys [api-token project-name add-self?]} (:body request)
+    (let [{:keys [api-token project-name #_ add-self?]} (:body request)
           {:keys [user-id]} (user/user-by-api-token api-token)]
       {:result (merge {:success true}
                       (api/create-project-for-user! project-name user-id))} )))
@@ -271,8 +253,7 @@
    :project-role "member"
    :doc "Returns a map of all label definitions for the project."}
   (fn [request]
-    (let [{:keys [project-id] :as body}
-          (-> request :body)]
+    (let [{:keys [project-id]} (:body request)]
       {:result (project/project-labels project-id true)})))
 
 ;; TODO: disable for now, not needed, web UI
@@ -473,8 +454,7 @@
 
     There are currently only two types of annotations for article, those which label an abstract or label a pdf. If an annotation has a pdf-source, it can be assumed the selection comes from a pdf. Otherwise, if there is no pdf-source the selection is associated with just the title, author or abstract of an article"}
   (fn [request]
-    (let [{:keys [project-id] :as body}
-          (walk/keywordize-keys (:query-params request))]
+    (let [{:keys [project-id]} (walk/keywordize-keys (:query-params request))]
       {:result (api/project-annotations (parse-integer project-id))})))
 
 (def-webapi
@@ -497,10 +477,9 @@
               "On success, returns the newly created project-id."]
              (str/join "\n"))}
   (fn [request]
-    (let [{:keys [api-token project-id new-project-name
-                  articles labels answers members
-                  admin-members-only user-names-only user-ids-only] :as body}
-          (-> request :body)]
+    (let [{:keys [project-id new-project-name articles labels answers members
+                  admin-members-only user-names-only user-ids-only]}
+          (:body request)]
       (cond
         (not (string? new-project-name))
         (make-error-response

@@ -2,16 +2,11 @@
   (:require [clojure.string :as str]
             [clojure.set :as set]
             [clojure.tools.logging :as log]
-            [clojure.java.io :as io]
             [me.raynes.fs :as fs]
-            [sysrev.db.core :as db :refer [with-transaction]]
-            [sysrev.article.core :as article]
-            [sysrev.file.core :as file]
-            [sysrev.file.s3 :as s3-file]
             [sysrev.file.article :as article-file]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
-            [sysrev.util :as util :refer [shell]])
+            [sysrev.util :as util])
   (:import [org.apache.commons.compress.archivers.zip ZipFile ZipArchiveEntry]))
 
 (defn to-zip-file [^java.io.File file] (ZipFile. file))
@@ -40,7 +35,7 @@
 
 ;; FIX: want this to return an error if no pdfs found - does it?
 (defmethod import-source :pdf-zip
-  [stype project-id {:keys [file filename]} {:as options}]
+  [_ project-id {:keys [file filename]} {:as options}]
   (let [filename-sources (lookup-filename-sources project-id filename)]
     (if (seq filename-sources)
       (do (log/warn "import-source pdf-zip - non-empty filename-sources -" filename-sources)

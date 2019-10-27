@@ -22,14 +22,14 @@
 (defn- request
   [endpoint & [params headers]]
   (try (let [resp (-> (client/post (str sendgrid-api-url endpoint)
-                                   (merge-with merge 
+                                   (merge-with merge
                                                common-opts
                                                {:form-params params}
                                                {:headers headers}))
                       :body)]
          {:success (not (seq (:errors resp)))
           :resp resp})
-       (catch Exception e
+       (catch Throwable _
          {:success false
           :resp {:error {:message "Unknown error."}}})))
 

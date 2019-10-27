@@ -120,7 +120,7 @@
   (let [label-uuid (->> (vals (project/project-labels project-id))
                         (filter #(= short-label (:short-label %)))
                         first :label-id)]
-    (get-in (labels/article-user-labels-map project-id article-id)
+    (get-in (labels/article-user-labels-map article-id)
             [user-id label-uuid :answer])))
 
 (defn get-user-project-id

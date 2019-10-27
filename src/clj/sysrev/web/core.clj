@@ -1,18 +1,16 @@
 (ns sysrev.web.core
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [compojure.core :refer :all]
+            [compojure.core :as c :refer [defroutes GET ANY]]
             [compojure.route :refer [not-found]]
             [ring.util.response :as r]
             [ring.middleware.defaults :as default]
-            [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
             [aleph.http :as aleph]
             [sysrev.config.core :refer [env]]
             [sysrev.web.session :refer [sysrev-session-store]]
             [sysrev.web.index :as index]
-            [sysrev.web.blog :as blog]
             [sysrev.web.routes.auth :refer [auth-routes]]
             [sysrev.web.routes.org :refer [org-routes]]
             [sysrev.web.routes.site :refer [site-routes]]
@@ -23,14 +21,17 @@
             [sysrev.web.app :as app]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
+;; for clj-kondo
+(declare html-routes)
+
 (defonce app-routes nil)
 
 (defn load-app-routes []
-  (alter-var-root #'app-routes (constantly (routes auth-routes
-                                                   site-routes
-                                                   project-routes
-                                                   user-routes
-                                                   org-routes))))
+  (alter-var-root #'app-routes (constantly (c/routes auth-routes
+                                                     site-routes
+                                                     project-routes
+                                                     user-routes
+                                                     org-routes))))
 
 (load-app-routes)
 
@@ -97,22 +98,22 @@
 (defn sysrev-handler
   "Root handler for web server"
   []
-  (cond-> (routes (ANY "/web-api/*" [] (wrap-routes (api-routes) wrap-sysrev-api))
-                  (ANY "/api/*" [] (wrap-routes app-routes wrap-sysrev-app))
-                  (compojure.route/resources "/")
-                  (GET "/sitemap.xml" []
-                       (-> (r/response (index/sysrev-sitemap))
-                           (r/header "Content-Type" "application/xml; charset=utf-8")))
-                  (GET "*" [] (wrap-routes html-routes wrap-sysrev-html)))
+  (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) wrap-sysrev-api))
+                    (ANY "/api/*" [] (c/wrap-routes app-routes wrap-sysrev-app))
+                    (compojure.route/resources "/")
+                    (GET "/sitemap.xml" []
+                         (-> (r/response (index/sysrev-sitemap))
+                             (r/header "Content-Type" "application/xml; charset=utf-8")))
+                    (GET "*" [] (c/wrap-routes html-routes wrap-sysrev-html)))
     (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
 
 #_
 (defn blog-handler
   "Root handler for blog web server"
   []
-  (cond-> (routes (ANY "/api/*" [] (wrap-routes blog/blog-routes wrap-sysrev-app))
+  (cond-> (routes (ANY "/api/*" [] (c/wrap-routes blog/blog-routes wrap-sysrev-app))
                   (compojure.route/resources "/")
-                  (GET "*" [] (wrap-routes blog/blog-html-routes wrap-sysrev-html)))
+                  (GET "*" [] (c/wrap-routes blog/blog-html-routes wrap-sysrev-html)))
     (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
 
 (defonce web-servers (atom {}))

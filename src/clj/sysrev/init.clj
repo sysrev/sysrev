@@ -22,14 +22,14 @@
         server-port (or server-port-override
                         (-> env :server :port))]
     (try (run-web server-port prod? only-if-new)
-         (catch BindException e
+         (catch BindException _
            (log/errorf "start-web: port %d already in use" server-port)))))
 
 (defn start-cassandra-db []
   (when (nil? @cdb/active-session)
     (try (cdb/connect-db)
          (log/info "connected to Cassandra DB")
-         (catch Throwable e
+         (catch Throwable _
            (log/warn "unable to connect to Cassandra DB")))))
 
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]

@@ -16,6 +16,7 @@
         sysrev.datasource.core
         sysrev.datasource.api
         sysrev.project.core
+        sysrev.project.description
         sysrev.project.clone
         sysrev.project.article-list
         sysrev.formats.pubmed

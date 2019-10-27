@@ -1,22 +1,10 @@
 (ns sysrev.label.define
   (:require [bouncer.validators :as v]
-            [clojure.spec.alpha :as s]
             [clojure.string :as str]
-            [clojure.tools.logging :as log]
             [clojure.set :as set]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction
-              with-project-cache clear-project-cache]]
-            [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
-            [sysrev.article.core :as article]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.label.core :as label]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [map-values in?]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [honeysql.helpers :as sqlh :refer [select from where]]))
 
 ;; label validations
 

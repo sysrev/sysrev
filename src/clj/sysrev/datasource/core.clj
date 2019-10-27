@@ -1,14 +1,30 @@
 (ns sysrev.datasource.core
-  (:require [clojure.string :as str]
+  (:require [clojure.spec.alpha :as s]
+            #_ [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.shared.util :as sutil :refer [parse-integer]]))
 
+(s/def ::article-type string?)
+(s/def ::article-subtype (s/nilable string?))
+(s/def ::datasource-name (s/nilable string?))
+(s/def ::external-id (s/nilable any?))
+(s/def ::title string?)
+(s/def ::content (s/nilable any?))
+
+(sutil/defspec-keys+partial ::article-data ::article-data-partial
+  [::article-type
+   ::article-subtype
+   ::datasource-name
+   ::external-id
+   ::title
+   ::content])
+
 (defn match-existing-article-data
   "Returns `article-data-id` value for an existing `article-data` entry
   that matches argument, or nil if no entry exists."
-  [{:keys [datasource-name external-id] :as article-data}]
+  [{:keys [datasource-name external-id] :as _article-data}]
   (when (and datasource-name external-id)
     (q/find-one :article-data {:datasource-name datasource-name
                                :external-id (db/to-jsonb external-id)}
@@ -37,7 +53,7 @@
     "legacy"           ["academic"  "unknown"]
     nil))
 
-(defn datasource-name-for-type [{:keys [article-type article-subtype] :as types}]
+(defn datasource-name-for-type [{:keys [article-type article-subtype] :as _types}]
   (condp = article-type
     "academic"   (condp = article-subtype
                    "pubmed"   "pubmed"
@@ -102,21 +118,21 @@
                  (when (and (pos? i) (zero? (mod i 10000)))
                    (log/infof "copying article #%d" i))
                  (try (copy-legacy-article-content article-id)
-                      (catch Throwable e
+                      (catch Throwable _
                         (log/infof "exception on article-id=%d, retrying..." article-id)
                         (Thread/sleep 250)
                         (try (copy-legacy-article-content article-id)
                              (log/infof "success on retry for article-id=%d" article-id)
                              (catch Throwable e2
                                (log/warnf "copy failed for article-id=%d" article-id)
-                               (log/warn (.getMessage e))))))
+                               (log/warn (.getMessage e2))))))
                  nil))
          doall)
     (log/infof "migrate finished - %d articles not linked to article-data"
                (q/find-count :article {:article-data-id nil}))
     nil))
 
-(defn pubmed-data? [{:keys [datasource-name external-id] :as article-data}]
+(defn pubmed-data? [{:keys [datasource-name external-id] :as _article-data}]
   (boolean (and (= datasource-name "pubmed")
                 (parse-integer external-id))))
 

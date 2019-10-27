@@ -1,27 +1,16 @@
 (ns sysrev.label.core
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
-            [clojure.string :as str]
             [clojure.set :as set]
-            [clojure.tools.logging :as log]
-            [bouncer.validators :as v]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction
-              sql-now to-sql-array to-jsonb sql-cast
-              with-query-cache with-project-cache clear-project-cache]]
+            [honeysql.helpers :as sqlh :refer [select from join where merge-where
+                                               order-by limit]]
+            [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
-            [sysrev.article.core :as article]
-            [sysrev.shared.labels :refer [cleanup-label-answer]]
-            [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]
             [sysrev.shared.spec.labels :as sl]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by or-default]]))
 
@@ -57,7 +46,7 @@
                        :short-label short-label
                        :required required
                        :category category
-                       :definition (to-jsonb definition)
+                       :definition (db/to-jsonb definition)
                        :enabled enabled}
                 (boolean? consensus)        (assoc :consensus consensus)
                 (= name "overall include")  (assoc :consensus true))))
@@ -218,7 +207,7 @@
           (q/modify :label {:label-id label-id} {:project-ordering i}))))))
 
 ;; TODO: move into article entity
-(defn article-user-labels-map [project-id article-id]
+(defn article-user-labels-map [article-id]
   (-> (q/select-article-by-id article-id [:al.*])
       (q/join-article-labels)
       (->> do-query
@@ -278,8 +267,7 @@
 
 (defn query-progress-over-time [project-id n-days]
   (with-project-cache project-id [:public-labels :progress n-days]
-    (let [overall-id (project/project-overall-label-id project-id)
-          #_ completed #_ nil
+    (let [#_ completed #_ nil
           labeled (for [x (vals (query-public-article-labels project-id))]
                     {:updated-time (:updated-time x)
                      :users (count (->> (vals (:labels x)) (apply concat) (map :user-id) distinct))})
@@ -366,7 +354,7 @@
   [project-id article-id]
   (when-let [resolve (article-resolved-status project-id article-id)]
     (when (user-article-confirmed? (:user-id resolve) article-id)
-      (->> (-> (article-user-labels-map project-id article-id)
+      (->> (-> (article-user-labels-map article-id)
                (get (:user-id resolve)))
            (map-values :answer)))))
 
@@ -429,19 +417,18 @@
                   (map (fn [status] {status (->> (vals entries) (filter (partial = status)) count)}))
                   (apply merge))))))
 
-(defn project-article-statuses
-  [project-id]
+(defn project-article-statuses [project-id]
   (let [articles (query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)]
     (when overall-id
       (vec (for [[article-id article-labels] articles]
              (let [labels (get-in article-labels [:labels overall-id])
                    group-status (article-consensus-status project-id article-id)
-                   inclusion-status (case group-status
-                                      :conflict nil
-                                      :resolved (-> (article-resolved-labels project-id article-id)
-                                                    (get overall-id))
-                                      (->> labels (map :inclusion) first))]
+                   #_ inclusion-status #_ (case group-status
+                                            :conflict nil
+                                            :resolved (-> (article-resolved-labels project-id article-id)
+                                                          (get overall-id))
+                                            (->> labels (map :inclusion) first))]
                {:group-status group-status
                 :article-id article-id
                 :answer (:answer (first labels))}))))))

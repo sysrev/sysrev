@@ -3,8 +3,7 @@
             [gravatar.core :as gr]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.file.core :as file]
-            [sysrev.file.s3 :as s3-file]))
+            [sysrev.file.core :as file]))
 
 ;;;
 ;;; user-profile-image

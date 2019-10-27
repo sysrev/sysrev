@@ -3,17 +3,13 @@
             [clojure.java.io :as io]
             [clojure-csv.core :as csv]
             [clojure.tools.logging :as log]
-            [compojure.core :refer :all]
+            [compojure.core :refer [GET POST PUT]]
             [ring.util.response :as response]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
             [sysrev.web.app :as web :refer [with-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction with-project-cache]]
+             [with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
             [sysrev.user.core :as user]
@@ -27,7 +23,6 @@
             [sysrev.label.answer :as answer]
             [sysrev.article.assignment :as assign]
             [sysrev.source.core :as source]
-            [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.document :as doc-file]
             [sysrev.file.article :as article-file]
@@ -38,10 +33,13 @@
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]])
+            [sysrev.shared.util :as sutil :refer [parse-integer]])
   (:import [java.util UUID]
            (java.io File Writer InputStream ByteArrayInputStream)
            [org.apache.commons.io IOUtils]))
+
+;; for clj-kondo
+(declare project-routes dr finalize-routes)
 
 ;;;
 ;;; Functions for project routes
@@ -52,12 +50,10 @@
         project-id (active-project request)]
     (when (and user-id project-id)
       (future
-        (try
-          (user/set-user-default-project user-id project-id)
-          (user/update-member-access-time user-id project-id)
-          (catch Throwable e
-            (log/info "error updating default project")
-            nil))))))
+        (try (user/set-user-default-project user-id project-id)
+             (user/update-member-access-time user-id project-id)
+             (catch Throwable _
+               (log/info "error updating default project")))))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]
@@ -78,7 +74,7 @@
   (let [[article user-labels user-notes article-pdfs
          [consensus resolve resolve-labels]]
         (pvalues (article/get-article article-id)
-                 (labels/article-user-labels-map project-id article-id)
+                 (labels/article-user-labels-map article-id)
                  (article/article-user-notes-map project-id article-id)
                  (api/article-pdfs article-id)
                  (list (labels/article-consensus-status project-id article-id)
@@ -106,11 +102,10 @@
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
                     (api/project-important-terms project-id)
-                    (try
-                      (project/project-url-ids project-id)
-                      (catch Throwable e
-                        (log/info "exception in project-url-ids")
-                        []))
+                    (try (project/project-url-ids project-id)
+                         (catch Throwable _
+                           (log/info "exception in project-url-ids")
+                           []))
                     (doc-file/list-project-documents project-id)
                     (project/get-project-owner project-id)
                     (api/project-owner-plan project-id)
@@ -225,7 +220,6 @@
 (dr (GET "/api/lookup-project-url" request
          (with-authorize request {}
            {:result (let [url-id (-> request :params :url-id sutil/read-transit-str)
-                          self-id (current-user-id request)
                           [project-url-id {:keys [user-url-id org-url-id]}] url-id
                           ;; TODO: lookup project-id from combination of owner/project names
                           project-id (project/project-id-from-url-id project-url-id)
@@ -260,11 +254,11 @@
 (dr (GET "/api/article-info/:article-id" request
          (with-authorize request {:allow-public true}
            (let [project-id (active-project request)
-                 article-id (-> request :params :article-id parse-integer)]
-             (let [{:keys [article] :as result} (article-info-full project-id article-id)]
-               (when (= (:project-id article) project-id)
-                 (update-user-default-project request)
-                 result))))))
+                 article-id (-> request :params :article-id parse-integer)
+                 {:keys [article] :as result} (article-info-full project-id article-id)]
+             (when (= (:project-id article) project-id)
+               (update-user-default-project request)
+               result)))))
 
 (dr (POST "/api/project-articles" request
           (with-authorize request {:allow-public true}
@@ -342,7 +336,7 @@
 (dr (GET "/api/label-task" request
          (with-authorize request {:roles ["member"]}
            (update-user-default-project request)
-           (if-let [{:keys [article-id today-count] :as task}
+           (if-let [{:keys [article-id today-count]}
                     (assign/get-user-label-task (active-project request) (current-user-id request))]
              {:result (merge (article-info-full (active-project request) article-id)
                              {:today-count today-count})}
@@ -465,18 +459,18 @@
 (dr (POST "/api/delete-source" request
           (with-authorize request {:roles ["admin"]}
             (let [source-id (-> request :body :source-id)
-                  user-id (current-user-id request)]
+                  _user-id (current-user-id request)]
               (api/delete-source! source-id)))))
 
 (dr (POST "/api/toggle-source" request
           (with-authorize request {:roles ["admin"]}
             (let [{:keys [source-id enabled?]} (-> request :body)
-                  user-id (current-user-id request)]
+                  _user-id (current-user-id request)]
               (api/toggle-source source-id enabled?)))))
 
 (dr (GET "/api/sources/download/:project-id/:source-id" request
          (with-authorize request {:allow-public true}
-           (let [project-id (active-project request)
+           (let [_project-id (active-project request)
                  source-id (parse-integer (-> request :params :source-id))
                  {:keys [key filename]} (source/source-upload-file source-id)]
              (-> (response/response (s3-file/get-file-stream key :import))
@@ -649,11 +643,11 @@
 
 (dr (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
           (with-authorize request {:roles ["member"]}
-            (let [{:keys [article-id]} (:params request)]
-              (let [file-data (get-in request [:params :file])
-                    file (:tempfile file-data)
-                    filename (:filename file-data)]
-                (api/save-article-pdf (parse-integer article-id) file filename))))))
+            (let [{:keys [article-id]} (:params request)
+                  file-data (get-in request [:params :file])
+                  file (:tempfile file-data)
+                  filename (:filename file-data)]
+              (api/save-article-pdf (parse-integer article-id) file filename)))))
 
 (dr (GET "/api/files/:project-id/article/:article-id/article-pdfs" request
          (with-authorize request {:roles ["member"]}

@@ -7,14 +7,13 @@
 (ns sysrev.db.entity
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
-            [clojure.tools.logging :as log]
             [clojure.set :as set]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]))
+            [honeysql.helpers :as sqlh :refer [select from where limit]]
+            [sysrev.db.core :as db :refer [do-query]]
+            [sysrev.shared.util :as sutil :refer [in?]]))
+
+;; for clj-kondo
+(declare entity-columns entity-custom-fields entity-fields)
 
 (s/def ::table keyword?)
 (s/def ::entity ::table)
@@ -101,7 +100,7 @@
         pkey-field (get def :primary-key)
         ;; TODO: support field-combination primary keys
         _ (assert (s/valid? keyword? pkey-field))
-        columns (entity-columns entity)
+        #_ columns #_ (entity-columns entity)
         custom (->> (entity-custom-fields entity)
                     (filter (in? custom-fields)))
         result (-> (select :*)

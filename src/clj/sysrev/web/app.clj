@@ -1,11 +1,7 @@
 (ns sysrev.web.app
   (:require [clojure.string :as str]
-            [clojure.stacktrace :refer [print-cause-trace]]
             [clojure.tools.logging :as log]
-            [compojure.core :refer :all]
-            [compojure.route :refer [not-found]]
             [compojure.response :refer [Renderable]]
-            [ring.util.request :as request]
             [ring.util.response :as r]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [sysrev.api :as api]
@@ -75,14 +71,14 @@
 (defn wrap-add-anti-forgery-token
   "Attach csrf token value to response if request did not contain it."
   [handler]
-  #(let [response (handler %)]
-     (let [req-csrf (get-in % [:headers "x-csrf-token"])
-           csrf-match (and req-csrf (= req-csrf *anti-forgery-token*))]
-       (if (and *anti-forgery-token*
-                (map? (:body response))
-                (not csrf-match))
-         (assoc-in response [:body :csrf-token] *anti-forgery-token*)
-         response))))
+  #(let [response (handler %)
+         req-csrf (get-in % [:headers "x-csrf-token"])
+         csrf-match (and req-csrf (= req-csrf *anti-forgery-token*))]
+     (if (and *anti-forgery-token*
+              (map? (:body response))
+              (not csrf-match))
+       (assoc-in response [:body :csrf-token] *anti-forgery-token*)
+       response)))
 
 (defn wrap-log-request [handler]
   (if (and (contains? #{:test :remote-test} (:profile env))
@@ -111,7 +107,7 @@
 (defn log-request-exception [request e]
   (try (log/error "Request:\n" (pp-str request)
                   "Exception:\n" (with-out-str (print-cause-trace-custom e)))
-       (catch Throwable e2
+       (catch Throwable _
          (log/error "error in log-request-exception"))))
 
 (defn request-client-ip [request]
@@ -135,7 +131,7 @@
                                               (q/find-one :project {:project-id project-id}
                                                           :project-id)))]
                 (try (q/create :web-event event)
-                     (catch Throwable e (log/warn "log-web-event failed" #_ (.getMessage e))))))]
+                     (catch Throwable _e (log/warn "log-web-event failed" #_ (.getMessage _e))))))]
       (if db/*conn*
         (create-event)
         (future (db/with-transaction (create-event)))))))

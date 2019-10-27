@@ -1,12 +1,11 @@
 (ns sysrev.file.core
   (:require [clojure.spec.alpha :as s]
-            [clojure.tools.logging :as log]
             [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.file.s3 :as s3]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [opt-keys]]))
+            [sysrev.shared.util :as sutil]))
 
 (s/def ::time any?)
 (s/def ::count int?)

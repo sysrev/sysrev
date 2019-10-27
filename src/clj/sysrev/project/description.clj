@@ -1,63 +1,37 @@
 (ns sysrev.project.description
-  (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.helpers :refer [returning]]
-            [sysrev.db.core :refer
-             [do-query do-execute with-transaction clear-project-cache]]))
+  (:require [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]))
 
 (defn project-description-markdown-id [project-id]
-  (-> (select :*)
-      (from :project-description)
-      (where [:= :project-id project-id])
-      do-query
-      first
-      :markdown-id))
+  (first (q/find :project-description {:project-id project-id} :markdown-id)))
 
-(defn create-markdown-entry [markdown]
-  (-> (insert-into :markdown)
-      (values [{:string markdown}])
-      (returning :markdown-id)
-      do-query first :markdown-id))
+(defn create-markdown-entry [md-string]
+  (q/create :markdown {:string md-string}, :returning :markdown-id))
 
 (defn set-project-description!
   "Sets value for a project description."
-  [project-id value]
-  (try
-    (with-transaction
-      (let [markdown-id (project-description-markdown-id project-id)]
-        (cond (empty? value)
-              ;; delete entry
-              (when markdown-id
-                (-> (delete-from :markdown)
-                    (where [:= :markdown-id markdown-id])
-                    do-execute)
-                (-> (delete-from :project-description)
-                    (where [:and
-                            [:= :project-id project-id]
-                            [:= :markdown-id markdown-id]])
-                    do-execute))
+  [project-id md-string]
+  (db/with-clear-project-cache project-id
+    (let [markdown-id (project-description-markdown-id project-id)]
+      (cond (empty? md-string)
+            ;; delete entry
+            (when markdown-id
+              (q/delete :markdown {:markdown-id markdown-id})
+              (q/delete :project-description {:project-id project-id
+                                              :markdown-id markdown-id}))
 
-              (integer? markdown-id)
-              ;; update entry
-              (-> (sqlh/update :markdown)
-                  (sset {:string value})
-                  (where [:= :markdown-id markdown-id])
-                  do-execute)
+            (integer? markdown-id)
+            ;; update entry
+            (q/modify :markdown {:markdown-id markdown-id} {:string md-string})
 
-              :else
-              ;; create entry
-              (let [markdown-id (create-markdown-entry value)]
-                (-> (insert-into :project-description)
-                    (values [{:project-id project-id
-                              :markdown-id markdown-id}])
-                    do-execute)))))
-    (finally
-      (clear-project-cache project-id))))
+            :else
+            ;; create entry
+            (let [markdown-id (create-markdown-entry md-string)]
+              (q/create :project-description {:project-id project-id
+                                              :markdown-id markdown-id}))))))
 
 (defn read-project-description
-  "Get the project description for project-id"
+  "Returns the markdown string for description of `project-id`."
   [project-id]
-  (-> (select :md.string)
-      (from [:project-description :pd])
-      (join [:markdown :md] [:= :pd.markdown-id :md.markdown-id])
-      (where [:= :pd.project-id project-id])
-      do-query first :string))
+  (first (q/find [:project-description :pd] {:pd.project-id project-id}
+                 :md.string, :join [:markdown:md :pd.markdown-id])))

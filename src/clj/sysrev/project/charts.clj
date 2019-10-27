@@ -1,8 +1,7 @@
 (ns sysrev.project.charts
   (:require [sysrev.db.core :refer [with-project-cache]]
             [sysrev.project.core :as project]
-            [sysrev.label.core :as labels]
-            [sysrev.shared.transit :as sr-transit]))
+            [sysrev.label.core :as labels]))
 
 ;; Paul Tol colors: https://personal.sron.nl/~pault/
 ;;
@@ -104,8 +103,7 @@
   (let [short-labels (short-labels-vector processed-label-counts)
         ;; need to account for the fact that this fn can handle empty datasets
         color-count (max 0 (- (count short-labels) 1))
-        palette (nth paul-tol-colors color-count)
-        color-map (zipmap short-labels palette)]
+        palette (nth paul-tol-colors color-count)]
     (mapv (fn [label palette]
             {:short-label label :color palette})
           short-labels palette)))
@@ -122,8 +120,7 @@
 (defn process-label-counts [project-id]
   (with-project-cache project-id [:member-label-counts]
     (let [article-labels (vals (labels/query-public-article-labels project-id))
-          labels (project/project-labels project-id)
-          label-ids (into [] (keys labels))]
+          labels (project/project-labels project-id)]
       (->>
        ;; get the counts of the label's values
        (process-label-count article-labels labels)

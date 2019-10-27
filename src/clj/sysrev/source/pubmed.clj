@@ -25,15 +25,16 @@
        (filter #(= (get-in % [:meta :search-term]) search-term))
        not-empty))
 
-(defmethod make-source-meta :pubmed [_ {:keys [search-term search-count]}]
+(defmethod make-source-meta :pubmed
+  [_ {:keys [search-term search-count]}]
   {:source "PubMed search"
    :search-term search-term
    :search-count search-count})
 
 (defmethod import-source :pubmed
-  [stype project-id {:keys [search-term]} {:as options}]
-  (let [_ (assert (string? search-term))
-        {:keys [max-import-articles]} config/env
+  [_ project-id {:keys [search-term]} {:as options}]
+  (assert (string? search-term))
+  (let [{:keys [max-import-articles]} config/env
         pmids-count (:count (pubmed/get-search-query-response search-term 1))]
     (cond
       (pubmed-source-exists? project-id search-term)

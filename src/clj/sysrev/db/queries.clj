@@ -3,17 +3,17 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update delete order-by limit group]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :as sqlh-pg :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [select from where merge-where values sset
+                                               join merge-join merge-left-join collify
+                                               merge-select]]
+            [honeysql-postgres.helpers :as sqlh-pg]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
             [sysrev.shared.util :as sutil :refer
-             [in? or-default map-values apply-keyargs ensure-pred assert-pred]])
+             [in? map-values apply-keyargs ensure-pred assert-pred]])
   (:import java.util.UUID))
+
+;; for clj-kondo
+(declare merge-join-args filter-user-permission filter-admin-user)
 
 ;;;
 ;;; * Query DSL
@@ -422,7 +422,7 @@
    Only one of [include-disabled? include-disabled-source?] should be set."
   [project-id fields & [{:keys [include-disabled? tname include-disabled-source?]
                          :or {tname :a}
-                         :as opts}]]
+                         :as _opts}]]
   (letfn [(a [field] (sql-field tname field))]
     (find [:article tname]
           (merge (when project-id
@@ -446,7 +446,7 @@
                          :or {include-disabled? true
                               tname :a
                               project-id nil}
-                         :as opts}]]
+                         :as _opts}]]
   (select-article-where
    project-id
    (if (or (string? article-id) (uuid? article-id))
@@ -457,8 +457,7 @@
     :tname tname}))
 
 (defn filter-article-by-disable-flag
-  [m disabled? & [{:keys [tname] :or {tname :a}}
-                  :as opts]]
+  [m disabled? & [{:keys [tname] :or {tname :a}} :as _opts]]
   (let [exists
         [:exists
          (-> (select :*)
@@ -485,8 +484,7 @@
 
 (defn select-label-by-id
   [label-id fields & [{:keys [include-disabled?]
-                       :or {include-disabled? true}
-                       :as opts}]]
+                       :or {include-disabled? true} :as _opts}]]
   (assert (or (in? [UUID String] (type label-id))
               (integer? label-id)))
   (cond->
@@ -501,18 +499,18 @@
 
 (defn select-label-where
   [project-id where-clause fields & [{:keys [include-disabled?]
-                                      :or {include-disabled? false}
-                                      :as opts}]]
-  (cond->
-      (-> (apply select fields)
-          (from [:label :l]))
+                                      :or {include-disabled? false} :as _opts}]]
+  (cond-> (-> (apply select fields)
+              (from [:label :l]))
     (and (not (nil? where-clause))
          (not (true? where-clause))) (merge-where where-clause)
+
     project-id (merge-where [:= :project-id project-id])
+
     (not include-disabled?) (merge-where [:= :enabled true])))
 
 (defn query-label-where [project-id where-clause fields]
-  (-> (select-label-where project-id where-clause [:*])
+  (-> (select-label-where project-id where-clause (or fields [:*]))
       do-query first))
 
 (defn join-article-labels [m & [{:keys [tname-a tname-al]

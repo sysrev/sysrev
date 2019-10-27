@@ -1,9 +1,6 @@
 (ns sysrev.project.clone
-  (:require [clojure.java.io :as io]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+  (:require [clojure.tools.logging :as log]
+            [honeysql.helpers :as sqlh :refer [select from join insert-into values where]]
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
@@ -14,8 +11,7 @@
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance-api]
-            [sysrev.shared.util :refer [in? to-uuid]]
-            [clojure.tools.logging :as log]))
+            [sysrev.shared.util :refer [in?]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
                             {:keys [user-ids-only admin-members-only]}]
@@ -29,17 +25,10 @@
                                       :permissions permissions))))))
 
 (defn copy-project-label-defs [src-project-id dest-project-id]
-  (let [entries
-        (-> (select :*)
-            (from [:label :l])
-            (where [:= :project-id src-project-id])
-            (->> do-query
-                 (mapv #(-> %
-                            (dissoc :label-id :label-id-local :project-id)
-                            (assoc :project-id dest-project-id)))))]
-    (-> (insert-into :label)
-        (values entries)
-        do-execute)))
+  (->> (q/find :label {:project-id src-project-id})
+       (mapv #(-> (dissoc % :label-id :label-id-local :project-id)
+                  (assoc :project-id dest-project-id)))
+       (q/create :label)))
 
 (defn copy-project-article-labels [src-project-id dest-project-id]
   (with-transaction
@@ -130,20 +119,18 @@
 
 (defn copy-project-keywords [src-project-id dest-project-id]
   (let [src-id-to-name
-        (-> (q/select-label-where
-             src-project-id true
-             [:label-id :name]
-             {:include-disabled? true})
+        (-> (q/select-label-where src-project-id true
+                                  [:label-id :name]
+                                  {:include-disabled? true})
             (->> do-query
                  (map (fn [{:keys [label-id name]}]
                         [label-id name]))
                  (apply concat)
                  (apply hash-map)))
         name-to-dest-id
-        (-> (q/select-label-where
-             dest-project-id true
-             [:label-id :name]
-             {:include-disabled? true})
+        (-> (q/select-label-where dest-project-id true
+                                  [:label-id :name]
+                                  {:include-disabled? true})
             (->> do-query
                  (map (fn [{:keys [label-id name]}]
                         [name label-id]))
@@ -155,8 +142,7 @@
         (-> (q/select-project-keywords src-project-id [:*])
             (->> do-query
                  (map #(when-let [label-id (convert-label-id (:label-id %))]
-                         (-> %
-                             (dissoc :keyword-id :label-id :project-id)
+                         (-> (dissoc % :keyword-id :label-id :project-id)
                              (assoc :label-id label-id
                                     :project-id dest-project-id)
                              (update :label-value to-jsonb))))
@@ -174,14 +160,13 @@
                             {:include-disabled? true})
                            do-query first)]
       (when-let [new-article-id
-                 (-> (insert-into :article)
-                     (values [(-> article
-                                  (assoc :project-id child-id
-                                         :parent-article-uuid article-uuid)
-                                  (dissoc :article-id :article-uuid :duplicate-of :text-search)
-                                  (article/article-to-sql))])
-                     (returning :article-id)
-                     do-query first :article-id)]
+                 (q/create :article (-> article
+                                        (assoc :project-id child-id
+                                               :parent-article-uuid article-uuid)
+                                        (dissoc :article-id :article-uuid
+                                                :duplicate-of :text-search)
+                                        (article/article-to-sql))
+                           :returning :article-id)]
         (doseq [s3-file (article-file/get-article-file-maps (:article-id article))]
           (when (:s3-id s3-file)
             (article-file/associate-article-pdf (:s3-id s3-file) new-article-id)))))))

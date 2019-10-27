@@ -5,31 +5,32 @@
             [clojure.string :as str]
             [clojure.data.json :as json]
             [clojure.java.jdbc :as j]
-            [clj-time.format :as tf]
             [clj-time.coerce :as tc]
             clj-postgresql.core
             clj-postgresql.types
             [hikari-cp.core :refer [make-datasource close-datasource]]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql.helpers :as sqlh :refer [select from where]]
+            honeysql-postgres.format
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config.core :refer [env]]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
-            [sysrev.util :as util :refer [map-to-arglist]]
+            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [map-values in?]])
   (:import (java.sql Timestamp Date Connection)
            java.util.UUID
            (org.joda.time DateTime)))
+
+;; for clj-kondo
+(declare sql-identifier-to-clj)
 
 ;;; Disable jdbc conversion from numeric to timestamp values
 ;;; (defined in clj-postgresql.types)
 (extend-protocol j/ISQLParameter
   java.lang.Number
   (set-parameter [num ^java.sql.PreparedStatement s ^long i]
-    (let [conn (.getConnection s)
+    (let [_conn (.getConnection s)
           meta (.getParameterMetaData s)
-          type-name (.getParameterTypeName meta i)]
+          _type-name (.getParameterTypeName meta i)]
       (.setObject s i num))))
 
 (declare clear-query-cache)
@@ -319,8 +320,7 @@
   (mapv #(sql-field table-name %) field-names))
 
 (defn to-sql-string [sql]
-  (let [[sql & params] (sql/format sql :quoting :ansi :parameterizer :postgresql)
-        n-params (count params)]
+  (let [[sql & params] (sql/format sql :quoting :ansi :parameterizer :postgresql)]
     (reduce (fn [sql [i param]]
               (str/replace sql (str "$" (inc i))
                            (-> param sql/inline sql/format first (#(format "'%s'" %)))))

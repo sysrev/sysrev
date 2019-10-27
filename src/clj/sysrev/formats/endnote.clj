@@ -3,9 +3,8 @@
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
-            [sysrev.util :as util :refer
-             [xml-find xml-find-vector xml-find-vector parse-xml-str]]
-            [sysrev.shared.util :as sutil :refer [map-values to-uuid parse-integer]]))
+            [sysrev.util :as util :refer [xml-find xml-find-vector xml-find-vector]]
+            [sysrev.shared.util :as sutil :refer [map-values parse-integer]]))
 
 (defn parse-endnote-file [fname]
   (-> fname io/file io/reader dxml/parse))
@@ -42,19 +41,16 @@
                      (cond (string? style-value)    style-value
                            (string? @direct-value)  @direct-value
                            :else nil))
-                   (catch Throwable e
-                     (log/warn "exception reading path " path)
-                     nil)))))
-             (->>
-              {:rec-number [:rec-number]
-               :custom4 [:custom4]
-               :custom5 [:custom5]}
-              (map-values
-               (fn [path]
-                 (or (-> (xml-find [e] (concat path [:style]))
-                         first :content first)
-                     (-> (xml-find [e] path)
-                         first :content first)))))
+                   (catch Throwable _
+                     (log/warn "exception reading path " path))))))
+             (->> {:rec-number [:rec-number]
+                   :custom4 [:custom4]
+                   :custom5 [:custom5]}
+                  (map-values (fn [path]
+                                (or (-> (xml-find [e] (concat path [:style]))
+                                        first :content first)
+                                    (-> (xml-find [e] path)
+                                        first :content first)))))
              (->>
               {:urls [:urls :related-urls :url]
                :authors [:contributors :authors :author]
@@ -68,7 +64,7 @@
                          style-vals (->> elts (map :content) (apply concat) vec not-empty)
                          direct-vals (delay (-> (xml-find-vector [e] path) vec))]
                      (or (not-empty style-vals) @direct-vals))
-                   (catch Throwable e
+                   (catch Throwable _
                      (log/warn "exception reading path " path)
                      [])))))
              (->>

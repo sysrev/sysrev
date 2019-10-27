@@ -1,12 +1,10 @@
 (ns sysrev.predict.report
-  (:require [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
+  (:require [honeysql.helpers :as sqlh :refer [select from where join merge-join sset]]
+            [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.predict.core]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values]]))
+            [sysrev.util :as util]))
 
 (defn estimate-articles-with-value
   "Calculates an estimate of the number of project articles for which

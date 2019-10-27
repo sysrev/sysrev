@@ -1,22 +1,25 @@
 (ns sysrev.web.routes.user
   (:require [compojure.coercions :refer [as-int]]
-            [compojure.core :refer :all]
+            [compojure.core :as c :refer [defroutes context GET POST PUT DELETE]]
             [sysrev.api :as api]
+            [sysrev.project.invitation :as invitation]
             [sysrev.web.app :refer [current-user-id with-authorize]]))
+
+;; for clj-kondo
+(declare user-routes)
 
 (defn user-authd? [user-id]
   (fn [request]
     (boolean (= user-id (current-user-id request)))))
 
 (defn user-in-group? [user-id group-name]
-  (fn [request]
-    (boolean (api/user-active-in-group? user-id "public-reviewer"))))
+  (fn [_request]
+    (boolean (api/user-active-in-group? user-id group-name))))
 
 (defn user-owns-invitation? [user-id invitation-id]
-  (fn [request]
-    (-> (api/read-user-invitations user-id)
-        (filter #(= :id invitation-id))
-        (comp not empty?))))
+  (fn [_request]
+    (boolean (seq (->> (invitation/invitations-for-user user-id)
+                       (filter #(= (:id %) invitation-id)))))))
 
 (defroutes user-routes
   (context
@@ -28,7 +31,8 @@
                   (with-authorize request {:logged-in true}
                     (api/users-in-group "public-reviewer")))
              (GET "/public-reviewer/:user-id" [user-id :<< as-int :as request]
-                  (with-authorize request {:authorize-fn (user-in-group? user-id "public-reviewer")}
+                  (with-authorize request
+                    {:authorize-fn (user-in-group? user-id "public-reviewer")}
                     (api/read-user-public-info user-id))))
     (GET "/search" request
          (with-authorize request {:logged-in true}
@@ -109,8 +113,8 @@
            (api/read-invitations-for-admined-projects user-id)))
     (context "/invitation" []
              (PUT "/:invitation-id" [invitation-id :<< as-int :as request]
-                  (with-authorize request {:authorize-fn (user-owns-invitation?
-                                                          user-id invitation-id)}
+                  (with-authorize request
+                    {:authorize-fn (user-owns-invitation? user-id invitation-id)}
                     (let [{:keys [accepted]} (:body request)]
                       (api/update-invitation! invitation-id accepted))))
              (POST "/:invitee/:project-id" [project-id :<< as-int

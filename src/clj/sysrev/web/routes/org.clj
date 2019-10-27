@@ -5,6 +5,9 @@
             [sysrev.group.core :as group]
             [sysrev.web.app :refer [current-user-id with-authorize]]))
 
+;; for clj-kondo
+(declare org-routes)
+
 (defn org-role?
   "Returns true if the current user has a group permission that matches the argument vector permission"
   [org-id permissions]

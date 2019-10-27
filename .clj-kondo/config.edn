@@ -1,0 +1,15 @@
+{:linters
+ {:unresolved-symbol {:exclude
+                      [;; ignore unresolved symbols inside these macro forms
+                       (orchestra.core/defn-spec nil)
+                       (clojure.core.cache/defcache nil)
+                       (sysrev.db.query-types/def-find-type nil)
+                       (compojure.core/GET nil)
+                       (compojure.core/POST nil)
+                       (compojure.core/PUT nil)
+                       (compojure.core/DELETE nil)
+                       (compojure.core/context nil)
+                       ;; ignore unresolved symbols from setup-panel-state macro
+                       panel-get panel-set]}
+  :unused-binding {:exclude-destructured-keys-in-fn-args true}
+  :unused-namespace {:exclude [#_ clojure.tools.logging]}}}

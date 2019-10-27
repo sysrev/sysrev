@@ -1,6 +1,6 @@
 (ns sysrev.browser-test-main
   (:gen-class)
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [*test-out* run-all-tests]]
             [clojure.test.junit :refer [with-junit-output]]
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
@@ -8,7 +8,7 @@
             [sysrev.test.core :refer [get-selenium-config]]
             [clojure.pprint :as pprint]))
 
-(defn -main [& args]
+(defn -main [& _args]
   (log/info (str "running browser tests with config:\n"
                  (pprint/write (get-selenium-config) :stream nil)))
   (let [fname "target/junit-browser.xml"

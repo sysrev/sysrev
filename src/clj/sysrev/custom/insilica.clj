@@ -1,12 +1,13 @@
 (ns sysrev.custom.insilica
-  (:require [sysrev.db.core :refer [do-query with-transaction]]
-            [sysrev.article.core :as article]
-            [sysrev.label.core :as labels]
-            [sysrev.project.core :as project]
-            [sysrev.db.queries :as q]
-            [sysrev.project.clone :as clone]
-            [sysrev.shared.util :refer [in? parse-integer]]))
+  #_ (:require [sysrev.db.core :refer [do-query with-transaction]]
+               [sysrev.article.core :as article]
+               [sysrev.label.core :as labels]
+               [sysrev.project.core :as project]
+               [sysrev.db.queries :as q]
+               [sysrev.project.clone :as clone]
+               [sysrev.shared.util :refer [in? parse-integer]]))
 
+#_
 (defn article-label-value-present? [article-labels label-id value]
   (some (fn [{:keys [answer]}]
           (or (= answer value)

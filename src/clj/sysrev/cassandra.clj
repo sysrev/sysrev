@@ -1,6 +1,6 @@
 (ns sysrev.cassandra
   (:require [qbits.alia :as alia]
-            [qbits.hayt :as h :refer :all :exclude [update group-by]]))
+            [qbits.hayt :as h]))
 
 (defonce active-cluster (atom nil))
 (defonce active-session (atom nil))
@@ -22,8 +22,6 @@
   (execute "select * from system_schema.keyspaces"))
 
 (defn get-pmids-xml [pmids]
-  (->> (select :biosource.pubmed
-               (where [[in :pmid (vec pmids)]])
-               (columns :xml))
-       (execute)
-       (map :xml)))
+  (map :xml (execute (h/select :biosource.pubmed
+                               (h/where [[h/in :pmid (vec pmids)]])
+                               (h/columns :xml)))))

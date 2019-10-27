@@ -1,10 +1,9 @@
 (ns sysrev.cache
   (:require [clojure.string :as str]
             [clojure.core.cache :as cache :refer [defcache CacheProtocol]]
-            [clojure.core.memoize :refer [build-memoizer]]
+            clojure.core.memoize
             [clojure.main :refer [demunge]]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer [do-query do-execute]])
+            [sysrev.db.queries :as q])
   (:import [clojure.core.memoize PluggableMemoization]))
 
 ;; from https://www.postgresql.org/docs/9.1/static/datatype-character.html
@@ -29,8 +28,6 @@
 ;; This is so that you can clear out the cache after a certain time
 ;; interval
 
-(def cache-table :memo-cache)
-
 (defn- fn->string
   "Given a fn, return a string representation of that function"
   [f]
@@ -43,14 +40,10 @@
   "Given a database definition,db, a string representing a function
   name f (i.e. string returned by fn->string) and params, look up any
   result associated with it in the db"
-  [db f params]
+  [_db f params]
   ;; note: this is sysrev specific
-  (-> (select :params :result)
-      (from cache-table)
-      (where [:and
-              [:= :f (pr-str f)]
-              [:= :params (pr-str params)]])
-      do-query))
+  (q/find :memo-cache {:f (pr-str f), :params (pr-str params)}
+          [:params :result]))
 
 (defn- lookup
   "Lookup results when calling f by params"
@@ -61,15 +54,13 @@
        (read-string (:result row))
        not-found))))
 
-(defn- store [db f params result]
+(defn- store [_db f params result]
   ;; this is sysrev specific
-  (-> (insert-into cache-table)
-      (values [{:params (pr-str params)
-                :result (pr-str @result)
-                :f (pr-str f)}])
-      do-execute))
+  (q/create :memo-cache {:params (pr-str params)
+                         :result (pr-str @result)
+                         :f (pr-str f)}))
 
-(defn- purge [db params])
+(defn- purge [_db _params])
 
 ;; the dereferencing of db as an atom is particular to the case
 ;; where pooled connections are stored in an atom

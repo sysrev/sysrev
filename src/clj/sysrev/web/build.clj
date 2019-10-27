@@ -4,11 +4,11 @@
 
 (defn read-build-id []
   (try (-> (io/resource "git-commit") slurp str/split-lines first)
-       (catch Throwable e nil)))
+       (catch Throwable _ nil)))
 
 (defn read-build-time []
   (try (-> (io/resource "build-time") slurp str/split-lines first)
-       (catch Throwable e nil)))
+       (catch Throwable _ nil)))
 
 (def build-id (read-build-id))
 (def build-time (read-build-time))

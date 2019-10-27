@@ -1,18 +1,7 @@
 (ns sysrev.project.article-list
-  (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [clojure.java.jdbc :as j]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [clj-time.core :as t]
+  (:require [clojure.string :as str]
             [clj-time.coerce :as tc]
-            [clj-time.format :as tf]
-            [sysrev.db.core :as db :refer
-             [active-db do-query do-execute to-sql-array sql-now to-jsonb
-              with-project-cache clear-project-cache]]
+            [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
@@ -20,9 +9,7 @@
             [sysrev.db.query-types :as qt]
             [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]))
+            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
 
 ;;;
 ;;; Article data lookup functions
@@ -83,7 +70,7 @@
              (map #(update % :updated-time tc/to-epoch))
              (group-by :article-id)))))
 
-(defn project-article-updated-time [project-id article-id & [all-labels all-notes all-annotations]]
+(defn project-article-updated-time [_ article-id & [all-labels all-notes all-annotations]]
   (let [labels (get all-labels article-id)
         notes  (get all-notes article-id)
         annotations (get all-annotations article-id)]
@@ -175,19 +162,19 @@
 ;;; Top-level filter functions
 ;;;
 
-(defn article-source-filter [{:keys [project-id] :as context} {:keys [source-ids]}]
+(defn article-source-filter [{:keys [project-id] :as _context} {:keys [source-ids]}]
   (let [sources (project-article-sources project-id)]
     (fn [{:keys [article-id]}]
       (some (in? source-ids) (get sources article-id)))))
 
 ;; TODO: include user notes in search
-(defn article-text-filter [{:keys [project-id] :as context} text]
+(defn article-text-filter [{:keys [project-id] :as _context} text]
   (let [search-ids (set (article-ids-from-text-search project-id text))]
     (fn [{:keys [article-id]}]
       (contains? search-ids article-id))))
 
 (defn article-user-filter
-  [{:keys [project-id] :as context} {:keys [user content confirmed]}]
+  [{:keys [project-id] :as _context} {:keys [user content confirmed]}]
   (let [all-labels (project-article-labels project-id)
         all-annotations (project-article-annotations project-id)]
     (fn [{:keys [article-id]}]
@@ -204,7 +191,7 @@
         (or (not-empty labels) have-annotations?)))))
 
 (defn article-labels-filter
-  [{:keys [project-id] :as context} {:keys [label-id users values inclusion confirmed]}]
+  [{:keys [project-id] :as _context} {:keys [label-id users values inclusion confirmed]}]
   (let [all-labels (project-article-labels project-id)]
     (fn [{:keys [article-id]}]
       (->> (get all-labels article-id)
@@ -215,7 +202,7 @@
            not-empty))))
 
 (defn article-consensus-filter
-  [{:keys [project-id] :as context} {:keys [status inclusion]}]
+  [{:keys [project-id] :as _context} {:keys [status inclusion]}]
   (let [overall-id (project/project-overall-label-id project-id)
         all-labels (project-article-labels project-id)
         all-consensus (project-article-consensus project-id)]
@@ -243,7 +230,7 @@
         (and (not-empty overall) (status-test) (inclusion-test))))))
 
 (defn article-prediction-filter
-  [{:keys [project-id] :as context} {:keys [label-id label-value direction score]}]
+  [{:keys [project-id] :as _context} {:keys [label-id label-value direction score]}]
   (let [all-predicts (project-article-predicts project-id)
         compare-score (case direction  :above >, :below <)]
     (fn [{:keys [article-id]}]

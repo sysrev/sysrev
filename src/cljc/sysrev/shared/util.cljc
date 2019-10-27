@@ -36,9 +36,9 @@
       (when (and (string? s) (re-find #"^ *\d+ *$" s))
         #?(:clj
            (try (Integer/parseInt s)
-                (catch Throwable e
+                (catch Throwable _
                   (try (->> (read-string s) (ensure-pred integer?))
-                       (catch Throwable e2 nil))))
+                       (catch Throwable _ nil))))
            :cljs
            (->> (js/parseInt s)
                 (ensure-pred #(and (integer? %) (not= % ##NaN) (not (js/isNaN %)))))))))
@@ -238,7 +238,7 @@
   logical true."
   [pred m]
   (->> (seq m)
-       (filter (fn [[k v]] (pred k)))
+       (filter (fn [[k _v]] (pred k)))
        (apply concat)
        (apply hash-map)))
 
@@ -247,7 +247,7 @@
   logical true."
   [pred m]
   (->> (seq m)
-       (filter (fn [[k v]] (pred v)))
+       (filter (fn [[_k v]] (pred v)))
        (apply concat)
        (apply hash-map)))
 

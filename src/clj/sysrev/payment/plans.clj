@@ -1,9 +1,7 @@
 (ns sysrev.payment.plans
-  (:require [honeysql.helpers :refer :all :exclude [update]]
+  (:require [honeysql.helpers :refer [join]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
-            [sysrev.util :as util]))
+            [sysrev.db.queries :as q]))
 
 (defn add-user-to-plan! [user-id plan sub-id]
   (q/create :plan-user {:user-id user-id :plan plan :sub-id sub-id}))
@@ -33,14 +31,14 @@
 
 (defn user-support-subscriptions
   "Returns all active support subscriptions for user."
-  [{:keys [user-id] :as user}]
+  [{:keys [user-id] :as _user}]
   (q/find [:project-support-subscriptions :pss] {:user-id user-id :pss.status "active"}
           :pss.*, :join [:project:p :pss.project-id]))
 
 (defn lookup-support-subscription [id]
   (q/find-one :project-support-subscriptions {:id id}))
 
-(defn user-current-project-support [{:keys [user-id] :as user} project-id]
+(defn user-current-project-support [{:keys [user-id] :as _user} project-id]
   (q/find-one :project-support-subscriptions
               {:user-id user-id :project-id project-id :status "active"}))
 

@@ -1,7 +1,5 @@
 (ns sysrev.source.pmid
-  (:require [clojure-csv.core :as csv]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [sysrev.config.core :as config]
             [sysrev.source.core :as source :refer [make-source-meta]]
@@ -34,7 +32,7 @@
   {:source "PMID vector"})
 
 (defmethod import-source :pmid-file
-  [stype project-id {:keys [file filename]} {:as options}]
+  [_ project-id {:keys [file filename]} {:as options}]
   (let [{:keys [max-import-articles]} config/env
         pmids (parse-pmid-file file)]
     (cond
@@ -59,7 +57,7 @@
          options)))))
 
 (defmethod import-source :pmid-vector
-  [stype project-id {:keys [pmids]} {:as options}]
+  [_ project-id {:keys [pmids]} {:as options}]
   (let [{:keys [max-import-articles]} config/env]
     (cond
       (empty? pmids)

@@ -1,8 +1,5 @@
 (ns sysrev.project.funds
-  (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :as db :refer [do-query do-execute]]
-            [sysrev.db.queries :as q]
-            [sysrev.util :as util]))
+  (:require [sysrev.db.queries :as q]))
 
 (def transaction-source-descriptor {:paypal-payment "PayPal/payment-id"
                                     :stripe-charge "Stripe/charge-id"

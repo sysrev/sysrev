@@ -2,21 +2,20 @@
   (:require [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [compojure.coercions :refer [as-int]]
-            [compojure.core :refer :all]
+            [compojure.core :refer [defroutes GET POST]]
             [clj-time.core :as time]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [select from where merge-where join merge-join]]
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.user.core :as user]
-            [sysrev.project.core :as project]
             [sysrev.db.queries :as q]
             [sysrev.config.core :refer [env]]
             [sysrev.web.app :as app :refer [with-authorize current-user-id]]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.shared.util :refer [in? map-values index-by]]))
+
+;; for clj-kondo
+(declare site-routes)
 
 ;; Functions defined after defroutes form
 (declare public-project-summaries)
@@ -86,7 +85,7 @@
 (defn- loop-update-global-stats
   "Runs `update-global-stats` using agent, recursing to run again after
   the update iteration (with time delay) completes."
-  [& [curval]]
+  [& [_curval]]
   (send global-stats-agent
         (fn [_]
           (log/info "running global-stats update")
@@ -132,8 +131,7 @@
 
   (POST "/api/delete-user" request
         (with-authorize request {:developer true}
-          (let [{{:keys [verify-user-id]
-                  :as body} :body} request
+          (let [{:keys [verify-user-id]} (:body request)
                 user-id (current-user-id request)
                 {:keys [permissions]} (user/user-identity-info user-id)]
             (assert (= user-id verify-user-id) "verify-user-id mismatch")

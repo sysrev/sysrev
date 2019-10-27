@@ -1,18 +1,18 @@
 (ns sysrev.datasource.api
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
-            [clojure.tools.logging :as log]
             [clojure.data.json :as json]
             [clj-http.client :as http]
             [venia.core :as venia]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
             [sysrev.datasource.core :as ds]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer
              [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys]]))
+
+;; for clj-kondo
+(declare fetch-pubmed-articles fetch-nct-entries get-articles-content)
 
 (defonce ds-host-override (atom nil))
 (defonce ds-auth-key-override (atom nil))

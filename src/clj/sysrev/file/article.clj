@@ -4,8 +4,11 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.file.core :as file]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil]))
+
+;; for clj-kondo
+(declare s3-id-from-article-key article-pdf-associated?
+         associate-article-pdf dissociate-article-pdf)
 
 (defn-spec s3-id-from-article-key (s/nilable ::file/s3-id)
   [article-id int?, file-key string?]

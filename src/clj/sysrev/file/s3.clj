@@ -9,6 +9,9 @@
   (:import (java.io File ByteArrayInputStream)
            java.util.UUID))
 
+;; for clj-kondo
+(declare s3-credentials lookup-bucket lookup-file)
+
 (defonce ^:private byte-array-type (type (byte-array 1)))
 
 (s/def ::byte-array #(= (type %) byte-array-type))

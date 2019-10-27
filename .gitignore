@@ -1,5 +1,9 @@
 #############################
 
+!/.clj-kondo
+!/.clj-kondo/config.edn
+/.clj-kondo/.cache
+
 /local/
 
 target/

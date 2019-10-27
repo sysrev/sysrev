@@ -4,10 +4,9 @@
 
 (ns sysrev.custom.immuno
   (:require [clojure.string :as str]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql.helpers :as sqlh :refer [select from where order-by]]
             [sysrev.db.queries :as q]
-            [sysrev.db.core :refer [do-query do-execute]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.misc :refer [merge-article-labels]]))
 
 (defn match-article-id
@@ -63,7 +62,7 @@
 
 ;; (Deleted) This queried project for duplicate pairs using
 ;; obsolete article_similarity table
-(defn find-duplicate-article-pairs [project-id]
+(defn find-duplicate-article-pairs [_project-id]
   nil)
 
 (defn merge-duplicate-articles [article-ids]

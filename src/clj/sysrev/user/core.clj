@@ -1,25 +1,20 @@
 (ns sysrev.user.core
   (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
             [clojure.spec.alpha :as s]
             [buddy.core.hash :as hash]
             [buddy.core.codecs :as codecs]
             buddy.hashers
             crypto.random
-            [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [select from join merge-join where order-by group]]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction sql-now raw-query]]
+             [do-query with-transaction sql-now]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [add-project-member]]
-            [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.users :as su]
             [sysrev.payment.stripe :as stripe]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [map-values in?]])
   (:import java.util.UUID))
 
@@ -115,10 +110,7 @@
                        :api-token (generate-api-token)}
                 user-id (assoc :user-id user-id))]
     (when project-id (assert (q/query-project-by-id project-id [:project-id])))
-    (let [{:keys [user-id] :as user} (-> (insert-into :web-user)
-                                         (values [entry])
-                                         (returning :*)
-                                         do-query first)]
+    (let [{:keys [user-id] :as user} (q/create :web-user entry, :returning :*)]
       (when project-id (add-project-member project-id user-id))
       user)))
 
@@ -174,7 +166,7 @@
 
 (defn user-identity-info
   "Returns basic identity info for user."
-  [user-id & [self?]]
+  [user-id & [_self?]]
   (get-user user-id [:user-id :user-uuid :email :verified :permissions :settings
                      :default-project-id]))
 
@@ -241,8 +233,8 @@
                                                  :description (str "Sysrev UUID: " user-uuid))
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
-      (try (do (q/modify :web-user {:user-id user-id} {:stripe-id stripe-customer-id})
-               {:success true})
+      (try (q/modify :web-user {:user-id user-id} {:stripe-id stripe-customer-id})
+           {:success true}
            (catch Throwable e
              {:error {:message "Exception in create-user-stripe-customer!"
                       :exception e}}))
@@ -250,7 +242,7 @@
                              email " and uuid: " user-uuid)}})))
 
 ;; for testing purposes
-(defn delete-user-stripe-customer! [{:keys [stripe-id user-id] :as user}]
+(defn delete-user-stripe-customer! [{:keys [stripe-id user-id] :as _user}]
   (stripe/delete-customer! {:stripe-id stripe-id
                             :user-id user-id})
   (with-transaction

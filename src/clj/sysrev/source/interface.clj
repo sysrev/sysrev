@@ -1,7 +1,6 @@
 (ns sysrev.source.interface
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :as db :refer [*conn*]]
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
@@ -82,7 +81,7 @@
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
   [project-id source-id
-   {:keys [article-refs get-articles prepare-article on-article-added types] :as impl}]
+   {:keys [article-refs get-articles prepare-article on-article-added types] :as _impl}]
   (letfn [(import-group [articles]
             (db/with-transaction
               (let [{:keys [new-articles existing-article-ids]}
@@ -226,8 +225,8 @@
 
 (defmulti import-source
   "Multimethod for import implementation per source type."
-  (fn [stype project-id input options] stype))
+  (fn [stype _project-id _input _options] stype))
 
-(defmethod import-source :default [stype project-id input options]
+(defmethod import-source :default [stype _project-id _input _options]
   (throw (Exception. (format "import-source - invalid source type (%s)"
                              (pr-str stype)))))

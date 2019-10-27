@@ -6,14 +6,14 @@
             [clj-time.local :as l]
             [clj-time.core :as t]
             [clj-time.format :as f]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.helpers :refer [returning]]
-            [sysrev.db.core :as db :refer [do-query do-execute]]
+            [honeysql.helpers :as sqlh :refer [select from where join left-join modifiers]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :refer [transaction-source-descriptor]]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [index-by nilable-coll]]))
+
+;; for clj-kondo
+(declare create-project-compensation! read-project-compensations)
 
 (s/def ::time any?)
 (s/def ::cents int?)

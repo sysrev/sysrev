@@ -4,23 +4,16 @@
             [clojure.string :as str]
             [clojure.walk :as walk]
             [clojure.data.json :as json]
-            [compojure.core :refer :all]
+            [compojure.core :as c]
             [clj-http.client :as http]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [merge-where]]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.core :refer [do-query do-execute]]
+            [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :refer [user-by-api-token]]
-            [sysrev.project.core :as project]
-            [sysrev.web.app :refer
-             [current-user-id active-project make-error-response]]
-            [sysrev.shared.spec.core :as sc]
+            [sysrev.web.app :refer [make-error-response]]
             [sysrev.shared.spec.web-api :as swa]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values in?]]))
+            [sysrev.shared.util :refer [in?]]))
 
 (defonce web-api-routes (atom {}))
 (defonce web-api-routes-order (atom []))
@@ -55,8 +48,8 @@
     (fn [name]
       (let [{:keys [name method handler]} (get @web-api-routes name)
             path (str "/web-api/" (clojure.core/name name))]
-        (make-route method path handler))))
-   (apply routes)))
+        (c/make-route method path handler))))
+   (apply c/routes)))
 
 (defn wrap-web-api-check-args [handler]
   (fn [request]
@@ -68,7 +61,7 @@
                        (= (:request-method request)
                           :get)
                        (-> request :query-params walk/keywordize-keys keys))
-            request-method (:request-method request)
+            ;; request-method (:request-method request)
             missing (->> required (remove (in? args)))]
         (if-not (empty? missing)
           (make-error-response
@@ -98,7 +91,7 @@
 (defn wrap-web-api-auth [handler]
   (fn [request]
     (if-let [route (web-api-route request)]
-      (let [{:keys [require-token? require-admin? project-role required]} route
+      (let [{:keys [require-token? require-admin? project-role #_ required]} route
             {:keys [api-token project-id]} (-> request :body)
             user (and api-token (user-by-api-token api-token))
             admin? (and user (in? (:permissions user) "admin"))
@@ -172,7 +165,7 @@
                   (= method :post)  (assoc :body (json/write-str body)))
         {:keys [body]} (http/request request)]
     (try (json/read-str body :key-fn keyword)
-         (catch Throwable e body))))
+         (catch Throwable _ body))))
 
 (defn webapi-get [route body & opts]
   (apply webapi-request :get route body opts))

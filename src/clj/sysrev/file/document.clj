@@ -5,8 +5,10 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.file.core :as file]
-            [sysrev.file.s3 :as s3]
-            [sysrev.util :as util]))
+            [sysrev.file.s3 :as s3]))
+
+;; for clj-kondo
+(declare lookup-document-file list-project-documents save-document-file)
 
 ;;;
 ;;; "Project Documents" files.
@@ -38,7 +40,7 @@
 (defn-spec save-document-file map?
   [project-id int?, user-id int?, filename string?, file ::s3/file]
   (db/with-clear-project-cache project-id
-    (let [{:keys [key s3-id]} (file/save-s3-file :document filename {:file file})]
+    (let [{:keys [s3-id]} (file/save-s3-file :document filename {:file file})]
       (q/create :project-document {:s3-id s3-id :project-id project-id :user-id user-id}
                 :returning :*))))
 

@@ -1,18 +1,11 @@
 (ns sysrev.label.migrate
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction clear-project-cache]]
+  (:require [clojure.tools.logging :as log]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.label.answer :as answer]
             [sysrev.shared.labels :refer [sort-project-labels]]
-            [sysrev.article.core :as article]
-            [sysrev.shared.util :refer [map-values in? index-by]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [sysrev.shared.util :refer [index-by]]))
 
 ;;;
 ;;; article_resolve migration
@@ -49,11 +42,10 @@
   (db/with-clear-project-cache project-id
     (when-not (project-has-article-resolve? project-id)
       (log/infof "migrating article resolve for project #%d" project-id)
-      (let [overall-id (project/project-overall-label-id project-id)
-            article-ids (try (project-resolved-articles project-id)
+      (let [article-ids (try (project-resolved-articles project-id)
                              (catch Throwable _ (log/info "unable to query on article.resolve")))]
         (doseq [article-id article-ids]
-          (when-let [{:keys [user-id updated-time] :as e} (article-resolve-info article-id)]
+          (when-let [{:keys [user-id updated-time]} (article-resolve-info article-id)]
             (answer/resolve-article-answers article-id user-id :resolve-time updated-time)))))))
 
 (defn projects-with-resolve
@@ -67,7 +59,7 @@
 (defn migrate-all-project-article-resolve
   "Create article_resolve entries for all projects."
   []
-  (with-transaction
+  (db/with-transaction
     (doseq [project-id (projects-with-resolve)]
       (migrate-project-article-resolve project-id))))
 
@@ -95,7 +87,7 @@
 ;;       using a uuid rather than directly by their text value
 #_
 (defn ^:unused migrate-label-uuid-values [label-id]
-  (with-transaction
+  (db/with-transaction
     (let [{:keys [value-type definition]}
           (-> (select :value-type :definition)
               (from :label)

@@ -1,22 +1,19 @@
 (ns sysrev.web.blog
-  (:require [clojure.string :as str]
+  (:require [clj-http.client :as http]
             [hiccup.page :as page]
-            [compojure.core :refer :all]
+            [compojure.core :refer [defroutes GET]]
             [compojure.route :refer [not-found]]
             [ring.util.response :as r]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction]]
+            [honeysql.helpers :as sqlh :refer [select from order-by insert-into values]]
+            [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
             [sysrev.web.build :as build]
             [sysrev.web.index :as index]
-            [sysrev.web.app :refer [not-found-response]]
-            [clj-http.client :as http]
-            [clojure.tools.logging :as log]))
+            [sysrev.web.app :refer [not-found-response]]))
+
+;; for clj-kondo
+(declare blog-html-routes blog-routes)
 
 (defn add-blog-entry [{:keys [url title description]}]
   (-> (insert-into :blog-entry)
@@ -29,7 +26,7 @@
       (order-by [:date-published :desc])
       do-query vec))
 
-(defn blog-index [& [request]]
+(defn blog-index [& [_request]]
   (page/html5
    [:head
     [:title "Sysrev Blog"]
@@ -65,12 +62,10 @@
                  (r/header "Content-Type" "text/css; charset=utf-8"))))
   (GET "/sysrev-blog/:filename" request
        (let [filename (-> request :params :filename)
-             content (try
-                       (-> (str "https://s3.amazonaws.com/sysrev-blog/" filename)
-                           (http/get)
-                           :body)
-                       (catch Throwable e
-                         nil))]
+             content (try (-> (str "https://s3.amazonaws.com/sysrev-blog/" filename)
+                              (http/get)
+                              :body)
+                          (catch Throwable _ nil))]
          (if (nil? content)
            (r/not-found (format "File not found for entry (\"%s\")." filename))
            (-> content

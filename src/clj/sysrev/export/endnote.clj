@@ -3,15 +3,13 @@
             [clojure.data.xml :as dxml]
             [clojure.data.xml node prxml]
             [clojure.java.io :as io]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.label.core :as labels]
             [sysrev.article.core :as article]
-            [sysrev.formats.endnote :refer [load-endnote-record parse-endnote-file]]
+            [sysrev.formats.endnote :refer [parse-endnote-file]]
             [sysrev.util :as util :refer [xml-find-value parse-xml-str]]
-            [sysrev.shared.util :as u :refer [in? map-values index-by]]))
+            [sysrev.shared.util :as sutil :refer [map-values]]))
 
 (defn all-included-articles [project-id]
   (->> (keys (labels/project-included-articles project-id))

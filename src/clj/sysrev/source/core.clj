@@ -2,17 +2,18 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.helpers :refer [returning]]
+            [honeysql.helpers :as sqlh :refer [select from where join left-join group having
+                                               delete-from merge-where insert-into values]]
             [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction to-jsonb
-              clear-project-cache with-project-cache]]
+             [do-query do-execute with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as p]
             [sysrev.article.core :as a]
             [sysrev.file.s3 :as s3-file]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
+            [sysrev.shared.util :as sutil :refer [map-values index-by]]))
+
+;; for clj-kondo
+(declare source-id->project-id alter-source-meta)
 
 (defn get-source
   "Get fields for project-source entry matching source-id."
@@ -35,9 +36,9 @@
     (q/create :project-source {:project-id project-id :meta metadata}
               :returning :source-id)))
 
-(defmulti make-source-meta (fn [source-type values] source-type))
+(defmulti make-source-meta (fn [source-type _values] source-type))
 
-(defmethod make-source-meta :default [source-type values]
+(defmethod make-source-meta :default [_source-type _values]
   (throw (Exception. "invalid source-type")))
 
 (defn-spec ^:private set-source-meta int?
@@ -288,7 +289,7 @@
   "Create article-source entries linking article-ids to source-id."
   [article-ids source-id]
   (when (seq article-ids)
-    (-> (sqlh/insert-into :article-source)
+    (-> (insert-into :article-source)
         (values (for [id article-ids] {:article-id id :source-id source-id}))
         do-execute)))
 

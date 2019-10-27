@@ -1,7 +1,5 @@
 (ns sysrev.source.extra
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [sysrev.source.core :as source :refer [make-source-meta]]
+  (:require [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))
 
 (defmethod make-source-meta :api-text-manual [_ {:keys [article-count]}]
@@ -14,7 +12,7 @@
   {:source "Custom import" :custom description})
 
 (defmethod import-source :api-text-manual
-  [stype project-id {:keys [articles]} {:as options}]
+  [_ project-id {:keys [articles]} {:as options}]
   (import-source-impl
    project-id
    (make-source-meta :api-text-manual {:article-count (count articles)})

@@ -1,6 +1,5 @@
 (ns sysrev.shared.spec.project
   (:require [clojure.spec.alpha :as s]
-            [sysrev.shared.util :refer [in?]]
             [sysrev.shared.spec.core :as sc]))
 
 (s/def ::project-id ::sc/sql-serial-id)

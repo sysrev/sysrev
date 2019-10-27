@@ -1,23 +1,15 @@
 (ns sysrev.label.answer
-  (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
+  (:require [honeysql.helpers :as sqlh :refer [insert-into values sset where]]
+            [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
             [sysrev.project.core :as project]
-            [sysrev.article.core :as article]
-            [sysrev.label.core :as l]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
-(defn label-answer-valid? [{:keys [label-id value-type definition] :as label} answer]
+(defn label-answer-valid? [{:keys [label-id value-type definition] :as _label} answer]
   (case value-type
     "boolean"
     (when (contains? #{true false nil} answer)
@@ -35,7 +27,7 @@
               (every? string? filtered)  {label-id filtered})))
     {label-id answer}))
 
-(defn label-answer-inclusion [{:keys [label-id value-type definition] :as label} answer]
+(defn label-answer-inclusion [{:keys [label-id value-type definition] :as _label} answer]
   (let [ivals (:inclusion-values definition)]
     (case value-type
       "boolean"      (if (or (empty? ivals) (nil? answer))

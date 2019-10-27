@@ -1,30 +1,27 @@
 (ns sysrev.project.core
-  (:require [clojure.spec.alpha :as s]
+  (:require [clojure.string :as str]
+            [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
-            [clojure.string :as str]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [honeysql.helpers :as sqlh :refer [select from where merge-where
+                                               join merge-join sset]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.users :as su]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.notes :as snt]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction with-project-cache clear-project-cache]]
-            [sysrev.project.compensation :as compensation]
-            [sysrev.article.core :refer
-             [set-article-flag remove-article-flag article-to-sql]]
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
-            [sysrev.util :as util]
+            [sysrev.project.compensation :as compensation]
+            [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.shared.util :as sutil :refer
-             [in? map-values filter-values index-by req-un opt-keys]]
-            [sysrev.shared.keywords :refer [canonical-keyword]])
+             [in? map-values filter-values index-by opt-keys]])
   (:import java.util.UUID))
+
+;; for clj-kondo
+(declare delete-project)
 
 (s/def ::include-disabled? (s/nilable boolean?))
 
@@ -182,7 +179,7 @@
   and a map of entries for all articles referenced in the labels."
   [project-id int?, user-id int?]
   (with-project-cache project-id [:users user-id :labels :member-labels]
-    (let [predict-run-id (q/project-latest-predict-run-id project-id)
+    (let [;; predict-run-id (q/project-latest-predict-run-id project-id)
           [labels articles]
           (pvalues (-> (q/select-project-article-labels
                         project-id nil [:al.article-id :al.label-id :al.answer :al.confirm-time])
@@ -201,7 +198,7 @@
                             (group-by :article-id)
                             (map-values
                              #(->> % (map (fn [m] (dissoc m :article-id :confirmed)))))
-                            (filter (fn [[aid cs]] (some (comp not nil? :answer) cs)))
+                            (filter (fn [[_aid cs]] (some (comp not nil? :answer) cs)))
                             (apply concat)
                             (apply hash-map)))
           [confirmed unconfirmed] (pvalues (labels-map true) (labels-map false))]
@@ -371,7 +368,7 @@
 ;;;
 ;;; These are intended only for testing
 ;;;
-(defn delete-compensation-by-id [project-id compensation-id]
+(defn delete-compensation-by-id [_project-id compensation-id]
   (q/delete :compensation-user-period      {:compensation-id compensation-id})
   (q/delete :compensation-project-default  {:compensation-id compensation-id})
   (q/delete :compensation-project          {:compensation-id compensation-id})
@@ -412,12 +409,12 @@
 
 (defn get-project-owner [project-id]
   (with-transaction
-    (if-let [{:keys [group-id group-name] :as owner}
+    (if-let [{:keys [group-id group-name] :as _owner}
              (q/find-one [:project-group :pg] {:project-id project-id}
                          [:g.group-id :g.group-name]
                          :join [:groups:g :pg.group-id])]
       {:group-id group-id, :name group-name}
-      (when-let [{:keys [user-id email] :as owner}
+      (when-let [{:keys [user-id email] :as _owner}
                  (q/find-one [:project-member :pm] {:pm.project-id project-id
                                                     "owner" :%any.pm.permissions}
                              [:u.user-id :u.email]

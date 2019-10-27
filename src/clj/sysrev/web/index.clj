@@ -20,14 +20,12 @@
   (let [path (or path "/out")]
     (reset! web-asset-path path)))
 
-(defn- user-theme [request]
-  (let [{{{:keys [user-id] :as identity} :identity
-          :as session} :session} request]
-    (if user-id
-      (or (some-> user-id get-user :settings :ui-theme str/lower-case)
-          "default")
-      (or (some-> session :settings :ui-theme str/lower-case)
-          "default"))))
+(defn- user-theme [{:keys [session] :as _request}]
+  (if-let [user-id (-> session :identity :user-id)]
+    (or (some-> user-id get-user :settings :ui-theme str/lower-case)
+        "default")
+    (or (some-> session :settings :ui-theme str/lower-case)
+        "default")))
 
 (defn css-paths [& {:keys [theme] :or {theme "default"}}]
   [(format "/semantic/%s/semantic.min.css" theme)
