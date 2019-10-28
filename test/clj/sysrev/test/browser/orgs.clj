@@ -387,7 +387,7 @@
     (b/set-input-text-per-char create-org-input org-name)
     (b/click create-org-button)
     ;; upgrade plan
-    (b/wait-until-displayed plans/upgrade-plan-h2)
+    (b/wait-until-displayed plans/upgrade-plan-h2 10000 100)
     (is (= "Basic" (-> (user-groups email)
                        first
                        :group-id

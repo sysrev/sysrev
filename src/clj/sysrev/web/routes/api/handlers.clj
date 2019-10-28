@@ -549,5 +549,51 @@
                                   :name new-project-name
                                   :url (str "https://sysrev.com/p/" new-project-id)}}})))))
 
+(def-webapi
+  :transfer-project :post
+  {:required [:project-id]
+   :optional [:user-id :group-id]
+   :require-admin? true
+   :doc (->> ["\"project-id\": Integer, project to transfer"
+              "\"user-id\": Optional user-id to transfer project to"
+              "\"group-id\": Optional group-id to transfer project to"
+              "Either a user-id or a group-id is required to transfer a project"
+              "On success, returns the newly created project-id."]
+             (str/join "\n"))}
+  (fn [request]
+    (let [{:keys [project-id user-id group-id]}
+          (:body request)]
+      (cond
+        (and (nil? user-id)
+             (nil? group-id))
+        (make-error-response
+         500 :api "user-id or group-id value must be provided")
+        (not (or (integer? user-id)
+                 (integer? group-id)))
+        (make-error-response
+         500 :api "user-id or group-id value must be an integer value")
+        (not (integer? project-id))
+        (make-error-response
+         500 :api "project-id must be an interger value ")
+        :else
+        (let [change-project-resp
+              (cond ((comp not nil?) user-id)
+                    (api/change-project-owner
+                     project-id
+                     :user-id user-id)
+                    ((comp not nil?) group-id)
+                    (api/change-project-owner
+                     project-id
+                     :group-id group-id)
+                    :else
+                    "error")]
+          (if (= change-project-resp
+                 "error")
+            {:result {:success false
+                      :message "There was an error transferring projects"}}
+            {:result {:success true
+                      :project-id {:project-id project-id
+                                   :url (str "https://sysrev.com/p/" project-id)}}}))))))
+
 ;; Prevent Cider compile command from returning a huge def-webapi map
 nil
