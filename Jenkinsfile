@@ -66,7 +66,9 @@ node {
     }
   }
   stage('Test') {
-    if (currentBuild.result != 'FAILURE') {
+    if (currentBuild.result != 'FAILURE' &&
+        branch != 'staging' &&
+        branch != 'production' ) {
       echo 'Running build tests...'
       try {
         sh './jenkins/test'
