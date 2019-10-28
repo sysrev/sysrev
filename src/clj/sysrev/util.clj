@@ -13,6 +13,7 @@
             [clj-time.format :as tf]
             [me.raynes.fs :as fs]
             [sysrev.config.core :refer [env]]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.util :as sutil])
   (:import java.util.UUID
            (java.io File ByteArrayInputStream ByteArrayOutputStream)
@@ -373,3 +374,8 @@
 
 (defn random-uuid []
   (UUID/randomUUID))
+
+(defmacro log-exception [^Throwable e & {:keys [level] :or {level :error}}]
+  `(let [e# ~e]
+     (log/logf ~level "%s: %s\n%s"
+               (current-function-name) (.getMessage e#) (print-cause-trace-custom e#))))

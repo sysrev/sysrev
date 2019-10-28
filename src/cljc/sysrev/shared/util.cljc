@@ -87,20 +87,33 @@
   ([coll] #(in? coll %)))
 
 (defn map-keys
-  "Map a function over the keys of a collection of pairs (vector of vectors,
-  hash-map, etc.) Optionally accepts a collection to put result into."
+  "Map a function over the keys of a collection of pairs (hash-map,
+  vector of vectors, etc.) Optionally accepts a collection to put
+  result into."
   ([f rescoll m]
    (into rescoll (->> m (map (fn [[k v]] [(f k) v])))))
   ([f m]
    (map-keys f {} m)))
 
 (defn map-values
-  "Map a function over the values of a collection of pairs (vector of vectors,
-  hash-map, etc.) Optionally accepts a collection to put result into."
+  "Map a function over the values of a collection of pairs (hash-map,
+  vector of vectors, etc.) Optionally accepts a collection to put
+  result into."
   ([f rescoll m]
    (into rescoll (->> m (map (fn [[k v]] [k (f v)])))))
   ([f m]
    (map-values f {} m)))
+
+(defn map-kv
+  "Map a function over the k-v pairs of a collection of pairs (hash-map,
+  vector of vectors, etc.) f should take two arguments [key value] and
+  return a two-element sequence of [key value]. Pairs for which f
+  returns nil will be removed. Optionally accepts a collection to put
+  result into."
+  ([f rescoll m]
+   (into rescoll (->> m (map (fn [[k v]] (f k v))) (remove nil?))))
+  ([f m]
+   (map-kv f {} m)))
 
 (defn check
   "Returns val after running an assertion on (f val).
