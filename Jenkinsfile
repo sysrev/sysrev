@@ -59,9 +59,6 @@ node {
     try {
       sh './jenkins/init'
       sh './jenkins/init-build'
-      if (branch == 'dev') {
-        sh './jenkins/migrate.build'
-      }
     } catch (exc) {
       currentBuild.result = 'FAILURE'
       sendSlackMsg ('Init stage failed')

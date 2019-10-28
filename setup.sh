@@ -25,8 +25,11 @@ npm install > /dev/null
 cd ..
 echo
 
+echo "Installing flyway"
+./scripts/install-flyway > /dev/null
 echo
-echo "You will need to create file vars.sh (see vars.sh.template) and manually add the required private values"
 
+echo "You will need to create file vars.sh (see vars.sh.template) and manually add the required private values."
+echo
 echo "Done"
 echo

@@ -1,11 +1,13 @@
 #!/bin/bash
 set -eux
 
-echo "Building CSS and ClojureScript code"
+echo "Preparing build environment"
 
 ./setup.sh
 
 lein clean
+
+echo "Compiling CLJS project"
 
 cd client
 rm -rf .shadow-cljs/builds/prod || true
