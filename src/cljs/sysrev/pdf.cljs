@@ -277,7 +277,20 @@
                                       (queue-render-page context pdf-doc (inc %)))
                      :loading? nil}]]]
        [:div.ui.center.aligned.attached.segment.pdf-content-wrapper
-        [PDFContent args]]])))
+        [PDFContent args]]
+       [:div.ui.attached.two.column.grid.segment
+        [:div.column
+         [:h4 (:filename entry)]]
+        [:div.right.aligned.column
+         [ListPager {:panel panel
+                     :instance-key [pdf-url]
+                     :offset (dec page-num)
+                     :total-count (or page-count 1)
+                     :items-per-page 1
+                     :item-name-string ""
+                     :set-offset #(do (dispatch-sync [::set context [:page-num] (inc %)])
+                                      (queue-render-page context pdf-doc (inc %)))
+                     :loading? nil}]]]])))
 
 (defn view-open-access-pdf-url [article-id key]
   (str "/api/open-access/" article-id "/view/" key))
