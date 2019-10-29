@@ -59,6 +59,7 @@ node {
     try {
       sh './jenkins/init'
       sh './jenkins/init-build'
+      currentBuild.result = 'SUCCESS'
     } catch (exc) {
       currentBuild.result = 'FAILURE'
       sendSlackMsg ('Init stage failed')
@@ -117,6 +118,7 @@ node {
               sh './jenkins/migrate.dev'
               sh './jenkins/deploy'
             }
+            sendSlackMsgFull ('Deployed to AWS (https://staging.sysrev.com)', 'blue')
             try {
               sh './jenkins/test-aws-dev-all'
               currentBuild.result = 'SUCCESS'
@@ -168,7 +170,11 @@ node {
           throw exc
         } finally {
           if (currentBuild.result == 'SUCCESS') {
-            sendSlackMsgFull ('Deployed to AWS', 'blue')
+            if (branch == 'staging') {
+              sendSlackMsgFull ('Deployed to AWS (https://staging.sysrev.com)', 'blue')
+            } else if (branch == 'production') {
+              sendSlackMsgFull ('Deployed to AWS (https://sysrev.com)', 'blue')
+            }
           } else {
             sendSlackMsg ('Deploy failed')
           }

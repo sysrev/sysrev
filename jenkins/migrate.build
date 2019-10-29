@@ -1,6 +1,0 @@
-#!/bin/bash
-set -eu
-
-./scripts/install-flyway
-cp -f flyway.conf.build-server flyway.conf
-./flyway -ignoreIgnoredMigrations=true migrate
