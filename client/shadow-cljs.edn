@@ -1,8 +1,8 @@
 {:nrepl {:port 7888}
  :source-paths ["src/cljs" "src/cljc" "resources"]
  :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
-             ;; https://github.com/thheller/shadow-cljs/issues/556
-            "-Xmx1G"]
+            ;; https://github.com/thheller/shadow-cljs/issues/556
+            "-Xms400m" "-Xmx1250m"]
  :builds {:dev {:target :browser
                 :output-dir "resources/public/out-dev"
                 :asset-path "/out"

@@ -29,17 +29,15 @@
 (reg-sub :project/labels-raw
          (fn [db [_ project-id]] (project-labels db project-id)))
 
-
 (defn sort-client-project-labels
-  "Returns sorted label ids, using legacy client-side sort logic when
-  `include-disabled?` is true, otherwise using `:project-ordering` values."
+  "Returns sorted label ids using `:project-ordering` values, while
+  handling disabled labels which have no ordering value."
   [labels include-disabled?]
-  (if include-disabled?
-    (sort-project-labels labels include-disabled?)
-    (->> (vals labels)
-         (filter :enabled)
-         (sort-by :project-ordering <)
-         (mapv :label-id))))
+  (->> (vals labels)
+       (filter #(or include-disabled? (:enabled %)))
+       (sort-by #(or (:short-label %) ""))
+       (sort-by :project-ordering <)
+       (mapv :label-id)))
 
 (defn project-label-ids [db & [project-id include-disabled?]]
   (-> (project-labels db project-id)

@@ -17,7 +17,7 @@
                      "categorical" 1
                      "string" 2
                      3)
-        string (str/lower-case short-label)]
+        string (str/lower-case (or short-label ""))]
     [required string value-type]))
 
 (defn sort-project-labels [labels & [include-disabled?]]

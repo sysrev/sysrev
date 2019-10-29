@@ -1,20 +1,20 @@
 (ns sysrev.views.panels.project.define-labels
   (:require [clojure.string :as str]
             [reagent.core :as r]
-            [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-sub-raw
-              reg-event-db reg-event-fx trim-v]]
+            [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
+            [sysrev.state.label :refer [sort-client-project-labels]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.review :refer [label-help-popup inclusion-tag]]
+            [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
+            [sysrev.dnd :as dnd]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values css]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values map-kv css]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; Convention -
 ;; A (new) label that exists in the client but not on the
@@ -24,6 +24,9 @@
 ;; The jQuery plugin formBuilder is inspiration for the UI
 ;; repo: https://github.com/kevinchappell/formBuilder
 ;; demo: https://jsfiddle.net/kevinchappell/ajp60dzk/5/
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:project :project :labels :edit] {:state-var state})
 
@@ -71,6 +74,45 @@
     "categorical"  []
     nil))
 
+(defn move-label-to
+  "Reorder labels, moving `src-label-id` to the current position of
+  `dest-label-id` and shifting others as needed."
+  [src-label-id dest-label-id]
+  (when (not= (str src-label-id) (str dest-label-id))
+    (let [labels (get-local-labels)
+          src-label (or (get labels src-label-id)
+                        (get labels (uuid src-label-id)))
+          dest-label (or (get labels dest-label-id)
+                         (get labels (uuid dest-label-id)))
+          src-pos (:project-ordering src-label)
+          dest-pos (:project-ordering dest-label)]
+      (when-not (or (= (:name dest-label) "overall include")
+                    (= (:name src-label) "overall include"))
+        (->> (reset! (r/cursor state [:labels])
+                     (map-kv (fn [label-id label]
+                               (let [this-pos (:project-ordering label)]
+                                 [label-id
+                                  (cond
+                                    ;; update src-label, set ordering from dest-label
+                                    (= (str label-id) (str src-label-id))
+                                    (assoc label :project-ordering dest-pos)
+                                    ;; moving src-label closer to start;
+                                    ;; increment values between src and dest to make room
+                                    (and (< dest-pos src-pos)
+                                         (>= this-pos dest-pos)
+                                         (< this-pos src-pos))
+                                    (update label :project-ordering inc)
+                                    ;; moving src-label closer to end;
+                                    ;; decrement values between src and dest to make room
+                                    (and (> dest-pos src-pos)
+                                         (<= this-pos dest-pos)
+                                         (> this-pos src-pos))
+                                    (update label :project-ordering dec)
+                                    ;; leave other labels unchanged
+                                    :else label)]))
+                             labels))
+             (map-values #(select-keys % [:project-ordering :short-label])))))))
+
 (defn create-blank-label [value-type]
   (let [label-id (str "new-label-" (sutil/random-id))]
     {:definition (case value-type
@@ -92,9 +134,6 @@
      :answer (default-answer value-type)
      :editing? true
      :errors (list)}))
-
-(defn- set-labels [labels]
-  (swap! state assoc-in [:labels] labels))
 
 (defn add-new-label!
   "Add a new label in local namespace state."
@@ -176,7 +215,7 @@
 (defn save-request-active? []
   (loading/any-action-running? :only :labels/sync-project-labels))
 
-(defn SaveLabelButton [label]
+(defn SaveLabelButton [_label]
   [:button.ui.small.fluid.positive.labeled.icon.button
    {:type "submit"
     :class (css [(save-request-active?) "loading"]
@@ -207,7 +246,7 @@
 (def-action :labels/sync-project-labels
   :uri (fn [] "/api/sync-project-labels")
   :content (fn [project-id labels] {:project-id project-id :labels labels})
-  :process (fn [_ _ {:keys [valid? labels] :as result}]
+  :process (fn [_ _ {:keys [valid? labels]}]
              (if valid? ;; update successful?
                ;; update (1) app-wide project data and (2) local namespace state
                (do (set-app-db-labels! labels)
@@ -270,7 +309,7 @@
   "Creates map of standard arguments to field component function for a
   label setting (i.e. entry in label-settings-config)."
   [setting & [errors extra]]
-  (when-let [{:keys [path display tooltip placeholder optional] :as config}
+  (when-let [{:keys [path display tooltip placeholder optional]}
              (get label-settings-config setting)]
     (cond-> {:field-class (-> (str "field-" (name setting))
                               (str/split #"\?") ;; remove ? from css class
@@ -283,11 +322,8 @@
       extra        (merge extra))))
 
 (defn LabelEditForm [label]
-  (let [label-id (r/cursor label [:label-id])
-        on-server? (not (string? @label-id))
-        show-error-msg #(when % [:div.ui.red.message %])
+  (let [show-error-msg #(when % [:div.ui.red.message %])
         value-type (r/cursor label [:value-type])
-        answer (r/cursor label [:answer])
 ;;; all types
         ;; required, string
         short-label (r/cursor label [:short-label])
@@ -398,7 +434,7 @@
      ;; inclusion-values for categorical label
      (when (and (= @value-type "categorical")
                 (not (false? @inclusion))
-                (not (empty? @all-values)))
+                (seq @all-values))
        (let [error (get-in @errors [:definition :inclusion-values])]
          [:div.field.inclusion-values {:class (when error "error")
                                        :style {:width "100%"}}
@@ -515,7 +551,8 @@
 
 ;; this corresponds to sysrev.views.review/label-column
 (defn Label [label]
-  (let [{:keys [label-id value-type question short-label category required definition]} @label
+  (let [{:keys [label-id value-type question short-label #_ category
+                required definition]} @label
         answer (r/cursor label [:answer])
         on-click-help (util/wrap-user-event #(do nil))]
     [:div.ui.column.label-edit {:class (css [required "required"])}
@@ -535,7 +572,7 @@
             (when (not-empty question)
               [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
        {:variation "basic"
-        :delay {:show 400, :hide 0}
+        :delay {:show 650, :hide 0}
         :hoverable false
         :inline true
         :position "top center"
@@ -560,46 +597,75 @@
                           {:value answer
                            :definition definition
                            :label-id label-id
-                           :onAdd (fn [v t] (swap! answer conj v))
+                           :onAdd (fn [v _t] (swap! answer conj v))
                            :onRemove
-                           (fn [v t] (swap! answer #(into [] (remove (partial = v) %))))}]
+                           (fn [v _t] (swap! answer #(into [] (remove (partial = v) %))))}]
           (pr-str label))]]]]))
 
-(defn- LabelItem [i label]
-  "label is a cursor"
+(defn- LabelItem [i label & {:keys [status]}]
   (let [{:keys [label-id name editing? enabled]} @label
         admin? (or @(subscribe [:member/admin?])
                    @(subscribe [:user/admin?]))
-        allow-edit? (and admin? (not= name "overall include"))]
+        allow-edit? (and admin? (not= name "overall include"))
+        {:keys [draggable]} status]
     [:div.ui.middle.aligned.grid.label-item {:id (str label-id)
                                              :class (css [(not enabled) "secondary"] "segment")}
      [:div.row
       [ui/TopAlignedColumn
        [:div.ui.label {:class (css [enabled "blue" :else "gray"])} (str (inc i))]
-       "two wide center aligned column label-index"]
+       (css "two wide center aligned column label-index"
+            [(true? draggable)  "cursor-grab"
+             (false? draggable) "cursor-not-allowed"])]
       [:div.column.define-label-item {:class "twelve wide"}
        (if editing? [LabelEditForm label] [Label label])]
       [ui/TopAlignedColumn
        [EditLabelButton label allow-edit?]
        "two wide center aligned column delete-label"]]]))
 
+(def label-drag-spec
+  (dnd/make-drag-spec
+   {:begin-drag (fn [props _monitor _component]
+                  #_ (util/log "begin-drag called: props = %s" (pr-str props))
+                  {:label-id (-> props :id-spec :label-id)})}))
+
+(def label-drop-spec
+  (dnd/make-drop-spec
+   {:drop (fn [props monitor _component]
+            #_ (util/log "drop called: props = %s" (pr-str props))
+            ;; Save changes to server when drag interaction is finished
+            (sync-to-server)
+            {:label-id (-> props :id-spec :label-id)
+             :item (.getItem monitor)})}))
+
+(defn wrap-label-dnd [id-spec content-fn]
+  [dnd/wrap-dnd
+   id-spec
+   {:item-type    "label-edit"
+    :drag-spec    label-drag-spec
+    :drop-spec    label-drop-spec
+    :content      (fn [props]
+                    #_ (when (:is-dragging props)
+                         (util/log "wrap-label-dnd: props = %s" (pr-str props)))
+                    (content-fn props))
+    :on-enter    (fn [props]
+                   (let [src-id (-> props :item :label-id)
+                         dest-id (-> props :id-spec :label-id)]
+                     (when (not= src-id dest-id)
+                       #_ (util/log "on-enter: dragging %s to %s" src-id dest-id)
+                       (move-label-to src-id dest-id))))
+    :on-exit     (fn [_props]
+                   #_ (util/log "on-exit: props = %s" (pr-str props))
+                   nil)}])
+
 (defmethod panel-content panel []
-  (fn [child]
+  (fn [_child]
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
           labels (r/cursor state [:labels])
           read-only-message-closed? (r/cursor state [:read-only-message-closed?])
-          saved-ids-all (subscribe [:project/label-ids nil true])
-          saved-ids-enabled (subscribe [:project/label-ids])
           sort-label-ids (fn [enabled?]
-                           (let [saved-ids (if enabled? saved-ids-enabled saved-ids-all)]
-                             (->> (concat @saved-ids
-                                          (->> @labels
-                                               (sutil/filter-keys #(not (uuid? %)))
-                                               (sort-by (fn [[label-id label]]
-                                                          (:project-ordering label)))
-                                               (map first)))
-                                  (filter #(= enabled? (:enabled (get @labels %)))))))
+                           (->> (sort-client-project-labels @labels (not enabled?))
+                                (filter #(= enabled? (:enabled (get @labels %))))))
           active-ids (sort-label-ids true)
           disabled-ids (sort-label-ids false)]
       (ensure-state)
@@ -610,13 +676,23 @@
        [:div.ui.two.column.stackable.grid.label-items
         (doall (map-indexed
                 (fn [i label-id]
-                  ^{:key [:label-item label-id]}
-                  ;; let's pass a cursor to the state
-                  [:div.column [LabelItem i (r/cursor state [:labels label-id])]])
+                  (if (= (get-in @labels [label-id :name]) "overall include")
+                    ;; "overall include" should not be movable, always first
+                    ^{:key [:label-item i label-id]}
+                    [:div.column {:key [:label-column i label-id]}
+                     [LabelItem i (r/cursor state [:labels label-id])
+                      :status {:draggable false}]]
+                    ;; other active labels should be movable
+                    ^{:key [:label-item i label-id]}
+                    [wrap-label-dnd {:idx i, :label-id (str label-id)}
+                     (fn [{:as _props}]
+                       [:div.column {:key [:label-column i label-id]}
+                        [LabelItem i (r/cursor state [:labels label-id])
+                         :status {:draggable true}]])]))
                 active-ids))]
        (when (seq disabled-ids)
          [:h4.ui.block.header "Disabled Labels"])
-       ;; FIX: collapse disabled labels by default, display on click
+       ;; TODO: collapse disabled labels by default, display on click
        (when (seq disabled-ids)
          [:div.ui.two.column.stackable.grid.label-items
           (doall (map-indexed

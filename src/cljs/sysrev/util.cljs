@@ -2,6 +2,7 @@
   (:require ["jquery" :as jquery]
             ["moment" :as moment]
             ["dropzone" :as Dropzone]
+            ["decamelize" :as decamelize]
             [goog.string :as gstring :refer [unescapeEntities]]
             [goog.string.format]
             [clojure.string :as str]
@@ -9,7 +10,7 @@
             [cljs-time.coerce :as tc]
             [cljs-time.format :as tformat]
             [reagent.interop :refer-macros [$]]
-            [sysrev.shared.util :refer [parse-integer ensure-pred]]))
+            [sysrev.shared.util :refer [parse-integer ensure-pred map-keys map-values]]))
 
 (defn scroll-top []
   (. js/window (scrollTo 0 0))
@@ -49,8 +50,9 @@
 (defn today-string []
   (tformat/unparse (tformat/formatters :basic-date) (t/now)))
 
-(defn url-domain [url]
+(defn url-domain
   "Gets the example.com part of a url"
+  [url]
   (let [sp str/split]
     (or (some-> url (sp "//") second (sp "/") first (sp ".")
                 (some->> (take-last 2)
@@ -196,16 +198,15 @@
   []
   ;; don't run if input element is focused, will interfere with focus/behavior
   (when-not (input-focused?)
-    (cond
-      (-> js/window .-getSelection)
-      (do (cond (-> js/window (.getSelection) .-empty) ;; Chrome
+    (cond (-> js/window .-getSelection)
+          (cond (-> js/window (.getSelection) .-empty) ;; Chrome
                 (-> js/window (.getSelection) (.empty))
 
                 (-> js/window (.getSelection) .-removeAllRanges) ;; Firefox
-                (-> js/window (.getSelection) (.removeAllRanges))))
+                (-> js/window (.getSelection) (.removeAllRanges)))
 
-      (-> js/document .-selection) ;; IE?
-      (-> js/document .-selection (.empty)))))
+          (-> js/document .-selection) ;; IE?
+          (-> js/document .-selection (.empty)))))
 
 (defn clear-text-selection-soon
   "Runs clear-text-selection after short js/setTimeout delays."
@@ -417,3 +418,18 @@
   (let [zone (Dropzone/forElement ".dropzone")
         blob (to-blob base64-image "image / png")]
     (.addFile zone blob)))
+
+(defn clojurize-map
+  "Ensures that (1) `val` is a Clojure value, then if `val` is a map
+  (2) converts any keys from camel-case to dash-separated, and from
+  string to keyword. Recurses into values which are themselves maps."
+  [val]
+  (let [val (js->clj val)]
+    (->> (cond-> val
+           (map? val)
+           (->> (map-keys #(cond-> %
+                             (or (keyword? %) (string? %))
+                             (-> name (decamelize "-") keyword)))
+                (map-values #(if (map? %)
+                               (clojurize-map %)
+                               %)))))))
