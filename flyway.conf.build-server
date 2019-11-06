@@ -1,4 +1,0 @@
-flyway.url=jdbc:postgresql://localhost:5432/sysrev_test
-flyway.user=postgres
-flyway.password=
-flyway.locations=filesystem:./resources/sql

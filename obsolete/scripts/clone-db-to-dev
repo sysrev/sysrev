@@ -6,7 +6,7 @@ ssh ubuntu@$SYSREV_HOST 'sudo systemctl stop sysrev-web' || true
 ssh ubuntu@$SYSREV_HOST 'sudo systemctl restart postgresql'
 
 ./scripts/install-flyway > /dev/null
-cp -f flyway.conf.aws-dev-main flyway.conf
+cp -f conf-files/flyway.conf.aws-dev-main flyway.conf
 SR_DEST_PORT=5471 SR_DEST_DB=sysrev ./scripts/clone-latest-db
 
 ssh ubuntu@$SYSREV_HOST 'sudo systemctl restart sysrev-web'

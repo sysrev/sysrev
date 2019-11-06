@@ -115,10 +115,10 @@ node {
         try {
           sshagent(['sysrev-admin']) {
             withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
-              sh './jenkins/migrate.dev'
+              sh './jenkins/migrate.staging'
               sh './jenkins/deploy'
             }
-            sendSlackMsgFull ('Deployed to AWS (https://staging.sysrev.com)', 'blue')
+            sendSlackMsgFull ('Deployed to <https://staging.sysrev.com|staging.sysrev.com> for tests', 'blue')
             try {
               sh './jenkins/test-aws-dev-all'
               currentBuild.result = 'SUCCESS'
@@ -151,7 +151,7 @@ node {
           if (branch == 'staging') {
             sshagent(['sysrev-admin']) {
               withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
-                sh './jenkins/migrate.dev'
+                sh './jenkins/migrate.staging'
                 sh './jenkins/deploy'
               }
             }
@@ -171,9 +171,9 @@ node {
         } finally {
           if (currentBuild.result == 'SUCCESS') {
             if (branch == 'staging') {
-              sendSlackMsgFull ('Deployed to AWS (https://staging.sysrev.com)', 'blue')
+              sendSlackMsgFull ('Deployed to <https://staging.sysrev.com|staging.sysrev.com>', 'blue')
             } else if (branch == 'production') {
-              sendSlackMsgFull ('Deployed to AWS (https://sysrev.com)', 'blue')
+              sendSlackMsgFull ('Deployed to <https://sysrev.com|sysrev.com>', 'good')
             }
           } else {
             sendSlackMsg ('Deploy failed')

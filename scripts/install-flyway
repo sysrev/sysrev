@@ -7,14 +7,15 @@ if [[ -e "./flyway" ]]; then
 fi
 
 rm -f flyway
-rm -rf flyway-5.2.4
+rm -rf .flyway-5.2.4
 rm -f flyway-commandline-5.2.4.tar.gz
 
 echo "Downloading and installing Flyway..."
 
 wget --quiet https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/5.2.4/flyway-commandline-5.2.4.tar.gz
 tar zxf flyway-commandline-5.2.4.tar.gz
-ln -s flyway-5.2.4/flyway flyway
+mv flyway-5.2.4 .flyway-5.2.4
+ln -s .flyway-5.2.4/flyway flyway
 rm -f flyway-commandline-5.2.4.tar.gz
 cp flyway.conf.example flyway.conf
 

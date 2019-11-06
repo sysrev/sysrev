@@ -46,23 +46,23 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
               include /etc/nginx/sites-enabled/*;
               ...
             }
-    
+
         And create the directory if needed:
-    
+
             sudo mkdir -p /etc/nginx/sites-enabled
 
     * Link `sysrev.dev.nginx-site` into `sites-enabled`:
 
-            sudo ln -s `pwd`/sysrev.dev.nginx-site /etc/nginx/sites-enabled/
-     
+            sudo ln -s `pwd`/conf-files/sysrev.dev.nginx-site /etc/nginx/sites-enabled/
+
     * Start Nginx process:
 
         (Linux systemd)
 
             sudo systemctl start nginx
-            
+
             # and enable to start on boot
-            
+
             sudo systemctl enable nginx
 
     On macOS
@@ -73,7 +73,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 
     * Link `sysrev.dev.nginx-site` into 'servers'
 
-            cp sysrev.dev.nginx-site /usr/local/etc/nginx/servers/
+            cp conf-files/sysrev.dev.nginx-site /usr/local/etc/nginx/servers/
 
     * Start Nginx service and restart at login
 
@@ -378,8 +378,8 @@ false
 
 ## Testing
 
-Testing is done both locally and on our Jenkins continuous deployment server at builds.insilica.co. 
-If a new test namespace is created, it should be added to the sysrev.test.all in order for it to be 
+Testing is done both locally and on our Jenkins continuous deployment server at builds.insilica.co.
+If a new test namespace is created, it should be added to the sysrev.test.all in order for it to be
 picked up by the Jenkins test server.
 
 ## Config Files
@@ -406,7 +406,7 @@ The root path for ClojureScript code is `src/cljs/sysrev`. Shared client/server 
 
 #### Convention for naming of subscriptions/events
 
-By convention for this project, auto-namespaced keywords (prefaced by `::` rather than `:`) are used for re-frame subscriptions and events that are intended to be used only in the current namespace (analogous to namespace-local functions defined using `defn-`). 
+By convention for this project, auto-namespaced keywords (prefaced by `::` rather than `:`) are used for re-frame subscriptions and events that are intended to be used only in the current namespace (analogous to namespace-local functions defined using `defn-`).
 
 Subscriptions and events defined with ordinary globally-scoped keywords (`:get-something`) or custom-namespaced keywords (`:project/labels`) present a public interface to the rest of the project. They should aim not to duplicate similar functionality provided by other interfaces, and should avoid exposing incidental details of implemention or data formatting.
 
@@ -438,8 +438,8 @@ General-use functionality for data access and event handling is kept under `stat
 
 ### AWS Files
 
-* `./systemd/` contains systemd services
 * `./scripts/server/` contains scripts that are used on the EC2 web/database server
+* `./scripts/server/systemd/` contains systemd services
 
 ## Browser Tests
 

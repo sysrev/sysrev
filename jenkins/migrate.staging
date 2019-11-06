@@ -2,5 +2,5 @@
 set -eu
 
 ./scripts/install-flyway
-cp -f conf-files/flyway.conf.aws-prod-main flyway.conf
+cp -f conf-files/flyway.conf.aws-dev-main flyway.conf
 ./flyway migrate

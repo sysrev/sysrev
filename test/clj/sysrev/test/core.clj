@@ -110,7 +110,7 @@
           (with-flyway-config config
             (log/info (str "\n" (slurp "flyway.conf")))
             (-> (if (util/ms-windows?)
-                  (shell "flyway-5.2.4/flyway.cmd" "migrate")
+                  (shell ".flyway-5.2.4/flyway.cmd" "migrate")
                   (shell "./flyway" "migrate"))
                 :out log/info))
           (start-app config nil true)

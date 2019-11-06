@@ -7,7 +7,6 @@ set -eu
 
 for f in $(egrep -o -R "defn?-?(once)?(spec)?( \^\:[^ ]+)* [^ ]*" * --include '*.clj' \
                  --exclude-dir "custom" \
-                 --exclude-dir "src-spark" \
                  --exclude 'misc.clj' |
                grep -v \/def |
                grep -v \^\:repl |

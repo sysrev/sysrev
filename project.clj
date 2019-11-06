@@ -105,72 +105,53 @@
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :profiles {:prod
-             {:resource-paths ["config/prod"]
-              :main sysrev.web-main
-              :aot [sysrev.web-main]}
-             :test-browser
-             {:resource-paths ["config/test"]
-              :main sysrev.browser-test-main
-              :aot [sysrev.browser-test-main]}
-             :test-all
-             {:resource-paths ["config/test"]
-              :main sysrev.all-test-main
-              :aot [sysrev.all-test-main]}
-             :test-aws-dev
-             {:resource-paths ["config/test-aws-dev"]}
-             :test-aws-prod
-             {:resource-paths ["config/test-aws-prod"]}
-             :test-s3-dev
-             {:resource-paths ["config/test-s3-dev"]}
-             :dev
-             {:jvm-opts ["-Xmx1200m"]
-              :resource-paths ["config/dev"]
-              :source-paths ["src/clj" "src/cljc" "test/clj"]
-              :test-paths ["test/clj"]
-              :dependencies [[clj-webdriver "0.7.2"]
-                             [org.seleniumhq.selenium/selenium-api "3.8.1"]
-                             [org.seleniumhq.selenium/selenium-support "3.8.1"]
-                             [org.seleniumhq.selenium/selenium-java "3.8.1"
-                              :exclusions
-                              [org.seleniumhq.selenium/selenium-api
-                               org.seleniumhq.selenium/selenium-support]]
-                             [org.seleniumhq.selenium/selenium-remote-driver "3.8.1"
-                              :exclusions
-                              [com.google.guava/guava]]
-                             [org.seleniumhq.selenium/selenium-server "3.8.1"
-                              :exclusions
-                              [org.bouncycastle/bcpkix-jdk15on
-                               org.bouncycastle/bcprov-jdk15on
-                               org.seleniumhq.selenium/selenium-api
-                               org.seleniumhq.selenium/selenium-support]]]}
-             :repl
-             {:dependencies [#_ [org.clojure/tools.nrepl "0.2.13"]
-                             #_ [acyclic/squiggly-clojure "0.1.8"
-                                 :exclusions [org.clojure/tools.reader]]]
-              :plugins [#_ [cider/cider-nrepl "0.17.0"]
-                        [lein-environ "1.1.0"]]}
-             :dev-spark
-             {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
-              :test-paths ["test/clj"]
-              :resource-paths ["config/dev"]
-              :dependencies
-              [[yieldbot/flambo "0.8.2"
-                :exclusions
-                [com.google.guava/guava]]
-               [org.apache.spark/spark-core_2.11 "2.2.1"]
-               [org.apache.spark/spark-mllib_2.11 "2.2.1"]
-               [org.apache.spark/spark-streaming_2.11 "2.2.1"]
-               [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.2.1"]
-               [org.apache.spark/spark-sql_2.11 "2.2.1"]
-               [org.apache.spark/spark-hive_2.11 "2.2.1"]]
-              :aot [sysrev.spark.core
-                    sysrev.spark.similarity]}
-             :test
-             {:jvm-opts ["-Xmx1000m"
-                         #_ "-client"
-                         #_ "-XX:TieredStopAtLevel=1"]
-              :resource-paths ["config/test" "resources/test"]
-              :source-paths ["src/clj" "src/cljc" "test/clj"]
-              :test-paths ["test/clj"]
-              :dependencies []}})
+  :profiles {:prod           {:resource-paths ["config/prod"]
+                              :main sysrev.web-main
+                              :aot [sysrev.web-main]}
+             :test-browser   {:resource-paths ["config/test"]
+                              :main sysrev.browser-test-main
+                              :aot [sysrev.browser-test-main]}
+             :test-all       {:resource-paths ["config/test"]
+                              :main sysrev.all-test-main
+                              :aot [sysrev.all-test-main]}
+             :test-aws-dev   {:resource-paths ["config/test-aws-dev"]}
+             :test-aws-prod  {:resource-paths ["config/test-aws-prod"]}
+             :test-s3-dev    {:resource-paths ["config/test-s3-dev"]}
+             :dev            {:jvm-opts ["-Xmx1200m"]
+                              :resource-paths ["config/dev"]
+                              :source-paths ["src/clj" "src/cljc" "test/clj"]
+                              :test-paths ["test/clj"]
+                              :dependencies
+                              [[clj-webdriver "0.7.2"]
+                               [org.seleniumhq.selenium/selenium-api "3.8.1"]
+                               [org.seleniumhq.selenium/selenium-support "3.8.1"]
+                               [org.seleniumhq.selenium/selenium-java "3.8.1"
+                                :exclusions [org.seleniumhq.selenium/selenium-api
+                                             org.seleniumhq.selenium/selenium-support]]
+                               [org.seleniumhq.selenium/selenium-remote-driver "3.8.1"
+                                :exclusions [com.google.guava/guava]]
+                               [org.seleniumhq.selenium/selenium-server "3.8.1"
+                                :exclusions [org.bouncycastle/bcpkix-jdk15on
+                                             org.bouncycastle/bcprov-jdk15on
+                                             org.seleniumhq.selenium/selenium-api
+                                             org.seleniumhq.selenium/selenium-support]]]}
+             :repl           {:dependencies []
+                              :plugins [[lein-environ "1.1.0"]]}
+             :test           {:jvm-opts ["-Xmx1000m"]
+                              :resource-paths ["config/test" "resources/test"]
+                              :source-paths ["src/clj" "src/cljc" "test/clj"]
+                              :test-paths ["test/clj"]
+                              :dependencies []}
+             #_ :dev-spark
+             #_ {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
+                 :test-paths ["test/clj"]
+                 :resource-paths ["config/dev"]
+                 :dependencies
+                 [[yieldbot/flambo "0.8.2" :exclusions [com.google.guava/guava]]
+                  [org.apache.spark/spark-core_2.11 "2.2.1"]
+                  [org.apache.spark/spark-mllib_2.11 "2.2.1"]
+                  [org.apache.spark/spark-streaming_2.11 "2.2.1"]
+                  [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.2.1"]
+                  [org.apache.spark/spark-sql_2.11 "2.2.1"]
+                  [org.apache.spark/spark-hive_2.11 "2.2.1"]]
+                 :aot [sysrev.spark.core sysrev.spark.similarity]}})
