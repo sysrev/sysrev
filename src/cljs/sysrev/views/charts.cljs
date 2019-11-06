@@ -1,38 +1,8 @@
 (ns sysrev.views.charts
   (:require [sysrev.charts.chartjs :as chartjs]
-            [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe]]
             [sysrev.util :as util]))
-
-;; Paul Tol colors: https://personal.sron.nl/~pault/
-;; This vector was copied from: https://github.com/google/palette.js/blob/master/palette.js
-;; (it is under an MIT license)
-;;
-;; A working demo of color selections: http://google.github.io/palette.js/
-;;
-;; which in turn is a reproduction of Paul Tol's work at: https://personal.sron.nl/~pault/colourschemes.pdf
-;;
-;; Paul developed this palette for scientific charts to clearly differentiate colors and to be color-blind
-;; safe
-(def paul-tol-colors
-  [["#4477aa"],
-   ["#4477aa", "#cc6677"],
-   ["#4477aa", "#ddcc77", "#cc6677"],
-   ["#4477aa", "#117733", "#ddcc77", "#cc6677"],
-   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677"],
-   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
-    "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
-    "#882255", "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#661100",
-    "#cc6677", "#882255", "#aa4499"],
-   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
-    "#661100", "#cc6677", "#882255", "#aa4499"],
-   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
-    "#661100", "#cc6677", "#aa4466", "#882255", "#aa4499"]])
 
 (defn on-graph-hover [items-clickable?]
   (fn [event elts]
@@ -49,7 +19,7 @@
         (set! (-> event .-target .-style .-cursor) cursor)))))
 
 (defn on-legend-hover []
-  (fn [event item]
+  (fn [event _item]
     (set! (-> event .-target .-style .-cursor) "pointer")))
 
 (defn graph-text-color []
@@ -147,7 +117,7 @@
                    :legend {:labels font}
                    :tooltips {:callbacks
                               {:label
-                               (fn [item data]
+                               (fn [item _data]
                                  (let [idx ($ item :datasetIndex)
                                        label (nth ynames idx)
                                        value ($ item :xLabel)
@@ -157,7 +127,7 @@
                                    (str label ": " value-str)))}}
                    :onClick
                    (when on-click
-                     (fn [event elts]
+                     (fn [_e elts]
                        (let [elts (-> elts js->clj)]
                          (when (and (coll? elts) (not-empty elts))
                            (when-let [idx (-> elts first (aget "_index"))]
@@ -179,7 +149,7 @@
         options (wrap-default-options
                  {:legend {:display false}
                   :onClick (when on-click
-                             (fn [event elts]
+                             (fn [_e elts]
                                (let [elts (-> elts js->clj)]
                                  (when (and (coll? elts) (not-empty elts))
                                    (when-let [idx (-> elts first (aget "_index"))]

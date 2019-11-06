@@ -1,28 +1,26 @@
 (ns sysrev.views.panels.project.overview
   (:require [clojure.string :as str]
-            [cljs-time.core :as t]
-            [cljs-time.coerce :refer [from-date]]
             [reagent.core :as r]
             [sysrev.charts.chartjs :as chartjs]
-            [re-frame.core :refer
-             [subscribe dispatch reg-event-db reg-event-fx reg-sub trim-v]]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
             [sysrev.nav :as nav]
-            [sysrev.state.nav :refer [active-project-id project-uri]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
+            [sysrev.shared.charts :refer [processed-label-color-map]]
             [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.shared.util :as sutil :refer [in?]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
-(setup-panel-state panel [:project :project :overview])
+;; for clj-kondo
+(declare panel)
 
-#_ (defonce important-terms-tab (r/cursor state [:important-terms-tab]))
+(setup-panel-state panel [:project :project :overview])
 
 (def colors {:grey "rgba(160,160,160,0.5)"
              :green "rgba(33,186,69,0.55)"
@@ -42,7 +40,7 @@
      content]))
 
 (defn nav-article-status [[inclusion group-status]]
-  (when-let [project-id @(subscribe [:active-project-id])]
+  (when @(subscribe [:active-project-id])
     (articles/load-consensus-settings :status group-status
                                       :inclusion inclusion)))
 
@@ -95,8 +93,7 @@
 
 (defn- ReviewStatusBox []
   (let [project-id @(subscribe [:active-project-id])
-        {:keys [reviewed unreviewed total]}
-        @(subscribe [:project/article-counts])
+        {:keys [reviewed total]} @(subscribe [:project/article-counts])
         scounts @(subscribe [:project/status-counts])
         {:keys [unlimited-reviews]} @(subscribe [:project/settings])
         scount #(get scounts % 0)
@@ -107,8 +104,7 @@
                 :dim-orange "rgba(242,113,28,0.35)"
                 :red "rgba(230,30,30,0.6)"
                 :blue "rgba(30,100,230,0.5)"
-                :purple "rgba(146,29,252,0.5)"}
-        statuses [:single :consistent :conflict :resolved]]
+                :purple "rgba(146,29,252,0.5)"}]
     (when-not unlimited-reviews
       [:div.project-summary
        [:div.ui.segment
@@ -250,7 +246,7 @@
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])
                  (contains? :importance)))
-  :uri (fn [project-id] "/api/important-terms")
+  :uri (fn [_] "/api/important-terms")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
   :process
@@ -259,13 +255,13 @@
 
 (reg-sub :project/important-terms
          (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
-         (fn [project [_ entity-type project-id]]
+         (fn [project [_ entity-type _]]
            (cond-> (get-in project [:importance :terms])
              entity-type (get entity-type))))
 
 (reg-sub :project/important-terms-loading?
          (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
-         (fn [project [_ entity-type project-id]]
+         (fn [project [_ _entity-type _]]
            (true? (get-in project [:importance :loading]))))
 
 (defonce polling-important-terms? (r/atom false))
@@ -285,21 +281,18 @@
 
 (defn ImportantTermsChart [{:keys [entity data loading?]}]
   (when (not-empty data)
-    (let [project-id @(subscribe [:active-project-id])
-          height (* 2 (+ 8 (* 10 (count data))))]
-      (let [entries (->> data (sort-by :tfidf >))
-            labels (->> entries (mapv :instance-name))
-            scores (->> entries (mapv :tfidf) (mapv #(/ % 10000.0)))]
-        [:div
-         [charts/bar-chart height labels ["Relevance"] [scores]
-          :colors ["rgba(33,186,69,0.55)"]
-          :options {:legend {:display false}}
-          :display-ticks false
-          :log-scale true]]))))
+    (let [height (* 2 (+ 8 (* 10 (count data))))
+          entries (->> data (sort-by :tfidf >))
+          labels (->> entries (mapv :instance-name))
+          scores (->> entries (mapv :tfidf) (mapv #(/ % 10000.0)))]
+      [:div [charts/bar-chart height labels ["Relevance"] [scores]
+             :colors ["rgba(33,186,69,0.55)"]
+             :options {:legend {:display false}}
+             :display-ticks false
+             :log-scale true]])))
 
 (defn KeyTerms []
-  (let [#_ active-tab #_ (or @important-terms-tab :mesh)
-        project-id @(subscribe [:active-project-id])
+  (let [project-id @(subscribe [:active-project-id])
         terms @(subscribe [:project/important-terms])
         ;; TODO: fix this for tests against staging.sysrev.com?
         ;;       seems to get stuck rendering loader if loading of terms fails
@@ -321,68 +314,29 @@
            [:div
             (when @(subscribe [:project/important-terms-loading?])
               (poll-important-terms project-id))
-            #_
-            [ui/tabbed-panel-menu
-             [{:tab-id :mesh
-               :content "MeSH"
-               :action #(reset! important-terms-tab :mesh)}
-              {:tab-id :chemical
-               :content "Compounds"
-               :action #(reset! important-terms-tab :chemical)}
-              {:tab-id :gene
-               :content "Genes"
-               :action #(reset! important-terms-tab :gene)}]
-             active-tab
-             "important-term-tab"]
-            #_
-            (let [data (get terms active-tab)]
-              [ImportantTermsChart
-               {:entity active-tab, :data data, :loading? loading?}])
             [unpad-chart [0.25 0.35]
              [ImportantTermsChart
               {:entity :mesh, :data mesh, :loading? loading?}]]])]))))
 
-(defn short-labels-vector
-  "Given a set of label-counts, get the set of short-labels"
-  [processed-label-counts]
-  ((comp (partial into []) sort set (partial mapv :short-label))
-   processed-label-counts))
-
-(defn processed-label-color-map
-  "Given a set of label-counts, generate a color map"
-  [processed-label-counts]
-  (let [short-labels (short-labels-vector processed-label-counts)
-        ;; need to account for the fact that this fn can handle empty datasets
-        color-count (max 0 (- (count short-labels) 1))
-        palette (nth charts/paul-tol-colors color-count)
-        color-map (zipmap short-labels palette)]
-    (mapv (fn [label palette]
-            {:short-label label :color palette})
-          short-labels palette)))
-
-(reg-sub
- ::label-counts
- (fn [[_ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project]] (:label-counts project)))
+(reg-sub ::label-counts
+         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project] (:label-counts project)))
 
 (def-data :project/label-counts
-  :loaded?
-  (fn [db project-id]
-    (-> (get-in db [:data :project project-id])
-        (contains? :label-counts)))
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :label-counts)))
   :uri (fn [] "/api/charts/label-count-data")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
-  :process
-  (fn [{:keys [db]} [project-id] {:keys [data]}]
-    {:db (assoc-in db [:data :project project-id :label-counts]
-                   data)}))
+  :process (fn [{:keys [db]} [project-id] {:keys [data]}]
+             {:db (assoc-in db [:data :project project-id :label-counts]
+                            data)}))
 
-(defn LabelCountChart [label-ids processed-label-counts]
+(defn LabelCountChart [_label-ids _processed-label-counts]
   (let [color-filter (r/atom #{})]
     (fn [label-ids processed-label-counts]
-      (when (not (empty? processed-label-counts))
+      (when (seq processed-label-counts)
         (let [font (charts/graph-font-settings)
               processed-label-counts
               (sort-by
@@ -454,7 +408,7 @@
                          (->> {:generateLabels (fn [_] (clj->js legend-labels))}
                               (merge font))
                          :onClick
-                         (fn [e legend-item]
+                         (fn [_e legend-item]
                            (let [current-legend-color
                                  (:fillStyle (js->clj legend-item
                                                       :keywordize-keys true))
@@ -465,7 +419,7 @@
                                ;; the associated data points should no longer be filtered out
                                (swap! color-filter #(disj % current-legend-color)))))}
                         :onClick
-                        (fn [event elts]
+                        (fn [_e elts]
                           (let [elts (-> elts js->clj)]
                             (when (and (coll? elts) (not-empty elts))
                               (when-let [idx (-> elts first (aget "_index"))]
@@ -492,38 +446,32 @@
             processed-label-counts @(subscribe [::label-counts])]
         [LabelCountChart label-ids processed-label-counts]))))
 
-(reg-sub
- ::prediction-histograms
- (fn [[_ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project]] (:histograms project)))
+(reg-sub ::prediction-histograms
+         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project] (:histograms project)))
 
 (def-data :project/prediction-histograms
-  :loaded?
-  (fn [db project-id]
-    (-> (get-in db [:data :project project-id])
-        (contains? :histograms)))
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :histograms)))
   :uri (fn [] "/api/prediction-histograms")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
-  :process
-  (fn [{:keys [db]} [project-id] {:keys [prediction-histograms]}]
-    {:db (assoc-in db [:data :project project-id :histograms]
-                   prediction-histograms)}))
+  :process (fn [{:keys [db]} [project-id] {:keys [prediction-histograms]}]
+             {:db (assoc-in db [:data :project project-id :histograms]
+                            prediction-histograms)}))
 
 (defn PredictionHistogramChart []
   (let [font (charts/graph-font-settings)
-        prediction-histograms
-        @(subscribe [::prediction-histograms])
-        labels
-        (-> prediction-histograms
-            vals
-            merge
-            flatten
-            (->> (sort-by :score)
-                 (mapv :score))
-            set
-            (->> (into [])))
+        prediction-histograms @(subscribe [::prediction-histograms])
+        labels (-> prediction-histograms
+                   vals
+                   merge
+                   flatten
+                   (->> (sort-by :score)
+                        (mapv :score))
+                   set
+                   (->> (into [])))
         process-histogram-fn
         (fn [histogram]
           (let [score-count-map (zipmap (mapv :score histogram)
@@ -557,7 +505,7 @@
                   :data processed-unreviewed-histogram
                   ;;(mapv (partial * 3) (into [] (range 1 (+ (count labels) 1))))
                   :backgroundColor (:orange colors)}))]
-    (when-not (empty? datasets)
+    (when (seq datasets)
       [:div.ui.segment
        [:h4.ui.dividing.header "Prediction Histograms"]
        [unpad-chart [0.5 0.6]
