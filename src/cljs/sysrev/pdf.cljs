@@ -4,18 +4,24 @@
             [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
-            [sysrev.base :as base]
+            ["pdfjs-dist" :as pdfjs]
+            ["pdfjs-dist/web/pdf_viewer" :refer [PDFPageView
+                                                 DefaultTextLayerFactory
+                                                 DefaultAnnotationLayerFactory]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
             [sysrev.state.ui :as ui-state]
             [sysrev.state.article :as article]
-            [sysrev.views.annotator :as annotator]
             [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.shared.util :as sutil :refer [css]]
             [sysrev.macros :refer-macros [with-loader]]))
+
+;; TODO: load this locally somehow
+(set! pdfjs/GlobalWorkerOptions.workerSrc
+      #_ "//mozilla.github.io/pdf.js/build/pdf.worker.js"
+      "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.worker.min.js")
 
 (def view :pdf)
 
@@ -83,15 +89,8 @@
  (fn [db [context & [panel]]]
    (ui-state/set-view-field db view [context] initial-view-state panel)))
 
-;; this in lieu of an externs file
-(when (= (base/app-id) :main)
-  (def pdfjsViewer js/pdfjsViewer)
-  (def PDFPageView ($ pdfjsViewer :PDFPageView))
-  (def DefaultTextLayerFactory ($ pdfjsViewer :DefaultTextLayerFactory))
-  (def DefaultAnnotationLayerFactory ($ pdfjsViewer :DefaultAnnotationLayerFactory)))
-
 (def-data :pdf/open-access-available?
-  :loaded? (fn [db project-id article-id]
+  :loaded? (fn [db _project-id article-id]
              (contains? (article/get-article db article-id)
                         :open-access-available?))
   :uri (fn [_ article-id] (str "/api/open-access/" article-id "/availability"))
@@ -102,7 +101,7 @@
                                                          :key key})}))
 
 (def-data :pdf/article-pdfs
-  :loaded? (fn [db project-id article-id]
+  :loaded? (fn [db _project-id article-id]
              (-> (article/get-article db article-id)
                  (contains? :pdfs)))
   :uri (fn [project-id article-id]
@@ -113,7 +112,7 @@
              {:db (article/update-article db article-id {:pdfs files})}))
 
 (def-action :pdf/delete-pdf
-  :uri (fn [project-id article-id key filename]
+  :uri (fn [project-id article-id key _filename]
          (str "/api/files/" project-id "/article/" article-id "/delete/" key))
   :process (fn [_ [project-id article-id _ _] _]
              {:dispatch [:reload [:pdf/article-pdfs project-id article-id]]}))
@@ -134,40 +133,37 @@
 (defn render-page
   "Render page num"
   [context pdf num]
-  (->
-   ($ pdf getPage num)
-   ($ then
-      (fn [page]
-        (let [{:keys [container-id]} @(subscribe [::get context])
-              container (and container-id
-                             ($ js/document getElementById container-id))]
-          (if-not container
-            (dispatch-sync [::set context [:page-rendering] false])
-            (let [ ;; Try to auto-adjust PDF size to containing element.
-                  cwidth ($ (js/$ container) width)
-                  ;; this should be 1.0? but result is too big.
-                  pwidth ($ ($ page getViewport 1.35) :width)
-                  scale (/ cwidth pwidth)]
-              ;; remove any previous divs
-              (dom/removeChildren container)
-              (let [pdf-page-view
-                    (PDFPageView.
-                     (clj->js {:container container
-                               :id num
-                               :scale scale
-                               :defaultViewport ($ page getViewport scale)
-                               :textLayerFactory
-                               (DefaultTextLayerFactory.)
-                               :annotationLayerFactory
-                               (DefaultAnnotationLayerFactory.)}))]
-                ($ pdf-page-view setPdfPage page)
-                ($ pdf-page-view draw))
-              (let [{:keys [page-queue]} @(subscribe [::get context])]
-                (dispatch-sync [::set context [:page-queue] (drop 1 page-queue)]))
-              (let [{:keys [page-queue]} @(subscribe [::get context])]
-                (if (not-empty page-queue)
-                  (render-page context pdf (first page-queue))
-                  (dispatch-sync [::set context [:page-rendering] false]))))))))))
+  (-> (.getPage pdf num)
+      (.then
+       (fn [page]
+         (let [{:keys [container-id]} @(subscribe [::get context])
+               container (and container-id
+                              (js/document.getElementById container-id))]
+           (if-not container
+             (dispatch-sync [::set context [:page-rendering] false])
+             (let [ ;; Try to auto-adjust PDF size to containing element.
+                   cwidth (.width (js/$ container))
+                   ;; this should be 1.0? but result is too big.
+                   pwidth (.-width (.getViewport page 1.35))
+                   scale (/ cwidth pwidth)]
+               ;; remove any previous divs
+               (dom/removeChildren container)
+               (let [pdf-page-view
+                     (PDFPageView.
+                      (clj->js {:container container
+                                :id num
+                                :scale scale
+                                :defaultViewport (.getViewport page scale)
+                                :textLayerFactory (DefaultTextLayerFactory.)
+                                :annotationLayerFactory (DefaultAnnotationLayerFactory.)}))]
+                 (.setPdfPage pdf-page-view page)
+                 (.draw pdf-page-view))
+               (let [{:keys [page-queue]} @(subscribe [::get context])]
+                 (dispatch-sync [::set context [:page-queue] (drop 1 page-queue)]))
+               (let [{:keys [page-queue]} @(subscribe [::get context])]
+                 (if (not-empty page-queue)
+                   (render-page context pdf (first page-queue))
+                   (dispatch-sync [::set context [:page-rendering] false]))))))))))
 
 (defn queue-render-page
   "Renders page, or queues it to render next if a page is currently rendering."
@@ -205,15 +201,12 @@
             (if cached-pdf
               (do (render-pdf context cached-pdf)
                   (dispatch-sync [::set context [:pdf-updating] false]))
-              (-> (doto ($ js/pdfjsLib getDocument pdf-url)
-                    ($! :GlobalWorkerOptions
-                        (clj->js {:workerSrc
-                                  "//mozilla.github.io/pdf.js/build/pdf.worker.js"})))
-                  ($ then
-                     (fn [pdf]
-                       (dispatch-sync [:pdf-cache pdf-url pdf])
-                       (render-pdf context pdf)
-                       (dispatch-sync [::set context [:pdf-updating] false])))))))]
+              (-> (.getDocument pdfjs pdf-url)
+                  (.then
+                   (fn [pdf]
+                     (dispatch-sync [:pdf-cache pdf-url pdf])
+                     (render-pdf context pdf)
+                     (dispatch-sync [::set context [:pdf-updating] false])))))))]
     (r/create-class
      {:render
       (fn [this]
@@ -260,7 +253,7 @@
 (defn ViewPDF [{:keys [pdf-url entry] :as args}]
   (when pdf-url
     (let [context (get-ann-context pdf-url)
-          {:keys [pdf-doc page-num page-count page-rendering]} @(subscribe [::get context])
+          {:keys [pdf-doc page-num page-count]} @(subscribe [::get context])
           panel @(subscribe [:active-panel])]
       [:div.ui.segments.view-pdf-wrapper
        [:div.ui.attached.two.column.grid.segment
@@ -307,7 +300,7 @@
        [:i.download.icon]
        (str article-id ".pdf")]]]))
 
-(defn view-s3-pdf-url [project-id article-id key filename]
+(defn view-s3-pdf-url [project-id article-id key _filename]
   (str "/api/files/" project-id "/article/" article-id "/view/" key))
 
 (defn S3PDF [{:keys [article-id key filename]}]

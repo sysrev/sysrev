@@ -7,6 +7,8 @@
             [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
+            ["pdfjs-dist" :as pdfjs]
+            ["pdfjs-dist/web/pdf_viewer" :as pdfjsViewer]
             sysrev.base
             sysrev.core
             sysrev.util
