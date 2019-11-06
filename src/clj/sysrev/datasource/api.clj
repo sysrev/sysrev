@@ -45,6 +45,7 @@
   (http/post (str (or host (ds-host)) "/graphql")
              {:headers (auth-header)
               :body (json/write-str {:query query})
+              :content-type :application/json
               :as :json}))
 
 (defn-spec ^:private parse-ds-response (s/every map?)
