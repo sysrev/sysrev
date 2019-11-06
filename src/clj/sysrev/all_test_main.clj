@@ -20,8 +20,7 @@
   (when (and (test/db-connected?) (= (-> env :profile) :remote-test))
     (init/start-db)
     (project/cleanup-browser-test-projects)
-    (migration/ensure-updated-db)
-    (init/start-cassandra-db))
+    (migration/ensure-updated-db))
   (let [fname "target/junit-all.xml"
         {:keys [fail error] :as summary}
         (with-open [w (io/writer fname)]

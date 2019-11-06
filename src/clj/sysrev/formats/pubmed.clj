@@ -15,8 +15,6 @@
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
             [sysrev.shared.util :as sutil :refer [parse-integer ensure-pred]]))
 
-(def use-cassandra-pubmed? true)
-
 (def e-util-api-key (:e-util-api-key config/env))
 
 (defn extract-wrapped-text [x]

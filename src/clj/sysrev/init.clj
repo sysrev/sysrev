@@ -3,7 +3,6 @@
             sysrev.stacktrace
             sysrev.all-entities
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
-            [sysrev.cassandra :as cdb]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config.core :refer [env]]
             [sysrev.web.routes.site :as site]
@@ -25,15 +24,7 @@
          (catch BindException _
            (log/errorf "start-web: port %d already in use" server-port)))))
 
-(defn start-cassandra-db []
-  (when (nil? @cdb/active-session)
-    (try (cdb/connect-db)
-         (log/info "connected to Cassandra DB")
-         (catch Throwable _
-           (log/warn "unable to connect to Cassandra DB")))))
-
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
   (start-db postgres-overrides only-if-new)
   (start-web server-port-override only-if-new)
-  (start-cassandra-db)
   true)
