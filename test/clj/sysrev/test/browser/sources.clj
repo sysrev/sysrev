@@ -1,9 +1,13 @@
 (ns sysrev.test.browser.sources
   (:require [clojure.test :refer [is use-fixtures]]
-            [sysrev.test.core :refer [default-fixture]]
+            [clojure.java.io :as io]
+            [clj-webdriver.taxi :as taxi]
+            [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.pubmed :as pm]))
+            [sysrev.test.browser.pubmed :as pm]
+            [sysrev.project.core :as project]
+            [sysrev.source.import :as import]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -84,7 +88,21 @@
              {:unique-articles 6, :reviewed-articles 0, :total-articles 6}))
       (pm/delete-search-term-source query1)
       (pm/check-source-count 0))
+  :cleanup (do (nav/delete-current-project)
+               (nav/log-out)))
 
-  :cleanup
-  (do (nav/delete-current-project)
-      (nav/log-out)))
+(deftest-browser pdf-interface
+  (and (test/db-connected?) (not (test/remote-test?)))
+  [filename "test-pdf-import.zip"
+   file (-> (str "test-files/" filename) io/resource io/file)]
+  (do (nav/log-in)
+      (nav/new-project "pdf-interface test")
+      (import/import-pdf-zip (b/current-project-id) {:file file :filename filename}
+                             {:use-future? false})
+      (b/init-route (-> (taxi/current-url) b/url->path))
+      (nav/go-project-route "/articles" :wait-ms 100)
+      (b/click "a.column.article-title" :displayed? true :delay 200)
+      (b/is-soon (taxi/exists? "div.pdf-container div.page div.canvasWrapper"))
+      (b/click ".ui.menu > .item.articles" :delay 100)
+      (b/is-soon (taxi/exists? "a.column.article-title")))
+  :cleanup (b/cleanup-test-user! :email (:email b/test-login)))

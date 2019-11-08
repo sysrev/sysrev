@@ -1,9 +1,11 @@
 (ns sysrev.web.app
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [clojure.data.json :as json]
             [compojure.response :refer [Renderable]]
             [ring.util.response :as r]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
+            [clj-http.client :as http]
             [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db]
@@ -15,6 +17,12 @@
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.util :as util :refer [pp-str]]
             [sysrev.shared.util :refer [in? parse-integer ensure-pred]]))
+
+;;;
+;;; Get value from url at:
+;;; https://api.slack.com/apps/AMLU7D7Q9/incoming-webhooks?success=1
+;;;
+(defonce slack-errors-token-override (atom nil))
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)
@@ -92,7 +100,6 @@
     (fn [request]
       (handler request))))
 
-
 (defn- merge-default-success-true
   "If response result is a map and has keyword key values, merge in
   default {:success true} entry."
@@ -104,18 +111,58 @@
       (update response :body assoc-in [:result :success] true)
       response)))
 
-(defn log-request-exception [request e]
-  (try (log/error "Request:\n" (pp-str request)
-                  "Exception:\n" (with-out-str (print-cause-trace-custom e)))
-       (catch Throwable _
-         (log/error "error in log-request-exception"))))
-
 (defn request-client-ip [request]
   (or (get-in request [:headers "x-real-ip"])
       (:remote-addr request)))
 
 (defn request-url [request]
   (some-> (:uri request) (str/split #"\?") first))
+
+(defn request-info [req]
+  (cond-> (select-keys req [:server-name :uri :remote-addr :compojure/route :query-params])
+    (seq (-> req :session :identity))
+    (merge {:session {:identity (-> req :session :identity
+                                    (select-keys [:user-id :email]))}})))
+
+(defn slack-errors-token []
+  (or @slack-errors-token-override (env :sysrev-slack-errors)))
+
+(defn log-slack [blocks-text notify-text]
+  (when-let [token (slack-errors-token)]
+    (let [msg {:text notify-text
+               :blocks (vec (for [{:keys [text]} blocks-text]
+                              {:type :section
+                               :text {:type "mrkdwn" :verbatim true :text text}}))}]
+      (http/post (str "https://hooks.slack.com/services/" token)
+                 {:body (json/write-str msg)
+                  :content-type :application/json}))))
+
+(defn log-slack-request-exception [request e & {:keys [force]}]
+  (when (or force (= :prod (:profile env)))
+    (try (log-slack
+          (->> [(format "*Request*:\n```%s```" (pp-str (request-info request)))
+                (format "*Exception*:\n```%s```" (with-out-str (print-cause-trace-custom e 10)))]
+               (mapv #(hash-map :text %)))
+          (str (if-let [route (:compojure/route request)]
+                 (str route " => ") "")
+               (.getMessage e)))
+         (catch Throwable e2
+           (log/error "error in log-slack-request-exception:\n"
+                      (with-out-str (print-cause-trace-custom e2)))
+           (try (let [info {:request (select-keys request [:server-name :compojure/route])}]
+                  (log-slack [(format "*Slack Message Error*\n```%s```" (pp-str info))]
+                             "Slack Message Error"))
+                (catch Throwable _
+                  (log-slack ["*Unexpected Slack Message Error*"]
+                             "Unexpected Slack Message Error")))))))
+
+(defn log-request-exception [request e]
+  (try (log/error "Request:\n" (pp-str request)
+                  "Exception:\n" (with-out-str (print-cause-trace-custom e)))
+       (log-slack-request-exception request e)
+       (catch Throwable e2
+         (log/error "error in log-request-exception:\n"
+                    (with-out-str (print-cause-trace-custom e2))))))
 
 (defn log-web-event [{:keys [event-type logged-in user-id project-id skey client-ip
                              browser-url request-url request-method is-error meta]

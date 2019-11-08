@@ -48,11 +48,11 @@
        (stack/print-trace-element e)
        (print "[empty stack trace]"))
      (newline)
-     (let [elements (if (nil? n)
-                      (rest st)
-                      (take (dec n) (rest st)))
+     (let [elements (rest st)
            filter? (filter-stacktrace? elements)]
-       (doseq [e (cond-> elements filter? (filter-stacktrace-elements))]
+       (doseq [e (cond->> elements
+                   filter?  (filter-stacktrace-elements)
+                   n        (take n))]
          (print "    ")
          (stack/print-trace-element e)
          (newline))))))
