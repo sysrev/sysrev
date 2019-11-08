@@ -13,7 +13,9 @@
   "Check if stacktrace element should be filtered out when printing."
   [e]
   (some #(str/starts-with? (.getClassName e) %)
-        ["clojure.test" "clojure.lang" "clojure.main" "leiningen"]))
+        ["clojure.test" "clojure.lang" "clojure.main" "leiningen"
+         "org.postgresql.jdbc" "org.postgresql.core" "clojure.java.jdbc"
+         "ring.middleware"]))
 
 (defn- drop-trailing-stack-elements
   "Drop all stacktrace elements below entry point to project code."

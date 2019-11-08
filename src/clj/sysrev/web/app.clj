@@ -119,10 +119,11 @@
   (some-> (:uri request) (str/split #"\?") first))
 
 (defn request-info [req]
-  (cond-> (select-keys req [:server-name :uri :remote-addr :compojure/route :query-params])
-    (seq (-> req :session :identity))
-    (merge {:session {:identity (-> req :session :identity
-                                    (select-keys [:user-id :email]))}})))
+  (merge {:host (get-in req [:headers "host"])
+          :client-ip (get-in req [:headers "x-real-ip"])}
+         (select-keys req [:uri :compojure/route :query-params])
+         (when-let [ident (not-empty (-> req :session :identity))]
+           {:session {:identity (select-keys ident [:user-id :email])}})))
 
 (defn slack-errors-token []
   (or @slack-errors-token-override (env :sysrev-slack-errors)))
@@ -141,7 +142,7 @@
   (when (or force (= :prod (:profile env)))
     (try (log-slack
           (->> [(format "*Request*:\n```%s```" (pp-str (request-info request)))
-                (format "*Exception*:\n```%s```" (with-out-str (print-cause-trace-custom e 10)))]
+                (format "*Exception*:\n```%s```" (with-out-str (print-cause-trace-custom e 12)))]
                (mapv #(hash-map :text %)))
           (str (if-let [route (:compojure/route request)]
                  (str route " => ") "")
