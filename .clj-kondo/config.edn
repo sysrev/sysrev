@@ -1,9 +1,11 @@
 {:linters
  {:unresolved-symbol {:exclude
                       [;; ignore unresolved symbols inside these macro forms
+                       (sysrev.db.query-types/def-find-type nil)
+                       (sysrev.util/with-print-time-elapsed nil)
+                       (sysrev.test.browser.core/deftest-browser nil)
                        (orchestra.core/defn-spec nil)
                        (clojure.core.cache/defcache nil)
-                       (sysrev.db.query-types/def-find-type nil)
                        (compojure.core/GET nil)
                        (compojure.core/POST nil)
                        (compojure.core/PUT nil)

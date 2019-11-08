@@ -1,21 +1,17 @@
 (ns sysrev.test.browser.review-articles
-  (:require [clojure.test :refer :all]
-            [clojure.string :as str]
+  (:require [clojure.test :refer [is use-fixtures]]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
             [sysrev.user.core :as user :refer [user-by-email user-self-info]]
-            [sysrev.payment.stripe :as stripe]
-            [sysrev.test.core :as test :refer [wait-until]]
+            [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.test.browser.define-labels :as define]
-            [sysrev.util :as util :refer [wrap-retry]]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.test.browser.define-labels :as define]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -301,7 +297,7 @@
   [n label-definitions]
   (nav/go-project-route "/review")
   (b/wait-until-displayed "#project_review")
-  (dotimes [i n]
+  (dotimes [_ n]
     (when-not (b/displayed-now? ".no-review-articles")
       (randomly-set-article-labels label-definitions)
       (b/wait-until #(or (b/displayed-now? ".ui.button.save-labels.disabled")

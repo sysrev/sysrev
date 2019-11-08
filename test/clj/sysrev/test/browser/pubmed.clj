@@ -1,5 +1,5 @@
 (ns sysrev.test.browser.pubmed
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [is testing use-fixtures]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]

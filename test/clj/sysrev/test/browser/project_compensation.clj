@@ -1,24 +1,22 @@
 (ns sysrev.test.browser.project-compensation
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [use-fixtures is]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [clj-time.local :as l]
-            [clj-time.format :as f]
+            [clj-time.local :refer [local-now]]
+            [clj-time.format :as tf]
             [clj-webdriver.taxi :as taxi]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.api :as api]
-            [sysrev.db.core :as db :refer [do-query do-execute]]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.user.core :refer [user-by-email]]
             [sysrev.project.core :as project]
-            [sysrev.label.core :as labels]
+            [sysrev.stacktrace :as strace]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
-            [sysrev.test.browser.pubmed :as pm]
-            [sysrev.stacktrace :as strace])
+            [sysrev.test.browser.pubmed :as pm])
   (:import clojure.lang.ExceptionInfo))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -75,7 +73,7 @@
 
 (defn todays-date []
   ;; YYYY-MM-DD
-  (f/unparse (f/formatter :date) (l/local-now)))
+  (tf/unparse (tf/formatter :date) (local-now)))
 
 (defn user-amount-owed [project-id user-name]
   (->> (:amount-owed (api/project-compensation-for-users
@@ -159,8 +157,7 @@
 ;; this can only create, not update labels
 ;;
 ;; FIX: remove this function
-(defn randomly-set-labels
-  [project-id user-id article-id]
+(defn randomly-set-labels [project-id user-id article-id]
   (db/with-clear-project-cache project-id
     (doseq [label (q/find :label {:project-id project-id})]
       (condp = (:value-type label)
@@ -179,9 +176,6 @@
   [project-id user-id n]
   (let [unreviewed-articles (take n (articles-unreviewed-by-user project-id user-id))]
     (doall (map (partial randomly-set-labels project-id user-id) unreviewed-articles))))
-
-(defn get-user-id [email]
-  (user-by-email email :user-id))
 
 ;; https://developer.paypal.com/developer/accounts/
 ;; test information associated with:  test@insilica.co
@@ -266,7 +260,7 @@
                           :password (:password test-user)
                           :project-id @project-id)
       (randomly-set-unreviewed-articles
-       @project-id (get-user-id (:email test-user)) n-articles)
+       @project-id (user-by-email (:email test-user) :user-id) n-articles)
       ;; new user reviews some articles
       ;; (switch-user test-user)
       ;; (nav/open-project project-name)
@@ -299,10 +293,10 @@
    db-review-articles (fn [user project]
                         (randomly-set-unreviewed-articles
                          @(:project-id project)
-                         (get-user-id (:email user))
+                         (user-by-email (:email user) :user-id)
                          (:n-articles user)))
    loop-test? false]
-  (dotimes [i (if loop-test? 10 1)]
+  (dotimes [_ (if loop-test? 10 1)]
     (try
       (nav/log-in)
       ;; create the first project
@@ -483,9 +477,9 @@
           (do (log/warnf "*** Exception in PayPal interaction ***\n%s"
                          (with-out-str
                            (strace/print-cause-trace-custom (ex-cause e))))
-              (dotimes [i 3] (log/warn "*****************************"))
+              (dotimes [_ 3] (log/warn "*****************************"))
               (log/warn                "*** Ignoring PayPal Error ***")
-              (dotimes [i 3] (log/warn "*****************************"))
+              (dotimes [_ 3] (log/warn "*****************************"))
               (b/take-screenshot :warn))
           (throw e)))))
   :cleanup (doseq [{:keys [email]} test-users]

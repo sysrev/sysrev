@@ -1,18 +1,13 @@
 (ns sysrev.test.browser.core
-  (:require [clojure.test :refer :all]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.test :refer [deftest is *report-counters*]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
-            [cljs.build.api :as cljs]
             [clj-webdriver.driver :as driver]
             [clj-webdriver.taxi :as taxi]
-            [clj-webdriver.core :refer [->actions double-click move-to-element click-and-hold
+            [clj-webdriver.core :refer [->actions move-to-element click-and-hold
                                         move-by-offset release perform]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user]
             [sysrev.project.core :as project]
@@ -22,8 +17,7 @@
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer
-             [parse-integer ensure-pred string-ellipsis wrap-parens]])
+            [sysrev.shared.util :as sutil :refer [parse-integer string-ellipsis]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
@@ -35,12 +29,12 @@
 
 (defn browser-console-logs []
   (try (not-empty (taxi/execute-script "return sysrev.base.get_console_logs();"))
-       (catch Throwable e
+       (catch Throwable _
          (log/warn "unable to read console logs"))))
 
 (defn browser-console-errors []
   (try (not-empty (taxi/execute-script "return sysrev.base.get_console_errors();"))
-       (catch Throwable e
+       (catch Throwable _
          (log/warn "unable to read console errors"))))
 
 (defn log-console-messages [& [level]]
@@ -71,7 +65,7 @@
   (if (and @active-webdriver (not restart?))
     @active-webdriver
     (do (when @active-webdriver
-          (try (taxi/quit) (catch Throwable e nil)))
+          (try (taxi/quit) (catch Throwable _ nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
                              (.addArguments ["window-size=1920,1080" "headless" "no-sandbox"]))
@@ -94,7 +88,7 @@
   (if (and @active-webdriver (not restart?))
     @active-webdriver
     (do (when @active-webdriver
-          (try (taxi/quit) (catch Throwable e nil)))
+          (try (taxi/quit) (catch Throwable _ nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
                              (.addArguments
@@ -144,12 +138,12 @@
    :password "1234567890"})
 
 (defn delete-test-user [& {:keys [email] :or {email (:email test-login)}}]
-  (with-transaction
+  (db/with-transaction
     (when-let [{:keys [user-id stripe-id]
                 :as user} (user/user-by-email email)]
       (when stripe-id
         (try (stripe/delete-customer! user)
-             (catch Throwable t nil)))
+             (catch Throwable _ nil)))
       (when user-id
         (q/delete :compensation-user-period {:user-id user-id}))
       (user/delete-user-by-email email))))
@@ -158,7 +152,7 @@
                            :or {email (:email test-login)
                                 password (:password test-login)
                                 project-id nil}}]
-  (with-transaction
+  (db/with-transaction
     (delete-test-user :email email)
     (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
       (user/change-user-setting user-id :ui-theme "Dark")
@@ -254,7 +248,7 @@
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
-  (dotimes [i (or loop 1)]
+  (dotimes [_ (or loop 1)]
     (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 15)))
     (assert (try-wait wait-until #(and (ajax-inactive? inactive-ms)
                                        (every? (complement taxi/exists? #_ displayed-now?)
@@ -337,7 +331,7 @@
           (is-soon (taxi/exists? q))))
       (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
         (try (taxi/click q)
-             (catch Throwable e
+             (catch Throwable _
                (log/warnf "got exception clicking %s, trying again..." (pr-str q))
                (wait (+ delay 100))
                (taxi/click q))))
@@ -404,7 +398,7 @@
   logical false."
   [q & {:keys [wait? timeout] :or {wait? true timeout 2000}}]
   (when wait? (try (wait-until #(taxi/exists? q) :timeout timeout)
-                   (catch Throwable e nil)))
+                   (catch Throwable _ nil)))
   (if (taxi/exists? q)
     (mapv taxi/text (taxi/elements q))
     []))
@@ -477,20 +471,20 @@
 (defn webdriver-fixture-each [f]
   (let [local? (= "localhost" (:host (test/get-selenium-config)))
         cache? @db/query-cache-enabled]
-    (do (when-not local? (reset! db/query-cache-enabled false))
-        (when (test/db-connected?) (create-test-user))
-        (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
-        (if (reuse-webdriver?)
-          (do (start-webdriver) ;; use existing webdriver if running
-              (try (ensure-logged-out) (init-route "/")
-                   ;; try restarting webdriver if unable to load page
-                   (catch Throwable _ (start-webdriver true) (init-route "/"))))
-          (start-webdriver true))
-        (f)
-        (when (reuse-webdriver?)
-          ;; log out to set up for next test
-          (ensure-logged-out))
-        (when-not local? (reset! db/query-cache-enabled cache?)))))
+    (when-not local? (reset! db/query-cache-enabled false))
+    (when (test/db-connected?) (create-test-user))
+    (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
+    (if (reuse-webdriver?)
+      (do (start-webdriver) ;; use existing webdriver if running
+          (try (ensure-logged-out) (init-route "/")
+               ;; try restarting webdriver if unable to load page
+               (catch Throwable _ (start-webdriver true) (init-route "/"))))
+      (start-webdriver true))
+    (f)
+    (when (reuse-webdriver?)
+      ;; log out to set up for next test
+      (ensure-logged-out))
+    (when-not local? (reset! db/query-cache-enabled cache?))))
 
 (defonce ^:private chromedriver-version-atom (atom nil))
 

@@ -1,10 +1,7 @@
 (ns sysrev.test.core
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.spec.test :as t]
-            [clojure.test :refer :all]
+  (:require [orchestra.spec.test :as t]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [clojure.java.jdbc :as jdbc]
             [clj-time.core :as time]
             [sysrev.config.core :refer [env]]
             [sysrev.init :refer [start-app]]
@@ -28,19 +25,17 @@
        (not= 5470 (-> env :postgres :port))))
 
 (defn get-selenium-config []
-  (let [config (or @raw-selenium-config
-                   {:protocol "http"
-                    :host "localhost"
-                    :port (-> env :server :port)})]
-    (let [{:keys [protocol host port]} config]
-      (assoc config
-             :url (str protocol "://" host (if port (str ":" port) "") "/")
-             :blog-url
-             (if (and port (= host "localhost"))
-               (str protocol "://" host ":" (inc port) "/")
-               (let [host (str "blog." host)]
-                 (str protocol "://" host (if port (str ":" port) "") "/")))
-             :safe (db-connected?)))))
+  (let [{:keys [protocol host port] :as config}
+        (or @raw-selenium-config {:protocol "http"
+                                  :host "localhost"
+                                  :port (-> env :server :port)})]
+    (assoc config
+           :url (str protocol "://" host (if port (str ":" port) "") "/")
+           :blog-url (if (and port (= host "localhost"))
+                       (str protocol "://" host ":" (inc port) "/")
+                       (let [host (str "blog." host)]
+                         (str protocol "://" host (if port (str ":" port) "") "/")))
+           :safe (db-connected?))))
 
 (defn ^:repl set-selenium-config [raw-config]
   (reset! raw-selenium-config raw-config))
@@ -102,7 +97,7 @@
           (db/close-active-db)
           (db/terminate-db-connections config)
           (try (db-shell "dropdb" [] config)
-               (catch Throwable e nil))
+               (catch Throwable _ nil))
           (db-shell "createdb" [] config)
           (log/info "Applying Flyway schema...")
           (when-not (util/ms-windows?)
@@ -137,18 +132,16 @@
   [f]
   (case (:profile env)
     :test
-    (let [{{postgres-port :port
-            dbname :dbname} :postgres} env]
-      (ensure-db-shutdown-hook)
-      (t/instrument)
-      (set-web-asset-path "/out-production")
-      (if (db-connected?)
-        (init-test-db)
-        (db/close-active-db))
-      (f))
+    (do (ensure-db-shutdown-hook)
+        (t/instrument)
+        (set-web-asset-path "/out-production")
+        (if (db-connected?)
+          (init-test-db)
+          (db/close-active-db))
+        (f))
     :remote-test
     (let [{{postgres-port :port dbname :dbname}     :postgres
-           {selenium-host :host protocol :protocol} :selenium} env]
+           {selenium-host :host} :selenium} env]
       (when (or (= selenium-host "sysrev.com")
                 (= postgres-port 5470))
         (assert (str/includes? dbname "_test")

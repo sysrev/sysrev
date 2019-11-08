@@ -1,5 +1,5 @@
 (ns sysrev.test.web.routes.api.handlers
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is use-fixtures]]
             [clojure.data.json :as json]
             [ring.mock.request :as mock]
             [sysrev.api :as api]
@@ -40,9 +40,9 @@
               (json/read-str :key-fn keyword))
           new-project-id (get-in create-project-response [:result :project :project-id])
           search-query-result (pubmed/get-search-query-response search-term 1)
-          meta (source/make-source-meta
-                :pubmed {:search-term search-term
-                         :search-count (count (:pmids search-query-result))})]
+          _meta (source/make-source-meta
+                 :pubmed {:search-term search-term
+                          :search-count (count (:pmids search-query-result))})]
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0

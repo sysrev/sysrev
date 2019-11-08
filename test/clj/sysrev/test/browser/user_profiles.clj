@@ -2,14 +2,12 @@
   (:require [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
-            [clojure.data.json :as json]
-            [clojure.test :refer :all]
+            [clojure.test :refer [is use-fixtures]]
             [sysrev.api :as api]
             [sysrev.db.core :refer [with-transaction]]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.user-image :as user-image]
             [sysrev.group.core :as group]
-            [sysrev.project.core :as project]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.annotator :as annotator]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -127,7 +125,7 @@
       (click-project-link project-name-1)
       (b/click (x/project-menu-item :review) :delay 50)
       ;; set three article labels
-      (dotimes [n 3]
+      (dotimes [_ 3]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; go back to profile, check activity
       (b/click user-name-link)
@@ -170,7 +168,7 @@
       ;; do some work to see if it shows up in the user profile
       (click-project-link project-name-2)
       ;; review two articles (save labels)
-      (dotimes [n 2]
+      (dotimes [_ 2]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; annotate
       (nav/go-project-route "/articles" :wait-ms 100)

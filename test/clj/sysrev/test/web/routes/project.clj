@@ -1,17 +1,15 @@
 (ns sysrev.test.web.routes.project
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is use-fixtures]]
             [clojure.string :as str]
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.user.core :as user]
+            [sysrev.formats.pubmed :as pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]
-            [sysrev.test.web.routes.utils :refer [route-response-fn]]
-            [sysrev.formats.pubmed :as pubmed]
-            [ring.mock.request :as mock]
-            [sysrev.util :as util]))
+            [sysrev.test.web.routes.utils :refer [route-response-fn]]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
@@ -53,14 +51,13 @@
     (is (get-in (route-response :post "/api/auth/login" {:email email :password password})
                 [:result :valid]))
     ;; Create a project
-    (let [create-project-response
-          (route-response :post "/api/create-project"
-                          {:project-name test-project-name})
+    (let [create-project-response (route-response :post "/api/create-project"
+                                                  {:project-name test-project-name})
           new-project-id (get-in create-project-response [:result :project :project-id])
           search-query-result (pubmed/get-search-query-response search-term 1)
-          meta (source/make-source-meta
-                :pubmed {:search-term search-term
-                         :search-count (count (:pmids search-query-result))})]
+          _meta (source/make-source-meta
+                 :pubmed {:search-term search-term
+                          :search-count (count (:pmids search-query-result))})]
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
@@ -179,7 +176,7 @@
                                                       {:project-id project-id})
                                       [:result :sources])))))
       ;; repeat search, check to see that the import is not happening over and over
-      (dotimes [n 10]
+      (dotimes [_ 10]
         (route-response :post "/api/import-articles/pubmed"
                         {:project-id project-id :search-term search-term :source "PubMed"}))
       ;; sources would be added multiple times if the same import was being run
@@ -189,7 +186,7 @@
                                                       {:project-id project-id})
                                       [:result :sources])))))
       ;; let's do another search, multiple times and see that only one import occurred
-      (dotimes [n 10]
+      (dotimes [_ 10]
         (route-response :post "/api/import-articles/pubmed"
                         {:project-id project-id :search-term "grault" :source "PubMed"}))
       (is (= 2 (count (filter #(= (:project-id %) project-id)
@@ -207,9 +204,9 @@
                                                 {:project-name test-project-name})
         project-id (get-in create-project-response [:result :project :project-id])
         ;; add articles to the project
-        import-articles-response (route-response :post "/api/import-articles/pubmed"
-                                                 {:project-id project-id
-                                                  :search-term "foo bar" :source "PubMed"})
+        _import-articles-response (route-response :post "/api/import-articles/pubmed"
+                                                  {:project-id project-id
+                                                   :search-term "foo bar" :source "PubMed"})
         project-info (route-response :get "/api/project-info" {:project-id project-id})
         project-label (second (first (get-in project-info [:result :project :labels])))
         label-id (get-in project-label [:label-id])
@@ -243,9 +240,9 @@
                                    {:project-id project-id
                                     :source-id foo-bar-search-source-id})
                    [:error :message])))
-    (let [import-articles-response (route-response :post "/api/import-articles/pubmed"
-                                                   {:project-id project-id
-                                                    :search-term "grault" :source "PubMed"})
+    (let [_import-articles-response (route-response :post "/api/import-articles/pubmed"
+                                                    {:project-id project-id
+                                                     :search-term "grault" :source "PubMed"})
           project-sources-response (route-response :get "/api/project-sources"
                                                    {:project-id project-id})
           grault-search-source (first (filter #(= (get-in % [:meta :search-term]) "grault")

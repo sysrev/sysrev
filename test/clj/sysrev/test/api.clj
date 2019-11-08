@@ -1,10 +1,8 @@
 (ns sysrev.test.api
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is use-fixtures]]
             [clojure.spec.alpha :as s]
-            [clojure.tools.logging :as log]
             [sysrev.shared.spec.core :as sc]
-            [sysrev.test.core :refer
-             [default-fixture completes? get-selenium-config db-connected?]]
+            [sysrev.test.core :refer [default-fixture get-selenium-config]]
             [sysrev.test.browser.core :refer [test-login create-test-user]]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
@@ -14,7 +12,6 @@
             [sysrev.label.answer :as answer]
             [sysrev.web.routes.api.core :refer [webapi-get webapi-post]]
             sysrev.web.routes.api.handlers
-            [sysrev.api :as api]
             [sysrev.shared.util :refer [in?]]))
 
 (use-fixtures :once default-fixture)
@@ -36,7 +33,7 @@
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
-        {:keys [project-id] :as project} (project/create-project "test-import-pmids")]
+        {:keys [project-id]} (project/create-project "test-import-pmids")]
     (try
       (let [response (webapi-post "import-pmids"
                                   {:api-token api-token
@@ -53,7 +50,7 @@
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]} (create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
-        {:keys [project-id] :as project} (project/create-project "test-import-article-text")]
+        {:keys [project-id]} (project/create-project "test-import-article-text")]
     (try
       (let [response (webapi-post "import-article-text"
                                   {:api-token api-token
@@ -130,30 +127,24 @@
         {:keys [user-id api-token]} (create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
         project-name "test-create-project"]
-    (try
-      (let [response (webapi-post "create-project"
-                                  {:api-token api-token
-                                   :project-name project-name
-                                   :add-self? true}
-                                  :url url)
-            {:keys [success project]} (:result response)
-            {:keys [project-id name]} project]
-        (try
-          (do (is (true? success))
-              (is (integer? project-id))
-              (is (string? name))
-              (is (= name project-name))
-              (is (q/query-project-by-id project-id [:project-id]))
-              (is (in? (->> (q/select-label-where project-id true [:name])
-                            do-query (map :name))
-                       "overall include"))
-              (is (= (:name (q/query-project-by-id project-id [:name]))
-                     project-name)))
-          (finally
-            (when project-id
-              (project/delete-project project-id)))))
-      (finally
-        (when user-id (user/delete-user user-id))))))
+    (try (let [response (webapi-post "create-project" {:api-token api-token
+                                                       :project-name project-name
+                                                       :add-self? true}
+                                     :url url)
+               {:keys [success project]} (:result response)
+               {:keys [project-id name]} project]
+           (try (is (true? success))
+                (is (integer? project-id))
+                (is (string? name))
+                (is (= name project-name))
+                (is (q/query-project-by-id project-id [:project-id]))
+                (is (in? (->> (q/select-label-where project-id true [:name])
+                              do-query (map :name))
+                         "overall include"))
+                (is (= (:name (q/query-project-by-id project-id [:name]))
+                       project-name))
+                (finally (some-> project-id (project/delete-project)))))
+         (finally (some-> user-id (user/delete-user))))))
 
 (deftest test-check-allow-answers
   (let [url (:url (get-selenium-config))

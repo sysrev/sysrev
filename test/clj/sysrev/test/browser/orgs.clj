@@ -1,13 +1,11 @@
 (ns sysrev.test.browser.orgs
   (:require [clojure.string :as str]
-            [clojure.test :refer :all]
+            [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
-            [sysrev.api :as api]
             [sysrev.group.core :as group]
-            [sysrev.payment.plans :refer [user-current-plan
-                                          group-current-plan]]
-            [sysrev.project.core :as project]
+            [sysrev.payment.stripe :as stripe]
+            [sysrev.payment.plans :refer [user-current-plan group-current-plan]]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
@@ -16,7 +14,6 @@
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.core :as test]
-            [sysrev.payment.stripe :as stripe]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -196,7 +193,8 @@
     (b/click user-orgs)
     (b/set-input-text-per-char create-org-input org-name-1)
     (b/click create-org-button)
-    (is (b/check-for-error-message (str "An organization with the name '" org-name-1 "' already exists. Please try using another name.")))
+    (is (b/check-for-error-message (str "An organization with the name '" org-name-1
+                                        "' already exists. Please try using another name.")))
     ;; blank orgs can't be created
     (b/backspace-clear (count org-name-1) create-org-input)
     (b/click create-org-button)

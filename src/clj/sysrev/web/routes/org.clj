@@ -29,7 +29,7 @@
          (with-authorize request {:logged-in true}
            (let [{:keys [org-name]} (:body request)]
              (api/create-org! (current-user-id request) org-name))))
-   (context "/org/:org-id" [org-id :<< as-int :as request]
+   (context "/org/:org-id" [org-id :<< as-int :as _request]
             (GET "/users" request
                  (with-authorize request {}
                    (-> (group/group-id->name org-id)

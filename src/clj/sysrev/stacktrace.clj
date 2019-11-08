@@ -5,12 +5,9 @@
 (ns sysrev.stacktrace
   (:require [clojure.string :as str]
             [clojure.stacktrace :as stack]
-            [clojure.test :refer :all]
+            [clojure.test :refer [*stack-trace-depth* *testing-contexts* inc-report-counter
+                                  report testing-contexts-str testing-vars-str with-test-out]]
             [clojure.test.junit :as junit]))
-
-#_ (defonce ^:private default-print-stack-trace stack/print-stack-trace)
-
-#_ (defn- sysrev-element? ^:unused [e] (str/includes? (.getClassName e) "sysrev"))
 
 (defn- boring-element?
   "Check if stacktrace element should be filtered out when printing."
@@ -28,7 +25,6 @@
 (defn filter-stacktrace?
   "Check whether stacktrace element filtering should be used."
   [elements]
-  #_ (some #(str/includes? (.getClassName %) "default_fixture") elements)
   (some #(str/includes? (.getClassName %) "sysrev") elements))
 
 (defn filter-stacktrace-elements

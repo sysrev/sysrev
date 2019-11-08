@@ -1,9 +1,7 @@
 (ns sysrev.test.browser.plans
   (:require [clj-webdriver.taxi :as taxi]
-            [clojure.test :refer :all]
+            [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
-            [sysrev.api :as api]
-            [sysrev.config.core :refer [env]]
             [sysrev.payment.plans :as plans]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.core :as test]

@@ -1,5 +1,5 @@
 (ns sysrev.test.browser.markdown
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -7,7 +7,6 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.core :refer [default-fixture]]
-            [sysrev.test.core :as test]
             [sysrev.config.core :refer [env]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)

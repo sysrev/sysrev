@@ -33,13 +33,6 @@
     [:meta {:charset "utf-8"}]
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
-    #_ [:meta {:name "google-signin-scope" :content "profile email"}]
-    #_ [:meta {:name "google-signin-client_id" :content index/google-oauth-id-browser}]
-    #_ [:script { ;; :async true ;; :defer true
-                 :src "https://apis.google.com/js/platform.js"}]
-    #_ [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"}]
-    #_ [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"}]
-    [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"}]
     (index/favicon-headers)
     (apply page/include-css (index/css-paths :theme "default"))
     (page/include-js "/ga-blog.js")
@@ -53,7 +46,7 @@
       (page/include-js (str @index/web-asset-path "/" js-name)))]))
 
 (defroutes blog-html-routes
-  (GET "/sysrev-blog/custom.css" request
+  (GET "/sysrev-blog/custom.css" _request
        (let [content (-> (str "https://s3.amazonaws.com/sysrev-blog/" "custom.css")
                          (http/get)
                          :body)]
@@ -71,16 +64,12 @@
            (-> content
                (r/response)
                (r/header "Content-Type" "text/html; charset=utf-8")))))
-  (GET "*" request
-       (blog-index request))
+  (GET "*" request (blog-index request))
   (not-found (not-found-response nil)))
 
 (defroutes blog-routes
-  (GET "/api/blog-entries" request
-       (let [convert-url
-             #(let [[_ filename] (re-matches #".*/sysrev-blog/(.*)$" %)]
-                (str "/sysrev-blog/" filename))]
-         {:result
-          {:entries
-           (->> (all-blog-entries)
-                (mapv #(update % :url convert-url)))}})))
+  (GET "/api/blog-entries" _request
+       (let [convert-url #(let [[_ filename] (re-matches #".*/sysrev-blog/(.*)$" %)]
+                            (str "/sysrev-blog/" filename))]
+         {:result {:entries (->> (all-blog-entries)
+                                 (mapv #(update % :url convert-url)))}})))

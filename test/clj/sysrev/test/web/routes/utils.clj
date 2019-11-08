@@ -1,7 +1,6 @@
 (ns sysrev.test.web.routes.utils
-  (:require [clojure.test :refer :all]
+  (:require [clojure.string :as str]
             [ring.mock.request :as mock]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil]))
 
 ;; from https://gist.github.com/cyppan/864c09c479d1f0902da5
@@ -9,8 +8,8 @@
   "Given a Cookie header string, parse it into a map"
   [cookie-string]
   (when cookie-string
-    (into {} (for [cookie (.split cookie-string ";")]
-               (let [keyval (map #(.trim %) (.split cookie "=" 2))]
+    (into {} (for [cookie (str/split cookie-string #";")]
+               (let [keyval (map str/trim (.split cookie "=" 2))]
                  [(keyword (first keyval)) (second keyval)])))))
 
 (defn required-headers-params

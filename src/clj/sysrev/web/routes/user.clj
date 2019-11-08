@@ -80,7 +80,7 @@
           (with-authorize request {:authorize-fn (user-authd? user-id)}
             (let [{:keys [file filename meta]} (get-in request [:params])]
               (api/create-avatar! user-id (:tempfile file) filename meta))))
-    (GET "/avatar" request
+    (GET "/avatar" _
          (api/read-avatar user-id))
     (context "/groups/public-reviewer" []
              (GET "/active" [user-id :<< as-int :as request]

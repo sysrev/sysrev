@@ -1,24 +1,18 @@
 (ns sysrev.test.db.project
-  (:require [clojure.test :refer :all]
-            [clojure.spec.alpha :as s]
-            [clojure.tools.logging :as log]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.api :as api]
-            [sysrev.db.core :refer [do-query do-execute]]
+  (:require [clojure.test :refer [deftest is use-fixtures]]
+            [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.test.core :refer [default-fixture database-rollback-fixture completes?]]
-            [sysrev.test.db.core :refer [test-project-ids]]))
+            [sysrev.test.core :refer [default-fixture database-rollback-fixture]]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
 (deftest article-flag-counts
-  (doseq [project-id (take 10 (test-project-ids))]
+  (doseq [project-id (q/find :project {} :project-id, :limit 10)]
     (let [query (q/select-project-articles
                  project-id [:%count.*] {:include-disabled? true})
           total (-> query do-query first :count)
@@ -30,10 +24,10 @@
 
 (deftest project-sources-creation-deletion
   ;; Create Project
-  (let [{:keys [project-id] :as new-project} (project/create-project "Grault's Corge")
+  (let [{:keys [project-id]} (project/create-project "Grault's Corge")
         search-term "foo bar"
         ;; import articles to this project
-        pmids (pubmed/get-all-pmids-for-query search-term)
+        _ (pubmed/get-all-pmids-for-query search-term)
         _ (import/import-pubmed-search project-id {:search-term search-term}
                                        {:use-future? false :threads 1})
         article-count (count (:pmids (pubmed/get-search-query-response search-term 1)))

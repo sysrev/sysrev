@@ -1,21 +1,19 @@
 (ns sysrev.test.browser.annotator
   (:require [clj-webdriver.taxi :as taxi]
             [clojure.string :as str]
-            [clojure.test :refer :all]
+            [clojure.test :refer [is use-fixtures]]
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
             [sysrev.user.core :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.export.core :as export]
-            [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
-            [sysrev.test.browser.xpath :as x :refer [xpath]]
+            [sysrev.test.browser.xpath :as x]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review-articles]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.util :as util :refer [wrap-retry]]
             [sysrev.shared.util :as sutil :refer [in? ensure-pred css]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -78,10 +76,10 @@
                   (find-input-value [parent-q]
                     (or (try (some-> (find-el (css parent-q "input[type=text]"))
                                      (taxi/value))
-                             (catch Throwable e nil))
+                             (catch Throwable _ nil))
                         (try (some-> (find-el (css parent-q ".item.active.selected"))
                                      (taxi/attribute "data-value"))
-                             (catch Throwable e nil))
+                             (catch Throwable _ nil))
                         ""))]
             {:selection (remove-quotes (taxi/text (find-el ".ui.label.selection-label")))
              :semantic-class (find-input-value ".field.semantic-class")
@@ -209,7 +207,7 @@
                   :else (throw-mismatch new-sel))
             :else (throw-mismatch new-sel)))))
 
-(defn edit-annotation [{:keys [semantic-class value] :as lookup} new-values]
+(defn edit-annotation [{:keys [semantic-class value]} new-values]
   (log/info "editing annotation")
   (let [q (css sidebar-el
                (cond-> "div.ui.segment.annotation-view"
@@ -225,7 +223,7 @@
         (b/click save-button)
         (b/click (css q ".ui.button.cancel-edit"))))))
 
-(defn delete-annotation [{:keys [semantic-class value] :as lookup}]
+(defn delete-annotation [{:keys [semantic-class value]}]
   (log/info "deleting annotation")
   (b/wait-until-loading-completes :pre-wait 25 :inactive-ms 25)
   (let [q (css sidebar-el
@@ -263,7 +261,7 @@
       (b/click "a.article-title")
       (annotate-article ann1)
       ;;check the annotation
-      (let [{:keys [email password]} b/test-login
+      (let [{:keys [email]} b/test-login
             user-id (user-by-email email :user-id)
             project-id (review-articles/get-user-project-id user-id)
             article-id (first (project/project-article-ids project-id))

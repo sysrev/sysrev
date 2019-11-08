@@ -1,14 +1,12 @@
 (ns sysrev.test.import
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is use-fixtures]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-http.client :as http]
             [clojure-csv.core :as csv]
             [clojure.java.io :as io]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.test.core :as test :refer [completes?]]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :as project]
@@ -82,7 +80,7 @@
 (deftest import-endnote-xml
   (when (not (test/remote-test?))
     (util/with-print-time-elapsed "import-endnote-xml"
-      (let [{:keys [file filename] :as input} (get-test-file "Sysrev_Articles_5505_20181128.xml")
+      (let [input (get-test-file "Sysrev_Articles_5505_20181128.xml")
             {:keys [project-id]} (project/create-project "autotest endnote import")]
         (try (is (= 0 (project/project-article-count project-id)))
              (is (completes? (import/import-endnote-xml
@@ -106,7 +104,7 @@
 (deftest import-pmid-file
   (when (not (test/remote-test?))
     (util/with-print-time-elapsed "import-pmid-file"
-      (let [{:keys [file filename] :as input} (get-test-file "test-pmids-200.txt")
+      (let [input (get-test-file "test-pmids-200.txt")
             {:keys [project-id]} (project/create-project "autotest pmid import")]
         (try
           (is (= 0 (project/project-article-count project-id)))

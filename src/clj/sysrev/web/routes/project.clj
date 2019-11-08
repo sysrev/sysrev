@@ -637,7 +637,7 @@
          (api/open-access-available? (parse-integer article-id))))
 
 ;; TODO: article-id is ignored; check value or remove
-(dr (GET "/api/open-access/:article-id/view/:key" [article-id key]
+(dr (GET "/api/open-access/:article-id/view/:key" [_article-id key]
          (-> (response/response (s3-file/get-file-stream key :pdf))
              (response/header "Content-Type" "application/pdf"))))
 

@@ -1,7 +1,6 @@
 (ns sysrev.test.browser.label-settings
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [use-fixtures is]]
             [clojure.string :as str]
-            [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [clj-webdriver.taxi :as taxi]
             [sysrev.project.core :as project]
@@ -9,10 +8,9 @@
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
-            [sysrev.test.browser.xpath :as x :refer [xpath]]
+            [sysrev.test.browser.xpath :as x]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
-            [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.define-labels :as define]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
@@ -199,6 +197,5 @@
       ;; check for resolved labels in article component
       (is (b/exists? ".ui.label.review-status.purple"))
       (is (b/exists? ".ui.label.labels-status.purple")))
-  :cleanup
-  (do (some-> @project-id (project/delete-project))
-      (doseq [email test-users] (b/delete-test-user :email email))))
+  :cleanup (do (some-> @project-id (project/delete-project))
+               (doseq [email test-users] (b/delete-test-user :email email))))

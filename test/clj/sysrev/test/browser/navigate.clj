@@ -1,12 +1,10 @@
 (ns sysrev.test.browser.navigate
-  (:require [clojure.test :refer :all]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
-            [sysrev.test.core :as test :refer [completes?]]
+            [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b]
-            [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
+            [sysrev.test.browser.xpath :as x :refer [xpath]]))
 
 (defn go-route [path & {:keys [wait-ms pre-wait-ms silent]
                         :or {wait-ms 20}}]

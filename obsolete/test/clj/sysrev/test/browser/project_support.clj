@@ -1,18 +1,12 @@
 (ns sysrev.test.browser.project-support
-  (:require [clj-webdriver.taxi :as taxi]
-            [clojure.test :refer :all]
-            [clojure.tools.logging :as log]
-            [sysrev.api :as api]
-            [sysrev.config.core :refer [env]]
+  (:require [clojure.test :refer [use-fixtures]]
             [sysrev.payment.plans :as plans]
-            [sysrev.user.core :refer [user-by-email]]
-            [sysrev.project.core :as project]
             [sysrev.payment.stripe :as stripe]
-            [sysrev.test.core :as test :refer [wait-until]]
-            [sysrev.test.browser.core :as b :refer [deftest-browser]]
-            [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.plans :as test-plans]
-            [sysrev.test.browser.stripe :as bstripe]))
+            [sysrev.test.core :as test]
+            [sysrev.test.browser.core :as b :refer [#_ deftest-browser]]
+            #_ [sysrev.test.browser.navigate :as nav]
+            #_ [sysrev.test.browser.plans :as test-plans]
+            #_ [sysrev.test.browser.stripe :as bstripe]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

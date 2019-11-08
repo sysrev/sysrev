@@ -126,7 +126,7 @@
       value)))
 
 (defroutes site-routes
-  (GET "/api/global-stats" request
+  (GET "/api/global-stats" _
        {:stats (sysrev-global-stats)})
 
   (POST "/api/delete-user" request
@@ -156,7 +156,7 @@
                user-id (keyword setting) value))
             {:success true, :settings (user/user-settings user-id)})))
 
-  (GET "/api/terms-of-use.md" request
+  (GET "/api/terms-of-use.md" _
        (app/text-file-response
         (-> (io/resource "terms_of_use.md") io/reader)
         "terms-of-use.md"))
@@ -164,7 +164,7 @@
   (GET "/api/search" [q p :<< as-int]
        (api/search-site q p))
 
-  (POST "/api/stripe/setup-intent" request
+  (POST "/api/stripe/setup-intent" _
         (api/get-setup-intent))
 
   (POST "/api/stripe/hooks" request

@@ -1,15 +1,9 @@
 (ns sysrev.test.browser.sources
-  (:require [clj-webdriver.taxi :as taxi]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [clojure.test :refer :all]
-            [clojure.tools.logging :as log]
+  (:require [clojure.test :refer [is use-fixtures]]
             [sysrev.test.core :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.test.browser.pubmed :as pm]
-            [sysrev.project.core :as project]))
+            [sysrev.test.browser.pubmed :as pm]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

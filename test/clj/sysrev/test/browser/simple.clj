@@ -1,13 +1,9 @@
 (ns sysrev.test.browser.simple
-  (:require [clojure.test :refer :all]
-            [clojure.spec.alpha :as s]
-            [clojure.tools.logging :as log]
-            [clj-webdriver.taxi :as taxi]
+  (:require [clojure.test :refer [is use-fixtures]]
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.pubmed :as pm]
-            [clojure.string :as str]))
+            [sysrev.test.browser.pubmed :as pm]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -51,11 +47,9 @@
           (nav/go-project-route "/settings" :project-id project-id))
 
         (is (b/exists? {:css "a#log-out-link"}))))
-
-  :cleanup
-  (do (nav/delete-current-project)
-      (nav/log-out)
-      (is (b/exists? "div#login-register-panel"))))
+  :cleanup (do (nav/delete-current-project)
+               (nav/log-out)
+               (is (b/exists? "div#login-register-panel"))))
 
 (deftest-browser terms-of-use
   true []

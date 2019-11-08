@@ -1,11 +1,9 @@
 (ns sysrev.test.browser.review-settings
-  (:require [clojure.test :refer :all]
-            [clojure.tools.logging :as log]
+  (:require [clojure.test :refer [is use-fixtures]]
             [sysrev.project.core :as project]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
-            [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]))
 
@@ -67,8 +65,6 @@
       (is (b/exists? "#project_project_overview"))
       (nav/go-project-route "/articles")
       (is (b/exists? ".article-list-view .list-pager")))
-
-  :cleanup
-  (do (some-> @project-id (project/delete-project))
-      (doseq [email test-users]
-        (b/delete-test-user :email email))))
+  :cleanup (do (some-> @project-id (project/delete-project))
+               (doseq [email test-users]
+                 (b/delete-test-user :email email))))
