@@ -12,7 +12,7 @@ print_usage() {
     echo " "
     echo "options:"
     echo "-h  show this help section"
-    echo "-c  when false, don't compile clojurescript before teting. defaults to true"
+    echo "-c  when false, don't compile clojurescript before testing. defaults to true"
     echo "-n  a single namespace to test, defaults to all of them"
 }
 

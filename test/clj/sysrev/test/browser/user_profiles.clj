@@ -39,15 +39,6 @@
 (def avatar (xpath "//div[@data-tooltip='Change Your Avatar']"))
 (def upload-button (xpath "//button[contains(text(),'Upload Profile Image')]"))
 
-(def image-base64
-  (->> "test-files/demo-1.jpg" io/resource io/file util/slurp-bytes util/bytes->base64))
-
-;; http://blog.fermium.io/how-to-send-files-to-a-dropzone-js-element-in-selenium/
-(def upload-image-blob-js
-  (str "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e}); c.name='testfile.png'; return c} "
-       (format "return sysrev.util.add_dropzone_file_blob(base64toBlob, '%s');"
-               image-base64)))
-
 (defn private-project-names []
   (b/get-elements-text (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/a")))
 
@@ -253,7 +244,7 @@
       (b/click avatar :displayed? true :delay 100)
       ;; "upload" file
       (log/info "uploading image")
-      (taxi/execute-script upload-image-blob-js)
+      (b/dropzone-upload "test-files/demo-1.jpg")
       (log/info "waiting until displayed")
       ;; set position of avatar
       (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]"))

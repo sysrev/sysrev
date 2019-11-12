@@ -2,10 +2,13 @@
   (:require [clojure.test :refer [is use-fixtures]]
             [clojure.java.io :as io]
             [clj-webdriver.taxi :as taxi]
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.db.query-types :as qt]
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
+            [sysrev.test.browser.xpath :refer [xpath]]
             [sysrev.source.import :as import]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
@@ -106,8 +109,30 @@
       (b/is-soon (taxi/exists? "a.column.article-title")))
   :cleanup (b/cleanup-test-user! :email (:email b/test-login)))
 
-#_(deftest-browser import-ris-file
-    true
-    [project-name "SysRev Browser Test (import-ris-file)"]
-    (do (nav/log-in)
-        (nav/new-project project-name)))
+(deftest-browser import-ris-file
+  true
+  [project-name "SysRev Browser Test (import-ris-file)"
+   title "Long Short-Term Memory"]
+  (do (nav/log-in)
+      (nav/new-project project-name)
+      (b/click (xpath "//a[contains(text(),'RIS File')]"))
+      (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
+      (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
+      (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'10')]")))
+      (nav/go-project-route "/articles" :wait-ms 100)
+      (b/click (xpath "//div[contains(@class,'article-title') and text()='" title "']"))
+      (let [project-id (b/current-project-id)
+            ;; below should be replaced by article search
+            ;; text once that is completed
+            article-id (-> (qt/find-article {:a.project-id project-id :ad.title title } [:a.article-id])
+                           first :article-id)
+            {:keys [authors abstract primary-title secondary-title date]} (ds-api/get-article-content article-id)
+            abstract-excerpt "Learning to store information over extended time intervals"]
+        (is (b/exists? (xpath "//span[text()='" primary-title "']")))
+        (is (b/exists? (xpath "//span[text()='" secondary-title "']")))
+        (is (b/exists? (xpath "//h5[text()='" date "']")))
+        (is (b/exists? (xpath "//h5[text()='" (clojure.string/join ", " authors) "']")))
+        (is (b/exists? (xpath "//span[contains(text(),'" abstract-excerpt  "')]")))
+        (is (= abstract
+               (first (b/get-elements-text (xpath "//span[contains(text(),'" abstract-excerpt  "')]"))))))
+      :cleanup (b/cleanup-test-user! :email (:email b/test-login))))
