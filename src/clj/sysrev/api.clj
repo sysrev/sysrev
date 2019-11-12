@@ -190,6 +190,13 @@
   (wrap-import-api #(import/import-pdf-zip
                      project-id {:file file :filename filename} options)))
 
+(defn import-articles-from-ris-file
+  "Import articles from a RIS file."
+  [project-id file filename & {:keys [threads] :as options}]
+  {:result {:success true}}
+  (wrap-import-api #(import/import-ris
+                     project-id {:file file :filename filename} options)))
+
 (s/def ::sources vector?)
 
 (defn-spec project-sources (req-un ::sources)

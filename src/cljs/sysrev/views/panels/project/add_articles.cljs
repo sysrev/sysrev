@@ -38,8 +38,8 @@
               :source-id source-id
               :enabled? enabled?})
   :process
-  (fn [_ [project-id _ _] {:keys [success] :as result}]
-    (if success
+  (fn [_ [project-id _ _] {:keys [success] :as _result}]
+    (when success
       {:dispatch-n
        (list [:reload [:review/task project-id]]
              [:reload [:project project-id]]
@@ -110,6 +110,18 @@
       (str "/api/import-articles/pdf-zip/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
       "Upload Zip File..."
+      (cond-> "fluid"
+        (any-source-processing?) (str " disabled"))]]))
+
+(defn ImportRISView []
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div.ui.segment.import-upload
+     [:h5
+      "Upload a RIS file"]
+     [ui/UploadButton
+      (str "/api/import-articles/ris/" project-id)
+      #(dispatch [:reload [:project/sources project-id]])
+      "Upload RIS file..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
 
@@ -418,12 +430,15 @@
         [{:tab-id :pubmed
           :content (if full-size? "PubMed Search" "PubMed")
           :action #(reset! import-tab :pubmed)}
-         {:tab-id :pmid
-          :content "PMIDs"
-          :action #(reset! import-tab :pmid)}
+         {:tab-id :ris-file
+          :content "RIS File"
+          :action #(reset! import-tab :ris-file)}
          {:tab-id :endnote
           :content (if full-size? "EndNote XML" "EndNote")
           :action #(reset! import-tab :endnote)}
+         {:tab-id :pmid
+          :content "PMIDs"
+          :action #(reset! import-tab :pmid)}
          {:tab-id :zip-file
           :content "PDF Files"
           :action #(reset! import-tab :zip-file)}]
@@ -434,7 +449,8 @@
          :pubmed   [pubmed/SearchBar]
          :pmid     [ImportPMIDsView]
          :endnote  [ImportEndNoteView]
-         :zip-file [ImportPDFZipsView])]
+         :zip-file [ImportPDFZipsView]
+         :ris-file [ImportRISView])]
       (when (= active-tab :pubmed)
         [pubmed/SearchActions (any-source-processing?)])]
      (when (= active-tab :pubmed)

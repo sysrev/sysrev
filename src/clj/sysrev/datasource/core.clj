@@ -44,6 +44,7 @@
 
 (defn project-source-meta->article-type [meta]
   (condp = (:source meta)
+    "RIS file"         ["academic"  "RIS"]
     "PubMed search"    ["academic"  "pubmed"]
     "PMID vector"      ["academic"  "pubmed"]
     "PMID file"        ["academic"  "pubmed"]
@@ -57,6 +58,7 @@
   (condp = article-type
     "academic"   (condp = article-subtype
                    "pubmed"   "pubmed"
+                   "RIS" "RIS"
                    nil)
     nil))
 

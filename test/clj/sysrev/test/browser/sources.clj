@@ -6,7 +6,6 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.project.core :as project]
             [sysrev.source.import :as import]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
@@ -106,3 +105,9 @@
       (b/click ".ui.menu > .item.articles" :delay 100)
       (b/is-soon (taxi/exists? "a.column.article-title")))
   :cleanup (b/cleanup-test-user! :email (:email b/test-login)))
+
+#_(deftest-browser import-ris-file
+    true
+    [project-name "SysRev Browser Test (import-ris-file)"]
+    (do (nav/log-in)
+        (nav/new-project project-name)))

@@ -1,0 +1,1222 @@
+TY  - JOUR
+TI  - Long Short-Term Memory
+T2  - Neural Computation
+SP  - 1735
+EP  - 1780
+AU  - S. Hochreiter
+AU  - J. Schmidhuber
+PY  - 1997
+DO  - 10.1162/neco.1997.9.8.1735
+JO  - Neural Computation
+IS  - 8
+SN  - 
+VO  - 9
+VL  - 9
+JA  - Neural Computation
+Y1  - 15 Nov. 1997
+AB  - Learning to store information over extended time intervals by recurrent backpropagation takes a very long time, mostly because of insufficient, decaying error backflow. We briefly review Hochreiter's (1991) analysis of this problem, then address it by introducing a novel, efficient, gradient based method called long short-term memory (LSTM). Truncating the gradient where this does not do harm, LSTM can learn to bridge minimal time lags in excess of 1000 discrete-time steps by enforcing constant error flow through constant error carousels within special units. Multiplicative gate units learn to open and close access to the constant error flow. LSTM is local in space and time; its computational complexity per time step and weight is O. 1. Our experiments with artificial data involve local, distributed, real-valued, and noisy pattern representations. In comparisons with real-time recurrent learning, back propagation through time, recurrent cascade correlation, Elman nets, and neural sequence chunking, LSTM leads to many more successful runs, and learns much faster. LSTM also solves complex, artificial long-time-lag tasks that have never been solved by previous recurrent network algorithms.
+ER  - 
+
+TY  - CONF
+TI  - Hybrid speech recognition with Deep Bidirectional LSTM
+T2  - 2013 IEEE Workshop on Automatic Speech Recognition and Understanding
+SP  - 273
+EP  - 278
+AU  - A. Graves
+AU  - N. Jaitly
+AU  - A. Mohamed
+PY  - 2013
+KW  - acoustic signal processing
+KW  - error statistics
+KW  - Gaussian processes
+KW  - recurrent neural nets
+KW  - speech recognition
+KW  - hybrid speech recognition
+KW  - deep bidirectional LSTM
+KW  - recurrent neural networks
+KW  - TIMIT speech database
+KW  - recurrent-neural-network-specific objective functions
+KW  - vocabulary speech recognition systems
+KW  - neural network-HMM hybrid system
+KW  - DBLSTM-HMM hybrid
+KW  - GMM
+KW  - deep network benchmarks
+KW  - Wall Street Journal corpus
+KW  - word error rate
+KW  - framelevel accuracy
+KW  - acoustic modelling
+KW  - frame-level accuracy
+KW  - Training
+KW  - Hidden Markov models
+KW  - Noise
+KW  - Acoustics
+KW  - Vectors
+KW  - Context
+KW  - Speech recognition
+KW  - DBLSTM
+KW  - HMM-RNN hybrid
+DO  - 10.1109/ASRU.2013.6707742
+JO  - 2013 IEEE Workshop on Automatic Speech Recognition and Understanding
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2013 IEEE Workshop on Automatic Speech Recognition and Understanding
+Y1  - 8-12 Dec. 2013
+AB  - Deep Bidirectional LSTM (DBLSTM) recurrent neural networks have recently been shown to give state-of-the-art performance on the TIMIT speech database. However, the results in that work relied on recurrent-neural-network-specific objective functions, which are difficult to integrate with existing large vocabulary speech recognition systems. This paper investigates the use of DBLSTM as an acoustic model in a standard neural network-HMM hybrid system. We find that a DBLSTM-HMM hybrid gives equally good results on TIMIT as the previous work. It also outperforms both GMM and deep network benchmarks on a subset of the Wall Street Journal corpus. However the improvement in word error rate over the deep network is modest, despite a great increase in framelevel accuracy. We conclude that the hybrid approach with DBLSTM appears to be well suited for tasks where acoustic modelling predominates. Further investigation needs to be conducted to understand how to better leverage the improvements in frame-level accuracy towards better word error rates.
+ER  - 
+
+TY  - JOUR
+TI  - Learning to Forget: Continual Prediction with LSTM
+T2  - Neural Computation
+SP  - 2451
+EP  - 2471
+AU  - F. A. Gers
+AU  - J. Schmidhuber
+AU  - F. Cummins
+PY  - 2000
+DO  - 10.1162/089976600300015015
+JO  - Neural Computation
+IS  - 10
+SN  - 
+VO  - 12
+VL  - 12
+JA  - Neural Computation
+Y1  - 1 Oct. 2000
+AB  - Long short-term memory (LSTM; Hochreiter & Schmidhuber, 1997) can solve numerous tasks not solvable by previous learning algorithms for recurrent neural networks (RNNs). We identify a weakness of LSTM networks processing continual input streams that are not a priori segmented into subsequences with explicitly marked ends at which the network's internal state could be reset. Without resets, the state may grow indefinitely and eventually cause the network to break down. Our remedy is a novel, adaptive “forget gate” that enables an LSTM cell to learn to reset itself at appropriate times, thus releasing internal resources. We review illustrative benchmark problems on which standard LSTM outperforms other RNN algorithms. All algorithms (including LSTM) fail to solve continual versions of these problems. LSTM with forget gates, however, easily solves them, and in an elegant way.
+ER  - 
+
+TY  - CONF
+TI  - Sequence to Sequence -- Video to Text
+T2  - 2015 IEEE International Conference on Computer Vision (ICCV)
+SP  - 4534
+EP  - 4542
+AU  - S. Venugopalan
+AU  - M. Rohrbach
+AU  - J. Donahue
+AU  - R. Mooney
+AU  - T. Darrell
+AU  - K. Saenko
+PY  - 2015
+KW  - image sequences
+KW  - learning (artificial intelligence)
+KW  - recurrent neural nets
+KW  - text analysis
+KW  - video signal processing
+KW  - real-world videos
+KW  - open-domain video descriptions
+KW  - temporal structure
+KW  - variable length input
+KW  - variable length output
+KW  - frame sequence
+KW  - word sequence
+KW  - end-to-end sequence-to-sequence model
+KW  - video captions
+KW  - recurrent neural networks
+KW  - image caption generation
+KW  - LSTM model
+KW  - video-sentence pairs
+KW  - video frame sequence
+KW  - video clip
+KW  - temporal structure learning
+KW  - language model
+KW  - visual features
+KW  - YouTube videos
+KW  - movie description dataset
+KW  - M-VAD dataset
+KW  - MPII-MD dataset
+KW  - sequence-to-sequence video-to-text approach
+KW  - S2VT approach
+KW  - Decoding
+KW  - Encoding
+KW  - Feature extraction
+KW  - Visualization
+KW  - Recurrent neural networks
+KW  - Optical imaging
+KW  - Mathematical model
+DO  - 10.1109/ICCV.2015.515
+JO  - 2015 IEEE International Conference on Computer Vision (ICCV)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE International Conference on Computer Vision (ICCV)
+Y1  - 7-13 Dec. 2015
+AB  - Real-world videos often have complex dynamics, methods for generating open-domain video descriptions should be sensitive to temporal structure and allow both input (sequence of frames) and output (sequence of words) of variable length. To approach this problem we propose a novel end-to-end sequence-to-sequence model to generate captions for videos. For this we exploit recurrent neural networks, specifically LSTMs, which have demonstrated state-of-the-art performance in image caption generation. Our LSTM model is trained on video-sentence pairs and learns to associate a sequence of video frames to a sequence of words in order to generate a description of the event in the video clip. Our model naturally is able to learn the temporal structure of the sequence of frames as well as the sequence model of the generated sentences, i.e. a language model. We evaluate several variants of our model that exploit different visual features on a standard set of YouTube videos and two movie description datasets (M-VAD and MPII-MD).
+ER  - 
+
+TY  - JOUR
+TI  - LSTM: A Search Space Odyssey
+T2  - IEEE Transactions on Neural Networks and Learning Systems
+SP  - 2222
+EP  - 2232
+AU  - K. Greff
+AU  - R. K. Srivastava
+AU  - J. Koutník
+AU  - B. R. Steunebrink
+AU  - J. Schmidhuber
+PY  - 2017
+KW  - handwriting recognition
+KW  - learning (artificial intelligence)
+KW  - recurrent neural nets
+KW  - search problems
+KW  - speech recognition
+KW  - statistical analysis
+KW  - LSTM
+KW  - search space odyssey
+KW  - long short-term memory architecture
+KW  - recurrent neural networks
+KW  - machine learning problems
+KW  - speech recognition
+KW  - handwriting recognition
+KW  - polyphonic music modeling
+KW  - analysis of variance framework
+KW  - random search
+KW  - Logic gates
+KW  - Computer architecture
+KW  - Training
+KW  - Microprocessors
+KW  - Speech recognition
+KW  - Handwriting recognition
+KW  - Recurrent neural networks
+KW  - Functional ANalysis Of VAriance (fANOVA)
+KW  - long short-term memory (LSTM)
+KW  - random search
+KW  - recurrent neural networks
+KW  - sequence learning
+DO  - 10.1109/TNNLS.2016.2582924
+JO  - IEEE Transactions on Neural Networks and Learning Systems
+IS  - 10
+SN  - 
+VO  - 28
+VL  - 28
+JA  - IEEE Transactions on Neural Networks and Learning Systems
+Y1  - Oct. 2017
+AB  - Several variants of the long short-term memory (LSTM) architecture for recurrent neural networks have been proposed since its inception in 1995. In recent years, these networks have become the state-of-the-art models for a variety of machine learning problems. This has led to a renewed interest in understanding the role and utility of various computational components of typical LSTM variants. In this paper, we present the first large-scale analysis of eight LSTM variants on three representative tasks: speech recognition, handwriting recognition, and polyphonic music modeling. The hyperparameters of all LSTM variants for each task were optimized separately using random search, and their importance was assessed using the powerful functional ANalysis Of VAriance framework. In total, we summarize the results of 5400 experimental runs (≈15 years of CPU time), which makes our study the largest of its kind on LSTM networks. Our results show that none of the variants can improve upon the standard LSTM architecture significantly, and demonstrate the forget gate and the output activation function to be its most critical components. We further observe that the studied hyperparameters are virtually independent and derive guidelines for their efficient adjustment.
+ER  - 
+
+TY  - CONF
+TI  - Beyond short snippets: Deep networks for video classification
+T2  - 2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+SP  - 4694
+EP  - 4702
+AU  - Joe Yue-Hei Ng
+AU  - M. Hausknecht
+AU  - S. Vijayanarasimhan
+AU  - O. Vinyals
+AU  - R. Monga
+AU  - G. Toderici
+PY  - 2015
+KW  - image classification
+KW  - image recognition
+KW  - image segmentation
+KW  - image sequences
+KW  - neural nets
+KW  - object detection
+KW  - video signal processing
+KW  - video classification
+KW  - short snippets
+KW  - convolutional neural networks
+KW  - CNN
+KW  - image recognition problems
+KW  - deep neural network architectures
+KW  - image information
+KW  - full length videos
+KW  - convolutional temporal feature pooling architectures
+KW  - long short-term memory cells
+KW  - LSTM
+KW  - UCF-101 datasets
+KW  - sports 1 million dataset
+KW  - optical flow information
+KW  - Optical imaging
+KW  - Computer architecture
+KW  - Logic gates
+KW  - Training
+KW  - Time-domain analysis
+KW  - Neural networks
+KW  - Image recognition
+DO  - 10.1109/CVPR.2015.7299101
+JO  - 2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+Y1  - 7-12 June 2015
+AB  - Convolutional neural networks (CNNs) have been extensively applied for image recognition problems giving state-of-the-art results on recognition, detection, segmentation and retrieval. In this work we propose and evaluate several deep neural network architectures to combine image information across a video over longer time periods than previously attempted. We propose two methods capable of handling full length videos. The first method explores various convolutional temporal feature pooling architectures, examining the various design choices which need to be made when adapting a CNN for this task. The second proposed method explicitly models the video as an ordered sequence of frames. For this purpose we employ a recurrent neural network that uses Long Short-Term Memory (LSTM) cells which are connected to the output of the underlying CNN. Our best networks exhibit significant performance improvements over previously published results on the Sports 1 million dataset (73.1% vs. 60.9%) and the UCF-101 datasets with (88.6% vs. 88.0%) and without additional optical flow information (82.6% vs. 73.0%).
+ER  - 
+
+TY  - CONF
+TI  - Social LSTM: Human Trajectory Prediction in Crowded Spaces
+T2  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+SP  - 961
+EP  - 971
+AU  - A. Alahi
+AU  - K. Goel
+AU  - V. Ramanathan
+AU  - A. Robicquet
+AU  - L. Fei-Fei
+AU  - S. Savarese
+PY  - 2016
+KW  - behavioural sciences computing
+KW  - collision avoidance
+KW  - mobile robots
+KW  - motion compensation
+KW  - navigation
+KW  - pedestrians
+KW  - recurrent neural nets
+KW  - social sciences computing
+KW  - social LSTM
+KW  - human trajectory prediction
+KW  - crowded spaces
+KW  - pedestrians
+KW  - obstacle avoidance
+KW  - autonomous vehicle navigation
+KW  - collision avoidance
+KW  - recurrent neural network
+KW  - RNN
+KW  - hand-crafted functions
+KW  - motion behaviour
+KW  - Trajectory
+KW  - Predictive models
+KW  - Recurrent neural networks
+KW  - Videos
+KW  - Forecasting
+KW  - Navigation
+KW  - Atmospheric modeling
+DO  - 10.1109/CVPR.2016.110
+JO  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+Y1  - 27-30 June 2016
+AB  - Pedestrians follow different trajectories to avoid obstacles and accommodate fellow pedestrians. Any autonomous vehicle navigating such a scene should be able to foresee the future positions of pedestrians and accordingly adjust its path to avoid collisions. This problem of trajectory prediction can be viewed as a sequence generation task, where we are interested in predicting the future trajectory of people based on their past positions. Following the recent success of Recurrent Neural Network (RNN) models for sequence prediction tasks, we propose an LSTM model which can learn general human movement and predict their future trajectories. This is in contrast to traditional approaches which use hand-crafted functions such as Social forces. We demonstrate the performance of our method on several public datasets. Our model outperforms state-of-the-art methods on some of these datasets. We also analyze the trajectories predicted by our model to demonstrate the motion behaviour learned by our model.
+ER  - 
+
+TY  - CONF
+TI  - Convolutional, Long Short-Term Memory, fully connected Deep Neural Networks
+T2  - 2015 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+SP  - 4580
+EP  - 4584
+AU  - T. N. Sainath
+AU  - O. Vinyals
+AU  - A. Senior
+AU  - H. Sak
+PY  - 2015
+KW  - neural nets
+KW  - speech recognition
+KW  - long short-term memory
+KW  - convolutional memory
+KW  - fully connected deep neural networks
+KW  - CNN
+KW  - convolutional neural networks
+KW  - LSTM
+KW  - DNN
+KW  - speech recognition
+KW  - frequency variations
+KW  - Training
+KW  - Hidden Markov models
+KW  - Neural networks
+KW  - Context
+KW  - Speech recognition
+KW  - Noise measurement
+KW  - Speech
+DO  - 10.1109/ICASSP.2015.7178838
+JO  - 2015 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+Y1  - 19-24 April 2015
+AB  - Both Convolutional Neural Networks (CNNs) and Long Short-Term Memory (LSTM) have shown improvements over Deep Neural Networks (DNNs) across a wide variety of speech recognition tasks. CNNs, LSTMs and DNNs are complementary in their modeling capabilities, as CNNs are good at reducing frequency variations, LSTMs are good at temporal modeling, and DNNs are appropriate for mapping features to a more separable space. In this paper, we take advantage of the complementarity of CNNs, LSTMs and DNNs by combining them into one unified architecture. We explore the proposed architecture, which we call CLDNN, on a variety of large vocabulary tasks, varying from 200 to 2,000 hours. We find that the CLDNN provides a 4-6% relative improvement in WER over an LSTM, the strongest of the three individual models.
+ER  - 
+
+TY  - JOUR
+TI  - LSTM recurrent networks learn simple context-free and context-sensitive languages
+T2  - IEEE Transactions on Neural Networks
+SP  - 1333
+EP  - 1340
+AU  - F. A. Gers
+AU  - E. Schmidhuber
+PY  - 2001
+KW  - recurrent neural nets
+KW  - learning (artificial intelligence)
+KW  - context-free languages
+KW  - context-sensitive languages
+KW  - regular languages
+KW  - long short-term memory
+KW  - recurrent neural networks
+KW  - context-free language
+KW  - context-sensitive language
+KW  - Recurrent neural networks
+KW  - Hidden Markov models
+KW  - Delay effects
+KW  - Backpropagation algorithms
+KW  - Resonance light scattering
+KW  - Learning automata
+KW  - Neural networks
+KW  - State-space methods
+KW  - Bridges
+KW  - Computational complexity
+DO  - 10.1109/72.963769
+JO  - IEEE Transactions on Neural Networks
+IS  - 6
+SN  - 
+VO  - 12
+VL  - 12
+JA  - IEEE Transactions on Neural Networks
+Y1  - Nov. 2001
+AB  - Previous work on learning regular languages from exemplary training sequences showed that long short-term memory (LSTM) outperforms traditional recurrent neural networks (RNNs). We demonstrate LSTMs superior performance on context-free language benchmarks for RNNs, and show that it works even better than previous hardwired or highly specialized architectures. To the best of our knowledge, LSTM variants are also the first RNNs to learn a simple context-sensitive language, namely a/sup n/b/sup n/c/sup n/.
+ER  - 
+
+TY  - JOUR
+TI  - Deep Sentence Embedding Using Long Short-Term Memory Networks: Analysis and Application to Information Retrieval
+T2  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+SP  - 694
+EP  - 707
+AU  - H. Palangi
+AU  - L. Deng
+AU  - Y. Shen
+AU  - J. Gao
+AU  - X. He
+AU  - J. Chen
+AU  - X. Song
+AU  - R. Ward
+PY  - 2016
+KW  - document handling
+KW  - information retrieval
+KW  - natural language processing
+KW  - recurrent neural nets
+KW  - search engines
+KW  - deep sentence embedding
+KW  - long short-term memory networks
+KW  - information retrieval
+KW  - natural language processing research
+KW  - recurrent neural networks
+KW  - LSTM-RNN model
+KW  - semantic representation
+KW  - weakly supervised manner
+KW  - commercial Web search engine
+KW  - automatic keyword detection
+KW  - Web document retrieval tasks
+KW  - Semantics
+KW  - Recurrent neural networks
+KW  - Web search
+KW  - Data visualization
+KW  - IEEE transactions
+KW  - Speech
+KW  - Speech processing
+KW  - Deep Learning
+KW  - Long Short-Term Memory
+KW  - Sentence Embedding
+KW  - Deep learning
+KW  - long short-term memory
+KW  - sentence embedding
+DO  - 10.1109/TASLP.2016.2520371
+JO  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+IS  - 4
+SN  - 
+VO  - 24
+VL  - 24
+JA  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+Y1  - April 2016
+AB  - This paper develops a model that addresses sentence embedding, a hot topic in current natural language processing research, using recurrent neural networks (RNN) with Long Short-Term Memory (LSTM) cells. The proposed LSTM-RNN model sequentially takes each word in a sentence, extracts its information, and embeds it into a semantic vector. Due to its ability to capture long term memory, the LSTM-RNN accumulates increasingly richer information as it goes through the sentence, and when it reaches the last word, the hidden layer of the network provides a semantic representation of the whole sentence. In this paper, the LSTM-RNN is trained in a weakly supervised manner on user click-through data logged by a commercial web search engine. Visualization and analysis are performed to understand how the embedding process works. The model is found to automatically attenuate the unimportant words and detect the salient keywords in the sentence. Furthermore, these detected keywords are found to automatically activate different cells of the LSTM-RNN, where words belonging to a similar topic activate the same cell. As a semantic representation of the sentence, the embedding vector can be used in many different applications. These automatic keyword detection and topic allocation abilities enabled by the LSTM-RNN allow the network to perform document retrieval, a difficult language processing task, where the similarity between the query and documents can be measured by the distance between their corresponding sentence embedding vectors computed by the LSTM-RNN. On a web search task, the LSTM-RNN embedding is shown to significantly outperform several existing state of the art methods. We emphasize that the proposed model generates sentence embedding vectors that are specially useful for web document retrieval tasks. A comparison with a well known general sentence embedding method, the Paragraph Vector, is performed. The results show that the proposed method in this paper significantly outperforms Paragraph Vector method for web document retrieval task.
+ER  - 
+
+TY  - CONF
+TI  - Adieu features? End-to-end speech emotion recognition using a deep convolutional recurrent network
+T2  - 2016 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+SP  - 5200
+EP  - 5204
+AU  - G. Trigeorgis
+AU  - F. Ringeval
+AU  - R. Brueckner
+AU  - E. Marchi
+AU  - M. A. Nicolaou
+AU  - B. Schuller
+AU  - S. Zafeiriou
+PY  - 2016
+KW  - emotion recognition
+KW  - learning (artificial intelligence)
+KW  - recurrent neural nets
+KW  - speech recognition
+KW  - end-to-end speech emotion recognition
+KW  - deep convolutional recurrent network
+KW  - acoustic features
+KW  - machine learning algorithms
+KW  - long short-term memory neworks
+KW  - LSTM networks
+KW  - feature extraction
+KW  - CNN
+KW  - raw time representation
+KW  - RECOLA database
+KW  - Speech
+KW  - Convolution
+KW  - Feature extraction
+KW  - Speech recognition
+KW  - Acoustics
+KW  - Neural networks
+KW  - Emotion recognition
+KW  - end-to-end learning
+KW  - raw waveform
+KW  - emotion recognition
+KW  - deep learning
+KW  - CNN
+KW  - LSTM
+DO  - 10.1109/ICASSP.2016.7472669
+JO  - 2016 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2016 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+Y1  - 20-25 March 2016
+AB  - The automatic recognition of spontaneous emotions from speech is a challenging task. On the one hand, acoustic features need to be robust enough to capture the emotional content for various styles of speaking, and while on the other, machine learning algorithms need to be insensitive to outliers while being able to model the context. Whereas the latter has been tackled by the use of Long Short-Term Memory (LSTM) networks, the former is still under very active investigations, even though more than a decade of research has provided a large set of acoustic descriptors. In this paper, we propose a solution to the problem of `context-aware' emotional relevant feature extraction, by combining Convolutional Neural Networks (CNNs) with LSTM networks, in order to automatically learn the best representation of the speech signal directly from the raw time representation. In this novel work on the so-called end-to-end speech emotion recognition, we show that the use of the proposed topology significantly outperforms the traditional approaches based on signal processing techniques for the prediction of spontaneous and natural emotions on the RECOLA database.
+ER  - 
+
+TY  - CONF
+TI  - Differential Recurrent Neural Networks for Action Recognition
+T2  - 2015 IEEE International Conference on Computer Vision (ICCV)
+SP  - 4041
+EP  - 4049
+AU  - V. Veeriah
+AU  - N. Zhuang
+AU  - G. Qi
+PY  - 2015
+KW  - image motion analysis
+KW  - image recognition
+KW  - image sequences
+KW  - learning (artificial intelligence)
+KW  - recurrent neural nets
+KW  - spatiotemporal phenomena
+KW  - time series
+KW  - differential recurrent neural networks
+KW  - action recognition
+KW  - long short-term memory neural network
+KW  - LSTM neural network
+KW  - complex sequential information processing
+KW  - long input sequences
+KW  - sequential time-series data
+KW  - complex dynamics learning
+KW  - spatiotemporal dynamics
+KW  - salient motion patterns
+KW  - differential gating
+KW  - information gain
+KW  - derivative of states
+KW  - DoS
+KW  - dRNN
+KW  - 2D human action datasets
+KW  - 3D human action datasets
+KW  - complex time-series representation learning
+KW  - Logic gates
+KW  - Computer architecture
+KW  - Recurrent neural networks
+KW  - Microprocessors
+KW  - Three-dimensional displays
+KW  - Dynamics
+KW  - Integrated circuit modeling
+DO  - 10.1109/ICCV.2015.460
+JO  - 2015 IEEE International Conference on Computer Vision (ICCV)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE International Conference on Computer Vision (ICCV)
+Y1  - 7-13 Dec. 2015
+AB  - The long short-term memory (LSTM) neural network is capable of processing complex sequential information since it utilizes special gating schemes for learning representations from long input sequences. It has the potential to model any time-series or sequential data, where the current hidden state has to be considered in the context of the past hidden states. This property makes LSTM an ideal choice to learn the complex dynamics of various actions. Unfortunately, the conventional LSTMs do not consider the impact of spatio-temporal dynamics corresponding to the given salient motion patterns, when they gate the information that ought to be memorized through time. To address this problem, we propose a differential gating scheme for the LSTM neural network, which emphasizes on the change in information gain caused by the salient motions between the successive frames. This change in information gain is quantified by Derivative of States (DoS), and thus the proposed LSTM model is termed as differential Recurrent Neural Network (dRNN). We demonstrate the effectiveness of the proposed model by automatically recognizing actions from the real-world 2D and 3D human action datasets. Our study is one of the first works towards demonstrating the potential of learning complex time-series representations via high-order derivatives of states.
+ER  - 
+
+TY  - JOUR
+TI  - Deep Recurrent Neural Networks for Hyperspectral Image Classification
+T2  - IEEE Transactions on Geoscience and Remote Sensing
+SP  - 3639
+EP  - 3655
+AU  - L. Mou
+AU  - P. Ghamisi
+AU  - X. X. Zhu
+PY  - 2017
+KW  - data analysis
+KW  - geophysical techniques
+KW  - hyperspectral imaging
+KW  - image classification
+KW  - neural nets
+KW  - deep recurrent neural networks
+KW  - hyperspectral image classification method
+KW  - vector-based machine learning algorithms
+KW  - random forests
+KW  - support vector machines
+KW  - 1-D convolutional neural networks
+KW  - hyperspectral image classification
+KW  - information loss
+KW  - hyperspectral pixels
+KW  - sequence-based data structure
+KW  - deep learning family
+KW  - sequential data
+KW  - sequence-based RNN model
+KW  - information categories
+KW  - network reasoning
+KW  - parametric rectified tanh
+KW  - activation function
+KW  - hyperspectral sequential data analysis
+KW  - rectified linear unit
+KW  - modified gated recurrent unit
+KW  - hyperspectral data process
+KW  - airborne hyperspectral images
+KW  - network architecture
+KW  - Hyperspectral imaging
+KW  - Recurrent neural networks
+KW  - Logic gates
+KW  - Support vector machines
+KW  - Data models
+KW  - Convolutional neural network (CNN)
+KW  - deep learning
+KW  - gated recurrent unit (GRU)
+KW  - hyperspectral image classification
+KW  - long short-term memory (LSTM)
+KW  - recurrent neural network (RNN)
+DO  - 10.1109/TGRS.2016.2636241
+JO  - IEEE Transactions on Geoscience and Remote Sensing
+IS  - 7
+SN  - 
+VO  - 55
+VL  - 55
+JA  - IEEE Transactions on Geoscience and Remote Sensing
+Y1  - July 2017
+AB  - In recent years, vector-based machine learning algorithms, such as random forests, support vector machines, and 1-D convolutional neural networks, have shown promising results in hyperspectral image classification. Such methodologies, nevertheless, can lead to information loss in representing hyperspectral pixels, which intrinsically have a sequence-based data structure. A recurrent neural network (RNN), an important branch of the deep learning family, is mainly designed to handle sequential data. Can sequence-based RNN be an effective method of hyperspectral image classification? In this paper, we propose a novel RNN model that can effectively analyze hyperspectral pixels as sequential data and then determine information categories via network reasoning. As far as we know, this is the first time that an RNN framework has been proposed for hyperspectral image classification. Specifically, our RNN makes use of a newly proposed activation function, parametric rectified tanh (PRetanh), for hyperspectral sequential data analysis instead of the popular tanh or rectified linear unit. The proposed activation function makes it possible to use fairly high learning rates without the risk of divergence during the training procedure. Moreover, a modified gated recurrent unit, which uses PRetanh for hidden representation, is adopted to construct the recurrent layer in our network to efficiently process hyperspectral data and reduce the total number of parameters. Experimental results on three airborne hyperspectral images suggest competitive performance in the proposed mode. In addition, the proposed network architecture opens a new window for future research, showcasing the huge potential of deep recurrent networks for hyperspectral data analysis.
+ER  - 
+
+TY  - JOUR
+TI  - Analysis of EEG Signals and Facial Expressions for Continuous Emotion Detection
+T2  - IEEE Transactions on Affective Computing
+SP  - 17
+EP  - 28
+AU  - M. Soleymani
+AU  - S. Asghari-Esfeden
+AU  - Y. Fu
+AU  - M. Pantic
+PY  - 2016
+KW  - electroencephalography
+KW  - emotion recognition
+KW  - face recognition
+KW  - random processes
+KW  - recurrent neural nets
+KW  - video signal processing
+KW  - EEG signal analysis
+KW  - facial expression analysis
+KW  - continuous emotion detection
+KW  - time varying affective phenomena
+KW  - elicit emotions
+KW  - viewer emotion detection
+KW  - video emotional traces
+KW  - video viewer emotion detection
+KW  - electroencephalogram signals
+KW  - physiological responses
+KW  - negative emotions
+KW  - positive emotions
+KW  - valence annotation
+KW  - arousal dimension
+KW  - long-short-term-memory recurrent neural networks
+KW  - LSTM-RNN
+KW  - continuous conditional random fields
+KW  - CCRF
+KW  - facial muscle activities
+KW  - statistical analysis
+KW  - Videos
+KW  - Electroencephalography
+KW  - Feature extraction
+KW  - Motion pictures
+KW  - Databases
+KW  - Tagging
+KW  - Recurrent neural networks
+KW  - Affect
+KW  - EEG
+KW  - facial expressions
+KW  - video highlight detection
+KW  - implicit tagging
+KW  - Affect
+KW  - EEG
+KW  - facial expressions
+KW  - video highlight detection
+KW  - implicit tagging
+DO  - 10.1109/TAFFC.2015.2436926
+JO  - IEEE Transactions on Affective Computing
+IS  - 1
+SN  - 
+VO  - 7
+VL  - 7
+JA  - IEEE Transactions on Affective Computing
+Y1  - 1 Jan.-March 2016
+AB  - Emotions are time varying affective phenomena that are elicited as a result of stimuli. Videos and movies in particular are made to elicit emotions in their audiences. Detecting the viewers' emotions instantaneously can be used to find the emotional traces of videos. In this paper, we present our approach in instantaneously detecting the emotions of video viewers' emotions from electroencephalogram (EEG) signals and facial expressions. A set of emotion inducing videos were shown to participants while their facial expressions and physiological responses were recorded. The expressed valence (negative to positive emotions) in the videos of participants' faces were annotated by five annotators. The stimuli videos were also continuously annotated on valence and arousal dimensions. Long-short-term-memory recurrent neural networks (LSTM-RNN) and continuous conditional random fields (CCRF) were utilized in detecting emotions automatically and continuously. We found the results from facial expressions to be superior to the results from EEG signals. We analyzed the effect of the contamination of facial muscle activities on EEG signals and found that most of the emotionally valuable content in EEG features are as a result of this contamination. However, our statistical analysis showed that EEG signals still carry complementary information in presence of facial expressions.
+ER  - 
+
+TY  - CONF
+TI  - Jointly Modeling Embedding and Translation to Bridge Video and Language
+T2  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+SP  - 4594
+EP  - 4602
+AU  - Y. Pan
+AU  - T. Mei
+AU  - T. Yao
+AU  - H. Li
+AU  - Y. Rui
+PY  - 2016
+KW  - computer vision
+KW  - language translation
+KW  - natural language processing
+KW  - video signal processing
+KW  - bridge video embedding
+KW  - language translation
+KW  - automatic video content description
+KW  - natural language
+KW  - computer vision
+KW  - recurrent neural networks
+KW  - RNN
+KW  - visual interpretation
+KW  - sentence semantics
+KW  - visual content
+KW  - long short-term memory with visual-semantic embedding
+KW  - LSTM-E
+KW  - LSTM learning
+KW  - word generation probability maximization
+KW  - visual-semantic embedding space
+KW  - YouTube2Text dataset
+KW  - natural sentence generation
+KW  - BLEU@4
+KW  - METEOR
+KW  - movie description datasets
+KW  - M-VAD
+KW  - MPII-MD
+KW  - subject-verb-object triplet prediction
+KW  - SVO triplets
+KW  - Semantics
+KW  - Visualization
+KW  - Coherence
+KW  - Neural networks
+KW  - Feature extraction
+KW  - Loss measurement
+KW  - Computer vision
+DO  - 10.1109/CVPR.2016.497
+JO  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+Y1  - 27-30 June 2016
+AB  - Automatically describing video content with natural language is a fundamental challenge of computer vision. Re-current Neural Networks (RNNs), which models sequence dynamics, has attracted increasing attention on visual interpretation. However, most existing approaches generate a word locally with the given previous words and the visual content, while the relationship between sentence semantics and visual content is not holistically exploited. As a result, the generated sentences may be contextually correct but the semantics (e.g., subjects, verbs or objects) are not true. This paper presents a novel unified framework, named Long Short-Term Memory with visual-semantic Embedding (LSTM-E), which can simultaneously explore the learning of LSTM and visual-semantic embedding. The former aims to locally maximize the probability of generating the next word given previous words and visual content, while the latter is to create a visual-semantic embedding space for enforcing the relationship between the semantics of the entire sentence and visual content. The experiments on YouTube2Text dataset show that our proposed LSTM-E achieves to-date the best published performance in generating natural sentences: 45.3% and 31.0% in terms of BLEU@4 and METEOR, respectively. Superior performances are also reported on two movie description datasets (M-VAD and MPII-MD). In addition, we demonstrate that LSTM-E outperforms several state-of-the-art techniques in predicting Subject-Verb-Object (SVO) triplets.
+ER  - 
+
+TY  - CONF
+TI  - Recurrent nets that time and count
+T2  - Proceedings of the IEEE-INNS-ENNS International Joint Conference on Neural Networks. IJCNN 2000. Neural Computing: New Challenges and Perspectives for the New Millennium
+SP  - 189
+EP  - 194 vol.3
+AU  - F. A. Gers
+AU  - J. Schmidhuber
+PY  - 2000
+KW  - recurrent neural nets
+KW  - counting circuits
+KW  - learning (artificial intelligence)
+KW  - sequences
+KW  - timing
+KW  - recurrent neural networks
+KW  - RNN
+KW  - timing
+KW  - counting
+KW  - time intervals
+KW  - sequential tasks
+KW  - motor control
+KW  - rhythm detection
+KW  - long short-term memory
+KW  - LSTM
+KW  - peephole connections
+KW  - internal cells
+KW  - multiplicative gates
+KW  - discrete time steps
+KW  - stable sequences
+KW  - highly-nonlinear precisely-timed spike sequences
+KW  - Hidden Markov models
+KW  - Recurrent neural networks
+KW  - Rhythm
+KW  - World Wide Web
+KW  - Motor drives
+KW  - Event detection
+KW  - Performance loss
+KW  - Humans
+KW  - Pattern recognition
+KW  - Delay
+DO  - 10.1109/IJCNN.2000.861302
+JO  - Proceedings of the IEEE-INNS-ENNS International Joint Conference on Neural Networks. IJCNN 2000. Neural Computing: New Challenges and Perspectives for the New Millennium
+IS  - 
+SN  - 
+VO  - 3
+VL  - 3
+JA  - Proceedings of the IEEE-INNS-ENNS International Joint Conference on Neural Networks. IJCNN 2000. Neural Computing: New Challenges and Perspectives for the New Millennium
+Y1  - 27-27 July 2000
+AB  - The size of the time intervals between events conveys information essential for numerous sequential tasks such as motor control and rhythm detection. While hidden Markov models tend to ignore this information, recurrent neural networks (RNN) can in principle learn to make use of it. We focus on long short-term memory (LSTM) because it usually outperforms other RNN. Surprisingly, LSTM augmented by "peephole connections" from its internal cells to its multiplicative gates can learn the fine distinction between sequences of spikes separated by either 50 or 49 discrete time steps, without the help of any short training exemplars. Without external resets or teacher forcing or loss of performance on tasks reported earlier, our LSTM variant also learns to generate very stable sequences of highly nonlinear, precisely timed spikes. This makes LSTM a promising approach for real-world tasks that require to time and count.
+ER  - 
+
+TY  - CONF
+TI  - Phase-sensitive and recognition-boosted speech separation using deep recurrent neural networks
+T2  - 2015 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+SP  - 708
+EP  - 712
+AU  - H. Erdogan
+AU  - J. R. Hershey
+AU  - S. Watanabe
+AU  - J. Le Roux
+PY  - 2015
+KW  - recurrent neural nets
+KW  - speech recognition
+KW  - recognition-boosted speech separation
+KW  - deep recurrent neural networks
+KW  - nonstationary interference
+KW  - signal-approximation based objective function
+KW  - phase-sensitive objective function
+KW  - signal reconstruction
+KW  - bidirectional recurrent networks
+KW  - speech recognition
+KW  - Speech
+KW  - Speech recognition
+KW  - Noise measurement
+KW  - Signal to noise ratio
+KW  - Linear programming
+KW  - Speech enhancement
+KW  - Training
+KW  - speech enhancement
+KW  - speech separation
+KW  - deep networks
+KW  - LSTM
+KW  - ASR
+DO  - 10.1109/ICASSP.2015.7178061
+JO  - 2015 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)
+Y1  - 19-24 April 2015
+AB  - Separation of speech embedded in non-stationary interference is a challenging problem that has recently seen dramatic improvements using deep network-based methods. Previous work has shown that estimating a masking function to be applied to the noisy spectrum is a viable approach that can be improved by using a signal-approximation based objective function. Better modeling of dynamics through deep recurrent networks has also been shown to improve performance. Here we pursue both of these directions. We develop a phase-sensitive objective function based on the signal-to-noise ratio (SNR) of the reconstructed signal, and show that in experiments it yields uniformly better results in terms of signal-to-distortion ratio (SDR). We also investigate improvements to the modeling of dynamics, using bidirectional recurrent networks, as well as by incorporating speech recognition outputs in the form of alignment vectors concatenated with the spectral input features. Both methods yield further improvements, pointing to tighter integration of recognition with separation as a promising future direction.
+ER  - 
+
+TY  - CONF
+TI  - Scene labeling with LSTM recurrent neural networks
+T2  - 2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+SP  - 3547
+EP  - 3555
+AU  - W. Byeon
+AU  - T. M. Breuel
+AU  - F. Raue
+AU  - M. Liwicki
+PY  - 2015
+KW  - computational complexity
+KW  - graphics processing units
+KW  - image classification
+KW  - image colour analysis
+KW  - image segmentation
+KW  - image sequences
+KW  - learning (artificial intelligence)
+KW  - natural scenes
+KW  - recurrent neural nets
+KW  - scene labeling
+KW  - LSTM recurrent neural network
+KW  - pixel-level segmentation
+KW  - scene image classification
+KW  - learning-based approach
+KW  - long short term memory recurrent neural network
+KW  - sequence classification
+KW  - 2D LSTM network
+KW  - natural scene image
+KW  - complex spatial dependency
+KW  - image segmentation
+KW  - context integration
+KW  - spatial model parameter
+KW  - local contextual information
+KW  - global contextual information
+KW  - RGB value
+KW  - complex scene image
+KW  - computational complexity
+KW  - Stanford background
+KW  - SIFT flow dataset
+KW  - single-core central processing unit
+KW  - CPU
+KW  - graphics processing unit
+KW  - GPU
+KW  - feature map
+KW  - image processing
+KW  - Weaving
+KW  - Feedforward neural networks
+KW  - Roads
+KW  - Accuracy
+DO  - 10.1109/CVPR.2015.7298977
+JO  - 2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+Y1  - 7-12 June 2015
+AB  - This paper addresses the problem of pixel-level segmentation and classification of scene images with an entirely learning-based approach using Long Short Term Memory (LSTM) recurrent neural networks, which are commonly used for sequence classification. We investigate two-dimensional (2D) LSTM networks for natural scene images taking into account the complex spatial dependencies of labels. Prior methods generally have required separate classification and image segmentation stages and/or pre- and post-processing. In our approach, classification, segmentation, and context integration are all carried out by 2D LSTM networks, allowing texture and spatial model parameters to be learned within a single model. The networks efficiently capture local and global contextual information over raw RGB values and adapt well for complex scene images. Our approach, which has a much lower computational complexity than prior methods, achieved state-of-the-art performance over the Stanford Background and the SIFT Flow datasets. In fact, if no pre- or post-processing is applied, LSTM networks outperform other state-of-the-art approaches. Hence, only with a single-core Central Processing Unit (CPU), the running time of our approach is equivalent or better than the compared state-of-the-art approaches which use a Graphics Processing Unit (GPU). Finally, our networks' ability to visualize feature maps from each layer supports the hypothesis that LSTM networks are overall suited for image processing tasks.
+ER  - 
+
+TY  - JOUR
+TI  - Deep Learning for an Effective Nonorthogonal Multiple Access Scheme
+T2  - IEEE Transactions on Vehicular Technology
+SP  - 8440
+EP  - 8450
+AU  - G. Gui
+AU  - H. Huang
+AU  - Y. Song
+AU  - H. Sari
+PY  - 2018
+KW  - AWGN channels
+KW  - channel coding
+KW  - computational complexity
+KW  - decoding
+KW  - learning (artificial intelligence)
+KW  - multi-access systems
+KW  - telecommunication computing
+KW  - wireless channels
+KW  - offline learning
+KW  - current input data
+KW  - online learning process
+KW  - additive white Gaussian noise channel
+KW  - conventional user activity
+KW  - data detection scheme
+KW  - data detection capacity
+KW  - LSTM-aided NOMA scheme
+KW  - effective nonorthogonal multiple access scheme
+KW  - essential multiple access technique
+KW  - system capacity
+KW  - spectral efficiency
+KW  - future communication scenarios
+KW  - high computational complexity
+KW  - wireless channel
+KW  - NOMA users
+KW  - base station
+KW  - input signals
+KW  - wireless NOMA channels
+KW  - end-to-end manner
+KW  - completely unknown channel environment
+KW  - short-term memory network
+KW  - channel characteristics
+KW  - channel conditions
+KW  - NOMA systems
+KW  - ideal allocation methods
+KW  - NOMA
+KW  - Machine learning
+KW  - Resource management
+KW  - Reliability
+KW  - Wireless communication
+KW  - Channel estimation
+KW  - Training
+KW  - Non-orthogonal multiple access (NOMA)
+KW  - long short-term memory (LSTM)
+KW  - deep learning
+DO  - 10.1109/TVT.2018.2848294
+JO  - IEEE Transactions on Vehicular Technology
+IS  - 9
+SN  - 
+VO  - 67
+VL  - 67
+JA  - IEEE Transactions on Vehicular Technology
+Y1  - Sept. 2018
+AB  - Nonorthogonal multiple access (NOMA) has been considered as an essential multiple access technique for enhancing system capacity and spectral efficiency in future communication scenarios. However, the existing NOMA systems have a fundamental limit: high computational complexity and a sharply changing wireless channel make exploiting the characteristics of the channel and deriving the ideal allocation methods very difficult tasks. To break this fundamental limit, in this paper, we propose a novel and effective deep learning (DL)-aided NOMA system, in which several NOMA users with random deployment are served by one base station. Since DL is advantageous in that it allows training the input signals and detecting sharply changing channel conditions, we exploit it to address wireless NOMA channels in an end-to-end manner. Specifically, it is employed in the proposed NOMA system to learn a completely unknown channel environment. A long short-term memory (LSTM) network based on DL is incorporated into a typical NOMA system, enabling the proposed scheme to detect the channel characteristics automatically. In the proposed strategy, the LSTM is first trained by simulated data under different channel conditions via offline learning, and then the corresponding output data can be obtained based on the current input data used during the online learning process. In general, we build, train and test the proposed cooperative framework to realize automatic encoding, decoding and channel detection in an additive white Gaussian noise channel. Furthermore, we regard one conventional user activity and data detection scheme as an unknown nonlinear mapping operation and use LSTM to approximate it to evaluate the data detection capacity of DL based on NOMA. Simulation results demonstrate that the proposed scheme is robust and efficient compared with conventional approaches. In addition, the accuracy of the LSTM-aided NOMA scheme is studied by introducing the well-known tenfold cross-validation procedure.
+ER  - 
+
+TY  - JOUR
+TI  - From Feedforward to Recurrent LSTM Neural Networks for Language Modeling
+T2  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+SP  - 517
+EP  - 529
+AU  - M. Sundermeyer
+AU  - H. Ney
+AU  - R. Schlüter
+PY  - 2015
+KW  - error statistics
+KW  - feedforward neural nets
+KW  - linguistics
+KW  - natural language processing
+KW  - recurrent neural nets
+KW  - speech recognition
+KW  - vocabulary
+KW  - feedforward LSTM neural networks
+KW  - recurrent LSTM neural networks
+KW  - language modeling
+KW  - count models
+KW  - long short-term memory neural network
+KW  - large-vocabulary speech recognition tasks
+KW  - perplexity
+KW  - word error rate
+KW  - quantities correlation
+KW  - computational complexity
+KW  - context dependences
+KW  - word lattices
+KW  - Lattices
+KW  - Feedforward neural networks
+KW  - Recurrent neural networks
+KW  - Context
+KW  - Training
+KW  - Speech
+KW  - Feedforward neural network
+KW  - Kneser-Ney smoothing
+KW  - language modeling
+KW  - long short-term memory (LSTM)
+KW  - recurrent neural network (RNN)
+DO  - 10.1109/TASLP.2015.2400218
+JO  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+IS  - 3
+SN  - 
+VO  - 23
+VL  - 23
+JA  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+Y1  - March 2015
+AB  - Language models have traditionally been estimated based on relative frequencies, using count statistics that can be extracted from huge amounts of text data. More recently, it has been found that neural networks are particularly powerful at estimating probability distributions over word sequences, giving substantial improvements over state-of-the-art count models. However, the performance of neural network language models strongly depends on their architectural structure. This paper compares count models to feedforward, recurrent, and long short-term memory (LSTM) neural network variants on two large-vocabulary speech recognition tasks. We evaluate the models in terms of perplexity and word error rate, experimentally validating the strong correlation of the two quantities, which we find to hold regardless of the underlying type of the language model. Furthermore, neural networks incur an increased computational complexity compared to count models, and they differently model context dependences, often exceeding the number of words that are taken into account by count based approaches. These differences require efficient search methods for neural networks, and we analyze the potential improvements that can be obtained when applying advanced algorithms to the rescoring of word lattices on large-scale setups.
+ER  - 
+
+TY  - CONF
+TI  - Guiding the Long-Short Term Memory Model for Image Caption Generation
+T2  - 2015 IEEE International Conference on Computer Vision (ICCV)
+SP  - 2407
+EP  - 2415
+AU  - X. Jia
+AU  - E. Gavves
+AU  - B. Fernando
+AU  - T. Tuytelaars
+PY  - 2015
+KW  - feature extraction
+KW  - image processing
+KW  - modelling
+KW  - semantic networks
+KW  - long-short term memory model
+KW  - LSTM model
+KW  - image caption generation
+KW  - semantic information extraction
+KW  - length normalization strategy
+KW  - Semantics
+KW  - Computer architecture
+KW  - Logic gates
+KW  - Microprocessors
+KW  - Visualization
+KW  - Training
+KW  - Pipelines
+DO  - 10.1109/ICCV.2015.277
+JO  - 2015 IEEE International Conference on Computer Vision (ICCV)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE International Conference on Computer Vision (ICCV)
+Y1  - 7-13 Dec. 2015
+AB  - In this work we focus on the problem of image caption generation. We propose an extension of the long short term memory (LSTM) model, which we coin gLSTM for short. In particular, we add semantic information extracted from the image as extra input to each unit of the LSTM block, with the aim of guiding the model towards solutions that are more tightly coupled to the image content. Additionally, we explore different length normalization strategies for beam search to avoid bias towards short sentences. On various benchmark datasets such as Flickr8K, Flickr30K and MS COCO, we obtain results that are on par with or better than the current state-of-the-art.
+ER  - 
+
+TY  - CONF
+TI  - A Multi-stream Bi-directional Recurrent Neural Network for Fine-Grained Action Detection
+T2  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+SP  - 1961
+EP  - 1970
+AU  - B. Singh
+AU  - T. K. Marks
+AU  - M. Jones
+AU  - O. Tuzel
+AU  - M. Shao
+PY  - 2016
+KW  - gesture recognition
+KW  - image resolution
+KW  - image sequences
+KW  - recurrent neural nets
+KW  - multistream bidirectional recurrent neural network
+KW  - fine-grained action detection
+KW  - twostream convolutional neural networks
+KW  - stacked optical flow
+KW  - action recognition
+KW  - pixel trajectories
+KW  - bi-directional long short-term memory layer
+KW  - LSTM network
+KW  - video sequence
+KW  - MPII cooking 2 dataset
+KW  - MERL shopping dataset
+KW  - Trajectory
+KW  - Optical imaging
+KW  - Bidirectional control
+KW  - Neural networks
+KW  - Tracking
+KW  - Optical computing
+KW  - Streaming media
+DO  - 10.1109/CVPR.2016.216
+JO  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+Y1  - 27-30 June 2016
+AB  - We present a multi-stream bi-directional recurrent neural network for fine-grained action detection. Recently, twostream convolutional neural networks (CNNs) trained on stacked optical flow and image frames have been successful for action recognition in videos. Our system uses a tracking algorithm to locate a bounding box around the person, which provides a frame of reference for appearance and motion and also suppresses background noise that is not within the bounding box. We train two additional streams on motion and appearance cropped to the tracked bounding box, along with full-frame streams. Our motion streams use pixel trajectories of a frame as raw features, in which the displacement values corresponding to a moving scene point are at the same spatial position across several frames. To model long-term temporal dynamics within and between actions, the multi-stream CNN is followed by a bi-directional Long Short-Term Memory (LSTM) layer. We show that our bi-directional LSTM network utilizes about 8 seconds of the video sequence to predict an action label. We test on two action detection datasets: the MPII Cooking 2 Dataset, and a new MERL Shopping Dataset that we introduce and make available to the community with this paper. The results demonstrate that our method significantly outperforms state-of-the-art action detection methods on both datasets.
+ER  - 
+
+TY  - CONF
+TI  - Recurrent Network Models for Human Dynamics
+T2  - 2015 IEEE International Conference on Computer Vision (ICCV)
+SP  - 4346
+EP  - 4354
+AU  - K. Fragkiadaki
+AU  - S. Levine
+AU  - P. Felsen
+AU  - J. Malik
+PY  - 2015
+KW  - data handling
+KW  - decoding
+KW  - image motion analysis
+KW  - image sequences
+KW  - learning (artificial intelligence)
+KW  - pose estimation
+KW  - recurrent neural nets
+KW  - spatiotemporal phenomena
+KW  - video coding
+KW  - recurrent network models
+KW  - human dynamics
+KW  - encoder-recurrent-decoder model
+KW  - ERD model
+KW  - human body pose prediction
+KW  - human body pose recognition
+KW  - recurrent neural network
+KW  - nonlinear encoder-decoder networks
+KW  - ERD architectures
+KW  - motion capture generation
+KW  - mocap generation
+KW  - body pose labeling
+KW  - body pose forecasting
+KW  - mocap training data handling
+KW  - motion synthesis
+KW  - human pose labeling
+KW  - body part detector
+KW  - video pose forecasting
+KW  - temporal horizon
+KW  - first order motion model
+KW  - optical flow
+KW  - long short term memory models
+KW  - LSTM models
+KW  - representation learning
+KW  - space-time labeling
+KW  - spatiotemporal visual domain
+KW  - Videos
+KW  - Hidden Markov models
+KW  - Predictive models
+KW  - Forecasting
+KW  - Labeling
+KW  - Visualization
+KW  - Decoding
+DO  - 10.1109/ICCV.2015.494
+JO  - 2015 IEEE International Conference on Computer Vision (ICCV)
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2015 IEEE International Conference on Computer Vision (ICCV)
+Y1  - 7-13 Dec. 2015
+AB  - We propose the Encoder-Recurrent-Decoder (ERD) model for recognition and prediction of human body pose in videos and motion capture. The ERD model is a recurrent neural network that incorporates nonlinear encoder and decoder networks before and after recurrent layers. We test instantiations of ERD architectures in the tasks of motion capture (mocap) generation, body pose labeling and body pose forecasting in videos. Our model handles mocap training data across multiple subjects and activity domains, and synthesizes novel motions while avoiding drifting for long periods of time. For human pose labeling, ERD outperforms a per frame body part detector by resolving left-right body part confusions. For video pose forecasting, ERD predicts body joint displacements across a temporal horizon of 400ms and outperforms a first order motion model based on optical flow. ERDs extend previous Long Short Term Memory (LSTM) models in the literature to jointly learn representations and their dynamics. Our experiments show such representation learning is crucial for both labeling and prediction in space-time. We find this is a distinguishing feature between the spatio-temporal visual domain in comparison to 1D text, speech or handwriting, where straightforward hard coded representations have shown excellent results when directly combined with recurrent units [31].
+ER  - 
+
+TY  - JOUR
+TI  - Combining Long Short-Term Memory and Dynamic Bayesian Networks for Incremental Emotion-Sensitive Artificial Listening
+T2  - IEEE Journal of Selected Topics in Signal Processing
+SP  - 867
+EP  - 881
+AU  - M. Wöllmer
+AU  - B. Schuller
+AU  - F. Eyben
+AU  - G. Rigoll
+PY  - 2010
+KW  - emotion recognition
+KW  - recurrent neural nets
+KW  - long short-term memory
+KW  - dynamic Bayesian networks
+KW  - incremental emotion-sensitive artificial listening
+KW  - virtual agents
+KW  - emotional state recognition
+KW  - sensitive artificial listener
+KW  - two-dimensional emotional space
+KW  - hierarchical dynamic Bayesian network
+KW  - linguistic keyword features
+KW  - recurrent neural networks
+KW  - model phoneme context
+KW  - emotional history
+KW  - average inter-labeler consistency
+KW  - Bayesian methods
+KW  - Emotion recognition
+KW  - Speech analysis
+KW  - Humans
+KW  - Acoustic signal detection
+KW  - Computer vision
+KW  - Recurrent neural networks
+KW  - Context modeling
+KW  - Predictive models
+KW  - History
+KW  - Dynamic Bayesian networks (DBNs)
+KW  - emotion recognition
+KW  - intelligent environments
+KW  - long short-term memory (LSTM)
+KW  - recurrent neural nets
+KW  - virtual agents
+DO  - 10.1109/JSTSP.2010.2057200
+JO  - IEEE Journal of Selected Topics in Signal Processing
+IS  - 5
+SN  - 
+VO  - 4
+VL  - 4
+JA  - IEEE Journal of Selected Topics in Signal Processing
+Y1  - Oct. 2010
+AB  - The automatic estimation of human affect from the speech signal is an important step towards making virtual agents more natural and human-like. In this paper, we present a novel technique for incremental recognition of the user's emotional state as it is applied in a sensitive artificial listener (SAL) system designed for socially competent human-machine communication. Our method is capable of using acoustic, linguistic, as well as long-range contextual information in order to continuously predict the current quadrant in a two-dimensional emotional space spanned by the dimensions valence and activation. The main system components are a hierarchical dynamic Bayesian network (DBN) for detecting linguistic keyword features and long short-term memory (LSTM) recurrent neural networks which model phoneme context and emotional history to predict the affective state of the user. Experimental evaluations on the SAL corpus of non-prototypical real-life emotional speech data consider a number of variants of our recognition framework: continuous emotion estimation from low-level feature frames is evaluated as a new alternative to the common approach of computing statistical functionals of given speech turns. Further performance gains are achieved by discriminatively training LSTM networks and by using bidirectional context information, leading to a quadrant prediction F1-measure of up to 51.3 %, which is only 7.6 % below the average inter-labeler consistency.
+ER  - 
+
+TY  - JOUR
+TI  - Very Deep Convolutional Neural Networks for Noise Robust Speech Recognition
+T2  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+SP  - 2263
+EP  - 2276
+AU  - Y. Qian
+AU  - M. Bi
+AU  - T. Tan
+AU  - K. Yu
+PY  - 2016
+KW  - recurrent neural nets
+KW  - speech recognition
+KW  - very deep convolutional neural networks
+KW  - noise robust speech recognition
+KW  - automatic speech recognition
+KW  - noisy environments
+KW  - computer vision
+KW  - CNN architecture
+KW  - filters
+KW  - compact model scale
+KW  - fast convergence speed
+KW  - noise robustness
+KW  - word error rate
+KW  - WER
+KW  - long short-term memory recurrent neural networks
+KW  - LSTM-RNN acoustic model
+KW  - Speech recognition
+KW  - Convolution
+KW  - Neural networks
+KW  - Noise measurement
+KW  - Noise robustness
+KW  - Convolutional neural networks
+KW  - very deep CNNs
+KW  - robust speech recognition
+KW  - acoustic modeling
+DO  - 10.1109/TASLP.2016.2602884
+JO  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+IS  - 12
+SN  - 
+VO  - 24
+VL  - 24
+JA  - IEEE/ACM Transactions on Audio, Speech, and Language Processing
+Y1  - Dec. 2016
+AB  - Although great progress has been made in automatic speech recognition, significant performance degradation still exists in noisy environments. Recently, very deep convolutional neural networks (CNNs) have been successfully applied to computer vision and speech recognition tasks. Based on our previous work on very deep CNNs, in this paper this architecture is further developed to improve recognition accuracy for noise robust speech recognition. In the proposed very deep CNN architecture, we study the best configuration for the sizes of filters, pooling, and input feature maps: the sizes of filters and poolings are reduced and dimensions of input features are extended to allow for adding more convolutional layers. Then the appropriate pooling, padding, and input feature map selection strategies are investigated and applied to the very deep CNN to make it more robust for speech recognition. In addition, an in-depth analysis of the architecture reveals key characteristics, such as compact model scale, fast convergence speed, and noise robustness. The proposed new model is evaluated on two tasks: Aurora4 task with multiple additive noise types and channel mismatch, and the AMI meeting transcription task with significant reverberation. Experiments on both tasks show that the proposed very deep CNNs can significantly reduce word error rate (WER) for noise robust speech recognition. The best architecture obtains a 10.0% relative reduction over the traditional CNN on AMI, competitive with the long short-term memory recurrent neural networks (LSTM-RNN) acoustic model. On Aurora4, even without feature enhancement, model adaptation, and sequence training, it achieves a WER of 8.81%, a 17.0% relative improvement over the LSTM-RNN. To our knowledge, this is the best published result on Aurora4.
+ER  - 
+
+

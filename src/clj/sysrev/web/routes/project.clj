@@ -329,6 +329,12 @@
                   {:keys [tempfile filename]} (get-in request [:params :file])]
               (api/import-articles-from-pdf-zip-file project-id tempfile filename)))))
 
+(dr (POST "/api/import-articles/ris/:project-id" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  {:keys [tempfile filename]} (get-in request [:params :file])]
+              (api/import-articles-from-ris-file project-id tempfile filename)))))
+
 ;;;
 ;;; Article review
 ;;;

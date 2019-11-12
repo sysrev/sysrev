@@ -3,16 +3,16 @@
             [orchestra.core :refer [defn-spec]]
             [clojure.data.json :as json]
             [clj-http.client :as http]
+            [medley.core :refer [map-kv map-vals]]
             [venia.core :as venia]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.query-types :as qt]
-            [sysrev.datasource.core :as ds]
             [sysrev.shared.util :as sutil :refer
              [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys]]))
 
 ;; for clj-kondo
-(declare fetch-pubmed-articles fetch-nct-entries get-articles-content)
+(declare fetch-pubmed-articles fetch-nct-entries get-articles-content fetch-ris-articles-by-ids)
 
 (defonce ds-host-override (atom nil))
 (defonce ds-auth-key-override (atom nil))
@@ -88,6 +88,25 @@
                      :fields (concat [:id :pmid] (or fields (all-pubmed-fields)))})
          (sutil/index-by :pmid))))
 
+(defn fetch-ris-articles-by-hash
+  "Queries datasource API to get article data for sequence `pmids`,
+   returning a map of {pmid article}."
+  [hash]
+  (->> (venia/graphql-query {:venia/queries [[:risFileCitationsByFileHash {:hash hash}
+                                              [:TI :T1 :id]]]})
+       (run-ds-query)
+       :body :data :risFileCitationsByFileHash))
+
+(defn-spec fetch-ris-articles-by-ids (s/map-of int? map?)
+  "Queries datasource API to get article data for sequence `ids`,
+   returning a map of {id article}."
+  [ids ::pmids, & {:keys [fields]} (opt-keys ::fields) ]
+  (let [ids (mapv parse-integer ids)]
+    (->> (venia/graphql-query {:venia/queries [[:risFileCitationsByIds {:ids ids}
+                                                [:TI :T1 :T2 :Y1 :AB :AU :DA :KW :id]]]})
+         (run-ds-query)
+         :body :data :risFileCitationsByIds)))
+
 (defn fetch-pubmed-article
   "Queries datasource API to get article data map for a single `pmid`."
   [pmid & {:as opts}]
@@ -112,6 +131,57 @@
   (-> (apply-keyargs fetch-nct-entries [nctid] opts)
       (get nctid)))
 
+(defmulti enrich-articles (fn [datasource _coll] datasource))
+
+(defmethod enrich-articles "default"
+  [_ coll]
+  (->> coll
+       (mapv #(merge (:content %)
+                     (select-keys % [:article-id :project-id])))))
+
+(defmethod enrich-articles "pubmed"
+  [_ coll]
+  (let [data (->> coll
+                  (map :external-id)
+                  fetch-pubmed-articles)]
+    (->> coll (mapv #(merge (get data (-> % :external-id parse-integer))
+                            (select-keys % [:article-id :project-id]))))))
+
+(defmethod enrich-articles "RIS" [_ coll]
+  (let [process-data (fn [m]
+                       (let [{:keys [TI T1 T2 Y1 AB KW id]} (map-vals (partial clojure.string/join ",") m)
+                             AU (:AU m)]
+                         {:primary-tile (or TI T1)
+                          :secondary-title T2
+                          :date Y1
+                          :abstract AB
+                          :authors AU
+                          :id (parse-integer id)
+                          :keywords KW}))
+        data (->> coll
+                  (map :external-id)
+                  fetch-ris-articles-by-ids
+                  (map #(assoc % :id
+                               [(:id %)]))
+                  (map process-data)
+                  (sutil/index-by :id))]
+    (->> coll (mapv #(merge (get data (-> % :external-id parse-integer))
+                            (select-keys % [:article-id :project-id]))))))
+
+(defn enrich-articles-with-datasource
+  "Given a coll of articles with `:datasource-name` and `:external-id` keys, enrich with content from datasource.
+  For every `:datasource-name` value, an `enrich-articles` method should be written. The `enrich-articles` method
+  takes a coll of articles and enriches them with additional data"
+  [coll]
+  (->> coll
+       (group-by :datasource-name)
+       (map-kv (fn [k v]
+                 (if (get (methods enrich-articles) k)
+                   [k (some->> v (enrich-articles k))]
+                   [k (some->> v (enrich-articles "default"))])))
+       vals
+       flatten))
+
 (defn-spec get-articles-content (s/map-of int? map?)
   "Returns map of {id content} for `article-ids`, automatically taking
    content for each article from either datasource API or local
@@ -119,16 +189,9 @@
   [article-ids (s/every int?)]
   (let [articles (qt/find-article {:article-id article-ids}
                                   [:a.* :datasource-name :external-id :content]
-                                  :include-disabled true)
-        pmids (sort (->> articles
-                         (map #(when (ds/pubmed-data? %)
-                                 (parse-integer (:external-id %))))
-                         (remove nil?)))
-        data (some-> (seq pmids) fetch-pubmed-articles)]
+                                  :include-disabled true)]
     (->> articles
-         (mapv #(merge (or (get data (-> % :external-id parse-integer))
-                           (:content %))
-                       (select-keys % [:article-id :project-id])))
+         enrich-articles-with-datasource
          (sutil/index-by :article-id))))
 
 (defn get-article-content
@@ -148,3 +211,14 @@
     (->> (partition-all 1000 source-pmids)
          (pmap do-search)
          (apply concat))))
+
+(defn create-ris-file
+  "Given a file and filename, create a RIS file citation on datasource."
+  [{:keys [file filename]}]
+  (http/post (str (ds-host) "/files/ris")
+             {:headers (auth-header)
+              :multipart [{:name "filename" :content filename}
+                          {:name "file" :content file}]
+              :as :json
+              :coerce :always
+              :throw-exceptions false}))

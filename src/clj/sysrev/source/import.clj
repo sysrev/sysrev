@@ -25,3 +25,7 @@
 (defn import-pdf-zip
   [project-id {:keys [file filename] :as input} & [{:as options}]]
   (import-source :pdf-zip project-id input options))
+
+(defn import-ris
+  [project-id {:keys [file filename] :as input} & [{:as options}]]
+  (import-source :ris project-id input options))

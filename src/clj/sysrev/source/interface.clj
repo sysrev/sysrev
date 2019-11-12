@@ -178,6 +178,11 @@
   `:external-id` should be provided for article types that reference
   an external datasource.
 
+  Note: The `:external-id`s will only be processed, when the
+  `:article-type` and `:article-subtype` are defined in
+  `sysrev.datasource.core/datasource-name-for-type`,
+  otherwise they will be ignored
+
   `prepare-article` is an optional function that will be applied to
   transform article values when inserting to database.
 
