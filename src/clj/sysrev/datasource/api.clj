@@ -103,7 +103,7 @@
   [ids]
   (let [ids (mapv parse-integer ids)]
     (->> (venia/graphql-query {:venia/queries [[:risFileCitationsByIds {:ids ids}
-                                                [:TI :T1 :T2 :Y1 :AB :AU :DA :KW :id]]]})
+                                                [:TI :T1 :T2 :Y1 :AB :AU :A1 :DA :KW :JO :id]]]})
          (run-ds-query)
          :body :data :risFileCitationsByIds)))
 
@@ -149,13 +149,14 @@
 
 (defmethod enrich-articles "RIS" [_ coll]
   (let [process-data (fn [m]
-                       (let [{:keys [TI T1 T2 Y1 AB KW id]} (map-vals (partial clojure.string/join ",") m)
-                             AU (:AU m)]
-                         {:primary-title (or TI T1)
-                          :secondary-title T2
-                          :date Y1
+                       (let [{:keys [TI T1 T2 Y1 DA AB KW JO id]} (map-vals (partial clojure.string/join ",") m)
+                             AU (:AU m)
+                             A1 (:A1 m)]
+                         {:primary-title (last (sort-by count [TI T1]))
+                          :secondary-title (last (sort-by count [T2 JO]))
+                          :date (last (sort-by count [Y1 DA]))
                           :abstract AB
-                          :authors AU
+                          :authors (last (sort-by count [AU A1]))
                           :id (parse-integer id)
                           :keywords KW}))
         data (->> coll
