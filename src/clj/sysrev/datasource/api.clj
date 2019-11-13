@@ -97,16 +97,6 @@
        (run-ds-query)
        :body :data :risFileCitationsByFileHash))
 
-(defn fetch-ris-articles-by-ids
-  "Queries datasource API to get article data for sequence `ids`,
-   returning a map of {id article}."
-  [ids]
-  (let [ids (mapv parse-integer ids)]
-    (->> (venia/graphql-query {:venia/queries [[:risFileCitationsByIds {:ids ids}
-                                                [:TI :T1 :T2 :Y1 :AB :AU :A1 :DA :KW :JO :id]]]})
-         (run-ds-query)
-         :body :data :risFileCitationsByIds)))
-
 (defn fetch-pubmed-article
   "Queries datasource API to get article data map for a single `pmid`."
   [pmid & {:as opts}]
@@ -147,14 +137,24 @@
     (->> coll (mapv #(merge (get data (-> % :external-id parse-integer))
                             (select-keys % [:article-id :project-id]))))))
 
+(defn fetch-ris-articles-by-ids
+  "Queries datasource API to get article data for sequence `ids`,
+   returning a map of {id article}."
+  [ids]
+  (let [ids (mapv parse-integer ids)]
+    (->> (venia/graphql-query {:venia/queries [[:risFileCitationsByIds {:ids ids}
+                                                [:TI :T1 :T2 :Y1 :AB :AU :A1 :DA :KW :JO :PY :id]]]})
+         (run-ds-query)
+         :body :data :risFileCitationsByIds)))
+
 (defmethod enrich-articles "RIS" [_ coll]
   (let [process-data (fn [m]
-                       (let [{:keys [TI T1 T2 Y1 DA AB KW JO id]} (map-vals (partial clojure.string/join ",") m)
+                       (let [{:keys [TI T1 T2 Y1 PY DA AB KW JO id]} (map-vals (partial clojure.string/join ",") m)
                              AU (:AU m)
                              A1 (:A1 m)]
                          {:primary-title (last (sort-by count [TI T1]))
                           :secondary-title (last (sort-by count [T2 JO]))
-                          :date (last (sort-by count [Y1 DA]))
+                          :date (last (sort-by count [Y1 DA PY]))
                           :abstract AB
                           :authors (last (sort-by count [AU A1]))
                           :id (parse-integer id)

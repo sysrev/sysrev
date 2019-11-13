@@ -12,6 +12,7 @@
             [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components.core :as ui]
+            [sysrev.views.semantic :refer [Popup PopupHeader Icon ListUI ListItem]]
             [sysrev.util :as util :refer [log format]]
             [sysrev.shared.util :as sutil :refer [in?]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
@@ -116,8 +117,19 @@
 (defn ImportRISView []
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.segment.import-upload
-     [:h5
-      "Upload a RIS file"]
+     [:h5 "RIS / RefMan"
+      [Popup {:hoverable true
+              :trigger (r/as-element [Icon {:name "question circle"}])
+              :content (r/as-element
+                        [:div
+                         [:h5 "Supported Exports"]
+                         [ListUI
+                          [ListItem "Scopus"]
+                          [ListItem "IEEE Explore"]
+                          [ListItem "EndNote Online"]
+                          [ListItem "Zotero"]
+                          [ListItem "...and many more"]]
+                         [:b "Note: Make sure to include abstracts when exporting files!"]])}]]
      [ui/UploadButton
       (str "/api/import-articles/ris/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
@@ -430,15 +442,15 @@
         [{:tab-id :pubmed
           :content (if full-size? "PubMed Search" "PubMed")
           :action #(reset! import-tab :pubmed)}
+         {:tab-id :pmid
+          :content "PMIDs"
+          :action #(reset! import-tab :pmid)}
          {:tab-id :ris-file
-          :content "RIS File"
+          :content "RIS / RefMan"
           :action #(reset! import-tab :ris-file)}
          {:tab-id :endnote
           :content (if full-size? "EndNote XML" "EndNote")
           :action #(reset! import-tab :endnote)}
-         {:tab-id :pmid
-          :content "PMIDs"
-          :action #(reset! import-tab :pmid)}
          {:tab-id :zip-file
           :content "PDF Files"
           :action #(reset! import-tab :zip-file)}]

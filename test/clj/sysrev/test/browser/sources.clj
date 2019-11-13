@@ -115,7 +115,7 @@
    title "Long Short-Term Memory"]
   (do (nav/log-in)
       (nav/new-project project-name)
-      (b/click (xpath "//a[contains(text(),'RIS File')]"))
+      (b/click (xpath "//a[contains(text(),'RIS / RefMan')]"))
       (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
       (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
       (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'10')]")))
