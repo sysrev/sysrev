@@ -4,8 +4,8 @@
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))
 
-(defmethod make-source-meta :ris [_ {:keys [filename]}]
-  {:source "RIS file" :filename filename})
+(defmethod make-source-meta :ris [_ {:keys [filename hash]}]
+  {:source "RIS file" :filename filename :hash hash})
 
 (defn get-title [m]
   (let [{:keys [TI T1]} m]
@@ -19,8 +19,7 @@
        (into [])))
 
 (defmethod import-source :ris [_ project-id {:keys [file filename]} {:as options}]
-  (let [source-meta (source/make-source-meta :ris {:filename filename})
-        filename-sources (->> (source/project-sources project-id)
+  (let [filename-sources (->> (source/project-sources project-id)
                               (filter #(= (get-in % [:meta :filename]) filename)))]
     ;; this source already exists
     (if (seq filename-sources)
@@ -31,7 +30,8 @@
                                           :filename filename})]
         (if (not= 200 (:status resp))
           {:error {:message (get-in resp [:body :error])}}
-          (let [{:keys [hash]} (:body resp)]
+          (let [{:keys [hash]} (:body resp)
+                source-meta (source/make-source-meta :ris {:filename filename :hash hash})]
             (import-source-impl
              project-id source-meta
              {:types {:article-type "academic" :article-subtype "RIS"}

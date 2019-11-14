@@ -8,6 +8,7 @@
             [sysrev.api :as api]
             [sysrev.web.app :as web :refer [with-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db :refer
              [with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
@@ -478,8 +479,15 @@
          (with-authorize request {:allow-public true}
            (let [_project-id (active-project request)
                  source-id (parse-integer (-> request :params :source-id))
-                 {:keys [key filename]} (source/source-upload-file source-id)]
-             (-> (response/response (s3-file/get-file-stream key :import))
+                 {:keys [meta]} (source/get-source source-id)
+                 {:keys [source filename hash]} meta
+                 {:keys [key]} (source/source-upload-file source-id)
+                 response-body (if (= source "RIS file")
+                                 (ds-api/download-file
+                                  {:filename filename
+                                   :hash hash})
+                                 (s3-file/get-file-stream key :import))]
+             (-> (response/response response-body)
                  (response/header "Content-Disposition"
                                   (format "attachment; filename=\"%s\"" filename)))))))
 

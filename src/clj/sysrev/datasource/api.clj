@@ -223,3 +223,11 @@
               :as :json
               :coerce :always
               :throw-exceptions false}))
+
+(defn download-file
+  "Given a filename and hash, download a file from datasource"
+  [{:keys [filename hash]}]
+  (-> (http/get (str (ds-host) "/entity/" hash "/" filename)
+                {:as :stream
+                 :headers (auth-header)})
+      :body))

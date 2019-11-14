@@ -219,7 +219,7 @@
      (cond (= "PubMed search" stype)
            (-> source :meta :search-term str)
 
-           (in? ["PMID file" "EndNote file" "PDF Zip file"] stype)
+           (in? ["PMID file" "EndNote file" "PDF Zip file" "RIS file"] stype)
            (-> source :meta :filename str)))))
 
 (defn SourceArticlesLink [source-id]
@@ -231,7 +231,7 @@
 
 (defn SourceInfoView [project-id source-id]
   (let [{:keys [meta enabled]} @(subscribe [:project/sources source-id])
-        {:keys [s3-file]} meta
+        {:keys [s3-file source filename]} meta
         source-type @(subscribe [:source/display-type source-id])
         import-label @(subscribe [:source/display-info source-id])]
     [:div.ui.middle.aligned.stackable.grid.segment.source-info
@@ -245,12 +245,18 @@
        (when import-label
          [:div.import-label.ui.large.basic.label
           [:span.import-label
-           (if (and s3-file (:filename s3-file) (:key s3-file))
-             [:a {:href (str "/api/sources/download/" project-id "/" source-id)
-                  :target "_blank"
-                  :download (:filename s3-file)}
-              import-label " " [:i.download.icon]]
-             import-label)]])]]]))
+           (cond (and s3-file (:filename s3-file) (:key s3-file))
+                 [:a {:href (str "/api/sources/download/" project-id "/" source-id)
+                      :target "_blank"
+                      :download filename}
+                  import-label " " [:i.download.icon]]
+                 (= source "RIS file")
+                 [:a {:href (str "/api/sources/download/" project-id "/" source-id)
+                      :target "_blank"
+                      :download (:filename s3-file)}
+                  import-label " " [:i.download.icon]]
+                 :else
+                 import-label)]])]]]))
 
 (defn source-name
   "Given a source-id, return the source name vector"
