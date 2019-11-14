@@ -110,7 +110,8 @@
   :cleanup (b/cleanup-test-user! :email (:email b/test-login)))
 
 (deftest-browser import-ris-file
-  true
+  ;; once article search by title is implemented, set to true
+  (and (test/db-connected?) (not (test/remote-test?)))
   [project-name "SysRev Browser Test (import-ris-file)"
    title "Long Short-Term Memory"]
   (do (nav/log-in)
