@@ -8,7 +8,7 @@
             [sysrev.loading]
             #?(:cljs [sysrev.state.ui])
             #?(:cljs [sysrev.util])
-            [sysrev.shared.util :refer [map-values parse-integer filter-values ensure-pred]]))
+            [sysrev.shared.util :refer [map-values ensure-pred]]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]
@@ -88,18 +88,18 @@
           sync-notes? (not @(subscribe [:review/all-notes-synced? article-id]))
           ui-notes @(subscribe [:review/ui-notes article-id])
           article-notes @(subscribe [:article/notes article-id user-id])]
-      (do (when send-labels?
-            (dispatch [:action [:review/send-labels
-                                project-id {:article-id article-id
-                                            :label-values active-values
-                                            :confirm? false :resolve? false :change? false}]]))
-          (when sync-notes?
-            (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
-          (if (or send-labels? sync-notes?)
-            #?(:cljs (js/setTimeout route-fn 75)
-               :clj (route-fn))
-            (route-fn))
-          (dispatch [:review/reset-saving])))
+      (when send-labels?
+        (dispatch [:action [:review/send-labels
+                            project-id {:article-id article-id
+                                        :label-values active-values
+                                        :confirm? false :resolve? false :change? false}]]))
+      (when sync-notes?
+        (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
+      (if (or send-labels? sync-notes?)
+        #?(:cljs (js/setTimeout route-fn 75)
+           :clj (route-fn))
+        (route-fn))
+      (dispatch [:review/reset-saving]))
     (route-fn)))
 
 (defmacro defroute-app-id
@@ -132,7 +132,7 @@
   @(subscribe [:lookup-project-url url-id]))
 
 (defmacro sr-defroute-project--impl
-  [owner-key name uri suburi params & body]
+  [owner-key name uri _suburi params & body]
   `(defroute ~name ~uri ~params
      (let [clear-text# true
            project-url-id# ~(if owner-key (second params) (first params))

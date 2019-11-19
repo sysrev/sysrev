@@ -2,12 +2,8 @@
   (:require cljs.reader
             [clojure.string :as str]
             [reagent.core :as r]
-            [reagent.ratom :refer [reaction]]
             [reagent.interop :refer-macros [$ $!]]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-sub-raw reg-event-db
-                                   reg-event-fx trim-v]]
             [sysrev.views.semantic :refer [Popup]]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 
 ;; accessing state for testing:
@@ -126,23 +122,23 @@
   return the indices for which there are no annotations in string.
   Returns a vector of the form
   [{:word nil :index [[<begin> <end>] ..] :annotation <string>} ...]"
-  [annotations string]
+  [annotations _string]
   (let [occupied-chars (sort (flatten (mapv :index
                                             annotations)))
         no-annotations-indices (merge (mapv #(vector %1 %2)
-                                  (take-nth 2 (rest occupied-chars))
-                                  (rest (take-nth 2 occupied-chars)))
-                            [(last occupied-chars)])]
+                                            (take-nth 2 (rest occupied-chars))
+                                            (rest (take-nth 2 occupied-chars)))
+                                      [(last occupied-chars)])]
     (-> (mapv #(hash-map :word nil :annotation nil :index %) no-annotations-indices)
         (merge {:index [0 (first occupied-chars)]
                 :annotation nil
                 :word nil}))))
 
 (defn annotation-indices
-  [annotations string]
   "Given a coll of annotations and a string, return a vector of the form
    [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
   for annotations."
+  [annotations string]
   (->> (annotations->word-indices-maps annotations string)
        flatten
        (sort-by #(first (:index %)))
@@ -262,7 +258,7 @@
   references (e.g. &lt;) to their single char representation in
   html-text"
   [html-text]
-  (let [span ($ js/document createElement "SPAN")
+  (let [span (js/document.createElement "SPAN")
         _ ($! span :innerHTML html-text)]
     ($ span :innerText)))
 
@@ -337,6 +333,6 @@
   [:div {:data-field field :class "annotated-text-toplevel"}
    (try (cljs.reader/read-string
          (highlight-text-div-string annotations text))
-        (catch js/Object e
+        (catch js/Object _
           (or reader-error-render
               [:div "There was an error rendering the annotator view"])))])

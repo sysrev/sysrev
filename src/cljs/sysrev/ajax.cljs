@@ -6,7 +6,6 @@
             [day8.re-frame.http-fx]
             [re-frame.core :refer [reg-sub reg-event-db reg-event-fx trim-v reg-fx
                                    dispatch ->interceptor]]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
@@ -23,55 +22,42 @@
 (defn get-build-time [db] (:build-time db))
 (reg-sub :build-time get-build-time)
 
-(reg-event-db
- :set-csrf-token
- [trim-v]
- (fn [db [csrf-token]]
-   (assoc db :csrf-token csrf-token)))
+(reg-event-db :set-csrf-token [trim-v]
+              (fn [db [csrf-token]]
+                (assoc db :csrf-token csrf-token)))
 
 (reg-fx :set-csrf-token #(dispatch [:set-csrf-token %]))
 
-(reg-event-db
- :set-build-id
- [trim-v]
- (fn [db [build-id]]
-   (assoc db :build-id build-id)))
+(reg-event-db :set-build-id [trim-v]
+              (fn [db [build-id]]
+                (assoc db :build-id build-id)))
 
-(reg-event-db
- :set-build-time
- [trim-v]
- (fn [db [build-time]]
-   (assoc db :build-time build-time)))
+(reg-event-db :set-build-time [trim-v]
+              (fn [db [build-time]]
+                (assoc db :build-time build-time)))
 
-(reg-fx
- :ajax-failure
- (fn [response]
-   nil))
+(reg-fx :ajax-failure (fn [_response] nil))
 
-(reg-event-fx
- ::reload-on-new-build
- [trim-v]
- (fn [{:keys [db]} [build-id build-time]]
-   (let [cur-build-id (get-build-id db)
-         cur-build-time (get-build-time db)]
-     (merge
-      {:dispatch-n
-       (->> (list (when (nil? cur-build-id)
-                    [:set-build-id build-id])
-                  (when (nil? cur-build-time)
-                    [:set-build-time build-time]))
-            (remove nil?))}
-      (when (or (and build-id cur-build-id
-                     (not= build-id cur-build-id))
-                (and build-time cur-build-time
-                     (not= build-time cur-build-time)))
-        {:reload-page [true 50]})))))
+(reg-event-fx ::reload-on-new-build [trim-v]
+              (fn [{:keys [db]} [build-id build-time]]
+                (let [cur-build-id (get-build-id db)
+                      cur-build-time (get-build-time db)]
+                  (cond-> {:dispatch-n
+                           (->> (list (when (nil? cur-build-id)
+                                        [:set-build-id build-id])
+                                      (when (nil? cur-build-time)
+                                        [:set-build-time build-time]))
+                                (remove nil?))}
+                    (or (and build-id cur-build-id
+                             (not= build-id cur-build-id))
+                        (and build-time cur-build-time
+                             (not= build-time cur-build-time)))
+                    (merge {:reload-page [true 50]})))))
 
-(reg-fx
- :reload-on-new-build
- (fn [[build-id build-time]]
-   (when (or build-id build-time)
-     (dispatch [::reload-on-new-build [build-id build-time]]))))
+(reg-fx :reload-on-new-build
+        (fn [[build-id build-time]]
+          (when (or build-id build-time)
+            (dispatch [::reload-on-new-build [build-id build-time]]))))
 
 ;; event interceptor for ajax response handlers
 (def handle-ajax
@@ -112,76 +98,58 @@
      (let [{:keys [csrf-token success? response build-id build-time]}
            (:coeffects context)]
        (cond-> context
-         csrf-token
-         (assoc-in [:effects :set-csrf-token] csrf-token)
-         (not success?)
-         (assoc-in [:effects :ajax-failure] response)
-         (or build-id build-time)
-         (assoc-in [:effects :reload-on-new-build]
-                   [build-id build-time]))))))
+         csrf-token                (assoc-in [:effects :set-csrf-token] csrf-token)
+         (not success?)            (assoc-in [:effects :ajax-failure] response)
+         (or build-id build-time)  (assoc-in [:effects :reload-on-new-build]
+                                             [build-id build-time]))))))
 
 (defn reg-event-ajax
   "Wrapper for standard event-db handler for ajax response"
   ([id db-handler]
    (reg-event-ajax id nil db-handler))
   ([id interceptors db-handler]
-   (reg-event-db
-    id (concat interceptors [trim-v handle-ajax])
-    (fn [db event]
-      (db-handler db event)))))
+   (reg-event-db id (concat interceptors [trim-v handle-ajax])
+                 (fn [db event]
+                   (db-handler db event)))))
 
 (defn reg-event-ajax-fx
   "Wrapper for standard event-fx handler for ajax response"
   ([id fx-handler]
    (reg-event-ajax-fx id nil fx-handler))
   ([id interceptors fx-handler]
-   (reg-event-fx
-    id (concat interceptors [trim-v handle-ajax])
-    (fn [db event]
-      (fx-handler db event)))))
+   (reg-event-fx id (concat interceptors [trim-v handle-ajax])
+                 (fn [db event]
+                   (fx-handler db event)))))
 
 (defn-spec run-ajax map?
   [{:keys [db method uri content on-success on-failure action-params content-type]}
    (s/keys :req-un [::method ::uri ::on-success]
            :opt-un [::content ::on-failure ::action-params])]
   (let [csrf-token (get-csrf-token db)
-        on-failure (or on-failure [:ajax/default-failure])
-        force-body? false
-        #_
-        (and (= method :get)
-             (or (vector? content)
-                 (and (map? content)
-                      (some (some-fn map? vector?) (vals content)))))]
+        on-failure (or on-failure [:ajax/default-failure])]
     {:http-xhrio
-     (cond->
-         {:method method
-          :uri uri
-          :timeout (* 2 60 1000)
-          :format (condp = content-type
-                    "application/json" (ajax/json-request-format)
-                    "application/transit+json" (ajax/transit-request-format)
-                    (ajax/transit-request-format))
-          :response-format
-          (condp = content-type
-            "application/transit+json" (ajax/transit-response-format
-                                        :json {:handlers {"u" cljs.core/uuid}})
-            "application/json" (ajax/json-response-format {:keywords? true})
-            "text/plain" (ajax/text-response-format))
-          :headers (cond-> {}
-                     csrf-token
-                     (merge {"x-csrf-token" csrf-token})
-                     force-body?
-                     (merge {"Content-Type" "application/transit+json"}))
-          :on-success (cond-> on-success
-                        action-params (conj action-params))
-          :on-failure (cond-> on-failure
-                        action-params (conj action-params))}
-       force-body?
-       (merge {:body (sutil/write-transit-str content)})
-       (not force-body?)
-       (merge {:params content}))}))
+     {:method method
+      :uri uri
+      :timeout (* 2 60 1000)
+      :format (condp = content-type
+                "application/json" (ajax/json-request-format)
+                "application/transit+json" (ajax/transit-request-format)
+                (ajax/transit-request-format))
+      :response-format
+      (condp = content-type
+        "application/transit+json" (ajax/transit-response-format
+                                    :json {:handlers {"u" cljs.core/uuid}})
+        "application/json" (ajax/json-response-format {:keywords? true})
+        "text/plain" (ajax/text-response-format))
+      :headers (cond-> {}
+                 csrf-token (merge {"x-csrf-token" csrf-token}))
+      :on-success (cond-> on-success
+                    action-params (conj action-params))
+      :on-failure (cond-> on-failure
+                    action-params (conj action-params))
+      :params content}}))
 
 (reg-event-db :ajax/default-failure [trim-v]
-              (fn [db [response]]
+              (fn [db [_response]]
                 #_ (println (str "request failed: " (pr-str response)))
                 db))

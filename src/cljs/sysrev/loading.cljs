@@ -2,10 +2,15 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-fx]]
+            [re-frame.core :refer [dispatch reg-fx]]
             [sysrev.util :as util :refer [now-ms]]
             [sysrev.shared.util :as sutil :refer [in? apply-keyargs]
              :refer-macros [opt-keys]]))
+
+;; for clj-kondo
+(declare item-loading? any-loading? item-failed? item-spammed?
+         action-running? any-action-running? ajax-status ajax-action-status
+         data-sent data-returned action-sent action-returned)
 
 (defonce ^:private ajax-db (r/atom {}))
 
@@ -146,9 +151,9 @@
                               (get-in db [:ajax :time-active] 0))
         time-inactive     (if (not active?) time-now
                               (get-in db [:ajax :time-inactive] 0))
-        action-active     (if action? time-now
+        _action-active    (if action? time-now
                               (get-in db [:ajax :action-active] 0))
-        action-inactive   (if (not action?) time-now
+        _action-inactive  (if (not action?) time-now
                               (get-in db [:ajax :action-inactive] 0))
         cur-status (get-in db [:ajax :loading-status] true)
         new-status (cond

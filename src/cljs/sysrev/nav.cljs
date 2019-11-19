@@ -5,7 +5,6 @@
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
             [cljs-http.client :as hc]
-            [cognitect.transit :as transit]
             [sysrev.base :refer [history]]
             [sysrev.util :refer [scroll-top]]))
 

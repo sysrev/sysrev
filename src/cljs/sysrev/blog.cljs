@@ -1,9 +1,8 @@
 (ns sysrev.blog
-  (:require [cljs-time.core :as t]
-            [cljs-time.format :as tf]
+  (:require [cljs-time.format :as tf]
             [cljs-time.coerce :as tc]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
+             [subscribe dispatch reg-sub reg-event-db trim-v]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [set-subpanel-default-uri]]
             [sysrev.data.core :refer [def-data]]
@@ -11,7 +10,6 @@
             [sysrev.markdown :refer [RenderMarkdown]]
             [sysrev.views.menu :refer [loading-indicator]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil]
             [sysrev.macros :refer-macros [defroute-app-id with-loader]]))
 
 (defn init-blog []
@@ -49,18 +47,15 @@
   :process (fn [{:keys [db]} [] {:keys [entries]}]
              {:db (assoc-in db [:data :blog :entries] entries)}))
 
-(reg-sub
- :blog/entries
- (fn [db [_]] (get-in db [:data :blog :entries])))
+(reg-sub :blog/entries #(get-in % [:data :blog :entries]))
 
-(reg-sub
- :blog/active-entry
- (fn [db [_]] (get-in db [:state :blog :active-entry])))
+(reg-sub :blog/active-entry #(get-in % [:state :blog :active-entry]))
 
-(reg-event-db
- :blog/active-entry
- [trim-v]
- (fn [db [filename]] (assoc-in db [:state :blog :active-entry] filename)))
+(reg-event-db :blog/active-entry [trim-v]
+              (fn [db [filename]]
+                (assoc-in db [:state :blog :active-entry] filename)))
+
+(declare blog-root blog-entry)
 
 (defroute-app-id blog-root "/" [] :blog
   (dispatch [:set-active-panel [:blog :list]])
@@ -79,9 +74,7 @@
   (or (second (re-matches #".*sysrev-blog/(.*).html$" url))
       (second (re-matches #".*sysrev-blog/(.*)$" url))))
 
-(defn BlogListEntry
-  [{:keys [blog-entry-id url title description date-published]
-    :as entry}]
+(defn BlogListEntry [{:keys [blog-entry-id url title description date-published]}]
   [:div.ui.secondary.segment.blog-list-entry
    [:h5.entry-date
     (tf/unparse (tf/formatters :date)
@@ -91,9 +84,7 @@
    (when (not-empty description)
      [RenderMarkdown description])])
 
-(defn BlogEntryContent
-  [{:keys [blog-entry-id url title description date-published]
-    :as entry}]
+(defn BlogEntryContent [{:keys [blog-entry-id url title description date-published]}]
   (set! (-> js/document .-title)
         (str "Sysrev Blog - " title))
   [:div
@@ -120,7 +111,7 @@
      child]))
 
 (defmethod panel-content [:blog :entry] []
-  (fn [child]
+  (fn [_child]
     [:div
      [:a.ui.large.fluid.labeled.icon.button {:href "/"}
       [:i.left.arrow.icon]

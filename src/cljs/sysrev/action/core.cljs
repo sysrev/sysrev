@@ -1,8 +1,8 @@
 (ns sysrev.action.core
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
-            [re-frame.core :refer [subscribe dispatch reg-event-db reg-event-fx trim-v reg-fx]]
-            [sysrev.ajax :refer [reg-event-ajax reg-event-ajax-fx run-ajax]]
+            [re-frame.core :refer [reg-event-fx trim-v]]
+            [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
             [sysrev.loading :as loading]))
 
 (defonce

@@ -1,6 +1,5 @@
 (ns sysrev.test.browser.user-profiles
-  (:require [clojure.java.io :as io]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [clojure.test :refer [is use-fixtures]]
             [sysrev.api :as api]
@@ -18,7 +17,6 @@
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)

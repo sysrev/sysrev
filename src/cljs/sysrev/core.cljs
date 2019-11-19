@@ -1,8 +1,8 @@
 (ns sysrev.core
   (:require [orchestra-cljs.spec.test :as t]
             [reagent.core :as reagent]
-            [re-frame.core :as re-frame :refer
-             [dispatch dispatch-sync subscribe reg-sub reg-event-db]]
+            [re-frame.core :refer [dispatch dispatch-sync reg-sub reg-event-db
+                                   clear-subscription-cache!]]
             [pushy.core :as pushy]
             [sysrev.base :as base]
             [sysrev.ajax]
@@ -11,7 +11,7 @@
             [sysrev.data.core :as data]
             [sysrev.action.core]
             [sysrev.loading]
-            [sysrev.routes :as routes]
+            [sysrev.routes]
             [sysrev.blog :as blog]
             [sysrev.views.article]
             [sysrev.views.main :refer [main-content]]
@@ -56,7 +56,7 @@
     true))
 
 (defn mount-root []
-  (re-frame/clear-subscription-cache!)
+  (clear-subscription-cache!)
   (let [el (or (.getElementById js/document "blog-app")
                (.getElementById js/document "app"))]
     (reagent/render [main-content] el))
@@ -120,12 +120,12 @@
     :main (do (when base/debug? (enable-console-print!))
               (base/setup-console-hooks)
               (pushy/start! base/history)
-              (re-frame/dispatch-sync [:initialize-db])
+              (dispatch-sync [:initialize-db])
               (data/init-data)
               (mount-root))
     :blog (do (when base/debug? (enable-console-print!))
               (pushy/start! base/history)
-              (re-frame/dispatch-sync [:initialize-db])
+              (dispatch-sync [:initialize-db])
               (blog/init-blog)
               #_ (data/init-data)
               (mount-root))))

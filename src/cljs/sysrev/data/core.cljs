@@ -1,12 +1,11 @@
 (ns sysrev.data.core
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx
+            [re-frame.core :refer [dispatch reg-sub reg-event-db reg-event-fx
                                    trim-v reg-fx]]
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
-            [sysrev.ajax :refer [reg-event-ajax reg-event-ajax-fx run-ajax]]
-            [sysrev.util :as util]
+            [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
             [sysrev.shared.util :as sutil :refer [in? dissoc-in]]))
 
 (defonce
@@ -107,18 +106,16 @@
 
 ;; Register `item` as required; will trigger fetching from server
 ;; immediately or after any prerequisites for `item` have been loaded.
-(reg-event-fx
- :require
- [trim-v]
- (fn [{:keys [db]} [item]]
-   (let [[name & args] item
-         entry (get @data-defs name)
-         prereqs (some-> (:prereqs entry) (apply args))
-         new-db (require-item db prereqs item)
-         changed? (not= (:needed new-db) (:needed db))]
-     (cond-> {:db new-db
-              :dispatch-n (->> prereqs (map (fn [x] [:require x])))}
-       changed? (merge {::fetch-if-missing item})))))
+(reg-event-fx :require [trim-v]
+              (fn [{:keys [db]} [item]]
+                (let [[name & args] item
+                      entry (get @data-defs name)
+                      prereqs (some-> (:prereqs entry) (apply args))
+                      new-db (require-item db prereqs item)
+                      changed? (not= (:needed new-db) (:needed db))]
+                  (cond-> {:db new-db
+                           :dispatch-n (->> prereqs (map (fn [x] [:require x])))}
+                    changed? (merge {::fetch-if-missing item})))))
 
 (defn- add-load-trigger [db item trigger-id action]
   (assoc-in db [:on-load item trigger-id] action))
@@ -133,23 +130,21 @@
               (fn [db [item trigger-id action]]
                 (add-load-trigger db item trigger-id action)))
 
-(reg-event-fx
- ::process-load-triggers
- [trim-v]
- (fn [{:keys [db]} [item]]
-   (let [actions (vals (lookup-load-triggers db item))]
-     (doseq [action actions]
-       (cond (vector? action)  nil
-             (fn? action)      (action)
-             (seq? action)     (doseq [subaction action]
-                                 (when (fn? subaction)
-                                   (subaction)))))
-     {:db (remove-load-triggers db item)
-      :dispatch-n (->> actions
-                       (map #(cond (vector? %)  (list %)
-                                   (seq? %)     (filter vector? %)
-                                   (fn? %)      nil))
-                       (apply concat))})))
+(reg-event-fx ::process-load-triggers [trim-v]
+              (fn [{:keys [db]} [item]]
+                (let [actions (vals (lookup-load-triggers db item))]
+                  (doseq [action actions]
+                    (cond (vector? action)  nil
+                          (fn? action)      (action)
+                          (seq? action)     (doseq [subaction action]
+                                              (when (fn? subaction)
+                                                (subaction)))))
+                  {:db (remove-load-triggers db item)
+                   :dispatch-n (->> actions
+                                    (map #(cond (vector? %)  (list %)
+                                                (seq? %)     (filter vector? %)
+                                                (fn? %)      nil))
+                                    (apply concat))})))
 
 (reg-fx ::process-load-triggers
         (fn [item] (dispatch [::process-load-triggers item])))
@@ -161,7 +156,7 @@
 ;; Tests if `item` is loaded
 (defn- have-item? [db item]
   (let [[name & args] item
-        {:keys [loaded?] :as entry} (get @data-defs name)]
+        {:keys [loaded?] :as _entry} (get @data-defs name)]
     (apply loaded? db args)))
 (reg-sub :have? (fn [db [_ item]] (have-item? db item)))
 
@@ -181,12 +176,11 @@
 (reg-sub ::missing get-missing-items)
 
 ;; Tests whether all required data has been loaded
-(reg-sub
- :data/ready?
- :<- [:initialized?]
- :<- [::missing]
- (fn [[initialized? missing]]
-   (boolean (and initialized? (empty? missing)))))
+(reg-sub :data/ready?
+         :<- [:initialized?]
+         :<- [::missing]
+         (fn [[initialized? missing]]
+           (boolean (and initialized? (empty? missing)))))
 
 ;; TODO: replace this with a queue for items to fetch in @app-db
 (defonce
@@ -197,36 +191,36 @@
 ;;
 ;; Usually this should be triggered from :require via `with-loader`,
 ;; or from :reload to fetch updated data in response to a user action.
-(reg-event-fx
- :fetch [trim-v]
- (fn [{:keys [db]} [item]]
-   (let [[name & args] item
-         {:keys [uri content content-type method]
-          :as entry} (get @data-defs name)
-         elapsed-millis (- (js/Date.now) @last-fetch-millis)]
-     (assert entry (str "def-data not found - " (pr-str name)))
-     (when-not (loading/item-loading? item)
-       (cond (loading/item-spammed? item)
-             {:data-failed item}
+(reg-event-fx :fetch [trim-v]
+              (fn [{:keys [db]} [item]]
+                (let [[name & args] item
+                      {:keys [uri content content-type method]
+                       :as entry} (get @data-defs name)
+                      elapsed-millis (- (js/Date.now) @last-fetch-millis)]
+                  (assert entry (str "def-data not found - " (pr-str name)))
+                  (when-not (loading/item-loading? item)
+                    (cond (loading/item-spammed? item)
+                          {:data-failed item}
 
-             (< elapsed-millis 20)
-             {:dispatch-later [{:dispatch [:fetch item] :ms (- 30 elapsed-millis)}]}
+                          (< elapsed-millis 20)
+                          {:dispatch-later [{:dispatch [:fetch item] :ms (- 30 elapsed-millis)}]}
 
-             (not (loading/ajax-action-inactive?))
-             {:dispatch-later [{:dispatch [:fetch item] :ms 10}]}
+                          (not (loading/ajax-action-inactive?))
+                          {:dispatch-later [{:dispatch [:fetch item] :ms 10}]}
 
-             :else
-             (let [content-val (some-> content (apply args))]
-               (reset! last-fetch-millis (js/Date.now))
-               (merge {:data-sent item}
-                      (run-ajax (cond-> {:db db
-                                         :method method
-                                         :uri (apply uri args)
-                                         :on-success [::on-success item]
-                                         :on-failure [::on-failure item]
-                                         :content-type (or content-type
-                                                           "application/transit+json")}
-                                  content-val (assoc :content content-val))))))))))
+                          :else
+                          (let [content-val (some-> content (apply args))]
+                            (reset! last-fetch-millis (js/Date.now))
+                            (merge {:data-sent item}
+                                   (run-ajax
+                                    (cond-> {:db db
+                                             :method method
+                                             :uri (apply uri args)
+                                             :on-success [::on-success item]
+                                             :on-failure [::on-failure item]
+                                             :content-type (or content-type
+                                                               "application/transit+json")}
+                                      content-val (assoc :content content-val))))))))))
 
 (reg-event-ajax-fx
  ::on-success
@@ -261,29 +255,26 @@
                     {})))))))
 
 ;; Reload data item from server if already loaded.
-(reg-event-fx
- :reload [trim-v]
- (fn [{:keys [db]} [item]]
-   (when (and (or (have-item? db item)
-                  (loading/item-failed? item))
-              (not (loading/item-loading? item)))
-     {:dispatch [:fetch item]})))
+(reg-event-fx :reload [trim-v]
+              (fn [{:keys [db]} [item]]
+                (when (and (or (have-item? db item)
+                               (loading/item-failed? item))
+                           (not (loading/item-loading? item)))
+                  {:dispatch [:fetch item]})))
 
 ;; Dispatch both `:require` and `:reload`
 (reg-event-fx :data/load [trim-v]
               (fn [_ [item]] {:dispatch-n [[:require item] [:reload item]]}))
 
-(reg-fx
- ::fetch-if-missing
- (fn [item]
-   (js/setTimeout
-    #(let [db @app-db
-           missing (get-missing-items db)]
-       (when (and item (in? missing item)
-                  (not (loading/item-failed? item))
-                  (not (loading/item-loading? item)))
-         (dispatch [:fetch item])))
-    10)))
+(reg-fx ::fetch-if-missing
+        (fn [item]
+          (js/setTimeout #(let [db @app-db
+                                missing (get-missing-items db)]
+                            (when (and item (in? missing item)
+                                       (not (loading/item-failed? item))
+                                       (not (loading/item-loading? item)))
+                              (dispatch [:fetch item])))
+                         10)))
 
 ;; Fetches any missing required data
 (reg-event-fx :fetch-missing
@@ -294,13 +285,12 @@
                       (remove #(loading/item-loading? %))
                       (mapv (fn [item] [:fetch item])))}))
 
-(reg-fx
- :fetch-missing
- (fn [[fetch? trigger-item]]
-   (when fetch?
-     ;; Use setTimeout to ensure that changes to app-db from any simultaneously
-     ;; dispatched events will have completed first.
-     (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 30))))
+(reg-fx :fetch-missing
+        (fn [[fetch? trigger-item]]
+          (when fetch?
+            ;; Use setTimeout to ensure that changes to app-db from any simultaneously
+            ;; dispatched events will have completed first.
+            (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 30))))
 
 (defn init-data []
   (dispatch [:ui/load-default-panels])

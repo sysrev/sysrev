@@ -6,8 +6,11 @@
             [sysrev.accounting :as acct]
             [sysrev.views.semantic :as s]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.shared.util :as sutil]
             [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:paypal] {:state-var state
                                     :get-fn panel-get :set-fn panel-set
@@ -28,7 +31,7 @@
   :uri (constantly "/api/paypal/add-funds")
   :content (fn [project-id user-id response]
              {:project-id project-id :user-id user-id :response response})
-  :process (fn [{:keys [db]} [project-id _ _] result]
+  :process (fn [{:keys [db]} _ _result]
              (let [amount (panel-get db :user-defined-support-level)]
                {:db (-> (panel-set db :success-message
                                    (str "Your payment of " amount " has been received and "
@@ -49,40 +52,40 @@
   to run additionally in PayPal authorize and error hooks."
   [project-id user-id amount-ref & {:keys [on-authorize on-error]}]
   (letfn [(render-button []
-            (-> ($ js/paypal :Button)
-                ($ render
-                   (clj->js
-                    {:env paypal-env
-                     :style {:label "pay"
-                             :size "responsive"
-                             :height 38
-                             :shape "rect"
-                             :color "gold"
-                             :tagline false
-                             :fundingicons false}
-                     :disabled false
-                     :commit true
-                     :client {paypal-env paypal-client-id}
-                     :payment (fn [data actions]
-                                ($ actions payment.create
-                                   (clj->js
-                                    {:payment
-                                     {:transactions
-                                      [{:amount {:total (acct/format-money @amount-ref "")
-                                                 :currency "USD"}}]}
-                                     :experience {:input_fields {:no_shipping 1}}})))
-                     :onAuthorize (fn [data actions]
-                                    (-> ($ actions payment.execute)
-                                        ($ then #(dispatch [:action [:paypal/add-funds
-                                                                     project-id user-id %]])))
-                                    (when on-authorize (on-authorize))
-                                    nil)
-                     :onError (fn [err]
-                                (dispatch [::set :error-message
-                                           "An error was encountered during PayPal checkout."])
-                                (when on-error (on-error err))
-                                nil)})
-                   "#paypal-button")))]
+            (-> js/paypal.Button
+                (.render
+                 (clj->js
+                  {:env paypal-env
+                   :style {:label "pay"
+                           :size "responsive"
+                           :height 38
+                           :shape "rect"
+                           :color "gold"
+                           :tagline false
+                           :fundingicons false}
+                   :disabled false
+                   :commit true
+                   :client {paypal-env paypal-client-id}
+                   :payment (fn [_data actions]
+                              ($ actions payment.create
+                                 (clj->js
+                                  {:payment
+                                   {:transactions
+                                    [{:amount {:total (acct/format-money @amount-ref "")
+                                               :currency "USD"}}]}
+                                   :experience {:input_fields {:no_shipping 1}}})))
+                   :onAuthorize (fn [data actions]
+                                  (-> ($ actions payment.execute)
+                                      ($ then #(dispatch [:action [:paypal/add-funds
+                                                                   project-id user-id %]])))
+                                  (when on-authorize (on-authorize))
+                                  nil)
+                   :onError (fn [err]
+                              (dispatch [::set :error-message
+                                         "An error was encountered during PayPal checkout."])
+                              (when on-error (on-error err))
+                              nil)})
+                 "#paypal-button")))]
     (r/create-class {:reagent-render (fn [& _] [:div#paypal-button])
                      :component-did-mount (fn [& _] (render-button))})))
 
@@ -143,7 +146,7 @@
     (r/create-class
      {:reagent-render (fn [& {:keys [on-success]}]
                         [AddFundsImpl :on-success on-success])
-      :get-initial-state (fn [this]
+      :get-initial-state (fn [_this]
                            (set-val :support-level :user-defined)
                            (set-amount nil)
                            (set-val :error-message nil)

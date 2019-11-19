@@ -66,12 +66,12 @@
 (defn wait-until-stripe-id
   "Wait until stripe has customer entry for email."
   [email]
-  (test/wait-until #(:email (get-user-customer email)) 5000 100))
+  (test/wait-until #(:email (get-user-customer email)) 7500 100))
 
 (defn wait-until-plan
   "Wait until stripe customer entry matches plan value."
   [email plan]
-  (test/wait-until #(= plan (user-stripe-plan email)) 5000 100))
+  (test/wait-until #(= plan (user-stripe-plan email)) 7500 100))
 
 (defn label-input
   "Given a label, return an xpath for its input"

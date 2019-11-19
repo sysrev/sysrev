@@ -6,7 +6,7 @@
 ;; https://github.com/jerairrest/react-chartjs-2/blob/master/src/index.js
 
 (defn- render-chart [chart]
-  (let [{:keys [type data options width height]} (r/props chart)]
+  (let [{:keys [type data options]} (r/props chart)]
     (swap! (r/state-atom chart) assoc
            :chart-instance
            (chartjs/Chart. (-> (r/dom-node chart) .-firstChild .-firstChild)
@@ -37,7 +37,7 @@
           (render-chart this)))
 
       :should-component-update
-      (fn [this old-argv new-argv]
+      (fn [_this old-argv new-argv]
         (not= old-argv new-argv))
 
       :component-will-unmount
@@ -48,7 +48,7 @@
 
       :render
       (fn [this]
-        (let [{:keys [type data options width height]} (r/props this)]
+        (let [{:keys [width height]} (r/props this)]
           ;; Method of getting React ref value with Reagent taken from:
           ;; https://gist.github.com/pesterhazy/4d9df2edc303e5706d547aeabe0e17e1
           [:div {:style (when height {:height (str height "px")})}

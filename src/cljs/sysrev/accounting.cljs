@@ -1,6 +1,5 @@
 (ns sysrev.accounting
-  (:require ["accounting" :as accounting]
-            [reagent.interop :refer-macros [$]]))
+  (:require ["accounting" :as accounting]))
 
 ;; https://stackoverflow.com/questions/2227370/currency-validation
 (def valid-usd-regex

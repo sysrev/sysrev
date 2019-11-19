@@ -4,10 +4,10 @@
             ["form-data" :as FormData]
             ["croppie" :as Croppie]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$ $!]]
+            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe]]
             [sysrev.views.components.core :refer [UploadButton]]
-            [sysrev.views.semantic :refer [Button Loader]]))
+            [sysrev.views.semantic :refer [Button]]))
 
 (def error-atom (atom {}))
 
@@ -18,70 +18,72 @@
   (let [croppie-instance (r/atom nil)
         profile-picture-loaded? (r/atom false)
         profile-picture-error (r/atom "")
-        bind-promise-catch (fn [error]
+        bind-promise-catch (fn [_error]
                              (reset! profile-picture-loaded? false)
                              (reset! profile-picture-error error-load-image))
-        bind-promise-then (fn [resolve]
+        bind-promise-then (fn [_resolve]
                             (reset! profile-picture-loaded? true))
 
         bind-croppie (fn [profile-picture-meta]
-                       (let [el ($ js/document getElementById "croppie-target")
+                       (let [el (js/document.getElementById "croppie-target")
                              croppie (Croppie. el (clj->js {:boundary {:width 150
                                                                        :height 150}
                                                             :viewport {:type "circle"}}))
                              _ (reset! croppie-instance croppie)
-                             bind-promise ($ @croppie-instance bind
-                                             (clj->js
-                                              (assoc {:url (str "/api/user/" user-id "/profile-image")}
-                                                     :points (:points profile-picture-meta)
-                                                     :zoom (:zoom profile-picture-meta))))]
-                         ($ bind-promise then bind-promise-then)
-                         ($ bind-promise catch bind-promise-catch)))]
+                             bind-promise (.bind @croppie-instance
+                                                 (clj->js
+                                                  (assoc {:url (str "/api/user/" user-id "/profile-image")}
+                                                         :points (:points profile-picture-meta)
+                                                         :zoom (:zoom profile-picture-meta))))]
+                         (-> bind-promise (.then bind-promise-then))
+                         (-> bind-promise (.catch bind-promise-catch))))]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         [:div
          [:div {:id "croppie-target"}]
          (when-not (str/blank? @profile-picture-error)
            [:div [:h1 {:style {:color "black"}} @profile-picture-error]])
          (when @profile-picture-loaded?
            [:div
-            [Button {:on-click
-                     (fn [e]
-                       (let [result ($ @croppie-instance result (clj->js
-                                                                 {:type "blob"
-                                                                  :format "png"}))]
-                         ($ result then (fn [result]
-                                          (let [form-data (doto (FormData.)
-                                                            ($ append "filename" (str user-id "-avatar.png"))
-                                                            ($ append "file" result)
-                                                            ($ append "meta" ($ js/JSON stringify
-                                                                                ($ @croppie-instance get))))]
-                                            (POST (str "/api/user/" user-id "/avatar")
-                                                  {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                                   :body form-data
-                                                   :handler (fn [response]
-                                                              (reset! reload-avatar? true))
-                                                   :error-handler (fn [error-response]
-                                                                    (reset! profile-picture-error
-                                                                            "Error uploading avatar to server"))})
-                                            (reset! modal-open false))))
-                         ($ result catch (fn [error]
-                                           (reset! profile-picture-error
-                                                   "Error in setting avatar")))))}
+            [Button
+             {:on-click
+              (fn [_e]
+                (let [result (-> @croppie-instance
+                                 (.result (clj->js {:type "blob" :format "png"})))]
+                  (.then
+                   result
+                   (fn [result]
+                     (let [form-data (doto (FormData.)
+                                       ($ append "filename" (str user-id "-avatar.png"))
+                                       ($ append "file" result)
+                                       ($ append "meta" (js/JSON.stringify
+                                                         (.get @croppie-instance))))]
+                       (POST (str "/api/user/" user-id "/avatar")
+                             {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                              :body form-data
+                              :handler (fn [_response]
+                                         (reset! reload-avatar? true))
+                              :error-handler (fn [_response]
+                                               (reset! profile-picture-error
+                                                       "Error uploading avatar to server"))})
+                       (reset! modal-open false))))
+                  (.catch
+                   result
+                   (fn [_error]
+                     (reset! profile-picture-error "Error in setting avatar")))))}
              "Set Avatar"]
-            [Button {:on-click (fn [e]
-                                 (reset! profile-picture-exists? false))}
+            [Button {:on-click #(reset! profile-picture-exists? false)}
              "Upload New Image"]])])
       :component-did-mount
-      (fn [this]
-        (if (not (nil? profile-picture-meta))
+      (fn [_this]
+        (when profile-picture-meta
           (bind-croppie profile-picture-meta)))
       :component-will-receive-props
-      (fn [this new-argv]
+      (fn [_this new-argv]
         (bind-croppie (-> new-argv second :profile-picture-meta)))
       :get-initial-state
-      (fn [this]
+      (fn [_this]
         (reset! profile-picture-error "")
         (reset! profile-picture-loaded? false)
         {})})))
@@ -113,7 +115,7 @@
         error-message (r/atom "")]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         (cond (not (str/blank? @error-message))
               [:div [:h1 {:style {:color "black"}}
                      @error-message]]
@@ -133,34 +135,34 @@
                                 (check-profile-picture
                                  {:user-id user-id
                                   :handler
-                                  (fn [response]
+                                  (fn [_response]
                                     (reset! error-message "")
                                     (reset! profile-picture-exists? true)
                                     (get-meta {:user-id user-id
                                                :handler (fn [response]
                                                           (reset! checking-profile-picture? false)
                                                           (reset! profile-picture-meta (-> response :result :meta)))
-                                               :error-handler (fn [response]
+                                               :error-handler (fn [_response]
                                                                 (reset! checking-profile-picture? false))}))
                                   :error-handler
-                                  (fn [error-reponse]
+                                  (fn [_response]
                                     (reset! checking-profile-picture? false)
                                     (reset! error-message error-load-image))}))}]))
       :get-initial-state
-      (fn [this]
+      (fn [_this]
         (reset! error-message "")
         (reset! checking-profile-picture? true)
         (check-profile-picture {:user-id user-id
-                                :handler (fn [response]
+                                :handler (fn [_response]
                                            (reset! profile-picture-exists? true)
                                            (get-meta
                                             {:user-id user-id
                                              :handler (fn [response]
                                                         (reset! checking-profile-picture? false)
                                                         (reset! profile-picture-meta (-> response :result :meta)))
-                                             :error-handler (fn [response]
+                                             :error-handler (fn [_response]
                                                               (reset! checking-profile-picture? false))}))
-                                :error-handler (fn [error-response]
+                                :error-handler (fn [_response]
                                                  (reset! checking-profile-picture? false)
                                                  (reset! profile-picture-exists? false))})
         {})})))

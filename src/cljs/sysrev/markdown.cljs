@@ -7,7 +7,7 @@
             [reagent.core :as r]
             [reagent.interop :refer-macros [$]]
             [reagent.ratom :as ratom]
-            [sysrev.views.semantic :refer [Segment TextArea]]
+            [sysrev.views.semantic :refer [TextArea]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]]))
 
