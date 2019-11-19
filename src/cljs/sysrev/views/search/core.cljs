@@ -87,8 +87,7 @@
   [:div
    [Grid {:columns "equal"}
     [Row
-     [Column {:width 1
-              :widescreen 1
+     [Column {:widescreen 1
               :tablet 2
               :mobile 4}
       [:a {:href (user-uri user-id)}
@@ -126,8 +125,7 @@
           (site-search q p))
         [Grid {:columns "equal"}
          [Row
-          [Column {:width base-menu-width
-                   :widescreen base-menu-width
+          [Column {:widescreen base-menu-width
                    :tablet (+ base-menu-width 1)
                    :mobile (+ base-menu-width 2)}
            [Menu {:secondary true
