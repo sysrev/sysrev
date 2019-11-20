@@ -1,6 +1,7 @@
 (ns sysrev.project.article-list
   (:require [clojure.string :as str]
             [clj-time.coerce :as tc]
+            [honeysql.core :as sql]
             [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as label]
@@ -109,27 +110,36 @@
 ;;; Filter helper functions
 ;;;
 
-#_
-(defn article-ids-from-text-search [project-id text]
-  (with-project-cache project-id [:text-search-ids text]
-    (->> (format
-          (str/join " " ["SELECT article_id FROM article"
-                         "WHERE project_id=%d"
-                         "AND enabled=true"
-                         "AND text_search @@ plainto_tsquery('%s');"])
-          project-id (str/lower-case text))
-         (db/raw-query)
-         (mapv :article-id))))
+(defn article-ids-from-title-search-local [project-id text]
+  (with-project-cache project-id [:text-search-ids :local-title text]
+    (q/find [:article :a] {:a.project-id project-id :a.enabled true}
+            :article-id, :join [:article-data:ad :a.article-data-id]
+            :where (sql/raw (format "(ad.title_search @@ plainto_tsquery('%s'))"
+                                    (str/lower-case text))))))
 
-;; FIX: support local/endnote articles (search locally from article_data.content)
-(defn article-ids-from-text-search [project-id text]
-  (with-project-cache project-id [:text-search-ids text]
+(defn article-ids-from-content-search-local [project-id text]
+  (with-project-cache project-id [:text-search-ids :local-content text]
+    (q/find [:article :a] {:a.project-id project-id :a.enabled true}
+            :article-id, :join [:article-data:ad :a.article-data-id]
+            :where (sql/raw (format "(ad.content_search @@ plainto_tsquery('%s'))"
+                                    (str/lower-case text))))))
+
+(defn article-ids-from-text-search-remote [project-id text]
+  (with-project-cache project-id [:text-search-ids :remote text]
     (let [pmid->id (->> (qt/find-article
                          {:a.project-id project-id :ad.datasource-name "pubmed"}
                          :article-id, :index-by :external-id, :where [:!= :ad.external-id nil])
                         (sutil/map-keys sutil/parse-integer))]
       (mapv (partial get pmid->id)
             (ds-api/search-text-by-pmid text (sort (keys pmid->id)))))))
+
+(defn article-ids-from-text-search [project-id text]
+  (with-project-cache project-id [:text-search-ids :all text]
+    (let [[local-ids remote-ids]
+          (pvalues (concat (article-ids-from-title-search-local project-id text)
+                           (article-ids-from-content-search-local project-id text))
+                   (article-ids-from-text-search-remote project-id text))]
+      (distinct (concat local-ids remote-ids)))))
 
 (defn filter-labels-confirmed [confirmed? labels]
   (assert (in? [true false nil] confirmed?))

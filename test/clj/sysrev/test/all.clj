@@ -10,6 +10,7 @@
             sysrev.test.browser.sources
             sysrev.test.browser.orgs
             sysrev.test.browser.plans
+            sysrev.test.browser.project-articles
             sysrev.test.browser.project-compensation
             sysrev.test.browser.pubmed
             sysrev.test.browser.review-articles
