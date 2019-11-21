@@ -1,8 +1,10 @@
 (ns sysrev.views.article
-  (:require [clojure.string :as str]
+  (:require ["react-json-view" :default ReactJson]
+            [clojure.string :as str]
             goog.object
             [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+             [subscribe dispatch reg-sub]]
+            [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation]
@@ -12,9 +14,10 @@
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? css filter-values]]
+            [sysrev.shared.util :as sutil :refer [css filter-values]]
             [sysrev.macros :refer-macros [with-loader]]))
 
+(def RJson (r/adapt-react-class ReactJson))
 #_
 (def-data :article/annotations
   :loaded?
@@ -189,6 +192,7 @@
                            (= (str/trim title) (str/trim (:filename pdf))))]
         ;;(get-annotations article-id)
         [:div {:data-article-id article-id}
+         ;; abstract / pdf selection
          (when (and (not-empty pdfs) (not-empty abstract))
            [:div {:style {:margin-bottom "0.5em"}}
             [ui/tabbed-panel-menu
@@ -200,6 +204,7 @@
                :action #(dispatch [:set-view-field :article [article-id :pdf-url] pdf-url])}]
              (if (nil? visible-url) :abstract :pdf)
              "article-content-tab"]])
+         ;; title render
          [:h3.header {:style {:margin-top "0px"}}
           (let [render-title-keywords (fn [] [render-keywords article-id title-render
                                               {:label-class "large"}])]
@@ -208,13 +213,17 @@
                 [ArticleAnnotatedField article-id "primary-title" title
                  :reader-error-render [render-title-keywords]]
                 [render-title-keywords])))]
+         ;; render keywords
          (when-not (or pdf-only? (empty? journal-name))
            [:h3.header {:style {:margin-top "0px"}}
             [render-keywords article-id journal-render {:label-class "large"}]])
+         ;; date
          (when-not (or pdf-only? (empty? date))
            [:h5.header {:style {:margin-top "0px"}} date])
+         ;; authors
          (when-not (or pdf-only? (empty? authors))
            [:h5.header {:style {:margin-top "0px"}} (display-author-names 5 authors)])
+         ;; show pdf
          (if visible-url
            [pdf/ViewPDF {:pdf-url visible-url :entry pdf}]
            (when-not (empty? abstract)
@@ -222,6 +231,7 @@
                [ArticleAnnotatedField article-id "abstract" abstract
                 :reader-error-render [render-abstract article-id]]
                [render-abstract article-id])))
+         ;; article links
          [:div.ui.grid.article-links
           [:div.twelve.wide.left.aligned.middle.aligned.column
            (when-not (empty? urls)
@@ -231,6 +241,23 @@
                                   urls))])]
           [:div.four.wide.right.aligned.middle.aligned.column
            [ArticleSourceLinks article-id]]]]))))
+
+(defn CTDocument [article-id]
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader [[:article project-id article-id]] {}
+      (let [json @(subscribe [:article/json article-id])
+            nctid (get-in json [:ProtocolSection :IdentificationModule :NCTId])
+            title (get-in json [:ProtocolSection :IdentificationModule :BriefTitle])
+            brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
+            ui-theme @(subscribe [:self/ui-theme])]
+        [:div {:id nctid}
+         [:h2 title ]
+         [ui/out-link (str "https://clinicaltrials.gov/ct2/show/" nctid)]
+         [:br]
+         [RJson {:src (clj->js json)
+                 :theme (condp = ui-theme
+                          "Default" "bright:inverted"
+                          "Dark" "eighties")}]]))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})
@@ -266,6 +293,7 @@
         project-id @(subscribe [:active-project-id])
         status @(subscribe [:article/review-status article-id])
         score @(subscribe [:article/score article-id])
+        datasource-name @(subscribe [:article/datasource-name article-id])
         ann-context {:class "abstract" :project-id project-id :article-id article-id}
         {:keys [unlimited-reviews]} @(subscribe [:project/settings])
         {:keys [disabled?] :as duplicates} @(subscribe [:article/duplicates article-id])]
@@ -291,7 +319,10 @@
                [ArticleFlagsView article-id "ui segment"])
 
              [:div.ui.segment.article-content {:key :article-content}
-              [ArticleInfoMain article-id :context context]]
+              (condp = datasource-name
+                "ctgov"
+                [CTDocument article-id]
+                [ArticleInfoMain article-id :context context])]
 
              ^{:key :article-pdfs} [pdf/PDFs article-id]))
      (when change-labels-button [change-labels-button])

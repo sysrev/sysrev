@@ -26,7 +26,7 @@
   :prereqs (fn [project-id article-id] [[:project project-id]])
   :content (fn [project-id article-id] {:project-id project-id})
   :process
-  (fn [{:keys [db]} [project-id article-id] {:keys [article labels notes]}]
+  (fn [{:keys [db]} [project-id article-id] {:keys [article labels notes json datasource-name]}]
     (let [article (merge article {:labels labels :notes notes})]
       {:db (-> db (load-article article))
        :dispatch [:reload [:annotator/article project-id article-id]]})))
@@ -93,6 +93,14 @@
 (reg-sub :article/score
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:score article)))
+
+(reg-sub :article/datasource-name
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:datasource-name article)))
+
+(reg-sub :article/json
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:json article)))
 
 (reg-sub :article/duplicates
          (fn [[_ article-id]] (subscribe [:article/flags article-id]))

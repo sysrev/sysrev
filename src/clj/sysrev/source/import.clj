@@ -1,6 +1,6 @@
 (ns sysrev.source.import
   (:require [sysrev.source.interface :refer [import-source]]
-            (sysrev.source pubmed pmid endnote pdf-zip extra ris)))
+            (sysrev.source pubmed pmid endnote pdf-zip extra ris ctgov)))
 
 (defn import-pubmed-search
   [project-id {:keys [search-term] :as input} & [{:as options}]]
@@ -26,6 +26,11 @@
   [project-id {:keys [file filename] :as input} & [{:as options}]]
   (import-source :pdf-zip project-id input options))
 
+;; be sure to add entry above to require in sysrev.source
 (defn import-ris
   [project-id {:keys [file filename] :as input} & [{:as options}]]
   (import-source :ris project-id input options))
+
+(defn import-ctgov-search
+  [project-id {:keys [search-term] :as input} & [{:as options}]]
+  (import-source :ctgov project-id input options))

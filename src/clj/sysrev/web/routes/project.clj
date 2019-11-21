@@ -33,6 +33,7 @@
             [sysrev.predict.report :as predict-report]
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
+            [sysrev.formats.ctgov :as ctgov]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [parse-integer]])
   (:import [java.util UUID]
@@ -336,6 +337,11 @@
                   {:keys [tempfile filename]} (get-in request [:params :file])]
               (api/import-articles-from-ris-file project-id tempfile filename)))))
 
+(dr (POST "/api/import-trials/ctgov" request
+          (with-authorize request {:roles ["admin"]}
+            (let [{:keys [search-term]} (:body request)
+                  project-id (active-project request)]
+              (api/import-trials-from-search project-id search-term)))))
 ;;;
 ;;; Article review
 ;;;
@@ -406,6 +412,10 @@
            (let [{:keys [pmids]} (-> :params request)]
              (pubmed/get-pmids-summary (mapv parse-integer (str/split pmids #",")))))))
 
+(dr (GET "/api/ctgov/search" request
+         (with-authorize request {}
+           (let [{:keys [term page-number]} (-> :params request)]
+             (ctgov/search term (parse-integer page-number))))))
 ;;;
 ;;; Project settings
 ;;;

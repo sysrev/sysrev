@@ -9,6 +9,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.panels.ctgov :as ctgov]
             [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components.core :as ui]
@@ -436,30 +437,42 @@
 (defn ImportArticlesView []
   (ensure-state)
   (let [import-tab (r/cursor state [:import-tab])
-        active-tab (or @import-tab :pubmed)
+        active-tab (or @import-tab :zip-file)
         full-size? (util/full-size?)]
     [:div#import-articles
      {:style {:margin-bottom "1em"}}
      [:h4.ui.large.block.header
-      "Import Articles"]
+      "Import Articles" [:span {:style {:font-size "0.9em"}}
+                         [Popup {:hoverable true
+                                 :trigger (r/as-element
+                                           [Icon
+                                            {:name "question circle"}])
+                                 :content (r/as-element
+                                           [:div
+                                            [:p "Importing Articles " [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"} "video tutorial"]]])}]]]
      [:div.ui.segments
       [:div.ui.attached.segment.import-menu
        [ui/tabbed-panel-menu
-        [{:tab-id :pubmed
-          :content (if full-size? "PubMed Search" "PubMed")
-          :action #(reset! import-tab :pubmed)}
-         {:tab-id :pmid
-          :content "PMIDs"
-          :action #(reset! import-tab :pmid)}
+        [{:tab-id :zip-file
+          :content "PDF Files"
+          :action #(reset! import-tab :zip-file)}
          {:tab-id :ris-file
           :content "RIS / RefMan"
           :action #(reset! import-tab :ris-file)}
+         {:tab-id :pubmed
+          :content (if full-size? "PubMed Search" "PubMed")
+          :action #(reset! import-tab :pubmed)}
+         (when (not= js/window.location.hostname "sysrev.com")
+           {:tab-id :ctgov
+            :content "ClinicalTrials.gov"
+            :action #(reset! import-tab :ctgov)})
+         {:tab-id :pmid
+          :content "PMIDs"
+          :action #(reset! import-tab :pmid)}
          {:tab-id :endnote
           :content (if full-size? "EndNote XML" "EndNote")
           :action #(reset! import-tab :endnote)}
-         {:tab-id :zip-file
-          :content "PDF Files"
-          :action #(reset! import-tab :zip-file)}]
+         ]
         active-tab
         "import-source-tabs"]]
       [:div.ui.attached.secondary.segment
@@ -468,11 +481,16 @@
          :pmid     [ImportPMIDsView]
          :endnote  [ImportEndNoteView]
          :zip-file [ImportPDFZipsView]
-         :ris-file [ImportRISView])]
+         :ris-file [ImportRISView]
+         :ctgov [ctgov/SearchBar])]
       (when (= active-tab :pubmed)
-        [pubmed/SearchActions (any-source-processing?)])]
+        [pubmed/SearchActions (any-source-processing?)])
+      (when (= active-tab :ctgov)
+        [ctgov/SearchActions (any-source-processing?)])]
      (when (= active-tab :pubmed)
-       [pubmed/SearchResultsContainer])]))
+       [pubmed/SearchResultsContainer])
+     (when (= active-tab :ctgov)
+       [ctgov/SearchResultsContainer])]))
 
 (defn ProjectSourcesPanel []
   (ensure-state)

@@ -197,6 +197,12 @@
   (wrap-import-api #(import/import-ris
                      project-id {:file file :filename filename} options)))
 
+(defn import-trials-from-search
+  "Import trials resulting from CT.gov search"
+  [project-id search-term & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-ctgov-search
+                     project-id {:search-term search-term} options)))
+
 (s/def ::sources vector?)
 
 (defn-spec project-sources (req-un ::sources)

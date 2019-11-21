@@ -45,6 +45,7 @@
 (defn project-source-meta->article-type [meta]
   (condp = (:source meta)
     "RIS file"         ["academic"  "RIS"]
+    "CT.gov search"    ["json" "ctgov"]
     "PubMed search"    ["academic"  "pubmed"]
     "PMID vector"      ["academic"  "pubmed"]
     "PMID file"        ["academic"  "pubmed"]
@@ -56,10 +57,12 @@
 
 (defn datasource-name-for-type [{:keys [article-type article-subtype] :as _types}]
   (condp = article-type
-    "academic"   (condp = article-subtype
-                   "pubmed"   "pubmed"
-                   "RIS" "RIS"
-                   nil)
+    "academic" (condp = article-subtype
+                 "pubmed"   "pubmed"
+                 "RIS" "RIS"
+                 nil)
+    "json" (condp = article-subtype
+             "ctgov" "ctgov")
     nil))
 
 (defn make-article-data

@@ -26,6 +26,7 @@
     "react-dnd": "9.4.0",
     "react-dnd-html5-backend": "9.4.0",
     "react-dom": "16.8.6",
+    "react-json-view": "^1.19.1",
     "react-stripe-elements": "5.0.1",
     "semantic-ui-react": "0.83.0",
     "showdown": "1.8.6"

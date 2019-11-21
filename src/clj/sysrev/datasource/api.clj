@@ -12,7 +12,7 @@
              [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys]]))
 
 ;; for clj-kondo
-(declare fetch-pubmed-articles fetch-nct-entries get-articles-content fetch-ris-articles-by-ids)
+(declare fetch-pubmed-articles fetch-nct-entities get-articles-content fetch-ris-articles-by-ids)
 
 (defonce ds-host-override (atom nil))
 (defonce ds-auth-key-override (atom nil))
@@ -105,20 +105,20 @@
         (get pmid))))
 
 ;; TODO: support this for article import (analogous to `fetch-pubmed-articles`)
-(defn-spec fetch-nct-entries (s/map-of string? map?)
+(defn-spec fetch-nct-entities (s/map-of string? map?)
   "Queries datasource API to get article data for sequence `nctids`,
    returning a map of {nctid article}."
   [nctids ::nctids, & {:keys [fields]} (opt-keys ::fields)]
   (->> (query-api {:name :clinicalTrialEntities
                    :args {:nctids nctids}
-                   :fields (concat [:id :nctid] (or fields [:json]))})
+                   :fields (concat [:nctid] (or fields [:json]))})
        (map (fn [entry] (update entry :json #(json/read-str % :key-fn keyword))))
        (sutil/index-by :nctid)))
 
 (defn fetch-nct-entry
   "Queries datasource API to get article data map for a single `nctid`."
   [nctid & {:as opts}]
-  (-> (apply-keyargs fetch-nct-entries [nctid] opts)
+  (-> (apply-keyargs fetch-nct-entities [nctid] opts)
       (get nctid)))
 
 (defmulti enrich-articles (fn [datasource _coll] datasource))
@@ -168,6 +168,13 @@
                   (sutil/index-by :id))]
     (->> coll (mapv #(merge (get data (-> % :external-id parse-integer))
                             (select-keys % [:article-id :project-id]))))))
+
+(defmethod enrich-articles "ctgov" [_ coll]
+  (let [data (->> coll
+                  (map :external-id)
+                  fetch-nct-entities)]
+    (->> coll (mapv #(merge (get data (-> % :external-id))
+                            (select-keys % [:article-id :project-id :datasource-name :primary-title]))))))
 
 (defn enrich-articles-with-datasource
   "Given a coll of articles with `:datasource-name` and `:external-id` keys, enrich with content from datasource.

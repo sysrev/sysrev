@@ -19,6 +19,8 @@
   "Enter and submit a PubMed search query"
   [query]
   (log/info "running PubMed search:" (pr-str query))
+  (when-not (taxi/exists? x/pubmed-search-input)
+    (b/click (xpath "//a[contains(@class,'tab-pubmed')]")))
   (b/wait-until #(and (taxi/exists? x/pubmed-search-form)
                       (taxi/exists? x/pubmed-search-input)))
   (Thread/sleep 10)

@@ -100,6 +100,7 @@
 
 (defn SidebarColumn []
   (let [article-id @(subscribe [:visible-article-id])
+        article-datasource @(subscribe [:article/datasource-name article-id])
         editing-id @(subscribe [:review/editing-id])
         interface @(subscribe [:review-interface])]
     (when (review/display-sidebar?)
@@ -116,7 +117,8 @@
             :disabled (nil? editing-id)}
            {:tab-id :annotations
             :content "Annotations"
-            :action #(dispatch [:set-review-interface :annotations])}]
+            :action #(dispatch [:set-review-interface :annotations])
+            :disabled (= "ctgov" article-datasource)}]
           interface
           "review-interface"]
          (case interface
