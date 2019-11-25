@@ -44,9 +44,12 @@
                        (panel-set :error-message (:message error)))}))
 
 ;; depends on https://www.paypalobjects.com/api/checkout.js (loaded in index.clj)
-;; https://developer.paypal.com/docs/checkout/quick-start/
 ;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#interactive-code-demo
 ;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#show-a-confirmation-page
+
+;; This will have to be refactored to use:
+;; https://developer.paypal.com/docs/checkout/integrate/
+;;
 (defn PayPalButton
   "PayPal button component. on-authorize and on-error are optional functions
   to run additionally in PayPal authorize and error hooks."

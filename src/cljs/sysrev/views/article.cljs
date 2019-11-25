@@ -245,7 +245,9 @@
 (defn CTDocument [article-id]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
-      (let [json @(subscribe [:article/json article-id])
+      (let [json (let [ct-json @(subscribe [:article/json article-id])]
+                   {:ProtocolSection (:ProtocolSection ct-json)
+                    :DerivedSection (:DerivedSection ct-json)})
             nctid (get-in json [:ProtocolSection :IdentificationModule :NCTId])
             title (get-in json [:ProtocolSection :IdentificationModule :BriefTitle])
             brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
@@ -257,7 +259,11 @@
          [RJson {:src (clj->js json)
                  :theme (condp = ui-theme
                           "Default" "bright:inverted"
-                          "Dark" "eighties")}]]))))
+                          "Dark" "eighties")
+                 :displayDataTypes false
+                 :enableClipboard false
+                 :name false
+                 :collapsed 3}]]))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})

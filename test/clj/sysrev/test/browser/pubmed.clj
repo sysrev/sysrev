@@ -107,9 +107,6 @@
         #_ (cond-> (seq overlap)
              (assoc :overlap-maps (set (mapv make-overlap-map overlap)))))))
 
-(def import-button-xpath
-  {:xpath "//button[contains(@class,'button') and contains(text(),'Import')]"})
-
 (defn get-source-count []
   (count (taxi/find-elements x/project-source)))
 
@@ -121,7 +118,7 @@
   (let [initial-count (get-source-count)]
     (search-pubmed search-term)
     (log/info "importing articles from search")
-    (b/click import-button-xpath)
+    (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (check-source-count (inc initial-count))

@@ -19,5 +19,6 @@
             sysrev.test.browser.review-settings
             sysrev.test.browser.label-settings
             sysrev.test.browser.user-profiles
+            sysrev.test.browser.ctgov
             sysrev.test.web.routes.api.handlers
             sysrev.test.web.routes.project))

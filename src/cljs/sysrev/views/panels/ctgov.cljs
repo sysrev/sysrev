@@ -62,7 +62,6 @@
   :process
   ;;  fn of the form: [re-frame-db query-parameters (:result response)]
   (fn [{:keys [db]} [search-term page-number] response]
-    (.log js/console (clj->js response))
     {:db (-> db
              (assoc-in [:data :ctgov-search search-term :pages page-number :summaries] (:results response))
              (assoc-in [:data :ctgov-search search-term :count] (:count response)))}))
