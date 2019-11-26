@@ -72,9 +72,10 @@
                  ;; :async true :defer true
                  }]
     [:script {:src "https://js.stripe.com/v3/"}]
-    [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
-    ;; integration will have to be refactored to use:
-    ;;[:script {:src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id) "&currency=USD")}]
+    [:script {:src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id) "&currency=USD&disable-funding="
+                        (clojure.string/join ","
+                                             ["credit"
+                                              "card"]))}]
     (favicon-headers)
     (apply page/include-css (css-paths :theme (user-theme request)))
     (page/include-js "/ga.js")

@@ -147,9 +147,28 @@
   (client/get (str (paypal-url) "/v1/payments/payment/" payment-id)
               {:content-type :json
                :headers (default-headers (:access_token @current-access-token))
+               :as :json
+               :coerce :always}))
+
+(defn get-order
+  [order-id]
+  (client/get (str (paypal-url) "/v2/checkout/orders/" order-id)
+              {:content-type :json
+               :headers (default-headers (:access_token @current-access-token))
                :throw-exceptions false
                :as :json
                :coerce :always}))
+
+(defn process-order
+  [order-resp]
+  (let [purchase-unit (-> order-resp :body :purchase_units first)
+        capture (-> purchase-unit :payments :captures first)
+        amount (get-in capture [:amount :value])
+        status (:status capture)
+        create-time (:create_time capture)]
+    {:amount (-> amount read-string (* 100) (Math/round))
+     :status status
+     :created (util/to-clj-time (paypal-date->unix-epoch create-time))}))
 
 (defn check-transaction!
   "Given a payment-id, check to see what the current status of the sale

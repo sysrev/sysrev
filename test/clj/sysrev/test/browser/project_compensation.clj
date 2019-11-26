@@ -143,11 +143,10 @@
 (defn click-paypal-button []
   (log/info "clicking paypal button")
   (b/wait-until-exists "iframe")
-  (let [paypal-frame-name (first (b/current-frame-names))
-        button "div.paypal-button.paypal-button-label-pay"]
+  (let [button "div.paypal-button"]
     (Thread/sleep 50)
     (taxi/switch-to-default)
-    (taxi/switch-to-frame (xpath (str "//iframe[@name='" paypal-frame-name "']")))
+    (taxi/switch-to-frame (xpath (str "//iframe[@name='" (first (b/current-frame-names)) "']")))
     (b/wait-until-displayed button)
     (Thread/sleep 50)
     (b/click button :external? true)
@@ -178,10 +177,11 @@
     (doall (map (partial randomly-set-labels project-id user-id) unreviewed-articles))))
 
 ;; https://developer.paypal.com/developer/accounts/
-;; test information associated with:  test@insilica.co
-;; visa number: 4032033154588268
-;; exp: 03/24
+;; test information associated with: sb-477vju643771@personal.example.com
+;; visa number: 4032038001593510
+;; exp: 11/24
 ;; everything else you can make up, except the city must match the zip code
+;; still using the name "John Doe" for this as it is what the customer name associated with the account is
 (defn add-paypal-funds
   "Add dollar amount of funds (e.g. $20.00) to project using paypal"
   [amount]
@@ -200,7 +200,7 @@
   (log/info "waiting for paypal window to load")
   (b/wait-until-displayed "a#createAccount" 15000 30)
   (Thread/sleep 200)
-  (log/info "clicking to pay as guest")
+  (log/info "clicking to pay with Debit or Credit Card")
   (b/click "a#createAccount" :external? true)
   (b/wait-until-displayed "input#cc" 15000 30)
   (log/info "setting payment fields")
@@ -208,18 +208,18 @@
   (letfn [(enter-text [q text]
             (taxi/focus q)
             (b/set-input-text-per-char q text :delay 20 :clear? false))]
-    (enter-text "input#cc" "4032033154588268")
-    (enter-text "input#expiry_value" "03/24")
+    (enter-text "input#cc" "4032038001593510")
+    (enter-text "input#expiry_value" "11/24")
     (enter-text "input#cvv" "123")
-    (enter-text "input#firstName" "Foo")
-    (enter-text "input#lastName" "Bar")
+    (enter-text "input#firstName" "John")
+    (enter-text "input#lastName" "Doe")
     (enter-text "input#billingLine1" "1 Infinite Loop Dr")
     (enter-text "input#billingCity" "Baltimore")
     (taxi/select-by-text "select#billingState" "Maryland")
     (Thread/sleep 30)
     (enter-text "input#billingPostalCode" "21209")
     (enter-text "input#telephone" "222-333-4444")
-    (enter-text "input#email" "browser+test@insilica.co")
+    (enter-text "input#email" "sb-477vju643771@personal.example.com")
     (b/click (xpath "//input[@id='guestSignup2']"
                     "/ancestor::div[contains(@class,'radioButton')]")
              :external? true)
@@ -254,7 +254,7 @@
       ;; create a compensation level
       (create-compensation amount)
       ;; set it to default
-      (select-compensation-dropdown nil 100)
+      (select-compensation-dropdown nil amount)
       ;; create a new user, check that that their compensation level is set to the default
       (b/create-test-user :email (:email test-user)
                           :password (:password test-user)

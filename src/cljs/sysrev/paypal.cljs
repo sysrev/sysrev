@@ -29,13 +29,12 @@
 
 (def-action :paypal/add-funds
   :uri (constantly "/api/paypal/add-funds")
-  :content (fn [project-id user-id response]
-             {:project-id project-id :user-id user-id :response response})
+  :content (fn [project-id user-id order-id]
+             {:project-id project-id :user-id user-id :order-id order-id})
   :process (fn [{:keys [db]} _ _result]
              (let [amount (panel-get db :user-defined-support-level)]
                {:db (-> (panel-set db :success-message
-                                   (str "Your payment of " amount " has been received and "
-                                        "will be available after it has been processed."))
+                                   (str "Your payment of $" amount " has been received and processed"))
                         (panel-set :error-message nil)
                         (panel-set :user-defined-support-level nil))
                 :dispatch [:project/get-funds]}))
@@ -55,40 +54,42 @@
   to run additionally in PayPal authorize and error hooks."
   [project-id user-id amount-ref & {:keys [on-authorize on-error]}]
   (letfn [(render-button []
-            (-> js/paypal.Button
-                (.render
+            (-> (js/paypal.Buttons
                  (clj->js
-                  {:env paypal-env
-                   :style {:label "pay"
-                           :size "responsive"
-                           :height 38
-                           :shape "rect"
-                           :color "gold"
-                           :tagline false
-                           :fundingicons false}
-                   :disabled false
-                   :commit true
-                   :client {paypal-env paypal-client-id}
-                   :payment (fn [_data actions]
-                              ($ actions payment.create
-                                 (clj->js
-                                  {:payment
-                                   {:transactions
-                                    [{:amount {:total (acct/format-money @amount-ref "")
-                                               :currency "USD"}}]}
-                                   :experience {:input_fields {:no_shipping 1}}})))
-                   :onAuthorize (fn [data actions]
-                                  (-> ($ actions payment.execute)
-                                      ($ then #(dispatch [:action [:paypal/add-funds
-                                                                   project-id user-id %]])))
-                                  (when on-authorize (on-authorize))
-                                  nil)
+                  {:style
+                   {:label "pay"
+                    :size "responsive"
+                    :height 38
+                    :shape "rect"
+                    :color "gold"
+                    :tagline false
+                    :fundingicons false}
+                   :createOrder (fn [_data actions]
+                                  ($ actions order.create
+                                     (clj->js {:purchase_units
+                                               [{:amount {:value
+                                                          (acct/format-money @amount-ref "")}}]})))
+                   :onApprove (fn [data actions]
+                                (-> ($ actions order.capture)
+                                    ($ then (fn [details]
+                                              (dispatch [:action [:paypal/add-funds project-id
+                                                                  user-id
+                                                                  ($ data :orderID)]])))))
                    :onError (fn [err]
+                              (.log js/console "on error was called")
                               (dispatch [::set :error-message
                                          "An error was encountered during PayPal checkout."])
                               (when on-error (on-error err))
-                              nil)})
-                 "#paypal-button")))]
+                              nil)
+                   ;; hack from https://github.com/paypal/paypal-checkout-components/issues/1158
+                   :onClick
+                   (fn [data actions]
+                     (-> (js/Promise. (fn [resolve]
+                                        (js/setTimeout
+                                         resolve
+                                         500)))
+                         (.then (.reject actions))))}))
+                (.render "#paypal-button")))]
     (r/create-class {:reagent-render (fn [& _] [:div#paypal-button])
                      :component-did-mount (fn [& _] (render-button))})))
 

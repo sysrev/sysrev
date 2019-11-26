@@ -4,7 +4,8 @@
 (def transaction-source-descriptor {:paypal-payment "PayPal/payment-id"
                                     :stripe-charge "Stripe/charge-id"
                                     :paypal-payout "PayPal/payout-batch-id"
-                                    :sysrev-admin-fee "SysRev/admin-fee"})
+                                    :sysrev-admin-fee "SysRev/admin-fee"
+                                    :paypal-order "PayPal/order-id"})
 
 (defn create-project-fund-entry!
   [{:keys [project-id user-id amount transaction-id transaction-source created] :as fields}]

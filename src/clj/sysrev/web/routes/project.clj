@@ -779,8 +779,8 @@
 (dr (POST "/api/paypal/add-funds" request
           (with-authorize request {:logged-in true}
             (let [project-id (active-project request)
-                  {:keys [user-id response]} (:body request)]
-              (api/add-funds-paypal project-id user-id response)))))
+                  {:keys [user-id order-id]} (:body request)]
+              (api/add-funds-paypal project-id user-id order-id)))))
 
 (dr (POST "/api/project-compensation" request
           (with-authorize request {:roles ["admin"]}

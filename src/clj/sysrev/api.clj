@@ -411,27 +411,28 @@
 ;;https://developer.paypal.com/docs/checkout/how-to/customize-flow/#manage-funding-source-failure
 ;; response.error = 'INSTRUMENT_DECLINED'
 (defn add-funds-paypal
-  [project-id user-id response]
+  [project-id user-id order-id]
   ;; best way to check for now
-  (let [response (keywordize-keys response)]
-    (cond (:id response)
-          (let [amount (-> response :transactions first (get-in [:amount :total])
-                           read-string (* 100) (Math/round))
-                transaction-id (:id response)
-                created (to-clj-time (-> response :transactions first :related_resources first
-                                         :sale :create_time paypal/paypal-date->unix-epoch))]
-            ;; all paypal transactions will be considered pending
-            (funds/create-project-fund-pending-entry!
-             {:project-id project-id
-              :user-id user-id
-              :amount amount
-              :transaction-id transaction-id
-              :transaction-source (:paypal-payment funds/transaction-source-descriptor)
-              :status "pending"
-              :created created})
-            {:success true})
-          :else {:error {:status internal-server-error
-                         :message "The PayPal response has an error"}})))
+  (let [response (paypal/paypal-oauth-request (paypal/get-order order-id))
+        {:keys [amount status created]} (paypal/process-order response)]
+    (cond
+      ;; PayPal capture has occurred client side
+      (and (= status "COMPLETED")
+           (= (:status response) 200))
+      (do
+        (funds/create-project-fund-entry!
+         {:project-id project-id
+          :user-id user-id
+          :amount amount
+          :transaction-id order-id
+          :transaction-source (:paypal-order funds/transaction-source-descriptor)
+          :created created})
+        {:success true})
+      (not= status "COMPLETED")
+      {:error {:status precondition-failed
+               :message (str "Capture status was not COMPLETED, but rather: " status)}}
+      :else {:status internal-server-error
+             :message "An unknown error occurred, payment was not processed on SysRev"} )))
 
 (defn user-project-support-level [user project-id]
   {:result (select-keys (plans/user-current-project-support user project-id)
