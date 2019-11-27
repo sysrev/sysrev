@@ -360,7 +360,7 @@
        (when (or ~repl? ~enable)
          (util/with-print-time-elapsed ~name-str
            (let ~bindings
-             (try (log/info "running" ~name-str)
+             (try (log/infof "[[ running %s ]]" ~name-str)
                   (when ~repl?
                     (try ~cleanup
                          (catch Throwable e#

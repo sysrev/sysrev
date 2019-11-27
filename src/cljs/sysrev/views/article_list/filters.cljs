@@ -200,8 +200,8 @@
         synced? (or (nil? @input) (= @input curval))]
     [:div.ui.fluid.left.icon.input {:class (css [(not synced?) "loading"])}
      [:input
-      {:type "text"
-       :id "article-search"
+      {:id "article-search"
+       :type "text"
        :value (or @input curval)
        :placeholder "Search articles"
        :on-change (util/on-event-value

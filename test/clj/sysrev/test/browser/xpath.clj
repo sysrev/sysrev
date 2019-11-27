@@ -42,12 +42,6 @@
          "//ancestor::div[@id='project-sources']"
          "/descendant::div[@class='project-source']"))
 
-(def pubmed-search-input
-  (xpath "//input[contains(@placeholder,'PubMed Search...')]"))
-
-(def pubmed-search-form
-  (xpath "//form[@id='search-bar']"))
-
 (defn match-text [element text]
   (xpath (format "//%s[text()='%s']" element text)))
 

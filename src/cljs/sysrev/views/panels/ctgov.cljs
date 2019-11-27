@@ -9,7 +9,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
-            [sysrev.util :refer [wrap-prevent-default]]
+            [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 (setup-panel-state panel [:ctgov-search] {:state-var state
@@ -192,9 +192,10 @@
 
 (defn CloseSearchResultsButton []
   (let [show-results? (r/cursor state [:show-results?])]
-    [:button.ui.fluid.right.labeled.icon.button.search-results
-     {:on-click #(reset! show-results? false)
-      :style {:margin-right "0"}}
+    [:button.ui.fluid.right.labeled.icon.button
+     {:class "search-results close-search"
+      :style {:margin-right "0"}
+      :on-click #(reset! show-results? false)}
      "Close " [:i.times.icon]]))
 
 (defn SearchBar
@@ -211,17 +212,14 @@
              (reset! show-results? true)
              (reset! import-error nil)
              (dispatch [:require [:ctgov-search @current-search-term 1]]))]
-    [:form {:on-submit (wrap-prevent-default fetch-results)
-            :id "search-bar"}
+    [:form {:id "search-bar"
+            :class "ctgov-search"
+            :on-submit (wrap-prevent-default fetch-results)}
      [:div.ui.fluid.left.icon.action.input
       [:input {:type "text"
                :placeholder "Search ClinicalTrials.gov..."
                :value @on-change-search-term
-               :on-change (fn [event]
-                            (reset! on-change-search-term
-                                    (-> event
-                                        (aget "target")
-                                        (aget "value"))))}]
+               :on-change (util/on-event-value #(reset! on-change-search-term %))}]
       [:i.search.icon]
       [:button.ui.button {:type "submit" :tabIndex "-1"}
        "Search"]]]))

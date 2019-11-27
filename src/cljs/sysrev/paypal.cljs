@@ -7,7 +7,7 @@
             [sysrev.views.semantic :as s]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state with-mount-body]]))
 
 ;; for clj-kondo
 (declare panel state panel-get panel-set)
@@ -53,45 +53,41 @@
   "PayPal button component. on-authorize and on-error are optional functions
   to run additionally in PayPal authorize and error hooks."
   [project-id user-id amount-ref & {:keys [on-authorize on-error]}]
-  (letfn [(render-button []
-            (-> (js/paypal.Buttons
-                 (clj->js
-                  {:style
-                   {:label "pay"
+  [(with-mount-body
+     (-> (js/paypal.Buttons
+          (clj->js
+           {:style {:label "pay"
                     :size "responsive"
                     :height 38
                     :shape "rect"
                     :color "gold"
                     :tagline false
                     :fundingicons false}
-                   :createOrder (fn [_data actions]
-                                  ($ actions order.create
-                                     (clj->js {:purchase_units
-                                               [{:amount {:value
-                                                          (acct/format-money @amount-ref "")}}]})))
-                   :onApprove (fn [data actions]
-                                (-> ($ actions order.capture)
-                                    ($ then (fn [details]
-                                              (dispatch [:action [:paypal/add-funds project-id
-                                                                  user-id
-                                                                  ($ data :orderID)]])))))
-                   :onError (fn [err]
-                              (.log js/console "on error was called")
-                              (dispatch [::set :error-message
-                                         "An error was encountered during PayPal checkout."])
-                              (when on-error (on-error err))
-                              nil)
-                   ;; hack from https://github.com/paypal/paypal-checkout-components/issues/1158
-                   :onClick
-                   (fn [data actions]
-                     (-> (js/Promise. (fn [resolve]
-                                        (js/setTimeout
-                                         resolve
-                                         500)))
-                         (.then (.reject actions))))}))
-                (.render "#paypal-button")))]
-    (r/create-class {:reagent-render (fn [& _] [:div#paypal-button])
-                     :component-did-mount (fn [& _] (render-button))})))
+            :createOrder
+            (fn [^js _data ^js actions]
+              (->> {:purchase_units [{:amount {:value (acct/format-money @amount-ref "")}}]}
+                   (clj->js)
+                   (.order.create actions)))
+            :onApprove
+            (fn [^js data ^js actions]
+              (-> (.order.capture actions)
+                  (.then (fn [_details]
+                           (dispatch [:action [:paypal/add-funds project-id
+                                               user-id (.-orderID data)]])))))
+            :onError
+            (fn [err]
+              (js/console.error "PayPalButton error")
+              (dispatch [::set :error-message
+                         "An error was encountered during PayPal checkout."])
+              (when on-error (on-error err))
+              nil)
+            ;; hack from https://github.com/paypal/paypal-checkout-components/issues/1158
+            :onClick
+            (fn [_data actions]
+              (-> (js/Promise. (fn [resolve] (js/setTimeout resolve 500)))
+                  (.then (.reject actions))))}))
+         (.render "#paypal-button")))
+   [:div#paypal-button]])
 
 (defn amount-validation [amount]
   (let [amount (some-> (sutil/ensure-pred string? amount)

@@ -16,6 +16,9 @@
       {:component-did-mount ~on-mount
        :reagent-render (fn [content#] content#)})))
 
+(defmacro with-mount-body [& on-mount-body]
+  `(with-mount-hook (fn [& _#] ~@on-mount-body)))
+
 (defmacro import-vars [[_quote ns]]
   `(do ~@(->> (ana-api/ns-publics ns)
               (remove (comp :macro second))

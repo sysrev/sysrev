@@ -166,7 +166,7 @@
   "Runs `body` and logs elapsed time on completion."
   [name & body]
   `(let [start# (now-ms)]
-     (try ~@body (finally (log/infof "%s finished in %.2fs"
+     (try ~@body (finally (log/infof "[[ %s finished in %.2fs ]]"
                                      ~name (/ (- (now-ms) start#) 1000.0))))))
 
 ;; see: https://stackoverflow.com/questions/10751638/clojure-rounding-to-decimal-places

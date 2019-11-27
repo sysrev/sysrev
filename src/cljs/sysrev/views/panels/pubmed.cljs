@@ -262,8 +262,9 @@
 
 (defn CloseSearchResultsButton []
   (let [show-results? (r/cursor state [:show-results?])]
-    [:button.ui.fluid.right.labeled.icon.button.search-results
-     {:on-click #(reset! show-results? false)
+    [:button.ui.fluid.right.labeled.icon.button
+     {:class "search-results close-search"
+      :on-click #(reset! show-results? false)
       :style {:margin-right "0"}}
      "Close " [:i.times.icon]]))
 

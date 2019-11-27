@@ -15,49 +15,42 @@
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(def pubmed-search-input "form#search-bar input[type=text]")
+
 (defn search-pubmed
   "Enter and submit a PubMed search query"
   [query]
   (log/info "running PubMed search:" (pr-str query))
-  (when-not (taxi/exists? x/pubmed-search-input)
-    (b/click (xpath "//a[contains(@class,'tab-pubmed')]")))
-  (b/wait-until #(and (taxi/exists? x/pubmed-search-form)
-                      (taxi/exists? x/pubmed-search-input)))
-  (Thread/sleep 10)
-  (-> {:xpath "//div[contains(@class,'button') and contains(text(),'Close')]"}
-      (b/click :if-not-exists :skip))
-  (b/set-input-text x/pubmed-search-input query)
-  (taxi/submit x/pubmed-search-form)
+  (when-not (taxi/exists? pubmed-search-input)
+    (b/click "a.tab-pubmed"))
+  (b/wait-until-exists pubmed-search-input)
+  (Thread/sleep 20)
+  (b/click ".ui.button.close-search" :if-not-exists :skip)
+  (b/set-input-text pubmed-search-input query)
+  (taxi/submit "form#search-bar")
   (b/wait-until-loading-completes :pre-wait 200 :inactive-ms 50 :timeout 20000))
 
 (defn search-count
   "Return an integer item count of search results"
   []
-  (let [pager-message {:xpath "//h5[contains(@class,'list-pager-message')]"}
-        pubmed-article {:xpath "//div[contains(@class,'pubmed-article')]"}]
-    (b/wait-until-displayed pager-message)
-    (b/wait-until-displayed pubmed-article)
-    (->> (taxi/find-elements pager-message)
-         first
-         taxi/text
-         (re-matches #".*of (\d*).*")
-         last
-         parse-integer)))
+  (b/wait-until-displayed "h5.list-pager-message")
+  (b/wait-until-displayed "div.pubmed-article")
+  (parse-integer (->> (taxi/elements "h5.list-pager-message")
+                      first
+                      taxi/text
+                      (re-matches #".*of (\d*).*")
+                      last)))
 
 (defn max-pages
   "Return max number of pages"
   []
-  (let [page-number {:xpath "//span[contains(@class,'page-number')]"}]
-    (b/wait-until-displayed page-number)
-    (->> (taxi/text (taxi/find-element page-number))
-         (re-matches #"(.|\s)*of (\d*).*")
-         last
-         parse-integer)))
+  (b/wait-until-displayed "span.page-number")
+  (parse-integer (->> (taxi/text (taxi/element "span.page-number"))
+                      (re-matches #"(.|\s)*of (\d*).*")
+                      last)))
 
-(defn get-current-page-number
-  []
-  (->> {:xpath "//input[contains(@class,'page-number') and @type='text']"}
-       taxi/find-element taxi/value parse-integer))
+(defn get-current-page-number []
+  (parse-integer (-> "input.page-number" taxi/element taxi/value)))
 
 (defn search-term-count-matches?
   "Does the search-term result in the browser match the remote call?"
