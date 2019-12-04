@@ -1,16 +1,11 @@
 (ns sysrev.state.project.data
-  (:require [re-frame.core :refer
-             [subscribe reg-sub reg-event-db reg-event-fx
-              dispatch trim-v reg-fx]]
+  (:require [re-frame.core :refer [subscribe reg-sub reg-event-db dispatch trim-v]]
             [sysrev.loading :as loading]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.core :refer [store-user-maps]]
-            [sysrev.state.nav :refer [active-project-id active-panel]]
-            [sysrev.state.project.base :refer [get-project-raw]]
-            [sysrev.views.panels.project.articles :as project-articles]
+            [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.article-list.base :as al]
-            [sysrev.shared.transit :as sr-transit]
-            [sysrev.shared.util :as sutil :refer [in? index-by dissoc-in]]))
+            [sysrev.shared.util :as sutil :refer [index-by dissoc-in]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))
@@ -29,7 +24,7 @@
 
 (def-data :project
   :loaded? project-loaded?
-  :uri (fn [project-id] "/api/project-info")
+  :uri (constantly "/api/project-info")
   :content (fn [project-id] {:project-id project-id})
   :process (fn [{:keys [db]} [project-id] {:keys [project users]}]
              (let [url-ids-map (->> (:url-ids project)
@@ -45,7 +40,7 @@
 
 (def-data :project/settings
   :loaded? project-loaded?
-  :uri (fn [project-id] "/api/project-settings")
+  :uri (constantly "/api/project-settings")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
   :process
@@ -68,7 +63,7 @@
   :loaded? (fn [db project-id args]
              (-> (get-in db [:data :project project-id :article-list-count])
                  (contains? args)))
-  :uri (fn [project-id] "/api/project-articles")
+  :uri (constantly "/api/project-articles")
   :content (fn [project-id args]
              (merge {:project-id project-id}
                     args
@@ -83,7 +78,7 @@
   :loaded? (fn [db project-id args]
              (-> (get-in db [:data :project project-id :article-list])
                  (contains? args)))
-  :uri (fn [project-id] "/api/project-articles")
+  :uri (constantly "/api/project-articles")
   :content (fn [project-id args]
              (merge {:project-id project-id} args))
   :prereqs (fn [project-id args]
@@ -106,56 +101,40 @@
     {:db (assoc-in db [:data :project project-id :article-list args]
                    result)}))
 
-(reg-sub
- :project/article-list
- (fn [[_ project-id args]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ project-id args]]
-   (get-in project [:article-list args])))
+(reg-sub :project/article-list
+         (fn [[_ project-id _]] (subscribe [:project/raw project-id]))
+         (fn [project [_ _ args]]
+           (get-in project [:article-list args])))
 
-(reg-sub
- :project/article-list-count
- (fn [[_ project-id args]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ project-id args]]
-   (get-in project [:article-list-count args])))
+(reg-sub :project/article-list-count
+         (fn [[_ project-id _]] (subscribe [:project/raw project-id]))
+         (fn [project [_ _ args]]
+           (get-in project [:article-list-count args])))
 
 (def-data :project/sources
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])
                  (contains? :sources)))
-  :uri (fn [project-id] "/api/project-sources")
+  :uri (constantly "/api/project-sources")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id] {:keys [sources]}]
              {:db (assoc-in db [:data :project project-id :sources] sources)}))
 
-(reg-event-db
- :project/clear-data
- [trim-v]
- (fn [db]
-   (if-let [project-id (active-project-id db)]
-     (dissoc-in db [:data :project project-id])
-     db)))
+(reg-event-db :project/clear-data [trim-v]
+              #(if-let [project-id (active-project-id %)]
+                 (dissoc-in % [:data :project project-id])
+                 %))
 
-(reg-sub
- :project/has-articles?
- (fn [[_ project-id]]
-   [(subscribe [:project/article-counts project-id])])
- (fn [[{:keys [total]}]]
-   (when total (> total 0))))
+(reg-sub :project/has-articles?
+         (fn [[_ project-id]] (subscribe [:project/article-counts project-id]))
+         (fn [{:keys [total]}] (when total (> total 0))))
 
-(reg-sub
- :public-projects
- (fn [db [_ project-id]]
-   (cond-> (get-in db [:data :public-projects])
-     project-id (get project-id))))
+(reg-sub :public-projects
+         (fn [db [_ project-id]]
+           (cond-> (get-in db [:data :public-projects])
+             project-id (get project-id))))
 
-(reg-sub
- :public-project-ids
- (fn [[]]
-   [(subscribe [:public-projects])])
- (fn [[projects]]
-   (->> (vals projects)
-        (sort-by :project-id <)
-        (map :project-id))))
+(reg-sub :public-project-ids
+         :<- [:public-projects]
+         #(sort (map :project-id (vals %))))

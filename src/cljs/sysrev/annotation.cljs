@@ -2,7 +2,6 @@
   (:require cljs.reader
             [clojure.string :as str]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$ $!]]
             [sysrev.views.semantic :refer [Popup]]
             [sysrev.shared.util :as sutil :refer [index-by]]))
 
@@ -233,7 +232,7 @@
     :end   <integer> ;; end index in text
     :annotation <string> ;; will contain semantic-class: annotation}]"
   [annotations text]
-  (let [;; get all contexts and determine their relative offset in selection
+  (let [ ;; get all contexts and determine their relative offset in selection
         contexts (->> annotations
                       (map #(get-in % [:context :text-context]))
                       set
@@ -258,16 +257,15 @@
   references (e.g. &lt;) to their single char representation in
   html-text"
   [html-text]
-  (let [span (js/document.createElement "SPAN")
-        _ ($! span :innerHTML html-text)]
-    ($ span :innerText)))
+  (let [span (js/document.createElement "SPAN")]
+    (set! (.-innerHTML span) html-text)
+    (.-innerText span)))
 
 (defn remove-overlaps
   "Remove all but the longest overlapping annotations"
   [annotations]
   (->> annotations
-       (map #(assoc % :index [(:start %)
-                              (:end %)]))
+       (map #(assoc % :index [(:start %) (:end %)]))
        (sort-by :index)
        remove-overlapping-indices))
 

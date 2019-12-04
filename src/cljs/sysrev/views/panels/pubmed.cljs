@@ -12,7 +12,10 @@
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :refer [wrap-prevent-default nbsp]]
             [sysrev.shared.util :as util]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:pubmed-search] {:state-var state
                                            :get-fn panel-get
@@ -27,67 +30,39 @@
 (defn pmids-per-page [] 20)
 
 (def-data :pubmed-search
-  :loaded?
-  ;; if loaded? is false, then data will be fetched from server,
-  ;; otherwise, no data is fetched. It is a fn of the dereferenced
-  ;; re-frame.db/app-db.
-  (fn [db search-term page-number]
-    (let [result-count (get-in db [:data :pubmed-search search-term :count])]
-      ;; the result-count hasn't been updated, so the search term results
-      ;; still need to be populated
-      (if (nil? result-count)
-        false
-        ;; the page number exists
-        (if (<= page-number
-                (Math/ceil (/ result-count (pmids-per-page))))
-          (not-empty (get-in db [:data :pubmed-search search-term
-                                 :pages page-number :pmids]))
-          ;; the page number doesn't exist, retrieve nothing
-          true))))
-
-  :uri
-  ;; uri is a function that returns a uri string
-  (fn [] "/api/pubmed/search")
-
-  :content
-  ;; a fn that returns a map of http parameters (in a GET context)
-  ;; the parameters passed to this function are the same like in
-  ;; the dispatch statement which executes the query
-  ;; e.g. (dispatch [:fetch [:pubmed-query "animals" 1]])
-  ;;
-  ;; The data can later be retrieved using a re-frame.core/subscribe call
-  ;; that is defined in sysrev.state.pubmed
-  ;; e.g. @(subscribe [:pubmed/search-term-result "animals"])
-  (fn [search-term page-number] {:term search-term
-                                 :page-number page-number})
-
-  :process
-  ;;  fn of the form: [re-frame-db query-parameters (:result response)]
-  (fn [_ [search-term page-number] response]
-    {:dispatch [:pubmed/save-search-term-results search-term page-number response]}))
+  :loaded? (fn [db search-term page-number]
+             (let [result-count (get-in db [:data :pubmed-search search-term :count])]
+               ;; the result-count hasn't been updated, so the search term results
+               ;; still need to be populated
+               (if (nil? result-count)
+                 false
+                 ;; the page number exists
+                 (if (<= page-number
+                         (Math/ceil (/ result-count (pmids-per-page))))
+                   (not-empty (get-in db [:data :pubmed-search search-term
+                                          :pages page-number :pmids]))
+                   ;; the page number doesn't exist, retrieve nothing
+                   true))))
+  :uri (constantly "/api/pubmed/search")
+  :content (fn [search-term page-number]
+             {:term search-term :page-number page-number})
+  :process (fn [_ [search-term page-number] response]
+             {:dispatch [:pubmed/save-search-term-results search-term page-number response]}))
 
 (def-data :pubmed-summaries
-  :loaded?
-  (fn [db search-term page-number pmids]
-    (let [result-count (get-in db [:data :pubmed-search search-term :count])]
-      (if (<= page-number
-              (Math/ceil (/ result-count (pmids-per-page))))
-        ;; the page number exists, the results should too
-        (not-empty (get-in db [:data :pubmed-search search-term
-                               :pages page-number :summaries]))
-        ;; the page number isn't in the result, retrieve nothing
-        true)))
-
-  :uri
-  (fn [] "/api/pubmed/summaries")
-
-  :content
-  (fn [search-term page-number pmids]
-    {:pmids (str/join "," pmids)})
-
-  :process
-  (fn [_ [search-term page-number pmids] response]
-    {:dispatch [:pubmed/save-search-term-summaries search-term page-number response]}))
+  :loaded? (fn [db search-term page-number _]
+             (let [result-count (get-in db [:data :pubmed-search search-term :count])]
+               (if (<= page-number
+                       (Math/ceil (/ result-count (pmids-per-page))))
+                 ;; the page number exists, the results should too
+                 (not-empty (get-in db [:data :pubmed-search search-term
+                                        :pages page-number :summaries]))
+                 ;; the page number isn't in the result, retrieve nothing
+                 true)))
+  :uri (constantly "/api/pubmed/summaries")
+  :content (fn [_ _ pmids] {:pmids (str/join "," pmids)})
+  :process (fn [_ [search-term page-number _] response]
+             {:dispatch [:pubmed/save-search-term-summaries search-term page-number response]}))
 
 (def-action :project/import-articles-from-search
   :uri (fn [] "/api/import-articles/pubmed")
@@ -95,22 +70,18 @@
              {:project-id project-id
               :search-term search-term
               :source source})
-  :process (fn [_ [project-id _ _] {:keys [success] :as result}]
-             (if success
-               {:dispatch-n
-                (list [:reload [:project/sources project-id]]
-                      [:add-articles/reset-state!])}
-               ;; TODO: handle non-success?
-               {}))
+  :process (fn [_ [project-id _ _] {:keys [success]}]
+             (when success
+               {:dispatch-n (list [:reload [:project/sources project-id]]
+                                  [:add-articles/reset-state!])}))
   :on-error (fn [{:keys [db error]} _]
               (let [{:keys [message]} error]
                 (when (string? message)
                   {:dispatch [:pubmed/set-import-error message]}))))
 
-(reg-sub
- :pubmed/search-term-result
- (fn [db [_ search-term]]
-   (-> db :data :pubmed-search (get-in [search-term]))))
+(reg-sub :pubmed/search-term-result
+         (fn [db [_ search-term]]
+           (-> db :data :pubmed-search (get-in [search-term]))))
 
 ;; A DB map representing a search term in :data :search-term <term>
 ;;
@@ -156,12 +127,10 @@
        {:db (assoc-in db [:data :pubmed-search search-term :count]
                       (:count search-term-response))}))))
 
-(reg-event-db
- :pubmed/save-search-term-summaries
- [trim-v]
- (fn [db [search-term page-number response]]
-   (assoc-in db [:data :pubmed-search search-term :pages page-number :summaries]
-             response)))
+(reg-event-db :pubmed/save-search-term-summaries [trim-v]
+              (fn [db [search-term page-number response]]
+                (assoc-in db [:data :pubmed-search search-term :pages page-number :summaries]
+                          response)))
 
 (reg-event-db :pubmed/set-import-error [trim-v]
               (fn [db [message]]
@@ -174,16 +143,8 @@
         search-results
         @(subscribe [:pubmed/search-term-result @current-search-term])
         n-results (get-in search-results [:count])
-        total-pages (Math/ceil (/ n-results items-per-page))
-        on-navigate
-        (fn [_ offset]
-          (dispatch [:require [:pubmed-search @current-search-term @current-page]]))
-        page-width 1
-        pages (->> (range 1 (+ 1 total-pages))
-                   (partition-all page-width))
-        displayed-pages (->> pages
-                             (filter (fn [i] (some #(= @current-page %) i)))
-                             first)
+        on-navigate (fn [_ _offset]
+                      (dispatch [:require [:pubmed-search @current-search-term @current-page]]))
         offset (* (dec @current-page) items-per-page)]
     [:div.ui.segment
      [ListPager
@@ -246,7 +207,7 @@
      [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
      [:button.ui.blue.button
-      {:class (if disable-import? "disabled")}
+      {:class (when disable-import? "disabled")}
       [:i.download.icon] " Import"]]))
 
 (defn PubMedSearchLink
@@ -350,29 +311,23 @@
         page-number (subscribe [::page-number])
         import-error (r/cursor state [:import-error])
         search-results (subscribe [:pubmed/search-term-result
-                                   @current-search-term])
-        result-count (get-in @search-results [:count])]
-    (cond
-      @import-error
-      [:div.ui.segment.search-results-container.margin
-       [:div.ui.error.message
-        (str @import-error)]]
-
-      ;; search input form is empty
-      (or (nil? @current-search-term)
-          (empty? @current-search-term))
-      nil
-
-      ;; valid search is completed with no results
-      (and (not (nil? @current-search-term))
-           (= (get-in @search-results [:count]) 0)
-           (not (loading/item-loading?
-                 [:pubmed-search @current-search-term @page-number])))
-      [:div.ui.segment.search-results-container.margin
-       [:h3 "No documents match your search terms"]]
-
-      :else
-      [SearchResultsView])))
+                                   @current-search-term])]
+    (cond @import-error
+          [:div.ui.segment.search-results-container.margin
+           [:div.ui.error.message
+            (str @import-error)]]
+          ;; search input form is empty
+          (or (nil? @current-search-term)
+              (empty? @current-search-term))
+          nil
+          ;; valid search is completed with no results
+          (and (not (nil? @current-search-term))
+               (= (get-in @search-results [:count]) 0)
+               (not (loading/item-loading?
+                     [:pubmed-search @current-search-term @page-number])))
+          [:div.ui.segment.search-results-container.margin
+           [:h3 "No documents match your search terms"]]
+          :else [SearchResultsView])))
 
 (defn SearchPanel
   "A panel for searching pubmed"
@@ -383,5 +338,4 @@
    [SearchResultsContainer]])
 
 (defmethod panel-content panel []
-  (fn [child]
-    [SearchPanel]))
+  (fn [_child] [SearchPanel]))

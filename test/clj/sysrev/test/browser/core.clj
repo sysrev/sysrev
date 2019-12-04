@@ -19,11 +19,8 @@
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [parse-integer string-ellipsis]])
-  (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
-           [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
-           [org.openqa.selenium.logging LoggingPreferences LogType]
-           [org.openqa.selenium StaleElementReferenceException]
-           [java.util.logging Level]))
+  (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)
+           (org.openqa.selenium.remote DesiredCapabilities)))
 
 (defonce active-webdriver (atom nil))
 (defonce active-webdriver-config (atom nil))
@@ -360,7 +357,7 @@
        (when (or ~repl? ~enable)
          (util/with-print-time-elapsed ~name-str
            (let ~bindings
-             (try (log/infof "[[ running %s ]]" ~name-str)
+             (try (log/infof "[[ %s started ]]" ~name-str)
                   (when ~repl?
                     (try ~cleanup
                          (catch Throwable e#

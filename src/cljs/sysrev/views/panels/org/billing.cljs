@@ -1,11 +1,12 @@
 (ns sysrev.views.panels.org.billing
-  (:require [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch]]
+  (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :as nav :refer [nav-scroll-top]]
-            [sysrev.stripe :as stripe]
             [sysrev.views.panels.user.billing :refer [Plan PaymentSource]]
             [sysrev.views.semantic :refer [Segment Header ListUI ListItem]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:org :billing] {:state-var state})
 

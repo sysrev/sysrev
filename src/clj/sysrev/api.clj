@@ -7,7 +7,6 @@
             [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
-            [clojure.walk :refer [keywordize-keys]]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [me.raynes.fs :as fs]
@@ -42,10 +41,9 @@
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [to-clj-time]]
+            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un parse-integer]])
-  (:import [java.io ByteArrayInputStream]
-           [java.util UUID]))
+  (:import (java.util UUID)))
 
 ;; HTTP error codes
 (def payment-required 402)

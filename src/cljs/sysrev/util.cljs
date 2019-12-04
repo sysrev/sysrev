@@ -1,5 +1,5 @@
 (ns sysrev.util
-  (:require ["jquery" :as jquery]
+  (:require ["jquery" :as $]
             ["moment" :as moment]
             ["dropzone" :as Dropzone]
             ["decamelize" :as decamelize]
@@ -9,7 +9,6 @@
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
             [cljs-time.format :as tformat]
-            [reagent.interop :refer-macros [$]]
             [sysrev.shared.util :refer [parse-integer ensure-pred map-keys map-values]]))
 
 (defn scroll-top []
@@ -20,10 +19,10 @@
   (scroll-top))
 
 (defn viewport-width []
-  (-> (js/$ js/window) (.width)))
+  (-> ($ js/window) (.width)))
 
 (defn viewport-height []
-  (-> (js/$ js/window) (.height)))
+  (-> ($ js/window) (.height)))
 
 (defn mobile? []
   (< (viewport-width) 768))
@@ -105,7 +104,7 @@
   (-> js/window .-history (.back)))
 
 (defn get-dom-elt [selector]
-  (-> (js/$ selector) (.get 0)))
+  (-> ($ selector) (.get 0)))
 
 (defn dom-elt-visible? [selector]
   (when-let [el (get-dom-elt selector)]
@@ -184,12 +183,12 @@
 (defn event-input-value
   "Returns event.target.value from a DOM event."
   [event]
-  (-> event ($ :target) ($ :value)))
+  (-> event .-target .-value))
 
 (defn input-focused? []
   (let [el js/document.activeElement]
-    (when (and el (or (-> (js/$ el) (.is "input"))
-                      (-> (js/$ el) (.is "textarea"))))
+    (when (and el (or (.is ($ el) "input")
+                      (.is ($ el) "textarea")))
       el)))
 
 ;; https://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript
@@ -231,7 +230,7 @@
   (when f
     (fn [event]
       (when (.-stopPropagation event)
-        ($ event stopPropagation))
+        (.stopPropagation event))
       (f event))))
 
 (defn wrap-user-event
@@ -354,11 +353,11 @@
   (parse-integer (second (re-matches #"(\d+)px" px-str))))
 
 (defn update-sidebar-height []
-  (when (pos? (-> (js/$ ".column.panel-side-column") .-length))
+  (when (pos? (.-length ($ ".column.panel-side-column")))
     (let [total-height (viewport-height)
-          header-height (or (some-> (js/$ "div.menu.site-menu") (.height)) 0)
-          footer-height (or (some-> (js/$ "div#footer") (.height)) 0)
-          body-font (or (some-> (js/$ "body") (.css "font-size") parse-css-px) 14)
+          header-height (or (some-> ($ "div.menu.site-menu") (.height)) 0)
+          footer-height (or (some-> ($ "div#footer") (.height)) 0)
+          body-font (or (some-> ($ "body") (.css "font-size") parse-css-px) 14)
           max-height-px (- total-height
                            (+ header-height footer-height
                               ;; "Labels / Annotations" menu
@@ -369,29 +368,29 @@
                               (* 4 body-font)))
           label-css ".panel-side-column .ui.segments.label-editor-view"
           annotate-css ".ui.segments.annotation-menu.abstract"
-          label-font (or (some-> (js/$ label-css) (.css "font-size") parse-css-px)
+          label-font (or (some-> ($ label-css) (.css "font-size") parse-css-px)
                          body-font)
-          annotate-font (or (some-> (js/$ annotate-css) (.css "font-size") parse-css-px)
+          annotate-font (or (some-> ($ annotate-css) (.css "font-size") parse-css-px)
                             body-font)
           label-height-em (/ (* 1.0 max-height-px) label-font)
           annotate-height-em (/ (* 1.0 max-height-px) annotate-font)]
-      (-> (js/$ label-css)    (.css "max-height" (str label-height-em "em")))
-      (-> (js/$ annotate-css) (.css "max-height" (str annotate-height-em "em"))))))
+      (-> ($ label-css)    (.css "max-height" (str label-height-em "em")))
+      (-> ($ annotate-css) (.css "max-height" (str annotate-height-em "em"))))))
 
 (defn unix-epoch->date-string [unix]
-  (-> unix (moment/unix) ($ format "YYYY-MM-DD HH:mm:ss")))
+  (-> unix (moment/unix) (.format "YYYY-MM-DD HH:mm:ss")))
 
 (defn condensed-number
   "Condense numbers over 1000 to be factors of k"
   [i]
   (if (> i 999)
-    (-> (/ i 1000) ($ toFixed 1) (str "K"))
+    (-> (/ i 1000) (.toFixed 1) (str "K"))
     (str i)))
 
 (defn ui-theme-from-dom-css []
-  (cond (pos? (-> (js/$ "link[href='/css/style.dark.css']") ($ :length)))
+  (cond (pos? (.-length ($ "link[href='/css/style.dark.css']")))
         "Dark"
-        (pos? (-> (js/$ "link[href='/css/style.default.css']") ($ :length)))
+        (pos? (.-length ($ "link[href='/css/style.default.css']")))
         "Default"))
 
 (defn format

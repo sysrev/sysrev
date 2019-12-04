@@ -1,24 +1,19 @@
 (ns sysrev.views.annotator
-  (:require ["jquery" :as jquery]
-            [cljs-time.core :as t]
+  (:require ["jquery" :as $]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
-            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-db trim-v]]
+             [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer
-             [in? map-values filter-values css index-by]]
-            [sysrev.macros :refer-macros [with-loader]]))
+             [map-values filter-values css index-by]]))
 
 (def view :annotator)
 
-(defn- get-path [db context path]
-  (ui-state/get-view-field db view (concat [context] path)))
 (defn- set-field [db context path value]
   (ui-state/set-view-field db view (concat [context] path) value))
 (defn- update-field [db context path f]
@@ -44,13 +39,13 @@
                 (update-field db context [:annotations] #(dissoc % ann-id))))
 
 (reg-event-db :annotator/init-view-state [trim-v]
-              (fn [db [context & [panel]]]
+              (fn [db [context & [_panel]]]
                 (set-field db context [] {:context context})))
 
 (defn annotator-data-item
   "Given an annotator context, returns a vector representing both the
    def-data item and the re-frame subscription for the annotation data."
-  [{:keys [class project-id article-id pdf-key] :as context}]
+  [{:keys [class project-id article-id pdf-key] :as _context}]
   (case class
     "abstract" [:annotator/article project-id article-id]
     "pdf"      [:annotator/article-pdf project-id article-id pdf-key]
@@ -62,7 +57,7 @@
              {:project-id (:project-id context)
               :context context
               :annotation-map annotation-map})
-  :process (fn [_ [context annotation-map] {:keys [annotation-id]}]
+  :process (fn [_ [context _annotation-map] {:keys [annotation-id]}]
              {:dispatch-n
               (list [:data/after-load (annotator-data-item context) ::clear-on-create
                      [::clear-annotations context]]
@@ -74,16 +69,15 @@
              {:project-id (:project-id context)
               :annotation annotation
               :semantic-class semantic-class})
-  :process (fn [_ [context annotation-id _ _] result]
-             {:dispatch-n
-              (list [:reload (annotator-data-item context)]
-                    [::set context [:editing-id] nil])}))
+  :process (fn [_ [context _ _ _] _]
+             {:dispatch-n (list [:reload (annotator-data-item context)]
+                                [::set context [:editing-id] nil])}))
 
 (def-action :annotator/delete-annotation
   :uri (fn [_ annotation-id]
          (str "/api/annotation/delete/" annotation-id))
   :content (fn [context _] {:project-id (:project-id context)})
-  :process (fn [_ [context annotation-id] result]
+  :process (fn [_ [context annotation-id] _]
              {:dispatch-n (list [::remove-ann context annotation-id]
                                 [:reload (annotator-data-item context)])}))
 
@@ -104,7 +98,7 @@
 (defn- sort-class-options [entries]
   (vec (->> entries
             (map-values (fn [x] (update x :last-used #(some-> % tc/to-long))))
-            (sort-by (fn [[class {:keys [last-used count]}]]
+            (sort-by (fn [[_class {:keys [last-used count]}]]
                        [(or last-used 0) count]))
             reverse)))
 
@@ -114,7 +108,7 @@
            (when (or member project)
              (let [member-sorted (when member
                                    (->> (sort-class-options member)
-                                        (filterv (fn [[class {:keys [last-used count]}]]
+                                        (filterv (fn [[_class {:keys [last-used count]}]]
                                                    (and last-used (not= 0 last-used)
                                                         count (not= 0 count))))))
                    project-sorted (when project (sort-class-options project))]
@@ -206,7 +200,6 @@
         on-delete #(dispatch [:action [:annotator/delete-annotation context ann-id]])
         full-width? (>= (util/viewport-width) 1340)
         button-class (css "ui fluid tiny" [full-width? "labeled"] "icon button")
-        dark-theme? @(subscribe [:self/dark-theme?])
         touchscreen? @(subscribe [:touchscreen?])]
     [:div.ui.secondary.segment.annotation-view
      {:class (css [new? "new-annotation"])
@@ -249,7 +242,7 @@
                           class-options)
              {:class (css "ui fluid" [(not touchscreen?) "search"] "selection dropdown"
                           [(not editing?) "disabled"])
-              :onChange (fn [v t] (set-ann [:semantic-class] v))}])
+              :onChange (fn [v _t] (set-ann [:semantic-class] v))}])
           [:div.ui.tiny.icon.button.new-semantic-class
            {:class (css [(or (not editing?) (empty? class-options)) "disabled"])
             :on-click (util/wrap-user-event toggle-new-class)}
@@ -332,7 +325,7 @@
        {:class (css [(and dark-theme? (not pdf?)) "dark-theme" :else "secondary"])
         :style {:top (str y "px")
                 :left (str x "px")
-                :display (if (empty? selection) "none")}
+                :display (when (empty? selection) "none")}
         :on-click (util/wrap-user-event on-save
                                         :stop-propagation true
                                         :prevent-default true)}
@@ -393,9 +386,9 @@
      ;; we need this, it's a text node
      (= (type node) js-text-type)
      (previous-text (gdom/getPreviousNode node) field
-                    (str ($ node :data) string))
+                    (str (.-data node) string))
      ;; we're at the final node
-     (= ($ node getAttribute "data-field") field)
+     (= (.getAttribute node "data-field") field)
      string
      ;; skip this node, it isn't a text node
      :else (previous-text (gdom/getPreviousNode node) field string))))
@@ -406,20 +399,20 @@
 (defn get-selection
   "Get the current selection relative to text in the component with class"
   [field]
-  (let [current-selection ($ js/window getSelection)
-        range ($ current-selection getRangeAt 0)
-        common-ancestor ($ range :commonAncestorContainer)]
-    (when (and (> ($ current-selection :rangeCount) 0)
+  (let [current-selection (.getSelection js/window)
+        range (.getRangeAt current-selection 0)
+        common-ancestor (.-commonAncestorContainer range)]
+    (when (and (> (.-rangeCount current-selection) 0)
                ;; when annotations are overlapped, below is nil (undefined)
-               (-> common-ancestor ($ :data)))
+               (.-data common-ancestor))
       (let [previous-text (previous-text common-ancestor field)
             root-text (-> (gdom/getAncestor common-ancestor
-                                            #(= ($ % getAttribute "data-field") field))
+                                            #(= (.getAttribute % "data-field") field))
                           (gdom/getRawTextContent))
-            current-selection ($ current-selection toString)
-            start-offset (+ ($ range :startOffset) (count previous-text))
+            current-selection (.toString current-selection)
+            start-offset (+ (.-startOffset range) (count previous-text))
             end-offset (+ start-offset (count current-selection))]
-        {:selection ($ current-selection toString)
+        {:selection (.toString current-selection)
          :text-context root-text
          :start-offset start-offset
          :end-offset end-offset}))))
@@ -438,13 +431,11 @@
         (when @(subscribe [:review-interface])
           (fn [e]
             (when false
-              (let [ctarget ($ e :currentTarget)
-                    {ct-x :left
-                     ct-y :top} (util/get-element-position ctarget)
-                    {sc-x :left
-                     sc-y :top} (util/get-scroll-position)
-                    c-x ($ e :clientX)
-                    c-y ($ e :clientY)]
+              (let [ctarget (.-currentTarget e)
+                    {ct-x :left ct-y :top} (util/get-element-position ctarget)
+                    {sc-x :left sc-y :top} (util/get-scroll-position)
+                    c-x (.-clientX e)
+                    c-y (.-clientY e)]
                 (set-pos :scroll-x sc-x)
                 (set-pos :scroll-y sc-y)
                 (set-pos :ctarget-x ct-x)
@@ -464,8 +455,7 @@
                   (set [:new-annotation] entry)
                   (set-ann (:annotation-id entry) nil entry)
                   (when (not touchscreen?)
-                    (-> (fn [] (-> (js/$ ".annotation-view.new-annotation .field.value input")
-                                   (jquery/focus)))
+                    (-> #($/focus ($ ".annotation-view.new-annotation .field.value input"))
                         (js/setTimeout 50))))))
             true))]
     [:div.annotation-capture {:on-mouse-up update-selection

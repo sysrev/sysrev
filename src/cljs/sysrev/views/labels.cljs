@@ -6,14 +6,12 @@
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
             [sysrev.state.label :refer [real-answer?]]
-            [sysrev.util :refer [time-from-epoch time-elapsed-string nbsp]]
+            [sysrev.util :refer [time-from-epoch nbsp]]
             [sysrev.shared.util :refer [in? css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn LabelAnswerTag [label-id answer]
   (let [display @(subscribe [:label/display label-id])
-        value-type @(subscribe [:label/value-type label-id])
-        category @(subscribe [:label/category label-id])
         inclusion @(subscribe [:label/answer-inclusion label-id answer])
         color (case inclusion
                 true   "green"
@@ -77,12 +75,6 @@
                                                  (filter #(= (:user-id %) user-id)))))
         user-ids (sort (concat (keys user-labels)
                                (distinct (->> (vals annotations) (map :user-id) (remove nil?)))))
-        label-ids (->> (vals user-labels)
-                       (map (fn [ulmap]
-                              (->> (keys ulmap)
-                                   (filter #(real-answer? (get-in ulmap [% :answer]))))))
-                       (apply concat)
-                       distinct)
         user-confirmed? (fn [user-id]
                           (let [ulmap (get user-labels user-id)]
                             (every? #(true? (get-in ulmap [% :confirmed]))

@@ -1,19 +1,19 @@
 (ns sysrev.views.panels.org.plans
-  (:require [ajax.core :refer [GET]]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [reagent.ratom :refer [track!]]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v reg-event-fx]]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.plans :refer [UpgradePlan DowngradePlan]]
             [sysrev.views.semantic :refer [Message MessageHeader Loader]]
-            [sysrev.shared.util :refer [parse-integer]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:org-plans] {:state-var state
                                        :get-fn panel-get
@@ -28,7 +28,7 @@
   :loaded? (fn [db org-id] (-> (panel-get db org-id)
                                (contains? :current-plan)))
   :uri (fn [org-id] (str "/api/org/" org-id "/stripe/current-plan"))
-  :process (fn [{:keys [db]} [org-id] {:keys [plan] :as result}]
+  :process (fn [{:keys [db]} [org-id] {:keys [plan]}]
              {:db (load-org-current-plan db org-id plan)}))
 
 (reg-sub ::state (fn [db _] (panel-get db)))
@@ -36,16 +36,15 @@
 
 (reg-sub :org/current-plan
          (fn [[_ org-id]] (subscribe [::org org-id]))
-         (fn [org] (:current-plan org)))
+         #(:current-plan %))
 
 (def-action :org/subscribe-plan
-  :uri (fn [org-id plan-name] (str "/api/org/" org-id "/stripe/subscribe-plan"))
-  :content (fn [org-id plan-name]
-             {:plan-name plan-name})
-  :process (fn [{:keys [db]} [org-id _] {:keys [stripe-body plan] :as result}]
-             (if (:created stripe-body)
+  :uri (fn [org-id _] (str "/api/org/" org-id "/stripe/subscribe-plan"))
+  :content (fn [_ plan-name] {:plan-name plan-name})
+  :process (fn [{:keys [db]} [org-id _] {:keys [stripe-body plan]}]
+             (when (:created stripe-body)
                (let [nav-url (-> (or (:on_subscribe_uri (nav/get-url-params))
-                             (str "/org/" org-id "/billing")))]
+                                     (str "/org/" org-id "/billing")))]
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
                           (load-org-current-plan org-id plan))
@@ -105,13 +104,13 @@
   (r/create-class
    {:reagent-render (fn [{:keys [org-id]}] [OrgPlansImpl org-id])
     :component-will-mount
-    (fn [this]
+    (fn [_this]
       (dispatch [::set :error-message nil])
       (dispatch [::set :changing-plan? nil])
       (dispatch [:data/load [:self-orgs]])
       (dispatch [:data/load [:org/default-source org-id]])
       (dispatch [:data/load [:org/current-plan org-id]]))
     :component-will-receive-props
-    (fn [this [{:keys [org-id]}]]
+    (fn [_this [{:keys [org-id]}]]
       (dispatch [:data/load [:org/default-source org-id]])
       (dispatch [:data/load [:org/current-plan org-id]]))}))

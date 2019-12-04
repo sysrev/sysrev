@@ -1,7 +1,6 @@
 (ns sysrev.views.panels.project.description
   (:require [clojure.string :as str]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
@@ -9,7 +8,6 @@
             [sysrev.loading :as loading]
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.util :as util]
             [sysrev.views.semantic :refer [Segment]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -41,18 +39,18 @@
              {:db (-> (assoc-in db [:data :project project-id :markdown-description]
                                 project-description)
                       (set-state context [:editing?] false))})
-  :on-error (fn [{:keys [db error]} [project-id context] _]
-              ($ js/console log "[Error] read :project/markdown-description")
+  :on-error (fn [{:keys [db error]} [_project-id context] _]
+              (js/console.error "[Error] read :project/markdown-description")
               {:db (set-state db context [:editing?] false)}))
 
 (def-action :project/markdown-description
-  :uri (fn [project-id context value] "/api/project-description")
-  :content (fn [project-id context value]
+  :uri (fn [_ _ _] "/api/project-description")
+  :content (fn [project-id _ value]
              {:project-id project-id :markdown value})
-  :process (fn [{:keys [db]} [project-id context value] result]
+  :process (fn [{:keys [db]} [project-id context _] _]
              {:dispatch [:reload [:project/markdown-description project-id context]]})
-  :on-error (fn [{:keys [db error]} [project-id context value] _]
-              ($ js/console log "[Error] write :project/markdown-description")
+  :on-error (fn [{:keys [db error]} [_ context _] _]
+              (js/console.error "[Error] write :project/markdown-description")
               {:db (set-state db context [:editing?] false)}))
 
 (reg-sub
@@ -63,14 +61,17 @@
 
 (defn ProjectDescriptionNag [context]
   (let [state (state-cursor context)
-        project-id @(subscribe [:active-project-id])
         hide-description-warning? (r/cursor state [:hide-description-warning?])
         editing? (r/cursor state [:editing?])]
     [:div.ui.icon.message.read-only-message.project-description
      [:i.close.icon {:on-click #(reset! hide-description-warning? true)}]
      [:div.content
       [:p {:style {:margin-top "0"}}
-       "This project does not currently have a description. It's easy to create a description using " [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet" :target "_blank" :rel "noopener noreferrer"} "Markdown"] " and will help visitors better understand your project."]
+       "This project does not currently have a description. "
+       "It's easy to create a description using "
+       [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
+            :target "_blank" :rel "noopener noreferrer"} "Markdown"]
+       " and will help visitors better understand your project."]
       [:div.ui.fluid.button.create-description {:on-click #(reset! editing? true)}
        "Create Project Description"]]]))
 

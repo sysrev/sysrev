@@ -16,9 +16,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [map-values in?]])
-  (:import (java.sql Timestamp Date Connection)
-           java.util.UUID
-           (org.joda.time DateTime)))
+  (:import (org.joda.time DateTime)))
 
 ;; for clj-kondo
 (declare sql-identifier-to-clj)

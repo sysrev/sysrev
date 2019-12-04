@@ -8,11 +8,14 @@
             [sysrev.nav :refer [nav-scroll-top make-url]]
             [sysrev.state.nav :refer [project-uri user-uri]]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.user.profile :refer [ProfileAvatar UserPublicProfileLink]]
+            [sysrev.views.panels.user.profile :refer [ProfileAvatar]]
             [sysrev.views.semantic :refer
-             [Form Input Loader Divider Grid Row Column Menu MenuItem Image Label Pagination]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]
+             [Form Input Loader Divider Grid Row Column Menu MenuItem Label Pagination]]
+            [sysrev.macros :refer-macros [setup-panel-state]]
             [sysrev.util :as util]))
+
+;; for clj-kondo
+(declare panel)
 
 (setup-panel-state panel [:search])
 
@@ -36,7 +39,7 @@
           :handler (fn [response]
                      (swap! search-results assoc-in [q p]
                             (get-in response [:result :results])))
-          :error-handler (fn [response]
+          :error-handler (fn [_response]
                            (swap! search-results assoc-in [q p]
                                   "There was an error retrieving results, please try again"))})))
 
@@ -52,11 +55,11 @@
           (reset! search-value ""))
         ;; when the route-search-term is present, reset the fact that the searh value
         ;; has been cleared
-        (when (not (empty? route-search-term))
+        (when (seq route-search-term)
           (reset! cleared? false))
         [:div.item
          [Form {:id "search-sysrev-form"
-                :on-submit (fn [e]
+                :on-submit (fn [_e]
                              (if (str/blank? @search-value)
                                (reset! search-value "")
                                (do (site-search @search-value 1)
@@ -133,24 +136,21 @@
                   :fluid true}
             [MenuItem {:name "Projects"
                        :active (= active :projects)
-                       :on-click (fn [e]
-                                   (nav-scroll-top "/search" :params {:q q :p 1 :type "projects"}))
+                       :on-click #(nav-scroll-top "/search" :params {:q q :p 1 :type "projects"})
                        :color "orange"}
              "Projects"
              [Label {:size "mini"
                      :id "search-results-projects-count"} @projects-count]]
             [MenuItem {:name "Users"
                        :active (= active :users)
-                       :on-click (fn [e]
-                                   (nav-scroll-top "/search" :params {:q q :p 1 :type "users"}))
+                       :on-click #(nav-scroll-top "/search" :params {:q q :p 1 :type "users"})
                        :color "orange"}
              "Users"
              [Label {:size "mini"
                      :id "search-results-users-count"} @users-count]]
             [MenuItem {:name "Orgs"
                        :active (= active :orgs)
-                       :on-click (fn [e]
-                                   (nav-scroll-top "/search" :params {:q q :p 1 :type "orgs"}))
+                       :on-click #(nav-scroll-top "/search" :params {:q q :p 1 :type "orgs"})
                        :color "orange"}
              "Orgs"
              [Label {:size "mini"
@@ -166,14 +166,11 @@
                          (for [item items]
                            (condp = active
                              :projects
-                             ^{:key (:project-id item)}
-                             [ProjectSearchResult item]
+                             ^{:key (:project-id item)}  [ProjectSearchResult item]
                              :users
-                             ^{:key (:user-id item)}
-                             [UserSearchResult item]
+                             ^{:key (:user-id item)}     [UserSearchResult item]
                              :orgs
-                             ^{:key (:group-id item)}
-                             [OrgSearchResult item]
+                             ^{:key (:group-id item)}    [OrgSearchResult item]
                              [:h3 "Error: No such key"])))
                    (when (> count 10)
                      [Pagination
@@ -182,13 +179,14 @@
                                        (if (> (rem count page-size) 0)
                                          1 0))
                        :active-page p
-                       :on-page-change (fn [event data]
-                                         (let [{:keys [activePage]} (js->clj data :keywordize-keys true)]
-                                           (site-search q activePage)
-                                           (nav-scroll-top
-                                            "/search" :params {:q q
-                                                               :p activePage
-                                                               :type (clj->js active)})))}])]
+                       :on-page-change
+                       (fn [_event data]
+                         (let [{:keys [activePage]} (js->clj data :keywordize-keys true)]
+                           (site-search q activePage)
+                           (nav-scroll-top
+                            "/search" :params {:q q
+                                               :p activePage
+                                               :type (clj->js active)})))}])]
                   [:div [:h3 (str "We couldn't find anything in "
                                   (condp = active
                                     :projects "Public Projects"
@@ -200,11 +198,10 @@
                             [:a {:href (search-url "cancer")} "\"cancer\""]
                             " or "
                             [:a {:href (search-url "genes")} "\"genes\""]]])])))]]]]))
-    :component-did-mount (fn [this]
-                           (site-search q p))}))
+    :component-did-mount (fn [_this] (site-search q p))}))
 
 (defmethod panel-content [:search] []
-  (fn [child]
+  (fn [_child]
     [SearchResults {:q (uri-utils/getParamValue @active-route "q")
                     :p (uri-utils/getParamValue @active-route "p")
                     :type (uri-utils/getParamValue @active-route "type")}]))

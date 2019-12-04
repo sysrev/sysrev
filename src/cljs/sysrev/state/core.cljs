@@ -1,8 +1,7 @@
 (ns sysrev.state.core
   (:require [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
+             [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
             [sysrev.base :as base :refer [ga-event]]
-            [sysrev.nav :refer [nav-scroll-top force-dispatch]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.shared.util :as sutil :refer [dissoc-in]]))
 
@@ -78,5 +77,4 @@
 
 (def-action :dev/clear-query-cache
   :uri (fn [] "/api/clear-query-cache")
-  :process (fn [_ _ result]
-             {:reset-data true}))
+  :process (fn [_ _ _] {:reset-data true}))

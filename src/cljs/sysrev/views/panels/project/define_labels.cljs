@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.project.define-labels
-  (:require [clojure.string :as str]
+  (:require ["jquery" :as $]
+            [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
@@ -509,10 +510,10 @@
   (r/create-class
    {:component-did-mount
     (fn [c]
-      (-> (js/$ (r/dom-node c))
+      (-> ($ (r/dom-node c))
           (.dropdown (clj->js {:onAdd onAdd
                                :onRemove onRemove
-                               :onChange (fn [_] (-> (js/$ (r/dom-node c))
+                               :onChange (fn [_] (-> ($ (r/dom-node c))
                                                      (.dropdown "hide")))}))))
     :reagent-render
     (fn [{:keys [definition label-id required value onAdd onRemove]}]
@@ -534,9 +535,9 @@
           :on-click (util/wrap-user-event
                      #(let [target (-> % .-target)]
                         (when (or (= dom-id (.-id target))
-                                  (-> (js/$ target) (.hasClass "default"))
-                                  (-> (js/$ target) (.hasClass "label")))
-                          (let [dd (js/$ (str "#" dom-id))]
+                                  (-> ($ target) (.hasClass "default"))
+                                  (-> ($ target) (.hasClass "label")))
+                          (let [dd ($ (str "#" dom-id))]
                             (when (.dropdown dd "is visible")
                               (.dropdown dd "hide"))))))}
          [:input {:type "hidden"

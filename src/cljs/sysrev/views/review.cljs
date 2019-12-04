@@ -1,5 +1,6 @@
 (ns sysrev.views.review
-  (:require ["fomantic-ui" :as semantic-ui]
+  (:require ["jquery" :as $]
+            ["fomantic-ui"]
             [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
@@ -18,73 +19,57 @@
   (assoc-in db [:state :review :labels article-id label-id]
             label-value))
 
-(reg-event-db
- ::set-label-value
- [trim-v]
- (fn [db [article-id label-id label-value]]
-   (set-label-value db article-id label-id label-value)))
+(reg-event-db ::set-label-value [trim-v]
+              (fn [db [article-id label-id label-value]]
+                (set-label-value db article-id label-id label-value)))
 
 ;; Adds a value to an active label answer vector
-(reg-event-db
- ::add-label-value
- [trim-v]
- (fn [db [article-id label-id label-value]]
-   (let [current-values (get (review/active-labels db article-id) label-id)]
-     (set-label-value db article-id label-id
-                      (-> current-values (concat [label-value]) distinct vec)))))
+(reg-event-db ::add-label-value [trim-v]
+              (fn [db [article-id label-id label-value]]
+                (let [current-values (get (review/active-labels db article-id) label-id)]
+                  (set-label-value db article-id label-id
+                                   (-> current-values (concat [label-value]) distinct vec)))))
 
 ;; Removes a value from an active label answer vector
-(reg-event-db
- ::remove-label-value
- [trim-v]
- (fn [db [article-id label-id label-value]]
-   (let [current-values (get (review/active-labels db article-id) label-id)]
-     (set-label-value db article-id label-id
-                      (->> current-values (remove (partial = label-value)) vec)))))
+(reg-event-db ::remove-label-value [trim-v]
+              (fn [db [article-id label-id label-value]]
+                (let [current-values (get (review/active-labels db article-id) label-id)]
+                  (set-label-value db article-id label-id
+                                   (->> current-values (remove (partial = label-value)) vec)))))
 
 ;; Triggers "set selected" Semantic dropdown action
-(reg-fx
- ::select-categorical-value
- (fn [[article-id label-id label-value]]
-   (.dropdown (js/$ (str "#label-edit-" article-id "-" label-id))
-              "set selected" label-value)))
+(reg-fx ::select-categorical-value
+        (fn [[article-id label-id label-value]]
+          (.dropdown ($ (str "#label-edit-" article-id "-" label-id))
+                     "set selected" label-value)))
 
-(reg-event-db
- ::remove-string-value
- [trim-v]
- (fn [db [article-id label-id value-idx curvals]]
-   (set-label-value
-    db article-id label-id
-    (->> (assoc (vec curvals) value-idx "")
-         (filterv not-empty)))))
+(reg-event-db ::remove-string-value [trim-v]
+              (fn [db [article-id label-id value-idx curvals]]
+                (set-label-value db article-id label-id
+                                 (->> (assoc (vec curvals) value-idx "")
+                                      (filterv not-empty)))))
 
-(reg-event-db
- ::set-string-value
- [trim-v]
- (fn [db [article-id label-id value-idx label-value curvals]]
-   (set-label-value db article-id label-id
-                    (assoc (vec curvals) value-idx label-value))))
+(reg-event-db ::set-string-value [trim-v]
+              (fn [db [article-id label-id value-idx label-value curvals]]
+                (set-label-value db article-id label-id
+                                 (assoc (vec curvals) value-idx label-value))))
 
-(reg-event-db
- ::extend-string-answer
- [trim-v]
- (fn [db [article-id label-id curvals]]
-   (set-label-value db article-id label-id
-                    (assoc (vec curvals) (count curvals) ""))))
+(reg-event-db ::extend-string-answer [trim-v]
+              (fn [db [article-id label-id curvals]]
+                (set-label-value db article-id label-id
+                                 (assoc (vec curvals) (count curvals) ""))))
 
 ;; Simulates an "enable value" label input component event
-(reg-event-fx
- :review/trigger-enable-label-value
- [trim-v]
- (fn [{:keys [db]} [article-id label-id label-value]]
-   (let [{:keys [value-type]} (get-label-raw db label-id)]
-     (condp = value-type
-       "boolean"      {:db (set-label-value db article-id label-id label-value)}
-       "categorical"  {::select-categorical-value [article-id label-id label-value]}))))
+(reg-event-fx :review/trigger-enable-label-value [trim-v]
+              (fn [{:keys [db]} [article-id label-id label-value]]
+                (let [{:keys [value-type]} (get-label-raw db label-id)]
+                  (condp = value-type
+                    "boolean"      {:db (set-label-value db article-id label-id label-value)}
+                    "categorical"  {::select-categorical-value [article-id label-id label-value]}))))
 
 ;; Renders input component for label
 (defmulti label-input-el
-  (fn [label-id article-id] @(subscribe [:label/value-type label-id])))
+  (fn [label-id _article-id] @(subscribe [:label/value-type label-id])))
 
 (defmethod label-input-el "boolean"
   [label-id article-id]
@@ -98,20 +83,21 @@
   (r/create-class
    {:component-did-mount
     (fn [c]
-      (-> (js/$ (r/dom-node c))
-          (.dropdown (clj->js {:onAdd (fn [v t]
+      (-> ($ (r/dom-node c))
+          (.dropdown (clj->js {:onAdd (fn [v _t]
                                         (dispatch [::add-label-value article-id label-id v]))
-                               :onRemove (fn [v t]
+                               :onRemove (fn [v _t]
                                            (dispatch [::remove-label-value article-id label-id v]))
-                               :onChange (fn [_] (.dropdown (js/$ (r/dom-node c))
+                               :onChange (fn [_] (.dropdown ($ (r/dom-node c))
                                                             "hide"))}))))
     :component-will-update
-    (fn [c]
+    (fn [this]
       (let [answer @(subscribe [:review/active-labels article-id label-id])
             active-vals (->> answer (str/join ","))
-            comp-vals (-> (js/$ (r/dom-node c)) (.dropdown "get value"))]
+            node ($ (r/dom-node this))
+            comp-vals (.dropdown node "get value")]
         (when (not= comp-vals active-vals)
-          (-> (js/$ (r/dom-node c)) (.dropdown "set exactly" active-vals)))))
+          (.dropdown node "set exactly" active-vals))))
     :reagent-render
     (fn [label-id article-id]
       (when (= article-id @(subscribe [:review/editing-id]))
@@ -138,9 +124,9 @@
               ;; hide dropdown on click anywhere in main dropdown box
               (util/wrap-user-event
                #(when (or (= dom-id (-> % .-target .-id))
-                          (-> (js/$ (-> % .-target)) (.hasClass "default"))
-                          (-> (js/$ (-> % .-target)) (.hasClass "label")))
-                  (let [dd (js/$ (str "#" dom-id))]
+                          (.hasClass ($ (.-target %)) "default")
+                          (.hasClass ($ (.-target %)) "label"))
+                  (let [dd ($ (str "#" dom-id))]
                     (when (.dropdown dd "is visible")
                       (.dropdown dd "hide"))))))}
            [:input {:name (str "label-edit(" dom-id ")")
@@ -258,20 +244,19 @@
                                  [:div.ui.small.green.label (str ex)])
                                examples))]])]]]))
 
-(reg-sub
- ::label-css-class
- (fn [[_ article-id label-id]]
-   [(subscribe [:review/inconsistent-labels article-id label-id])
-    (subscribe [:label/required? label-id])
-    (subscribe [:label/inclusion-criteria? label-id])])
- (fn [[inconsistent? required? criteria?]]
-   (cond inconsistent?   "inconsistent"
-         required?       "required"
-         (not criteria?) "extra"
-         :else           "")))
+(reg-sub ::label-css-class
+         (fn [[_ article-id label-id]]
+           [(subscribe [:review/inconsistent-labels article-id label-id])
+            (subscribe [:label/required? label-id])
+            (subscribe [:label/inclusion-criteria? label-id])])
+         (fn [[inconsistent? required? criteria?]]
+           (cond inconsistent?   "inconsistent"
+                 required?       "required"
+                 (not criteria?) "extra"
+                 :else           "")))
 
 ;; Component for label column in inputs grid
-(defn- label-column [article-id label-id row-position n-cols label-position n-labels]
+(defn- label-column [article-id label-id row-position n-cols label-position _n-labels]
   (let [value-type @(subscribe [:label/value-type label-id])
         label-css-class @(subscribe [::label-css-class article-id label-id])
         label-string @(subscribe [:label/display label-id])
@@ -322,7 +307,6 @@
 (defn- note-input-element [note-name]
   (when @(subscribe [:project/notes nil note-name])
     (let [article-id @(subscribe [:review/editing-id])
-          user-id @(subscribe [:self/user-id])
           note-description @(subscribe [:note/description note-name])
           note-content @(subscribe [:review/active-note article-id note-name])]
       [:div.ui.segment.notes>div.ui.middle.aligned.form.notes>div.middle.aligned.field.notes
@@ -364,8 +348,8 @@
                    (util/run-after-condition
                     [:review-save article-id]
                     #(and (loading/ajax-status-inactive? 50)
-                          (nil? (aget (js/$ "div.view-pdf.rendering") 0))
-                          (nil? (aget (js/$ "div.view-pdf.updating") 0)))
+                          (nil? (aget ($ "div.view-pdf.rendering") 0))
+                          (nil? (aget ($ "div.view-pdf.updating") 0)))
                     (fn []
                       (sync-article-notes article-id)
                       (dispatch
@@ -412,8 +396,8 @@
                    (util/run-after-condition
                     [:review-skip article-id]
                     #(and (loading/ajax-status-inactive? 50)
-                          (nil? (aget (js/$ "div.view-pdf.rendering") 0))
-                          (nil? (aget (js/$ "div.view-pdf.updating") 0)))
+                          (nil? (aget ($ "div.view-pdf.rendering") 0))
+                          (nil? (aget ($ "div.view-pdf.updating") 0)))
                     #(when on-review-task?
                        (sync-article-notes article-id)
                        (dispatch [:review/send-labels {:project-id project-id
@@ -430,12 +414,7 @@
 
 ;; Component for row of action buttons below label inputs grid
 (defn- label-editor-buttons-view [article-id]
-  (let [project-id @(subscribe [:active-project-id])
-        active-labels @(subscribe [:review/active-labels article-id])
-        resolving? @(subscribe [:review/resolving?])
-        missing @(subscribe [:review/missing-labels article-id])
-        disabled? (not-empty missing)
-        on-review-task? @(subscribe [:review/on-review-task?])]
+  (let [on-review-task? @(subscribe [:review/on-review-task?])]
     [:div.ui.segment
      (if (util/full-size?)
        [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
@@ -498,8 +477,7 @@
    [:i.tags.icon] (when (util/full-size?) "Definitions")])
 
 (defn ViewAllLabelsButton []
-  (let [panel @(subscribe [:active-panel])
-        project-id @(subscribe [:active-project-id])]
+  (let [panel @(subscribe [:active-panel])]
     (when (not= panel [:project :project :articles])
       [:a.ui.tiny.primary.button
        {:class (css [(util/full-size?) "labeled icon"])
@@ -520,8 +498,7 @@
       (with-loader [[:article project-id article-id]] {}
         (if (not= article-id @(subscribe [:review/editing-id]))
           [:div]
-          (let [panel @(subscribe [:active-panel])
-                change-set? @(subscribe [:review/change-labels? article-id])
+          (let [change-set? @(subscribe [:review/change-labels? article-id])
                 resolving? @(subscribe [:review/resolving?])]
             [:div.ui.segments.label-editor-view
              (when-not (display-sidebar?)
@@ -550,9 +527,9 @@
              (when-not (display-sidebar?)
                [label-editor-buttons-view article-id])]))))))
 
-(defn LabelAnswerEditorColumn [article-id]
+(defn LabelAnswerEditorColumn [_article-id]
   (r/create-class
-   {:component-did-mount (fn [] (util/update-sidebar-height))
+   {:component-did-mount #(util/update-sidebar-height)
     :reagent-render (fn [article-id]
                       [:div.label-editor-column>div.ui.segments.label-editor-view
                        [LabelsColumns article-id

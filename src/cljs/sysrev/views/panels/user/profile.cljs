@@ -1,26 +1,26 @@
 (ns sysrev.views.panels.user.profile
-  (:require [clojure.string :as str]
-            [ajax.core :refer [GET POST PUT]]
-            ["moment" :as moment]
+  (:require ["moment" :as moment]
+            [clojure.string :as str]
             [clojure.spec.alpha :as s]
+            [ajax.core :refer [GET POST PUT]]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
-            [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.state.ui]
-            [sysrev.state.nav :refer [project-uri user-uri]]
+            [sysrev.state.nav :refer [user-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select Popup
+             [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select
               Modal ModalContent ModalHeader ModalDescription]]
             [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.shared.util :as sutil :refer [parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:user :profile] {:state-var state
                                            :get-fn panel-get :set-fn panel-set
@@ -66,7 +66,7 @@
     [Message (cond-> {}
                accepted (merge {:positive true})
                (false? accepted) (merge {:negative true}))
-     [:div (-> created (moment.) ($ format "YYYY-MM-DD h:mm A"))]
+     [:div (-> created (moment.) (.format "YYYY-MM-DD h:mm A"))]
      [:div (str "This user was invited as a " description " to " project-name ".")]
      (when-not (nil? accepted)
        [:div (str "Invitation " (if accepted "accepted " "declined "))])]))
@@ -76,12 +76,12 @@
         retrieving-invitations? (r/cursor state [:retrieving-invitations?])]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         [:div (doall (for [invitation (filter #(= user-id (:user-id %)) @invitations)]
                        ^{:key (:id invitation)}
                        [InvitationMessage invitation]))])
       :component-did-mount
-      (fn [this]
+      (fn [_this]
         (when (and (nil? @invitations)
                    (not @retrieving-invitations?))
           (get-project-invitations! @(subscribe [:self/user-id]))))})))
@@ -118,19 +118,19 @@
                        "/invitation/" invitee "/" project-id)
                   {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
                    :params {:description "paid-reviewer"}
-                   :handler (fn [response]
+                   :handler (fn [_response]
                               (reset! confirm-message
                                       (str "You've invited this user to " project-name))
                               (reset! loading? false)
                               (get-project-invitations! @(subscribe [:self/user-id])))
-                   :error-handler (fn [error-response]
+                   :error-handler (fn [_response]
                                     (reset! loading? false)
                                     (reset! error-message
                                             (str "There was an error inviting this user to "
                                                  project-name)))})))]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         (let [options (options-fn @(subscribe [:self/projects]))]
           (when-not (empty? options)
             [:div
@@ -139,21 +139,19 @@
               [:div {:style {:display "inline-block"
                              :padding-left "0.5em"}}
                [Select {:options options
-                        :on-change (fn [e f]
-                                     (reset! project-id ($ f :value)))
+                        :on-change (fn [_e ^js f] (reset! project-id (.-value f)))
                         :size "tiny"
                         :disabled (or @loading? @retrieving-invitations?)
                         :value @project-id
                         :placeholder "Select Project"}]]]
              (when-not (nil? @project-id)
                [:div {:style {:padding-top "1em"}}
-                [Button {:on-click #(do
-                                      (create-invitation! user-id @project-id)
-                                      (reset! project-id nil))
+                [Button {:on-click #(do (create-invitation! user-id @project-id)
+                                        (reset! project-id nil))
                          :color "green"
                          :disabled (or @loading? @retrieving-invitations?)
                          :size "tiny"} "Invite"]
-                [Button {:on-click #(do (reset! project-id nil))
+                [Button {:on-click #(reset! project-id nil)
                          :disabled (or @loading? @retrieving-invitations?)
                          :size "tiny"} "Cancel"]])
              (when-not (str/blank? @error-message)
@@ -162,7 +160,7 @@
                 [MessageHeader "Invitation Error"]
                 @error-message])])))
       :get-initial-state
-      (fn [this]
+      (fn [_this]
         (reset! loading? false)
         nil)})))
 
@@ -286,11 +284,11 @@
                           (PUT (str "/api/user/" user-id "/introduction")
                                {:params {:introduction draft-introduction}
                                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                :handler (fn [response]
+                                :handler (fn [_response]
                                            (dispatch [:reload [:user/info user-id]])
                                            (reset! editing? false)
                                            (reset! loading? false))
-                                :error-handler (fn [error-response]
+                                :error-handler (fn [_response]
                                                  (reset! loading? false)
                                                  (reset! editing? false))})))
         user-loading? (loading/item-loading? [:user/info user-id])]
@@ -333,7 +331,7 @@
     [UserProfile user-id]))
 
 (defmethod panel-content panel []
-  (fn [child] [UserProfilePanel]))
+  (fn [_child] [UserProfilePanel]))
 
 (defn- go-user-profile-route [user-id]
   (let [user-id (parse-integer user-id)]

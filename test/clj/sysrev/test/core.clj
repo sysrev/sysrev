@@ -10,8 +10,7 @@
             [sysrev.db.migration :refer [ensure-updated-db]]
             [sysrev.label.core :as labels]
             [sysrev.util :as util :refer [shell]]
-            [sysrev.shared.util :as sutil :refer [in?]])
-  (:import [java.util UUID]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (def test-dbname "sysrev_auto_test")
 (def test-db-host (get-in env [:postgres :host]))

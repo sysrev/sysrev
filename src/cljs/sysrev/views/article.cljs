@@ -2,10 +2,8 @@
   (:require ["react-json-view" :default ReactJson]
             [clojure.string :as str]
             goog.object
-            [re-frame.core :refer
-             [subscribe dispatch reg-sub]]
+            [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
-            [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation]
             [sysrev.pdf :as pdf]
@@ -110,14 +108,13 @@
 (defn- WithProjectSourceTooltip [source-id element]
   (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
         source-info (some-> @(subscribe [:source/display-info source-id])
-                            (sutil/string-ellipsis 150 "[.....]"))
-        has-info? (not (empty? source-info))]
+                            (sutil/string-ellipsis 150 "[.....]"))]
     [ui/FixedTooltipElement element
      [:div
-      [:h5.ui.header {:class (css [has-info? "dividing"])}
+      [:h5.ui.header {:class (css [(seq source-info) "dividing"])}
        @(subscribe [:source/display-type source-id])
        (str " - " (or article-count "?") " articles")]
-      (when has-info? [:p source-info])]
+      (when (seq source-info) [:p source-info])]
      "25em"
      :delay 150]))
 
@@ -182,7 +179,6 @@
                                      vals
                                      (mapv :value)
                                      (mapv #(hash-map :word %))))
-            ann-context {:class "abstract" :project-id project-id :article-id article-id}
             annotator? (= :annotations @(subscribe [:review-interface]))
             pdf-url (pdf/view-s3-pdf-url project-id article-id (:key pdf) (:filename pdf))
             visible-url (if (and pdf (empty? abstract))
@@ -250,7 +246,7 @@
                     :DerivedSection (:DerivedSection ct-json)})
             nctid (get-in json [:ProtocolSection :IdentificationModule :NCTId])
             title (get-in json [:ProtocolSection :IdentificationModule :BriefTitle])
-            brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
+            _brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
             ui-theme @(subscribe [:self/ui-theme])]
         [:div {:id nctid}
          [:h2 title ]

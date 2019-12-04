@@ -17,8 +17,7 @@
             [sysrev.payment.stripe :as stripe]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.file.document :refer [migrate-filestore-table]]
-            [sysrev.util :as util])
-  (:import java.util.UUID))
+            [sysrev.util :as util]))
 
 (defn update-stripe-plans-table
   "Update the stripe_plans table based upon what is stored on stripe. We

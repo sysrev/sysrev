@@ -1,14 +1,14 @@
 (ns sysrev.views.panels.user.billing
-  (:require [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.stripe :as stripe]
+  (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
              [Segment Grid Row Column Button Icon Loader Header ListUI ListItem]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? css parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+
+;; for clj-kondo
+(declare panel)
 
 (setup-panel-state panel [:user :billing])
 
@@ -99,7 +99,7 @@
                                        (dispatch [:navigate [:payment]]))}]]]])))
 
 (defmethod panel-content panel []
-  (fn [child] [UserBilling]))
+  (fn [_child] [UserBilling]))
 
 (defmethod logged-out-content panel []
   (logged-out-content :logged-out))

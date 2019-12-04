@@ -1,13 +1,12 @@
 (ns sysrev.pdf
-  (:require [goog.dom :as dom]
+  (:require ["jquery" :as $]
+            ["pdfjs-dist" :as pdfjs]
+            ["pdfjs-dist/web/pdf_viewer"
+             :refer [PDFPageView DefaultTextLayerFactory DefaultAnnotationLayerFactory]]
+            [goog.dom :as dom]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
-            ["pdfjs-dist" :as pdfjs]
-            ["pdfjs-dist/web/pdf_viewer" :refer [PDFPageView
-                                                 DefaultTextLayerFactory
-                                                 DefaultAnnotationLayerFactory]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
@@ -142,7 +141,7 @@
            (if-not container
              (dispatch-sync [::set context [:page-rendering] false])
              (let [ ;; Try to auto-adjust PDF size to containing element.
-                   cwidth (.width (js/$ container))
+                   cwidth (.width ($ container))
                    ;; this should be 1.0? but result is too big.
                    pwidth (.-width (.getViewport page 1.35))
                    scale (/ cwidth pwidth)]
@@ -192,7 +191,7 @@
             (dispatch-sync
              [::set context [:pdf-doc] pdf])
             (dispatch-sync
-             [::set context [:page-count] ($ pdf :numPages)])
+             [::set context [:page-count] (.-numPages pdf)])
             (queue-render-page context pdf page-num)))
         after-update
         (fn [pdf-url]

@@ -1,14 +1,9 @@
 (ns sysrev.views.article-list.core
-  (:require [clojure.string :as str]
-            [reagent.ratom :refer [reaction]]
+  (:require [reagent.ratom :refer [reaction]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-              reg-event-db reg-event-fx reg-fx trim-v]]
+              reg-event-fx trim-v]]
             [sysrev.loading :as loading]
-            [sysrev.nav :as nav]
-            [sysrev.state.nav :refer
-             [active-panel active-project-id]]
-            [sysrev.state.ui :as ui-state]
             [sysrev.views.article :refer [ArticleInfo]]
             [sysrev.views.review :as review]
             [sysrev.views.components.core :as ui]
@@ -17,50 +12,47 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.filters :as f]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values css index-by]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in? css index-by]]
             [sysrev.macros :refer-macros [with-loader]]))
 
-(reg-sub-raw
- ::prev-next-article-ids
- (fn [_ [_ context]]
-   (reaction
-    (let [articles @(al/sub-articles context)
-          active-id @(subscribe [::al/get context [:active-article]])
-          visible-ids (map :article-id articles)]
-      (when (in? visible-ids active-id)
-        {:prev-id (->> visible-ids (take-while #(not= % active-id)) last)
-         :next-id (->> visible-ids (drop-while #(not= % active-id)) (drop 1) first)})))))
+(reg-sub-raw ::prev-next-article-ids
+             (fn [_ [_ context]]
+               (reaction
+                (let [articles @(al/sub-articles context)
+                      active-id @(subscribe [::al/get context [:active-article]])
+                      visible-ids (map :article-id articles)]
+                  (when (in? visible-ids active-id)
+                    {:prev-id (->> visible-ids (take-while #(not= % active-id)) last)
+                     :next-id (->> visible-ids (drop-while #(not= % active-id)) (drop 1) first)})))))
 
-(reg-sub
- ::resolving-allowed?
- (fn [[_ context article-id]]
-   [(subscribe [::al/get context [:active-article]])
-    (subscribe [:article/review-status article-id])
-    (subscribe [:member/resolver?])
-    (subscribe [::al/display-options context])])
- (fn [[active-id review-status resolver? display]
-      [_ context article-id]]
-   (let [{:keys [self-only]} display]
-     (when (= article-id active-id)
-       (boolean (and (not self-only) (= :conflict review-status) resolver?))))))
+(reg-sub ::resolving-allowed?
+         (fn [[_ context article-id]]
+           [(subscribe [::al/get context [:active-article]])
+            (subscribe [:article/review-status article-id])
+            (subscribe [:member/resolver?])
+            (subscribe [::al/display-options context])])
+         (fn [[active-id review-status resolver? display]
+              [_ _context article-id]]
+           (let [{:keys [self-only]} display]
+             (when (= article-id active-id)
+               (boolean (and (not self-only) (= :conflict review-status) resolver?))))))
 
-(reg-sub-raw
- ::editing-allowed?
- (fn [_ [_ context article-id]]
-   (reaction
-    (let [{:keys [active-article]} @(subscribe [::al/get context])
-          can-resolve? @(subscribe [::resolving-allowed? context article-id])
-          user-status @(subscribe [:article/user-status article-id])
-          project-id @(subscribe [:active-project-id])
-          ann-context {:class "abstract" :project-id project-id :article-id article-id}
-          self-id @(subscribe [:self/user-id])
-          self-annotations (and self-id @(subscribe [:annotator/user-annotations
-                                                     ann-context self-id]))]
-      (when (= article-id active-article)
-        (boolean (or can-resolve?
-                     (in? [:confirmed :unconfirmed] user-status)
-                     (seq self-annotations))))))))
+(reg-sub-raw ::editing-allowed?
+             (fn [_ [_ context article-id]]
+               (reaction
+                (let [{:keys [active-article]} @(subscribe [::al/get context])
+                      can-resolve? @(subscribe [::resolving-allowed? context article-id])
+                      user-status @(subscribe [:article/user-status article-id])
+                      project-id @(subscribe [:active-project-id])
+                      ann-context {:class "abstract" :project-id project-id :article-id article-id}
+                      self-id @(subscribe [:self/user-id])
+                      self-annotations (and self-id @(subscribe [:annotator/user-annotations
+                                                                 ann-context self-id]))]
+                  (when (= article-id active-article)
+                    (boolean (or can-resolve?
+                                 (in? [:confirmed :unconfirmed] user-status)
+                                 (seq self-annotations))))))))
 
 (defn- ArticleListNavHeader [context]
   (let [count-now @(al/sub-article-count context)
@@ -76,7 +68,7 @@
        :item-name-string "articles"
        :set-offset #(do (dispatch-sync [::al/set context [:display-offset] %])
                         (al/reload-list-data context))
-       :on-nav-action (fn [action offset]
+       :on-nav-action (fn [action _offset]
                         (dispatch-sync [::al/set-recent-nav-action context action])
                         (dispatch-sync [::al/set-active-article context nil]))
        :recent-nav-action recent-action
@@ -130,7 +122,7 @@
       :change-labels-button (fn [] [ChangeLabelsButton context article-id])]
      (when editing? [review/LabelAnswerEditor article-id])]))
 
-(defn ArticleLabelsNotes [context article full-size?]
+(defn ArticleLabelsNotes [context article _full-size?]
   (let [self-id @(subscribe [:self/user-id])
         {:keys [show-labels show-notes self-only show-unconfirmed]}
         @(subscribe [::al/display-options (al/cached context)])
@@ -143,7 +135,6 @@
                  (filterv #(not (in? [0 nil] (:confirm-time %)))))
         users-labels (group-by :user-id labels)
         users-notes (group-by :user-id notes)
-        self-id @(subscribe [:self/user-id])
         resolver-id @(subscribe [:article/resolve-user-id (:article-id article)])]
     [:div.ui.segment.article-labels
      (doall
@@ -164,8 +155,7 @@
              :notes (when user-note {(:name user-note) (:content user-note)})
              :resolved? resolved?]))))]))
 
-(defn- ArticleListEntry
-  [context article full-size?]
+(defn- ArticleListEntry [context article full-size?]
   (let [self-id @(subscribe [:self/user-id])
         {:keys [show-inclusion show-labels show-notes self-only
                 show-unconfirmed]} @(subscribe [::al/display-options (al/cached context)])
@@ -235,11 +225,6 @@
                      have? @(subscribe [:have? [:article project-id article-id]])
                      loading? (loading/item-loading? [:article project-id article-id])
                      labels? (or show-labels show-notes)
-                     {:keys [next-id prev-id]} @(subscribe [::prev-next-article-ids context])
-                     go-next (when next-id
-                               #(dispatch-sync [::al/set-active-article context next-id]))
-                     go-prev (when prev-id
-                               #(dispatch-sync [::al/set-active-article context prev-id]))
                      first? (= i 0)
                      last? (= i (dec (count articles)))]
                  (doall
@@ -267,7 +252,6 @@
         recent? (= article-id recent-article)
         active? (= article-id active-article)
         have? @(subscribe [:have? [:article project-id article-id]])
-        classes (if (or active? recent?) "active" "")
         loading? (loading/item-loading? [:article project-id article-id])
         full-size? (util/full-size?)]
     (doall
@@ -299,11 +283,9 @@
                   :primary-title title})]])))
 
 (defn- MultiArticlePanel [context]
-  (let [ready-state @(subscribe [::al/ready-state context])
-        expanded? @(subscribe [::al/display-options (al/cached context) :expand-filters])
+  (let [expanded? @(subscribe [::al/display-options (al/cached context) :expand-filters])
         count-item (subscribe [::al/count-query (al/cached context)])
-        data-item (subscribe [::al/articles-query (al/cached context)])
-        active-article @(subscribe [::al/get (al/cached context) [:active-article]])]
+        data-item (subscribe [::al/articles-query (al/cached context)])]
     [:div.article-list-view
      (al/update-ready-state context)
      (with-loader [@count-item @data-item] {}
@@ -341,47 +323,36 @@
        [MultiArticlePanel context])]))
 
 ;; Gets id of article currently being individually displayed
-(reg-sub
- :article-list/article-id
- (fn [[_ context]]
-   [(subscribe [:active-panel])
-    (subscribe [::al/get context [:active-article]])])
- (fn [[active-panel article-id] [_ context]]
-   (when (= active-panel (:panel context))
-     article-id)))
+(reg-sub :article-list/article-id
+         (fn [[_ context]]
+           [(subscribe [:active-panel])
+            (subscribe [::al/get context [:active-article]])])
+         (fn [[active-panel article-id] [_ context]]
+           (when (= active-panel (:panel context))
+             article-id)))
 
-(reg-event-fx
- :article-list/set-recent-article
- [trim-v]
- (fn [{:keys [db]} [context article-id]]
-   {:db (al/set-state db context [:recent-article] article-id)}))
+(reg-event-fx :article-list/set-recent-article [trim-v]
+              (fn [{:keys [db]} [context article-id]]
+                {:db (al/set-state db context [:recent-article] article-id)}))
 
-(reg-event-fx
- :article-list/set-active-article
- [trim-v]
- (fn [{:keys [db]} [context article-id]]
-   {:dispatch [::al/set-active-article context article-id]}))
+(reg-event-fx :article-list/set-active-article [trim-v]
+              (fn [{:keys [db]} [context article-id]]
+                {:dispatch [::al/set-active-article context article-id]}))
 
-(reg-sub
- :article-list/editing?
- (fn [[_ context article-id]]
-   [(subscribe [::al/get context [:active-article]])
-    (subscribe [::editing-allowed? context article-id])
-    (subscribe [:article/user-status article-id])
-    (subscribe [:review/change-labels? article-id (:panel context)])
-    (subscribe [::al/display-options context])])
- (fn [[active-id can-edit? user-status change-labels? display]
-      [_ context article-id]]
-   (let [{:keys [self-only]} display]
-     (when (= article-id active-id)
-       (boolean
-        (and can-edit? (or change-labels? (= user-status :unconfirmed))))))))
+(reg-sub :article-list/editing?
+         (fn [[_ context article-id]]
+           [(subscribe [::al/get context [:active-article]])
+            (subscribe [::editing-allowed? context article-id])
+            (subscribe [:article/user-status article-id])
+            (subscribe [:review/change-labels? article-id (:panel context)])])
+         (fn [[active-id can-edit? user-status change-labels?]
+              [_ _context article-id]]
+           (when (= article-id active-id)
+             (boolean (and can-edit? (or change-labels? (= user-status :unconfirmed)))))))
 
-(reg-sub
- :article-list/resolving?
- (fn [[_ context article-id]]
-   [(subscribe [:article-list/editing? context article-id])
-    (subscribe [::resolving-allowed? context article-id])])
- (fn [[editing? resolving-allowed?]]
-   (boolean
-    (and editing? resolving-allowed?))))
+(reg-sub :article-list/resolving?
+         (fn [[_ context article-id]]
+           [(subscribe [:article-list/editing? context article-id])
+            (subscribe [::resolving-allowed? context article-id])])
+         (fn [[editing? resolving-allowed?]]
+           (boolean (and editing? resolving-allowed?))))

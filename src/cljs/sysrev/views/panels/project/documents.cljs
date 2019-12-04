@@ -3,8 +3,8 @@
             [cljs-time.core :as t]
             [cljs-time.coerce :refer [from-date]]
             [re-frame.core :refer
-             [subscribe dispatch reg-event-db reg-event-fx reg-sub trim-v]]
-            [sysrev.state.ui :refer [get-panel-field set-panel-field]]
+             [subscribe dispatch reg-event-db reg-sub trim-v]]
+            [sysrev.state.ui :refer [set-panel-field]]
             [sysrev.views.components.core :as ui]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -20,12 +20,12 @@
 (defn- get-file-class [fname]
   (get file-types (-> fname (str/split #"\.") last) "text"))
 
-(defn- get-file-url [project-id key name]
+(defn- get-file-url [project-id key _name]
   (str "/api/files/" project-id "/download/" key))
 
 (reg-sub ::editing-files
          :<- [:panel-field :editing]
-         (fn [editing] editing))
+         identity)
 
 (reg-event-db ::editing-files [trim-v]
               (fn [db [value]]

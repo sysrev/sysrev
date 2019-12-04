@@ -4,12 +4,10 @@
             [sysrev.base :refer [active-route]]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [user-uri]]
-            [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.views.components.core :refer [dropdown-menu with-tooltip]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
             [sysrev.views.search.core :refer [SiteSearch]]
-            [sysrev.util :as util]
-            [sysrev.macros :refer-macros [with-mount-hook]]))
+            [sysrev.util :as util]))
 
 (defn loading-indicator []
   (if @loading/loading-indicator
@@ -24,13 +22,11 @@
       (dispatch [:action [:session/change-settings (merge settings {:ui-theme new-theme})]]))))
 
 (defn header-menu []
-  (let [panel @(subscribe [:active-panel])
-        logged-in? @(subscribe [:self/logged-in?])
+  (let [logged-in? @(subscribe [:self/logged-in?])
         landing? @(subscribe [:landing-page?])
         user-id @(subscribe [:self/user-id])
         user-display @(subscribe [:user/display])
         admin? @(subscribe [:user/admin?])
-        project-ids @(subscribe [:user/project-ids])
         [full? mobile?] [(util/full-size?) (util/mobile?)]
         dev-menu (when admin?
                    [dropdown-menu [{:content "Clear query cache"

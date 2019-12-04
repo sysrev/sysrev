@@ -1,5 +1,5 @@
 (ns sysrev.state.article
-  (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw reg-event-db trim-v]]
+  (:require [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.state.identity :as self]
             [sysrev.data.core :refer [def-data]]))
 
@@ -12,19 +12,18 @@
   (assoc-in db [:data :articles article-id] article))
 
 (defn update-article [db article-id changes]
-  (if-let [article (get-article db article-id)]
-    (update-in db [:data :articles article-id]
-               #(merge % changes))
+  (if (get-article db article-id)
+    (update-in db [:data :articles article-id] #(merge % changes))
     db))
 
 (def-data :article
-  :loaded? (fn [db project-id article-id]
+  :loaded? (fn [db _project-id article-id]
              (-> (get-in db [:data :articles])
                  (contains? article-id)))
-  :uri (fn [project-id article-id]
+  :uri (fn [_ article-id]
          (str "/api/article-info/" article-id))
-  :prereqs (fn [project-id article-id] [[:project project-id]])
-  :content (fn [project-id article-id] {:project-id project-id})
+  :prereqs (fn [project-id _] [[:project project-id]])
+  :content (fn [project-id _] {:project-id project-id})
   :process
   (fn [{:keys [db]} [project-id article-id] {:keys [article labels notes json datasource-name]}]
     (let [article (merge article {:labels labels :notes notes})]
@@ -139,9 +138,9 @@
       (and user-id label-id) (get label-id))))
 
 (reg-sub :article/labels
-         (fn [[_ article-id user-id label-id]]
+         (fn [[_ article-id _ _]]
            (subscribe [:article/raw article-id]))
-         (fn [article [_ article-id user-id label-id]]
+         (fn [article [_ _ user-id label-id]]
            (cond-> (:labels article)
              user-id                 (get user-id)
              (and user-id label-id)  (get label-id))))
@@ -166,7 +165,7 @@
     (article-user-status-impl user-id ulmap)))
 
 (reg-sub :article/user-status
-         (fn [[_ article-id user-id]]
+         (fn [[_ article-id _]]
            [(subscribe [:self/user-id])
             (subscribe [:article/labels article-id])])
          (fn [[self-id alabels] [_ _ user-id]]

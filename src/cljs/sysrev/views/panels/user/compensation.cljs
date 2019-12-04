@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.user.compensation
-  (:require [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-sub]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.accounting :as accounting]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.identity :refer [current-user-id]]
@@ -11,6 +10,9 @@
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:user :compensation] {:state-var state
                                                 :get-fn panel-get :set-fn panel-set
@@ -86,7 +88,7 @@
    [UserSupportSubscriptions]])
 
 (defmethod panel-content panel []
-  (fn [child] [UserCompensation]))
+  (fn [_child] [UserCompensation]))
 
 (defmethod logged-out-content panel []
   (logged-out-content :logged-out))

@@ -2,15 +2,17 @@
   (:require [ajax.core :refer [POST]]
             [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
-             [Form FormField FormInput Button Segment Header Input Message MessageHeader Divider]]
+             [Form FormField Button Segment Header Input Message MessageHeader Divider]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:orgs] {:state-var state})
 
@@ -38,7 +40,7 @@
         panel-type (uri-utils/getParamValue @active-route "type")]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn []
         [:div
          [Form {:on-submit #(if (or (= panel-type "new-account")
                                     (= panel-type "existing-account"))
@@ -52,21 +54,20 @@
                    :action (r/as-element [Button {:primary true
                                                   :class "create-organization"
                                                   :id "create-org-button"} "Create"])
-                   :on-change (fn [e]
-                                (reset! create-org-error nil)
-                                (reset! new-org
-                                        (-> ($ e :target.value))))}]]]
+                   :on-change (util/on-event-value
+                               #(do (reset! create-org-error nil)
+                                    (reset! new-org %)))}]]]
          (when-not (empty? @create-org-error)
            [Message {:negative true
                      :onDismiss #(reset! create-org-error nil)}
             [MessageHeader {:as "h4"} "Create Organization Error"]
             @create-org-error])])
       :get-initial-state
-      (fn [this]
+      (fn [_this]
         (reset! new-org "")
         {})
       :component-did-mount
-      (fn [this]
+      (fn [_this]
         (reset! create-org-error nil))})))
 
 (defn CreateOrg []
@@ -82,8 +83,7 @@
 
 (defn SubscribeOrgPanel
   []
-  (let [current-path (uri-utils/getPath @active-route)
-        panel-type (uri-utils/getParamValue @active-route "type")
+  (let [panel-type (uri-utils/getParamValue @active-route "type")
         user-id (subscribe [:self/user-id])
         user-owned-orgs (fn [orgs]
                           (filter #(contains? (-> % :permissions set) "owner") orgs))
@@ -114,12 +114,11 @@
                          (when (> idx 0)
                            [Divider])])
                       (user-owned-orgs @orgs)))]]])])
-      :component-did-mount (fn [this]
+      :component-did-mount (fn [_this]
                              (dispatch [:fetch [:user/orgs @user-id]]))})))
 
 (defmethod panel-content panel []
-  (fn [child]
-    [SubscribeOrgPanel]))
+  (fn [_child] [SubscribeOrgPanel]))
 
 (defmethod logged-out-content panel []
   (logged-out-content :logged-out))

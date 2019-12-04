@@ -1,14 +1,13 @@
 (ns sysrev.views.panels.user.main
-  (:require [clojure.string :as str]
-            [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.semantic :refer
-             [Segment Header Grid Row Column Radio Message MessageHeader Icon]]
-            [sysrev.base :refer [active-route]]
+            [sysrev.views.semantic :refer [Icon]]
             [sysrev.util :as util :refer [mobile?]]
             [sysrev.shared.util :as sutil :refer [css]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel panel-get panel-set)
 
 (setup-panel-state panel [:user] {:get-fn panel-get
                                   :set-fn panel-set
@@ -19,7 +18,7 @@
 
 (reg-sub :user-panel/user-id
          :<- [::get :user-id]
-         (fn [user-id] user-id))
+         identity)
 
 ;; Checks if user-id from a user panel is the current logged-in user.
 (reg-sub :user-panel/self?

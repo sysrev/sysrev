@@ -1,21 +1,19 @@
 (ns sysrev.views.charts
   (:require [sysrev.charts.chartjs :as chartjs]
-            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe]]
             [sysrev.util :as util]))
 
 (defn on-graph-hover [items-clickable?]
   (fn [event elts]
-    (when (-> event .-type (not= "click"))
-      (let [cursor
-            ;; set cursor to pointer if over a clickable item,
-            ;; otherwise reset cursor to default
-            (if (not items-clickable?) "default"
-                (let [elts (-> elts js->clj)
-                      idx (when (and (coll? elts) (not-empty elts))
-                            (-> elts first (aget "_index")))]
-                  (if (and (integer? idx) (>= idx 0))
-                    "pointer" "default")))]
+    (when (not= (.-type event) "click")
+      (let [cursor (if (not items-clickable?) "default"
+                       ;; set cursor to pointer if over a clickable item,
+                       ;; otherwise reset cursor to default
+                       (let [elts (-> elts js->clj)
+                             idx (when (and (coll? elts) (not-empty elts))
+                                   (-> elts first (aget "_index")))]
+                         (if (and (integer? idx) (>= idx 0))
+                           "pointer" "default")))]
         (set! (-> event .-target .-style .-cursor) cursor)))))
 
 (defn on-legend-hover []
@@ -48,9 +46,8 @@
      :bodyFontFamily family, :bodyFontSize 13
      :xPadding 8, :yPadding 7}))
 
-(defn wrap-default-options
-  [options & {:keys [animate? items-clickable?]
-              :or {animate? true items-clickable? false}}]
+(defn wrap-default-options [options & {:keys [animate? items-clickable?]
+                                       :or {animate? true items-clickable? false}}]
   (let [mobile? (util/mobile?)
         duration (cond (not animate?) 0
                        mobile?        0
@@ -83,10 +80,9 @@
         (mapv (partial zipmap [:backgroundColor :label :data]))))
   ([ynames yss] (get-datasets ynames yss series-colors)))
 
-(defn bar-chart
-  [height xlabels ynames yss &
-   {:keys [colors options on-click display-ticks log-scale x-label-string]
-    :or {display-ticks true log-scale false}}]
+(defn bar-chart [height xlabels ynames yss &
+                 {:keys [colors options on-click display-ticks log-scale x-label-string]
+                  :or {display-ticks true log-scale false}}]
   (let [font (graph-font-settings)
         datasets (get-datasets ynames yss colors)
         max-length (if (util/mobile?) 22 28)
@@ -118,9 +114,9 @@
                    :tooltips {:callbacks
                               {:label
                                (fn [item _data]
-                                 (let [idx ($ item :datasetIndex)
+                                 (let [idx (.-datasetIndex item)
                                        label (nth ynames idx)
-                                       value ($ item :xLabel)
+                                       value (.-xLabel item)
                                        value-str (if (and (number? value) (not (integer? value)))
                                                    (/ (js/Math.round (* 100 value)) 100.0)
                                                    value)]
@@ -136,8 +132,7 @@
                  options)]
     [chartjs/horizontal-bar {:data data :height height :options options}]))
 
-(defn pie-chart
-  [entries & [on-click]]
+(defn pie-chart [entries & [on-click]]
   (let [labels (mapv #(nth % 0) entries)
         values (mapv #(nth % 1) entries)
         colors (mapv (fn [entry default-color]

@@ -1,20 +1,20 @@
 (ns sysrev.views.panels.project.support
-  (:require [clojure.string :as str]
-            [ajax.core :refer [GET]]
+  (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [dispatch subscribe]]
             [sysrev.accounting :as accounting]
-            [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Form FormButton FormField FormGroup FormInput FormRadio Label]]
+             [Form FormGroup FormInput FormRadio]]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.shared.util :as sutil :refer [in?]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:project :project :support] {:state-var state})
 
@@ -58,7 +58,7 @@
              {:amount (int amount)
               :project-id @(subscribe [:active-project-id])
               :frequency frequency})
-  :on-error (fn [{:keys [error]} [amount frequency] _]
+  :on-error (fn [{:keys [error]} [_amount frequency] _]
               (let [{:keys [message type]} error]
                 ;; do we need a card?
                 (when (in? ["This customer has no attached payment source"
@@ -83,10 +83,8 @@
                           :else message)))
               (reset! (r/cursor state [:loading?]) false)
               {})
-  :process (fn [_ _ {:keys [success] :as result}]
-             (let [support-level (r/cursor state [:support-level])
-                   user-support-level (r/cursor state [:user-support-level])
-                   user-defined-support-level (r/cursor state [:user-defined-support-level])]
+  :process (fn [_ _ {:keys [success]}]
+             (let [user-defined-support-level (r/cursor state [:user-defined-support-level])]
                (reset! user-defined-support-level "$1.00")
                (reset! (r/cursor state [:loading?]) false)
                (reset! (r/cursor state [:error-message]) nil)
@@ -98,7 +96,7 @@
 (def-action :support/cancel
   :uri (fn [] "/api/cancel-project-support")
   :content (fn [] {:project-id @(subscribe [:active-project-id])})
-  :process (fn [_ _ {:keys [success] :as result}]
+  :process (fn [_ _ {:keys [success]}]
              (let [confirming-cancel? (r/cursor state [:confirming-cancel?])
                    loading? (r/cursor state [:loading?])]
                (get-current-support)
@@ -153,8 +151,8 @@
                    :on-change #(reset! support-level :user-defined)}]
        [:div
         [FormInput {:value @user-support-level
-                    :on-change #(reset! user-support-level (-> ($ % :target.value)
-                                                               (sutil/ensure-prefix "$")))
+                    :on-change (util/on-event-value
+                                #(reset! user-support-level (-> % (sutil/ensure-prefix "$"))))
                     :on-click #(reset! support-level :user-defined)}]
         " per month"]]
       (when-not @confirming-cancel?
@@ -206,7 +204,7 @@
         project-id (subscribe [:active-project-id])]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         [:div.ui.segment
          [:h4.ui.dividing.header "Add Funds"]
          [Form {:on-submit
@@ -225,9 +223,9 @@
           [FormGroup
            [FormInput {:id "paypal-amount"
                        :value @user-defined-support-level
-                       :on-change
-                       #(reset! user-defined-support-level
-                                (-> ($ % :target.value) (sutil/ensure-prefix "$")))
+                       :on-change (util/on-event-value
+                                   #(reset! user-defined-support-level
+                                            (-> % (sutil/ensure-prefix "$"))))
                        :on-click #(reset! support-level :user-defined)}]]
           [:div.field
            (when-not @need-card?
@@ -244,7 +242,7 @@
           (when @error-message
             [:div.ui.red.header @error-message])]])
       :get-initial-state
-      (fn [this]
+      (fn [_this]
         (reset! support-level :user-defined)
         (reset! user-defined-support-level "$1.00")
         (reset! loading? false)
@@ -276,7 +274,7 @@
                    "Change Your Level of Support"]]]))]]])))
 
 (defmethod panel-content panel []
-  (fn [child]
+  (fn [_child]
     (when (nil? @(r/cursor state [:user-support-level-monthly]))
       (reset! (r/cursor state [:user-support-level-monthly]) "$1.00"))
     (reset! (r/cursor state [:error-message "monthly"]) "")

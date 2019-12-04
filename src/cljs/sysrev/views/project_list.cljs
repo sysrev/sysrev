@@ -1,6 +1,6 @@
 (ns sysrev.views.project-list
   (:require [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+             [subscribe dispatch reg-sub reg-event-fx trim-v]]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.create-project :refer [CreateProject]]
@@ -31,7 +31,6 @@
                     [(not (util/mobile?)) "blue"])
         :on-click #(dispatch [:action [:join-project project-id]])}
        "Join"]]]))
-
 
 (reg-sub ::projects-list-page-num
          (fn [[_ member? id]]
@@ -88,14 +87,12 @@
   [:div.ui.segments.projects-list
    [:div.ui.segment.projects-list-header
     [:h4.ui.header "Featured Projects"]]
-   (doall
-    (for [project-id [100 269 2026 844 3144]]
-      (when-let [project @(subscribe [:public-projects project-id])]
-        ^{:key [:public-project project-id]}
-        [ProjectListItem
-         {:project-id project-id
-          :name (:name project)
-          :member? true}])))])
+   (doall (for [project-id [100 269 2026 844 3144]]
+            (when-let [project @(subscribe [:public-projects project-id])]
+              ^{:key [:public-project project-id]}
+              [ProjectListItem {:project-id project-id
+                                :name (:name project)
+                                :member? true}])))])
 
 (defn UserProjectListFull []
   (with-loader [[:identity] [:public-projects]] {}

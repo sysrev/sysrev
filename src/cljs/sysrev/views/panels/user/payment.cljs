@@ -1,11 +1,11 @@
 (ns sysrev.views.panels.user.payment
-  (:require [re-frame.core :refer [subscribe dispatch reg-event-db trim-v]]
+  (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.stripe :refer [StripeCardInfo]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.semantic :refer [Grid Row Column Header Segment]]))
+            [sysrev.views.semantic :refer [Grid Column Header Segment]]))
 
 (defmethod panel-content [:payment] []
-  (fn [child]
+  (fn [_child]
     (when-let [user-id @(subscribe [:self/user-id])]
       [Grid
        [Column {:width 8}

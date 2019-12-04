@@ -1,12 +1,9 @@
 (ns sysrev.routes
-  (:require [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
-            [sysrev.nav :as nav :refer [nav nav-scroll-top nav-redirect]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-event-db]]
+            [sysrev.nav :as nav :refer [nav-scroll-top nav-redirect]]
             [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
             [sysrev.views.article-list.base :as article-list]
             [sysrev.views.panels.project.articles :as project-articles]
-            [sysrev.views.panels.project.define-labels :as define-labels]
-            [sysrev.util :as util]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.macros :refer-macros [sr-defroute sr-defroute-project]]))
 

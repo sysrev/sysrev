@@ -7,10 +7,10 @@
             [sysrev.base :refer [active-route]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav]
-            [sysrev.state.nav :refer [active-panel active-project-id project-uri]]
+            [sysrev.state.nav :refer [active-panel]]
             [sysrev.state.ui :as ui-state]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values dissoc-in]]))
+            [sysrev.shared.util :as sutil :refer [in? dissoc-in]]))
 
 (def view :article-list)
 
@@ -27,11 +27,10 @@
 (defn get-display-count []
   (if (util/mobile?) 10 15))
 
-(reg-sub
- ::panel
- :<- [:active-panel]
- (fn [active-panel [_ context]]
-   (or (:panel context) active-panel)))
+(reg-sub ::panel
+         :<- [:active-panel]
+         (fn [active-panel [_ context]]
+           (or (:panel context) active-panel)))
 
 (defn- get-panel [db context]
   (or (:panel context) (active-panel db)))
@@ -55,29 +54,26 @@
                  path))]
     (ui-state/get-view-field db view path panel)))
 
-(reg-sub-raw
- ::get
- (fn [db [_ context path]]
-   (reaction
-    (let [panel @(subscribe [::panel context])
-          path (as-> (or path []) path
-                 (if (and (:read-cache? context)
-                          (not= path [:ready])
-                          (not-empty @(subscribe [::ready-state])))
-                   (vec (concat [:ready] path))
-                   path))]
-      @(subscribe [:view-field view path panel])))))
+(reg-sub-raw ::get
+             (fn [_ [_ context path]]
+               (reaction
+                (let [panel @(subscribe [::panel context])
+                      path (as-> (or path []) path
+                             (if (and (:read-cache? context)
+                                      (not= path [:ready])
+                                      (not-empty @(subscribe [::ready-state])))
+                               (vec (concat [:ready] path))
+                               path))]
+                  @(subscribe [:view-field view path panel])))))
 
 (defn set-state [db context path value]
   (let [panel (get-panel db context)
         path (or path [])]
     (ui-state/set-view-field db view path value panel)))
 
-(reg-event-db
- ::set
- [trim-v]
- (fn [db [context path value]]
-   (set-state db context path value)))
+(reg-event-db ::set [trim-v]
+              (fn [db [context path value]]
+                (set-state db context path value)))
 
 (defn active-sort-by [state context]
   (if (nil? (:sort-by state))
@@ -86,12 +82,9 @@
       (-> default-options :sort-by))
     (:sort-by state)))
 
-(reg-sub
- ::sort-by
- (fn [[_ context]]
-   [(subscribe [::get context])])
- (fn [[state] [_ context]]
-   (active-sort-by state context)))
+(reg-sub ::sort-by
+         (fn [[_ context]] (subscribe [::get context]))
+         (fn [state [_ context]] (active-sort-by state context)))
 
 (defn active-sort-dir [state context]
   (if (nil? (:sort-dir state))
@@ -100,30 +93,21 @@
       (-> default-options :sort-dir))
     (:sort-dir state)))
 
-(reg-sub
- ::sort-dir
- (fn [[_ context]]
-   [(subscribe [::get context])])
- (fn [[state] [_ context]]
-   (active-sort-dir state context)))
+(reg-sub ::sort-dir
+         (fn [[_ context]] (subscribe [::get context]))
+         (fn [state [_ context]] (active-sort-dir state context)))
 
-(reg-sub
- ::display-offset
- (fn [[_ context]]
-   [(subscribe [::get context])])
- (fn [[state] [_ context]]
-   (or (:display-offset state) 0)))
+(reg-sub ::display-offset
+         (fn [[_ context]] (subscribe [::get context]))
+         #(or (:display-offset %) 0))
 
-(reg-sub
- ::active-article
- (fn [[_ context]] [(subscribe [::get context])])
- (fn [[state]] (:active-article state)))
+(reg-sub ::active-article
+         (fn [[_ context]] (subscribe [::get context]))
+         #(:active-article %))
 
-(reg-event-fx
- ::set-active-article
- [trim-v]
- (fn [{:keys [db]} [context article-id]]
-   {:db (set-state db context [:active-article] article-id)}))
+(reg-event-fx ::set-active-article [trim-v]
+              (fn [{:keys [db]} [context article-id]]
+                {:db (set-state db context [:active-article] article-id)}))
 
 (defn get-base-uri [context & [article-id]]
   (let [{:keys [base-uri article-base-uri]} context]
@@ -145,21 +129,17 @@
   (get-display-options-impl
    (get-state db context) context key defaults-only?))
 ;;
-(reg-sub
- ::display-options
- (fn [[_ context _ _]]
-   [(subscribe [::get context])])
- (fn [[state] [_ context key defaults-only?]]
-   (get-display-options-impl state context key defaults-only?)))
+(reg-sub ::display-options
+         (fn [[_ context _ _]] (subscribe [::get context]))
+         (fn [state [_ context key defaults-only?]]
+           (get-display-options-impl state context key defaults-only?)))
 
-(reg-event-db
- ::set-display-option
- [trim-v]
- (fn [db [context key value]]
-   (let [state (get-state db context)]
-     (if (nil? value)
-       (set-state db context nil (dissoc-in state [:display key]))
-       (set-state db context [:display key] value)))))
+(reg-event-db ::set-display-option [trim-v]
+              (fn [db [context key value]]
+                (let [state (get-state db context)]
+                  (if (nil? value)
+                    (set-state db context nil (dissoc-in state [:display key]))
+                    (set-state db context [:display key] value)))))
 
 (defn- filter-to-json [entry]
   (let [[[k v]] (vec entry)
@@ -193,23 +173,19 @@
 (defn get-active-filters [db context & [key]]
   (active-filters-impl (get-state db context) context key))
 ;;
-(reg-sub
- ::filters
- (fn [[_ context & _]]
-   [(subscribe [::get context])])
- (fn [[state] [_ context & [key]]]
-   (active-filters-impl state context key)))
+(reg-sub ::filters
+         (fn [[_ context & _]] (subscribe [::get context]))
+         (fn [state [_ context & [key]]]
+           (active-filters-impl state context key)))
 
-(reg-event-db
- ::reset-all
- [trim-v]
- (fn [db [context]]
-   (-> (set-state db context [:filters] nil)
-       (set-state context [:inputs :filters] nil)
-       (set-state context [:display-offset] nil)
-       (set-state context [:display] nil)
-       (set-state context [:sort-by] nil)
-       (set-state context [:sort-dir] nil))))
+(reg-event-db ::reset-all [trim-v]
+              (fn [db [context]]
+                (-> (set-state db context [:filters] nil)
+                    (set-state context [:inputs :filters] nil)
+                    (set-state context [:display-offset] nil)
+                    (set-state context [:display] nil)
+                    (set-state context [:sort-by] nil)
+                    (set-state context [:sort-dir] nil))))
 
 (defn- get-url-params-impl [db context]
   (let [{:keys [display-offset active-article text-search]
@@ -251,100 +227,89 @@
   (nav/make-url (get-base-uri context article-id)
                 (get-url-params db context)))
 
-(reg-event-fx
- ::navigate
- [trim-v]
- (fn [{:keys [db]} [context & {:keys [article-id redirect?]}]]
-   (let [url (get-nav-url db context article-id)]
-     (if redirect?
-       {:nav-redirect url}
-       {:nav url}))))
+(reg-event-fx ::navigate [trim-v]
+              (fn [{:keys [db]} [context & {:keys [article-id redirect?]}]]
+                (let [url (get-nav-url db context article-id)]
+                  (if redirect?
+                    {:nav-redirect url}
+                    {:nav url}))))
 
-(reg-event-fx
- :article-list/load-url-params
- [trim-v]
- (fn [{:keys [db]} [context]]
-   (let [current-filters (get-state db context [:filters])
-         current-text-search (get-state db context [:text-search])
-         {:keys [filters display offset text-search show-article
-                 sort-by sort-dir]} (get-params-from-url)]
-     (if show-article
-       ;; show-article url param here is no longer used.
-       ;; This will redirect to valid url for the article.
-       {:nav-scroll-top (str (:article-base-uri context) "/" show-article)}
-       (cond-> {:db (-> (set-state db context [:active-article] show-article)
-                        (set-state context [:filters] filters)
-                        (set-state context [:text-search] text-search)
-                        (set-state context [:display-offset] (or offset 0))
-                        (set-state context [:display] display)
-                        (set-state context [:sort-by] sort-by)
-                        (set-state context [:sort-dir] sort-dir))}
-         (or (not= filters current-filters)
-             (not= (or text-search "")
-                   (or current-text-search "")))
-         (merge {::reload-list [context :transition]}))))))
+(reg-event-fx :article-list/load-url-params [trim-v]
+              (fn [{:keys [db]} [context]]
+                (let [current-filters (get-state db context [:filters])
+                      current-text-search (get-state db context [:text-search])
+                      {:keys [filters display offset text-search show-article
+                              sort-by sort-dir]} (get-params-from-url)]
+                  (if show-article
+                    ;; show-article url param here is no longer used.
+                    ;; This will redirect to valid url for the article.
+                    {:nav-scroll-top (str (:article-base-uri context) "/" show-article)}
+                    (cond-> {:db (-> (set-state db context [:active-article] show-article)
+                                     (set-state context [:filters] filters)
+                                     (set-state context [:text-search] text-search)
+                                     (set-state context [:display-offset] (or offset 0))
+                                     (set-state context [:display] display)
+                                     (set-state context [:sort-by] sort-by)
+                                     (set-state context [:sort-dir] sort-dir))}
+                      (or (not= filters current-filters)
+                          (not= (or text-search "")
+                                (or current-text-search "")))
+                      (merge {::reload-list [context :transition]}))))))
 
 (defn sync-url-params
   "Navigate to full browser URL that corresponds to current state"
   [context & {:keys [redirect?] :or {redirect? true}}]
   (dispatch [::navigate context :redirect? redirect?]))
 
-(reg-sub
- ::ready-state
- (fn [[_ context]]
-   [(subscribe [::get (no-cache context)])])
- (fn [[state] [_ context]] (:ready state)))
+(reg-sub ::ready-state
+         (fn [[_ context]] (subscribe [::get (no-cache context)]))
+         #(:ready %))
 
-(reg-event-db
- ::set-recent-nav-action
- [trim-v]
- (fn [db [context action]]
-   (set-state db context [:recent-nav-action] action)))
+(reg-event-db ::set-recent-nav-action [trim-v]
+              (fn [db [context action]]
+                (set-state db context [:recent-nav-action] action)))
 
-(reg-sub
- ::ajax-query-args
- (fn [[_ context]]
-   [(subscribe [::filters context])
-    (subscribe [::display-offset context])
-    (subscribe [::get context [:text-search]])
-    (subscribe [::sort-by context])
-    (subscribe [::sort-dir context])])
- (fn [[filters display-offset text-search sort-by sort-dir]]
-   (let [display-count (get-display-count)]
-     {:filters filters
-      :text-search text-search
-      :sort-by sort-by
-      :sort-dir sort-dir
-      :n-offset display-offset
-      :n-count display-count})))
+(reg-sub ::ajax-query-args
+         (fn [[_ context]]
+           [(subscribe [::filters context])
+            (subscribe [::display-offset context])
+            (subscribe [::get context [:text-search]])
+            (subscribe [::sort-by context])
+            (subscribe [::sort-dir context])])
+         (fn [[filters display-offset text-search sort-by sort-dir]]
+           (let [display-count (get-display-count)]
+             {:filters filters
+              :text-search text-search
+              :sort-by sort-by
+              :sort-dir sort-dir
+              :n-offset display-offset
+              :n-count display-count})))
 
-(reg-sub
- ::export-filter-args
- (fn [[_ context]]
-   [(subscribe [::filters context])
-    (subscribe [::get context [:text-search]])])
- (fn [[filters text-search]]
-   {:filters filters, :text-search text-search}))
+(reg-sub ::export-filter-args
+         (fn [[_ context]]
+           [(subscribe [::filters context])
+            (subscribe [::get context [:text-search]])])
+         (fn [[filters text-search]]
+           {:filters filters, :text-search text-search}))
 
-(reg-sub
- ::articles-query
- (fn [[_ context]]
-   [(subscribe [:active-project-id])
-    (subscribe [::ajax-query-args context])])
- (fn [[project-id args]]
-   [:project/article-list project-id args]))
+(reg-sub ::articles-query
+         (fn [[_ context]]
+           [(subscribe [:active-project-id])
+            (subscribe [::ajax-query-args context])])
+         (fn [[project-id args]]
+           [:project/article-list project-id args]))
 
-(reg-sub
- ::count-query
- (fn [[_ context]]
-   [(subscribe [:active-project-id])
-    (subscribe [::ajax-query-args context])])
- (fn [[project-id args]]
-   (let [args (dissoc args :n-count :n-offset)]
-     [:project/article-list-count project-id args])))
+(reg-sub ::count-query
+         (fn [[_ context]]
+           [(subscribe [:active-project-id])
+            (subscribe [::ajax-query-args context])])
+         (fn [[project-id args]]
+           (let [args (dissoc args :n-count :n-offset)]
+             [:project/article-list-count project-id args])))
 
 (defn sub-articles [context]
   (subscribe @(subscribe [::articles-query context])))
+
 (defn sub-article-count [context]
   (subscribe @(subscribe [::count-query context])))
 
@@ -361,15 +326,14 @@
         (loading/item-loading? data-item))))
 
 ;; Test if current state is ready to be fully displayed
-(reg-sub-raw
- ::state-ready?
- (fn [_ [_ context]]
-   (reaction
-    (let [count-item @(subscribe [::count-query context])
-          data-item @(subscribe [::articles-query context])]
-      (and @(subscribe [:have? count-item])
-           @(subscribe [:have? data-item])
-           (not (data-loading? context)))))))
+(reg-sub-raw ::state-ready?
+             (fn [_ [_ context]]
+               (reaction
+                (let [count-item @(subscribe [::count-query context])
+                      data-item @(subscribe [::articles-query context])]
+                  (and @(subscribe [:have? count-item])
+                       @(subscribe [:have? data-item])
+                       (not (data-loading? context)))))))
 
 (defn reload-list-count [context]
   (let [item @(subscribe [::count-query context])]
@@ -396,12 +360,10 @@
     (dispatch [:require count-item])
     (dispatch [:require articles-item])))
 
-(reg-event-db
- ::set-ready-state
- [trim-v]
- (fn [db [context new-state reset-pager?]]
-   (cond-> (set-state db context [:ready] new-state)
-     reset-pager? (set-state context [:display-offset] 0))))
+(reg-event-db ::set-ready-state [trim-v]
+              (fn [db [context new-state reset-pager?]]
+                (cond-> (set-state db context [:ready] new-state)
+                  reset-pager? (set-state context [:display-offset] 0))))
 
 (defn cache=
   "Tests if subscription value is equal for context and its cache."

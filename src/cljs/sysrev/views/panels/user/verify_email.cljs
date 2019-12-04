@@ -5,9 +5,11 @@
             [sysrev.nav :as nav]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Message]]
-            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+
+;; for clj-kondo
+(declare panel panel-get panel-set)
 
 (setup-panel-state panel [:user :verify-email] {:get-fn panel-get :set-fn panel-set
                                                 :get-sub ::get :set-event ::set})
@@ -45,7 +47,7 @@
         "Redirecting to email settings..."]])))
 
 (defmethod panel-content panel []
-  (fn [child] [VerifyEmail]))
+  (fn [_child] [VerifyEmail]))
 
 (sr-defroute user-email-verify "/user/:user-id/email/:code" [user-id code]
              (let [user-id (parse-integer user-id)]

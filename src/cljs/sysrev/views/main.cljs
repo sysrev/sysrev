@@ -1,8 +1,6 @@
 (ns sysrev.views.main
-  (:require ["jquery" :as jquery]
-            [reagent.core :as r]
-            [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db trim-v]]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch]]
             [sysrev.base :as base]
             [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]
@@ -30,7 +28,6 @@
             [sysrev.views.panels.project.single-article :as single-article]
             [sysrev.views.panels.project.define-labels]
             [sysrev.views.panels.project.settings]
-            [sysrev.views.panels.project.invite-link]
             [sysrev.views.panels.project.export-data]
             [sysrev.views.panels.project.review]
             [sysrev.views.panels.project.support]
@@ -52,7 +49,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :as review]
             [sysrev.views.search.core]
-            [sysrev.util :as util :refer [nbsp]]
+            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [css]]
             [sysrev.shared.components :refer [loading-content]]))
 
@@ -80,7 +77,7 @@
 
 (defn SidebarAnnotationMenu []
   (r/create-class
-   {:component-did-mount (fn [] (util/update-sidebar-height))
+   {:component-did-mount #(util/update-sidebar-height)
     :reagent-render
     (fn []
       (let [article-id @(subscribe [:visible-article-id])
@@ -161,8 +158,7 @@
          [:div.wrapper contact-email sysrev-links "|" site-terms]]])]))
 
 (defn main-content []
-  (let [panel @(subscribe [:active-panel])
-        landing? @(subscribe [:landing-page?])]
+  (let [landing? @(subscribe [:landing-page?])]
     (if-not @(subscribe [:initialized?])
       (loading-content)
       (case @(subscribe [:app-id])

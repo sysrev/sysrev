@@ -1,16 +1,15 @@
 (ns sysrev.views.panels.user.orgs
-  (:require [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Divider]]
-            [sysrev.views.panels.user.profile :as user-profile]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+
+;; for clj-kondo
+(declare panel)
 
 ;; Using same panel value as sysrev.views.panels.user.profile
 (setup-panel-state panel [:user :orgs] {})
@@ -21,7 +20,7 @@
   :uri (fn [user-id] (str "/api/user/" user-id "/orgs"))
   :process (fn [{:keys [db]} [user-id] {:keys [orgs]}]
              {:db (assoc-in db [:data :user-orgs user-id] orgs)})
-  :on-error (fn [{:keys [db error]} [user-id] _]
+  :on-error (fn [{:keys [db error]} [_] _]
               (js/console.error (pr-str error))
               {}))
 
@@ -52,7 +51,7 @@
    [UserOrgs @(subscribe [:user-panel/user-id])]])
 
 (defmethod panel-content panel []
-  (fn [child] [UserOrgsPanel]))
+  (fn [_child] [UserOrgsPanel]))
 
 (sr-defroute user-orgs "/user/:user-id/orgs" [user-id]
              (let [user-id (parse-integer user-id)]

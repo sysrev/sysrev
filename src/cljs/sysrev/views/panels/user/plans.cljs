@@ -1,24 +1,23 @@
 (ns sysrev.views.panels.user.plans
-  (:require [ajax.core :refer [GET]]
-            [goog.uri.utils :as uri-utils]
+  (:require [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [reagent.ratom :refer [track!]]
-            [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub reg-event-fx]]
+            [re-frame.core :refer [dispatch subscribe reg-sub]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
-            [sysrev.state.identity :refer [current-user-id]]
             [sysrev.stripe :as stripe]
             [sysrev.views.semantic :as s :refer
              [Segment Grid Column Row ListUI ListItem Button Loader]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
-            [sysrev.nav :as nav :refer [nav nav-scroll-top]]
+            [sysrev.nav :as nav :refer [nav-scroll-top]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [css]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state sr-defroute]]))
+            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:plans] {:state-var state
                                    :get-fn panel-get
@@ -30,20 +29,19 @@
   (assoc-in db [:data :plans :current-plan] plan))
 
 (def-data :user/current-plan
-  :loaded? (fn [db user-id] (-> (get-in db [:data :plans])
-                                (contains? :current-plan)))
+  :loaded? (fn [db _user-id] (-> (get-in db [:data :plans])
+                                 (contains? :current-plan)))
   :uri (fn [user-id] (str "/api/user/" user-id "/stripe/current-plan"))
-  :process (fn [{:keys [db]} _ {:keys [plan] :as result}]
+  :process (fn [{:keys [db]} _ {:keys [plan]}]
              {:db (load-user-current-plan db plan)}))
 
 (reg-sub :user/current-plan #(get-in % [:data :plans :current-plan]))
 
 (def-action :user/subscribe-plan
-  :uri (fn [user-id plan-name] (str "/api/user/" user-id "/stripe/subscribe-plan"))
-  :content (fn [user-id plan-name]
-             {:plan-name plan-name})
-  :process (fn [{:keys [db]} [user-id _] {:keys [stripe-body plan] :as result}]
-             (if (:created stripe-body)
+  :uri (fn [user-id _] (str "/api/user/" user-id "/stripe/subscribe-plan"))
+  :content (fn [_ plan-name] {:plan-name plan-name})
+  :process (fn [{:keys [db]} [user-id _] {:keys [stripe-body plan]}]
+             (when (:created stripe-body)
                (let [nav-url ;;(panel-get db :on-subscribe-nav-to-url)
                      (-> (or (:on_subscribe_uri (nav/get-url-params))
                              (str "/user/" user-id "/billing")))]
@@ -88,7 +86,7 @@
        [ListItem "Unlimited private projects"]]]
      [Column {:width 10 :align "right"}
       (if (map? unlimited-plan-price)
-        (let [{:keys [base per-user up-to monthly-bill]} (price-summary unlimited-plan-price)]
+        (let [{:keys [base per-user]} (price-summary unlimited-plan-price)]
           [:div
            [Row [:h3 "$" (cents->dollars base) " / month"]]
            [Row [:h3 "up to 5 org members"]]
@@ -121,7 +119,7 @@
         current-path (uri-utils/getPath @active-route)]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         [:div
          [:h1 "Unsubscribe from your plan"]
          [Grid
@@ -155,10 +153,9 @@
                            [s/Message {:negative true}
                             [s/MessageHeader "Change Plan Error"]
                             [:p @error-message]])]]]]]]]])
-      :get-initial-state
-      (fn [this]
-        (reset! changing-plan? false)
-        (reset! error-message nil))})))
+      :get-initial-state (fn [_this]
+                           (reset! changing-plan? false)
+                           (reset! error-message nil))})))
 
 (defn UpgradePlan [{:keys [state
                            billing-settings-uri
@@ -280,7 +277,7 @@
                    :component-did-mount (fn [] (on-mount-user-plans))}))
 
 (defmethod panel-content [:plans] []
-  (fn [child] [UserPlans]))
+  (fn [_child] [UserPlans]))
 
 (defmethod logged-out-content [:plans] []
   (logged-out-content :logged-out))

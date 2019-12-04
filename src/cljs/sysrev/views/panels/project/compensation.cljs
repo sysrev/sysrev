@@ -1,7 +1,6 @@
 (ns sysrev.views.panels.project.compensation
   (:require [ajax.core :refer [POST GET PUT]]
             [reagent.core :as r]
-            [reagent.interop :refer [$]]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [sysrev.accounting :as acct]
             [sysrev.charts.chartjs :as chartjs]
@@ -161,7 +160,7 @@
        {:params {:project-id @(subscribe [:active-project-id])}
         :headers {"x-csrf-token" @(subscribe [:csrf-token])}
         :handler #(dispatch [:project/get-funds])
-        :error-handler #($ js/console log "[[check-pending-transaction]]: error " %)}))
+        :error-handler #(js/console.error "[[check-pending-transaction]]: error " %)}))
 
 (defn ProjectFunds []
   (let [{:keys [project-funds]} @state
@@ -316,7 +315,7 @@
                     :ticks {:fontColor font-color}
                     :gridLines {:color (charts/graph-border-color)}}]}
                  :legend {:display false}
-                 :tooltips {:callbacks {:label #(acct/cents->string ($ % :yLabel))}}}]
+                 :tooltips {:callbacks {:label #(acct/cents->string (.-yLabel %))}}}]
     [chartjs/bar
      {:data data
       :height (+ 50 (* 12 (count labels)))
@@ -401,8 +400,8 @@
                :disabled (or @updating? @loading?)
                :loading @updating?
                :value @compensation-id
-               :on-change (fn [_e data]
-                            (let [value ($ data :value)]
+               :on-change (fn [_e ^js data]
+                            (let [value (.-value data)]
                               (when-not (= value @compensation-id)
                                 (reset! compensation-id value)
                                 (reset! updating? true)
@@ -429,8 +428,8 @@
                :loading @updating?
                :disabled (or @updating? @loading?)
                :value @default-compensation
-               :on-change (fn [_e data]
-                            (let [value ($ data :value)]
+               :on-change (fn [_e ^js data]
+                            (let [value (.-value data)]
                               (when-not (= value @default-compensation)
                                 (reset! default-compensation value)
                                 (reset! updating? true)

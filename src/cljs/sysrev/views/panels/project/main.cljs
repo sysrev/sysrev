@@ -1,17 +1,13 @@
 (ns sysrev.views.panels.project.main
   (:require [re-frame.core :refer [subscribe dispatch]]
-            [reagent.core :as r]
-            [sysrev.routes :as routes]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri group-uri]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.panels.project.common
-             :refer [project-page-menu project-submenu]]
+            [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.panels.project.common :refer [project-page-menu]]
             [sysrev.views.project-list :as plist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
-            [sysrev.util :refer [nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ProjectContent [child]
@@ -68,8 +64,7 @@
      (when (not @(subscribe [:self/logged-in?]))
        [LoginRegisterPanel])]))
 
-(defn PrivateProjectNotViewable
-  [project-id]
+(defn PrivateProjectNotViewable [project-id]
   (when-let [url-id @(subscribe [:active-project-url])]
     (with-loader [[:lookup-project-url url-id]] {}
       (let [project-owner @(subscribe [:project/owner project-id])

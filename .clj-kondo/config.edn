@@ -4,6 +4,8 @@
                        (sysrev.db.query-types/def-find-type nil)
                        (sysrev.util/with-print-time-elapsed nil)
                        (sysrev.test.browser.core/deftest-browser nil)
+                       (sysrev.macros/sr-defroute nil)
+                       (sysrev.macros/sr-defroute-project nil)
                        (sysrev.macros/defroute-app-id nil)
                        (orchestra.core/defn-spec nil)
                        (clojure.core.cache/defcache nil)

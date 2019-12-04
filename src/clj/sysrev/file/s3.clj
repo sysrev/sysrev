@@ -6,8 +6,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? opt-keys]])
-  (:import (java.io File ByteArrayInputStream)
-           java.util.UUID))
+  (:import (java.io ByteArrayInputStream)))
 
 ;; for clj-kondo
 (declare s3-credentials lookup-bucket lookup-file)

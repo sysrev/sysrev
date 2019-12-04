@@ -16,7 +16,7 @@
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.util :as sutil])
   (:import java.util.UUID
-           (java.io File ByteArrayInputStream ByteArrayOutputStream)
+           (java.io File)
            (java.util.zip GZIPInputStream)
            java.math.BigInteger
            java.security.MessageDigest

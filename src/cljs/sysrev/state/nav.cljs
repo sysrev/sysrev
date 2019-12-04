@@ -1,10 +1,8 @@
 (ns sysrev.state.nav
   (:require [reagent.ratom :refer [reaction]]
             [re-frame.core :refer
-             [subscribe reg-sub reg-sub-raw reg-event-db reg-event-fx
-              dispatch trim-v reg-fx]]
+             [subscribe reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
             [sysrev.base :refer [active-route]]
-            [sysrev.nav :refer [nav-scroll-top force-dispatch]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.shared.util :as sutil :refer
@@ -20,34 +18,24 @@
       (let [panel (active-panel db)]
         (if (in? [[:login] [:register]] panel)
           "/" @active-route))))
+
 (reg-sub :login-redirect-url get-login-redirect-url)
 
-(reg-event-db
- :set-login-redirect-url
- [trim-v]
- (fn [db [url]]
-   (assoc db :login-redirect url)))
+(reg-event-db :set-login-redirect-url [trim-v]
+              (fn [db [url]] (assoc db :login-redirect url)))
 
-(reg-event-fx
- :do-login-redirect
- (fn [{:keys [db]}]
-   (let [url (get-login-redirect-url db)]
-     {:nav-reload url})))
+(reg-event-fx :do-login-redirect
+              (fn [{:keys [db]}]
+                {:nav-reload (get-login-redirect-url db)}))
 
 (defn panel-prefixes [path]
   (->> (range 1 (inc (count path)))
        (map #(vec (take % path)))
        reverse vec))
 
-(reg-sub
- ::active-subpanels
- (fn [db]
-   (get-in db [:state :navigation :subpanels])))
+(reg-sub ::active-subpanels #(get-in % [:state :navigation :subpanels]))
 
-(reg-sub
- ::navigate-defaults
- (fn [db]
-   (get-in db [:state :navigation :defaults])))
+(reg-sub ::navigate-defaults #(get-in % [:state :navigation :defaults]))
 
 (defn active-subpanel-uri [db path]
   (or (get-in db [:state :navigation :subpanels path])
@@ -63,39 +51,29 @@
 (defn set-subpanel-default-uri [db prefix uri]
   (assoc-in db [:state :navigation :defaults (vec prefix)] uri))
 
-(reg-event-db
- :set-active-subpanel
- [trim-v]
- (fn [db [prefix uri]]
-   (set-active-subpanel db prefix uri)))
+(reg-event-db :set-active-subpanel [trim-v]
+              (fn [db [prefix uri]]
+                (set-active-subpanel db prefix uri)))
 
-(reg-event-fx
- :set-active-panel
- [trim-v]
- (fn [{:keys [db]} [panel uri]]
-   (let [active (active-panel db)
-         uri (or uri (default-subpanel-uri db panel))]
-     {:db (assoc-in db [:state :active-panel] panel)
-      :dispatch-n
-      (concat
-       [[:review/reset-ui-labels]
-        [:review/reset-ui-notes]
-        [:reset-transient-fields panel]]
-       (->> (panel-prefixes panel)
-            (map (fn [prefix]
-                   [:set-active-subpanel prefix uri]))))})))
+(reg-event-fx :set-active-panel [trim-v]
+              (fn [{:keys [db]} [panel uri]]
+                (let [uri (or uri (default-subpanel-uri db panel))]
+                  {:db (assoc-in db [:state :active-panel] panel)
+                   :dispatch-n (concat [[:review/reset-ui-labels]
+                                        [:review/reset-ui-notes]
+                                        [:reset-transient-fields panel]]
+                                       (for [prefix (panel-prefixes panel)]
+                                         [:set-active-subpanel prefix uri]))})))
 
 ;; TODO: remove this subpanel logic? (not used now)
-(reg-event-fx
- :navigate
- [trim-v]
- (fn [{:keys [db]} [path params & {:keys [scroll-top?]}]]
-   (let [active (active-panel db)]
-     {(if scroll-top? :nav-scroll-top :nav)
-      (let [uri (if (= path (take (count path) active))
-                  (default-subpanel-uri db path)
-                  (active-subpanel-uri db path))]
-        (if (fn? uri) (uri params) uri))})))
+(reg-event-fx :navigate [trim-v]
+              (fn [{:keys [db]} [path params & {:keys [scroll-top?]}]]
+                (let [active (active-panel db)]
+                  {(if scroll-top? :nav-scroll-top :nav)
+                   (let [uri (if (= path (take (count path) active))
+                               (default-subpanel-uri db path)
+                               (active-subpanel-uri db path))]
+                     (if (fn? uri) (uri params) uri))})))
 
 (defn lookup-project-url [db url-id]
   (when url-id (get-in db [:data :project-lookups url-id] :loading)))
@@ -114,7 +92,6 @@
          (fn [db]
            (let [url-id (active-project-url db)
                  [project-id-url owner-url] url-id
-                 owned-url? (and project-id-url owner-url)
                  full-id (some->> url-id
                                   (lookup-project-url db)
                                   (ensure-pred map?))
@@ -155,7 +132,7 @@
                            :org-url-id (parse-integer org-url-id)}
                           (filter-values integer?))
          ;; most recent non-nil value for url-id
-         recent-url-id (get-in db [:state :recent-project-url])
+         _recent-url-id (get-in db [:state :recent-project-url])
          ;; active project id before updating for url
          cur-active (active-project-id db)
          cur-active-url (get-in db [:state :active-project-url])
@@ -168,7 +145,7 @@
                   ;; update value of most recent non-nil url id
                   (cond-> new-db url-id (assoc-in [:state :recent-project-url] url-id))
                   ;; update value of most recent non-nil project id
-                  (if-let [new-active (active-project-id new-db)]
+                  (if-let [_new-active (active-project-id new-db)]
                     (assoc-in new-db [:state :recent-active-project] (active-project-id new-db))
                     new-db))
          ;; active project id after updating for url
@@ -231,7 +208,7 @@
 (def-data :lookup-project-url
   :loaded? (fn [db url-id] (-> (get-in db [:data :project-lookups])
                                (contains? url-id)))
-  :uri (fn [url-id] "/api/lookup-project-url")
+  :uri (fn [_] "/api/lookup-project-url")
   :content (fn [url-id] {:url-id (sutil/write-transit-str url-id)})
   :process (fn [_ [url-id] project-full-id]
              #_ (println (pr-str {:project-full-id project-full-id}))

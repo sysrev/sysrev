@@ -1,10 +1,8 @@
 (ns sysrev.views.panels.login
-  (:require [goog.uri.utils :as uri-utils]
-            [reagent.core :as r]
-            [reagent.interop :refer-macros [$ $!]]
+  (:require ["jquery" :as $]
+            [goog.uri.utils :as uri-utils]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-              reg-event-db reg-event-fx trim-v]]
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
             [sysrev.base :as base :refer [active-route]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
@@ -13,13 +11,12 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.loading :as loading]
-            [sysrev.util :refer
-             [full-size? mobile? validate wrap-prevent-default nbsp]]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.util :refer [validate wrap-prevent-default nbsp on-event-value]]
+            [sysrev.shared.util :refer [css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
-(def ^:private login-panel [:login])
-(def ^:private register-panel [:register])
+(def login-panel [:login])
+(def register-panel [:register])
 
 (def-data :register-project
   :loaded? (fn [db register-hash]
@@ -53,206 +50,166 @@
    :password [#(>= (count %) 6)
               "Password must be at least six characters"]})
 
-(reg-event-fx
- :register/register-hash
- [trim-v]
- (fn [_ [register-hash]]
-   {:dispatch [:set-panel-field [:transient :register-hash] register-hash register-panel]}))
+(reg-event-fx :register/register-hash [trim-v]
+              (fn [_ [register-hash]]
+                {:dispatch [:set-panel-field [:transient :register-hash] register-hash register-panel]}))
 
-(reg-sub
- :register/register-hash
- :<- [:panel-field [:transient :register-hash] register-panel]
- identity)
+(reg-sub :register/register-hash
+         :<- [:panel-field [:transient :register-hash] register-panel]
+         identity)
 
-(reg-event-fx
- :register/project-id
- [trim-v]
- (fn [_ [register-hash project-id]]
-   {:dispatch [:set-panel-field [:project register-hash :project-id] project-id register-panel]}))
+(reg-event-fx :register/project-id [trim-v]
+              (fn [_ [register-hash project-id]]
+                {:dispatch [:set-panel-field [:project register-hash :project-id]
+                            project-id register-panel]}))
 
-(reg-sub-raw
- :register/project-id
- (fn [_ [_ register-hash]]
-   (reaction
-    (when-let [register-hash (or register-hash @(subscribe [:register/register-hash]))]
-      @(subscribe [:panel-field [:project register-hash :project-id] register-panel])))))
+(reg-sub-raw :register/project-id
+             (fn [_ [_ register-hash]]
+               (reaction
+                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                  @(subscribe [:panel-field [:project hash :project-id]
+                               register-panel])))))
 
-(reg-event-fx
- :register/project-name
- [trim-v]
- (fn [_ [register-hash project-name]]
-   {:dispatch [:set-panel-field [:project register-hash :name] project-name register-panel]}))
+(reg-event-fx :register/project-name [trim-v]
+              (fn [_ [register-hash project-name]]
+                {:dispatch [:set-panel-field [:project register-hash :name]
+                            project-name register-panel]}))
 
-(reg-sub-raw
- :register/project-name
- (fn [_ [_ register-hash]]
-   (reaction
-    (when-let [register-hash (or register-hash @(subscribe [:register/register-hash]))]
-      @(subscribe [:panel-field [:project register-hash :name] register-panel])))))
+(reg-sub-raw :register/project-name
+             (fn [_ [_ register-hash]]
+               (reaction
+                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                  @(subscribe [:panel-field [:project hash :name] register-panel])))))
 
-(reg-event-fx
- :register/login?
- [trim-v]
- (fn [_ [login?]]
-   {:dispatch [:set-panel-field [:transient :login?] login? register-panel]}))
+(reg-event-fx :register/login? [trim-v]
+              (fn [_ [login?]]
+                {:dispatch [:set-panel-field [:transient :login?] login? register-panel]}))
 
-(reg-sub
- :register/login?
- :<- [:panel-field [:transient :login?] register-panel]
- identity)
+(reg-sub :register/login?
+         :<- [:panel-field [:transient :login?] register-panel]
+         identity)
 
-(reg-sub
- ::email
- :<- [:view-field :login [:email]]
- (fn [email] (or email "")))
+(reg-sub ::email
+         :<- [:view-field :login [:email]]
+         #(or % ""))
 
-(reg-sub
- ::password
- :<- [:view-field :login [:password]]
- (fn [password] (or password "")))
+(reg-sub ::password
+         :<- [:view-field :login [:password]]
+         #(or % ""))
 
 (defn- email-input []
-  (let [val (-> (js/$ "#login-email-input") (.val))]
+  (let [val (.val ($ "#login-email-input"))]
     (dispatch [::set-email val])
     val))
 
 (defn- password-input []
-  (let [val (-> (js/$ "#login-password-input") (.val))]
+  (let [val (.val ($ "#login-password-input"))]
     (dispatch [::set-password val])
     val))
 
-(reg-sub
- ::submitted
- :<- [:view-field :login [:submitted]]
- (fn [submitted] submitted))
+(reg-sub ::submitted
+         :<- [:view-field :login [:submitted]]
+         identity)
 
-(reg-event-fx
- ::set-email
- [trim-v]
- (fn [_ [email]]
-   {:dispatch [:set-view-field :login [:email] email]}))
+(reg-event-fx ::set-email [trim-v]
+              (fn [_ [email]]
+                {:dispatch [:set-view-field :login [:email] email]}))
 
-(reg-event-fx
- ::set-password
- [trim-v]
- (fn [_ [password]]
-   {:dispatch [:set-view-field :login [:password] password]}))
+(reg-event-fx ::set-password [trim-v]
+              (fn [_ [password]]
+                {:dispatch [:set-view-field :login [:password] password]}))
 
-(reg-event-fx
- ::set-submitted
- [trim-v]
- (fn [_]
-   {:dispatch [:set-view-field :login [:submitted] true]}))
+(reg-event-fx ::set-submitted [trim-v]
+              (fn [_]
+                {:dispatch [:set-view-field :login [:submitted] true]}))
 
-(reg-sub
- ::login-to-join?
- :<- [:active-panel]
- :<- [:register/login?]
- (fn [[panel login?]]
-   (and (= panel register-panel) login?)))
+(reg-sub ::login-to-join?
+         :<- [:active-panel]
+         :<- [:register/login?]
+         (fn [[panel login?]]
+           (and (= panel register-panel) login?)))
 
-(reg-sub
- ::register?
- (fn [_]
-   [(subscribe [:active-panel])
-    (subscribe [::login-to-join?])
-    (subscribe [:landing-page?])])
- (fn [[panel login-to-join? landing?]]
-   (or landing? (and (= panel register-panel)
-                     (not login-to-join?)))))
+(reg-sub ::register?
+         :<- [:active-panel]
+         :<- [::login-to-join?]
+         :<- [:landing-page?]
+         (fn [[panel login-to-join? landing?]]
+           (or landing? (and (= panel register-panel)
+                             (not login-to-join?)))))
 
-(reg-sub
- ::fields
- (fn [_]
-   [(subscribe [::email])
-    (subscribe [::password])])
- (fn [[email password]]
-   {:email email :password password}))
+(reg-sub ::fields
+         :<- [::email]
+         :<- [::password]
+         (fn [[email password]]
+           {:email email :password password}))
 
-(reg-event-fx
- ::submit-form
- [trim-v]
- (fn [_ [{:keys [email password register? project-id redirect]}]]
-   (let [fields {:email email :password password}
-         errors (validate fields login-validation)]
-     (cond
-       (or (empty? email) (empty? password))
-       {}
+(reg-event-fx ::submit-form [trim-v]
+              (fn [_ [{:keys [email password register? project-id redirect]}]]
+                (let [fields {:email email :password password}
+                      errors (validate fields login-validation)]
+                  (cond (or (empty? email) (empty? password))
+                        {}
+                        (not-empty errors)
+                        {:dispatch-n
+                         (list [::set-submitted]
+                               [::set-submitted-fields fields])}
+                        register?
+                        {:dispatch-n
+                         (list [::set-submitted]
+                               [::set-submitted-fields fields]
+                               [:action [:auth/register email password project-id redirect]])}
+                        :else
+                        {:dispatch-n
+                         (list [::set-submitted]
+                               [::set-submitted-fields fields]
+                               [:action [:auth/log-in email password redirect]])}))))
 
-       (not-empty errors)
-       {:dispatch-n
-        (list [::set-submitted]
-              [::set-submitted-fields fields])}
+(reg-sub ::login-error-msg
+         :<- [:view-field :login [:err]]
+         identity)
 
-       register?
-       {:dispatch-n
-        (list [::set-submitted]
-              [::set-submitted-fields fields]
-              [:action [:auth/register email password project-id redirect]])}
+(reg-event-fx :set-login-error-msg [trim-v]
+              (fn [_ [error-msg]]
+                {:dispatch [:set-view-field :login [:err] error-msg]}))
 
-       :else
-       {:dispatch-n
-        (list [::set-submitted]
-              [::set-submitted-fields fields]
-              [:action [:auth/log-in email password redirect]])}))))
+(reg-sub ::header-title
+         :<- [:register/register-hash]
+         :<- [::register?]
+         (fn [[register-hash register?]]
+           (let [project? (and register? register-hash)]
+             (cond project?   "Register for project"
+                   register?  "Register"
+                   :else      "Login"))))
 
-(reg-sub
- ::login-error-msg
- :<- [:view-field :login [:err]]
- (fn [error-msg] error-msg))
+(reg-sub ::form-errors
+         :<- [::fields]
+         :<- [::submitted-fields]
+         :<- [::submitted]
+         (fn [[fields sfields submitted]]
+           (when submitted
+             (let [fkeys (filter #(= (get fields %) (get sfields %))
+                                 (keys fields))]
+               (validate (select-keys sfields fkeys)
+                         (select-keys login-validation fkeys))))))
 
-(reg-event-fx
- :set-login-error-msg
- [trim-v]
- (fn [_ [error-msg]]
-   {:dispatch [:set-view-field :login [:err] error-msg]}))
+(reg-sub ::submitted-fields
+         :<- [:view-field :login [:submitted-fields]]
+         identity)
 
-(reg-sub
- ::header-title
- :<- [:register/register-hash]
- :<- [::register?]
- (fn [[register-hash register?]]
-   (cond
-     (and register?
-          register-hash)  "Register for project"
-     register?            "Register"
-     :else                "Login")))
-
-(reg-sub
- ::form-errors
- :<- [::fields]
- :<- [::submitted-fields]
- :<- [::submitted]
- (fn [[fields sfields submitted]]
-   (when submitted
-     (let [fkeys (filter #(= (get fields %)
-                             (get sfields %))
-                         (keys fields))]
-       (validate (select-keys sfields fkeys)
-                 (select-keys login-validation fkeys))))))
-
-(reg-sub
- ::submitted-fields
- :<- [:view-field :login [:submitted-fields]]
- (fn [fields] fields))
-
-(reg-event-fx
- ::set-submitted-fields
- [trim-v]
- (fn [_ [fields]]
-   {:dispatch [:set-view-field :login [:submitted-fields] fields]}))
+(reg-event-fx ::set-submitted-fields [trim-v]
+              (fn [_ [fields]]
+                {:dispatch [:set-view-field :login [:submitted-fields] fields]}))
 
 #_
 (defn gapi [] (aget js/window "gapi"))
 
 #_
-(defn ^:export on-google-sign-in [google-user]
-  (let [profile ($ google-user getBasicProfile)]
-    (js/console.log (str "ID: " ($ profile getId)))
-    (js/console.log (str "Name: " ($ profile getName)))
-    (js/console.log (str "Email: " ($ profile getEmail)))
-    (js/console.log (str "ID Token: " (-> ($ google-user getAuthResponse)
-                                          ($ :id_token))))
+(defn ^:export on-google-sign-in [^js google-user]
+  (let [^js profile (.getBasicProfile google-user)]
+    (js/console.log (str "ID: " (.getId profile)))
+    (js/console.log (str "Name: " (.getName profile)))
+    (js/console.log (str "Email: " (.getEmail profile)))
+    (js/console.log (str "ID Token: " (.-id_token (.getAuthResponse google-user))))
     profile))
 
 #_
@@ -261,41 +218,36 @@
 
 #_
 (defn ^:export log-out-google []
-  (when (gapi)
-    (-> ($ (gapi) :auth2)
-        ($ getAuthInstance)
-        ($ signOut)
-        ($ then
-           #(js/console "Google logout successful")))))
+  (when-let [^js gapi (gapi)]
+    (-> (.-auth2 gapi)
+        (.getAuthInstance)
+        (.signOut)
+        (.then #(js/console.log "Google logout successful")))))
 
 #_
 (defn ^:export render-google-sign-in []
-  (when (gapi)
+  (when-let [^js gapi (gapi)]
     (js/console.log "Rendering Google signin button")
-    (some-> ($ (gapi) :signin2)
-            ($ render
-               "my-signin2"
-               (clj->js
-                {:scope "profile email"
-                 :width "200"
-                 ;; :height "40"
-                 :longtitle true
-                 ;; :theme "dark"
-                 :onsuccess on-google-sign-in
-                 :onfailure on-google-sign-in-failure})))))
+    (some-> (.-signin2 gapi)
+            (.render "my-signin2"
+                     (clj->js
+                      {:scope "profile email"
+                       :width "200"
+                       ;; :height "40"
+                       :longtitle true
+                       ;; :theme "dark"
+                       :onsuccess on-google-sign-in
+                       :onfailure on-google-sign-in-failure})))))
 
 #_
 (defn GoogleSignInButton []
-  (r/create-class
-   {:component-did-mount
-    (fn [] (render-google-sign-in))
-    :reagent-render
-    (fn []
-      (if (gapi)
-        [:div.google-signin-wrapper
-         [:div#my-signin2.g-signin2
-          {:data-onsuccess "on-google-sign-in"}]]
-        [:div]))}))
+  (r/create-class {:component-did-mount #(render-google-sign-in)
+                   :reagent-render (fn []
+                                     (if (gapi)
+                                       [:div.google-signin-wrapper
+                                        [:div#my-signin2.g-signin2
+                                         {:data-onsuccess "on-google-sign-in"}]]
+                                       [:div]))}))
 
 (defn GoogleLogInButton []
   [:a.ui.fluid.button {:href "#"
@@ -310,8 +262,6 @@
         project-name @(subscribe [:register/project-name])
         register-hash @(subscribe [:register/register-hash])
         form-errors @(subscribe [::form-errors])
-        fields @(subscribe [::fields])
-        sfields @(subscribe [::submitted-fields])
         field-class #(if (get form-errors %) "error" "")
         field-error #(when-let [msg (get form-errors %)]
                        [:div.ui.warning.message msg])
@@ -322,9 +272,11 @@
                    []) {}
       [:div
        (when (= (uri-utils/getPath (or redirect "")) "/user/plans")
-         [:h4 {:style {:text-align "center"}} "Create a free account to upgrade to Pro Plan"])
+         [:h4 {:style {:text-align "center"}}
+          "Create a free account to upgrade to Pro Plan"])
        (when (= (uri-utils/getPath (or redirect "")) "/create/org")
-         [:h4 {:style {:text-align "center"}} "Create a free account before moving on to team creation"])
+         [:h4 {:style {:text-align "center"}}
+          "Create a free account before moving on to team creation"])
        [:div.ui.segment.auto-margin.auth-segment
         {:id "login-register-panel"}
         (when register-hash
@@ -352,22 +304,20 @@
            [:input {:type "email" :name "email"
                     :id "login-email-input"
                     :placeholder "E-mail address"
-                    :on-change
-                    #(dispatch-sync [::set-email (-> % .-target .-value)])}]]]
+                    :on-change (on-event-value #(dispatch-sync [::set-email %]))}]]]
          [:div.field.password {:class (field-class :password)}
           [:div.ui.left.icon.input
            [:i.lock.icon]
            [:input {:type "password" :name "password"
                     :id "login-password-input"
                     :placeholder "Password"
-                    :on-change
-                    #(dispatch-sync [::set-password (-> % .-target .-value)])}]]]
+                    :on-change (on-event-value #(dispatch-sync [::set-password %]))}]]]
          [field-error :email]
          [field-error :password]
          [:button.ui.fluid.primary.button
           {:type "submit" :name "submit"
-           :class (if (and register? (loading/any-action-running? :only :auth/register))
-                    "loading")}
+           :class (css [(and register? (loading/any-action-running? :only :auth/register))
+                        "loading"])}
           (cond landing?   "Sign Up"
                 register?  "Register"
                 :else      "Login")]
@@ -449,19 +399,19 @@
                {:on-click #(dispatch [:action [:join-project project-id]])}
                "Join Project"]]]))))))
 
-(defmethod logged-out-content [:login] []
+(defmethod logged-out-content login-panel []
   [LoginRegisterPanel])
 
-(defmethod logged-out-content [:register] []
+(defmethod logged-out-content register-panel []
   [LoginRegisterPanel])
 
-(defmethod panel-content [:login] []
-  (fn [child]
+(defmethod panel-content login-panel []
+  (fn [_child]
     (nav/nav-redirect "/" :scroll-top? true)
     [:div]))
 
-(defmethod panel-content [:register] []
-  (fn [child]
+(defmethod panel-content register-panel []
+  (fn [_child]
     (if (and (nil? @(subscribe [:register/project-id]))
              (nil? @(subscribe [:register/register-hash])))
       (do (nav/nav-redirect "/" :scroll-top? true)

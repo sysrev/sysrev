@@ -16,8 +16,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
-            [sysrev.test.browser.pubmed :as pm])
-  (:import clojure.lang.ExceptionInfo))
+            [sysrev.test.browser.pubmed :as pm]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

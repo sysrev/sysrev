@@ -1,9 +1,8 @@
 (ns sysrev.state.label
   (:require [clojure.string :as str]
-            [re-frame.core :refer [subscribe reg-sub reg-sub-raw]]
+            [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.project.base :refer [get-project-raw]]
-            [sysrev.shared.labels :refer [sort-project-labels]]
             [sysrev.shared.util :refer [in?]]))
 
 (reg-sub ::labels
@@ -134,10 +133,10 @@
          (fn [definition] (boolean (:multi? definition))))
 
 (reg-sub :label/valid-string-value?
-         (fn [[_ label-id val project-id]]
+         (fn [[_ label-id _ project-id]]
            [(subscribe [:label/value-type label-id project-id])
             (subscribe [::definition label-id project-id])])
-         (fn [[value-type definition] [_ label-id val _]]
+         (fn [[value-type definition] [_ _ val _]]
            (when (= value-type "string")
              (let [{:keys [regex max-length]} definition]
                (boolean (and (string? val)

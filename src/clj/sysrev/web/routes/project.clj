@@ -36,9 +36,7 @@
             [sysrev.formats.ctgov :as ctgov]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [parse-integer]])
-  (:import [java.util UUID]
-           (java.io File Writer InputStream ByteArrayInputStream)
-           [org.apache.commons.io IOUtils]))
+  (:import (java.io File)))
 
 ;; for clj-kondo
 (declare project-routes dr finalize-routes)

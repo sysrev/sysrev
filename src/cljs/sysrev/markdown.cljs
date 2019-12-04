@@ -5,7 +5,6 @@
             [clojure.spec.alpha :as s]
             [goog.dom :as gdom]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [reagent.ratom :as ratom]
             [sysrev.views.semantic :refer [TextArea]]
             [sysrev.util :as util]
@@ -79,7 +78,7 @@
                         :autoHeight true
                         :disabled (boolean loading?)
                         :placeholder "Enter a Markdown description"
-                        :on-change #(reset! draft-content (-> ($ % :target) ($ :value)))
+                        :on-change (util/on-event-value #(reset! draft-content %))
                         :default-value active-content}]
              [:div.ui.middle.aligned.two.column.grid.form-buttons
               {:style {:margin-top "0"}}

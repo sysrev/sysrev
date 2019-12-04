@@ -5,7 +5,7 @@
 
 (reg-sub ::members
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
-         (fn [project] (:members project)))
+         #(:members %))
 
 (reg-sub-raw :project/member-user-ids
              (fn [_ [_ project-id include-self-admin?]]
@@ -21,19 +21,19 @@
                        (sort <))))))
 
 (reg-sub ::member
-         (fn [[_ user-id project-id]]
+         (fn [[_ _ project-id]]
            [(subscribe [::members project-id])
             (subscribe [:self/user-id])])
-         (fn [[members self-id] [_ user-id project-id]]
+         (fn [[members self-id] [_ user-id _]]
            (get members (or user-id self-id))))
 
 (reg-sub :member/permissions
          (fn [[_ user-id project-id]] (subscribe [::member user-id project-id]))
-         (fn [member] (:permissions member)))
+         #(:permissions %))
 
 (reg-sub :member/admin?
          (fn [[_ user-id project-id]] (subscribe [:member/permissions user-id project-id]))
-         (fn [permissions] (in? permissions "admin")))
+         #(in? % "admin"))
 
 (reg-sub :member/resolver?
          (fn [[_ user-id project-id]]
@@ -45,16 +45,16 @@
 
 (reg-sub :member/include-count
          (fn [[_ user-id project-id]] (subscribe [::member user-id project-id]))
-         (fn [member] (-> member :articles :includes count)))
+         #(-> % :articles :includes count))
 
 (reg-sub :member/exclude-count
          (fn [[_ user-id project-id]] (subscribe [::member user-id project-id]))
-         (fn [member] (-> member :articles :excludes count)))
+         #(-> % :articles :excludes count))
 
 (reg-sub :member/article-count
          (fn [[_ user-id project-id]] (subscribe [::member user-id project-id]))
-         (fn [member] (+ (-> member :articles :includes count)
-                         (-> member :articles :excludes count))))
+         #(+ (-> % :articles :includes count)
+             (-> % :articles :excludes count)))
 
 (reg-sub :user/project-admin?
          (fn [[_ user-id]]

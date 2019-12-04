@@ -1,9 +1,6 @@
 (ns sysrev.state.identity
-  (:require [re-frame.core :refer [subscribe reg-sub reg-event-db reg-event-fx
-                                   dispatch trim-v reg-fx]]
-            [sysrev.nav :refer [nav nav-scroll-top force-dispatch]]
+  (:require [re-frame.core :refer [reg-sub]]
             [sysrev.state.core :refer [store-user-map]]
-            [sysrev.state.nav :refer [get-login-redirect-url]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :as util]
@@ -41,11 +38,11 @@
         theme-changed? (merge {:reload-page [true]})))))
 
 (def-action :auth/log-in
-  :uri (fn [_ _] "/api/auth/login")
-  :content (fn [email password redirect]
+  :uri (fn [_ _ _] "/api/auth/login")
+  :content (fn [email password _redirect]
              {:email email :password password})
   :process
-  (fn [_ [email password redirect] {:keys [valid message] :as result}]
+  (fn [_ [_ _ redirect] {:keys [valid message]}]
     (if valid
       {:dispatch-n
        (list [:ga-event "auth" "login_success"]
@@ -57,16 +54,15 @@
 
 (def-action :auth/log-out
   :uri (fn [] "/api/auth/logout")
-  :process (fn [{:keys [db]} _ result]
-             {:reset-data true
-              :nav-scroll-top "/"}))
+  :process (fn [{:keys [db]} _ _]
+             {:reset-data true :nav-scroll-top "/"}))
 
 (def-action :auth/register
   :uri (fn [& _] "/api/auth/register")
-  :content (fn [email password & [project-id redirect]]
+  :content (fn [email password & [project-id _redirect]]
              {:email email :password password :project-id project-id})
   :process
-  (fn [_ [email password & [project-id redirect]] {:keys [success message] :as result}]
+  (fn [_ [email password & [_ redirect]] {:keys [success message]}]
     (if success
       {:dispatch-n
        (list [:ga-event "auth" "register_success"]
@@ -167,7 +163,7 @@
 (def-action :user/delete-account
   :uri (fn [_] "/api/delete-user")
   :content (fn [verify-user-id] {:verify-user-id verify-user-id})
-  :process (fn [{:keys [db]} _ result]
+  :process (fn [{:keys [db]} _ _]
              {:db (-> (assoc-in db [:state :identity] nil)
                       (dissoc-in [:state :self]))
               :reset-data true
@@ -177,7 +173,6 @@
 (def-action :user/delete-member-labels
   :uri (fn [_ _] "/api/delete-member-labels")
   :content (fn [project-id verify-user-id]
-             {:project-id project-id
-              :verify-user-id verify-user-id})
-  :process (fn [_ _ result] {:reset-data true}))
+             {:project-id project-id :verify-user-id verify-user-id})
+  :process (fn [_ _ _] {:reset-data true}))
 

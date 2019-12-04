@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.project.review
-  (:require [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+  (:require [re-frame.core :refer [subscribe]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.article :refer [ArticleInfo]]
             [sysrev.views.review :refer [LabelAnswerEditor]]

@@ -1,5 +1,4 @@
 (ns sysrev.spec.core
-  (:require [clojure.spec.alpha :as s]
-            [sysrev.shared.spec.core :as sc]))
+  (:require [clojure.spec.alpha :as s]))
 
 (s/def ::path vector?)

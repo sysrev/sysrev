@@ -1,28 +1,23 @@
 (ns sysrev.views.panels.project.export-data
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
-            [sysrev.data.core :refer [def-data]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.project.define-labels :refer [label-settings-config]]
-            [sysrev.views.components.core :refer
-             [with-ui-help-tooltip ui-help-icon]]
-            [sysrev.util :as util :refer [today-string nbsp]]))
+            [sysrev.util :as util]))
 
 (def-action :project/generate-export
   :uri (fn [project-id export-type _]
          (str "/api/generate-project-export/" project-id "/" (name export-type)))
   :content (fn [_ _ options] (merge options {}))
-  :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry] :as result}]
+  :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry]}]
              {:db (assoc-in db [:data :project-exports [project-id export-type options]] entry)})
   :on-error (fn [{:keys [db error]} [project-id export-type options] _]
               {:db (assoc-in db [:data :project-exports [project-id export-type options]]
                              {:error error})}))
 
-(reg-sub
- :project/export-file
- (fn [db [_ project-id export-type options]]
-   (get-in db [:data :project-exports [project-id export-type options]])))
+(reg-sub :project/export-file
+         (fn [db [_ project-id export-type options]]
+           (get-in db [:data :project-exports [project-id export-type options]])))
 
 (defn ProjectExportNavigateForm [export-type]
   [:a.ui.fluid.right.labeled.icon.primary.button
@@ -32,7 +27,7 @@
 
 (defmethod panel-content [:project :project :export-data] []
   (fn [child]
-    (when-let [project-id @(subscribe [:active-project-id])]
+    (when @(subscribe [:active-project-id])
       [:div.project-content
        [:div.ui.two.column.stackable.grid.export-data
         [:div.column

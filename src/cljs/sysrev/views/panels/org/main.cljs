@@ -1,13 +1,10 @@
 (ns sysrev.views.panels.org.main
   (:require [clojure.string :as str]
-            [ajax.core :refer [GET]]
             [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.state.ui :refer [get-panel-field set-panel-field]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.org.billing :refer [OrgBilling]]
             [sysrev.views.panels.org.payment :refer [OrgPayment]]
@@ -15,9 +12,12 @@
             [sysrev.views.panels.org.projects :refer [OrgProjects]]
             [sysrev.views.panels.org.users :refer [OrgUsers]]
             [sysrev.views.semantic :refer
-             [Segment Header Menu MenuItem Dropdown Message MessageHeader]]
-            [sysrev.shared.util :as sutil :refer [ensure-pred parse-integer css]]
+             [Menu MenuItem Message MessageHeader]]
+            [sysrev.shared.util :as sutil :refer [parse-integer css]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:org :main] {:state-var state
                                        :get-fn panel-get
@@ -30,38 +30,37 @@
   :loaded?  (fn [db] (and (-> (get-in db [:state :self])  (contains? :orgs))
                           (-> (panel-get db)              (contains? :orgs))))
   :uri      (fn [] "/api/orgs")
-  :process  (fn [{:keys [db]} [] {:keys [orgs] :as result}]
+  :process  (fn [{:keys [db]} [] {:keys [orgs]}]
               {:db (-> (assoc-in db [:state :self :orgs] orgs)
                        (panel-set [:orgs] orgs))})
   :on-error (fn [{:keys [db error]} [] _]
               {:db (panel-set db [:orgs-error] (:message error))}))
 
 (reg-sub ::org
-         (fn [[_ org-id]] (subscribe [::orgs]))
+         :<- [::orgs]
          (fn [orgs [_ org-id]] (first (->> orgs (filter #(= (:group-id %) org-id))))))
 
 (reg-sub :org/name
          (fn [[_ org-id]] (subscribe [::org org-id]))
-         (fn [org] (:group-name org)))
+         #(:group-name %))
 
 (reg-sub :org/permissions
          (fn [[_ org-id]] (subscribe [::org org-id]))
-         (fn [org] (:permissions org)))
+         #(:permissions %))
 
 (reg-sub :org/member-count
          (fn [[_ org-id]] [(subscribe [::org org-id])])
-         (fn [org] (:member-count org)))
+         #(:member-count %))
 
 (defn org-id-from-url []
   (parse-integer (second (re-find #"/org/(\d+)" @active-route))))
 
 (defn OrgContent []
-  (let [orgs (subscribe [:self/orgs])
-        uri-fn (fn [sub-path] (str "/org/" (org-id-from-url) "/" sub-path))
+  (let [uri-fn (fn [sub-path] (str "/org/" (org-id-from-url) "/" sub-path))
         active? (fn [sub-path] (str/includes? @active-route (uri-fn sub-path)))]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn []
         (when-let [org-id (org-id-from-url)]
           (if false ; a check for org existance should be implemented here
             [Message {:negative true}
@@ -111,5 +110,4 @@
   (logged-out-content :logged-out))
 
 (defmethod panel-content [:org-settings] []
-  (fn [child]
-    [OrgContent]))
+  (fn [_child] [OrgContent]))

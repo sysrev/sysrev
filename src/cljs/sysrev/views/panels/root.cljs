@@ -1,15 +1,11 @@
 (ns sysrev.views.panels.root
-  (:require [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-            [sysrev.nav :as nav]
+  (:require [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.pricing :refer [Pricing]]
             [sysrev.views.project-list :as plist]
-            [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.shared.text :as text]
-            [sysrev.util :as util]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (def ^:private panel [:root])
@@ -18,18 +14,17 @@
          :<- [:active-panel]
          :<- [:self/logged-in?]
          (fn [[active-panel logged-in?]]
-           (and (= active-panel [:root])
-                (not logged-in?))))
+           (and (= active-panel panel) (not logged-in?))))
 
 (def-data :global-stats
   :loaded? (fn [db] (-> (get-in db [:data])
                         (contains? :global-stats)))
-  :uri (fn [] "/api/global-stats")
+  :uri (constantly "/api/global-stats")
   :process (fn [{:keys [db]} _ {:keys [stats]}]
              (when stats
                {:db (assoc-in db [:data :global-stats] stats)})))
 
-(reg-sub :global-stats (fn [db _] (get-in db [:data :global-stats])))
+(reg-sub :global-stats #(get-in % [:data :global-stats]))
 
 (defn IntroSegment []
   [:div.welcome-msg
@@ -41,7 +36,7 @@
 (defn GlobalStatsReport []
   [:div.global-stats
    (with-loader [[:global-stats]] {}
-     (let [{:keys [labeled-articles label-entries real-users real-projects]}
+     (let [{:keys [labeled-articles label-entries real-projects]}
            @(subscribe [:global-stats])]
        [:div.ui.three.column.middle.aligned.center.aligned.stackable.grid
         [:div.column ;;.left.aligned
@@ -88,12 +83,10 @@
        [Pricing]]]]))
 
 (defn RootFullPanelUser []
-  [:div.landing-page
-   [plist/UserProjectListFull]])
+  [:div.landing-page [plist/UserProjectListFull]])
 
-(defmethod panel-content [:root] []
-  (fn [child]
-    [RootFullPanelUser]))
+(defmethod panel-content panel []
+  (fn [_child] [RootFullPanelUser]))
 
-(defmethod logged-out-content [:root] []
+(defmethod logged-out-content panel []
   [RootFullPanelPublic])

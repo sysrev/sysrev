@@ -1,5 +1,6 @@
 (ns sysrev.blog
-  (:require [cljs-time.format :as tf]
+  (:require ["jquery" :as $]
+            [cljs-time.format :as tf]
             [cljs-time.coerce :as tc]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]
@@ -126,12 +127,12 @@
                                 first)]
             (js/setTimeout
              (fn []
-               (let [el (js/$ (str "#blog-entry-" (:blog-entry-id entry)))]
+               (let [el ($ (str "#blog-entry-" (:blog-entry-id entry)))]
                  (-> el
                      (.on
                       "load"
                       (fn []
-                        (let [doc (js/$ (-> el (.get 0) .-contentWindow .-document))
+                        (let [doc ($ (-> el (.get 0) .-contentWindow .-document))
                               height (some-> doc (.height) (str "px"))]
                           (when height
                             (-> el (.css "height" height))

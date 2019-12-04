@@ -1,7 +1,6 @@
 (ns sysrev.views.panels.password-reset
   (:require [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub
-              reg-event-db reg-event-fx trim-v]]
+             [subscribe dispatch dispatch-sync reg-sub reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
@@ -46,7 +45,7 @@
 (def-action :auth/request-password-reset
   :uri (constantly "/api/auth/request-password-reset")
   :content (fn [email] {:email email :url-base (nav/current-url-base)})
-  :process (fn [_ [email] {:keys [success] :as result}]
+  :process (fn [_ _ {:keys [success]}]
              (if success
                {:dispatch [:request-password-reset/sent? true]}
                {:dispatch-n (list [:request-password-reset/sent? false]
@@ -57,7 +56,7 @@
   :uri (constantly "/api/auth/reset-password")
   :content (fn [{:keys [reset-code password] :as args}] args)
   :process
-  (fn [_ _ {:keys [success message] :as result}]
+  (fn [_ _ {:keys [success message]}]
     (if success
       {:dispatch-n (list [[:ga-event "auth" "password_reset_success"]
                           [:reset-password/success? true]])
@@ -234,7 +233,7 @@
          "An email has been sent with a link to reset your password."])]]))
 
 (defmethod panel-content request-panel []
-  (fn [child]
+  (fn [_child]
     [:div.ui.padded.segments.auto-margin
      {:style {:max-width "500px" :margin-top "10px"}}
      [:h3.ui.top.attached.header "Request Password Reset"]
@@ -245,7 +244,7 @@
   [request-password-reset-panel])
 
 (defmethod panel-content reset-panel []
-  (fn [child]
+  (fn [_child]
     [:div.ui.padded.segments.auto-margin
      {:style {:max-width "500px" :margin-top "10px"}}
      [:h3.ui.top.attached.header "Reset Password"]

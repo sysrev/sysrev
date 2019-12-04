@@ -1,31 +1,25 @@
 (ns sysrev.views.components.list-pager
   (:require [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-event-fx trim-v]]
+             [subscribe dispatch-sync reg-sub reg-event-fx trim-v]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? css space-join]]))
 
 (defn- state-path [instance-key & path]
   (vec (concat [:list-pager instance-key] path)))
 
-(reg-sub
- ::page-input
- (fn [[_ panel ikey]]
-   [(subscribe [:panel-field (state-path ikey :page-input) panel])])
- (fn [[page-input]] page-input))
+(reg-sub ::page-input
+         (fn [[_ panel ikey]]
+           (subscribe [:panel-field (state-path ikey :page-input) panel]))
+         identity)
 
-(reg-event-fx
- ::set-page-input
- [trim-v]
- (fn [_ [panel ikey value]]
-   {:dispatch [:set-panel-field (state-path ikey :page-input) value panel]}))
+(reg-event-fx ::set-page-input [trim-v]
+              (fn [_ [panel ikey value]]
+                {:dispatch [:set-panel-field (state-path ikey :page-input) value panel]}))
 
 (defn- max-display-offset [{:keys [total-count items-per-page]}]
   (* items-per-page (quot (dec total-count) items-per-page)))
 
-(defn- ListPagerMessage [{:keys [offset
-                                 total-count
-                                 items-per-page
-                                 item-name-string]}]
+(defn- ListPagerMessage [{:keys [offset total-count items-per-page item-name-string]}]
   (when ((every-pred integer? #(> % 1)) items-per-page)
     (let [end-offset (dec (min total-count (+ offset items-per-page)))]
       [:h5.list-pager-message

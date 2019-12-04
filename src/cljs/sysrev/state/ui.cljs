@@ -1,6 +1,6 @@
 (ns sysrev.state.ui
   (:require [re-frame.core :refer
-             [subscribe reg-sub reg-event-db reg-event-fx dispatch trim-v]]
+             [subscribe reg-sub reg-event-db trim-v]]
             [sysrev.state.nav :as nav]
             [sysrev.shared.util :refer [dissoc-in]]))
 
@@ -28,8 +28,8 @@
     (get-in db (concat [:state :panels panel] path))))
 
 (reg-sub :panel-field
-         (fn [[_ path & [panel]]] (subscribe [::panel-state panel]))
-         (fn [pstate [_ path & [panel]]]
+         (fn [[_ _path & [panel]]] (subscribe [::panel-state panel]))
+         (fn [pstate [_ path & [_panel]]]
            (when (and pstate path)
              (let [path (if (or (nil? path) (sequential? path))
                           path [path])]
@@ -58,9 +58,8 @@
 ;;;
 
 (reg-sub ::view-state
-         (fn [[_ view & [panel]]]
-           (subscribe [::panel-state panel]))
-         (fn [pstate [_ view & [panel]]]
+         (fn [[_ _view & [panel]]] (subscribe [::panel-state panel]))
+         (fn [pstate [_ view & [_panel]]]
            (when (and pstate view)
              (get-in pstate [:views view]))))
 
@@ -79,9 +78,8 @@
     (update-in db (concat [:state :panels panel :views view] path) update-fn)))
 
 (reg-sub :view-field
-         (fn [[_ view path & [panel]]]
-           [(subscribe [::view-state view panel])])
-         (fn [[vstate] [_ view path _]]
+         (fn [[_ view _path & [panel]]] (subscribe [::view-state view panel]))
+         (fn [vstate [_ _view path & _]]
            (when (and vstate path)
              (let [path (if (or (nil? path) (sequential? path))
                           path [path])]

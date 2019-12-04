@@ -1,17 +1,19 @@
 (ns sysrev.views.panels.user.projects
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :refer [ConfirmationDialog]]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.semantic :refer
-             [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]]
-            [sysrev.util :as util :refer [condensed-number wrap-prevent-default]]
+             [Segment Header Grid Row Column Divider Button]]
+            [sysrev.util :as util :refer [condensed-number]]
             [sysrev.shared.util :as sutil :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:user :projects] {:state-var state
                                             :get-fn panel-get :set-fn panel-set
@@ -23,7 +25,7 @@
   :uri (fn [user-id] (str "/api/user/" user-id "/projects"))
   :process (fn [{:keys [db]} [user-id] {:keys [projects]}]
              {:db (assoc-in db [:data :user-projects user-id] projects)})
-  :on-error (fn [{:keys [db error]} [user-id] _]
+  :on-error (fn [{:keys [db error]} [_] _]
               (js/console.error (pr-str error))
               {}))
 
@@ -39,12 +41,12 @@
   (let [confirming? (r/atom false)]
     (r/create-class
      {:reagent-render
-      (fn [args]
+      (fn [_]
         [:div
          (when @confirming?
            [ConfirmationDialog
             {:on-cancel #(reset! confirming? false)
-             :on-confirm (fn [e]
+             :on-confirm (fn [_e]
                            (set-public! project-id)
                            (reset! confirming? false))
              :title "Confirm Action"
@@ -54,7 +56,7 @@
            [Button {:size "mini" :on-click #(reset! confirming? true)
                     :class "set-publicly-viewable"}
             "Set Publicly Viewable"])])
-      :component-did-mount (fn [this]
+      :component-did-mount (fn [_this]
                              (reset! confirming? false))})))
 
 (defn- ActivityColumn [item-count text header-class & [count-font-size]]
@@ -145,7 +147,7 @@
        [UserProjectsList {:user-id user-id}]])))
 
 (defmethod panel-content panel []
-  (fn [child] [UserProjects @(subscribe [:user-panel/user-id])]))
+  (fn [_child] [UserProjects @(subscribe [:user-panel/user-id])]))
 
 (sr-defroute user-projects "/user/:user-id/projects" [user-id]
              (let [user-id (parse-integer user-id)]

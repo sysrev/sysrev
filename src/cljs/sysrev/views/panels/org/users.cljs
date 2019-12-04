@@ -1,17 +1,19 @@
 (ns sysrev.views.panels.org.users
-  (:require [ajax.core :refer [GET POST PUT DELETE]]
+  (:require [clojure.set :as set]
+            [ajax.core :refer [GET POST PUT DELETE]]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$ $!]]
-            [re-frame.core :refer [subscribe reg-sub dispatch reg-event-db reg-event-fx trim-v]]
+            [re-frame.core :refer [subscribe reg-sub dispatch]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.action.core :refer [def-action]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.semantic :refer
-             [Segment Table TableHeader TableBody TableRow TableCell Search Button
+             [Table TableBody TableRow TableCell Search Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
-              Input Message MessageHeader Dropdown Menu Icon]]
+              Input Message MessageHeader Dropdown]]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:org :users] {:state-var state})
 
@@ -26,8 +28,7 @@
          (fn [db [_ org-id]]
            (get-in db [:org org-id :users])))
 
-(defn remove-from-org!
-  [{:keys [user-id org-id]}]
+(defn remove-from-org! [{:keys [user-id org-id]}]
   (let [retrieving? (r/cursor state [:remove-from-org! :retrieving])
         error (r/cursor state [:remove-from-org! :error])
         modal-open (r/cursor state [:remove-modal :open])]
@@ -36,7 +37,7 @@
     (DELETE (str "/api/org/" org-id "/user")
             {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
              :params {:user-id user-id}
-             :handler (fn [response]
+             :handler (fn [_response]
                         (reset! retrieving? false)
                         (reset! error "")
                         (reset! modal-open false)
@@ -45,8 +46,7 @@
                               (reset! retrieving? false)
                               (reset! error (get-in response [:response :error :message])))})))
 
-(defn RemoveModal
-  [{:keys [org-id]}]
+(defn RemoveModal [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:remove-modal :open])
         user-id (r/cursor state [:current-user-id])
         username (r/cursor state [:current-username])
@@ -77,8 +77,7 @@
            [MessageHeader {:as "h4"} "Remove member error"]
            @error])]]]]))
 
-(defn change-role!
-  [{:keys [new-role user-id permissions org-id]}]
+(defn change-role! [{:keys [new-role user-id permissions org-id]}]
   (let [retrieving? (r/cursor state [:change-role! :retrieving])
         error (r/cursor state [:change-role! :error])
         modal-open (r/cursor state [:change-role-modal :open])]
@@ -88,7 +87,7 @@
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :params {:user-id user-id
                    :permissions permissions}
-          :handler (fn [response]
+          :handler (fn [_response]
                      (reset! retrieving? false)
                      (reset! error "")
                      (reset! modal-open false)
@@ -97,8 +96,7 @@
                            (reset! retrieving? false)
                            (reset! error (get-in response [:response :error :message])))})))
 
-(defn ChangeRoleModal
-  [{:keys [org-id]}]
+(defn ChangeRoleModal [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:change-role-modal :open])
         user-id (r/cursor state [:current-user-id])
         username (r/cursor state [:current-username])
@@ -107,7 +105,7 @@
         retrieving? (r/cursor state [:change-role! :retrieving])]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         [Modal {:open @modal-open
                 :on-open #(reset! modal-open true)
                 :on-close #(reset! modal-open false)
@@ -128,7 +126,9 @@
                         :radio true
                         :style {:display "block"}}]]
             [:p {:style {:margin-top "0px"
-                         :margin-left "1.5rem"}} "Has full administrative access to the entire organization. Can add, remove, and edit users and projects"]
+                         :margin-left "1.5rem"}}
+             "Has full administrative access to the entire organization. "
+             "Can add, remove, and edit users and projects."]
             [FormGroup
              [Checkbox {:label "Member"
                         :as "h4"
@@ -137,7 +137,8 @@
                         :radio true
                         :style {:display "block"}}]]
             [:p {:style {:margin-top "0px"
-                         :margin-left "1.5rem"}} "Can see every member and project in the organization"]
+                         :margin-left "1.5rem"}}
+             "Can see every member and project in the organization"]
             [Button {:type "submit"
                      :disabled (or (nil? @new-role) @retrieving?)
                      :id "org-change-role-button"
@@ -148,7 +149,7 @@
                         :onDismiss #(reset! error "")}
                [MessageHeader {:as "h4"} "Change role error"]
                @error])]]]])
-      :component-did-mount (fn [this]
+      :component-did-mount (fn [_this]
                              (reset! new-role nil)
                              (reset! error ""))})))
 
@@ -185,8 +186,8 @@
                              {:text "Remove from organization..."
                               :value "remove-from-org"
                               :key :remove-from-org}]
-                   :on-change (fn [event data]
-                                (let [value ($ data :value)]
+                   :on-change (fn [_event ^js data]
+                                (let [value (.-value data)]
                                   (reset! current-user-id user-id)
                                   (reset! current-username username)
                                   (condp = value
@@ -199,25 +200,23 @@
                                     (do (reset! (r/cursor state [:remove-from-org! :error]) "")
                                         (reset! remove-modal-open true)))))}])]]))
 
-(defn UsersTable
-  [{:keys [org-users org-id]}]
+(defn UsersTable [{:keys [org-users org-id]}]
   (when-not (empty? org-users)
     [Table {:basic true
             :id "org-user-table"}
      #_[TableHeader
-      [TableRow
-       [TableCell ;; select all goes here
-        ]
-       [TableCell ;; filter by row goes here
-        ]]]
+        [TableRow
+         [TableCell ;; select all goes here
+          ]
+         [TableCell ;; filter by row goes here
+          ]]]
      [TableBody
       (map (fn [user]
              ^{:key (:user-id user)}
              [UserRow user org-id])
            org-users)]]))
 
-(defn user-suggestions!
-  [org-id term]
+(defn user-suggestions! [org-id term]
   (let [retrieving? (r/cursor state [:search-loading?])
         user-search-results (r/cursor state [:user-search-results])
         org-users-set (->> @(subscribe [:org/users org-id])
@@ -232,19 +231,17 @@
                        (reset! retrieving? false)
                        ;; need to add a key value for the render-results fn of the
                        ;; search component
-                       (reset! user-search-results (map #(assoc %
-                                                                :key (:user-id %)
-                                                                :title "<empty>")
-                                                        (-> (get-in response [:result :users])
-                                                            set
-                                                            (clojure.set/difference org-users-set))))
-)
-            :error-handler (fn [response]
+                       (reset! user-search-results
+                               (map #(assoc % :key (:user-id %) :title "<empty>")
+                                    (set/difference (set (get-in response [:result :users]))
+                                                    org-users-set))))
+            :error-handler (fn [_response]
                              (reset! retrieving? false)
-                             ($ js/console log "[sysrev.views.panels.org.users/user-suggestions] Error retrieving search results"))}))))
+                             (util/log-err "[%s] %s"
+                                           "sysrev.views.panels.org.users/user-suggestions"
+                                           "Error retrieving search results"))}))))
 
-(defn add-user-to-group!
-  [user-id org-id]
+(defn add-user-to-group! [user-id org-id]
   (let [retrieving? (r/cursor state [:posting-add-user-to-group])
         error (r/cursor state [:posting-add-user-to-group-error])
         modal-open (r/cursor state [:invite-member-modal-open?])]
@@ -253,7 +250,7 @@
     (POST (str "/api/org/" org-id "/user")
           {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
            :params {:user-id user-id}
-           :handler (fn [response]
+           :handler (fn [_response]
                       (reset! retrieving? false)
                       (reset! error "")
                       (reset! modal-open false)
@@ -262,8 +259,7 @@
                             (reset! retrieving? false)
                             (reset! error (get-in response [:response :error :messaage])))})))
 
-(defn InviteMemberModal
-  [{:keys [org-id]}]
+(defn InviteMemberModal [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:invite-member-modal-open?])
         search-loading? (r/cursor state [:search-loading?])
         user-search-results (r/cursor state [:user-search-results])
@@ -283,7 +279,7 @@
                                                    :user-id)))]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         [Modal {:trigger (r/as-component [Button {:id "add-member-button"
                                                   :on-click #(reset-state!)
                                                   :positive true}
@@ -296,7 +292,7 @@
          [ModalContent
           [ModalDescription
            [Form {:id "invite-member-form"
-                  :on-submit (fn [event]
+                  :on-submit (fn [_e]
                                (set-current-search-user-id!)
                                (when-not (nil? @current-search-user-id)
                                  (add-user-to-group! @current-search-user-id org-id)))}
@@ -304,13 +300,13 @@
              [Search {:loading @search-loading?
                       :placeholder "Search for users by username"
                       :id "org-search-users-input"
-                      :on-result-select (fn [e value]
+                      :on-result-select (fn [_e value]
                                           (let [result (-> value
                                                            (js->clj :keywordize-keys true)
                                                            :result)]
                                             (reset! current-search-user-id (:user-id result))
                                             (reset! user-search-value (:username result))))
-                      :on-search-change (fn [e value]
+                      :on-search-change (fn [_e value]
                                           (let [input-value (-> value
                                                                 (js->clj :keywordize-keys true)
                                                                 :value)]
@@ -338,10 +334,10 @@
                         :onDismiss #(reset! error "")}
                [MessageHeader {:as "h4"} "Add Member Error"]
                @error])]]]])
-      :get-initial-state (fn [this]
+      :get-initial-state (fn [_this]
                            (reset-state!)
                            {})
-      :component-did-mount (fn [this]
+      :component-did-mount (fn [_this]
                              (reset-state!))})))
 
 (defn OrgUsers [{:keys [org-id]}]
@@ -349,12 +345,11 @@
         org-permissions (subscribe [:org/permissions org-id])]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn [_]
         (dispatch [:data/load [:org/users org-id]])
         [:div
          (when (some #{"owner" "admin"} @org-permissions)
            [InviteMemberModal {:org-id org-id}])
          [ChangeRoleModal {:org-id org-id}]
          [RemoveModal {:org-id org-id}]
-         [UsersTable {:org-users @org-users
-                      :org-id org-id}]])})))
+         [UsersTable {:org-users @org-users :org-id org-id}]])})))

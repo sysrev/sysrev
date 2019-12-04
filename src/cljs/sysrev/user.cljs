@@ -4,7 +4,6 @@
             [orchestra-cljs.spec.test :as spec-test]
             [cljs-time.core :as t]
             [cognitect.transit :as transit]
-            [reagent.interop :refer-macros [$ $!]]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             ["pdfjs-dist" :as pdfjs]

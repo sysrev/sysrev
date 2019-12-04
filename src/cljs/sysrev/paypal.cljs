@@ -1,6 +1,5 @@
 (ns sysrev.paypal
   (:require [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.accounting :as acct]

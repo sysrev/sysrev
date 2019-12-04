@@ -1,8 +1,7 @@
 (ns sysrev.views.semantic
-  (:require ["fomantic-ui" :as semantic-ui]
+  (:require ["fomantic-ui"]
             ["semantic-ui-react" :as S]
-            [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]))
+            [reagent.core :as r]))
 
 ;; from https://gist.github.com/TimoKramer/7e93758afb81dcad985fafccc613153a
 (defn- component

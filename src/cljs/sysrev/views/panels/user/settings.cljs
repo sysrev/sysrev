@@ -6,18 +6,20 @@
             [ajax.core :refer [GET PUT]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as sui :refer
-             [Segment Header Grid Row Column Radio Message MessageHeader]]
-            [sysrev.util :as util]
+             [Segment Header Grid Column Radio Message MessageHeader]]
             [sysrev.shared.util :as sutil :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
-;;;
-;;; TODO: refactor to remove this inputs/values/... stuff
-;;;
+;; for clj-kondo
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:user :settings] {:state-var state
                                             :get-fn panel-get :set-fn panel-set
                                             :get-sub ::get :set-event ::set})
+
+;;;
+;;; TODO: refactor to remove this inputs/values/... stuff
+;;;
 
 (defn- parse-input [skey input]
   (case skey
@@ -109,9 +111,7 @@
               theme-name])))]))
 
 (defn- UserOptions []
-  (let [values (current-values)
-        saved (saved-values)
-        modified? (modified?)
+  (let [modified? (modified?)
         valid? (valid-input?)
         field-class #(if (valid-input? %) "" "error")]
     [:div.ui.segment.user-options
@@ -183,7 +183,7 @@
                                  (reset! error-message "There was an error when setting opt-in status"))}))]
     (r/create-class
      {:reagent-render
-      (fn [this]
+      (fn []
         (let [verified @(subscribe [:self/verified])]
           (when-not (nil? @active?)
             [Segment
@@ -197,13 +197,13 @@
                      :label "Publicly Listed as a Paid Reviewer"
                      :checked @active?
                      :disabled (or (not verified) @loading?)
-                     :on-change (fn [e] (put-opt-in!))}]
+                     :on-change (fn [_e] (put-opt-in!))}]
              (when-not (str/blank? @error-message)
                [Message {:negative true, :onDismiss #(reset! error-message nil)}
                 [MessageHeader "Opt-In Error"]
                 @error-message])])))
       :get-initial-state
-      (fn [this]
+      (fn [_this]
         (reset! loading? true)
         (get-opt-in))})))
 
@@ -214,7 +214,7 @@
    [Column [PublicReviewerOptIn]]])
 
 (defmethod panel-content panel []
-  (fn [child] [UserSettings]))
+  (fn [_child] [UserSettings]))
 
 (defmethod logged-out-content panel []
   (logged-out-content :logged-out))

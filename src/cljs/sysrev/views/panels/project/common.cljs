@@ -1,28 +1,24 @@
 (ns sysrev.views.panels.project.common
-  (:require [re-frame.core :refer [subscribe dispatch]]
+  (:require [re-frame.core :refer [subscribe]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.core :refer
-             [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]
-            [sysrev.util :refer [full-size? mobile? nbsp]]
+             [primary-tabbed-menu secondary-tabbed-menu]]
+            [sysrev.util :refer [mobile?]]
             [sysrev.shared.util :refer [in?]]))
 
 (defn admin? []
   (or @(subscribe [:member/admin?])
       @(subscribe [:user/admin?])))
 
-(def beta-compensation-users
-  #{"eliza.grames@uconn.edu"})
+(def beta-compensation-users #{"eliza.grames@uconn.edu"})
 
-(defn beta-compensation-user?
-  [email]
+(defn beta-compensation-user? [email]
   (contains? beta-compensation-users email))
 
 (defn project-submenu-full []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
-        {:keys [total]} @(subscribe [:project/article-counts])
-        action-params {:project-id project-id}
-        member? @(subscribe [:self/member? project-id])]
+        {:keys [total]} @(subscribe [:project/article-counts])]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span [:i.list.icon] "Sources"]
@@ -53,9 +49,7 @@
 (defn project-submenu-mobile []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
-        {:keys [total]} @(subscribe [:project/article-counts])
-        action-params {:project-id project-id}
-        member? @(subscribe [:self/member? project-id])]
+        action-params {:project-id project-id}]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span "Sources"]
@@ -103,7 +97,6 @@
         {:keys [total]}
         @(subscribe [:project/article-counts])
         mobile? (mobile?)
-        action-params {:project-id project-id}
         member? @(subscribe [:self/member? project-id])
         ready? (and (integer? total) (> total 0))
         not-ready-msg (when (not ready?) "No articles in project yet")

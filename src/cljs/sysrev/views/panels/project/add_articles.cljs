@@ -2,8 +2,7 @@
   (:require [clojure.string :as str]
             [cljs-time.core :as t]
             [reagent.core :as r]
-            [re-frame.core :refer
-             [dispatch subscribe reg-sub reg-fx reg-event-fx trim-v]]
+            [re-frame.core :refer [dispatch subscribe reg-sub reg-event-fx trim-v]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
             [sysrev.action.core :refer [def-action]]
@@ -13,10 +12,13 @@
             [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup PopupHeader Icon ListUI ListItem]]
-            [sysrev.util :as util :refer [log format]]
+            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem]]
+            [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in?]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:project :project :add-articles] {:state-var state})
 
@@ -57,9 +59,8 @@
   (sutil/pluralize item-count "article"))
 
 (defn- source-import-timed-out? [source]
-  (let [{:keys [meta source-id date-created
-                article-count labeled-article-count]} source
-        {:keys [importing-articles? deleting?]} meta]
+  (let [{:keys [meta date-created]} source
+        {:keys [importing-articles?]} meta]
     (and (true? importing-articles?)
          (t/within? {:start (t/epoch)
                      :end (t/minus (t/now) (t/minutes 30))}
@@ -170,30 +171,15 @@
 ;; TODO: these (:source meta) values should be stored as identifiers
 ;;       from an enforced set of possible values and shouldn't be
 ;;       mistakable for a description intended for users
-(defn meta->source-name-vector
-  [{:keys [source] :as meta}]
+(defn meta->source-name-vector [{:keys [source] :as meta}]
   (condp = source
-    "PubMed search"
-    ["PubMed Search" (str (:search-term meta))]
-
-    "PMID file"
-    ["PMIDs from File" (:filename meta)]
-
-    "PMID vector"
-    ["PMIDs from API" nil]
-
-    "fact"
-    ["PMIDs from FACTS" nil]
-
-    "EndNote file"
-    ["EndNote XML" (:filename meta)]
-
-    "legacy"
-    ["Legacy Import" nil]
-
-    "PDF Zip file"
-    ["PDF Zip File" (:filename meta)]
-
+    "PubMed search"  ["PubMed Search" (str (:search-term meta))]
+    "PMID file"      ["PMIDs from File" (:filename meta)]
+    "PMID vector"    ["PMIDs from API" nil]
+    "fact"           ["PMIDs from FACTS" nil]
+    "EndNote file"   ["EndNote XML" (:filename meta)]
+    "legacy"         ["Legacy Import" nil]
+    "PDF Zip file"   ["PDF Zip File" (:filename meta)]
     [source nil]))
 
 (reg-sub :source/display-type
@@ -211,17 +197,16 @@
                "PDF Zip file"    "PDF Zip File"
                stype))))
 
-(reg-sub
- :source/display-info
- (fn [[_ source-id project-id]]
-   [(subscribe [:project/sources source-id project-id])])
- (fn [[source] _]
-   (let [stype (-> source :meta :source)]
-     (cond (= "PubMed search" stype)
-           (-> source :meta :search-term str)
+(reg-sub :source/display-info
+         (fn [[_ source-id project-id]]
+           (subscribe [:project/sources source-id project-id]))
+         (fn [source _]
+           (let [stype (-> source :meta :source)]
+             (cond (= "PubMed search" stype)
+                   (-> source :meta :search-term str)
 
-           (in? ["PMID file" "EndNote file" "PDF Zip file" "RIS file"] stype)
-           (-> source :meta :filename str)))))
+                   (in? ["PMID file" "EndNote file" "PDF Zip file" "RIS file"] stype)
+                   (-> source :meta :filename str)))))
 
 (defn SourceArticlesLink [source-id]
   [:div.ui.primary.tiny.left.labeled.icon.button.view-articles
@@ -279,11 +264,11 @@
           source-updating?
           (fn [source-id]
             (or (loading/action-running? [:sources/delete project-id source-id])
-                (let [[source] (filter #(= (:source-id %) source-id) @sources)]
-                  (let [{:keys [importing-articles? deleting?]} (:meta source)]
-                    (or (and (true? importing-articles?)
-                             (not (source-import-timed-out? source)))
-                        (true? deleting?))))))]
+                (let [[source] (filter #(= (:source-id %) source-id) @sources)
+                      {:keys [importing-articles? deleting?]} (:meta source)]
+                  (or (and (true? importing-articles?)
+                           (not (source-import-timed-out? source)))
+                      (true? deleting?)))))]
       (util/continuous-update-until
        (fn [] (dispatch [:fetch [:project/sources project-id]]))
        (fn [] (not (source-updating? source-id)))
@@ -294,23 +279,20 @@
            (dispatch [:data/after-load [:project project-id] :poll-source-redirect
                       #(when (some-> @article-counts :total pos?)
                          (nav/nav-scroll-top (project-uri project-id "/articles")))])))
-       600))))
+       600))
+    nil))
 
 (defn ArticleSource [source]
   (let [project-id @(subscribe [:active-project-id])
-        {:keys [meta source-id date-created
-                article-count labeled-article-count
-                enabled]} source
+        {:keys [meta source-id  article-count labeled-article-count enabled]} source
         {:keys [importing-articles? deleting?]} meta
         polling? @polling-sources?
-        delete-running? (loading/action-running?
-                         [:sources/delete project-id source-id])
+        delete-running? (loading/action-running? [:sources/delete project-id source-id])
         timed-out? (source-import-timed-out? source)
         segment-class (if enabled nil "secondary")]
     (when (or (and (true? importing-articles?) (not timed-out?))
               deleting? delete-running?)
-      (poll-project-sources project-id source-id)
-      nil)
+      (poll-project-sources project-id source-id))
     [:div.project-source>div.ui.segments.project-source
      [SourceInfoView project-id source-id]
      [:div.ui.segment.source-details
@@ -442,47 +424,45 @@
     [:div#import-articles
      {:style {:margin-bottom "1em"}}
      [:h4.ui.large.block.header
-      "Import Articles" [:span {:style {:font-size "0.9em"}}
-                         [Popup {:hoverable true
-                                 :trigger (r/as-element
-                                           [Icon
-                                            {:name "question circle"}])
-                                 :content (r/as-element
-                                           [:div
-                                            [:p "Importing Articles " [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"} "video tutorial"]]])}]]]
+      "Import Articles"
+      [:span {:style {:font-size "0.9em"}}
+       [Popup {:hoverable true
+               :trigger (r/as-element [Icon {:name "question circle"}])
+               :content (r/as-element
+                         [:div>p
+                          "Importing Articles "
+                          [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"}
+                           "video tutorial"]])}]]]
      [:div.ui.segments
       [:div.ui.attached.segment.import-menu
-       [ui/tabbed-panel-menu
-        [{:tab-id :zip-file
-          :content "PDF Files"
-          :action #(reset! import-tab :zip-file)}
-         {:tab-id :ris-file
-          :content "RIS / RefMan"
-          :action #(reset! import-tab :ris-file)}
-         {:tab-id :pubmed
-          :content (if full-size? "PubMed Search" "PubMed")
-          :action #(reset! import-tab :pubmed)}
-         (when (not= js/window.location.hostname "sysrev.com")
-           {:tab-id :ctgov
-            :content "ClinicalTrials.gov"
-            :action #(reset! import-tab :ctgov)})
-         {:tab-id :pmid
-          :content "PMIDs"
-          :action #(reset! import-tab :pmid)}
-         {:tab-id :endnote
-          :content (if full-size? "EndNote XML" "EndNote")
-          :action #(reset! import-tab :endnote)}
-         ]
-        active-tab
-        "import-source-tabs"]]
+       [ui/tabbed-panel-menu [{:tab-id :zip-file
+                               :content "PDF Files"
+                               :action #(reset! import-tab :zip-file)}
+                              {:tab-id :ris-file
+                               :content "RIS / RefMan"
+                               :action #(reset! import-tab :ris-file)}
+                              {:tab-id :pubmed
+                               :content (if full-size? "PubMed Search" "PubMed")
+                               :action #(reset! import-tab :pubmed)}
+                              (when (not= js/window.location.hostname "sysrev.com")
+                                {:tab-id :ctgov
+                                 :content "ClinicalTrials.gov"
+                                 :action #(reset! import-tab :ctgov)})
+                              {:tab-id :pmid
+                               :content "PMIDs"
+                               :action #(reset! import-tab :pmid)}
+                              {:tab-id :endnote
+                               :content (if full-size? "EndNote XML" "EndNote")
+                               :action #(reset! import-tab :endnote)}]
+        active-tab "import-source-tabs"]]
       [:div.ui.attached.secondary.segment
        (case active-tab
-         :pubmed   [pubmed/SearchBar]
-         :pmid     [ImportPMIDsView]
-         :endnote  [ImportEndNoteView]
-         :zip-file [ImportPDFZipsView]
-         :ris-file [ImportRISView]
-         :ctgov [ctgov/SearchBar])]
+         :pubmed    [pubmed/SearchBar]
+         :pmid      [ImportPMIDsView]
+         :endnote   [ImportEndNoteView]
+         :zip-file  [ImportPDFZipsView]
+         :ris-file  [ImportRISView]
+         :ctgov     [ctgov/SearchBar])]
       (when (= active-tab :pubmed)
         [pubmed/SearchActions (any-source-processing?)])
       (when (= active-tab :ctgov)
@@ -501,14 +481,11 @@
     (with-loader [(when (and project? (not lapsed?))
                     [:project/sources project-id])] {}
       [:div
-       (when (admin?)
-         [ImportArticlesView])
-       [ReadOnlyMessage
-        "Managing sources is restricted to project administrators."
+       (when (admin?) [ImportArticlesView])
+       [ReadOnlyMessage "Managing sources is restricted to project administrators."
         read-only-message-closed?]
        [ProjectSourcesList]])))
 
 (defmethod panel-content panel []
-  (fn [child]
-    [:div#add-articles.project-content
-     [ProjectSourcesPanel]]))
+  (fn [_child] [:div#add-articles.project-content
+                [ProjectSourcesPanel]]))

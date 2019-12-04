@@ -4,10 +4,12 @@
             [sysrev.nav :refer [nav make-url]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Segment Column Row Grid Icon Button Popup Divider
-              ListUI ListItem ListIcon ListContent]]
+             [Segment Column Row Grid Icon Button Popup Divider ListUI ListItem ListContent]]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [sr-defroute setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel)
 
 (setup-panel-state panel [:pricing])
 
@@ -19,12 +21,14 @@
 
 (defn PublicProjects []
   [:div "Unlimited "
-   [Popup {:trigger (r/as-element [:a {:href "https://github.com/sysrev/Sysrev_Documentation/wiki/FAQ#what-is-the-difference-between-a-public-and-private-project"} "public projects"])
+   [Popup {:trigger (r/as-element [:a {:href "https://github.com/sysrev/Sysrev_Documentation/wiki/FAQ#what-is-the-difference-between-a-public-and-private-project"}
+                                   "public projects"])
            :content "Public project content can be viewed by anyone"}]])
 
 (defn PrivateProjects []
   [:div "Unlimited "
-   [Popup {:trigger (r/as-element [:a {:href "https://github.com/sysrev/Sysrev_Documentation/wiki/FAQ#what-is-the-difference-between-a-public-and-private-project"} "private projects"])
+   [Popup {:trigger (r/as-element [:a {:href "https://github.com/sysrev/Sysrev_Documentation/wiki/FAQ#what-is-the-difference-between-a-public-and-private-project"}
+                                   "private projects"])
            :content "Private project content can only be viewed by project members "}]])
 
 (defn Pricing []
@@ -36,8 +40,7 @@
      [:h3 {:id "pricing-header"} "Pricing"]
      [Grid (if (util/mobile?)
              {:columns 1}
-             {:columns "equal"
-              :id "pricing-plans"})
+             {:columns "equal" :id "pricing-plans"})
       [Row
        [Column [Segment (when (util/mobile?)
                           {:style {:margin-bottom "1em"}})
@@ -52,13 +55,11 @@
                  [PricingItem {:content "Project management"}]
                  [PricingItem {:content "Free lifetime storage for public projects"
                                :icon "cloud"}]]
-                [Button {:on-click (fn [e] (nav "/register"))
+                [Button {:on-click #(nav "/register")
                          :primary true
                          :disabled @logged-in?
                          :fluid true}
-                 (if @logged-in?
-                   "Already signed up!"
-                   "Choose Free")]]]
+                 (if @logged-in? "Already signed up!" "Choose Free")]]]
        [Column [Segment (when (util/mobile?)
                           {:style {:margin-bottom "1em"}})
                 [:div {:class "pricing-list-header"}
@@ -73,7 +74,7 @@
                  [PricingItem {:icon "check" :content "Project management"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]]
-                [Button {:on-click (fn [e]
+                [Button {:on-click (fn [_e]
                                      (if @logged-in?
                                        (nav "/user/plans")
                                        (nav "/register" :params {:redirect "/user/plans"})))
@@ -98,10 +99,13 @@
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
                  [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]
                  [PricingItem {:icon "users" :content "Group adminstration tools"}]]
-                [:p {:class "team-pricing"} "Starts at " [:b "$30 / month"] " and includes your first 5 team members"]
-                [Button {:on-click (fn [e] (if @logged-in?
-                                             (nav (make-url "/create/org" {:type "existing-account"}))
-                                             (nav "/register" :params {:redirect (make-url "/create/org" {:type "new-account"})})))
+                [:p {:class "team-pricing"}
+                 "Starts at " [:b "$30 / month"] " and includes your first 5 team members"]
+                [Button {:on-click #(if @logged-in?
+                                      (nav (make-url "/create/org" {:type "existing-account"}))
+                                      (nav "/register"
+                                           :params {:redirect (make-url "/create/org"
+                                                                        {:type "new-account"})}))
                          :primary true
                          :fluid true}
                  "Choose Team Pro"]]]
@@ -111,7 +115,8 @@
                  [:h3 "Enterprise"]
                  [:h3 [:a {:href "mailto:sales@sysrev.com"}
                        "Contact Sales for pricing"]]
-                 [:p {:class "customized-plans"} "Customized plans tailored to your organization's needs"]]
+                 [:p {:class "customized-plans"}
+                  "Customized plans tailored to your organization's needs"]]
                 [ListUI
                  [PricingItem {:content "Everything included in Team Pro"}]
                  [Divider]
@@ -123,10 +128,12 @@
                  [PricingItem {:content "AI models tailored to your organization's needs"}]
                  [PricingItem {:content "Customized feature development"}]
                  [PricingItem {:content "Contracted expert reviewers"}]]
-                [:p {:class "team-pricing"} "Contact " [:a {:href "mailto:sales@sysrev.com"} "us"] " about designing a custom data processing and analysis solution to meet your needs today!"]]]]]]))
+                [:p {:class "team-pricing"}
+                 "Contact " [:a {:href "mailto:sales@sysrev.com"} "us"]
+                 " about designing a custom data processing and analysis solution to meet your needs today!"]]]]]]))
 
 (defmethod panel-content panel []
-  (fn [child] [Pricing]))
+  (fn [_child] [Pricing]))
 
 (sr-defroute pricing "/pricing" []
              (dispatch [:set-active-panel panel]))

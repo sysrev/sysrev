@@ -1,6 +1,7 @@
 (ns sysrev.views.components.core
   (:require ["clipboard" :as Clipboard]
             ["dropzone" :as Dropzone]
+            ["jquery" :as $]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [reagent.core :as r]
@@ -23,15 +24,13 @@
      [:div.ui.label label-attrs label-text]
      input-elt]))
 
-(defn wrap-dropdown [elt & [{:keys [onChange] :as options}]]
+(defn wrap-dropdown [_elt & [{:keys [onChange]}]]
   (r/create-class
    {:component-did-mount
-    #(-> (js/$ (r/dom-node %))
-         (.dropdown
-          (clj->js
-           (cond-> {}
-             onChange (merge {:onChange onChange})))))
-    :reagent-render (fn [elt & opts] elt)}))
+    #(.dropdown ($ (r/dom-node %))
+                (clj->js (cond-> {}
+                           onChange (assoc :onChange onChange))))
+    :reagent-render (fn [elt & _opts] elt)}))
 
 (defn selection-dropdown [selected-item items &
                           [{:keys [id class onChange]
@@ -87,10 +86,10 @@
   (s/keys :req-un [::tab-id ::content ::action]
           :opt-un [::class]))
 
-(defn with-tooltip [content & [popup-options]]
+(defn with-tooltip [_content & [popup-options]]
   (r/create-class
    {:component-did-mount
-    #(.popup (js/$ (r/dom-node %))
+    #(.popup ($ (r/dom-node %))
              (clj->js
               (merge
                {:inline true
@@ -199,7 +198,7 @@
            (for [entry right-entries]
              (render-entry entry)))]))]))
 
-(defn tabbed-panel-menu [entries active-tab-id & [menu-class mobile?]]
+(defn tabbed-panel-menu [entries active-tab-id & [menu-class _mobile?]]
   (let [menu-class (or menu-class "")
         render-entry
         (fn [{:keys [tab-id action content class disabled] :as entry}]
@@ -257,13 +256,8 @@
                                 :else             "primary")
                           " icon button"))
             get-domid #(str domid "_" (pr-str %))
-            has-focus? #(-> (js/$ (str "#" (get-domid %)))
-                            (.is ":focus"))
-            set-focus #(js/setTimeout
-                        (fn []
-                          (-> (js/$ (str "#" (get-domid %)))
-                              (.focus)))
-                        25)
+            set-focus #(-> (fn [] (.focus ($ (str "#" (get-domid %)))))
+                           (js/setTimeout 25))
             set-value-focus #(do (set-answer! %) (set-focus %))
             render
             (fn [bvalue]
@@ -325,7 +319,7 @@
 (defn true-false-nil-tag
   "UI component for representing an optional boolean value.
   `value` is one of true, false, nil."
-  [label value &
+  [label _value &
    {:keys [size style show-icon? value color?]
     :or {size "large", style {}, show-icon? true, color? true}}]
   (let [vclass (cond
@@ -369,13 +363,13 @@
                           help-content))
       help-element)]))
 
-(defn note-content-label [note-name content]
+(defn note-content-label [_note-name content]
   (when (and (string? content) (not-empty (str/trim content)))
     [:div.ui.tiny.labeled.button.user-note
      [:div.ui.grey.button "Notes"]
      [:div.ui.basic.label content]]))
 
-(defn ClipboardButton [target child]
+(defn ClipboardButton [target _child]
   (let [clip (atom nil)
         status (r/atom nil)
         transtime 1500
@@ -595,7 +589,7 @@
 
 (defn UploadContainer
   "Create uploader form component."
-  [childer upload-url on-success & args]
+  [_childer upload-url on-success & _args]
   (let [id (sutil/random-id)
         csrf-token (subscribe [:csrf-token])
         opts {:url upload-url
@@ -603,30 +597,28 @@
               :maxFilesize (* 1000 10)
               :timeout (* 1000 60 60 4)}
         error-msg (r/atom nil)]
-    (letfn [(init-dropzone [url]
-              (-> (Dropzone.
-                   (str "#" id)
-                   (clj->js
-                    (->> {:previewTemplate
-                          (-> js/document
-                              (.querySelector (str "#" id "-template"))
-                              .-innerHTML)
-                          :previewsContainer (str "#" id "-preview")
-                          :clickable (str "#" id "-button")}
-                         (merge opts))))
-                  (.on "error"
-                       (fn [file msg _]
-                         (js/console.log (str "Upload error [" file "]: " msg))
-                         (reset! error-msg msg)
-                         true))
+    (letfn [(init-dropzone []
+              (-> (Dropzone. (str "#" id)
+                             (clj->js
+                              (->> {:previewTemplate
+                                    (-> js/document
+                                        (.querySelector (str "#" id "-template"))
+                                        .-innerHTML)
+                                    :previewsContainer (str "#" id "-preview")
+                                    :clickable (str "#" id "-button")}
+                                   (merge opts))))
+                  (.on "error" (fn [file msg _]
+                                 (js/console.log (str "Upload error [" file "]: " msg))
+                                 (reset! error-msg msg)
+                                 true))
                   (.on "success" on-success)))]
       (r/create-class
        {:reagent-render (fn [childer upload-url _ & args]
                           (apply childer id upload-url error-msg args))
-        :component-did-mount #(init-dropzone upload-url)
+        :component-did-mount #(init-dropzone)
         :display-name "upload-container"}))))
 
-(defn- UploadButtonImpl [id & [upload-url error-msg text class style]]
+(defn- UploadButtonImpl [id & [_upload-url _error-msg text class style]]
   [:div
    [:div.dropzone {:id id}
     [:button.ui.button.upload-button {:id (str id "-button")
@@ -655,22 +647,21 @@
 (defn UploadButton [upload-url on-success text & [class style]]
   [UploadContainer UploadButtonImpl upload-url on-success text class style])
 
-(defn WrapFixedVisibility [offset child]
+(defn WrapFixedVisibility [offset _child]
   (let [on-update
         (fn [this]
-          (let [el (r/dom-node this)]
-            (-> (js/$ el)
-                (.visibility
-                 (clj->js {:type "fixed"
-                           :offset (or offset 0)
-                           :continuous true
-                           :onUnfixed #(-> (js/$ el) (.removeAttr "style"))
-                           :onFixed #(let [width (-> (js/$ el) (.parent) (.width))]
-                                       (-> (js/$ el) (.width width)))})))))]
+          (let [el ($ (r/dom-node this))]
+            (-> el (.visibility
+                    (clj->js {:type "fixed"
+                              :offset (or offset 0)
+                              :continuous true
+                              :onUnfixed #(.removeAttr el "style")
+                              :onFixed #(let [width (-> el (.parent) (.width))]
+                                          (.width el width))})))))]
     (r/create-class
      {:component-did-mount on-update
       :component-did-update on-update
-      :reagent-render (fn [offset child] [:div.visibility-wrapper child])})))
+      :reagent-render (fn [_offset child] [:div.visibility-wrapper child])})))
 
 (defn FixedTooltipElement
   "Wraps element component to add a fixed-width non-inline tooltip,

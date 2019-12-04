@@ -3,7 +3,6 @@
             [ajax.core :refer [POST GET]]
             [cljs-http.client :refer [generate-query-string]]
             [reagent.core :as r]
-            [reagent.interop :refer-macros [$]]
             [re-frame.core :refer [reg-sub subscribe dispatch reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -12,6 +11,9 @@
             [sysrev.nav :as nav]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state]]))
+
+;; for clj-kondo
+(declare panel state)
 
 (setup-panel-state panel [:stripe] {:state-var state
                                     :get-fn panel-get
@@ -147,7 +149,7 @@
    (r/create-class
     {:display-name "stripe-reagent-form"
      :render
-     (fn [this]
+     (fn [^js this]
        (let [error-message (r/cursor state [:error-message])
              element-on-change #(let [{:keys [elementType error]}
                                       (js->clj % :keywordize-keys true)]
@@ -157,11 +159,10 @@
              errors? (fn []
                        ;; we're only putting errors in the state-atom,
                        ;; so this should be true only when there are errors
-                       (not (every? nil? (vals @(r/state-atom this)))))
+                       (not (every? nil? (vals (r/state this)))))
              client-secret (subscribe [:stripe/payment-intent-client-secret])
              form-disabled? (subscribe [:stripe/form-disabled?])
-             disabled? (or (nil? @client-secret)
-                           @form-disabled?)
+             disabled? (or (nil? @client-secret) @form-disabled?)
              card-element (r/atom nil)]
          [Form
           {:class "StripeForm"
@@ -171,19 +172,13 @@
               (dispatch [:stripe/set-disable-form! true])
               (if (errors?)
                 (dispatch [:stripe/set-disable-form! false])
-                (-> ($ this props.stripe.handleCardSetup
-                       @client-secret @card-element)
-                    (.then
-                     (fn [result]
-                       (let [payload (js->clj result :keywordize-keys true)]
-                         (if (:error payload)
-                           (do
-                             (reset! error-message (get-in payload [:error :message]))
-                             (dispatch [:stripe/set-disable-form! false]))
-                           (add-payment-fn
-                            (-> payload
-                                :setupIntent
-                                :payment_method))))))))))}
+                (-> (.props.stripe.handleCardSetup this @client-secret @card-element)
+                    (.then #(let [{:keys [error setupIntent]}
+                                  (js->clj % :keywordize-keys true)]
+                              (if error
+                                (do (reset! error-message (:message error))
+                                    (dispatch [:stripe/set-disable-form! false]))
+                                (add-payment-fn (:payment_method setupIntent)))))))))}
           ;; In the case where the form elements themselves catch errors,
           ;; they are displayed below the input. Errors returned from the
           ;; server are shown below the submit button.
@@ -191,24 +186,20 @@
            [CardNumberElement {:style element-style
                                :on-change element-on-change
                                :disabled disabled?
-                               :onReady (fn [element]
-                                          (reset! card-element element))}]]
-          [:div.ui.red.header
-           @(r/cursor (r/state-atom this) [:cardNumber :message])]
+                               :onReady (fn [element] (reset! card-element element))}]]
+          [:div.ui.red.header (-> (r/state this) :cardNumber :message)]
           [:label "Expiration Date"
            [CardExpiryElement {:style element-style
                                :on-change element-on-change
                                :disabled disabled?}]]
-          [:div.ui.red.header
-           @(r/cursor (r/state-atom this) [:cardExpiry :message])]
+          [:div.ui.red.header (-> (r/state this) :cardExpiry :message)]
           [:label "CVC"
            [CardCVCElement {:style element-style
                             :on-change element-on-change
                             :disabled disabled?}]]
-           ;; this might not ever even generate an error, included here
-           ;; for consistency
-          [:div.ui.red.header
-           @(r/cursor (r/state-atom this) [:cardCvc :message])]
+          ;; this might not ever even generate an error, included here
+          ;; for consistency
+          [:div.ui.red.header (-> (r/state this) :cardCvc :message)]
           [Button {:disabled (or disabled? (errors?))
                    :class "use-card"
                    :primary true}
@@ -216,7 +207,7 @@
           ;; shows the errors returned from the server (our own, or stripe.com)
           (when @error-message
             [:div.ui.red.header @error-message])]))
-     :component-did-mount (fn [this]
+     :component-did-mount (fn [_this]
                             (reset! (r/cursor state [:error-message]) nil)
                             (dispatch [:stripe/clear-setup-intent!])
                             (dispatch [:action [:stripe/setup-intent]])
@@ -254,11 +245,11 @@
                      (reset! connected? (:connected result)))
           :error-handler (fn [{:keys [error]}]
                            (reset! retrieving-connected? false)
-                           ($ js/console log "[[sysrev.strip/check-if-stripe-user!]]" error))})))
+                           (js/console.error "[[sysrev.strip/check-if-stripe-user!]]" error))})))
 
 (defn save-stripe-user! [user-id stripe-code]
   (POST "/api/stripe/finalize-user"
         {:params {:user-id user-id, :stripe-code stripe-code}
          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
          :handler (fn [_] (check-if-stripe-user!))
-         :error-handler (fn [_] ($ js/console log "[[sysrev.stripe/save-stripe-user]] error"))}))
+         :error-handler (fn [_] (js/console.error "[[sysrev.stripe/save-stripe-user]] error"))}))

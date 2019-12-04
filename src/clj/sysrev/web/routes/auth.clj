@@ -10,14 +10,14 @@
             [sysrev.config.core :refer [env]])
   (:import com.google.api.client.http.javanet.NetHttpTransport
            com.google.api.client.json.jackson2.JacksonFactory
-           com.google.api.client.auth.oauth2.TokenResponseException
+           #_ com.google.api.client.auth.oauth2.TokenResponseException
            (com.google.api.client.googleapis.auth.oauth2
-            GoogleTokenResponse GoogleCredential
+            #_ GoogleTokenResponse #_ GoogleCredential
             GoogleAuthorizationCodeRequestUrl
             GoogleAuthorizationCodeTokenRequest)
            (com.google.api.client.googleapis.auth.oauth2
-            GoogleIdToken GoogleIdTokenVerifier
-            GoogleIdTokenVerifier$Builder GoogleIdToken$Payload)))
+            #_ GoogleIdToken #_ GoogleIdTokenVerifier
+            GoogleIdTokenVerifier$Builder #_ GoogleIdToken$Payload)))
 
 ;; for clj-kondo
 (declare auth-routes dr finalize-routes)

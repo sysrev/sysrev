@@ -1,6 +1,6 @@
 (ns sysrev.test.browser.ctgov
   (:require [clj-webdriver.taxi :as taxi]
-            [clojure.test :refer [is use-fixtures]]
+            [clojure.test :refer [use-fixtures]]
             [clojure.tools.logging :as log]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]

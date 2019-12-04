@@ -1,26 +1,27 @@
 (ns sysrev.views.panels.project.settings
-  (:require [clojure.string :as str]
+  (:require ["jquery" :as $]
+            [clojure.string :as str]
             [reagent.core :as r]
-            [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db]]
+            [re-frame.core :refer [subscribe dispatch reg-event-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.state.nav :refer [active-project-id]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? css]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
+;; for clj-kondo
+(declare panel state)
+
 (setup-panel-state panel [:project :project :settings] {:state-var state
                                                         :get-fn panel-get
                                                         :set-fn panel-set})
 
-(reg-event-db :project-settings/reset-state!
-              (fn [db] (panel-set db nil {})))
+(reg-event-db :project-settings/reset-state! #(panel-set % nil {}))
 
 (defn- parse-input [skey input]
   (case skey
@@ -55,7 +56,7 @@
   (cond-> (:misc-active @state)
     skey (get skey)))
 
-(defn misc-saved [& [skey]]
+(defn misc-saved [& [_skey]]
   (let [project-name @(subscribe [:project/name])]
     {:project-name project-name}))
 
@@ -132,10 +133,10 @@
   (not= (saved-values) (current-values)))
 
 (def-action :project/change-settings
-  :uri (fn [project-id changes] "/api/change-project-settings")
+  :uri (fn [_ _] "/api/change-project-settings")
   :content (fn [project-id changes]
              {:project-id project-id :changes changes})
-  :process (fn [{:keys [db]} [project-id changes] {:keys [settings]}]
+  :process (fn [{:keys [db]} [project-id _] {:keys [settings]}]
              ;; if project is owned by an org, also reload that orgs projects
              ;; this is hacky, need a keyword to [:action [...] :on-success #(do something)]
              ;; because this can't just be handled by sysrev.views.panels.user.projects/set-public!
@@ -149,7 +150,7 @@
                 :dispatch [:reload [:user/projects self-id]]})))
 
 (def-action :project/change-name
-  :uri (fn [project-id project-name] "/api/change-project-name")
+  :uri (fn [_ _] "/api/change-project-name")
   :content (fn [project-id project-name]
              {:project-id project-id :project-name project-name})
   :process (fn [_ [project-id _] {:keys [success]}]
@@ -195,7 +196,7 @@
 (def-action :project/delete
   :uri (fn [] "/api/delete-project")
   :content (fn [project-id] {:project-id project-id})
-  :process (fn [{:keys [db]} _ result]
+  :process (fn [{:keys [db]} _ _]
              {:db (assoc-in db [:state :active-project-id] nil)
               :dispatch [:reload [:identity]]
               :nav-scroll-top "/"}))
@@ -308,9 +309,7 @@
 (defn ProjectNameField []
   (let [skey :project-name
         admin? (admin?)
-        current (misc-current skey)
-        saved (misc-saved skey)
-        modified? (not= current saved)]
+        current (misc-current skey)]
     [:div.field.project-name {:class (misc-field-class skey)}
      [:label "Project Name"]
      [:textarea {:readOnly (not admin?)
@@ -390,11 +389,8 @@
   (let [saving? (r/atom false)]
     (fn []
       (let [admin? (admin?)
-            values (current-values)
-            saved (saved-values)
             modified? (modified?)
             valid? (valid-input?)
-            field-class #(if (valid-input? %) "" "error")
             project-id @(subscribe [:active-project-id])]
         (when (and @saving?
                    (not modified?)
@@ -425,7 +421,7 @@
 (defonce members-state (r/cursor state [:members]))
 
 (def-action :project/change-permissions
-  :uri (fn [project-id users-map] "/api/change-project-permissions")
+  :uri (fn [_ _] "/api/change-project-permissions")
   :content (fn [project-id users-map]
              {:project-id project-id :users-map users-map})
   :process (fn [{:keys [db]} [project-id _] {:keys [success]}]
@@ -445,9 +441,6 @@
   (let [saved-perms (saved-member-permissions user-id)
         active-perms (active-member-permissions user-id)]
     (if active-perms active-perms saved-perms)))
-
-(defn- edit-member-permissions [user-id new-perms]
-  (swap! members-state assoc-in [:permissions user-id] new-perms))
 
 (defn- add-member-permission [user-id perm]
   (let [current-perms (current-member-permissions user-id)]
@@ -487,7 +480,7 @@
   (swap! members-state assoc :permissions nil))
 
 (defn- reset-permissions-fields []
-  (-> (js/$ ".project-settings .project-members .ui.selection.dropdown")
+  (-> ($ ".project-settings .project-members .ui.selection.dropdown")
       (.dropdown "clear")))
 
 (defn save-permissions []
@@ -498,9 +491,7 @@
                           project-id changes]]))))
 
 (defn- ProjectMembersList []
-  (let [owner? false
-        all-perms (if owner? ["admin" "resolve"] ["resolve"])
-        user-ids (all-project-user-ids)]
+  (let [user-ids (all-project-user-ids)]
     [:div
      [:h4.ui.dividing.header "Members"]
      [:div.ui.relaxed.divided.list
@@ -532,47 +523,39 @@
            @(subscribe [:user/display user-id])]]))]]))
 
 (defn- UserSelectDropdown []
-  (let [{:keys [selected-user]} @members-state
-        user-ids (all-project-user-ids)]
+  (let [{:keys [selected-user]} @members-state]
     [ui/selection-dropdown
      [:div.default.text "User"]
-     (->> user-ids
-          (mapv
-           (fn [user-id]
-             [:div.item
-              (into {:key (or user-id "none")
-                     :data-value (if user-id (str user-id) "none")}
-                    (when (= user-id selected-user)
-                      {:class "active selected"}))
-              [:span [:i.user.icon] @(subscribe [:user/display user-id])]])))
+     (vec (for [user-id (all-project-user-ids)]
+            [:div.item
+             (into {:key (or user-id "none")
+                    :data-value (if user-id (str user-id) "none")}
+                   (when (= user-id selected-user)
+                     {:class "active selected"}))
+             [:span [:i.user.icon] @(subscribe [:user/display user-id])]]))
      {:class "ui fluid search selection dropdown"
-      :onChange
-      (fn [value text item]
-        (let [user-id (sutil/parse-integer value)]
-          (swap! members-state
-                 assoc :selected-user user-id)))}]))
+      :onChange (fn [value _text _item]
+                  (let [user-id (sutil/parse-integer value)]
+                    (swap! members-state assoc :selected-user user-id)))}]))
 
 (def permission-values ["admin"])
 
 (defn- MemberPermissionDropdown []
-  (let [{:keys [selected-user selected-permission]} @members-state]
+  (let [{:keys [selected-permission]} @members-state]
     [ui/selection-dropdown
      [:div.default.text "Permission"]
-     (->> permission-values
-          (mapv
-           (fn [perm]
-             [:div.item
-              (into {:key (or perm "none")
-                     :data-value (if perm perm "none")}
-                    (when (= perm selected-permission)
-                      {:class "active selected"}))
-              [:span [:i.key.icon] perm]])))
+     (vec (for [perm permission-values]
+            [:div.item
+             (into {:key (or perm "none")
+                    :data-value (if perm perm "none")}
+                   (when (= perm selected-permission)
+                     {:class "active selected"}))
+             [:span [:i.key.icon] perm]]))
      {:class "ui fluid search selection dropdown"
-      :onChange
-      (fn [value text item]
-        (let [perm (if (in? ["" "none"] value) nil value)]
-          (swap! members-state
-                 assoc :selected-permission perm)))}]))
+      :onChange (fn [value _text _item]
+                  (let [perm (if (in? ["" "none"] value) nil value)]
+                    (swap! members-state
+                           assoc :selected-permission perm)))}]))
 
 (defn- AddPermissionButton []
   (let [{:keys [selected-user selected-permission]} @members-state
@@ -633,14 +616,13 @@
    [ProjectPermissionsForm]])
 
 (def-action :project/update-predictions
-  :uri (fn [project-id] "/api/update-project-predictions")
+  :uri (fn [_] "/api/update-project-predictions")
   :content (fn [project-id] {:project-id project-id})
-  :process
-  (fn [_ _ _]
-    {:dispatch [:set-panel-field [:update-predictions-clicked] true panel]
-     :dispatch-later
-     [{:ms 2000
-       :dispatch [:set-panel-field [:update-predictions-clicked] nil panel]}]}))
+  :process (fn [_ _ _]
+             {:dispatch [:set-panel-field [:update-predictions-clicked] true panel]
+              :dispatch-later
+              [{:ms 2000
+                :dispatch [:set-panel-field [:update-predictions-clicked] nil panel]}]}))
 
 (defn- DeveloperActions []
   (when @(subscribe [:user/admin?])
@@ -655,7 +637,7 @@
           (if clicked? [:i.check.circle.icon] [:i.repeat.icon])])])))
 
 (defmethod panel-content [:project :project :settings] []
-  (fn [child]
+  (fn [_child]
     [:div.project-content
      [ReadOnlyMessage
       "Changing settings is restricted to project administrators."
