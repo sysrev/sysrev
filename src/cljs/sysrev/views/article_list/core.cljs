@@ -1,8 +1,7 @@
 (ns sysrev.views.article-list.core
   (:require [reagent.ratom :refer [reaction]]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-              reg-event-fx trim-v]]
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
             [sysrev.loading :as loading]
             [sysrev.views.article :refer [ArticleInfo]]
             [sysrev.views.review :as review]
@@ -42,17 +41,18 @@
              (fn [_ [_ context article-id]]
                (reaction
                 (let [{:keys [active-article]} @(subscribe [::al/get context])
-                      can-resolve? @(subscribe [::resolving-allowed? context article-id])
-                      user-status @(subscribe [:article/user-status article-id])
-                      project-id @(subscribe [:active-project-id])
-                      ann-context {:class "abstract" :project-id project-id :article-id article-id}
                       self-id @(subscribe [:self/user-id])
-                      self-annotations (and self-id @(subscribe [:annotator/user-annotations
-                                                                 ann-context self-id]))]
+                      project-id @(subscribe [:active-project-id])
+                      ann-context {:class "abstract" :project-id project-id :article-id article-id}]
                   (when (= article-id active-article)
-                    (boolean (or can-resolve?
-                                 (in? [:confirmed :unconfirmed] user-status)
-                                 (seq self-annotations))))))))
+                    (boolean
+                     (and self-id
+                          @(subscribe [:self/member? project-id])
+                          (or @(subscribe [::resolving-allowed? context article-id])
+                              (in? [:confirmed :unconfirmed]
+                                   @(subscribe [:article/user-status article-id]))
+                              (seq @(subscribe [:annotator/user-annotations
+                                                ann-context self-id]))))))))))
 
 (defn- ArticleListNavHeader [context]
   (let [count-now @(al/sub-article-count context)
