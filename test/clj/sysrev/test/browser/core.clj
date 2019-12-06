@@ -73,6 +73,7 @@
                       driver (driver/init-driver {:webdriver chromedriver})]
                   (taxi/set-driver! driver)))
         (reset! active-webdriver-config {:visual false})
+        (taxi/window-resize {:width 1920 :height 1080})
         @active-webdriver)))
 
 (defn start-visual-webdriver
