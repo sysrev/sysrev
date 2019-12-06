@@ -11,6 +11,7 @@
             [hikari-cp.core :refer [make-datasource close-datasource]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer [select from where]]
+            [honeysql.format :as sqlf]
             honeysql-postgres.format
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config.core :refer [env]]
@@ -342,3 +343,7 @@
             count)
         (finally
           (close-active-db))))))
+
+(defmethod sqlf/fn-handler "textmatch" [_ a b & _more]
+  (assert (nil? _more))
+  (str (sqlf/to-sql-value a) " @@ " (sqlf/to-sql-value b)))
