@@ -208,9 +208,11 @@
 
 ;; TODO: move into article entity
 (defn article-user-labels-map [article-id]
-  (-> (q/select-article-by-id article-id [:al.*])
+  (-> (q/select-article-by-id article-id [:al.* :l.enabled])
       (q/join-article-labels)
+      (q/join-article-label-defs)
       (->> do-query
+           (filter :enabled)
            (group-by :user-id)
            (map-values
             #(->> (index-by :label-id %)

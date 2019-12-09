@@ -17,14 +17,14 @@ print_usage() {
 }
 
 while getopts 'hc:n:' flag; do
-      case "${flag}" in
-	  h) print_usage
-	     exit 1;;
-	  c) compile="${OPTARG}" ;;
-	  n) namespace="${OPTARG}" ;;
-	  *) print_usage
-	     exit 1 ;;
-      esac
+    case "${flag}" in
+	h) print_usage
+	   exit 1;;
+	c) compile="${OPTARG}" ;;
+	n) namespace="${OPTARG}" ;;
+	*) print_usage
+	   exit 1 ;;
+    esac
 done
 
 if [ $compile = true ]; then

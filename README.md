@@ -444,3 +444,32 @@ General-use functionality for data access and event handling is kept under `stat
 ## Browser Tests
 
 The test suite (run with `lein test`) includes browser tests using Selenium with headless Chrome. The `chromedriver` executable must be available via `$PATH`; it should be included in your system package for Chromium or Chrome, or in an additional system package.
+
+## Development DB Restore
+
+You can populate your local sysrev database with the one from a recent backup.
+
+### Pull the backup
+
+```
+$ scripts/pull-latest-db
+```
+
+This will download the most recent backup file the form sysrev-YYYY-MM-DD_HH-MM-SS.pgdumpc to the current directory
+
+### Restore Backup
+
+To restore the backup
+
+```
+$ scripts/restore-from-dump -d sysrev -f sysrev-2019-12-08_06-31-10.pgdumpc
+SR_BACKUP_FILE: sysrev-2019-12-08_06-31-10.pgdumpc
+dropping database (if exists)...
+creating database...
+running pg_restore...
++ pg_restore --host=localhost --port=5432 --dbname=sysrev --username=postgres --no-password --format=custom --disable-triggers --single-transaction --no-owner sysrev-2019-12-08_06-31-10.pgdumpc
+
+real	16m26.235s
+user	0m19.438s
+sys	0m3.071s
+```
