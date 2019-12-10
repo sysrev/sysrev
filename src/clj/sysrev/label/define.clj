@@ -54,7 +54,9 @@
     (used-label? label-id)
     ;; ... so determine if a category has been deleted
     (set/superset? (set all-values)
-                   (set (get-in (label/get-label label-id) [:definition :all-values])))))
+                   ;; sometimes the user inadvertently includes a space
+                   (set (filter #(not (clojure.string/blank? %))
+                                (get-in (label/get-label label-id) [:definition :all-values]))))))
 
 (def boolean-definition-validations
   {:inclusion-values
