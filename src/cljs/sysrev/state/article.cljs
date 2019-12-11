@@ -102,6 +102,14 @@
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:json article)))
 
+(reg-sub :article/content
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:content article)))
+
+(reg-sub :article/mimetype
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:mimetype article)))
+
 (reg-sub :article/duplicates
          (fn [[_ article-id]] (subscribe [:article/flags article-id]))
          (fn [flags [_ article-id]]

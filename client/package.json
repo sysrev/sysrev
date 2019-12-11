@@ -28,7 +28,9 @@
     "react-dom": "16.8.6",
     "react-json-view": "^1.19.1",
     "react-stripe-elements": "5.0.1",
+    "react-xml-viewer": "^1.0.3",
     "semantic-ui-react": "0.83.0",
-    "showdown": "1.8.6"
+    "showdown": "1.8.6",
+    "xml2js": "^0.4.22"
   }
 }

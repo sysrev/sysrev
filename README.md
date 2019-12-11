@@ -13,6 +13,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 * [Client Project](#markdown-header-client-project)
 * [AWS Files](#markdown-header-aws-files)
 * [Browser Tests](#markdown-header-browser-tests)
+* [GraphQL API](#makedown-header-graphql-api)
 
 ## Initial Setup
 
@@ -444,3 +445,51 @@ General-use functionality for data access and event handling is kept under `stat
 ## Browser Tests
 
 The test suite (run with `lein test`) includes browser tests using Selenium with headless Chrome. The `chromedriver` executable must be available via `$PATH`; it should be included in your system package for Chromium or Chrome, or in an additional system package.
+
+## GraphQL API
+
+SysRev has an experimental GraphQL API. It is tightly coupled to the Datasource GraphQL API.
+It is recommended to use the GraphiQL tool to experiment with both APIs, the curl examples are
+given as a guide for when programmatically interacting with the API.
+
+## Import articles into a project
+
+1. Generate a GraphQL query for obtaining the appropriate entities from Datasource. Currently, only entities
+   that have text-like mimetypes such as xml or json are supported. You must request the id, external_id and content
+   for the entity
+
+   Here is a query which will obtain entities form the HSDB dataset from Datasource and return their xml content:
+   `{entitiesByExternalIds(dataset:5,externalIds:["12","8499","8498"]) { id external_id content}}`
+
+   This query can be directly used in the GraphiQL tool. Here is an example of retrieving it using curl:
+
+```bash
+$ curl https://datasource.insilica.co/graphql --header "Content-Type: application/json" --header "Authorization:Bearer <datasource-api-key>" \
+-d '{"query": "{entitiesByExternalIds(dataset:5,externalIds:[\"12\",\"8499\",\"8498\"]) { id external_id content}}"}'
+```
+Note: the dataset id for HSDB is 5
+
+Now, to add these to a project with ID of 102
+
+**REQUEST**
+```bash
+curl https://sysrev.com/graphql --header "Content-Type: application/json" --header "Authorization:Bearer <sysrev-api-token>" \
+-d '{"query": "mutation M{importArticles(id:102,query:\"{entitiesByExternalIds(dataset:5,externalIds:[\\\"12\\\",\\\"8498\\\",\\\"8499\\\"]){id,external_id,content}}\")}"}'
+```
+
+**RESPONSE**
+```bash
+{"data":{"importArticles":true}}
+```
+
+Note: externalIds are strings, though in this example the string values correspond to integers. Integer externalId values are not guaranteed.
+      There is triple \ in front of the external ids to escape the strings inside of the query argument!
+
+To generate such a string in Clojure
+```clojure
+> (venia/graphql-query {:venia/operation {:operation/type :mutation :operation/name "M"}
+	:venia/queries [[:importArticles {:id 102 :query (venia/graphql-query
+	{:venia/queries [[:entitiesByExternalIds {:dataset 5 :externalIds ["12" "8498" "8499"]} [:id :external_id :content]]]})}]]})
+
+"mutation M{importArticles(id:102,query:\"{entitiesByExternalIds(dataset:5,externalIds:[\"12\",\"8498\",\"8499\"]){id,external_id,content}}\")}"
+```

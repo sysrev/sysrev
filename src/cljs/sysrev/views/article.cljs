@@ -1,5 +1,7 @@
 (ns sysrev.views.article
   (:require ["react-json-view" :default ReactJson]
+            ["xml2js" :as xml2js]
+            ["react-xml-viewer" :as XMLViewer]
             [clojure.string :as str]
             goog.object
             [re-frame.core :refer
@@ -13,11 +15,13 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
+            [sysrev.views.semantic :refer [Checkbox]]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer [css filter-values]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (def RJson (r/adapt-react-class ReactJson))
+(def XMLViewerComponent (r/adapt-react-class XMLViewer))
 #_
 (def-data :article/annotations
   :loaded?
@@ -242,6 +246,44 @@
           [:div.four.wide.right.aligned.middle.aligned.column
            [ArticleSourceLinks article-id]]]]))))
 
+(def checked? (r/atom false))
+(defn Entity [article-id]
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader [[:article project-id article-id]] {}
+      (let [mimetype @(subscribe [:article/mimetype article-id])
+            json (r/atom {})
+            content @(subscribe [:article/content article-id])
+            _ (when (= mimetype "application/xml")
+                (xml2js/parseString content
+                                    (fn [_err result]
+                                      (reset! json result))))
+            title article-id]
+        [:div {:id article-id}
+         [:h2 title]
+         [:br]
+         [:div {:id "content"}
+          (condp = mimetype
+            "application/xml"
+            [:div
+             [Checkbox {:as "h4"
+                        :checked @checked?
+                        :on-change #(do (.log js/console "I changed")
+                                        (reset! checked? (not @checked?)))
+                        :toggle true}]
+             (if (not @checked?)
+               [:div {:style {:white-space "normal"
+                              :overflow "overlay"}}
+                [XMLViewerComponent {:xml content}]]
+               [RJson {:src  @json
+                       :theme (condp = @(subscribe [:self/ui-theme])
+                                "Default" "bright:inverted"
+                                "Dark" "eighties")
+                       :displayDataTypes false
+                       :enableClipboard false
+                       :name false
+                       :collapsed 3}])]
+            content)]]))))
+
 (defn CTDocument [article-id]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
@@ -328,6 +370,8 @@
               (condp = datasource-name
                 "ctgov"
                 [CTDocument article-id]
+                "entity"
+                [Entity article-id]
                 [ArticleInfoMain article-id :context context])]
 
              ^{:key :article-pdfs} [pdf/PDFs article-id]))

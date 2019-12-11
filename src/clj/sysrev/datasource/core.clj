@@ -44,6 +44,7 @@
 
 (defn project-source-meta->article-type [meta]
   (condp = (:source meta)
+    "Datasource API"   ["datasource" "entity"]
     "RIS file"         ["academic"  "RIS"]
     "CT.gov search"    ["json" "ctgov"]
     "PubMed search"    ["academic"  "pubmed"]
@@ -63,6 +64,7 @@
                  nil)
     "json" (condp = article-subtype
              "ctgov" "ctgov")
+    "datasource" "entity"
     nil))
 
 (defn make-article-data

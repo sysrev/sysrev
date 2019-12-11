@@ -1,0 +1,38 @@
+{:interfaces
+ {:entity {:description "A Datasource Entity"
+           :fields {:id {:type (non-null Int)
+                         :description "Datasoruce ID"}
+                    :hash {:type (non-null String)
+                           :hash "SHA-1 hash of the entity content"}
+                    :filename {:type (non-null String)}
+                    :mimetype {:type (non-null String)
+                               :description "Mimetype of the entity"}
+                    :stored {:type (non-null String)
+                             :description "When the file was stored in our datastore"}
+                    :updated {:type (non-null String)
+                              :description "When the file information was last updated"}
+                    :url {:type (non-null String)
+                          :description "Location where entity can be obtained"}}}}
+ :objects
+ {:Entity {:implements [:entity]
+           :fields {:id {:type (non-null Int)}
+                    :hash {:type (non-null String)}
+                    :filename {:type (non-null String)}
+                    :mimetype {:type (non-null String)}
+                    :stored {:type (non-null String)}
+                    :updated {:type (non-null String)}
+                    :url {:type (non-null String)}}}
+  :Project {:fields {:id {:type (non-null Int)}
+                     :name {:type (non-null String)}
+                     :date_created {:type (non-null String)}}}}
+ :queries {:project {:type :Project
+                     :description "Read a project by its id"
+                     :args {:id {:type (non-null Int)}}
+                     :resolve :resolve-project}}
+ :mutations {:importArticles {:type Boolean
+                              :description "Import articles with a query string from datasource. Result is true when import is successful false otherwise. Query must at minimum contain the subfield id, corresponding to the datasource id. Avoid extraneous subfields such as content,updated,url, etc as these will be ignored during import and displayed when an individual article is viewed. Limit your query to a single query as multiple queries are not currently handled."
+                              :args {:query {:type (non-null String)
+                                             :description "The GraphQL query string that imports an entities content"}
+                                     :id {:type (non-null Int)
+                                          :description "The project-id to import articles into"}}
+                              :resolve :resolve-import-articles!}}}

@@ -17,6 +17,7 @@
             [sysrev.web.routes.project :refer [project-routes]]
             [sysrev.web.routes.user :refer [user-routes]]
             [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
+            [sysrev.web.routes.graphql :refer [graphql-routes]]
             sysrev.web.routes.api.handlers
             [sysrev.web.app :as app]
             [sysrev.shared.util :as sutil :refer [in?]]))
@@ -100,6 +101,7 @@
   []
   (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) wrap-sysrev-api))
                     (ANY "/api/*" [] (c/wrap-routes app-routes wrap-sysrev-app))
+                    (ANY "/graphql" [] graphql-routes)
                     (compojure.route/resources "/")
                     (GET "/sitemap.xml" []
                          (-> (r/response (index/sysrev-sitemap))
