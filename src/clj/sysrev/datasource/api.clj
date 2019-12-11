@@ -41,12 +41,14 @@
   (let [auth-key (->> (ds-auth-key) (assert-pred string?) (assert-pred not-empty))]
     {"Authorization" (str "Bearer " auth-key)}))
 
-(defn- run-ds-query [query & {:keys [host]}]
+(defn run-ds-query [query & {:keys [host]}]
   (http/post (str (or host (ds-host)) "/graphql")
              {:headers (auth-header)
               :body (json/write-str {:query query})
               :content-type :application/json
-              :as :json}))
+              :throw-exceptions false
+              :as :json
+              :coerce :always}))
 
 (defn-spec ^:private parse-ds-response (s/every map?)
   "Extracts sequence of results from GraphQL response, converting
@@ -121,6 +123,14 @@
   (-> (apply-keyargs fetch-nct-entities [nctid] opts)
       (get nctid)))
 
+(defn fetch-entities
+  "Queries Datasrouce GraphQL API and returns entities identified by a coll of ids"
+  [coll]
+  (->> (query-api {:name :entities
+                   :args {:ids coll}
+                   :fields [:content :mimetype :id]})
+       (sutil/index-by :id)))
+
 (defmulti enrich-articles (fn [datasource _coll] datasource))
 
 (defmethod enrich-articles "default"
@@ -175,6 +185,13 @@
                   fetch-nct-entities)]
     (->> coll (mapv #(merge (get data (-> % :external-id))
                             (select-keys % [:article-id :project-id :datasource-name :primary-title]))))))
+
+(defmethod enrich-articles "entity" [_ coll]
+  (let [data (->> coll
+                  (map :external-id)
+                  fetch-entities)]
+    (->> coll (mapv #(merge (select-keys (get data (-> % :external-id)) [:mimetype :content])
+                            (select-keys % [:article-id :project-id :datasource-name :external-id]))))))
 
 (defn enrich-articles-with-datasource
   "Given a coll of articles with `:datasource-name` and `:external-id` keys, enrich with content from datasource.

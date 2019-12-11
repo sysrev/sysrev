@@ -27,6 +27,9 @@
   (import-source :pdf-zip project-id input options))
 
 ;; be sure to add entry above to require in sysrev.source
+;; if new data type, add to
+;; sysrev.datasource.core/project-source-meta->article-type
+;; and an enrich-articles method in sysrev.datasource.api
 (defn import-ris
   [project-id {:keys [file filename] :as input} & [{:as options}]]
   (import-source :ris project-id input options))
