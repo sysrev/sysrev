@@ -115,7 +115,8 @@
            {:tab-id :annotations
             :content "Annotations"
             :action #(dispatch [:set-review-interface :annotations])
-            :disabled (= "ctgov" article-datasource)}]
+            :disabled (or (= "ctgov" article-datasource)
+                          (= "entity" article-datasource))}]
           interface
           "review-interface"]
          (case interface

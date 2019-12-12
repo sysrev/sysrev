@@ -37,13 +37,16 @@
   (let [unused #{:urls :document-ids :notes :remote-database-name :work-type}]
     (remove #(contains? unused %) academic-fields)))
 
-(defn- auth-header []
-  (let [auth-key (->> (ds-auth-key) (assert-pred string?) (assert-pred not-empty))]
+(defn- auth-header [& {:keys [auth-key]
+                       :or {auth-key (ds-auth-key)}}]
+  (let [auth-key (->> auth-key (assert-pred string?) (assert-pred not-empty))]
     {"Authorization" (str "Bearer " auth-key)}))
 
-(defn run-ds-query [query & {:keys [host]}]
+(defn run-ds-query [query & {:keys [host auth-key]}]
   (http/post (str (or host (ds-host)) "/graphql")
-             {:headers (auth-header)
+             {:headers (if (seq auth-key)
+                         (auth-header :auth-key auth-key)
+                         (auth-header))
               :body (json/write-str {:query query})
               :content-type :application/json
               :throw-exceptions false

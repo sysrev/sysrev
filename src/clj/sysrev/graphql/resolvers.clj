@@ -33,7 +33,8 @@
                           (-> (q/select-project-members project-id [:m.permissions])
                               (merge-where [:= :u.user-id (:user-id user)])
                               (->> do-query first :permissions)))
-        query-result (ds-api/run-ds-query query)]
+        query-result (ds-api/run-ds-query query :auth-key api-token)]
+
     (cond (not (seq api-token))
           (resolve-as nil [{:message "api-token not supplied in request headers as Authorization: Bearer <api-token>"}])
           (not (seq user))

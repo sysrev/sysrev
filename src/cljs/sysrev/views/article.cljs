@@ -363,6 +363,8 @@
                [ArticleFlagsView article-id "ui segment"])
 
              [:div.ui.segment.article-content {:key :article-content}
+              ;; if adding new datasource, be sure to disable annotator
+              ;; in sysrev.views.main/SidebarColumn
               (condp = datasource-name
                 "ctgov"
                 [CTDocument article-id]
