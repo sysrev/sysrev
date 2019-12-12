@@ -8,8 +8,8 @@
   {:source "RIS file" :filename filename :hash hash})
 
 (defn get-title [m]
-  (let [{:keys [TI T1]} m]
-    (first (if (> (count TI) (count T1)) TI T1))))
+  (let [{:keys [TI T1 BT CT]} m]
+    (first (last (sort-by count [TI T1 BT CT])))))
 
 (defn ris-get-articles [coll]
   (->> coll

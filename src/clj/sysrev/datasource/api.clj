@@ -95,7 +95,7 @@
    returning a map of {pmid article}."
   [hash]
   (->> (venia/graphql-query {:venia/queries [[:risFileCitationsByFileHash {:hash hash}
-                                              [:TI :T1 :id]]]})
+                                              [:TI :T1 :BT :CT :id]]]})
        (run-ds-query)
        :body :data :risFileCitationsByFileHash))
 
@@ -153,27 +153,27 @@
   [ids]
   (let [ids (mapv parse-integer ids)]
     (->> (venia/graphql-query {:venia/queries [[:risFileCitationsByIds {:ids ids}
-                                                [:TI :T1 :T2 :Y1 :AB :N2 :AU :A1 :DA :KW :JO :PY :id]]]})
+                                                [:TI :T1 :T2 :Y1 :PY :DA :AB :KW :JO :N2 :JF :JA :J1 :J2 :BT :CT :AU :A1 :A2 :A3 :A4 :TA :id]]]})
          (run-ds-query)
          :body :data :risFileCitationsByIds)))
 
 (defmethod enrich-articles "RIS" [_ coll]
   (let [process-data (fn [m]
-                       (let [{:keys [TI T1 T2 Y1 PY DA AB KW JO N2 id]} (map-vals (partial clojure.string/join ",") m)
-                             AU (:AU m)
-                             A1 (:A1 m)]
-                         {:primary-title (last (sort-by count [TI T1]))
-                          :secondary-title (last (sort-by count [T2 JO]))
-                          :date (last (sort-by count [Y1 DA PY]))
-                          :abstract (last (sort-by count [N2 AB]))
-                          :authors (last (sort-by count [AU A1]))
+                       (let [{:keys [TI T1 T2 Y1 PY DA AB KW JO N2 JF JA J1 J2 BT CT AU A1 A2 A3 A4 TA id]} m
+                             get-values (fn [coll]
+                                          (->> coll (sort-by count) last first))]
+                         {:primary-title (get-values [TI T1 BT CT])
+                          :secondary-title (get-values [T2 JO JF JA J1 J2])
+                          :date (get-values [Y1 DA PY])
+                          :abstract (get-values [N2 AB])
+                          :authors  (into [] (flatten (conj AU A1 A2 A3 A4 TA)))
                           :id (parse-integer id)
-                          :keywords KW}))
+                          :keywords (clojure.string/join "," KW)}))
         data (->> coll
                   (map :external-id)
                   fetch-ris-articles-by-ids
                   (map #(assoc % :id
-                               [(:id %)]))
+                               (:id %)))
                   (map process-data)
                   (sutil/index-by :id))]
     (->> coll (mapv #(merge (get data (-> % :external-id parse-integer))

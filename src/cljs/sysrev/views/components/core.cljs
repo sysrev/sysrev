@@ -200,6 +200,7 @@
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class _mobile?]]
   (let [menu-class (or menu-class "")
+        entries (filterv (comp not nil?) entries)
         render-entry
         (fn [{:keys [tab-id action content class disabled] :as entry}]
           (let [active? (= tab-id active-tab-id)]
