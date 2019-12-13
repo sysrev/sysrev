@@ -59,6 +59,28 @@
                           "\"" (string-ellipsis (:title w#) 40 "...") "\""))))
      (log/info "current windows: (none found)")))
 
+(defn visual-webdriver? []
+  (and @active-webdriver (true? (:visual @active-webdriver-config))))
+
+(defn standard-webdriver? []
+  (and @active-webdriver (not (visual-webdriver?))))
+
+(defn ensure-webdriver-size []
+  (when-not (visual-webdriver?)
+    (try (let [{:keys [width]} (taxi/window-size)]
+           (when (< width 1280)
+             (log/info "maximizing chromedriver window")
+             (taxi/window-maximize)
+             (let [{:keys [width]} (taxi/window-size)]
+               (when (< width 1280)
+                 (log/info "resizing chromedriver window")
+                 (taxi/window-resize {:width 1920 :height 1280})
+                 (let [{:keys [width]} (taxi/window-size)]
+                   (when (< width 1280)
+                     (log/warnf "window size still too small; width=%d" width)))))))
+         (catch Throwable _
+           (log/warn "exception in ensure-webdriver-size")))))
+
 (defn start-webdriver [& [restart?]]
   (if (and @active-webdriver (not restart?))
     @active-webdriver
@@ -66,14 +88,15 @@
           (try (taxi/quit) (catch Throwable _ nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
-                             (.addArguments ["window-size=1920,1080" "headless" "no-sandbox"]))
+                             (.addArguments ["headless" "start-maximized" "window-size=1920,1280"
+                                             "disable-gpu" "no-sandbox"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
                       driver (driver/init-driver {:webdriver chromedriver})]
                   (taxi/set-driver! driver)))
         (reset! active-webdriver-config {:visual false})
-        (taxi/window-resize {:width 1920 :height 1080})
+        (ensure-webdriver-size)
         @active-webdriver)))
 
 (defn start-visual-webdriver
@@ -90,8 +113,7 @@
           (try (taxi/quit) (catch Throwable _ nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
-                             (.addArguments
-                              ["window-size=1200,800"]))
+                             (.addArguments ["window-size=1200,800"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
@@ -105,12 +127,6 @@
     (taxi/quit)
     (reset! active-webdriver nil)
     (reset! active-webdriver-config nil)))
-
-(defn visual-webdriver? []
-  (and @active-webdriver (true? (:visual @active-webdriver-config))))
-
-(defn standard-webdriver? []
-  (and @active-webdriver (not (visual-webdriver?))))
 
 (defonce webdriver-shutdown-hook (atom nil))
 
@@ -475,9 +491,12 @@
     (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
     (if (reuse-webdriver?)
       (do (start-webdriver) ;; use existing webdriver if running
+          (ensure-webdriver-size)
           (try (ensure-logged-out) (init-route "/")
                ;; try restarting webdriver if unable to load page
-               (catch Throwable _ (start-webdriver true) (init-route "/"))))
+               (catch Throwable _
+                 (log/warn "restarting webdriver due to exception")
+                 (start-webdriver true) (init-route "/"))))
       (start-webdriver true))
     (f)
     (when (reuse-webdriver?)
