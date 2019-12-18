@@ -102,9 +102,35 @@
             last
             keyword)))
 
+(def max-sql-query-literal-values 1000)
+
+(defn- split-match-by-value-seqs
+  "Converts a `match-by` map into a sequence of match-by maps, by
+  splitting into multiple queries as necessary to ensure that any
+  key-value entry matching against a sequence of values contain no
+  more than `max-sql-query-literal-values` literal values in a single
+  SQL query."
+  [match-by]
+  (let [[k & more] (->> (sort-by str (keys match-by))
+                        (filter #(and (sequential? (get match-by %))
+                                      (> (count (get match-by %))
+                                         max-sql-query-literal-values))))]
+    (cond (seq more)   (throw (ex-info
+                               (str "split-match-by-value-seqs: "
+                                    "unable to process more than one large value sequence")
+                               {:split-keys (concat [k] more), :match-by match-by}))
+          k            (for [k-group (partition-all max-sql-query-literal-values
+                                                    (get match-by k))]
+                         (assoc match-by k k-group))
+          :else        (list match-by))))
+
 ;;;
 ;;; ** DSL functions
 ;;;
+
+;; TODO: disallow LIMIT and ORDER BY when splitting with
+;;       `split-match-by-value-seqs`?
+;; TODO: splitting queries like this also breaks `find-count`
 
 (defn find
   "Runs select query on `table` filtered according to `match-by`.
@@ -168,28 +194,32 @@
                         (distinct select-fields))
         map-fields (cond index-by  map-values
                          group-by  (fn [f coll] (map-values (partial map f) coll))
-                         :else     map)]
+                         :else     map)
+        make-query (fn [match-by-1]
+                     (-> (apply select select-fields)
+                         (from table)
+                         (merge-match-by match-by-1)
+                         (cond-> join (merge-join-args merge-join join))
+                         (cond-> left-join (merge-join-args merge-left-join left-join))
+                         (cond-> where (merge-where where))
+                         (cond-> limit (sqlh/limit limit))
+                         (cond-> order-by (sqlh/order-by order-by))
+                         (cond-> group (#(apply sqlh/group % (collify group))))
+                         (cond-> prepare (prepare))))]
     (assert (in? #{0 1} (count (remove nil? [index-by group-by]))))
-    (-> (apply select select-fields)
-        (from table)
-        (merge-match-by match-by)
-        (cond-> join (merge-join-args merge-join join))
-        (cond-> left-join (merge-join-args merge-left-join left-join))
-        (cond-> where (merge-where where))
-        (cond-> limit (sqlh/limit limit))
-        (cond-> order-by (sqlh/order-by order-by))
-        (cond-> group (#(apply sqlh/group % (collify group))))
-        (cond-> prepare (prepare))
-        ((fn [query]
-           (case return
-             :query       query
-             :string      (db/to-sql-string query)
-             :execute     (-> (do-query query)
-                              (cond->> index-by (sutil/index-by index-by))
-                              (cond->> group-by (clojure.core/group-by group-by))
-                              (cond->> specified (map-fields #(select-keys % specified)))
-                              (cond->> single-field (map-fields single-field))
-                              not-empty)))))))
+    (case return
+      :execute  (-> (->> (split-match-by-value-seqs match-by)
+                         (map make-query)
+                         (mapv do-query)
+                         (apply concat))
+                    (cond->> limit (take limit))
+                    (cond->> index-by (sutil/index-by index-by))
+                    (cond->> group-by (clojure.core/group-by group-by))
+                    (cond->> specified (map-fields #(select-keys % specified)))
+                    (cond->> single-field (map-fields single-field))
+                    not-empty)
+      :query    (make-query match-by)
+      :string   (db/to-sql-string (make-query match-by)))))
 
 ;;; Examples:
 ;;;
