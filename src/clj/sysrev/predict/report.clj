@@ -121,15 +121,11 @@
      :exclude exclude}))
 
 (defn update-predict-meta [project-id predict-run-id]
-  (try
-    (let [label-id (project/project-overall-label-id project-id)
-          meta (predict-summary-for-label predict-run-id label-id)]
-      (-> (sqlh/update :predict-run)
-          (sset {:meta (db/to-jsonb meta)})
-          (where [:= :predict-run-id predict-run-id])
-          do-execute))
-    (finally
-      (db/clear-project-cache project-id))))
+  (db/with-clear-project-cache project-id
+    (let [overall-id (project/project-overall-label-id project-id)]
+      (q/modify :predict-run {:predict-run-id predict-run-id}
+                {:meta (db/to-jsonb (predict-summary-for-label
+                                     predict-run-id overall-id))}))))
 
 (defn predict-summary [predict-run-id]
   (:meta (q/query-predict-run-by-id predict-run-id [:meta])))

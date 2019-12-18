@@ -19,7 +19,7 @@
 (defonce predict-api (agent nil))
 
 ;; TODO: this only works for boolean inclusion criteria labels
-(defn get-training-label-values [project-id label-id]
+(defn- get-training-label-values [project-id label-id]
   (db/with-transaction
     (->> (labels/query-public-article-labels project-id)
          (map-kv (fn [article-id {:keys [labels]}]
@@ -34,26 +34,24 @@
                      (when-not (nil? answer)
                        [article-id answer])))))))
 
-(defn get-article-texts [training? project-id & [label-id]]
-  (let [label-id (or label-id (project/project-overall-label-id project-id))]
-    (->> (qt/find-article
-          {:a.project-id project-id} :a.article-id
-          :where (if training?
-                   (q/exists [:article-label :al]
-                             {:al.label-id label-id
-                              :al.article-id :a.article-id}
-                             :prepare #(q/filter-valid-article-label % true))
-                   true))
-         (ds-api/get-articles-content)
-         (map-values (fn [{:keys [primary-title secondary-title abstract keywords]}]
-                       (->> [primary-title secondary-title abstract (str/join " \n " keywords)]
-                            (remove empty?)
-                            (str/join " \n " )))))))
+(defn- get-training-article-ids [project-id label-id]
+  (qt/find-article {:a.project-id project-id} :a.article-id
+                   :where (q/exists [:article-label :al]
+                                    {:al.article-id :a.article-id, :al.label-id label-id}
+                                    :prepare #(q/filter-valid-article-label % true))))
 
-(defn predict-model-request-body [project-id]
+(defn- prediction-text-for-articles [article-ids]
+  (->> (ds-api/get-articles-content article-ids)
+       (map-values (fn [{:keys [primary-title secondary-title abstract keywords]}]
+                     (->> [primary-title secondary-title abstract (str/join " \n " keywords)]
+                          (remove empty?)
+                          (str/join " \n " ))))))
+
+(defn- predict-model-request-body [project-id]
   (db/with-transaction
     (let [label-id (project/project-overall-label-id project-id)
-          article-texts (get-article-texts true project-id label-id)]
+          article-texts (->> (get-training-article-ids project-id label-id)
+                             (prediction-text-for-articles))]
       {"project_id" project-id
        "feature" (str label-id)
        "documents" (->> (get-training-label-values project-id label-id)
@@ -70,7 +68,7 @@
              {:content-type "application/json"
               :body (json/write-str (predict-model-request-body project-id))}))
 
-(defn fetch-model-predictions [project-id label-id article-texts article-ids]
+(defn- fetch-model-predictions [project-id label-id article-texts article-ids]
   (log/info "fetching" (count article-ids) "article predictions")
   (->> (-> (http/post (str api-host "sysrev/predictionService")
                       {:content-type "application/json"
@@ -89,16 +87,12 @@
                                              :or {predict-version-id 3}}]
   (db/with-transaction
     (let [label-id (or label-id (project/project-overall-label-id project-id))
-          predict-run-id (predict/create-predict-run
-                          project-id predict-version-id)
-          article-texts (get-article-texts false project-id label-id)
-          article-ids (vec (keys article-texts))
-          entries (->> (partition-all 2000 article-ids)
-                       (mapv #(fetch-model-predictions
-                               project-id label-id article-texts %))
-                       (apply concat))]
-      (predict/store-article-predictions
-       project-id predict-run-id label-id entries)
+          predict-run-id (predict/create-predict-run project-id predict-version-id)]
+      (doseq [article-ids (->> (project/project-article-ids project-id true)
+                               (partition-all 2000))]
+        (let [article-texts (prediction-text-for-articles article-ids)
+              entries (fetch-model-predictions project-id label-id article-texts article-ids)]
+          (predict/store-article-predictions project-id predict-run-id label-id entries)))
       (report/update-predict-meta project-id predict-run-id))))
 
 (defn update-project-predictions [project-id]
