@@ -52,30 +52,25 @@
    [:div.ui {:class dropdown-class :style style}
     label
     [:i {:class (css icon-class "icon")
-         :style (when-not (and (seqable? label)
-                               (empty? label))
-                  {:margin-left "0.7em"
-                   :margin-right "0em"})}]
+         :style (when-not (and (seqable? label) (empty? label))
+                  {:margin-left "0.7em" :margin-right "0em"})}]
     [:div.menu
      (doall
       (for [{:keys [action content] :as entry} entries]
-        (when entry
-          ^{:key entry}
-          [:a.item
-           {:href (when (string? action) action)
-            :on-click
-            (util/wrap-user-event
-             (cond (and (seq? action)
-                        (= (count action) 2))
-                   #(dispatch [:navigate
-                               (first action) (second action)])
+        (when entry ^{:key entry}
+          [:a.item {:href (when (string? action) action)
+                    :on-click (util/wrap-user-event
+                               (cond (and (seq? action)
+                                          (= (count action) 2))
+                                     #(dispatch [:navigate
+                                                 (first action) (second action)])
 
-                   (vector? action)
-                   #(dispatch [:navigate action])
+                                     (vector? action)
+                                     #(dispatch [:navigate action])
 
-                   (string? action) nil
+                                     (string? action) nil
 
-                   :else action))}
+                                     :else action))}
            content])))]]])
 
 (s/def ::tab-id keyword?)
@@ -147,19 +142,17 @@
               (list item))))]
     [:div.ui.secondary.pointing.menu.primary-menu
      {:class (css menu-class [mobile? "tiny"])}
-     (doall
-      (for [entry left-entries]
-        (render-entry entry)))
-     (when-not (empty? right-entries)
+     (doall (for [entry left-entries]
+              (render-entry entry)))
+     (when (seq right-entries)
        (if (and false mobile?)
          [:div.right.menu
           [dropdown-menu right-entries
            :dropdown-class "dropdown item"
            :label "More"]]
          [:div.right.menu
-          (doall
-           (for [entry right-entries]
-             (doall (render-entry entry))))]))]))
+          (doall (for [entry right-entries]
+                   (doall (render-entry entry))))]))]))
 
 (defn secondary-tabbed-menu
   [left-entries right-entries active-tab-id & [menu-class mobile?]]
@@ -184,19 +177,17 @@
                         :else action))}
              content]))]
     [:div.ui.secondary.pointing.menu.secondary-menu {:class menu-class}
-     (doall
-      (for [entry left-entries]
-        (render-entry entry)))
-     (when-not (empty? right-entries)
+     (doall (for [entry left-entries]
+              (render-entry entry)))
+     (when (seq right-entries)
        (if mobile?
          [:div.right.menu
           [dropdown-menu right-entries
            :dropdown-class "dropdown item"
            :label "More"]]
          [:div.right.menu
-          (doall
-           (for [entry right-entries]
-             (render-entry entry)))]))]))
+          (doall (for [entry right-entries]
+                   (render-entry entry)))]))]))
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class _mobile?]]
   (let [menu-class (or menu-class "")
@@ -226,9 +217,8 @@
     [:div.tabbed-panel
      [:div {:class (css "ui" (sutil/num-to-english (count entries))
                         "item tabbed menu tabbed-panel" menu-class)}
-      (doall
-       (for [entry entries]
-         (render-entry entry)))]]))
+      (doall (for [entry entries]
+               (render-entry entry)))]]))
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}

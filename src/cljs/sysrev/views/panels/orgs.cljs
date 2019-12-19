@@ -50,14 +50,14 @@
           [FormField
            [Input {:placeholder "Organization Name"
                    :id "create-org-input"
-                   :value @new-org
+                   :default-value @new-org
                    :action (r/as-element [Button {:primary true
                                                   :class "create-organization"
                                                   :id "create-org-button"} "Create"])
                    :on-change (util/on-event-value
                                #(do (reset! create-org-error nil)
                                     (reset! new-org %)))}]]]
-         (when-not (empty? @create-org-error)
+         (when (seq @create-org-error)
            [Message {:negative true
                      :onDismiss #(reset! create-org-error nil)}
             [MessageHeader {:as "h4"} "Create Organization Error"]

@@ -202,8 +202,8 @@
                     (cond (loading/item-spammed? item)
                           {:data-failed item}
 
-                          (< elapsed-millis 20)
-                          {:dispatch-later [{:dispatch [:fetch item] :ms (- 30 elapsed-millis)}]}
+                          (< elapsed-millis 10)
+                          {:dispatch-later [{:dispatch [:fetch item] :ms (- 15 elapsed-millis)}]}
 
                           (not (loading/ajax-action-inactive?))
                           {:dispatch-later [{:dispatch [:fetch item] :ms 10}]}
@@ -274,7 +274,7 @@
                                        (not (loading/item-failed? item))
                                        (not (loading/item-loading? item)))
                               (dispatch [:fetch item])))
-                         10)))
+                         5)))
 
 ;; Fetches any missing required data
 (reg-event-fx :fetch-missing
@@ -290,7 +290,7 @@
           (when fetch?
             ;; Use setTimeout to ensure that changes to app-db from any simultaneously
             ;; dispatched events will have completed first.
-            (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 30))))
+            (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 10))))
 
 (defn init-data []
   (dispatch [:ui/load-default-panels])

@@ -226,7 +226,7 @@
          ;; show pdf
          (if visible-url
            [pdf/ViewPDF {:pdf-url visible-url :entry pdf}]
-           (when-not (empty? abstract)
+           (when (seq abstract)
              (if annotator?
                [ArticleAnnotatedField article-id "abstract" abstract
                 :reader-error-render [render-abstract article-id]]
@@ -234,7 +234,7 @@
          ;; article links
          [:div.ui.grid.article-links
           [:div.twelve.wide.left.aligned.middle.aligned.column
-           (when-not (empty? urls)
+           (when (seq urls)
              [:div.ui.content.horizontal.list
               {:style {:padding-top "0.75em"}}
               (doall (map-indexed (fn [i url] ^{:key [i]} [ui/out-link url])

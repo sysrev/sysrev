@@ -18,9 +18,7 @@
                                    (json/read-str :key-fn keyword)
                                    :variables)
                                (catch Exception _ nil)))]
-    (if-not (empty? variables)
-      variables
-      {})))
+    (or (not-empty variables) {})))
 
 (defn extract-query
   "Reads the `query` query parameters, which contains a JSON string

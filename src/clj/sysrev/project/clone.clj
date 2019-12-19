@@ -136,8 +136,7 @@
                         [name label-id]))
                  (apply concat)
                  (apply hash-map)))
-        convert-label-id
-        #(-> % src-id-to-name name-to-dest-id)
+        convert-label-id #(-> % src-id-to-name name-to-dest-id)
         entries
         (-> (q/select-project-keywords src-project-id [:*])
             (->> do-query
@@ -148,10 +147,7 @@
                              (update :label-value to-jsonb))))
                  (remove nil?)
                  vec))]
-    (when-not (empty? entries)
-      (-> (insert-into :project-keyword)
-          (values entries)
-          do-execute))))
+    (q/create :project-keyword entries)))
 
 (defn populate-child-project-articles [parent-id child-id article-uuids]
   (doseq [article-uuid article-uuids]

@@ -65,18 +65,21 @@
 (defn standard-webdriver? []
   (and @active-webdriver (not (visual-webdriver?))))
 
+(def browser-test-window-size {:width 1600 :height 1000})
+
 (defn ensure-webdriver-size []
   (when-not (visual-webdriver?)
-    (try (let [{:keys [width]} (taxi/window-size)]
-           (when (< width 1280)
-             (log/info "maximizing chromedriver window")
-             (taxi/window-maximize)
+    (try (let [test-width (:width browser-test-window-size)
+               {:keys [width]} (taxi/window-size)]
+           (when (< width test-width)
+             (log/info "resizing chromedriver window")
+             (taxi/window-resize browser-test-window-size)
              (let [{:keys [width]} (taxi/window-size)]
-               (when (< width 1280)
-                 (log/info "resizing chromedriver window")
-                 (taxi/window-resize {:width 1920 :height 1280})
+               (when (< width test-width)
+                 (log/info "maximizing chromedriver window")
+                 (taxi/window-maximize)
                  (let [{:keys [width]} (taxi/window-size)]
-                   (when (< width 1280)
+                   (when (< width test-width)
                      (log/warnf "window size still too small; width=%d" width)))))))
          (catch Throwable _
            (log/warn "exception in ensure-webdriver-size")))))
@@ -88,8 +91,14 @@
           (try (taxi/quit) (catch Throwable _ nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
-                             (.addArguments ["headless" "start-maximized" "window-size=1920,1280"
-                                             "disable-gpu" "no-sandbox"]))
+                             (.addArguments
+                              (concat ["headless"
+                                       (format "window-size=%d,%d"
+                                               (:width browser-test-window-size)
+                                               (:height browser-test-window-size))
+                                       #_ "disable-gpu"]
+                                      (when-not (util/linux?)
+                                        ["no-sandbox"]))))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
@@ -395,7 +404,7 @@
                       (when (or (not-empty (browser-console-logs))
                                 (not-empty (browser-console-errors)))
                         (log-console-messages (if failed# :error :info))))
-                    (try (wait-until-loading-completes :pre-wait 30 :timeout 1000)
+                    (try (wait-until-loading-completes :pre-wait true :timeout 1500)
                          (catch Throwable e2#
                            (log/info "test cleanup - wait-until-loading-completes timed out")))
                     (when-not ~repl?

@@ -63,11 +63,9 @@
                        (-> request :query-params walk/keywordize-keys keys))
             ;; request-method (:request-method request)
             missing (->> required (remove (in? args)))]
-        (if-not (empty? missing)
-          (make-error-response
-           500 :api
-           (format "Missing arguments: %s"
-                   (->> missing (mapv str) pr-str)))
+        (if (seq missing)
+          (make-error-response 500 :api (format "Missing arguments: %s"
+                                                (->> missing (mapv str) pr-str)))
           (handler request)))
       (handler request))))
 

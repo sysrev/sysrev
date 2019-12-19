@@ -212,15 +212,15 @@
 
 (defn ajax-status-inactive?
   "Tests if AJAX requests have been inactive continuously for `duration`
-  ms (default 30)."
+  ms (default 25)."
   [& [duration]]
-  (< (ajax-status) (- (or duration 30))))
+  (< (ajax-status) (- (or duration 25))))
 
 (defn ajax-action-inactive?
   "Tests if AJAX action requests have been inactive continuously for
-  `duration` ms (default 30) (ignores data requests)."
+  `duration` ms (default 25) (ignores data requests)."
   [& [duration]]
-  (< (ajax-action-status) (- (or duration 30))))
+  (< (ajax-action-status) (- (or duration 25))))
 
 ;;;
 ;;; Events for start/completion of AJAX requests

@@ -99,7 +99,7 @@
       (when sync-notes?
         (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
       (if (or send-labels? sync-notes?)
-        #?(:cljs (js/setTimeout route-fn 75)
+        #?(:cljs (js/setTimeout route-fn 50)
            :clj (route-fn))
         (route-fn))
       (dispatch [:review/reset-saving]))
@@ -126,10 +126,10 @@
                  (route-fn-when-ready# []
                    (if (sysrev.loading/ajax-status-inactive?)
                      (route-fn#)
-                     (js/setTimeout route-fn-when-ready# 20)))]
+                     (js/setTimeout route-fn-when-ready# 10)))]
            #_ (route-fn#)
            (route-fn-when-ready#)
-           #_ (js/setTimeout route-fn-when-ready# 20))))))
+           #_ (js/setTimeout route-fn-when-ready# 10))))))
 
 (defn lookup-project-url [url-id]
   @(subscribe [:lookup-project-url url-id]))
@@ -174,14 +174,14 @@
                      ;; body function (dispatch is asynchronous).
                      (not= url-id# cur-id#)
                      (do #_ (js/console.log (str "url-id changed to " (pr-str url-id#)))
-                         (js/setTimeout body-fn# 30)
-                         #_ (body-fn#))
+                         #_ (js/setTimeout body-fn# 10)
+                         (body-fn#))
                      ;; Otherwise run route body function immediately.
                      :else (body-fn#))))
                (route-fn-when-ready# []
                  (if (sysrev.loading/ajax-status-inactive?)
                    (go-route-sync-data route-fn#)
-                   (js/setTimeout route-fn-when-ready# 20)))]
+                   (js/setTimeout route-fn-when-ready# 10)))]
          #_ (route-fn-when-ready#)
          (go-route-sync-data route-fn#)
          #_ (js/setTimeout route-fn-when-ready# 20)))))

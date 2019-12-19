@@ -82,17 +82,17 @@
           :as entry} (get @action-defs name)
          content-val (some-> content (apply args))]
      (assert entry (str "def-action not found - " (pr-str name)))
-     (cond (not (loading/ajax-status-inactive?))
-           {:dispatch-later [{:dispatch [:action item] :ms 10}]}
-           :else
-           (merge {:action-sent item}
-                  (run-ajax (cond-> {:db db
-                                     :method method
-                                     :uri (apply uri args)
-                                     :on-success [::on-success item]
-                                     :on-failure [::on-failure item]
-                                     :content-type (or content-type "application/transit+json")}
-                              content-val (assoc :content content-val))))))))
+     (if (loading/ajax-status-inactive?)
+       (-> (run-ajax
+            (cond-> {:db db
+                     :method method
+                     :uri (apply uri args)
+                     :on-success [::on-success item]
+                     :on-failure [::on-failure item]
+                     :content-type (or content-type "application/transit+json")}
+              content-val (assoc :content content-val)))
+           (merge {:action-sent item}))
+       {:dispatch-later [{:dispatch [:action item] :ms 10}]}))))
 
 (reg-event-ajax-fx
  ::on-success

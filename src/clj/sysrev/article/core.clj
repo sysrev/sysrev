@@ -40,11 +40,10 @@
             :returning :article-id))
 
 (defn add-articles [articles project-id & [conn]]
-  (vec (when (seq articles)
-         (q/create :article (mapv #(-> (article-to-sql % conn)
-                                       (assoc :project-id project-id))
-                                  articles)
-                   :returning :article-id))))
+  (vec (q/create :article (mapv #(-> (article-to-sql % conn)
+                                     (assoc :project-id project-id))
+                                articles)
+                 :returning :article-id)))
 
 (defn-spec set-user-article-note map?
   [article-id int?, user-id int?, note-name string?, content (s/nilable string?)]

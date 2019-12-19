@@ -745,7 +745,7 @@
                                 (drop-while #(= 0 (:count %)))
                                 reverse
                                 vec)))]
-      (if-not (empty? prediction-scores)
+      (if (seq prediction-scores)
         {:prediction-histograms {:reviewed-include-histogram
                                  (histogram-fn (filterv #(true? (:answer %))
                                                         reviewed-articles-scores))

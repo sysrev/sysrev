@@ -72,7 +72,7 @@
             [UserPublicProfileLink {:user-id @user-id :display-name @username}]]]]]
         [Button {:color "orange" :disabled @retrieving?}
          "Remove members"]
-        (when-not (empty? @error)
+        (when (seq @error)
           [Message {:negative true :onDismiss #(reset! error "")}
            [MessageHeader {:as "h4"} "Remove member error"]
            @error])]]]]))
@@ -144,7 +144,7 @@
                      :id "org-change-role-button"
                      :color "orange"}
              "Change Role"]
-            (when-not (empty? @error)
+            (when (seq @error)
               [Message {:negative true
                         :onDismiss #(reset! error "")}
                [MessageHeader {:as "h4"} "Change role error"]
@@ -201,7 +201,7 @@
                                         (reset! remove-modal-open true)))))}])]]))
 
 (defn UsersTable [{:keys [org-users org-id]}]
-  (when-not (empty? org-users)
+  (when (seq org-users)
     [Table {:basic true
             :id "org-user-table"}
      #_[TableHeader
@@ -222,7 +222,7 @@
         org-users-set (->> @(subscribe [:org/users org-id])
                            (map #(dissoc % :primary-email-verified))
                            set)]
-    (when-not (empty? term)
+    (when (seq term)
       (reset! retrieving? true)
       (reset! user-search-results nil)
       (GET "/api/users/search"
@@ -329,7 +329,7 @@
                                                         :positive true
                                                         :disabled (nil? @current-search-user-id)}
                                                 "Add Member"])}])}]]
-            (when-not (empty? @error)
+            (when (seq @error)
               [Message {:negative true
                         :onDismiss #(reset! error "")}
                [MessageHeader {:as "h4"} "Add Member Error"]
