@@ -49,7 +49,9 @@
   (taxi/switch-to-default)
   (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
   ;; switch the the proper iframe. note that the name could change if stripe updates their library
-  (taxi/switch-to-frame {:xpath (str "//iframe[@name='" (nth (get-stripe-frame-names) 0) "']")})
+  (taxi/switch-to-frame
+   (taxi/element {:xpath (format "//iframe[@name='%s']"
+                                 (nth (get-stripe-frame-names) 0))}))
   ;;(taxi/click cardnumber-input)
   ;; clear anything that could be in the form
   (taxi/clear cardnumber-input)
@@ -74,16 +76,16 @@
     ;; let's reset to be sure we are in the default iframe
     (enter-cc-number cardnumber)
     ;; switch to month input iframe
-    (taxi/switch-to-frame exp-date-iframe)
+    (taxi/switch-to-frame (taxi/element exp-date-iframe))
     (b/set-input-text-per-char exp-date-input exp-date)
     ;; swtich back to default
     (taxi/switch-to-default)
     ;; switch to cvc iframe
-    (taxi/switch-to-frame cvc-iframe)
+    (taxi/switch-to-frame (taxi/element cvc-iframe))
     (b/set-input-text-per-char cvc-input cvc)
     ;; switch back to default frame
     (taxi/switch-to-default)
     ;; we're done, return back to default
     (taxi/switch-to-default)
     (log/info "finished entering stripe card")
-    (Thread/sleep 50)))
+    (Thread/sleep 75)))

@@ -73,23 +73,27 @@ node {
       echo 'Running build tests...'
       try {
         sh './jenkins/test'
-        currentBuild.result = 'SUCCESS'
-        if (branch == 'staging' ||
-            branch == 'production') {
-          sendSlackMsgFull ('Tests passed','blue')
-        } else {
-          sendSlackMsg ('Tests passed')
-        }
       } catch (exc) {
-        currentBuild.result = 'UNSTABLE'
-        sendSlackMsg ('Tests failed')
-        sh 'cat target/junit-all.xml'
+        sh 'cat target/junit.xml'
+        sendSlackMsg ('Tests failed (attempt 1 of 2) ...')
         try {
-          sh 'lein test'
-        } catch (leinTestExc) {
+          sh './jenkins/test'
+        } catch (exc2) {
+          sh 'cat target/junit.xml'
+          currentBuild.result = 'UNSTABLE'
+          sendSlackMsg ('Tests failed (attempt 2 of 2)')
         }
       } finally {
-        junit 'target/junit-all.xml'
+        junit 'target/junit.xml'
+        if (currentBuild.result != 'UNSTABLE') {
+          currentBuild.result = 'SUCCESS'
+          if (branch == 'staging' ||
+              branch == 'production') {
+            sendSlackMsgFull ('Tests passed','blue')
+          } else {
+            sendSlackMsg ('Tests passed')
+          }
+        }
       }
     }
   }
@@ -124,9 +128,9 @@ node {
               currentBuild.result = 'SUCCESS'
             } catch (exc) {
               currentBuild.result = 'UNSTABLE'
-              sh 'cat target/junit-all.xml'
+              sh 'cat target/junit.xml'
             } finally {
-              junit 'target/junit-all.xml'
+              junit 'target/junit.xml'
             }
           }
         } catch (exc) {
@@ -213,19 +217,9 @@ node {
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
           sendSlackMsg ('PostDeployTest failed')
-          if (branch == 'staging') {
-            sh 'cat target/junit-all.xml'
-          }
-          if (branch == 'production') {
-            sh 'cat target/junit-browser.xml'
-          }
+          sh 'cat target/junit.xml'
         } finally {
-          if (branch == 'staging') {
-            junit 'target/junit-all.xml'
-          }
-          if (branch == 'production') {
-            junit 'target/junit-browser.xml'
-          }
+          junit 'target/junit.xml'
         }
       }
     }

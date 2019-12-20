@@ -13,6 +13,7 @@
 
 (use-fixtures :once default-fixture)
 
+#_
 (deftest user-label-task
   (doseq [project-id (q/find :project {} :project-id, :limit 10)]
     (let [unlabeled (assign/unlabeled-articles project-id)]

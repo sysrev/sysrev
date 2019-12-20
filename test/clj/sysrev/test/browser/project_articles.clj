@@ -19,7 +19,7 @@
               (filter taxi/displayed?))))
 
 (deftest-browser basic-article-search
-  true
+  true test-user
   [input "#article-search"
    project-id (atom nil)
    title-count (fn [text] (count (article-ids-from-title-search-local @project-id text)))
@@ -28,7 +28,7 @@
    is-db-count (fn [count-fn text value]
                  (when (test/db-connected?)
                    (is (= value (count-fn text)))))]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       (nav/new-project "basic-article-search test")
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))

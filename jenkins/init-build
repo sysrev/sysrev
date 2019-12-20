@@ -5,11 +5,9 @@ echo "Preparing build environment"
 
 ./setup.sh
 
-lein clean
-
 echo "Compiling CLJS project"
 
 cd client
 rm -rf .shadow-cljs/builds/prod || true
-shadow-cljs release prod --source-maps --force-spawn
+shadow-cljs release prod --force-spawn
 cd ..

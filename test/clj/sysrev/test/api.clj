@@ -3,7 +3,7 @@
             [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.test.core :refer [default-fixture get-selenium-config]]
-            [sysrev.test.browser.core :refer [test-login create-test-user]]
+            [sysrev.test.browser.core :as b]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user]
@@ -18,11 +18,10 @@
 
 (deftest test-get-api-token
   (let [url (:url (get-selenium-config))
-        {:keys [email password]} test-login
-        {:keys [user-id]} (create-test-user)]
+        {:keys [user-id email]} (b/create-test-user)]
     (try
       (let [response (webapi-get "get-api-token"
-                                 {:email email :password password}
+                                 {:email email :password b/test-password}
                                  :url url)]
         (is (contains? response :result))
         (is (string? (-> response :result :api-token))))
@@ -31,7 +30,7 @@
 
 (deftest test-import-pmids
   (let [url (:url (get-selenium-config))
-        {:keys [user-id api-token]} (create-test-user)
+        {:keys [user-id api-token]} (b/create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id]} (project/create-project "test-import-pmids")]
     (try
@@ -48,7 +47,7 @@
 
 (deftest test-import-article-text
   (let [url (:url (get-selenium-config))
-        {:keys [user-id api-token]} (create-test-user)
+        {:keys [user-id api-token]} (b/create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id]} (project/create-project "test-import-article-text")]
     (try
@@ -70,7 +69,7 @@
 #_
 (deftest test-copy-articles
   (let [url (:url (get-selenium-config))
-        {:keys [user-id api-token]} (create-test-user)
+        {:keys [user-id api-token]} (b/create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id] :as project} (project/create-project "test-copy-articles")
         dest-project (project/create-project "test-copy-articles-dest")]
@@ -101,7 +100,7 @@
 #_
 (deftest test-import-pmid-nct-arms
   (let [url (:url (get-selenium-config))
-        {:keys [user-id api-token]} (create-test-user)
+        {:keys [user-id api-token]} (b/create-test-user)
         {:keys [project-id] :as project} (project/create-project "test-import-pmid-nct-arms")]
     (try
       (let [response (webapi-post "import-pmid-nct-arms"
@@ -124,7 +123,7 @@
 
 (deftest test-create-project
   (let [url (:url (get-selenium-config))
-        {:keys [user-id api-token]} (create-test-user)
+        {:keys [user-id api-token]} (b/create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
         project-name "test-create-project"]
     (try (let [response (webapi-post "create-project" {:api-token api-token
@@ -148,7 +147,7 @@
 
 (deftest test-check-allow-answers
   (let [url (:url (get-selenium-config))
-        {:keys [user-id api-token]} (create-test-user)
+        {:keys [user-id api-token]} (b/create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id]} (project/create-project "test-check-allow-answers")]
     (try
@@ -162,7 +161,8 @@
                                   :url url)]
         (is (true? (-> response :result :success)))
         (is (= 2 (-> response :result :project-articles))))
-      (let [article-id (q/find-one [:article :a] {:ad.external-id (db/to-jsonb "12345")}
+      (let [article-id (q/find-one [:article :a] {:a.project-id project-id
+                                                  :ad.external-id (db/to-jsonb "12345")}
                                    :article-id, :join [:article-data:ad :a.article-data-id])
             label-id (q/find-one :label {:project-id project-id} :label-id)]
         (is (s/valid? ::sc/article-id article-id))
@@ -184,7 +184,7 @@
   (let [source-project-name "test-clone-project"
         dest-project-name (str "[cloned] " source-project-name)
         {:keys [url]} (get-selenium-config)
-        {:keys [user-id api-token]} (create-test-user)
+        {:keys [user-id api-token]} (b/create-test-user)
         _ (user/set-user-permissions user-id ["user" "admin"])
         source-project-id (-> (webapi-post "create-project"
                                            {:api-token api-token

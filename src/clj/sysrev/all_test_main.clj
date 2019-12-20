@@ -1,8 +1,9 @@
 (ns sysrev.all-test-main
   (:gen-class)
-  (:require [clojure.test :refer [*test-out* run-all-tests]]
+  (:require [clojure.test :refer [*test-out*]]
+            [eftest.runner :refer [run-tests find-tests]]
+            eftest.report.junit
             [clojure.java.io :as io]
-            [clojure.test.junit :refer [with-junit-output]]
             [clojure.tools.logging :as log]
             [clojure.pprint :as pprint]
             sysrev.test.all
@@ -21,15 +22,15 @@
     (init/start-db)
     (project/cleanup-browser-test-projects)
     (migration/ensure-updated-db))
-  (let [fname "target/junit-all.xml"
-        {:keys [fail error] :as summary}
+  (let [fname "target/junit.xml"
+        {:keys [fail error] :as result}
         (with-open [w (io/writer fname)]
           (binding [*test-out* w]
-            (with-junit-output
-              (run-all-tests #"sysrev\.test\..*"))))]
-    (log/info "summary:\n"
-              (pprint/write summary :stream nil))
-    (log/info "wrote junit results to " fname)
+            (run-tests (find-tests "test/clj/sysrev")
+                       {:thread-count (min 4 (test/get-default-threads))
+                        :report eftest.report.junit/report})))]
+    (log/info "\nwrote junit results to" fname)
+    (log/info "\nsummary:" (pr-str result))
     (if (and (= fail 0) (= error 0))
       (System/exit 0)
       (System/exit 1))))

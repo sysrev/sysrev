@@ -75,12 +75,13 @@
   (tf/unparse (tf/formatter :date) (local-now)))
 
 (defn user-amount-owed [project-id user-name]
-  (->> (:amount-owed (api/project-compensation-for-users
-                      project-id (todays-date) (todays-date)))
-       (filter #(= (:name %) user-name))
-       (map #(* (:articles %)
-                (get-in % [:rate :amount])))
-       (apply +)))
+  (let [[user-name] (str/split user-name #"@")]
+    (->> (:amount-owed (api/project-compensation-for-users
+                        project-id (todays-date) (todays-date)))
+         (filter #(= (:name %) user-name))
+         (map #(* (:articles %)
+                  (get-in % [:rate :amount])))
+         (apply +))))
 
 (defn user-amount-paid [project-name email]
   (->> (:payments-paid (api/user-payments-paid (user-by-email email :user-id)))
@@ -103,7 +104,7 @@
 (defn correct-payments-owed?
   "Does the compensation tab show the correct payments owed to user by project-id?"
   [user project]
-  (is (= (user-amount-owed @(:project-id project) (:name user))
+  (is (= (user-amount-owed @(:project-id project) (:email user))
          (string->cents (project-payments-owed (:name project))))))
 
 (defn project-payments-paid
@@ -145,7 +146,9 @@
   (let [button "div.paypal-button"]
     (Thread/sleep 50)
     (taxi/switch-to-default)
-    (taxi/switch-to-frame (xpath (str "//iframe[@name='" (first (b/current-frame-names)) "']")))
+    (taxi/switch-to-frame
+     (taxi/element (xpath (format "//iframe[@name='%s']"
+                                  (first (b/current-frame-names))))))
     (b/wait-until-displayed button)
     (Thread/sleep 50)
     (b/click button :external? true)
@@ -238,13 +241,13 @@
 
 (deftest-browser happy-path-project-compensation
   ;; skip this from `lein test` etc, redundant with larger test
-  (and (test/db-connected?) (not (test/test-profile?)))
+  (and (test/db-connected?) (not (test/test-profile?))) test-user
   [project-name "Sysrev Compensation Test"
    amount 100
-   test-user {:name "foo", :email "foo@bar.com", :password "foobar"}
+   new-user (b/create-test-user :email "foo@bar.com" :password "foobar")
    n-articles 3
    project-id (atom nil)]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       ;; create a project
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
@@ -254,24 +257,20 @@
       (create-compensation amount)
       ;; set it to default
       (select-compensation-dropdown nil amount)
-      ;; create a new user, check that that their compensation level is set to the default
-      (b/create-test-user :email (:email test-user)
-                          :password (:password test-user)
-                          :project-id @project-id)
-      (randomly-set-unreviewed-articles
-       @project-id (user-by-email (:email test-user) :user-id) n-articles)
+      ;; create a new member, check that that their compensation level is set to the default
+      (project/add-project-member @project-id (:user-id new-user))
+      (randomly-set-unreviewed-articles @project-id (:user-id new-user) n-articles)
       ;; new user reviews some articles
       ;; (switch-user test-user)
       ;; (nav/open-project project-name)
       ;; (review/randomly-review-n-articles
       ;;  n-articles [review/include-label-definition])
       (is (= (* n-articles amount)
-             (user-amount-owed @project-id (:name test-user)))))
-
-  :cleanup (b/cleanup-test-user! :email (:email test-user)))
+             (user-amount-owed @project-id (:email new-user)))))
+  :cleanup (b/cleanup-test-user! :email (:email new-user)))
 
 (deftest-browser multiple-project-compensations
-  (test/db-connected?)
+  (test/db-connected?) test-user
   [projects (->> (list {:name "Sysrev Compensation Test 1"
                         :amounts [100 10 110]
                         :funds "20.00"}
@@ -280,24 +279,25 @@
                         :funds "15.00"})
                  (map #(assoc % :project-id (atom nil))))
    [project1 project2] projects
-   test-users [{:name "foo" :email "foo@bar.com" :password "foobar" :n-articles 2}
-               {:name "baz" :email "baz@qux.com" :password "bazqux" :n-articles 1}
-               {:name "corge" :email "corge@grault.com" :password "corgegrault" :n-articles 3}]
+   test-users [(merge (b/create-test-user :email "foo@bar.com" :password "foobar")
+                      {:n-articles 2})
+               (merge (b/create-test-user :email "baz@qux.com" :password "bazqux")
+                      {:n-articles 1})
+               (merge (b/create-test-user :email "corge@grault.com" :password "corgegrault")
+                      {:n-articles 3})]
    [user1 user2 user3] test-users
    label-definitions [review/include-label-definition]
    review-articles (fn [user project]
                      (switch-user user project)
                      (review/randomly-review-n-articles
                       (:n-articles user) label-definitions))
-   db-review-articles (fn [user project]
+   db-review-articles (fn [{:keys [user-id n-articles]} project]
                         (randomly-set-unreviewed-articles
-                         @(:project-id project)
-                         (user-by-email (:email user) :user-id)
-                         (:n-articles user)))
+                         @(:project-id project) user-id n-articles))
    loop-test? false]
   (dotimes [_ (if loop-test? 10 1)]
     (try
-      (nav/log-in)
+      (nav/log-in (:email test-user))
       ;; create the first project
       (nav/new-project (:name project1))
       (reset! (:project-id project1) (b/current-project-id))
@@ -316,9 +316,8 @@
            (catch Throwable e
              (throw (ex-info "PayPal Error" {:type :paypal} e))))
       ;; create users
-      (doseq [{:keys [email password]} test-users]
-        (b/create-test-user :email email :password password
-                            :project-id @(:project-id project1)))
+      (doseq [{:keys [user-id]} test-users]
+        (project/add-project-member @(:project-id project1) user-id))
       ;; review some articles from all users
       (db-review-articles user1 project1)
       (db-review-articles user2 project1)
@@ -326,11 +325,11 @@
       ;; check correct values for amounts owed to users
       (doseq [user test-users]
         (is (= (* (:n-articles user) (-> project1 :amounts (nth 0)))
-               (user-amount-owed @(:project-id project1) (:name user)))))
+               (user-amount-owed @(:project-id project1) (:email user)))))
       ;; TODO: fix this to pass reliably in test-aws-dev-all
       (when (and (test/full-tests?) (not (test/remote-test?)))
         ;; create a second project
-        (switch-user nil)
+        (switch-user test-user)
         (nav/new-project (:name project2))
         (reset! (:project-id project2) (b/current-project-id))
         ;; import sources
@@ -340,9 +339,8 @@
         ;; set the first compensation amount as default
         (select-compensation-dropdown nil (-> project2 :amounts (nth 0)))
         ;; associate the other users with the second project
-        (doseq [{:keys [email]} test-users]
-          (let [user-id (user-by-email email :user-id)]
-            (project/add-project-member @(:project-id project2) user-id)))
+        (doseq [{:keys [user-id]} test-users]
+          (project/add-project-member @(:project-id project2) user-id))
         ;; review some articles from all users
         (db-review-articles user1 project2)
         (db-review-articles user2 project2)
@@ -350,8 +348,8 @@
         ;; check correct values for amounts owed to users
         (doseq [user test-users]
           (is (= (* (:n-articles user) (-> project2 :amounts (nth 0)))
-                 (user-amount-owed @(:project-id project2) (:name user)))))
-        (switch-user nil project1)
+                 (user-amount-owed @(:project-id project2) (:email user)))))
+        (switch-user test-user project1)
         (nav/go-project-route "/compensations")
         ;; change the compensation level for user1
         (select-compensation-dropdown (:email user1) (-> project1 :amounts (nth 1)))
@@ -359,38 +357,38 @@
         (is (= (* (:n-articles user1)
                   (+ (-> project1 :amounts (nth 0))
                      (-> project1 :amounts (nth 1))))
-               (user-amount-owed @(:project-id project1) (:name user1))))
-        (switch-user nil project1)
+               (user-amount-owed @(:project-id project1) (:email user1))))
+        (switch-user test-user project1)
         (nav/go-project-route "/compensations")
         ;; change the compensation level for user1 (again)
         (select-compensation-dropdown (:email user1) (-> project1 :amounts (nth 2)))
         (db-review-articles user1 project1)
         (is (= (* (:n-articles user1)
                   (->> project1 :amounts (take 3) (apply +)))
-               (user-amount-owed @(:project-id project1) (:name user1))))
+               (user-amount-owed @(:project-id project1) (:email user1))))
         ;; are all the other compensation levels for the other users still consistent?
         (is (= (* (:n-articles user2) (-> project1 :amounts (nth 0)))
-               (user-amount-owed @(:project-id project1) (:name user2))))
+               (user-amount-owed @(:project-id project1) (:email user2))))
         (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
-               (user-amount-owed @(:project-id project1) (:name user3))))
+               (user-amount-owed @(:project-id project1) (:email user3))))
         ;; let's change compensations for another user in this project
-        (switch-user nil project1)
+        (switch-user test-user project1)
         (nav/go-project-route "/compensations")
         (select-compensation-dropdown (:email user2) (-> project1 :amounts (nth 2)))
         (db-review-articles user2 project1)
         ;; are the compensations still correct for this user?
         (is (= (+ (* (:n-articles user2) (-> project1 :amounts (nth 0)))
                   (* (:n-articles user2) (-> project1 :amounts (nth 2))))
-               (user-amount-owed @(:project-id project1) (:name user2))))
+               (user-amount-owed @(:project-id project1) (:email user2))))
         ;; are all the other compensation levels for the other users still consistent?
         (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
-               (user-amount-owed @(:project-id project1) (:name user3))))
+               (user-amount-owed @(:project-id project1) (:email user3))))
         (is (= (+ (* (:n-articles user1) (-> project1 :amounts (nth 0)))
                   (* (:n-articles user1) (-> project1 :amounts (nth 1)))
                   (* (:n-articles user1) (-> project1 :amounts (nth 2))))
-               (user-amount-owed @(:project-id project1) (:name user1))))
+               (user-amount-owed @(:project-id project1) (:email user1))))
         ;; do some changes/reviews in project2 and check amounts
-        (switch-user nil project2)
+        (switch-user test-user project2)
         (nav/open-project (:name project2))
         ;; change rates for user1 and user2, review articles
         (nav/go-project-route "/compensations")
@@ -402,12 +400,12 @@
         ;; check correct amounts for project2
         (is (= (+ (* (:n-articles user1) (-> project2 :amounts (nth 0)))
                   (* (:n-articles user1) (-> project2 :amounts (nth 1))))
-               (user-amount-owed @(:project-id project2) (:name user1))))
+               (user-amount-owed @(:project-id project2) (:email user1))))
         (is (= (+ (* (:n-articles user2) (-> project2 :amounts (nth 0)))
                   (* (:n-articles user2) (-> project2 :amounts (nth 2))))
-               (user-amount-owed @(:project-id project2) (:name user2))))
+               (user-amount-owed @(:project-id project2) (:email user2))))
         (is (= (* (:n-articles user3) (-> project2 :amounts (nth 0)))
-               (user-amount-owed @(:project-id project2) (:name user3))))
+               (user-amount-owed @(:project-id project2) (:email user3))))
         ;; switch back to first project
         (b/click {:xpath "//a[@href='/']"})
         (nav/open-project (:name project1))
@@ -415,12 +413,12 @@
         (is (= (+ (* (:n-articles user1) (-> project1 :amounts (nth 0)))
                   (* (:n-articles user1) (-> project1 :amounts (nth 1)))
                   (* (:n-articles user1) (-> project1 :amounts (nth 2))))
-               (user-amount-owed @(:project-id project1) (:name user1))))
+               (user-amount-owed @(:project-id project1) (:email user1))))
         (is (= (+ (* (:n-articles user2) (-> project1 :amounts (nth 0)))
                   (* (:n-articles user2) (-> project1 :amounts (nth 2))))
-               (user-amount-owed @(:project-id project1) (:name user2))))
+               (user-amount-owed @(:project-id project1) (:email user2))))
         (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
-               (user-amount-owed @(:project-id project1) (:name user3))))
+               (user-amount-owed @(:project-id project1) (:email user3))))
         ;; is user1 shown the correct payments owed?
         (switch-user user1)
         (b/click "#user-name-link")
@@ -443,10 +441,10 @@
         (correct-payments-owed? user3 project1)
         (correct-payments-owed? user3 project2)
         ;; pay some users
-        (switch-user nil project1)
+        (switch-user test-user project1)
         (nav/go-project-route "/compensations")
-        (pay-user (:name user1))
-        (pay-user (:name user2))
+        (pay-user (:email user1))
+        (pay-user (:email user2))
         ;; check that user1 & user3 are paid by project1, still owed by project2
         (switch-user user1)
         (b/click "#user-name-link")
@@ -471,7 +469,7 @@
         (when loop-test?
           (doseq [{:keys [email]} test-users]
             (b/cleanup-test-user! :email email))
-          (b/create-test-user))
+          (b/create-test-user (:email test-user) :literal true))
         (if (= :paypal (:type (ex-data e)))
           (do (log/warnf "*** Exception in PayPal interaction ***\n%s"
                          (with-out-str

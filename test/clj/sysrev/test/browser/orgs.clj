@@ -35,9 +35,10 @@
 (def create-team-h4 (xpath "//h4[contains(text(),'create a Sysrev organization for your team')]"))
 
 (defn change-user-permission-dropdown [username]
-  (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
-         "/ancestor::tr"
-         "/td/div[contains(@class,'change-org-user')]"))
+  (let [[username] (str/split username #"@")]
+    (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
+           "/ancestor::tr"
+           "/td/div[contains(@class,'change-org-user')]")))
 (def change-role (xpath "//span[contains(text(),'Change role...')]"))
 (def org-change-role-button "#org-change-role-button")
 (def change-org-dropdown "#change-org-dropdown")
@@ -66,22 +67,26 @@
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"
   [username]
-  (b/click org-users)
-  (b/click "#add-member-button" :delay 400)
-  (b/set-input-text-per-char "#org-search-users-input" username)
-  (b/click "#submit-add-member" :delay 400))
+  (let [[username] (str/split username #"@")]
+    (b/click org-users)
+    (b/click "#add-member-button" :delay 400)
+    (b/set-input-text-per-char "#org-search-users-input" username)
+    (b/click "#submit-add-member" :delay 400)))
 
 (defn change-user-permission
   "Set username to permission. Must be in Organization Settings of the
   org you wish to change permissions in. permission is either 'Owner'
   or 'Member'."
   [username permission]
-  (b/click (change-user-permission-dropdown username) :delay 200)
-  (b/click change-role :delay 400)
-  (b/click (xpath "//label[contains(text(),'" permission "')]" "/ancestor::h4" "//label")
-           :delay 300)
-  (b/click org-change-role-button :delay 300)
-  (log/infof "changed org user permission (%s => %s)" (pr-str username) (pr-str permission)))
+  (let [[username] (str/split username #"@")]
+    (b/click (change-user-permission-dropdown username) :delay 200)
+    (b/click change-role :delay 400)
+    (b/click (xpath "//label[contains(text(),'" permission "')]"
+                    "/ancestor::h4" "//label")
+             :delay 300)
+    (b/click org-change-role-button :delay 300)
+    (log/infof "changed org user permission (%s => %s)"
+               (pr-str username) (pr-str permission))))
 
 (defn create-org [org-name]
   (b/click user-profiles/user-name-link)
@@ -117,36 +122,35 @@
 
 (deftest-browser simple-org-tests
   ;; for some reason add-user-to-org is having problems with remote test
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [org-name-1 "Foo Bar, Inc."
-   org-name-2 "Baz Qux"
-   org-name-1-project "Foo Bar Article Reviews"
-   email (:email b/test-login)
-   user-id (user-by-email email :user-id)
-   user1 {:name "foo", :email "foo@bar.com", :password "foobar"}
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [org-name-1 (str "Foo Bar Inc. " (sutil/random-id))
+   org-name-2 (str "Baz Qux " (sutil/random-id))
+   org-name-1-project (str "Foo Bar Article Reviews " (sutil/random-id))
+   {:keys [user-id email]} test-user
+   user1 (b/create-test-user :email "foo@bar.com")
+   [user1-name] (str/split (:email user1) #"@")
    user-role #(get-in (org-user-table-entries) [% :permission])]
   (do
-    (nav/log-in)
+    (nav/log-in (:email test-user))
     ;; a person can create a org and they are automatically made owners
     (create-org org-name-1)
     (is (some #{"owner"} (user-group-permission user-id org-name-1)))
 ;;; an owner can add a user to the org
     ;; add a user
-    (sutil/apply-keyargs b/create-test-user user1)
-    (add-user-to-org (:name user1))
-    (b/is-soon (= "member" (user-role "foo")) 3000 50)
+    (add-user-to-org (:email user1))
+    (b/is-soon (= "member" (user-role user1-name)) 3000 50)
     ;;an owner can change permissions of a member
-    (change-user-permission (:name user1) "Owner")
-    (b/is-soon (= "owner" (user-role "foo")) 3000 50)
+    (change-user-permission (:email user1) "Owner")
+    (b/is-soon (= "owner" (user-role user1-name)) 3000 50)
     ;; only an owner can change permissions, not a member
-    (change-user-permission (:name user1) "Member")
-    (nav/log-in (:email user1) (:password user1))
+    (change-user-permission (:email user1) "Member")
+    (nav/log-in (:email user1))
     (b/click user-profiles/user-name-link)
     (b/click user-orgs)
     (b/click (xpath "//a[text()='" org-name-1 "']"))
-    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))
+    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:email test-user)))))
     ;; an org is switched, the correct user list shows up
-    (nav/log-in)
+    (nav/log-in (:email test-user))
     (b/click user-profiles/user-name-link)
     ;; create a new org
     (create-org org-name-2)
@@ -161,10 +165,10 @@
     ;; add user1 to Baz Qux as an owner
     (nav/go-route "/org/users")
     (switch-to-org org-name-2)
-    (add-user-to-org (:name user1))
-    (change-user-permission (:name user1) "Owner")
+    (add-user-to-org (:email user1))
+    (change-user-permission (:email user1) "Owner")
     ;; log-in as user1 and see that they cannot create group projects
-    (nav/log-in (:email user1) (:password user1))
+    (nav/log-in (:email user1))
     (b/click user-profiles/user-name-link)
     (b/click user-orgs)
     (b/click (xpath "//a[text()='" org-name-1 "']") :delay 20)
@@ -176,7 +180,7 @@
     (b/exists? "#projects")
     (b/is-soon (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
-    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))
+    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:email test-user)))))
     ;; switch to org-name-2
     (switch-to-org org-name-2)
     ;; user can create projects here
@@ -184,11 +188,11 @@
     (b/wait-until-exists "form.create-project")
     ;; can change user permissions for browser+test
     (b/click org-users)
-    (b/wait-until-exists (change-user-permission-dropdown "browser+test"))
+    (b/wait-until-exists (change-user-permission-dropdown (:email test-user)))
     ;; billing link is available
     (b/exists? org-billing)
     ;; duplicate orgs can't be created
-    (nav/log-in)
+    (nav/log-in (:email test-user))
     (b/click user-profiles/user-name-link)
     (b/click user-orgs)
     (b/set-input-text-per-char create-org-input org-name-1)
@@ -199,18 +203,14 @@
     (b/backspace-clear (count org-name-1) create-org-input)
     (b/click create-org-button)
     (is (b/check-for-error-message "Organization names can't be blank")))
-  :cleanup (doseq [{:keys [email]} [b/test-login user1]]
-             (b/cleanup-test-user! :email email :groups true)))
+  :cleanup (doseq [{:keys [user-id]} [user1 test-user]]
+             (b/cleanup-test-user! :user-id user-id :groups true)))
 
-(deftest-browser org-plans
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [org-name-1 "Foo Bar, Inc."
-   org-name-1-project "Foo Bar Article Reviews"
-   user-project "Baz Qux"
-   org-cc {:cardnumber bstripe/valid-visa-cc}
-   user-cc {:cardnumber bstripe/valid-visa-cc}
-   {:keys [email]} b/test-login
-   user-id (user-by-email email :user-id)]
+(deftest-browser user-project-plan
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [{:keys [user-id email]} test-user
+   user-project (str "Baz Qux " (sutil/random-id))
+   user-cc {:cardnumber bstripe/valid-visa-cc}]
   (do
     ;; need to be a stripe customer
     (when-not (user-by-email email :stripe-id)
@@ -218,32 +218,10 @@
       (user/create-user-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
-    ;; current plan
     (b/is-soon (= stripe/default-plan (:name (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
-    ;; start tests
-    (nav/log-in)
-    (create-org org-name-1)
-    ;; create org project
-    (b/click org-projects :delay 30)
-    (create-project-org org-name-1-project)
-    (nav/go-project-route "/settings")
-    (is (b/exists? disabled-set-private-button))
-    (b/click plans/upgrade-link)
-    ;; subscribe to plans
-    (log/info "attempting plan subscription")
-    (b/click "a.payment-method.add-method")
-    ;; enter payment information
-    (bstripe/enter-cc-information org-cc)
-    (plans/click-use-card :delay 50)
-    (plans/click-upgrade-plan)
-    ;; should be back at project settings
-    (b/click set-private-button :delay 100)
-    (b/click save-options-button)
-    (is (b/exists? active-set-private-button))
+    (nav/log-in (:email test-user))
 ;;; user pay wall
-    ;;
-    (log/info "testing user paywall")
     (nav/new-project user-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
@@ -309,10 +287,47 @@
     (b/click (xpath "//a[contains(@href,'/user/plans')]"))
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
-    (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
+    (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]"))))
+  :cleanup (b/cleanup-test-user! :email email :groups true))
+
+(deftest-browser org-project-plan
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [{:keys [user-id email]} test-user
+   org-name-1 (str "Foo Bar Inc. " (sutil/random-id))
+   org-name-1-project (str "Foo Bar Article Reviews " (sutil/random-id))
+   org-cc {:cardnumber bstripe/valid-visa-cc}]
+  (do
+    ;; need to be a stripe customer
+    (when-not (user-by-email email :stripe-id)
+      (log/info (str "stripe customer created for " email))
+      (user/create-user-stripe-customer! (user-by-email email)))
+    (when-not (user-current-plan user-id)
+      (stripe/create-subscription-user! (user-by-email email)))
+    ;; current plan
+    (b/is-soon (= stripe/default-plan (:name (user-current-plan user-id))) 5000 250)
+    (plans/wait-until-stripe-id email)
+    ;; start tests
+    (nav/log-in (:email test-user))
+    (create-org org-name-1)
+    ;; create org project
+    (b/click org-projects :delay 30)
+    (create-project-org org-name-1-project)
+    (nav/go-project-route "/settings")
+    (is (b/exists? disabled-set-private-button))
+    (b/click plans/upgrade-link)
+    ;; subscribe to plans
+    (log/info "attempting plan subscription")
+    (b/click "a.payment-method.add-method")
+    ;; enter payment information
+    (bstripe/enter-cc-information org-cc)
+    (plans/click-use-card :delay 50)
+    (plans/click-upgrade-plan)
+    ;; should be back at project settings
+    (b/click set-private-button :delay 100)
+    (b/click save-options-button)
+    (is (b/exists? active-set-private-button))
 ;;; org paywall
     ;; go to org, subscribe to basic
-    (log/info "Testing Org Paywall")
     (switch-to-org org-name-1)
     (b/click org-billing :delay 30)
     (b/click ".button.nav-plans.unsubscribe")
@@ -365,11 +380,9 @@
 
 ;; test no-account pricing org sign up
 (deftest-browser subscribe-to-org-unlimited-through-pricing-no-account
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [org-name "Foo Bar, Inc."
-   email "foo@bar.com"
-   password "foobar"
-   get-test-user #(user-by-email email)]
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [org-name (str "Foo Bar Inc. " (sutil/random-id))
+   email (format "foo+%s@bar.com" (sutil/random-id))]
   (do
     (nav/go-route "/")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
@@ -378,7 +391,7 @@
     ;; register
     (b/wait-until-displayed create-account-h4)
     (b/set-input-text "input[name='email']" email)
-    (b/set-input-text "input[name='password']" password)
+    (b/set-input-text "input[name='password']" b/test-password)
     (b/click "button[name='submit']")
     ;; create a team
     (b/wait-until-displayed create-team-h4)
@@ -398,8 +411,7 @@
     (b/click "a.payment-method.add-method" :delay 50)
     ;; refresh to test redirect uri
     (taxi/refresh)
-    (bstripe/enter-cc-information
-     {:cardnumber bstripe/valid-visa-cc})
+    (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card :delay 50)
     (plans/click-upgrade-plan)
     ;; ;; we have an unlimited plan
@@ -413,10 +425,9 @@
 
 ;; test that pricing works from any point in the workflow
 (deftest-browser org-pricing-flow-intermittent
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [email "baz@qux.com"
-   password "bazqux"
-   org-name "Foo Bar, Inc."]
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [email (format "baz+%s@qux.com" (sutil/random-id))
+   org-name (str "Foo Bar Inc. " (sutil/random-id))]
   (do
     (nav/go-route "/")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
@@ -424,7 +435,7 @@
     (b/click choose-team-pro-button)
     (b/wait-until-displayed create-account-h4)
     (b/set-input-text "input[name='email']" email)
-    (b/set-input-text "input[name='password']" password)
+    (b/set-input-text "input[name='password']" b/test-password)
     (b/click "button[name='submit']")
     ;; don't create a team
     (b/wait-until-displayed create-team-h4)
@@ -452,7 +463,7 @@
     (b/click (xpath "//a[text()='" org-name"']"))
     ;; upgrade plan
     (b/wait-until-displayed plans/upgrade-plan-h2)
-     (is (= "Basic" (-> (user-groups email)
+    (is (= "Basic" (-> (user-groups email)
                        first
                        :group-id
                        group-current-plan

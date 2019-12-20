@@ -17,15 +17,16 @@
   (b/click ".markdown-component .ui.save-button" :delay 50))
 
 (deftest-browser happy-path-project-description
-  true
+  true test-user
   [input ".markdown-component textarea"
    create-button ".project-description .ui.button.create-description"
    edit-icon ".project-description i.pencil.icon"
    content-first "#foo bar\n##baz qux"
-   content-edit (str content-first "\nquxx quzz corge")]
-  (do (when (= (:profile env) :dev)
-        (b/create-test-user))
-      (nav/log-in)
+   content-edit (str content-first "\nquxx quzz corge")
+   test-user (if (= (:profile env) :dev)
+               (b/create-test-user)
+               test-user)]
+  (do (nav/log-in (:email test-user))
       (nav/new-project "Markdown Test")
       (pm/import-pubmed-search-via-db "foo bar")
 ;;; project description

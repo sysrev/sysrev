@@ -6,7 +6,7 @@ source vars.sh
 set -x
 
 cd client
-shadow-cljs release prod --source-maps
+shadow-cljs release prod
 cd ..
 
-time lein test
+time lein run-tests

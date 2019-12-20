@@ -9,7 +9,8 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.payment.stripe :as stripe]))
+            [sysrev.payment.stripe :as stripe]
+            [sysrev.shared.util :as sutil]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -84,7 +85,7 @@
   (xpath "//div[contains(@class,'red') and contains(text(),\"" error-msg "\")]"))
 
 (defn user-subscribe-to-unlimited
-  [email password]
+  [email & [password]]
   (when-not (get-user-customer email)
     (log/info (str "Stripe Customer created for " email))
     (user/create-user-stripe-customer! (user-by-email email)))
@@ -109,8 +110,8 @@
 
 ;; need to disable sending emails in this test (for register user via web)
 (deftest-browser register-and-check-basic-plan-subscription
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [{:keys [email password]} b/test-login
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [{:keys [email]} test-user
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)]
   (do (user/create-user-stripe-customer! (get-test-user))
@@ -127,8 +128,8 @@
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [{:keys [email password]} b/test-login
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [{:keys [email]} test-user
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)
    get-stripe-plan #(user-stripe-plan email)
@@ -145,7 +146,7 @@
       (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
       (is (= stripe/default-plan (get-db-plan)))
-      (nav/log-in)
+      (nav/log-in email)
 ;;; upgrade plan
       (b/click "#user-name-link")
       (b/click "#user-billing")
@@ -215,8 +216,7 @@
             (b/wait-until-loading-completes :pre-wait 100)
             (click-upgrade-plan :delay 50)
             (b/is-soon
-             (taxi/exists?
-              {:xpath "//p[contains(text(),'Your card was declined.')]"}))
+             (taxi/exists? {:xpath "//p[contains(text(),'Your card was declined.')]"}))
             (b/click "a.payment-method.change-method" :delay 50)
             (b/wait-until-displayed (b/not-disabled use-card)))))
 ;;; finally, update with a valid cc number and see if we can subscribe to plans
@@ -241,12 +241,11 @@
       (wait-until-plan email stripe/default-plan)
       (is (= stripe/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= stripe/default-plan (get-db-plan))))
-  :cleanup (b/cleanup-test-user! :email email))
+      (is (= stripe/default-plan (get-db-plan)))))
 
 (deftest-browser subscribe-to-unlimited-through-pricing-no-account
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [email "baz@qux.com"
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [email (format "baz+%s@qux.com" (sutil/random-id))
    password "bazqux"
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)
@@ -270,8 +269,7 @@
     (b/click "a.payment-method.add-method" :delay 50)
     ;; refresh to test redirect uri
     (taxi/refresh)
-    (bstripe/enter-cc-information
-     {:cardnumber bstripe/valid-visa-cc})
+    (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (click-use-card :delay 50)
     (click-upgrade-plan)
     ;; we have an unlimited plan
@@ -283,8 +281,8 @@
 ;; out information but eventually does sign up anyway
 ;; through the pricing workflow
 (deftest-browser subscribe-to-unlimited-through-pricing-cold-feet
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [email "baz@qux.com"
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [email (format "baz+%s@qux.com" (sutil/random-id))
    password "bazqux"
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)
@@ -317,8 +315,7 @@
     (b/click "a.payment-method.add-method" :delay 50)
     ;; refresh to test redirect uri
     (taxi/refresh)
-    (bstripe/enter-cc-information
-     {:cardnumber bstripe/valid-visa-cc})
+    (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (click-use-card :delay 50)
     (click-upgrade-plan)
     ;; we have an unlimited plan

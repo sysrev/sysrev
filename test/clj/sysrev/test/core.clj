@@ -19,6 +19,10 @@
 
 (defonce db-initialized? (atom nil))
 
+(defn get-default-threads []
+  (max 4 (-> (.availableProcessors (Runtime/getRuntime))
+             (quot 2))))
+
 (defn db-connected? []
   (and (not= "sysrev.com" (:host @raw-selenium-config))
        (not= 5470 (-> env :postgres :port))))
@@ -85,7 +89,7 @@
        (restore-flyway-config))))
 
 (defn init-test-db []
-  (when (db-connected?)
+  (when (and (db-connected?) (not (remote-test?)))
     (let [config {:dbname test-dbname :host test-db-host}]
       (if @db-initialized?
         (do (start-app config nil true)
@@ -130,34 +134,14 @@
   "Basic setup for all tests (db, web server, clojure.spec)."
   [f]
   (case (:profile env)
-    :test
-    (do (ensure-db-shutdown-hook)
-        (t/instrument)
-        (set-web-asset-path "/out-production")
-        (if (db-connected?)
-          (init-test-db)
-          (db/close-active-db))
-        (f))
-    :remote-test
-    (let [{{postgres-port :port dbname :dbname}     :postgres
-           {selenium-host :host} :selenium} env]
-      (when (or (= selenium-host "sysrev.com")
-                (= postgres-port 5470))
-        (assert (str/includes? dbname "_test")
-                "Connecting to 'sysrev' db on production server is not allowed"))
-      (ensure-db-shutdown-hook)
-      (t/instrument)
-      (if (db-connected?)
-        (db/set-active-db! (db/make-db-config (:postgres env)) true)
-        (db/close-active-db))
-      (f))
-    :dev
-    (do (t/instrument)
-        (set-web-asset-path "/out")
-        (if (db-connected?)
-          (init-test-db)
-          (db/close-active-db))
-        (f))
+    :test (f)
+    :remote-test (f)
+    :dev (do (t/instrument)
+             (set-web-asset-path "/out")
+             (if (db-connected?)
+               (init-test-db)
+               (db/close-active-db))
+             (f))
     (assert false "default-fixture: invalid profile value")))
 
 ;; note: If there is a field (e.g. id) that is auto-incremented
@@ -213,3 +197,23 @@
                     "string" labels/add-label-entry-string)]
     (->> (merge entry-values {:name (str short-label "_" (rand-int 1000))})
          (add-label project-id))))
+
+(defonce tests-initialized
+  (when (contains? #{:test :remote-test} (:profile env))
+    (ensure-db-shutdown-hook)
+    (case (:profile env)
+      :test
+      (do (t/instrument)
+          (init-test-db)
+          (set-web-asset-path "/out-production"))
+      :remote-test
+      (let [{{postgres-port :port dbname :dbname} :postgres
+             {selenium-host :host} :selenium} env]
+        (when (or (= selenium-host "sysrev.com")
+                  (= postgres-port 5470))
+          (assert (str/includes? dbname "_test")
+                  "Connecting to 'sysrev' db on production server is not allowed"))
+        (if (db-connected?)
+          (db/set-active-db! (db/make-db-config (:postgres env)) true)
+          (db/close-active-db))))
+    true))

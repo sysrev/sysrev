@@ -11,18 +11,19 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (deftest-browser unlimited-reviews
-  (test/db-connected?)
+  (test/db-connected?) test-user
   [project-id (atom nil)
-   test-users (mapv #(str "user" % "@fake.com") [1 2 3])
+   test-users (mapv #(b/create-test-user :email %)
+                    (mapv #(str "user" % "@fake.com") [1 2 3]))
    [user1 user2 user3] test-users
    project-name "Unlimited Reviews Test"
    label-definitions [review/include-label-definition]
    review-n-articles #(review/randomly-review-n-articles % label-definitions)
-   switch-user (fn [email]
+   switch-user (fn [{:keys [email]}]
                  (nav/log-in email)
                  (nav/go-project-route "/add-articles" :project-id @project-id)
                  (nav/go-project-route "/review"))]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (import/import-pmid-vector
@@ -32,8 +33,8 @@
       (b/click "#unlimited-reviews_true")
       (b/click ".project-options button.save-changes")
       ;; create users
-      (doseq [email test-users]
-        (b/create-test-user :email email :project-id @project-id))
+      (doseq [{:keys [user-id]} test-users]
+        (project/add-project-member @project-id user-id))
       (switch-user user1)
       (review-n-articles 2)
       (is (b/exists? ".ui.segments.article-info"))
@@ -66,5 +67,5 @@
       (nav/go-project-route "/articles")
       (is (b/exists? ".article-list-view .list-pager")))
   :cleanup (do (some-> @project-id (project/delete-project))
-               (doseq [email test-users]
-                 (b/delete-test-user :email email))))
+               (doseq [{:keys [email]} test-users]
+                 (b/cleanup-test-user! :email email))))

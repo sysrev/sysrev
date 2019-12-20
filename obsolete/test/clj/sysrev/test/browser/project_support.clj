@@ -31,23 +31,22 @@
     (stripe/cancel-subscription! id)))
 
 ;; if you need need to unsubscribe all plans between tests:
-;; (unsubscribe-user-from-all-support-plans (user-by-email (:email b/test-login)))
+;; (unsubscribe-user-from-all-support-plans (user-by-email ...))
 
 ;; This is testing a feature that is not used anymore
 #_
 (deftest-browser register-and-support-projects
-  (and (test/db-connected?) (not (test/remote-test?)))
-  [{:keys [email password]} b/test-login
-
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [{:keys [email]} test-user
    project-name "Sysrev Support Project Test"
    project-id (atom nil)]
   (do (log/info "register-and-support-projects")
       ;; cancel any previouly created subscriptions
-      (unsubscribe-user-from-all-support-plans (user-by-email email))
+      (unsubscribe-user-from-all-support-plans test-user)
       ;; delete any test user that currently exists
       (b/delete-test-user :email email)
       ;; register manually to create stripe account
-      (nav/register-user email password)
+      (nav/register-user email b/test-password)
       ;; create the new project
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
@@ -116,7 +115,4 @@
       (is (b/exists? {:xpath "//h1[text()='Support This Project']"}))
       ;;(unsubscribe-user-from-all-support-plans (user-by-email email))
       (is (empty? (plans/user-support-subscriptions (user-by-email email)))))
-
-  :cleanup
-  (do (when @project-id (project/delete-project @project-id))
-      (b/delete-test-user)))
+  :cleanup (some-> @project-id (project/delete-project)))

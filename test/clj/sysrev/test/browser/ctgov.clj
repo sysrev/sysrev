@@ -35,14 +35,14 @@
   (b/wait-until-loading-completes :pre-wait 200 :inactive-ms 50 :timeout 20000))
 
 (deftest-browser ctgov-search-import
-  (and (test/db-connected?) (not (test/remote-test?)))
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (clinicaltrials.gov)"
    search-term "foo olive"
    article-title "Bioactivity of Olive Oils Enriched With Their Own Phenolic Compounds"
    article-search-result (xpath "//div[contains(@class,'article-title') and contains(text(),'"
                                 article-title "')]")
    article-title-element (xpath "//h2[contains(text(),'" article-title "')]")]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
       (b/click "a.tab-ctgov")
       (search-ctgov search-term)
@@ -53,5 +53,4 @@
       ;; go back to articles and search for particular articles
       (search-articles article-title)
       (b/click article-search-result)
-      (b/exists? article-title-element))
-  :cleanup (b/cleanup-test-user! :email (:email b/test-login)))
+      (b/exists? article-title-element)))

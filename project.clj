@@ -14,7 +14,7 @@
 ;;; Logging
                  [org.clojure/tools.logging "0.5.0"]
                  [ch.qos.logback/logback-classic "1.2.3"]
-                 [org.slf4j/jul-to-slf4j "1.7.28"]
+                 [org.slf4j/jul-to-slf4j "1.7.30"]
 
 ;;; Libraries
                  [org.clojure/test.check "0.10.0"]
@@ -22,6 +22,7 @@
                  [org.clojure/math.combinatorics "0.1.6"]
                  [crypto-random "1.2.0"]
                  [me.raynes/fs "1.4.6"]
+                 [eftest "0.5.9"]
 
 ;;; Data formats
                  [org.clojure/data.json "0.2.6"]
@@ -95,14 +96,12 @@
              #_ "-XX:+UseConcMarkSweepGC"
              #_ "-XX:+CMSClassUnloadingEnabled"]
   :source-paths ["src/clj" "src/cljc"]
-  :aliases {"junit"
-            ["with-profile" "+test,+test-all" "run"]
-            "test-aws-dev-browser"
-            ["with-profile" "+test,+test-browser,+test-aws-dev" "run"]
-            "test-aws-prod-browser"
-            ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
-            "test-aws-dev-all"
-            ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
+  :aliases {"run-tests"              ["with-profile" "+test-config" "eftest"]
+            "jenkins"                ["with-profile" "+jenkins" "eftest"]
+            "junit"                  ["with-profile" "+test,+test-all" "run"]
+            "test-aws-dev-browser"   ["with-profile" "+test,+test-browser,+test-aws-dev" "run"]
+            "test-aws-prod-browser"  ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
+            "test-aws-dev-all"       ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
@@ -110,11 +109,9 @@
                               :main sysrev.web-main
                               :aot [sysrev.web-main]}
              :test-browser   {:resource-paths ["config/test"]
-                              :main sysrev.browser-test-main
-                              :aot [sysrev.browser-test-main]}
+                              :main sysrev.browser-test-main}
              :test-all       {:resource-paths ["config/test"]
-                              :main sysrev.all-test-main
-                              :aot [sysrev.all-test-main]}
+                              :main sysrev.all-test-main}
              :test-aws-dev   {:resource-paths ["config/test-aws-dev"]}
              :test-aws-prod  {:resource-paths ["config/test-aws-prod"]}
              :test-s3-dev    {:resource-paths ["config/test-s3-dev"]}
@@ -135,24 +132,15 @@
                                 :exclusions [org.bouncycastle/bcpkix-jdk15on
                                              org.bouncycastle/bcprov-jdk15on
                                              org.seleniumhq.selenium/selenium-api
-                                             org.seleniumhq.selenium/selenium-support]]]}
+                                             org.seleniumhq.selenium/selenium-support]]]
+                              :plugins [[lein-eftest "0.5.9"]]}
              :repl           {:dependencies []
                               :plugins [[lein-environ "1.1.0"]]}
              :test           {:jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"]
-                              :test-paths ["test/clj"]
-                              :dependencies []}
-             #_ :dev-spark
-             #_ {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
-                 :test-paths ["test/clj"]
-                 :resource-paths ["config/dev"]
-                 :dependencies
-                 [[yieldbot/flambo "0.8.2" :exclusions [com.google.guava/guava]]
-                  [org.apache.spark/spark-core_2.11 "2.2.1"]
-                  [org.apache.spark/spark-mllib_2.11 "2.2.1"]
-                  [org.apache.spark/spark-streaming_2.11 "2.2.1"]
-                  [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.2.1"]
-                  [org.apache.spark/spark-sql_2.11 "2.2.1"]
-                  [org.apache.spark/spark-hive_2.11 "2.2.1"]]
-                 :aot [sysrev.spark.core sysrev.spark.similarity]}})
+                              :test-paths ["test/clj"]}
+             ;; :test-config    {:eftest {}}
+             :jenkins        {:eftest {:thread-count 4
+                                       :report eftest.report.junit/report
+                                       :report-to-file "target/junit.xml"}}})

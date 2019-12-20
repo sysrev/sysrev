@@ -134,13 +134,14 @@
 
 (defn delete-user [user-id]
   (assert (integer? user-id))
-  (try (q/delete :web-user {:user-id user-id})
-       (finally (db/clear-query-cache))))
+  (let [project-ids (q/find :project-member {:user-id user-id} :project-id)]
+    (q/delete :web-user {:user-id user-id})
+    (doseq [project-id project-ids] (db/clear-project-cache project-id))))
 
 (defn delete-user-by-email [email]
   (assert (string? email))
-  (try (q/delete :web-user {:email email})
-       (finally (db/clear-query-cache))))
+  (some-> (q/find-one :web-user {:email email} :user-id)
+          (delete-user)))
 
 (defn create-password-reset-code [user-id]
   (q/modify :web-user {:user-id user-id} {:reset-code (crypto.random/hex 16)}))

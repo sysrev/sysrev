@@ -1,5 +1,6 @@
 (ns sysrev.test.browser.sources
-  (:require [clojure.test :refer [is use-fixtures]]
+  (:require [clojure.string :as str]
+            [clojure.test :refer [is use-fixtures]]
             [clojure.java.io :as io]
             [clj-webdriver.taxi :as taxi]
             [sysrev.datasource.api :as ds-api]
@@ -15,14 +16,14 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (deftest-browser import-pubmed-sources
-  true
+  true test-user
   [project-name "Sysrev Browser Test (import-pubmed-sources)"
    query1 "foo bar"
    query2 "grault"
    query3 "foo bar Aung"
    query4 "foo bar Jones"
    project-id (atom nil)]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
 ;;; create a project
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
@@ -94,10 +95,10 @@
                (nav/log-out)))
 
 (deftest-browser pdf-interface
-  (and (test/db-connected?) (not (test/remote-test?)))
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [filename "test-pdf-import.zip"
    file (-> (str "test-files/" filename) io/resource io/file)]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       (nav/new-project "pdf-interface test")
       (import/import-pdf-zip (b/current-project-id) {:file file :filename filename}
                              {:use-future? false})
@@ -106,15 +107,14 @@
       (b/click "a.column.article-title" :displayed? true :delay 200)
       (b/is-soon (taxi/exists? "div.pdf-container div.page div.canvasWrapper"))
       (b/click ".ui.menu > .item.articles" :delay 100)
-      (b/is-soon (taxi/exists? "a.column.article-title")))
-  :cleanup (b/cleanup-test-user! :email (:email b/test-login)))
+      (b/is-soon (taxi/exists? "a.column.article-title"))))
 
 (deftest-browser import-ris-file
   ;; once article search by title is implemented, set to true
-  (and (test/db-connected?) (not (test/remote-test?)))
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (import-ris-file)"
    title "Long Short-Term Memory"]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
       (b/click (xpath "//a[contains(text(),'RIS / RefMan')]"))
       (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
@@ -123,17 +123,18 @@
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click (xpath "//div[contains(@class,'article-title') and text()='" title "']"))
       (let [project-id (b/current-project-id)
+
             ;; below should be replaced by article search
             ;; text once that is completed
-            article-id (-> (qt/find-article {:a.project-id project-id :ad.title title } [:a.article-id])
-                           first :article-id)
-            {:keys [authors abstract primary-title secondary-title date]} (ds-api/get-article-content article-id)
-            abstract-excerpt "Learning to store information over extended time intervals"]
+            article-id (qt/find-article-1 {:a.project-id project-id :ad.title title}
+                                          :a.article-id)
+            {:keys [authors abstract primary-title secondary-title
+                    date]} (ds-api/get-article-content article-id)]
         (is (b/exists? (xpath "//span[text()='" primary-title "']")))
         (is (b/exists? (xpath "//span[text()='" secondary-title "']")))
         (is (b/exists? (xpath "//h5[text()='" date "']")))
-        (is (b/exists? (xpath "//h5[text()='" (clojure.string/join ", " authors) "']")))
-        (is (b/exists? (xpath "//span[contains(text(),'" abstract-excerpt  "')]")))
-        (is (= abstract
-               (first (b/get-elements-text (xpath "//span[contains(text(),'" abstract-excerpt  "')]"))))))
-      :cleanup (b/cleanup-test-user! :email (:email b/test-login))))
+        (is (b/exists? (xpath "//h5[text()='" (str/join ", " authors) "']")))
+        (let [excerpt "Learning to store information over extended time intervals"]
+          (is (b/exists? (xpath "//span[contains(text(),'" excerpt "')]")))
+          (is (= [abstract] (b/get-elements-text
+                             (xpath "//span[contains(text(),'" excerpt "')]"))))))))

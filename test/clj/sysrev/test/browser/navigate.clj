@@ -7,7 +7,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]))
 
 (defn go-route [path & {:keys [wait-ms pre-wait-ms silent]
-                        :or {wait-ms 20}}]
+                        :or {wait-ms 40}}]
   (let [current (taxi/current-url)
         path (if (empty? path) "/" path)]
     (cond (or (not (string? current))
@@ -31,7 +31,7 @@
     (assert (integer? project-id))
     (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent
               :pre-wait-ms (or pre-wait-ms
-                               (when (= suburi "/review") 25)))))
+                               (when (= suburi "/review") 50)))))
 
 (defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")
@@ -40,9 +40,9 @@
     (b/click "a#log-out-link" :if-not-exists :skip)
     (b/wait-until-loading-completes :pre-wait true)))
 
-(defn log-in [& [email password]]
-  (let [email (or email (:email b/test-login))
-        password (or password (:password b/test-login))]
+(defn log-in [email & [password]]
+  (assert email)
+  (let [password (or password b/test-password)]
     (log/info "logging in" (str "(" email ")"))
     (go-route "/" :silent true)
     (log-out :silent true)
@@ -55,9 +55,9 @@
     (go-route "/" :silent true)
     #_ (log/info "login successful")))
 
-(defn register-user [& [email password]]
-  (let [email (or email (:email b/test-login))
-        password (or password (:password b/test-login))]
+(defn register-user [email & [password]]
+  (assert email)
+  (let [password (or password b/test-password)]
     (log/info "registering user"  (str "(" email ")"))
     (log-out :silent true)
     (go-route "/register" :silent true)
@@ -86,7 +86,7 @@
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
   (go-route "/" :silent true)
-  (b/click (x/project-title-value name) :delay 30))
+  (b/click (x/project-title-value name) :delay 50))
 
 (defn delete-current-project []
   (when (b/current-project-id nil 1000)

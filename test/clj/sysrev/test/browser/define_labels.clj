@@ -22,10 +22,9 @@
   (xpath "//button[contains(text(),'Add Categorical Label')]"))
 
 (defn get-all-error-messages []
-  (->> (taxi/find-elements
-        (xpath "//div[contains(@class,'error')]"
-               "/descendant::div[contains(@class,'message')"
-               " and contains(@class,'red')]"))
+  (->> (taxi/find-elements (xpath "//div[contains(@class,'error')]"
+                                  "/descendant::div[contains(@class,'message')"
+                                  " and contains(@class,'red')]"))
        (mapv taxi/text)))
 
 (defn label-name-xpath

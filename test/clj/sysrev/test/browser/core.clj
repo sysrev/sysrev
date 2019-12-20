@@ -4,7 +4,7 @@
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [clj-webdriver.driver :as driver]
-            [clj-webdriver.taxi :as taxi]
+            [clj-webdriver.taxi :as taxi :refer [*driver*]]
             [clj-webdriver.core :refer [->actions move-to-element click-and-hold
                                         move-by-offset release perform]]
             [sysrev.config.core :refer [env]]
@@ -22,8 +22,8 @@
   (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)
            (org.openqa.selenium.remote DesiredCapabilities)))
 
-(defonce active-webdriver (atom nil))
-(defonce active-webdriver-config (atom nil))
+(defonce ^:dynamic *wd* (atom nil))
+(defonce ^:dynamic *wd-config* (atom nil))
 
 (defn browser-console-logs []
   (try (not-empty (taxi/execute-script "return sysrev.base.get_console_logs();"))
@@ -36,7 +36,7 @@
          (log/warn "unable to read console errors"))))
 
 (defn log-console-messages [& [level]]
-  (when @active-webdriver
+  (when *driver*
     (let [level (or level :info)]
       (if-let [logs (browser-console-logs)]
         (log/logf level "browser console logs:\n\n%s" logs)
@@ -60,10 +60,10 @@
      (log/info "current windows: (none found)")))
 
 (defn visual-webdriver? []
-  (and @active-webdriver (true? (:visual @active-webdriver-config))))
+  (and @*wd* (true? (:visual @*wd-config*))))
 
 (defn standard-webdriver? []
-  (and @active-webdriver (not (visual-webdriver?))))
+  (and @*wd* (not (visual-webdriver?))))
 
 (def browser-test-window-size {:width 1600 :height 1000})
 
@@ -85,11 +85,11 @@
            (log/warn "exception in ensure-webdriver-size")))))
 
 (defn start-webdriver [& [restart?]]
-  (if (and @active-webdriver (not restart?))
-    @active-webdriver
-    (do (when @active-webdriver
-          (try (taxi/quit) (catch Throwable _ nil)))
-        (reset! active-webdriver
+  (if (and @*wd* (not restart?))
+    @*wd*
+    (do (when @*wd*
+          (try (taxi/quit @*wd*) (catch Throwable _ nil)))
+        (reset! *wd*
                 (let [opts (doto (ChromeOptions.)
                              (.addArguments
                               (concat ["headless"
@@ -103,10 +103,11 @@
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
                       driver (driver/init-driver {:webdriver chromedriver})]
-                  (taxi/set-driver! driver)))
-        (reset! active-webdriver-config {:visual false})
+                  (taxi/set-driver! driver)
+                  driver))
+        (reset! *wd-config* {:visual false})
         (ensure-webdriver-size)
-        @active-webdriver)))
+        @*wd*)))
 
 (defn start-visual-webdriver
   "Starts a visible Chrome webdriver instance for taxi interaction.
@@ -116,26 +117,27 @@
   Can be closed with `stop-webdriver` when finished."
   [& {:keys [restart?]
       :or {restart? false}}]
-  (if (and @active-webdriver (not restart?))
-    @active-webdriver
-    (do (when @active-webdriver
-          (try (taxi/quit) (catch Throwable _ nil)))
-        (reset! active-webdriver
+  (if (and @*wd* (not restart?))
+    @*wd*
+    (do (when @*wd*
+          (try (taxi/quit @*wd*) (catch Throwable _ nil)))
+        (reset! *wd*
                 (let [opts (doto (ChromeOptions.)
                              (.addArguments ["window-size=1200,800"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
                       driver (driver/init-driver {:webdriver chromedriver})]
-                  (taxi/set-driver! driver)))
-        (reset! active-webdriver-config {:visual true})
-        @active-webdriver)))
+                  (taxi/set-driver! driver)
+                  driver))
+        (reset! *wd-config* {:visual true})
+        @*wd*)))
 
 (defn stop-webdriver []
-  (when @active-webdriver
-    (taxi/quit)
-    (reset! active-webdriver nil)
-    (reset! active-webdriver-config nil)))
+  (when @*wd*
+    (taxi/quit @*wd*)
+    (reset! *wd* nil)
+    (reset! *wd-config* nil)))
 
 (defonce webdriver-shutdown-hook (atom nil))
 
@@ -157,30 +159,36 @@
              (log/error "Screenshot failed:" (type e) (.getMessage e)))))
     (log/info "Skipping take-screenshot (visual webdriver)")))
 
-(def test-login
-  {:email "browser+test@insilica.co"
-   :password "1234567890"})
+(def test-password "1234567890")
 
-(defn delete-test-user [& {:keys [email] :or {email (:email test-login)}}]
+(defn delete-test-user [& {:keys [email user-id]}]
+  (sutil/assert-exclusive email user-id)
   (db/with-transaction
     (when-let [{:keys [user-id stripe-id]
-                :as user} (user/user-by-email email)]
+                :as user} (if email
+                            (user/user-by-email email)
+                            (q/find-one :web-user {:user-id user-id}))]
       (when stripe-id
         (try (stripe/delete-customer! user)
              (catch Throwable _ nil)))
       (when user-id
         (q/delete :compensation-user-period {:user-id user-id}))
-      (user/delete-user-by-email email))))
+      (if email
+        (user/delete-user-by-email email)
+        (user/delete-user user-id)))))
 
-(defn create-test-user [& {:keys [email password project-id]
-                           :or {email (:email test-login)
-                                password (:password test-login)
+(defn create-test-user [& {:keys [email password project-id literal]
+                           :or {email "browser+test@insilica.co"
+                                password test-password
                                 project-id nil}}]
-  (db/with-transaction
-    (delete-test-user :email email)
-    (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
-      (user/change-user-setting user-id :ui-theme "Dark")
-      user)))
+  (let [[name domain] (str/split email #"@")
+        email (if literal email
+                  (format "%s+%s@%s" name (sutil/random-id) domain))]
+    (db/with-transaction
+      (delete-test-user :email email)
+      (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
+        (user/change-user-setting user-id :ui-theme "Dark")
+        (merge user {:password password})))))
 
 (defn displayed-now?
   "Wrapper for taxi/displayed? to handle common exceptions. Returns true
@@ -203,11 +211,11 @@
   timeout."
   [pred & [timeout interval]]
   (let [remote? (test/remote-test?)
-        timeout (or timeout (if remote? 10000 5000))
-        interval (or interval 10)]
+        timeout (or timeout (if remote? 12000 6000))
+        interval (or interval 15)]
     (when-not (pred)
       (Thread/sleep interval)
-      (taxi/wait-until pred timeout interval))))
+      (taxi/wait-until (fn [& _] (pred)) timeout interval))))
 
 (defmacro is-soon
   "Runs (is pred-form) after attempting to wait for pred-form to
@@ -266,21 +274,21 @@
 
 (defn ajax-inactive?
   "Returns true if no ajax requests in browser have been active for
-  duration milliseconds (default 20)."
+  duration milliseconds (default 30)."
   [& [duration]]
-  (< (ajax-activity-duration) (- (or duration 20))))
+  (< (ajax-activity-duration) (- (or duration 30))))
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
   (dotimes [_ (or loop 1)]
-    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 15)))
-    (assert (try-wait wait-until #(and (ajax-inactive? inactive-ms)
-                                       (every? (complement taxi/exists? #_ displayed-now?)
-                                               [(not-class "div.ui.loader.active"
-                                                           "loading-indicator")
-                                                "div.ui.dimmer.active > .ui.loader"
-                                                ".ui.button.loading"]))
-                      timeout interval))))
+    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
+    (wait-until #(and (ajax-inactive? inactive-ms)
+                      (every? (complement taxi/exists?)
+                              [(not-class "div.ui.loader.active"
+                                          "loading-indicator")
+                               "div.ui.dimmer.active > .ui.loader"
+                               ".ui.button.loading"]))
+                timeout interval)))
 
 (defn current-project-id
   "Reads project id from current url. Waits a short time before
@@ -292,7 +300,7 @@
               (some-> id-str parse-integer)))]
     (if now
       (lookup-id)
-      (when (try-wait wait-until #(integer? (lookup-id)) (or wait-ms 2500))
+      (when (try-wait wait-until #(integer? (lookup-id)) (or wait-ms 3000))
         (lookup-id)))))
 
 (defn current-project-route
@@ -304,7 +312,7 @@
     (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 15 clear? true}}]
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 35 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
@@ -312,9 +320,8 @@
     (taxi/input-text q text)
     (Thread/sleep (quot delay 2))))
 
-(defn set-input-text-per-char
-  [q text & {:keys [delay char-delay clear?]
-             :or {delay 15 char-delay 20 clear? true}}]
+(defn set-input-text-per-char [q text & {:keys [delay char-delay clear?]
+                                         :or {delay 35 char-delay 30 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
@@ -341,10 +348,10 @@
     result))
 
 (defn click [q & {:keys [if-not-exists delay displayed? external? timeout]
-                  :or {if-not-exists :wait, delay 20}}]
+                  :or {if-not-exists :wait, delay 40}}]
   (letfn [(wait [ms]
             (if external?
-              (Thread/sleep (+ ms 20))
+              (Thread/sleep (+ ms 25))
               (wait-until-loading-completes :pre-wait ms :timeout timeout)))]
     ;; auto-exclude "disabled" class when q is css
     (let [q (if external? q
@@ -357,7 +364,7 @@
         (try (taxi/click q)
              (catch Throwable _
                (log/warnf "got exception clicking %s, trying again..." (pr-str q))
-               (wait (+ delay 100))
+               (wait (+ delay 200))
                (taxi/click q))))
       (wait delay))))
 
@@ -368,7 +375,7 @@
   (wait-until-displayed input-element)
   (dotimes [_ length]
     (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-    (Thread/sleep 10)))
+    (Thread/sleep 15)))
 
 (defn ensure-logged-out []
   (try (when (taxi/exists? "a#log-out-link")
@@ -376,40 +383,57 @@
          (wait-until-loading-completes :pre-wait true))
        (catch Throwable _ nil)))
 
-(defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
+(defmacro with-webdriver [& body]
+  `(binding [*wd* (atom nil)
+             *wd-config* (atom nil)
+             taxi/*driver* nil]
+     (start-webdriver true)
+     (try ~@body (finally (stop-webdriver)))))
+
+(defmacro deftest-browser [name enable test-user bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)
         repl? (= :dev (:profile env))]
     `(deftest ~name
        (when (or ~repl? ~enable)
          (util/with-print-time-elapsed ~name-str
-           (let ~bindings
-             (try (log/infof "[[ %s started ]]" ~name-str)
-                  (when ~repl?
-                    (try ~cleanup
-                         (catch Throwable e#
-                           (log/warn "got exception in repl cleanup:" (str e#))))
-                    (create-test-user))
-                  ~body
-                  (catch Throwable e#
-                    (log/error "current-url:" (try (taxi/current-url)
-                                                   (catch Throwable e2# nil)))
-                    (log-console-messages :error)
-                    (take-screenshot :error)
-                    (throw e#))
-                  (finally
-                    (let [failed# (and (instance? clojure.lang.IDeref *report-counters*)
-                                       (map? @*report-counters*)
-                                       (or (pos? (:fail @*report-counters*))
-                                           (pos? (:error @*report-counters*))))]
-                      (when (or (not-empty (browser-console-logs))
-                                (not-empty (browser-console-errors)))
-                        (log-console-messages (if failed# :error :info))))
-                    (try (wait-until-loading-completes :pre-wait true :timeout 1500)
-                         (catch Throwable e2#
-                           (log/info "test cleanup - wait-until-loading-completes timed out")))
-                    (when-not ~repl?
-                      ~cleanup
-                      (ensure-logged-out))))))))))
+           (log/infof "[[ %s started ]]" ~name-str)
+           (with-webdriver
+             (init-route "/" :silent true)
+             (let [~test-user (if (and (test/db-connected?) @db/active-db)
+                                (create-test-user)
+                                {:email "browser+test@insilica.co"
+                                 :password test-password})
+                   ~@bindings]
+               (try (when ~repl?
+                      (try ~cleanup
+                           (create-test-user :email (:email ~test-user) :literal true)
+                           (catch Throwable e#
+                             (log/warn "got exception in repl cleanup:" (str e#)))))
+                    ~body
+                    (catch Throwable e#
+                      (log/error "current-url:" (try (taxi/current-url)
+                                                     (catch Throwable e2# nil)))
+                      (log-console-messages :error)
+                      (take-screenshot :error)
+                      (throw e#))
+                    (finally
+                      (try (wait-until-loading-completes :pre-wait true :timeout 1500)
+                           (catch Throwable e2#
+                             (log/info "test cleanup - wait-until-loading-completes timed out")))
+                      (let [failed# (and (instance? clojure.lang.IDeref *report-counters*)
+                                         (map? @*report-counters*)
+                                         (or (pos? (:fail @*report-counters*))
+                                             (pos? (:error @*report-counters*))))]
+                        (when (or (not-empty (browser-console-logs))
+                                  (not-empty (browser-console-errors)))
+                          (log-console-messages (if failed# :error :info))))
+                      (when-not ~repl?
+                        (try ~cleanup
+                             (catch Throwable e#
+                               (log/warn "exception in test cleanup:" (str e#))))
+                        #_ (ensure-logged-out)
+                        (when (test/db-connected?)
+                          (cleanup-test-user! :email (:email ~test-user)))))))))))))
 
 (defn current-frame-names []
   (->> (taxi/xpath-finder "//iframe")
@@ -474,8 +498,7 @@
   (let [full-url (path->url path)]
     (when-not silent (log/info "loading" full-url))
     (taxi/to full-url)
-    (wait-until-loading-completes :pre-wait true)
-    (wait-until-loading-completes :pre-wait true)
+    (wait-until-loading-completes :pre-wait true :loop 2)
     (taxi/execute-script "sysrev.base.toggle_analytics(false);")
     (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
       (if (pos-int? fn-count)
@@ -494,24 +517,25 @@
 
 (defn webdriver-fixture-each [f]
   (let [local? (= "localhost" (:host (test/get-selenium-config)))
-        cache? @db/query-cache-enabled]
+        ;; cache? @db/query-cache-enabled
+        ]
     (when-not local? (reset! db/query-cache-enabled false))
-    (when (test/db-connected?) (create-test-user))
-    (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
-    (if (reuse-webdriver?)
-      (do (start-webdriver) ;; use existing webdriver if running
-          (ensure-webdriver-size)
-          (try (ensure-logged-out) (init-route "/")
-               ;; try restarting webdriver if unable to load page
-               (catch Throwable _
-                 (log/warn "restarting webdriver due to exception")
-                 (start-webdriver true) (init-route "/"))))
-      (start-webdriver true))
+    #_ (when (test/db-connected?) (create-test-user))
+    #_ (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
+    #_ (if (reuse-webdriver?)
+         (do (start-webdriver) ;; use existing webdriver if running
+             (ensure-webdriver-size)
+             (try (ensure-logged-out) (init-route "/")
+                  ;; try restarting webdriver if unable to load page
+                  (catch Throwable _
+                    (log/warn "restarting webdriver due to exception")
+                    (start-webdriver true) (init-route "/"))))
+         (start-webdriver true))
     (f)
-    (when (reuse-webdriver?)
-      ;; log out to set up for next test
-      (ensure-logged-out))
-    (when-not local? (reset! db/query-cache-enabled cache?))))
+    #_ (when (reuse-webdriver?)
+         ;; log out to set up for next test
+         (ensure-logged-out))
+    #_ (when-not local? (reset! db/query-cache-enabled cache?))))
 
 (defonce ^:private chromedriver-version-atom (atom nil))
 
@@ -529,7 +553,7 @@
 
 (defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y delay]
                                :or {start-x 0 offset-x 0 start-y 0 offset-y 0
-                                    delay 25}}]
+                                    delay 40}}]
   (let [start-x (or start-x 0)
         offset-x (or offset-x 0)
         start-y (or start-y 0)
@@ -553,7 +577,7 @@
                           :start-y start-y :offset-y offset-y
                           :x x :y y}))
     (Thread/sleep delay)
-    (->actions @active-webdriver
+    (->actions *driver*
                (move-to-element (taxi/element q) x y)
                (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))
     (Thread/sleep delay)))

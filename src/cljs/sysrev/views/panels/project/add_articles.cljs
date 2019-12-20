@@ -224,7 +224,8 @@
      [:div.row
       [:div.six.wide.middle.aligned.left.aligned.column
        {:style {:padding-right "0.25rem"}}
-       [:div.ui.large.label.source-type (str source-type)]
+       [:div.ui.large.label.source-type {:data-name source-type}
+        (str source-type)]
        (when enabled
          [SourceArticlesLink source-id])]
       [:div.ten.wide.right.aligned.middle.aligned.column
@@ -366,7 +367,8 @@
             ;; unique count
             (when-let [unique-articles-count (:unique-articles-count source)]
               [:div.column
-               [:span.unique-count (.toLocaleString unique-articles-count)]
+               [:span.unique-count {:data-count unique-articles-count}
+                (.toLocaleString unique-articles-count)]
                " unique " (article-or-articles unique-articles-count)])
             (doall (for [{shared-count :count, overlap-source-id :overlap-source-id}
                          (filter #(pos? (:count %)) (:overlap source))]

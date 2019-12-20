@@ -154,8 +154,8 @@
   (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 4))
 
 (deftest-browser pubmed-search
-  true []
-  (do (nav/log-in)
+  true test-user []
+  (do (nav/log-in (:email test-user))
       (nav/go-route "/pubmed-search")
       (is (nav/panel-exists? [:pubmed-search]))
       (testing "Various search terms will yield the correct pmid count"

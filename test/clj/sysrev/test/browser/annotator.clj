@@ -5,7 +5,6 @@
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
-            [sysrev.user.core :refer [user-by-email]]
             [sysrev.project.core :as project]
             [sysrev.export.core :as export]
             [sysrev.test.core :as test]
@@ -237,7 +236,7 @@
 
 (deftest-browser annotation-text
   ;; disabled; covered by annotator-interface test
-  (and false (test/db-connected?))
+  (and false (test/db-connected?)) test-user
   [project-name "Browser Test (annotation-text)"
    ann1 {:client-field "primary-title"
          :selection "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"
@@ -245,7 +244,7 @@
          :value "bar"
          :offset-x 670}
    project-id (atom nil)]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (pm/import-pubmed-search-via-db "foo bar enthalpic mesoporous")
@@ -261,8 +260,7 @@
       (b/click "a.article-title")
       (annotate-article ann1)
       ;;check the annotation
-      (let [{:keys [email]} b/test-login
-            user-id (user-by-email email :user-id)
+      (let [{:keys [user-id]} test-user
             project-id (review-articles/get-user-project-id user-id)
             article-id (first (project/project-article-ids project-id))
             {:keys [annotations]} (api/article-user-annotations article-id)
@@ -286,14 +284,14 @@
         (is (in? csv-row "0"))
         (is (in? csv-row "94"))
         (is (= annotations-csv (-> (csv/write-csv annotations-csv)
-                                   (csv/parse-csv :strict true))))))
-  :cleanup (b/cleanup-test-user! :email (:email b/test-login)))
+                                   (csv/parse-csv :strict true)))))))
 
 (deftest-browser annotator-interface
-  (test/db-connected?)
+  (test/db-connected?) test-user
   [project-name "Browser Test (annotator-interface)"
    project-id (atom nil)
-   test-users (mapv #(str "user" % "@fake.com") [1 2])
+   test-users (mapv #(b/create-test-user :email %)
+                    (mapv #(str "user" % "@fake.com") [1 2]))
    [user1 user2] test-users
    to-user-name #(-> % (str/split #"@") first)
    switch-user (fn [email]
@@ -319,14 +317,13 @@
    [ann1-def ann2-def ann3-def] ann-defs
    ann-vals (mapv #(select-keys % [:selection :semantic-class :value]) ann-defs)
    [ann1 ann2 ann3] ann-vals]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (pm/import-pubmed-search-via-db "foo bar enthalpic mesoporous")
-      (doseq [email test-users]
-        (let [{:keys [user-id]} (b/create-test-user :email email :project-id @project-id)]
-          (assert (integer? user-id))))
-      (switch-user user1)
+      (doseq [{:keys [user-id]} test-users]
+        (project/add-project-member @project-id user-id))
+      (switch-user (:email user1))
       (nav/go-project-route "/review")
       ;; select a value for "Include", don't save yet
       (review-articles/set-label-answer {:short-label "Include" :value-type "boolean" :value true})
@@ -341,11 +338,11 @@
       (b/click "a.article-title" :delay 100)
       (is (not (taxi/exists? sidebar-el)))
       ;; check that annotation is visible in read-only article view
-      (b/exists? (user-profile-link user1))
+      (b/exists? (user-profile-link (:email user1)))
       (b/is-soon (= (article-view-annotations) [ann1]) 2000 30)
       (b/click ".ui.button.change-labels")
       (b/exists? sidebar-el)
-      (b/exists? (user-profile-link user1))
+      (b/exists? (user-profile-link (:email user1)))
       (b/exists? "div.label-editor-view")
       ;; check that still visible after clicking "Change Labels"
       (b/is-soon (= (article-view-annotations) [ann1]) 2000 30)
@@ -363,10 +360,10 @@
       ;; check that both annotations appear in sidebar view
       (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
       ;; switch to other user
-      (switch-user user2)
+      (switch-user (:email user2))
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click "a.article-title")
-      (b/exists? (user-profile-link user1))
+      (b/exists? (user-profile-link (:email user1)))
       ;; check that both annotations appear in article view (user2)
       (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2])) 2000 30)
       (is (not (taxi/exists? sidebar-el)))
@@ -383,8 +380,8 @@
       (is (not (taxi/exists? sidebar-el)))
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click "a.article-title")
-      (b/exists? (user-profile-link user1))
-      (b/exists? (user-profile-link user2))
+      (b/exists? (user-profile-link (:email user1)))
+      (b/exists? (user-profile-link (:email user2)))
       ;; check that all annotations appear in article view
       (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
       (is (not (taxi/exists? sidebar-el)))
@@ -401,16 +398,16 @@
       ;; check valid db values stored for each annotation
       (check-db-annotation
        @project-id [:selection]
-       (merge ann1-def {:user-id (user-by-email user1 :user-id)}))
+       (merge ann1-def {:user-id (:user-id user1)}))
       (check-db-annotation
        @project-id [:selection]
-       (merge ann2-def {:user-id (user-by-email user1 :user-id)}))
+       (merge ann2-def {:user-id (:user-id user1)}))
       (check-db-annotation
        @project-id [:selection]
-       (merge ann3-def {:user-id (user-by-email user2 :user-id)}))
+       (merge ann3-def {:user-id (:user-id user2)}))
       (check-annotations-csv @project-id)
       ;; switch back to first user
-      (switch-user user1)
+      (switch-user (:email user1))
       ;; navigate back to the article
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click "a.article-title")
@@ -433,7 +430,7 @@
         ;; check for correct db values on edited annotation
         (check-db-annotation
          @project-id [:selection]
-         (merge ann1-def ann1 {:user-id (user-by-email user1 :user-id)}))
+         (merge ann1-def ann1 {:user-id (:user-id user1)}))
         ;; now try editing semantic-class value
         (edit-annotation ann1 {:semantic-class "class1-changed"})
         (let [ann1 (assoc ann1 :semantic-class "class1-changed")]
@@ -442,7 +439,7 @@
           (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
           (check-db-annotation
            @project-id [:selection]
-           (merge ann1-def ann1 {:user-id (user-by-email user1 :user-id)}))
+           (merge ann1-def ann1 {:user-id (:user-id user1)}))
           (check-annotations-csv @project-id)
           (is (= 3 (count (api/project-annotations @project-id))))
           ;; delete an annotation
@@ -459,5 +456,5 @@
           (check-highlights [ann3])
           (is (empty? (sidebar-annotations)))
           (is (= 1 (count (api/project-annotations @project-id)))))))
-  :cleanup (doseq [email (conj test-users (:email b/test-login))]
+  :cleanup (doseq [{:keys [email]} test-users]
              (b/cleanup-test-user! :email email)))

@@ -14,8 +14,8 @@
                     [:project :project :add-articles]])))
 
 (deftest-browser project-routes
-  true []
-  (do (nav/log-in)
+  true test-user []
+  (do (nav/log-in (:email test-user))
       (nav/new-project "Simple Test")
       (let [project-id (b/current-project-id)]
         (pm/import-pubmed-search-via-db "foo bar")
@@ -52,7 +52,7 @@
                (is (b/exists? "div#login-register-panel"))))
 
 (deftest-browser terms-of-use
-  true []
+  true test-user []
   (do (nav/go-route "/")
       (b/click "#footer a#terms-link")
       (is (b/exists? "h2#preamble"))

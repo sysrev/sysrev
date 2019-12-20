@@ -18,13 +18,14 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (deftest-browser label-consensus-test
-  (test/db-connected?)
+  (test/db-connected?) test-user
   [separator export/default-csv-separator
    project-id (atom nil)
    label-id-1 (atom nil)
-   test-users (mapv #(str "user" % "@fake.com") [1 2 3])
+   test-users (mapv #(b/create-test-user :email %)
+                    (mapv #(str "user" % "@fake.com") [1 2 3]))
    [user1 user2 user3] test-users
-   to-user-name #(-> % (str/split #"@") first)
+   to-user-name #(-> % :email (str/split #"@") first)
    project-name "Label Consensus Test"
    switch-user (fn [email]
                  (nav/log-in email)
@@ -53,7 +54,7 @@
                   (is (b/exists? resolved))
                   (b/is-soon (= (format "Resolved (%d)" n-resolved) (taxi/text resolved)))
                   (b/wait-until-loading-completes :pre-wait true))]
-  (do (nav/log-in)
+  (do (nav/log-in (:email test-user))
       ;; create project
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
@@ -65,15 +66,12 @@
       (define/define-label label1)
       (is (b/exists? (x/match-text "span" (:short-label label1))))
       ;; create users
-      (doseq [email test-users]
-        (let [{:keys [user-id]} (b/create-test-user :email email :project-id @project-id)]
-          (assert (integer? user-id))
-          ;; set "admin" on user1 for editing labels
-          (when (in? [user1] email)
-            (project/set-member-permissions
-             @project-id user-id ["member" "admin"]))))
+      (doseq [{:keys [user-id]} test-users]
+        (project/add-project-member @project-id user-id))
+      (project/set-member-permissions @project-id (:user-id user1)
+                                      ["member" "admin"])
       ;; review article from user1
-      (switch-user user1)
+      (switch-user (:email user1))
       (nav/go-project-route "/review")
       (review/set-article-answers lvalues-1)
       (let [uanswers (export/export-user-answers-csv @project-id)
@@ -93,7 +91,7 @@
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; review article from user2 (different categorical answer)
-      (switch-user user2)
+      (switch-user (:email user2))
       (nav/go-project-route "/review")
       (review/set-article-answers lvalues-2)
       (is (b/exists? ".no-review-articles"))
@@ -116,7 +114,7 @@
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; enable label consensus setting
-      (switch-user user1)
+      (switch-user (:email user1))
       (reset! label-id-1 (->> (vals (project/project-labels @project-id))
                               (filter #(= (:short-label %)
                                           (:short-label label1)))
@@ -142,7 +140,7 @@
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; switch to non-admin user to use "Change Labels"
-      (switch-user user2)
+      (switch-user (:email user2))
       ;; check article list interface (Conflict filter)
       (check-status 0 1 0)
       (b/click conflicts :displayed? true :delay 100)
@@ -156,7 +154,7 @@
       ;; check that article still shows as conflict
       (check-status 0 1 0)
       ;; disable label consensus setting
-      (switch-user user1)
+      (switch-user (:email user1))
       (define/edit-label @label-id-1 (merge label1 {:consensus false}))
       ;; check that article no longer shows as conflict
       (check-status 1 0 0)
@@ -198,4 +196,5 @@
       (is (b/exists? ".ui.label.review-status.purple"))
       (is (b/exists? ".ui.label.labels-status.purple")))
   :cleanup (do (some-> @project-id (project/delete-project))
-               (doseq [email test-users] (b/delete-test-user :email email))))
+               (doseq [{:keys [email]} test-users]
+                 (b/delete-test-user :email email))))

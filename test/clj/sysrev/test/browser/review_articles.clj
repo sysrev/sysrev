@@ -5,7 +5,7 @@
             [sysrev.db.core :as db]
             [sysrev.label.core :as labels]
             [sysrev.project.core :as project]
-            [sysrev.user.core :as user :refer [user-by-email user-self-info]]
+            [sysrev.user.core :as user :refer [user-self-info]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -27,14 +27,14 @@
 ;; (b/delete-test-user)
 
 ;; find the project
-;; (user-self-info (user-by-email (:email b/test-login) :user-id))
+;; (user-self-info (user-by-email ... :user-id))
 
 ;; delete the project
-;; (let [project-ids (->> (user-by-email (:email b/test-login)) :user-id user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
+;; (let [project-ids (->> (user-by-email ...) :user-id user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
 
 ;; useful definitions after basic values have been set by tests
-;; (def email (:email b/test-login))
-;; (def password (:password b/test-login))
+;; (def email "browser+test@insilica.co")
+;; (def password b/test-password)
 ;; (def user-id (:user-id (user-by-email email)))
 ;; (def project-id (get-user-project-id user-id))
 ;; (def article-title (-> (labels/query-public-article-labels project-id) vals first :title))
@@ -145,7 +145,8 @@
     (when remote? (Thread/sleep 100))
     (b/click ".button.save-labels" :delay 30 :displayed? true)
     (b/wait-until-loading-completes :pre-wait (if remote? 150 30) :loop 2)
-    (db/clear-query-cache)))
+    (some-> (b/current-project-id)
+            (db/clear-project-cache))))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article
@@ -163,8 +164,9 @@
          label-settings)))
 
 (deftest-browser create-project-and-review-article
-  (test/db-connected?)
-  [project-id (atom nil)
+  (test/db-connected?) test-user
+  [{:keys [user-id email]} test-user
+   project-id (atom nil)
    project-name "Sysrev Browser Test (create-project-and-review-article)"
    no-display "Display name must be provided"
    no-question "Question text must be provided"
@@ -176,9 +178,8 @@
    categorical-label-value "Qux"
    have-errors-now? #(= (set %) (set (define/get-all-error-messages)))
    have-errors? (fn [errors] (b/try-wait b/wait-until #(have-errors-now? errors) 2500))
-   new-label "//div[contains(@id,'new-label-')]"
-   {:keys [user-id]} (user-by-email (:email b/test-login))]
-  (do (nav/log-in)
+   new-label "//div[contains(@id,'new-label-')]"]
+  (do (nav/log-in email)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
@@ -279,7 +280,6 @@
         ;; check a categorical value
         (is (= categorical-label-value
                (label-button-value (:short-label categorical-label-definition))))))
-
   :cleanup (some-> @project-id (project/delete-project)))
 
 (defn randomly-review-all-articles

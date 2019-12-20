@@ -18,10 +18,8 @@
 
 (deftest pubmed-search-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} b/test-login
+        {:keys [email password]} (b/create-test-user)
         route-response (route-response-fn handler)]
-    ;; create user
-    (b/create-test-user)
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login"
                                 {:email email :password password})
@@ -38,15 +36,14 @@
                                {:pmids (->> (pubmed/get-search-query-response "foo bar" 1)
                                             :pmids (str/join ","))})
                :result (get 25706626) :authors first)
-           {:name "Aung T", :authtype "Author", :clusterid ""}))))
+           {:name "Aung T", :authtype "Author", :clusterid ""}))
+    (b/delete-test-user :email email)))
 
 (deftest create-project-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} b/test-login
+        {:keys [email password]} (b/create-test-user)
         search-term "foo bar"
         route-response (route-response-fn handler)]
-    ;; create user
-    (b/create-test-user)
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login" {:email email :password password})
                 [:result :valid]))
@@ -69,33 +66,30 @@
       ;; I would like a 'get-project' route
       ;;
       ;; deletion can't happen for a user who isn't part of the project
-      (let [non-member-email "non@member.com"
-            non-member-password "nonmember"
-            {:keys [user-id]} (b/create-test-user :email non-member-email
-                                                  :password non-member-password)]
-        (route-response :post "/api/auth/login" {:email non-member-email
-                                                 :password non-member-password})
+      (let [non-member (b/create-test-user :email "non@member.com"
+                                           :password "nonmember")]
+        (route-response :post "/api/auth/login" {:email (:email non-member)
+                                                 :password (:password non-member)})
         (is (= "Not authorized (project member)"
                (get-in (route-response :post "/api/delete-project"
                                        {:project-id new-project-id})
                        [:error :message])))
         ;; deletion can't happen for a user who isn't an admin of the project
-        (project/add-project-member new-project-id user-id)
+        (project/add-project-member new-project-id (:user-id non-member))
         (is (= "Not authorized (project member)"
                (get-in (route-response :post "/api/delete-project"
                                        {:project-id new-project-id})
                        [:error :message])))
         ;; add the user as an admin, they can now delete the project
-        (project/set-member-permissions new-project-id user-id ["member" "admin"])
+        (project/set-member-permissions new-project-id (:user-id non-member) ["member" "admin"])
         (is (get-in (route-response :post "/api/delete-project"
                                     {:project-id new-project-id})
-                    [:result :success]))))))
+                    [:result :success]))))
+    (b/delete-test-user :email email)))
 
 (deftest identity-project-response-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} b/test-login
-        ;; create user
-        {:keys [user-id]} (b/create-test-user)
+        {:keys [email user-id password]} (b/create-test-user)
         _ (user/set-user-permissions user-id ["user"])
         route-response (route-response-fn handler)]
     (is (integer? user-id))
@@ -118,17 +112,15 @@
     (let [response (route-response :get "/api/auth/identity")
           projects (->> response :result :projects (filter :member?))]
       (is (= 1 (count projects))
-          (format "response = %s" (pr-str response))))))
+          (format "response = %s" (pr-str response))))
+    (b/delete-test-user :email email)))
 
 (deftest add-articles-from-pubmed-search-test
   (let [handler (sysrev-handler)
-        {:keys [email password]} b/test-login
+        {:keys [email password]} (b/create-test-user)
         search-term "foo bar"
         route-response (route-response-fn handler)
-        new-user-email "baz@qux.com"
-        new-user-password "bazqux"]
-    ;; create user
-    (b/create-test-user)
+        new-user (b/create-test-user :email "baz@qux.com" :password "bazqux")]
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login"
                                 {:email email :password password})
@@ -145,11 +137,10 @@
       (let [response (route-response :get "/api/project-sources"
                                      {:project-id project-id})]
         (is (empty? (get-in response [:result :sources]))))
-      ;; add a member to a project
-      (b/create-test-user :email new-user-email :password new-user-password)
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login"
-                                  {:email new-user-email :password new-user-password})
+                                  {:email (:email new-user)
+                                   :password (:password new-user)})
                   [:result :valid]))
       ;; add member to project
       (is (= project-id (get-in (route-response :post "/api/join-project"
@@ -192,13 +183,13 @@
       (is (= 2 (count (filter #(= (:project-id %) project-id)
                               (get-in (route-response :get "/api/project-sources"
                                                       {:project-id project-id})
-                                      [:result :sources]))))))))
+                                      [:result :sources])))))
+      (b/delete-test-user :email (:email new-user)))))
 
 (deftest delete-project-and-sources
   (let [handler (sysrev-handler)
-        {:keys [email password]} b/test-login
+        {:keys [email password]} (b/create-test-user)
         route-response (route-response-fn handler)
-        _ (b/create-test-user)
         _ (route-response :post "/api/auth/login" {:email email :password password})
         create-project-response (route-response :post "/api/create-project"
                                                 {:project-name test-project-name})
@@ -267,4 +258,5 @@
                             (get-in (route-response :get "/api/project-sources"
                                                     {:project-id project-id})
                                     [:result :sources])))
-             (project/project-article-count project-id))))))
+             (project/project-article-count project-id)))
+      (b/delete-test-user :email email))))

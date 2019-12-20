@@ -56,7 +56,7 @@ node {
         currentBuild.result = 'FAILURE'
         sendSlackMsg ('Browser tests failed')
       } finally {
-        junit 'target/junit-browser.xml'
+        junit 'target/junit.xml'
       }
     }
   }

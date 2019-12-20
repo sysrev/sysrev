@@ -89,17 +89,16 @@
           (b/take-screenshot :warn)))))
 
 (deftest-browser correct-project-activity
-  (test/db-connected?)
-  [project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
+  (test/db-connected?) test-user
+  [{:keys [user-id email]} test-user
+   project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"
-   email (:email b/test-login)
-   user-id (user-by-email email :user-id)
    click-project-link #(do (log/infof "loading project %s" (pr-str %))
                            (b/click (xpath "//a[contains(text(),'" % "')]") :delay 50))]
   (do #_ (b/start-webdriver true)
-      (nav/log-in)
+      (nav/log-in email)
       ;; subscribe to plans
-      (plans/user-subscribe-to-unlimited email (:password b/test-login))
+      (plans/user-subscribe-to-unlimited email)
       ;; create a project, populate with articles
       (nav/new-project project-name-1)
       ;; set the project to private
@@ -192,19 +191,13 @@
   :cleanup (b/cleanup-test-user! :user-id user-id))
 
 (deftest-browser user-description
-  (test/db-connected?)
-  [email-browser+test (:email b/test-login)
-   password-browser+test (:password b/test-login)
-   email-test-user "test@insilica.co"
-   password-test-user "testinsilica"
-   _ (b/create-test-user :email email-test-user :password password-test-user)
-   user-id-test-user (user-by-email email-test-user :user-id)
-   user-id-browser+test (user-by-email email-browser+test :user-id)
+  (test/db-connected?) test-user
+  [user1 (b/create-test-user :email "test@insilica.co")
    user-introduction "I am the browser test"]
   (do
     ;; make test-user a public reviewer
-    (make-public-reviewer user-id-test-user email-test-user)
-    (nav/log-in email-test-user password-test-user)
+    (make-public-reviewer (:user-id user1) (:email user1))
+    (nav/log-in (:email user1))
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to the user profile
     (b/click user-name-link)
@@ -217,11 +210,11 @@
     (markdown/click-save)
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; log in as test user
-    (nav/log-in)
+    (nav/log-in (:email test-user))
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to users
     (nav/go-route "/users" :wait-ms 100)
-    (let [url (format "/user/%s/profile" user-id-test-user)]
+    (let [url (format "/user/%s/profile" (:user-id user1))]
       (if (test/remote-test?)
         (nav/go-route url)
         (b/click (xpath (format "//a[@href='%s']" url)))))
@@ -229,12 +222,12 @@
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; there is no edit introduction option
     (b/is-soon (not (taxi/exists? edit-introduction))))
-  :cleanup (b/cleanup-test-user! :email email-test-user))
+  :cleanup (b/cleanup-test-user! :email (:email user1)))
 
 (deftest-browser user-avatar
-  (test/db-connected?)
-  [{:keys [user-id]} (user-by-email (:email b/test-login))]
-  (do (nav/log-in)
+  (test/db-connected?) test-user
+  [{:keys [user-id email]} test-user]
+  (do (nav/log-in email)
       ;; go to the user profile
       (b/click "#user-name-link")
       (b/click "#user-profile" :delay 30)
@@ -320,7 +313,7 @@
   (and (test/db-connected?)
        ;; TODO: invite correct user by name to fix for populated db
        ;; (staging.sysrev.com)
-       (not (test/remote-test?)))
+       (not (test/remote-test?))) test-user
   [user1 {:email "foo@insilica.co" :password "foobar"}
    new-email-address "bar@insilica.co"
    user-id (user-by-email (:email user1) :user-id)]
@@ -373,7 +366,7 @@
         (is (b/exists? (xpath "//a[contains(text(),'foo')]")))
         ;; FIX: why is this b/init-route needed for the nav/log-in?
         (b/init-route "/")
-        (nav/log-in)
+        (nav/log-in (:email test-user))
         (nav/new-project "Invitation Test")
         ;; go to user and invite foo
         (nav/go-route "/users")
