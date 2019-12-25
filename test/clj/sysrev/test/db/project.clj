@@ -2,14 +2,14 @@
   (:require [clojure.test :refer [deftest is use-fixtures]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
-            [sysrev.source.core :as source]
-            [sysrev.source.import :as import]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.test.core :refer [default-fixture database-rollback-fixture]]))
+            #_ [sysrev.project.core :as project]
+            #_ [sysrev.source.core :as source]
+            #_ [sysrev.source.import :as import]
+            #_ [sysrev.formats.pubmed :as pubmed]
+            [sysrev.test.core :refer [default-fixture]]))
 
 (use-fixtures :once default-fixture)
-(use-fixtures :each database-rollback-fixture)
+#_ (use-fixtures :each database-rollback-fixture)
 
 (deftest article-flag-counts
   (doseq [project-id (q/find :project {} :project-id, :limit 10)]
@@ -22,6 +22,7 @@
                             do-query first :count)]
       (is (= total (+ flag-enabled flag-disabled))))))
 
+#_
 (deftest project-sources-creation-deletion
   ;; Create Project
   (let [{:keys [project-id]} (project/create-project "Grault's Corge")

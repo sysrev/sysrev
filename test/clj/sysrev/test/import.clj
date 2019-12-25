@@ -17,7 +17,7 @@
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (use-fixtures :once test/default-fixture)
-(use-fixtures :each test/database-rollback-fixture)
+#_ (use-fixtures :each test/database-rollback-fixture)
 
 (def ss (partial str/join "\n"))
 

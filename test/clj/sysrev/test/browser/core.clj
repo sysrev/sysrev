@@ -204,6 +204,10 @@
   [wait-fn & args]
   (succeeds? (do (apply wait-fn args) true)))
 
+(def web-default-interval
+  (or (some-> (:sr-interval env) sutil/parse-integer)
+      15))
+
 (defn wait-until
   "Wrapper for taxi/wait-until with default values for timeout and
   interval. Waits until function pred evaluates as true, testing every
@@ -212,7 +216,7 @@
   [pred & [timeout interval]]
   (let [remote? (test/remote-test?)
         timeout (or timeout (if remote? 12000 6000))
-        interval (or interval 15)]
+        interval (or interval web-default-interval)]
     (when-not (pred)
       (Thread/sleep interval)
       (taxi/wait-until (fn [& _] (pred)) timeout interval))))

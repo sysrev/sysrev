@@ -8,6 +8,7 @@
             [re-frame.db :refer [app-db]]
             ["pdfjs-dist" :as pdfjs]
             ["pdfjs-dist/web/pdf_viewer" :as pdfjsViewer]
+            ["jquery" :as $]
             sysrev.base
             sysrev.core
             sysrev.util

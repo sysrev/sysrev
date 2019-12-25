@@ -19,9 +19,11 @@
 
 (defonce db-initialized? (atom nil))
 
+(defn cpu-count []
+  (.availableProcessors (Runtime/getRuntime)))
+
 (defn get-default-threads []
-  (max 4 (-> (.availableProcessors (Runtime/getRuntime))
-             (quot 2))))
+  (max 4 (quot (cpu-count) 2)))
 
 (defn db-connected? []
   (and (not= "sysrev.com" (:host @raw-selenium-config))
