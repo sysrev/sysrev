@@ -104,7 +104,7 @@
       [:div.column.panel-side-column
        ;; keep sidebar width as 3 in test suite for now
        ;; (changing breaks annotation test positions)
-       {:class (css [@base/tests-running "four" :else "three"] "wide")}
+       {:class (css "four" "wide")}
        [ui/WrapFixedVisibility 10
         [:div.review-menu
          [ui/tabbed-panel-menu
@@ -186,7 +186,7 @@
               [:div.ui.grid
                [SidebarColumn]
                [:div.column
-                {:class (css [@base/tests-running "twelve" :else "thirteen"] "wide")}
+                {:class (css "twelve" "wide")}
                 [active-panel-content]]]
               [active-panel-content])]]
           [GlobalFooter]]]))))

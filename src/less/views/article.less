@@ -24,7 +24,7 @@ div.article-abstract {
 }
 
 .panel-side-column .grid.popup.label-help {
-    min-width: 16em;
+    min-width: 20em;
     width: 100%;
 }
 
@@ -53,8 +53,16 @@ div.article-abstract {
 }
 
 .grid.popup.label-help .row.label-help-question {
-    color: @darkText;
-    font-size: 13px;
+    color: @darkestText;
+    font-size: 14px;
+
+    > .column.label-help {
+        padding: 0.5em;
+
+        .ui.small.label {
+            font-size: 0.85em;
+        }
+    }
 }
 
 .grid.popup.label-help .row.label-help-tag {

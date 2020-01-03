@@ -89,22 +89,18 @@
     @*wd*
     (do (when @*wd*
           (try (taxi/quit @*wd*) (catch Throwable _ nil)))
-        (reset! *wd*
-                (let [opts (doto (ChromeOptions.)
-                             (.addArguments
-                              (concat ["headless"
-                                       (format "window-size=%d,%d"
-                                               (:width browser-test-window-size)
-                                               (:height browser-test-window-size))
-                                       #_ "disable-gpu"]
-                                      (when-not (util/linux?)
-                                        ["no-sandbox"]))))
-                      chromedriver (ChromeDriver.
-                                    (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
-                                      (.setCapability ChromeOptions/CAPABILITY opts)))
-                      driver (driver/init-driver {:webdriver chromedriver})]
-                  (taxi/set-driver! driver)
-                  driver))
+        (reset! *wd* (->> (doto (ChromeOptions.)
+                            (.addArguments
+                             (concat ["headless"
+                                      (format "window-size=%d,%d"
+                                              (:width browser-test-window-size)
+                                              (:height browser-test-window-size))]
+                                     (when-not (util/linux?)
+                                       ["no-sandbox"]))))
+                          (ChromeDriver.)
+                          (assoc {} :webdriver)
+                          (driver/init-driver)
+                          (taxi/set-driver!)))
         (reset! *wd-config* {:visual false})
         (ensure-webdriver-size)
         @*wd*)))
@@ -121,15 +117,12 @@
     @*wd*
     (do (when @*wd*
           (try (taxi/quit @*wd*) (catch Throwable _ nil)))
-        (reset! *wd*
-                (let [opts (doto (ChromeOptions.)
-                             (.addArguments ["window-size=1200,800"]))
-                      chromedriver (ChromeDriver.
-                                    (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
-                                      (.setCapability ChromeOptions/CAPABILITY opts)))
-                      driver (driver/init-driver {:webdriver chromedriver})]
-                  (taxi/set-driver! driver)
-                  driver))
+        (reset! *wd* (->> (doto (ChromeOptions.)
+                            (.addArguments ["window-size=1200,800"]))
+                          (ChromeDriver.)
+                          (assoc {} :webdriver)
+                          (driver/init-driver)
+                          (taxi/set-driver!)))
         (reset! *wd-config* {:visual true})
         @*wd*)))
 
@@ -316,7 +309,7 @@
     (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 35 clear? true}}]
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 40 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
@@ -325,7 +318,7 @@
     (Thread/sleep (quot delay 2))))
 
 (defn set-input-text-per-char [q text & {:keys [delay char-delay clear?]
-                                         :or {delay 35 char-delay 30 clear? true}}]
+                                         :or {delay 40 char-delay 30 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (taxi/clear q))
@@ -352,7 +345,7 @@
     result))
 
 (defn click [q & {:keys [if-not-exists delay displayed? external? timeout]
-                  :or {if-not-exists :wait, delay 40}}]
+                  :or {if-not-exists :wait, delay 50}}]
   (letfn [(wait [ms]
             (if external?
               (Thread/sleep (+ ms 25))
@@ -379,7 +372,7 @@
   (wait-until-displayed input-element)
   (dotimes [_ length]
     (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-    (Thread/sleep 15)))
+    (Thread/sleep 20)))
 
 (defn ensure-logged-out []
   (try (when (taxi/exists? "a#log-out-link")
@@ -507,9 +500,7 @@
     (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
       (if (pos-int? fn-count)
         nil #_ (log/info "instrumented" fn-count "cljs functions")
-        (log/warn "no cljs functions were instrumented"))
-      ;; test aren't passing locally in docker with this assert - James
-      #_(assert (> fn-count 0) "no spec functions were instrumented")))
+        (log/warn "no cljs functions were instrumented"))))
   nil)
 
 ;; if this doesn't do anything, why not take it out? - James

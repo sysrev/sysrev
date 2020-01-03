@@ -7,7 +7,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]))
 
 (defn go-route [path & {:keys [wait-ms pre-wait-ms silent]
-                        :or {wait-ms 40}}]
+                        :or {wait-ms 50 pre-wait-ms 30}}]
   (let [current (taxi/current-url)
         path (if (empty? path) "/" path)]
     (cond (or (not (string? current))
@@ -19,7 +19,9 @@
               (when pre-wait-ms
                 (b/wait-until-loading-completes :pre-wait pre-wait-ms))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
-              (b/wait-until-loading-completes :pre-wait wait-ms)))
+              (b/wait-until-loading-completes :pre-wait (or (some-> wait-ms (quot 2))
+                                                            25)
+                                              :loop 2)))
     nil))
 
 (defn go-project-route [suburi & {:keys [project-id wait-ms pre-wait-ms silent]}]
@@ -31,12 +33,12 @@
     (assert (integer? project-id))
     (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent
               :pre-wait-ms (or pre-wait-ms
-                               (when (= suburi "/review") 50)))))
+                               (when (= suburi "/review") 100)))))
 
 (defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")
     (when-not silent (log/info "logging out"))
-    (b/wait-until-loading-completes :pre-wait 10)
+    (b/wait-until-loading-completes :pre-wait true)
     (b/click "a#log-out-link" :if-not-exists :skip)
     (b/wait-until-loading-completes :pre-wait true)))
 
@@ -51,8 +53,9 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-loading-completes :pre-wait true)
+    (b/wait-until-loading-completes :pre-wait 50 :loop 2)
     (go-route "/" :silent true)
+    (b/wait-until-loading-completes :pre-wait 50 :loop 2)
     #_ (log/info "login successful")))
 
 (defn register-user [email & [password]]
@@ -65,6 +68,7 @@
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
     (b/wait-until-exists "form.create-project")
+    (b/wait-until-loading-completes :pre-wait true :loop 2)
     #_ (log/info "register successful")))
 
 (defn wait-until-overview-ready []
@@ -86,7 +90,8 @@
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
   (go-route "/" :silent true)
-  (b/click (x/project-title-value name) :delay 50))
+  (b/click (x/project-title-value name) :delay 50)
+  (b/wait-until-loading-completes :pre-wait true :loop 2))
 
 (defn delete-current-project []
   (when (b/current-project-id nil 1000)

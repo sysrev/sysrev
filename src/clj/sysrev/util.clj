@@ -268,10 +268,10 @@
         (apply sh args)]
     (if (zero? exit)
       result
-      (do (log/error (str (pr-str args) ":") "Got exit code" exit)
-          (log/error (str "stdout\n" out))
-          (log/error (str "stderr\n" err))
-          (throw (Exception. (pr-str result)))))))
+      (throw (ex-info "shell command returned non-zero exit code"
+                      {:type :shell
+                       :command (vec args)
+                       :result result})))))
 
 (defn create-tempfile [& {:keys [suffix]}]
   (let [file (File/createTempFile "sysrev-" suffix)]

@@ -2,6 +2,7 @@
   (:require ["jquery" :as $]
             ["fomantic-ui"]
             [clojure.string :as str]
+            [goog.string :as gstr]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
                                    reg-event-db reg-event-fx reg-fx trim-v]]
@@ -11,7 +12,7 @@
             [sysrev.state.label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
-            [sysrev.util :as util :refer [nbsp]]
+            [sysrev.util :as util :refer [format nbsp]]
             [sysrev.shared.util :as sutil :refer [in? css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -80,74 +81,107 @@
 
 (defmethod label-input-el "categorical"
   [label-id article-id]
-  (r/create-class
-   {:component-did-mount
-    (fn [c]
-      (-> ($ (r/dom-node c))
-          (.dropdown (clj->js {:onAdd (fn [v _t]
-                                        (dispatch [::add-label-value article-id label-id v]))
-                               :onRemove (fn [v _t]
-                                           (dispatch [::remove-label-value article-id label-id v]))
-                               :onChange (fn [_] (.dropdown ($ (r/dom-node c))
-                                                            "hide"))}))))
-    :component-will-update
-    (fn [this]
-      (let [answer @(subscribe [:review/active-labels article-id label-id])
-            active-vals (->> answer (str/join ","))
-            node ($ (r/dom-node this))
-            comp-vals (.dropdown node "get value")]
-        (when (not= comp-vals active-vals)
-          (.dropdown node "set exactly" active-vals))))
-    :reagent-render
-    (fn [label-id article-id]
-      (when (= article-id @(subscribe [:review/editing-id]))
-        (let [required? @(subscribe [:label/required? label-id])
-              all-values (as-> @(subscribe [:label/all-values label-id]) vs
-                           (if (every? string? vs)
-                             (concat
-                              (->> vs (filter #(in? ["none" "other"] (str/lower-case %))))
-                              (->> vs (remove #(in? ["none" "other"] (str/lower-case %)))
-                                   (sort #(compare (str/lower-case %1)
-                                                   (str/lower-case %2)))))
-                             vs))
-              current-values @(subscribe [:review/active-labels article-id label-id])
-              dom-id (str "label-edit-" article-id "-" label-id)
-              touchscreen? @(subscribe [:touchscreen?])]
-          [(if touchscreen?
-             :div.ui.small.fluid.multiple.selection.dropdown
-             :div.ui.small.fluid.search.selection.dropdown.multiple)
-           {:id dom-id
-            :on-click
-            ;; this seems to cause problems now
-            (when false
-              #_ touchscreen?
-              ;; hide dropdown on click anywhere in main dropdown box
+  (let [dom-class (str "label-edit-" article-id "-" label-id)
+        input-name (str "label-edit(" dom-class ")")
+        dom-q (str "." dom-class ":visible")
+        _input-q (str dom-q " input[type!='hidden']")
+        ensure-values-loaded
+        (fn [this]
+          (let [^js node ($ (r/dom-node this))
+                _ (.dropdown node "refresh")
+                active-vals (vec @(subscribe [:review/active-labels article-id label-id]))
+                comp-vals (-> (.dropdown node "get value")
+                              gstr/unescapeEntities
+                              (str/split #",")
+                              ((partial filterv not-empty)))]
+            #_ (util/log
+                (->> ["---------------------------------"
+                      (format "comp-vals = %s" (pr-str comp-vals))
+                      (format "active-vals = %s" (pr-str active-vals))
+                      "---------------------------------"]
+                     (str/join "\n")))
+            (when (not= comp-vals active-vals)
+              (let [active-str (->> active-vals (str/join ","))]
+                #_ (util/log
+                    (->> [(format "setting dropdown dom values: %s" (pr-str active-str))
+                          "---------------------------------"]
+                         (str/join "\n")))
+                (.dropdown node "clear" true)
+                (.dropdown node "set exactly" active-str)))))]
+    (r/create-class
+     {:component-did-mount
+      (fn [this]
+        (let [node #($ (r/dom-node this))]
+          (->> {:duration 125
+                :onAdd     (fn [v _t]
+                             (let [val (gstr/unescapeEntities v)]
+                               #_ (util/log "onAdd: %s" (pr-str val))
+                               (dispatch [::add-label-value article-id label-id val])
+                               (.dropdown (node) "hide")))
+                :onRemove  (fn [v _t]
+                             (let [val (gstr/unescapeEntities v)]
+                               #_ (util/log "onRemove: %s" (pr-str val))
+                               (dispatch [::remove-label-value article-id label-id val])))
+                :onChange  (fn [& _args]
+                             #_ (util/log "onChange: %s" (pr-str _args))
+                             #_ (.dropdown (node) "hide"))}
+               (clj->js)
+               (.dropdown (node))))
+        (ensure-values-loaded this))
+      :component-will-update
+      (fn [this]
+        (ensure-values-loaded this))
+      :reagent-render
+      (fn [label-id article-id]
+        (when (= article-id @(subscribe [:review/editing-id]))
+          (let [required? @(subscribe [:label/required? label-id])
+                all-values (as-> @(subscribe [:label/all-values label-id]) vs
+                             (if (every? string? vs)
+                               (concat
+                                (->> vs (filter #(in? ["none" "other"] (str/lower-case %))))
+                                (->> vs (remove #(in? ["none" "other"] (str/lower-case %)))
+                                     (sort #(compare (str/lower-case %1)
+                                                     (str/lower-case %2)))))
+                               vs))
+                current-values @(subscribe [:review/active-labels article-id label-id])
+                touchscreen? @(subscribe [:touchscreen?])]
+            [(if touchscreen?
+               :div.ui.small.fluid.multiple.selection.dropdown
+               :div.ui.small.fluid.search.selection.dropdown.multiple)
+             {:key [:dropdown dom-class]
+              :class dom-class
+              :on-click
+              ;; remove label elements on click anywhere on label
               (util/wrap-user-event
-               #(when (or (= dom-id (-> % .-target .-id))
-                          (.hasClass ($ (.-target %)) "default")
-                          (.hasClass ($ (.-target %)) "label"))
-                  (let [dd ($ (str "#" dom-id))]
-                    (when (.dropdown dd "is visible")
-                      (.dropdown dd "hide"))))))}
-           [:input {:name (str "label-edit(" dom-id ")")
-                    :value (str/join "," current-values)
-                    :type "hidden"}]
-           [:i.dropdown.icon]
-           (if required?
-             [:div.default.text "No answer selected " [:span.default.bold "(required)"]]
-             [:div.default.text "No answer selected"])
-           [:div.menu (doall (map-indexed (fn [i lval] ^{:key [i]}
-                                            [:div.item {:data-value (str lval)} (str lval)])
-                                          all-values))]])))}))
+               #(let [target ($ (.-target %))]
+                  (when (and (.hasClass target "label")
+                             ((every-pred string? not-empty)
+                              (.attr target "data-value")))
+                    (let [v (.attr target "data-value")
+                          node ($ dom-q)]
+                      #_ (util/log "removing value: %s" (-> v gstr/unescapeEntities pr-str))
+                      (.dropdown node "remove selected" v)
+                      (when (.dropdown node "is visible")
+                        (.dropdown node "hide"))))))}
+             [:input {:name input-name
+                      :value (str/join "," current-values)
+                      :type "hidden"}]
+             [:i.dropdown.icon]
+             (if required?
+               [:div.default.text "No answer selected " [:span.default.bold "(required)"]]
+               [:div.default.text "No answer selected"])
+             [:div.menu
+              (doall (for [[i lval] (map-indexed vector all-values)]
+                       (let [v (-> lval gstr/htmlEscape)] ^{:key [i]}
+                         [:div.item {:data-value v} lval])))]])))})))
 
 (defmethod label-input-el "string"
   [label-id article-id]
-  (let [curvals (as-> @(subscribe [:review/active-labels article-id label-id])
-                    vs
-                  (if (empty? vs) [""] vs))
+  (let [curvals (or (not-empty @(subscribe [:review/active-labels article-id label-id]))
+                    [""])
         multi? @(subscribe [:label/multi? label-id])
         nvals (count curvals)
-        dom-id-for-idx #(str label-id "__" %)]
+        class-for-idx #(str label-id "__value_" %)]
     (when (= article-id @(subscribe [:review/editing-id]))
       [:div.inner
        (doall
@@ -160,8 +194,10 @@
                   valid? @(subscribe [:label/valid-string-value? label-id val])
                   focus-elt (fn [value-idx]
                               #(js/setTimeout
-                                (fn [] (-> js/document (.getElementById (dom-id-for-idx value-idx))
-                                           (some-> (.focus))))
+                                (fn []
+                                  (some->
+                                   ($ (str "." (class-for-idx value-idx) ":visible"))
+                                   (.focus)))
                                 25))
                   focus-prev (focus-elt (dec i))
                   focus-next (focus-elt (inc i))
@@ -194,7 +230,7 @@
                                                      :timeout false)}
                     [:i.times.icon]])
                  [:input {:type "text"
-                          :id (dom-id-for-idx i)
+                          :class (class-for-idx i)
                           :value val
                           :on-change (util/on-event-value
                                       #(dispatch-sync [::set-string-value
@@ -229,10 +265,16 @@
      {:on-click (util/wrap-user-event #(do nil))}
      [:div.middle.aligned.center.aligned.row.label-help-header
       [:div.ui.sixteen.wide.column
-       [:span (cond (not criteria?)  "Extra label"
-                    required?        "Inclusion criteria [Required]"
-                    :else            "Inclusion criteria")]]]
-     [:div.middle.aligned.center.aligned.row.label-help-question
+       [:span {:style {:font-size "110%"}}
+        (str (cond (and criteria? required?)
+                   "Required - Inclusion Criteria"
+                   (and criteria? (not required?))
+                   "Optional - Inclusion Criteria"
+                   required?
+                   "Required Label"
+                   :else
+                   "Optional Label"))]]]
+     [:div.middle.aligned.row.label-help-question
       [:div.sixteen.wide.column.label-help
        [:div [:span (str question)]]
        (when (seq examples)
@@ -278,13 +320,15 @@
             (when (not-empty question)
               [:i.right.floated.fitted.grey.circle.question.mark.icon])
             [:div.clear name-content]]
-           [:div.ui.row.label-edit-name {:on-click on-click-help}
+           [:div.ui.row.label-edit-name {:on-click on-click-help
+                                         :style {:cursor "help"}}
             [inclusion-tag article-id label-id]
             name-content
             (when (not-empty question)
               [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
        {:variation "basic"
-        :delay {:show 400, :hide 0}
+        :delay {:show 350, :hide 25}
+        :duration 100
         :hoverable false
         :inline true
         :position (if (= n-cols 1)
@@ -292,7 +336,7 @@
                     (cond (= row-position :left)   "top left"
                           (= row-position :right)  "top right"
                           :else                    "top center"))
-        :distanceAway 8}]
+        :distanceAway 5}]
       [label-help-popup {:category @(subscribe [:label/category label-id])
                          :required @(subscribe [:label/required? label-id])
                          :question @(subscribe [:label/question label-id])

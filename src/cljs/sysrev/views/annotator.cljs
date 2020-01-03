@@ -455,7 +455,7 @@
                   (set [:new-annotation] entry)
                   (set-ann (:annotation-id entry) nil entry)
                   (when (not touchscreen?)
-                    (-> #($/focus ($ ".annotation-view.new-annotation .field.value input"))
+                    (-> #(.focus ($ ".annotation-view.new-annotation .field.value input"))
                         (js/setTimeout 50))))))
             true))]
     [:div.annotation-capture {:on-mouse-up update-selection

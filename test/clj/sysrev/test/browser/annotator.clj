@@ -188,22 +188,24 @@
                 (b/click save-annotation-button)
                 (b/wait-until-exists edit-annotation-icon)
                 (check-values))
-            (and (<= retry 3) (<= 1 len-diff 2))
-            (cond (and (< (count new-sel) (count selection))
-                       (str/starts-with? selection new-sel))
-                  (retry-with (update entry :offset-x #(+ (or % 0) 2)))
-                  (and (< (count new-sel) (count selection))
-                       (str/ends-with? selection new-sel))
-                  (retry-with (-> (update entry :offset-x #(+ (or % 0) 2))
-                                  (update :start-x #(- (or % 0) 2))))
-                  (and (> (count new-sel) (count selection))
-                       (str/starts-with? new-sel selection))
-                  (retry-with (update entry :offset-x #(- (or % 0) 2)))
-                  (and (> (count new-sel) (count selection))
-                       (str/ends-with? new-sel selection))
-                  (retry-with (-> (update entry :offset-x #(- (or % 0) 2))
-                                  (update :start-x #(+ (or % 0) 2))))
-                  :else (throw-mismatch new-sel))
+            (and (<= retry 4) (<= 0 len-diff 2))
+            (do (log/infof "selection mismatch (%s)" (pr-str new-sel))
+                (cond (= len-diff 0)
+                      (retry-with (update entry :start-x #(+ (or % 0) 2)))
+                      (or (and (< (count new-sel) (count selection))
+                               (str/starts-with? selection new-sel))
+                          (str/starts-with? selection (subs new-sel 1)))
+                      (retry-with (update entry :offset-x #(+ (or % 0) 2)))
+                      (<= (count new-sel) (count selection))
+                      (retry-with (-> (update entry :offset-x #(+ (or % 0) 2))
+                                      (update :start-x #(- (or % 0) 2))))
+                      (and (> (count new-sel) (count selection))
+                           (str/starts-with? new-sel selection))
+                      (retry-with (update entry :offset-x #(- (or % 0) 2)))
+                      (> (count new-sel) (count selection))
+                      (retry-with (-> (update entry :offset-x #(- (or % 0) 2))
+                                      (update :start-x #(+ (or % 0) 2))))
+                      :else (throw-mismatch new-sel)))
             :else (throw-mismatch new-sel)))))
 
 (defn edit-annotation [{:keys [semantic-class value]} new-values]
@@ -238,11 +240,14 @@
   ;; disabled; covered by annotator-interface test
   (and false (test/db-connected?)) test-user
   [project-name "Browser Test (annotation-text)"
-   ann1 {:client-field "primary-title"
-         :selection "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"
-         :semantic-class "foo"
-         :value "bar"
-         :offset-x 670}
+   ann-defs
+   [{:client-field "primary-title"
+     :selection
+     "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"
+     :semantic-class "foo"
+     :value "bar"
+     :offset-x 682}]
+   [ann1] ann-defs
    project-id (atom nil)]
   (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
@@ -296,14 +301,14 @@
    to-user-name #(-> % (str/split #"@") first)
    switch-user (fn [email]
                  (nav/log-in email)
-                 (nav/go-project-route "" :project-id @project-id :silent true :wait-ms 50))
+                 (nav/go-project-route "" :project-id @project-id :silent true))
    ann-defs
    [{:client-field "primary-title"
      :selection
      "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"
      :semantic-class "class1"
      :value "value1"
-     :offset-x 670}
+     :offset-x 682}
     {:client-field "abstract"
      :selection "The measurement"
      :semantic-class "class2"
@@ -313,7 +318,7 @@
      :selection "amine sites"
      :semantic-class "class1"
      :value "value2"
-     :start-y 20 :start-x 26 :offset-x 68}]
+     :start-y 20 :start-x 114 :offset-x 68}]
    [ann1-def ann2-def ann3-def] ann-defs
    ann-vals (mapv #(select-keys % [:selection :semantic-class :value]) ann-defs)
    [ann1 ann2 ann3] ann-vals]

@@ -30,8 +30,10 @@
                            (->> sources
                                 (map (partial get-in [:meta :importing-articles?]))
                                 (every? (comp not true?)))))
-                   12500 250)
-  (Thread/sleep 1500))
+                   12500 500)
+  (test/wait-until #(->> (route-response :get "/api/label-task" {:project-id project-id})
+                         :result map?)
+                   12500 750))
 
 (deftest pubmed-search-test
   (let [handler (sysrev-handler)
