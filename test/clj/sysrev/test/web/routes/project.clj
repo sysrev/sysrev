@@ -209,82 +209,83 @@
                                         [:result :sources])))))))))
 
 (deftest delete-project-and-sources
-  (let [handler (sysrev-handler)
-        {:keys [email password]} (b/create-test-user)
-        route-response (route-response-fn handler)
-        test-project-name (str test-project-name " " (sutil/random-id))]
-    (with-cleanup-users [email]
-      (let [_ (route-response :post "/api/auth/login" {:email email :password password})
-            create-project-response (route-response :post "/api/create-project"
-                                                    {:project-name test-project-name})
-            project-id (get-in create-project-response [:result :project :project-id])
-            ;; add articles to the project
-            _ (route-response :post "/api/import-articles/pubmed"
-                              {:project-id project-id
-                               :search-term "foo bar" :source "PubMed"})
-            _ (wait-for-project-import route-response project-id 1)
-            project-info (route-response :get "/api/project-info" {:project-id project-id})
-            project-label (second (first (get-in project-info [:result :project :labels])))
-            label-id (get-in project-label [:label-id])
-            article-to-label (route-response :get "/api/label-task"
-                                             {:project-id project-id})
-            _ (is (contains? article-to-label :result))
-            _ (is (map? (:result article-to-label)))
-            _ (is (contains? (:result article-to-label) :article))
-            article-id (get-in article-to-label [:result :article :article-id])
-            project-sources-response (route-response :get "/api/project-sources"
-                                                     {:project-id project-id})
-            foo-bar-search-source (first (get-in project-sources-response [:result :sources]))
-            foo-bar-search-source-id (:source-id foo-bar-search-source)]
-        ;; the project does not have labeled articles, this should not
-        ;; be true
-        (is (not (project/project-has-labeled-articles? project-id)))
-        ;; set an article label to true
-        (route-response :post "/api/set-labels" {:project-id project-id
-                                                 :article-id article-id
-                                                 :label-values {label-id true}
-                                                 :confirm? true
-                                                 :resolve? false
-                                                 :change? false})
-        ;; now the project has labeled articles
-        (is (project/project-has-labeled-articles? project-id))
-        #_ (is (get-in (route-response :post "/api/delete-project"
-                                       {:project-id project-id})
-                       [:result :success]))
-        ;; the project source has labeled articles as well
-        (is (source/source-has-labeled-articles? foo-bar-search-source-id))
-        ;; the project source can not be deleted
-        (is (= "Source contains reviewed articles"
-               (get-in (route-response :post "/api/delete-source"
-                                       {:project-id project-id
-                                        :source-id foo-bar-search-source-id})
-                       [:error :message])))
-        (let [_ (route-response :post "/api/import-articles/pubmed"
+  (when-not (test/remote-test?)
+    (let [handler (sysrev-handler)
+          {:keys [email password]} (b/create-test-user)
+          route-response (route-response-fn handler)
+          test-project-name (str test-project-name " " (sutil/random-id))]
+      (with-cleanup-users [email]
+        (let [_ (route-response :post "/api/auth/login" {:email email :password password})
+              create-project-response (route-response :post "/api/create-project"
+                                                      {:project-name test-project-name})
+              project-id (get-in create-project-response [:result :project :project-id])
+              ;; add articles to the project
+              _ (route-response :post "/api/import-articles/pubmed"
                                 {:project-id project-id
-                                 :search-term "grault" :source "PubMed"})
-              _ (wait-for-project-import route-response project-id 2)
+                                 :search-term "foo bar" :source "PubMed"})
+              _ (wait-for-project-import route-response project-id 1)
+              project-info (route-response :get "/api/project-info" {:project-id project-id})
+              project-label (second (first (get-in project-info [:result :project :labels])))
+              label-id (get-in project-label [:label-id])
+              article-to-label (route-response :get "/api/label-task"
+                                               {:project-id project-id})
+              _ (is (contains? article-to-label :result))
+              _ (is (map? (:result article-to-label)))
+              _ (is (contains? (:result article-to-label) :article))
+              article-id (get-in article-to-label [:result :article :article-id])
               project-sources-response (route-response :get "/api/project-sources"
                                                        {:project-id project-id})
-              grault-search-source (first (filter #(= (get-in % [:meta :search-term]) "grault")
-                                                  (get-in project-sources-response [:result :sources])))
-              grault-search-source-id (:source-id grault-search-source)]
-          ;; are the total project articles equivalent to the sum of its two sources?
-          (is (= (+ (:article-count grault-search-source) (:article-count foo-bar-search-source))
-                 (project/project-article-count project-id)))
-          ;; try it another way
-          (is (= (reduce + (map #(:article-count %)
-                                (get-in (route-response :get "/api/project-sources"
-                                                        {:project-id project-id})
-                                        [:result :sources])))
-                 (project/project-article-count project-id)))
-          ;; can grault-search-source be deleted?
-          (is (get-in (route-response :post "/api/delete-source"
-                                      {:project-id project-id
-                                       :source-id grault-search-source-id})
-                      [:result :success]))
-          ;; are the total articles equivalent to sum of its single source?
-          (is (= (reduce + (map #(:article-count %)
-                                (get-in (route-response :get "/api/project-sources"
-                                                        {:project-id project-id})
-                                        [:result :sources])))
-                 (project/project-article-count project-id))))))))
+              foo-bar-search-source (first (get-in project-sources-response [:result :sources]))
+              foo-bar-search-source-id (:source-id foo-bar-search-source)]
+          ;; the project does not have labeled articles, this should not
+          ;; be true
+          (is (not (project/project-has-labeled-articles? project-id)))
+          ;; set an article label to true
+          (route-response :post "/api/set-labels" {:project-id project-id
+                                                   :article-id article-id
+                                                   :label-values {label-id true}
+                                                   :confirm? true
+                                                   :resolve? false
+                                                   :change? false})
+          ;; now the project has labeled articles
+          (is (project/project-has-labeled-articles? project-id))
+          #_ (is (get-in (route-response :post "/api/delete-project"
+                                         {:project-id project-id})
+                         [:result :success]))
+          ;; the project source has labeled articles as well
+          (is (source/source-has-labeled-articles? foo-bar-search-source-id))
+          ;; the project source can not be deleted
+          (is (= "Source contains reviewed articles"
+                 (get-in (route-response :post "/api/delete-source"
+                                         {:project-id project-id
+                                          :source-id foo-bar-search-source-id})
+                         [:error :message])))
+          (let [_ (route-response :post "/api/import-articles/pubmed"
+                                  {:project-id project-id
+                                   :search-term "grault" :source "PubMed"})
+                _ (wait-for-project-import route-response project-id 2)
+                project-sources-response (route-response :get "/api/project-sources"
+                                                         {:project-id project-id})
+                grault-search-source (first (filter #(= (get-in % [:meta :search-term]) "grault")
+                                                    (get-in project-sources-response [:result :sources])))
+                grault-search-source-id (:source-id grault-search-source)]
+            ;; are the total project articles equivalent to the sum of its two sources?
+            (is (= (+ (:article-count grault-search-source) (:article-count foo-bar-search-source))
+                   (project/project-article-count project-id)))
+            ;; try it another way
+            (is (= (reduce + (map #(:article-count %)
+                                  (get-in (route-response :get "/api/project-sources"
+                                                          {:project-id project-id})
+                                          [:result :sources])))
+                   (project/project-article-count project-id)))
+            ;; can grault-search-source be deleted?
+            (is (get-in (route-response :post "/api/delete-source"
+                                        {:project-id project-id
+                                         :source-id grault-search-source-id})
+                        [:result :success]))
+            ;; are the total articles equivalent to sum of its single source?
+            (is (= (reduce + (map #(:article-count %)
+                                  (get-in (route-response :get "/api/project-sources"
+                                                          {:project-id project-id})
+                                          [:result :sources])))
+                   (project/project-article-count project-id)))))))))
