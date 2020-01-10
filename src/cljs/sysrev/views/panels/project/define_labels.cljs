@@ -289,6 +289,10 @@
                             "Articles will be marked as conflicted if user answers are not identical."]}
    :max-length   {:path [:definition :max-length]
                   :display "Max length"}
+   :regex        {:path [:definition :regex]
+                  :display "Pattern (regex)"
+                  :tooltip ["Require match against regular expression."]
+                  :optional true}
    :examples     {:path [:definition :examples]
                   :display "Examples (comma-separated)"
                   :tooltip ["Examples of possible label values for reviewers."
@@ -351,6 +355,8 @@
         all-values (r/cursor definition [:all-values])
 ;;; type=string
         ;; optional, vector of strings
+        regex (r/cursor definition [:regex])
+        ;; optional, vector of strings
         examples (r/cursor definition [:examples])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
@@ -385,6 +391,13 @@
                    {:value max-length
                     :on-change #(let [value (-> % .-target .-value)]
                                   (reset! max-length (or (sutil/parse-integer value) value)))})])
+     ;; regex on a string label
+     (when (= @value-type "string")
+       [ui/TextInputField
+        (make-args :regex
+                   {:default-value (or (not-empty (first @regex)) "")
+                    :on-change (util/on-event-value
+                                #(reset! regex (some-> % str/trim not-empty vector)))})])
      ;; examples on a string label
      (when (= @value-type "string")
        [ui/TextInputField

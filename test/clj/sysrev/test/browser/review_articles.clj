@@ -64,8 +64,7 @@
   (xpath (label-div-with-name short-label)
          "/descendant::i[contains(@class,'plus')]"
          "/ancestor::div[contains(@class,'button')"
-         " and contains(@class,'input-row')"
-         " and !contains(@class,'disabled')]"))
+         " and contains(@class,'input-row')]"))
 
 (defn string-plus-buttons [short-label]
   (seq (->> (string-plus-button-xpath short-label)
@@ -81,15 +80,16 @@
 (defn-spec add-string-value any?
   "Adds `value` to string label `short-label` in review interface."
   [short-label string?, value string?]
-  (let [q (string-input-xpath short-label "")]
-    (when-not (taxi/exists? q)
+  (let [q-empty (string-input-xpath short-label "")
+        q-value (string-input-xpath short-label value"")]
+    (when-not (taxi/exists? q-empty)
       (if (taxi/exists? (string-plus-button-xpath short-label))
         (b/click (last (string-plus-buttons short-label)))
-        (taxi/clear (string-input-xpath short-label))))
-    (let [node (taxi/element q)]
-      (b/set-input-text node value)
-      (taxi/send-keys node org.openqa.selenium.Keys/ENTER)
-      (Thread/sleep 30))))
+        (b/set-input-text (string-input-xpath short-label) ""))
+      (Thread/sleep 30))
+    (b/set-input-text q-empty value)
+    (taxi/send-keys q-value org.openqa.selenium.Keys/ENTER)
+    (Thread/sleep 30)))
 
 (defn-spec string-active-values (s/coll-of string? :kind vector?)
   "Returns vector of current values in component for `short-label`."
@@ -102,12 +102,11 @@
 (defn-spec remove-string-value any?
   "Removes `value` from string label `short-label` in review interface."
   [short-label string?, value string?]
-  (let [node (taxi/element (string-input-xpath short-label value))]
-    (taxi/focus node)
-    (taxi/clear node)
-    (taxi/send-keys node org.openqa.selenium.Keys/BACK_SPACE)
-    (when-let [plus-icons (string-plus-buttons short-label)]
-      (taxi/click (last plus-icons)))))
+  (b/click (xpath (string-input-xpath short-label value)
+                  "/ancestor::div[contains(@class,'action')]"
+                  "/descendant::div[contains(@class,'input-remove')]"))
+  (when-let [plus-icons (string-plus-buttons short-label)]
+    (taxi/click (last plus-icons))))
 
 (defn-spec add-categorical-value any?
   "Adds `value` to categorical label `short-label` in review interface."
@@ -347,7 +346,8 @@
             :short-label "Text"
             :question "Enter some text"
             :required false
-            :definition {:examples ["1 mg" "2.4 kg"]
+            :definition {:regex "^\\d+$"
+                         :examples ["1" "23"]
                          :max-length 100
                          :multi? true}}]
    [label0 label1 label2] labels
@@ -359,7 +359,6 @@
       (pm/import-pubmed-search-via-db "foo bar")
 
 ;;; create new labels
-      (log/info "creating label definitions")
       (nav/go-project-route "/labels/edit")
       (define/define-label label1)
       (is (b/exists? (x/match-text "span" name1)))
@@ -404,9 +403,16 @@
       (b/is-soon (= (string-active-values name2) ["2" "33"]))
       (remove-string-value name2 "33")
       (b/is-soon (= (string-active-values name2) ["2"]))
+      (log/info "testing string regex requirement")
+      (b/exists? (b/not-disabled ".ui.button.save-labels"))
+      (add-string-value name2 "3.5")
+      (b/exists? ".ui.button.save-labels.disabled")
       (add-string-value name2 "45")
-      (b/is-soon (= (string-active-values name2) ["2" "45"])))
-  :cleanup (some-> @project-id (project/delete-project)))
+      (b/exists? ".ui.button.save-labels.disabled")
+      (remove-string-value name2 "3.5")
+      (b/exists? (b/not-disabled ".ui.button.save-labels"))
+      (b/click ".button.save-labels" :displayed? true)
+      (b/exists? ".ui.button.save-labels.disabled")))
 
 (defn randomly-review-n-articles
   "Randomly sets labels for n articles using a vector of label-definitions"

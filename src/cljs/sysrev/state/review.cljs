@@ -161,6 +161,20 @@
                                                   label-id (get active-labels label-id)]))]
                   (vec (remove have-answer? required-ids))))))
 
+(reg-sub-raw :review/invalid-labels
+             (fn [_ [_ article-id]]
+               (reaction
+                (let [answers @(subscribe [:review/active-labels article-id])
+                      valid? (fn [label-id]
+                               (case @(subscribe [:label/value-type label-id])
+                                 "string"
+                                 (->> (get answers label-id)
+                                      (filter not-empty)
+                                      (every? #(deref (subscribe [:label/valid-string-value?
+                                                                  label-id %]))))
+                                 true))]
+                  (vec (remove valid? @(subscribe [:project/label-ids])))))))
+
 ;; Record POST action to send labels having been initiated,
 ;; to show loading indicator on the button that was clicked.
 (reg-event-fx :review/mark-saving [trim-v]

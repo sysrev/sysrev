@@ -92,14 +92,15 @@
 (defn set-string-label-definition
   [xpath {:keys [question short-label required definition]
           :or {question "" short-label "" required false}}]
-  (let [{:keys [examples max-length multi?]
-         :or {examples [] max-length ""}} definition
+  (let [{:keys [examples regex max-length multi?]
+         :or {examples [] regex "" max-length ""}} definition
         field-path #(field-input-xpath xpath (str "field-" %))]
     (b/set-input-text (field-path "short-label") short-label)
     (set-checkbox-button (field-path "required") required)
     (set-checkbox-button (field-path "multi") multi?)
     (b/set-input-text (field-path "question") question)
     (b/set-input-text (field-path "max-length") (str max-length))
+    (b/set-input-text (field-path "regex") regex)
     (b/set-input-text (field-path "examples") (str/join "," examples) :delay 30)))
 
 (defn set-categorical-label-definition

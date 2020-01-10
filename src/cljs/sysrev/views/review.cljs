@@ -303,8 +303,7 @@
         label-css-class @(subscribe [::label-css-class article-id label-id])
         label-string @(subscribe [:label/display label-id])
         question @(subscribe [:label/question label-id])
-        on-click-help (util/wrap-user-event
-                       #(do nil) :timeout false)]
+        on-click-help (util/wrap-user-event #(do nil) :timeout false)]
     ^{:key {:article-label [article-id label-id]}}
     [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
@@ -380,7 +379,8 @@
         on-review-task? @(subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
         missing @(subscribe [:review/missing-labels article-id])
-        disabled? (not-empty missing)
+        invalid @(subscribe [:review/invalid-labels article-id])
+        disabled? (or (not-empty missing) (not-empty invalid))
         saving? (and @(subscribe [:review/saving? article-id])
                      (or (loading/any-action-running? :only :review/send-labels)
                          (loading/any-loading? :only :article)
@@ -414,15 +414,30 @@
                                              (util/scroll-top))]
                                           (remove nil?))}])))))
         button (fn [] [:button.ui.right.labeled.icon.button.save-labels
-                       {:class save-class, :on-click on-save}
+                       {:class save-class
+                        :on-click (when-not disabled? on-save)}
                        (str (if resolving? "Resolve" "Save") (when-not small? "Labels"))
-                       [:i.check.circle.outline.icon]])]
+                       [:i.check.circle.outline.icon]])
+        show-label-names (fn [label-ids]
+                           (->> label-ids
+                                (map #(deref (subscribe [:label/display %])))
+                                (map pr-str)
+                                (str/join ", ")))]
     (list (if disabled?
             ^{:key :save-button} [ui/with-tooltip [:div [button article-id]]]
             ^{:key :save-button} [button article-id])
           ^{:key :save-button-popup}
           [:div.ui.inverted.popup.top.left.transition.hidden
-           "Answer missing for a required label"])))
+           {:style {:min-width "20em"}}
+           [:ul {:style {:padding-left "1.25em"}}
+            (when (seq missing)
+              [:li (str "Answer missing for a required label: ("
+                        (show-label-names missing)
+                        ")")])
+            (when (seq invalid)
+              [:li (str "Invalid answer for one or more labels: ("
+                        (show-label-names invalid)
+                        ")")])]])))
 
 (defn SkipArticle [article-id & [small? fluid?]]
   (let [saving? (and @(subscribe [:review/saving? article-id])
