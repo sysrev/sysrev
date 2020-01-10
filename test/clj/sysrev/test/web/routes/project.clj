@@ -22,7 +22,7 @@
                    (b/cleanup-test-user! :email email#)))))
 
 (defn wait-for-project-import [route-response project-id n-sources]
-  (Thread/sleep 500)
+  (Thread/sleep 1000)
   (test/wait-until #(let [{:keys [sources]}
                           (:result (route-response :get "/api/project-sources"
                                                    {:project-id project-id}))]
@@ -30,10 +30,10 @@
                            (->> sources
                                 (map (partial get-in [:meta :importing-articles?]))
                                 (every? (comp not true?)))))
-                   12500 500)
+                   15000 750)
   (test/wait-until #(->> (route-response :get "/api/label-task" {:project-id project-id})
                          :result map?)
-                   12500 750))
+                   15000 750))
 
 (deftest pubmed-search-test
   (let [handler (sysrev-handler)

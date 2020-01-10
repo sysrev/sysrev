@@ -5,10 +5,10 @@
                  [orchestra "2018.12.06-2" #_ "2019.02.06-1"]
 
 ;;; Force versions of indirect dependencies
-                 [com.fasterxml.jackson.core/jackson-databind "2.9.9.1"]
-                 [cheshire "5.8.1"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.10.2"]
+                 [cheshire "5.9.0"]
                  [commons-io/commons-io "2.6"]
-                 [commons-codec "1.13"]
+                 [commons-codec "1.14"]
                  [org.apache.commons/commons-compress "1.19"]
 
 ;;; Logging
@@ -25,7 +25,7 @@
                  [eftest "0.5.9"]
 
 ;;; Data formats
-                 [org.clojure/data.json "0.2.6"]
+                 [org.clojure/data.json "0.2.7"]
                  [com.cognitect/transit-clj "0.8.319"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.3"]
@@ -36,26 +36,26 @@
                  [vincit/venia "0.2.5"]
 
 ;;; Postgres
-                 [org.clojure/java.jdbc "0.7.10"]
-                 [org.postgresql/postgresql "42.2.8"]
-                 [joda-time "2.10.4"]
+                 [org.clojure/java.jdbc "0.7.11"]
+                 [org.postgresql/postgresql "42.2.9"]
+                 [joda-time "2.10.5"]
                  [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "2.9.0"]
+                 [hikari-cp "2.10.0"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
-                 [honeysql "0.9.4"]
+                 [honeysql "0.9.8"]
                  [nilenso/honeysql-postgres "0.2.6"]
 
 ;;; Cassandra
-                 [cc.qbits/alia-all "4.3.2"]
+                 [cc.qbits/alia-all "4.3.3"]
                  [cc.qbits/hayt "4.1.0"]
 
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
                  [manifold "0.1.8"]
                  [aleph "0.4.6"]
-                 [ring "1.7.1"]
+                 [ring "1.8.0"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.5.0" :exclusions [cheshire]]
@@ -69,7 +69,7 @@
                  [clj-http "3.10.0"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.3"] ;; email client
-                 [amazonica "0.3.143"
+                 [amazonica "0.3.152"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
