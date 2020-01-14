@@ -344,6 +344,11 @@
   (-> (System/getProperty "os.name")
       (str/includes? "Windows")))
 
+(defn linux? []
+  (some-> (System/getProperty "os.name")
+          (str/lower-case)
+          (str/includes? "linux")))
+
 (defn temp-dir []
   (str (or (:tmpdir env) (:java-io-tmpdir env))
        (if (ms-windows?) "\\" "/")))

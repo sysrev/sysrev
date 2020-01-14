@@ -14,6 +14,7 @@
             [sysrev.cache :refer [db-memo]]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer [with-transaction]]
+            [sysrev.db.queries :as q]
             [sysrev.biosource.annotations :as api-ann]
             [sysrev.biosource.importance :as importance]
             [sysrev.biosource.predict :as predict-api]
@@ -228,6 +229,15 @@
       (predict-api/schedule-predict-update project-id)
       (importance/schedule-important-terms-update project-id)
       {:success true})
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exist")}}))
+
+(defn source-sample
+  "Return a sample article from source"
+  [source-id]
+  (if (source/source-exists? source-id)
+    (let [article-id (first (q/find [:article :a] {} :as.article-id :join [:article-source:as :a.article-id] :limit 1 :where [:= :as.source-id source-id]))]
+      {:article (article/get-article article-id)})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 

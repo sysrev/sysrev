@@ -83,3 +83,6 @@
 
 ;; pagination
 (def Pagination (component S/Pagination))
+
+;; tab
+(def Tab (component S/Tab))

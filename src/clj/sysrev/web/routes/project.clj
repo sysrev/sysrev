@@ -499,6 +499,12 @@
                  (response/header "Content-Disposition"
                                   (format "attachment; filename=\"%s\"" filename)))))))
 
+;; admin request because it could potentially expose
+;; sensitive information
+(dr (GET "/api/sources/:source-id/sample-article" request
+         (with-authorize request {:roles ["admin"]}
+           (let [source-id (parse-integer (-> request :params :source-id))]
+             (api/source-sample source-id)))))
 ;;;
 ;;; Project document files
 ;;;

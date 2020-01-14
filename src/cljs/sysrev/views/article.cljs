@@ -270,7 +270,7 @@
                [:div {:style {:white-space "normal"
                               :overflow "overlay"}}
                 [XMLViewerComponent {:xml content}]]
-               [RJson {:src  @json
+               [RJson {:src @json
                        :theme (condp = @(subscribe [:self/ui-theme])
                                 "Default" "bright:inverted"
                                 "Dark" "eighties")
@@ -300,6 +300,9 @@
                           "Dark" "eighties")
                  :displayDataTypes false
                  :enableClipboard false
+                 :onEdit (fn [obj]
+                           (.log js/console obj)
+                           false)
                  :name false
                  :collapsed 3}]]))))
 

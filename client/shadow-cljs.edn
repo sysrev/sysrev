@@ -33,6 +33,7 @@
                 [kibu/pushy "0.3.8"]
                 [cljs-http "0.1.46"]
                 [com.andrewmcveigh/cljs-time "0.5.2"]
+                [medley "1.2.0"]
 ;;; Cider
                 [cider/cider-nrepl "0.22.4"]
                 [refactor-nrepl "2.4.1-SNAPSHOT"]]}
