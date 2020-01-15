@@ -143,16 +143,11 @@
 (defn click-paypal-button []
   (log/info "clicking paypal button")
   (b/wait-until-exists "iframe")
-  (let [button "div.paypal-button"]
-    (Thread/sleep 50)
-    (taxi/switch-to-default)
-    (taxi/switch-to-frame
-     (taxi/element (xpath (format "//iframe[@name='%s']"
-                                  (first (b/current-frame-names))))))
-    (b/wait-until-displayed button)
-    (Thread/sleep 50)
-    (b/click button :external? true)
-    (Thread/sleep 100)))
+  (Thread/sleep 50)
+  (taxi/switch-to-default)
+  (Thread/sleep 50)
+  (b/click "div#paypal-button" :external? true)
+  (Thread/sleep 100))
 
 ;; this function is incomplete as it only handles the case of boolean labels
 ;; this can only create, not update labels
@@ -198,6 +193,7 @@
                               (taxi/switch-to-window 1)
                               true))
                 4000 200)
+  (taxi/window-resize b/browser-test-window-size)
   (b/log-current-windows)
   (log/info "waiting for paypal window to load")
   (b/wait-until-displayed "a#createAccount" 15000 30)
@@ -222,12 +218,9 @@
     (enter-text "input#billingPostalCode" "21209")
     (enter-text "input#telephone" "222-333-4444")
     (enter-text "input#email" "sb-477vju643771@personal.example.com")
-    (b/click (xpath "//input[@id='guestSignup2']"
-                    "/ancestor::div[contains(@class,'radioButton')]")
-             :external? true)
     (Thread/sleep 100))
   (log/info "submitting paypal payment")
-  (b/click "button#guestSubmit" :external? true)
+  (b/click "button#pomaSubmit" :external? true)
   (Thread/sleep 100)
   (taxi/switch-to-window 0)
   (taxi/switch-to-default))

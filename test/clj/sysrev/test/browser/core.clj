@@ -111,8 +111,7 @@
   When using this, test functions should be run directly (not with `run-tests`).
 
   Can be closed with `stop-webdriver` when finished."
-  [& {:keys [restart?]
-      :or {restart? false}}]
+  [& [restart?]]
   (if (and @*wd* (not restart?))
     @*wd*
     (do (when @*wd*
@@ -381,11 +380,15 @@
        (catch Throwable _ nil)))
 
 (defmacro with-webdriver [& body]
-  `(binding [*wd* (atom nil)
-             *wd-config* (atom nil)
-             taxi/*driver* nil]
-     (start-webdriver true)
-     (try ~@body (finally (stop-webdriver)))))
+  `(let [visual# (:visual @*wd-config*) ]
+     (when visual# (stop-webdriver))
+     (binding [*wd* (atom nil)
+               *wd-config* (atom nil)
+               taxi/*driver* nil]
+       (if visual#
+         (start-visual-webdriver true)
+         (start-webdriver true))
+       (try ~@body (finally (when-not visual# (stop-webdriver)) )))))
 
 (defmacro deftest-browser [name enable test-user bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)
