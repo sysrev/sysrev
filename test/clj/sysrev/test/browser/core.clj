@@ -207,7 +207,7 @@
   timeout."
   [pred & [timeout interval]]
   (let [remote? (test/remote-test?)
-        timeout (or timeout (if remote? 12000 6000))
+        timeout (or timeout (if remote? 12500 10000))
         interval (or interval web-default-interval)]
     (when-not (pred)
       (Thread/sleep interval)

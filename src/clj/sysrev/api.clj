@@ -150,9 +150,9 @@
       (cond user-id   (mapv #(change-project-owner % :user-id user-id) users-projects)
             group-id  (mapv #(change-project-owner % :group-id group-id) users-projects)))))
 
-(defn wrap-import-api [f]
+(defn wrap-import-api [f args]
   (let [{:keys [error]}
-        (try (f)
+        (try (f args)
              (catch Throwable e
                (log/warn "wrap-import-handler -" (.getMessage e))
                (log/warn (with-out-str (print-cause-trace-custom e)))
@@ -164,42 +164,42 @@
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."
   [project-id search-term & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pubmed-search
-                     project-id {:search-term search-term} options)))
+  (wrap-import-api #(import/import-pubmed-search project-id % options)
+                   {:search-term search-term}))
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma
   separated file of PMIDs."
   [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pmid-file
-                     project-id {:file file :filename filename} options)))
+  (wrap-import-api #(import/import-pmid-file project-id % options)
+                   {:file file :filename filename}))
 
 (defn import-articles-from-endnote-file
   "Import articles from an Endnote XML file."
   [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-endnote-xml
-                     project-id {:file file :filename filename} options)))
+  (wrap-import-api #(import/import-endnote-xml project-id % options)
+                   {:file file :filename filename}))
 
 (defn import-articles-from-pdf-zip-file
   "Import articles from the PDF files contained in a zip file. An
   article entry is created for each PDF, using filename as the article
   title."
   [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pdf-zip
-                     project-id {:file file :filename filename} options)))
+  (wrap-import-api #(import/import-pdf-zip project-id % options)
+                   {:file file :filename filename}))
 
 (defn import-articles-from-ris-file
   "Import articles from a RIS file."
   [project-id file filename & {:keys [threads] :as options}]
   {:result {:success true}}
-  (wrap-import-api #(import/import-ris
-                     project-id {:file file :filename filename} options)))
+  (wrap-import-api #(import/import-ris project-id % options)
+                   {:file file :filename filename}))
 
 (defn import-trials-from-search
   "Import trials resulting from CT.gov search"
   [project-id search-term & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-ctgov-search
-                     project-id {:search-term search-term} options)))
+  (wrap-import-api #(import/import-ctgov-search project-id % options)
+                   {:search-term search-term}))
 
 (s/def ::sources vector?)
 

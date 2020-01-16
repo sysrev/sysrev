@@ -9,7 +9,8 @@
             [sysrev.db.core :as db]
             [sysrev.db.query-types :as qt]
             [sysrev.shared.util :as sutil :refer
-             [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys]]))
+             [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys]])
+  (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
 ;; for clj-kondo
 (declare fetch-pubmed-articles fetch-nct-entities get-articles-content fetch-ris-articles-by-ids)
@@ -243,13 +244,17 @@
 (defn create-ris-file
   "Given a file and filename, create a RIS file citation on datasource."
   [{:keys [file filename]}]
-  (http/post (str (ds-host) "/files/ris")
-             {:headers (auth-header)
-              :multipart [{:name "filename" :content filename}
-                          {:name "file" :content file}]
-              :as :json
-              :coerce :always
-              :throw-exceptions false}))
+  (try (http/post (str (ds-host) "/files/ris")
+                  {:headers (auth-header)
+                   :multipart [{:name "filename" :content filename}
+                               {:name "file" :content file}]
+                   :as :json
+                   :coerce :always
+                   :throw-exceptions false})
+       (catch JsonParseException _
+         {:status 500 :body {:error "JsonParseException"}})
+       (catch JsonProcessingException _
+         {:status 500 :body {:error "JsonProcessingException"}})))
 
 (defn download-file
   "Given a filename and hash, download a file from datasource"

@@ -24,6 +24,7 @@
         sysrev.source.core
         sysrev.source.endnote
         sysrev.source.pdf-zip
+        sysrev.source.ris
         sysrev.payment.paypal
         sysrev.payment.stripe
         sysrev.payment.plans
@@ -38,6 +39,7 @@
         sysrev.biosource.importance
         sysrev.biosource.annotations
         sysrev.biosource.duplicates
+        sysrev.slack
         sysrev.web.core
         sysrev.web.session
         sysrev.web.index

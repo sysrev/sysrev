@@ -8,7 +8,9 @@
             [sysrev.source.core :as s]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
+            [sysrev.slack :refer [log-slack-custom]]
             [sysrev.stacktrace :as strace]
+            [sysrev.util :refer [pp-str]]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]])
   (:import java.util.UUID))
 
@@ -152,6 +154,18 @@
     (if success?
       (s/alter-source-meta source-id #(assoc % :importing-articles? false))
       (s/fail-source-import source-id))
+    ;; log errors
+    (try (let [source (q/find-one :project-source {:source-id source-id})]
+           (cond (not success?)
+                 (log-slack-custom ["*Article source import failed*"
+                                    (format "*Source*:\n```%s```" (pp-str {:source source}))]
+                                   "Article source import failed")
+                 (and success? (zero? (q/find-count :article-source {:source-id source-id})))
+                 (log-slack-custom ["*Article source import - 0 articles loaded*"
+                                    (format "*Source*:\n```%s```" (pp-str {:source source}))]
+                                   "Article source import - 0 articles loaded")))
+         (catch Throwable _
+           (log/error "after-source-import - logging error to slack failed")))
     ;; update the enabled flag for the articles
     (s/update-project-articles-enabled project-id))
   ;; start threads for updates from api.insilica.co
