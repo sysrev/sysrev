@@ -3,7 +3,7 @@
             [clojure.java.io :as io]
             [clojure-csv.core :as csv]
             [clojure.tools.logging :as log]
-            [compojure.core :refer [GET POST PUT]]
+            [compojure.core :refer [GET POST PUT DELETE]]
             [ring.util.response :as response]
             [sysrev.api :as api]
             [sysrev.web.app :as web :refer [with-authorize current-user-id active-project]]
@@ -505,6 +505,17 @@
          (with-authorize request {:roles ["admin"]}
            (let [source-id (parse-integer (-> request :params :source-id))]
              (api/source-sample source-id)))))
+
+(dr (POST "/api/sources/:source-id/cursors" request
+          (with-authorize request {:roles ["admin"]}
+            (let [source-id (parse-integer (-> request :params :source-id))
+                  {:keys [cursors]} (-> request :body)]
+              (api/update-source-cursors! source-id cursors)))))
+
+(dr (DELETE "/api/sources/:source-id/cursors" request
+            (with-authorize request {:roles ["admin"]}
+              (let [source-id (parse-integer (-> request :params :source-id))]
+                (api/delete-source-cursors! source-id )))))
 ;;;
 ;;; Project document files
 ;;;

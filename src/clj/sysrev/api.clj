@@ -241,6 +241,22 @@
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 
+(defn update-source-cursors!
+  "Update the meta of a source with new cursor information"
+  [source-id cursors]
+  (if (source/source-exists? source-id)
+    {:source-id (source/alter-source-meta source-id #(assoc % :cursors cursors))}
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exists")}}))
+
+(defn delete-source-cursors!
+  "Delete the cursors from a source meta"
+  [source-id]
+  (if (source/source-exists? source-id)
+    {:source-id (source/alter-source-meta source-id #(dissoc % :cursors))}
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exists")}}))
+
 (defn sysrev-base-url
   "Tries to determine and return the current root url for Sysrev web
   app. Returns default of \"https://sysrev.com\" if no condition

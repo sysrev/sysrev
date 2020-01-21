@@ -1,9 +1,9 @@
 (ns sysrev.views.panels.project.source-view
-  (:require [ajax.core :refer [GET]]
+  (:require [ajax.core :refer [GET POST DELETE]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe]]
+            [re-frame.core :refer [subscribe dispatch]]
+            [sysrev.data.cursors :refer [map-from-cursors prune-cursor]]
             [sysrev.shared.util :refer [parse-integer]]
-            [medley.core :refer [deep-merge]]
             [sysrev.views.semantic :refer [Button Tab]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]))
 
@@ -20,60 +20,119 @@
         :error-handler (fn [_]
                          (.log js/console "[sysrev.views.panels.project.source-view] error in retrieve-sample-article! for " source-id))}))
 
-(defn cursor-val->map
-  "Given a cursor-val of the form [(kw_1|integer_1) ... <kw_i|integer_i> val], return a map representation of the cursor-val"
-  [cursor-val]
-  (cond (= (count cursor-val) 1)
-        (first cursor-val)
-        (number? (first cursor-val))
-        (vector (cursor-val->map (rest cursor-val)))
-        :else
-        (hash-map (first cursor-val) (cursor-val->map (rest cursor-val)))))
+(defn save-cursors!
+  [source-id cursors]
+  (let [project-id @(subscribe [:active-project-id])
+        saving? (r/cursor state [source-id :saving?])]
+    (POST (str "/api/sources/" source-id "/cursors")
+          {:params {:project-id project-id
+                    :cursors cursors}
+           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+           :handler (fn [_]
+                      (reset! saving? false)
+                      (dispatch [:reload [:project/sources project-id]]))
+           :error-handler (fn [_]
+                            (reset! saving? false)
+                            (.log js/console "[sysrev.views.panels.project.source-view] error in save-cursors! for " source-id))})))
 
-;;[[:foo :bar] [:foo :bar :baz 0 :foo 0 :baz 0]]  {:foo {:bar {:baz [{:foo [{:baz "bar" :foo1 "1"} "baz" "qux"] :bar ["1" "2" "3"]} {:foo ["a" "c"]}]}} :bar "baz"}
-;; Throw out the second vector in this case because all of the :bar values are kept
-;; [:foo :bar :baz 0] -> take the vector of :baz as the value
-;; [:foo :bar :baz 0 :foo] -> take value of :baz, but filter only to the keys of :foo
-;; [:foo :bar :baz 0 :foo 0] -> equivalent to above
-;; [:foo :bar :baz 0 :foo 0 :baz] -> keeps only the :baz keys in the :foo keys
+(defn delete-cursors!
+  [source-id]
+  (let [project-id @(subscribe [:active-project-id])
+        deleting? (r/cursor state [source-id :deleting?])]
+    (DELETE (str "/api/sources/" source-id "/cursors")
+            {:params {:project-id project-id}
+             :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+             :handler (fn [_]
+                        (reset! deleting? false)
+                        (dispatch [:reload [:project/sources project-id]]))
+             :error-handler (fn [_]
+                              (reset! deleting? false)
+                              (.log js/console "[sysrev.views.panels.project.source-view] error in delete-cursors! for " source-id))})))
+(defn EditView
+  [{:keys [json-atom temp-cursors editing-view?]}]
+  [:div
+   [:div {:style {:padding-left "1em"}}
+    [Button {:size "tiny"
+             :style {:margin-top "0.5em"
+                     :margin-right "0"}
+             :onClick #(swap! editing-view? not)}
+     "Stop Editing"]]
+   [ReactJSONView {:json (clj->js @json-atom)
+                   :on-add (fn [e context]
+                             (.preventDefault e)
+                             (.stopPropagation e)
+                             (let [ns (:ns context)
+                                   cursor (->> (clojure.string/split ns #" ")
+                                               (mapv #(if (parse-integer %)
+                                                        (parse-integer %)
+                                                        (keyword %)))
+                                               prune-cursor)]
+                               (swap! temp-cursors conj cursor)
+                               ;; remove redundant cursors
+                               (reset! temp-cursors (distinct @temp-cursors))))}]
+   [:div {:style {:padding-left "1em"}}
+    [Button {:size "tiny"
+             :style {:margin-top "0.5em"
+                     :margin-right "0"}
+             :onClick #(swap! editing-view? not)}
+     "Stop Editing"]]])
 
-(defn prune-cursor 
-  "Prune a cursor down to its first index.
-  e.g. [:foo :bar 0 :baz 1 :quz] -> [:foo :bar]"
-  [v & [pruned-cursor]]
-  (let [kw (first v)
-        pruned-cursor (or pruned-cursor [])]
-    (cond (not (seq v))
-          pruned-cursor
-          (number? kw)
-          pruned-cursor
-          :else
-          (prune-cursor (into []
-                              (rest v))
-                        (conj pruned-cursor kw)))))
-(defn map-from-cursors
-  "Given a coll of cursors and edn map, m, extract the values
-  the cursors point to and create a new map that is the combination of those cursors"
-  [m coll]
-  (let [cursor-vals (map #(conj % (get-in m %)) coll)]
-    (if (and (seq coll)
-             (seq m))
-      (->> (map cursor-val->map cursor-vals)
-           (apply deep-merge))
-      {})))
+(defn PreviewView
+  [{:keys [json-atom temp-cursors source-id editing-view? cursors saving? deleting?]}]
+  (let [on-save! (fn [_]
+                   (reset! saving? true)
+                   (save-cursors! source-id
+                                  @temp-cursors))
+        on-delete! (fn [_]
+                     (reset! temp-cursors [])
+                     (delete-cursors! source-id))]
+    [:div
+     [:div {:style {:padding-left "1em"
+                    :margin-top "0.5em"}}
+      [Button {:size "tiny"
+               :onClick #(swap! editing-view? not)}
+       "Stop Editing"]
+      [Button {:size "tiny"
+               :onClick on-save!
+               :disabled (boolean (= @temp-cursors @cursors))
+               :loading @saving?} "Save"]
+      [Button {:size "tiny"
+               :onClick on-delete!
+               :disabled (not (seq @temp-cursors))
+               :loading @deleting?} "Reset View"]]
+     (if (seq @temp-cursors)
+       [ReactJSONView {:json (clj->js (map-from-cursors @json-atom @temp-cursors))}]
+       [:div
+        {:style {:padding-left "1em"}} "Entire JSON will be visible in Article View. Choose fields in 'Edit View' to narrow view."])
+     [:div {:style {:padding-left "1em"}}
+      [Button {:size "tiny"
+               :onClick #(swap! editing-view? not)}
+       "Stop Editing"]
+      [Button {:size "tiny"
+               :onClick on-save!
+               :disabled (= @temp-cursors @cursors)
+               :loading @saving?} "Save"]
+      [Button {:size "tiny"
+               :onClick on-delete!
+               :disabled (not (seq @temp-cursors))
+               :loading @deleting?} "Reset View"]]]))
 
 (defn EditJSONView
   "Edit the JSON view for source. The editing-view? atom is passed as a prop"
   [{:keys [source editing-view?]}]
-  (let [source-id (:source-id source)
+  (let [source-id (:source-id @source)
+        cursors (r/cursor source [:meta :cursors])
         sample-article (r/cursor state [source-id :sample-article])
         json (r/cursor state [source-id :sample-article :json])
-        ;; change to specific cursor-atom
-        cursor-atom (r/cursor state [:cursor-atom])]
+        ;; change to specific temp-cursors
+        temp-cursors (r/cursor state [source-id :temp-cursors])
+        saving? (r/cursor state [source-id :saving?])
+        deleting? (r/cursor state [source-id :deleting?])]
     (when-not (seq @sample-article)
       (retrieve-sample-article! source-id))
-    (when (nil? cursor-atom)
-      (reset! cursor-atom []))
+    (reset! temp-cursors (mapv #(mapv keyword %) @cursors))
+    (reset! saving? false)
+    (reset! deleting? false)
     [:div
      (when (seq @json)
        [Tab {:panes
@@ -81,37 +140,20 @@
                :render
                (fn []
                  (r/as-component
-                  [ReactJSONView
-                   {:json (clj->js @json)
-                    :on-click (fn [e context]
-                                (.preventDefault e)
-                                (.stopPropagation e)
-                                (let [ns (:ns context)
-                                      cursor (->> (clojure.string/split ns #" ")
-                                                  (mapv #(if (parse-integer %)
-                                                           (parse-integer %)
-                                                           (keyword %)))
-                                                  prune-cursor)
-                                      value (get-in @json cursor)]
-                                  (swap! cursor-atom conj cursor)
-                                  ;; remove redundant cursors
-                                  (reset! cursor-atom (distinct @cursor-atom))
-                                  (.log js/console "source-id: " source-id)
-                                  (.log js/console "cursor: " (clj->js cursor))))}]))
+                  [EditView {:json-atom json
+                             :temp-cursors temp-cursors
+                             :editing-view? editing-view?}]))
                ;;:compact true
                :fluid true}
               {:menuItem "Preview Changes"
-               :render (fn [] (r/as-component
-                               [ReactJSONView {:json (clj->js (map-from-cursors @json @cursor-atom))}]))
+               :render (fn []
+                         (r/as-component
+                          [PreviewView {:json-atom json
+                                        :temp-cursors temp-cursors
+                                        :cursors cursors
+                                        :editing-view? editing-view?
+                                        :source-id source-id
+                                        :saving? saving?
+                                        :deleting? deleting?}]))
                ;;:compact true
-               :fluid true}]}])
-     [:div
-      [Button {:fluid true
-               :size "tiny"
-               :onClick #(.log js/console "I would have saved")} "Save"]
-      [Button {:fluid true
-               :size "tiny"
-               :style {:margin-top "0.5em"
-                       :margin-right "0"}
-               :onClick #(swap! editing-view? not)}
-       "Cancel"]]]))
+               :fluid true}]}])]))

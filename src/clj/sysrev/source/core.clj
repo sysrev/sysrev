@@ -279,7 +279,11 @@
                                :overlap (->> overlap-coll
                                              (filter #(= (:source-id %) source-id))
                                              (mapv #(select-keys % [:overlap-source-id :count])))
-                               :unique-articles-count (get unique-coll source-id)}))))))))
+                               :unique-articles-count (get unique-coll source-id)})))
+               ;; process any cursors that exist
+               (mapv #(let [cursors (get-in % [:meta :cursors])]
+                        (assoc-in % [:meta :cursors]
+                                  (mapv (fn [_] (mapv keyword _)) cursors)))))))))
 
 (defn-spec source-has-labeled-articles? boolean?
   [source-id int?]
