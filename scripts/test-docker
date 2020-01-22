@@ -36,7 +36,7 @@ if [ $compile = true ]; then
 fi
 
 if [ -z $namespace ]; then
-    time docker exec sysrev bash -c "cd /systematic_review && lein test"
+    time docker exec sysrev bash -c "cd /systematic_review && lein eftest"
 else
     time docker exec sysrev bash -c "cd /systematic_review && lein test :only $namespace"  
 fi
