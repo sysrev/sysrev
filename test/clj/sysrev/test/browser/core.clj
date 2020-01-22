@@ -92,11 +92,10 @@
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments
                              (concat ["headless"
+                                      "no-sandbox"
                                       (format "window-size=%d,%d"
                                               (:width browser-test-window-size)
-                                              (:height browser-test-window-size))]
-                                     (when-not (util/linux?)
-                                       ["no-sandbox"]))))
+                                              (:height browser-test-window-size))])))
                           (ChromeDriver.)
                           (assoc {} :webdriver)
                           (driver/init-driver)
@@ -117,12 +116,15 @@
     (do (when @*wd*
           (try (taxi/quit @*wd*) (catch Throwable _ nil)))
         (reset! *wd* (->> (doto (ChromeOptions.)
-                            (.addArguments ["window-size=1200,800"]))
+                            (.addArguments [(format "window-size=%d,%d"
+                                                    (:width browser-test-window-size)
+                                                    (:height browser-test-window-size))]))
                           (ChromeDriver.)
                           (assoc {} :webdriver)
                           (driver/init-driver)
                           (taxi/set-driver!)))
         (reset! *wd-config* {:visual true})
+        (ensure-webdriver-size)
         @*wd*)))
 
 (defn stop-webdriver []

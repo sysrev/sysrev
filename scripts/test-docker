@@ -27,9 +27,11 @@ while getopts 'hc:n:' flag; do
     esac
 done
 
+scripts/build-css
+
 if [ $compile = true ]; then
     cd client
-    shadow-cljs release prod --source-maps
+    shadow-cljs release prod
     cd ..
 fi
 
