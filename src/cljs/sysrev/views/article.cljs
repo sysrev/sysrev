@@ -6,6 +6,7 @@
             goog.object
             [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
+            [sysrev.data.cursors :refer [map-from-cursors]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation]
             [sysrev.pdf :as pdf]
@@ -270,7 +271,7 @@
                [:div {:style {:white-space "normal"
                               :overflow "overlay"}}
                 [XMLViewerComponent {:xml content}]]
-               [RJson {:src  @json
+               [RJson {:src @json
                        :theme (condp = @(subscribe [:self/ui-theme])
                                 "Default" "bright:inverted"
                                 "Dark" "eighties")
@@ -289,17 +290,25 @@
             nctid (get-in json [:ProtocolSection :IdentificationModule :NCTId])
             title (get-in json [:ProtocolSection :IdentificationModule :BriefTitle])
             _brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
-            ui-theme @(subscribe [:self/ui-theme])]
+            ui-theme @(subscribe [:self/ui-theme])
+            cursors (mapv #(mapv keyword %)
+                          (get-in @(subscribe [:project/sources (first @(subscribe [:article/sources article-id]))])
+                                  [:meta :cursors]))]
         [:div {:id nctid}
          [:h2 title ]
          [ui/out-link (str "https://clinicaltrials.gov/ct2/show/" nctid)]
          [:br]
-         [RJson {:src (clj->js json)
+         [RJson {:src (if (seq cursors)
+                        (clj->js (map-from-cursors json cursors))
+                        json)
                  :theme (condp = ui-theme
                           "Default" "bright:inverted"
                           "Dark" "eighties")
                  :displayDataTypes false
                  :enableClipboard false
+                 :onEdit (fn [obj]
+                           (.log js/console obj)
+                           false)
                  :name false
                  :collapsed 3}]]))))
 

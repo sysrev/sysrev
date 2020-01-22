@@ -11,8 +11,9 @@
             [sysrev.views.panels.ctgov :as ctgov]
             [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
+            [sysrev.views.panels.project.source-view :refer [EditJSONView]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem]]
+            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in?]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
@@ -22,7 +23,8 @@
 
 (setup-panel-state panel [:project :project :add-articles] {:state-var state})
 
-(def initial-state {:read-only-message-closed? false})
+(def initial-state {:read-only-message-closed? false
+                    :editing-view? false})
 
 (defn ensure-state []
   (when (nil? @state)
@@ -283,119 +285,137 @@
        600))
     nil))
 
-(defn ArticleSource [source]
-  (let [project-id @(subscribe [:active-project-id])
-        {:keys [meta source-id  article-count labeled-article-count enabled]} source
-        {:keys [importing-articles? deleting?]} meta
-        polling? @polling-sources?
-        delete-running? (loading/action-running? [:sources/delete project-id source-id])
-        timed-out? (source-import-timed-out? source)
-        segment-class (if enabled nil "secondary")]
-    (when (or (and (true? importing-articles?) (not timed-out?))
-              deleting? delete-running?)
-      (poll-project-sources project-id source-id))
-    [:div.project-source>div.ui.segments.project-source
-     [SourceInfoView project-id source-id]
-     [:div.ui.segment.source-details
-      {:class segment-class}
-      [:div.ui.middle.aligned.stackable.grid>div.row
-       (cond
-         (= (:source meta) "legacy")
-         (list
-          [:div.sixteen.wide.column.left.aligned.reviewed-count
-           {:key :reviewed-count}
-           [:div
-            (.toLocaleString labeled-article-count)
-            " of "
-            (.toLocaleString article-count)
-            " reviewed"]])
+(defn ArticleSource [_source]
+  (r/create-class
+   {:reagent-render
+    (fn [source]
+      (let [project-id @(subscribe [:active-project-id])
+            source-name (:source meta)
+            {:keys [meta source-id article-count labeled-article-count enabled]} source
+            {:keys [importing-articles? deleting?]} meta
+            delete-running? (loading/action-running? [:sources/delete project-id source-id])
+            segment-class (if enabled nil "secondary")
+            editing-view? (r/cursor state [source-id :editing-view?])
+            timed-out? (source-import-timed-out? source)
+            polling? @polling-sources?]
+        (when (or (and (true? importing-articles?) (not timed-out?))
+                  deleting? delete-running?)
+          (poll-project-sources project-id source-id))
+        [:div.project-source>div.ui.segments.project-source
+         [SourceInfoView project-id source-id]
+         [:div.ui.segment.source-details
+          {:class segment-class}
+          [:div.ui.middle.aligned.stackable.grid>div.row
+           (cond
+             (= (:source meta) "legacy")
+             (list
+              [:div.sixteen.wide.column.left.aligned.reviewed-count
+               {:key :reviewed-count}
+               [:div
+                (.toLocaleString labeled-article-count)
+                " of "
+                (.toLocaleString article-count)
+                " reviewed"]])
 
-         ;; when source is currently being deleted
-         (or deleting? delete-running?)
-         (list
-          [:div.eight.wide.column.left.aligned
-           {:key :deleting}
-           [:div "Deleting source..."]]
-          [:div.six.wide.column.placeholder
-           {:key :placeholder}]
-          [:div.two.wide.column.right.aligned
-           {:key :loader}
-           [:div.ui.small.active.loader]])
+             ;; when source is currently being deleted
+             (or deleting? delete-running?)
+             (list
+              [:div.eight.wide.column.left.aligned
+               {:key :deleting}
+               [:div "Deleting source..."]]
+              [:div.six.wide.column.placeholder
+               {:key :placeholder}]
+              [:div.two.wide.column.right.aligned
+               {:key :loader}
+               [:div.ui.small.active.loader]])
 
-         ;; when import has failed or timed out
-         (or (= importing-articles? "error") timed-out?)
-         (list
-          [:div.eight.wide.column.left.aligned
-           {:key :import-failed}
-           "Import error"]
-          ;; need to check if the user is an admin
-          ;; before displaying this option
-          [:div.eight.wide.column.right.aligned
-           {:key :buttons}
-           [DeleteArticleSource source-id]])
+             ;; when import has failed or timed out
+             (or (= importing-articles? "error") timed-out?)
+             (list
+              [:div.eight.wide.column.left.aligned
+               {:key :import-failed}
+               "Import error"]
+              ;; need to check if the user is an admin
+              ;; before displaying this option
+              [:div.eight.wide.column.right.aligned
+               {:key :buttons}
+               [DeleteArticleSource source-id]])
 
-         ;; when articles are still loading
-         (and (true? importing-articles?) polling? article-count (> article-count 0))
-         (list
-          [:div.eight.wide.column.left.aligned.loaded-count
-           {:key :loaded-count}
-           [:div
-            (str (.toLocaleString article-count) " "
-                 (article-or-articles article-count) " loaded")]]
-          [:div.six.wide.column.placeholder
-           {:key :placeholder}]
-          [:div.two.wide.column.right.aligned
-           {:key :loader}
-           [:div.ui.small.active.loader]])
+             ;; when articles are still loading
+             (and (true? importing-articles?) polling? article-count (> article-count 0))
+             (list
+              [:div.eight.wide.column.left.aligned.loaded-count
+               {:key :loaded-count}
+               [:div
+                (str (.toLocaleString article-count) " "
+                     (article-or-articles article-count) " loaded")]]
+              [:div.six.wide.column.placeholder
+               {:key :placeholder}]
+              [:div.two.wide.column.right.aligned
+               {:key :loader}
+               [:div.ui.small.active.loader]])
 
-         ;; when articles have been imported
-         (and (false? importing-articles?) labeled-article-count article-count)
-         (list
-          [:div.source-description.column.left.aligned
-           {:key :reviewed-count
-            :class (if (admin?)
-                     (if (util/desktop-size?)
-                       "fourteen wide" "thirteen wide")
-                     "sixteen wide")}
-           [:div.ui.two.column.stackable.left.aligned.middle.aligned.grid
-            ;; total/reviewed count
-            [:div.column
-             [:span.reviewed-count (.toLocaleString labeled-article-count)]
-             " of "
-             [:span.total-count (.toLocaleString article-count)]
-             " " (article-or-articles article-count) " reviewed"]
-            ;; unique count
-            (when-let [unique-articles-count (:unique-articles-count source)]
-              [:div.column
-               [:span.unique-count {:data-count unique-articles-count}
-                (.toLocaleString unique-articles-count)]
-               " unique " (article-or-articles unique-articles-count)])
-            (doall (for [{shared-count :count, overlap-source-id :overlap-source-id}
-                         (filter #(pos? (:count %)) (:overlap source))]
-                     (let [src-type @(subscribe [:source/display-type overlap-source-id])
-                           src-info (some-> @(subscribe [:source/display-info overlap-source-id])
-                                            (sutil/string-ellipsis 40))]
-                       ^{:key [:shared source-id overlap-source-id]}
-                       [:div.column (.toLocaleString shared-count) " shared: "
-                        [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
-          (when (admin?)
-            [:div.column.right.aligned.source-actions
-             {:key :buttons
-              :class (if (util/desktop-size?)
-                       "two wide" "three wide")}
-             [ToggleArticleSource source-id enabled]
-             (when (and (<= labeled-article-count 0))
-               [DeleteArticleSource source-id])]))
-         :else
-         (list
-          [:div.eight.wide.column.left.aligned
-           {:key :import-status}
-           "Starting import..."]
-          [:div.six.wide.column.placeholder
-           {:key :placeholder}]
-          [:div.two.wide.column.right.aligned
-           {:key :loader}
-           [:div.ui.small.active.loader]]))]]]))
+             ;; when articles have been imported
+             (and (false? importing-articles?) labeled-article-count article-count)
+             (if @editing-view?
+               (do
+                 [EditJSONView {:source (subscribe [:project/sources source-id])
+                                :editing-view? editing-view?}])
+               (list
+                [:div.source-description.column.left.aligned
+                 {:key :reviewed-count
+                  :class (if (admin?)
+                           (if (util/desktop-size?)
+                             "fourteen wide" "thirteen wide")
+                           "sixteen wide")}
+                 [:div.ui.two.column.stackable.left.aligned.middle.aligned.grid
+                  ;; total/reviewed count
+                  [:div.column
+                   [:span.reviewed-count (.toLocaleString labeled-article-count)]
+                   " of "
+                   [:span.total-count (.toLocaleString article-count)]
+                   " " (article-or-articles article-count) " reviewed"]
+                  ;; unique count
+                  (when-let [unique-articles-count (:unique-articles-count source)]
+                    [:div.column
+                     [:span.unique-count (.toLocaleString unique-articles-count)]
+                     " unique " (article-or-articles unique-articles-count)])
+                  (doall (for [{shared-count :count, overlap-source-id :overlap-source-id}
+                               (filter #(pos? (:count %)) (:overlap source))]
+                           (let [src-type @(subscribe [:source/display-type overlap-source-id])
+                                 src-info (some-> @(subscribe [:source/display-info overlap-source-id])
+                                                  (sutil/string-ellipsis 40))]
+                             ^{:key [:shared source-id overlap-source-id]}
+                             [:div.column (.toLocaleString shared-count) " shared: "
+                              [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
+                (when (admin?)
+                  [:div.column.right.aligned.source-actions
+                   {:key :buttons
+                    :class (if (util/desktop-size?)
+                             "two wide" "three wide")}
+                   [ToggleArticleSource source-id enabled]
+                   (when (and (<= labeled-article-count 0))
+                     [DeleteArticleSource source-id])
+                   ;; should include any JSON / XML sources
+                   (when (= source-name "CT.gov search")
+                     [Button {:fluid true
+                              :size "tiny"
+                              :style {:margin-top "0.5em"
+                                      :margin-right "0"}
+                              :onClick #(swap! editing-view? not)}
+                      "Edit View"]               )])))
+             :else
+             (list
+              [:div.eight.wide.column.left.aligned
+               {:key :import-status}
+               "Starting import..."]
+              [:div.six.wide.column.placeholder
+               {:key :placeholder}]
+              [:div.two.wide.column.right.aligned
+               {:key :loader}
+               [:div.ui.small.active.loader]]))]]]))
+    :component-did-mount (fn [_]
+                           (reset! state initial-state))}))
 
 (defn ProjectSourcesList []
   (ensure-state)
