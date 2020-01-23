@@ -264,10 +264,10 @@
             [:div
              [Checkbox {:as "h4"
                         :checked @checked?
-                        :on-change #(do (.log js/console "I changed")
-                                        (reset! checked? (not @checked?)))
-                        :toggle true}]
-             (if (not @checked?)
+                        :on-change #(do (reset! checked? (not @checked?)))
+                        :toggle true
+                        :label "Switch Views"}]
+             (if @checked?
                [:div {:style {:white-space "normal"
                               :overflow "overlay"}}
                 [XMLViewerComponent {:xml content}]]
