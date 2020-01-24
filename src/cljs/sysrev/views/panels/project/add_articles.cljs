@@ -37,6 +37,13 @@
    (reset! state initial-state)
    {}))
 
+(reg-event-fx
+ :add-articles/reset-import-tab!
+ [trim-v]
+ (fn [_ [new-val]]
+   (reset! (r/cursor state [:import-tab]) new-val)
+   {}))
+
 (def-action :sources/toggle-source
   :uri (fn [] "/api/toggle-source")
   :content (fn [project-id source-id enabled?]
@@ -97,7 +104,22 @@
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.segment.import-upload
      [:h5
-      "Upload a plain text file containing a list of PubMed IDs (one per line)."]
+      "Upload a plain text file containing a list of PubMed IDs (one per line)."
+      [Popup {:hoverable true
+              :trigger (r/as-element [Icon {:name "question circle"}])
+              :content (r/as-element
+                        [:div
+                         [:h5 [:p "Export a PMID file from PubMed"]]
+                         [ListUI
+                          [ListItem "1. Click " [:b "Send To"] " the top right of the PubMed search results"]
+                          [ListItem "2. Select 'File' for " [:b "Choose Destination"]]
+                          [ListItem "3. Select 'PMID file' for " [:b "Format"]]
+                          [ListItem "4. Click " [:b "Create File"] " button to download"]
+                          [ListItem "4. Import the downloaded txt file with the " [:b "Upload Text File..."] " import button below"]]
+                         [:a {:href "https://www.youtube.com/watch?v=8XTxAbaTpIY"
+                              :target "_blank"} "Video tutorial"]])}]
+      [:a {:href "https://www.youtube.com/watch?v=8XTxAbaTpIY"
+           :target "_blank"} [Icon {:name "video camera"}]]]
      [ui/UploadButton
       (str "/api/import-articles/pmid-file/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
@@ -134,6 +156,10 @@
                           [ListItem "Zotero"]
                           [ListItem "...and many more"]]
                          [:b "Note: Make sure to include abstracts when exporting files!"]])}]]
+     [:p "Having difficulties importing your RIS file? We recommend using the free, cross-platform tool " [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] " to process your file. "
+      #_"We've made a "
+      #_ [:a {:href "https://" :target "_blank"} "quick video tutorial"]
+      #_ " describing the process."]
      [ui/UploadButton
       (str "/api/import-articles/ris/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
@@ -448,13 +474,18 @@
      [:h4.ui.large.block.header
       "Import Articles"
       [:span {:style {:font-size "0.9em"}}
-       [Popup {:hoverable true
-               :trigger (r/as-element [Icon {:name "question circle"}])
-               :content (r/as-element
-                         [:div>p
-                          "Importing Articles "
-                          [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"}
-                           "video tutorial"]])}]]]
+       #_ [Popup {:hoverable true
+                  :trigger (r/as-element [Icon {:name "question circle"}])
+                  :content (r/as-element
+                            [:div>p
+                             "Importing Articles "
+                             [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"
+                                  :target "_blank"}
+                              "video tutorial"]])}]
+       [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"
+            :target "_blank"
+            :style {:margin-left "0.25em"}}
+        [Icon {:name "video camera"}]]]]
      [:div.ui.segments
       [:div.ui.attached.segment.import-menu
        [ui/tabbed-panel-menu [{:tab-id :zip-file

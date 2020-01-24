@@ -47,7 +47,11 @@
   :content (fn [search-term page-number]
              {:term search-term :page-number page-number})
   :process (fn [_ [search-term page-number] response]
-             {:dispatch [:pubmed/save-search-term-results search-term page-number response]}))
+             {:dispatch [:pubmed/save-search-term-results search-term page-number response]})
+  :on-error (fn [{:keys [db error]} _]
+              (let [{:keys [message]} error]
+                (when (string? message)
+                  {:dispatch [:pubmed/set-import-error message]}))))
 
 (def-data :pubmed-summaries
   :loaded? (fn [db search-term page-number _]
@@ -315,7 +319,10 @@
     (cond @import-error
           [:div.ui.segment.search-results-container.margin
            [:div.ui.error.message
-            (str @import-error)]]
+            (str @import-error)]
+           [:div "Not getting results when you would expect to see them? Try importing PubMed results with a "
+            [:a {:on-click (fn [e] (.preventDefault e) (dispatch [:add-articles/reset-import-tab! :pmid]))
+                 :style {:cursor "pointer"}} "PMID file"]]]
           ;; search input form is empty
           (or (nil? @current-search-term)
               (empty? @current-search-term))
