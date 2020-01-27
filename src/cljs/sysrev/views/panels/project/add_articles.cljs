@@ -115,9 +115,7 @@
                           [ListItem "2. Select 'File' for " [:b "Choose Destination"]]
                           [ListItem "3. Select 'PMID file' for " [:b "Format"]]
                           [ListItem "4. Click " [:b "Create File"] " button to download"]
-                          [ListItem "4. Import the downloaded txt file with the " [:b "Upload Text File..."] " import button below"]]
-                         [:a {:href "https://www.youtube.com/watch?v=8XTxAbaTpIY"
-                              :target "_blank"} "Video tutorial"]])}]
+                          [ListItem "4. Import the downloaded txt file with the " [:b "Upload Text File..."] " import button below"]]])}]
       [:a {:href "https://www.youtube.com/watch?v=8XTxAbaTpIY"
            :target "_blank"} [Icon {:name "video camera"}]]]
      [ui/UploadButton
@@ -155,11 +153,13 @@
                           [ListItem "EndNote Online"]
                           [ListItem "Zotero"]
                           [ListItem "...and many more"]]
-                         [:b "Note: Make sure to include abstracts when exporting files!"]])}]]
-     [:p "Having difficulties importing your RIS file? We recommend using the free, cross-platform tool " [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] " to process your file. "
-      #_"We've made a "
-      #_ [:a {:href "https://" :target "_blank"} "quick video tutorial"]
-      #_ " describing the process."]
+                         [:b "Note: Make sure to include abstracts when exporting files!"]])}]
+      [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw"
+           :target "_blank"} [Icon {:name "video camera"}]]]
+     [:p "Having difficulties importing your RIS file? We recommend using the free, cross-platform tool " [:a {:href "https://zotero.org" :target "_blank"} "zotero"] " to convert your RIS file to a sysrev compatible version. "
+      "We've made a "
+      [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw" :target "_blank"} "quick video tutorial"]
+      " describing the process."]
      [ui/UploadButton
       (str "/api/import-articles/ris/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
