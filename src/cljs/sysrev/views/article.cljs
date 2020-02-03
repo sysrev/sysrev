@@ -14,6 +14,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
+            [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer [css filter-values]]
@@ -250,35 +251,38 @@
       (let [mimetype @(subscribe [:article/mimetype article-id])
             json (r/atom {})
             content @(subscribe [:article/content article-id])
-            _ (when (= mimetype "application/xml")
-                (xml2js/parseString content
-                                    (fn [_err result]
-                                      (reset! json result))))
-            title article-id]
+            title article-id
+            cursors (mapv #(mapv keyword %)
+                          (get-in
+                           @(subscribe [:project/sources (first @(subscribe [:article/sources article-id]))])
+                           [:meta :cursors]))]
         [:div {:id article-id}
          [:h2 title]
          [:br]
          [:div {:id "content"}
           (condp = mimetype
             "application/xml"
-            [:div
-             [Checkbox {:as "h4"
-                        :checked @checked?
-                        :on-change #(do (reset! checked? (not @checked?)))
-                        :toggle true
-                        :label "Switch Views"}]
-             (if @checked?
-               [:div {:style {:white-space "normal"
-                              :overflow "overlay"}}
-                [XMLViewerComponent {:xml content}]]
-               [RJson {:src @json
-                       :theme (condp = @(subscribe [:self/ui-theme])
-                                "Default" "bright:inverted"
-                                "Dark" "eighties")
-                       :displayDataTypes false
-                       :enableClipboard false
-                       :name false
-                       :collapsed 3}])]
+            (do
+              (xml2js/parseString content
+                                  (fn [_err result]
+                                    (reset! json result)))
+              [:div
+               [Checkbox {:as "h4"
+                          :checked @checked?
+                          :on-change #(do (reset! checked? (not @checked?)))
+                          :toggle true
+                          :label "Switch Views"}]
+               (if @checked?
+                 [:div {:style {:white-space "normal"
+                                :overflow "overlay"}}
+                  [XMLViewerComponent {:xml content}]]
+                 [ReactJSONView {:json @json}])])
+            "application/json"
+            (do
+              (reset! json (.parse js/JSON content))
+              [ReactJSONView {:json (if (seq cursors)
+                                      (map-from-cursors (js->clj @json :keywordize-keys true) cursors)
+                                      @json)}])
             content)]]))))
 
 (defn CTDocument [article-id]
@@ -292,8 +296,9 @@
             _brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
             ui-theme @(subscribe [:self/ui-theme])
             cursors (mapv #(mapv keyword %)
-                          (get-in @(subscribe [:project/sources (first @(subscribe [:article/sources article-id]))])
-                                  [:meta :cursors]))]
+                          (get-in
+                           @(subscribe [:project/sources (first @(subscribe [:article/sources article-id]))])
+                           [:meta :cursors]))]
         [:div {:id nctid}
          [:h2 title ]
          [ui/out-link (str "https://clinicaltrials.gov/ct2/show/" nctid)]

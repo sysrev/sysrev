@@ -12,5 +12,8 @@
       slurp
       edn/read-string
       (attach-resolvers {:resolve-project resolvers/project
-                         :resolve-import-articles! resolvers/import-articles})
+                         :resolve-import-articles! resolvers/import-articles
+                         :resolve-import-dataset! resolvers/import-dataset
+                         :resolve-import-datasource! resolvers/import-datasource
+                         :resolve-import-datasource-flattened! resolvers/import-datasource-flattened})
       (schema/compile {:default-field-resolver schema/hyphenating-default-field-resolver})))

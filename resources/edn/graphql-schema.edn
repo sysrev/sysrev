@@ -34,5 +34,26 @@
                               :args {:query {:type (non-null String)
                                              :description "The GraphQL query string that imports an entities content"}
                                      :id {:type (non-null Int)
-                                          :description "The project-id to import articles into"}}
-                              :resolve :resolve-import-articles!}}}
+                                          :description "The project-id to import entities into"}}
+                              :resolve :resolve-import-articles!}
+             :importDataset {:type Boolean
+                             :description "Import a dataset from datasource as a source on SysRev. Result is true when import is successful,false otherwise."
+                             :args {:id {:type (non-null Int)
+                                         :description "The project-id to import entities into"}
+                                    :dataset {:type (non-null Int)
+                                              :description "The dataset id to import"}}
+                             :resolve :resolve-import-dataset!}
+             :importDatasource {:type Boolean
+                                :description "Import each datasets from datasource as an individual source on SysRev. Result is true when import is successful, false otherwise"
+                                :args {:id {:type (non-null Int)
+                                            :description "The project-id to import entities into"}
+                                       :datasource {:type (non-null Int)
+                                                    :description "The datasource id to import"}}
+                                :resolve :resolve-import-datasource!}
+             :importDatasourceFlattened {:type Boolean
+                                         :description "Import all datasets from datasource as a single source on SysRev. Result is true when import is successful, false otherwise"
+                                         :args {:id {:type (non-null Int)
+                                                     :description "The project-id to import entities into"}
+                                                :datasource {:type (non-null Int)
+                                                             :description "The datasource id to import"}}
+                                         :resolve :resolve-import-datasource-flattened!}}}

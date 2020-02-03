@@ -3,6 +3,7 @@
             [cljs-time.core :as t]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe reg-sub reg-event-fx trim-v]]
+            [re-frame.db :refer [app-db]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
             [sysrev.action.core :refer [def-action]]
@@ -234,7 +235,13 @@
                    (-> source :meta :search-term str)
 
                    (in? ["PMID file" "EndNote file" "PDF Zip file" "RIS file"] stype)
-                   (-> source :meta :filename str)))))
+                   (-> source :meta :filename str)
+                   (= "Datasource: Query" stype)
+                   (str "query: " (get-in source [:meta :query]))
+                   (= "Datasource: Dataset" stype)
+                   (str "dataset id:" (get-in source [:meta :dataset-id]))
+                   (= "Datasource: Datasource" stype)
+                   (str "datasource id: " (get-in source [:meta :datasource-id]))))))
 
 (defn SourceArticlesLink [source-id]
   [:div.ui.primary.tiny.left.labeled.icon.button.view-articles
@@ -248,7 +255,7 @@
         {:keys [s3-file source filename]} meta
         source-type @(subscribe [:source/display-type source-id])
         import-label @(subscribe [:source/display-info source-id])]
-    [:div.ui.middle.aligned.stackable.grid.segment.source-info
+    [:div.ui.middle.aligned.stackable.grid.segment.source-info {:data-source-id source-id}
      [:div.row
       [:div.six.wide.middle.aligned.left.aligned.column
        {:style {:padding-right "0.25rem"}}
@@ -316,17 +323,20 @@
    {:reagent-render
     (fn [source]
       (let [project-id @(subscribe [:active-project-id])
-            source-name (:source meta)
             {:keys [meta source-id article-count labeled-article-count enabled]} source
             {:keys [importing-articles? deleting?]} meta
+            source-name (:source meta)
             delete-running? (loading/action-running? [:sources/delete project-id source-id])
             segment-class (if enabled nil "secondary")
             editing-view? (r/cursor state [source-id :editing-view?])
             timed-out? (source-import-timed-out? source)
-            polling? @polling-sources?]
+            polling? @polling-sources?
+            sample-article (subscribe [:project/sample-article project-id source-id])]
         (when (or (and (true? importing-articles?) (not timed-out?))
                   deleting? delete-running?)
           (poll-project-sources project-id source-id))
+        (when-not (seq @sample-article)
+          (dispatch [:fetch [:project/get-source-sample-article project-id source-id]]))
         [:div.project-source>div.ui.segments.project-source
          [SourceInfoView project-id source-id]
          [:div.ui.segment.source-details
@@ -384,9 +394,8 @@
              ;; when articles have been imported
              (and (false? importing-articles?) labeled-article-count article-count)
              (if @editing-view?
-               (do
-                 [EditJSONView {:source (subscribe [:project/sources source-id])
-                                :editing-view? editing-view?}])
+               [EditJSONView {:source (subscribe [:project/sources source-id])
+                              :editing-view? editing-view?}]
                (list
                 [:div.source-description.column.left.aligned
                  {:key :reviewed-count
@@ -423,13 +432,16 @@
                    (when (and (<= labeled-article-count 0))
                      [DeleteArticleSource source-id])
                    ;; should include any JSON / XML sources
-                   (when (= source-name "CT.gov search")
+                   ;; TODO: Fix this so CT.gov uses regular article content
+                   ;; this should only dispatch on mimetype, not on source-name
+                   (when (or (= source-name "CT.gov search")
+                             (= (:mimetype @sample-article) "application/json"))
                      [Button {:fluid true
                               :size "tiny"
                               :style {:margin-top "0.5em"
                                       :margin-right "0"}
                               :onClick #(swap! editing-view? not)}
-                      "Edit View"]               )])))
+                      "Edit View"])])))
              :else
              (list
               [:div.eight.wide.column.left.aligned
@@ -474,14 +486,6 @@
      [:h4.ui.large.block.header
       "Import Articles"
       [:span {:style {:font-size "0.9em"}}
-       #_ [Popup {:hoverable true
-                  :trigger (r/as-element [Icon {:name "question circle"}])
-                  :content (r/as-element
-                            [:div>p
-                             "Importing Articles "
-                             [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"
-                                  :target "_blank"}
-                              "video tutorial"]])}]
        [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"
             :target "_blank"
             :style {:margin-left "0.25em"}}

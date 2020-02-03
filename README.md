@@ -477,6 +477,13 @@ sys	0m3.071s
 =======
 ```
 
+## Adding Site Admins
+
+The easiest way to add site admins is to have them create an insilica.co account. Then, on sysrev.com update the user's account:
+
+```
+update web_user set permissions = '{"admin"}' where email = 'user@insilica.co';
+```
 ## GraphQL API
 
 SysRev has an experimental GraphQL API. It is tightly coupled to the Datasource GraphQL API.

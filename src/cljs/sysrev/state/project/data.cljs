@@ -121,6 +121,19 @@
   :process (fn [{:keys [db]} [project-id] {:keys [sources]}]
              {:db (assoc-in db [:data :project project-id :sources] sources)}))
 
+(def-data :project/get-source-sample-article
+  :loaded? (fn [db project-id source-id]
+             (boolean (get-in db [:data :project project-id :sample-article source-id])))
+  :uri (fn [_ source-id]
+         (str "/api/sources/" source-id "/sample-article"))
+  :content (fn [project-id] {:project-id project-id})
+  :process (fn [{:keys [db]} [project-id source-id] content]
+             {:db (assoc-in db [:data :project project-id :sample-article source-id] (:article content))}))
+
+(reg-sub :project/sample-article
+         (fn [db [_ project-id source-id] _]
+           (get-in db [:data :project project-id :sample-article source-id])))
+
 (reg-event-db :project/clear-data [trim-v]
               #(if-let [project-id (active-project-id %)]
                  (dissoc-in % [:data :project project-id])

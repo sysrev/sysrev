@@ -9,17 +9,6 @@
 
 (def state (r/atom {}))
 
-(defn retrieve-sample-article!
-  [source-id]
-  (GET (str "/api/sources/" source-id "/sample-article")
-       {:params {:project-id @(subscribe [:active-project-id])}
-        :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-        :handler (fn [response]
-                   (reset! (r/cursor state [source-id :sample-article])
-                           (-> response :result :article)))
-        :error-handler (fn [_]
-                         (.log js/console "[sysrev.views.panels.project.source-view] error in retrieve-sample-article! for " source-id))}))
-
 (defn save-cursors!
   [source-id cursors]
   (let [project-id @(subscribe [:active-project-id])
@@ -48,8 +37,9 @@
              :error-handler (fn [_]
                               (reset! deleting? false)
                               (.log js/console "[sysrev.views.panels.project.source-view] error in delete-cursors! for " source-id))})))
+
 (defn EditView
-  [{:keys [json-atom temp-cursors editing-view?]}]
+  [{:keys [json temp-cursors editing-view?]}]
   [:div
    [:div {:style {:padding-left "1em"}}
     [Button {:size "tiny"
@@ -57,7 +47,7 @@
                      :margin-right "0"}
              :onClick #(swap! editing-view? not)}
      "Stop Editing"]]
-   [ReactJSONView {:json (clj->js @json-atom)
+   [ReactJSONView {:json json
                    :on-add (fn [e context]
                              (.preventDefault e)
                              (.stopPropagation e)
@@ -78,7 +68,7 @@
      "Stop Editing"]]])
 
 (defn PreviewView
-  [{:keys [json-atom temp-cursors source-id editing-view? cursors saving? deleting?]}]
+  [{:keys [json temp-cursors source-id editing-view? cursors saving? deleting?]}]
   (let [on-save! (fn [_]
                    (reset! saving? true)
                    (save-cursors! source-id
@@ -101,7 +91,7 @@
                :disabled (not (seq @temp-cursors))
                :loading @deleting?} "Reset View"]]
      (if (seq @temp-cursors)
-       [ReactJSONView {:json (clj->js (map-from-cursors @json-atom @temp-cursors))}]
+       [ReactJSONView {:json (clj->js (map-from-cursors (js->clj json :keywordize-keys true) @temp-cursors))}]
        [:div
         {:style {:padding-left "1em"}} "Entire JSON will be visible in Article View. Choose fields in 'Edit View' to narrow view."])
      [:div {:style {:padding-left "1em"}}
@@ -121,39 +111,45 @@
   "Edit the JSON view for source. The editing-view? atom is passed as a prop"
   [{:keys [source editing-view?]}]
   (let [source-id (:source-id @source)
+        source-name (get-in @source [:meta :source])
+        project-id @(subscribe [:active-project-id])
         cursors (r/cursor source [:meta :cursors])
-        sample-article (r/cursor state [source-id :sample-article])
-        json (r/cursor state [source-id :sample-article :json])
+        sample-article (subscribe [:project/sample-article project-id source-id])
+        ;; todo: CT.gov results should just be using content and not json
+        json (cond (= source-name "CT.gov search")
+                   (clj->js (:json @sample-article))
+                   (= (:mimetype @sample-article) "application/json")
+                   (.parse js/JSON @(r/cursor @sample-article :content))
+                   :else "error")
         ;; change to specific temp-cursors
         temp-cursors (r/cursor state [source-id :temp-cursors])
         saving? (r/cursor state [source-id :saving?])
         deleting? (r/cursor state [source-id :deleting?])]
-    (when-not (seq @sample-article)
-      (retrieve-sample-article! source-id))
+    (when (nil? json)
+      (dispatch [:reload [:project/get-source-sample-article project-id source-id]]))
     (reset! temp-cursors (mapv #(mapv keyword %) @cursors))
     (reset! saving? false)
     (reset! deleting? false)
     [:div
-     (when (seq @json)
-       [Tab {:panes
-             [{:menuItem "Edit JSON"
-               :render
-               (fn []
-                 (r/as-component
-                  [EditView {:json-atom json
-                             :temp-cursors temp-cursors
-                             :editing-view? editing-view?}]))
-               ;;:compact true
-               :fluid true}
-              {:menuItem "Preview Changes"
-               :render (fn []
-                         (r/as-component
-                          [PreviewView {:json-atom json
-                                        :temp-cursors temp-cursors
-                                        :cursors cursors
-                                        :editing-view? editing-view?
-                                        :source-id source-id
-                                        :saving? saving?
-                                        :deleting? deleting?}]))
-               ;;:compact true
-               :fluid true}]}])]))
+     [Tab {:panes
+           [{:menuItem "Edit JSON"
+             :render
+             (fn []
+               (r/as-component
+                [EditView {:json json
+                           :temp-cursors temp-cursors
+                           :editing-view? editing-view?}]))
+             ;;:compact true
+             :fluid true}
+            {:menuItem "Preview Changes"
+             :render (fn []
+                       (r/as-component
+                        [PreviewView {:json json
+                                      :temp-cursors temp-cursors
+                                      :cursors cursors
+                                      :editing-view? editing-view?
+                                      :source-id source-id
+                                      :saving? saving?
+                                      :deleting? deleting?}]))
+             ;;:compact true
+             :fluid true}]}]]))

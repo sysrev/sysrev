@@ -3,7 +3,7 @@
             [orchestra.core :refer [defn-spec]]
             [clojure.data.json :as json]
             [clj-http.client :as http]
-            [medley.core :refer [map-kv map-vals]]
+            [medley.core :refer [map-kv]]
             [venia.core :as venia]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db]
