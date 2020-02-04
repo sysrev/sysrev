@@ -100,20 +100,19 @@
 
 (defn MapVal [{:keys [namespace on-add k v]}]
   (let [displayed? (r/atom true)]
-    (fn []
-      [:div.jh-obj-div
-       [Icon {:name (if @displayed?
-                      "caret down"
-                      "caret right")
-              :on-click (fn [_]
-                          (swap! displayed? not))}]
-       [:span.jh-key.jh-object-key {:data-namespace (ns-str namespace)} (render-html k (ns-str namespace (-> k symbol str)) on-add) ": "]
-       (when @displayed?
-         [:div.jh-value.jh-object-value
-          {:data-namespace (ns-str namespace (-> k symbol str))}
-          (render-html v (ns-str namespace (-> k symbol str)) on-add) ])
-       (when-not @displayed?
-         "{ ... }")])))
+    [:div.jh-obj-div
+     [Icon {:name (if @displayed?
+                    "caret down"
+                    "caret right")
+            :on-click (fn [_]
+                        (swap! displayed? not))}]
+     [:span.jh-key.jh-object-key {:data-namespace (ns-str namespace)} (render-html k (ns-str namespace (-> k symbol str)) on-add) ": "]
+     (when @displayed?
+       [:div.jh-value.jh-object-value
+        {:data-namespace (ns-str namespace (-> k symbol str))}
+        (render-html v (ns-str namespace (-> k symbol str)) on-add) ])
+     (when-not @displayed?
+       "{ ... }")]))
 
 (defn render-map [m namespace & [on-add]]
   (let [displayed? (r/atom true)]
@@ -130,22 +129,24 @@
 
 (defn StringVal [s namespace & [on-add]]
   (let [hover? (r/atom false)]
-    (fn []
-      [:span.jh-type-string {:data-namespace (ns-str namespace)
-                             :on-mouse-over (fn [e]
-                                              (.stopPropagation e)
-                                              (reset! hover? true))
-                             :on-mouse-leave (fn [e]
-                                               (.stopPropagation e)
-                                               (reset! hover? false))}
-       (if (st/blank? s)
-         [:span.jh-empty-string {:on-click #(on-add % {:ns (ns-str namespace)})}]
-         (escape-html s))
-       (when @hover?
-         [:span
-          (when-not (nil? on-add)
-            [Icon {:name "add square"
-                   :on-click #(on-add % {:ns (ns-str namespace)})}])])])))
+    (r/create-class
+     {:reagent-render
+      (fn [s namespace & [on-add]]
+        [:span.jh-type-string {:data-namespace (ns-str namespace)
+                               :on-mouse-over (fn [e]
+                                                (.stopPropagation e)
+                                                (reset! hover? true))
+                               :on-mouse-leave (fn [e]
+                                                 (.stopPropagation e)
+                                                 (reset! hover? false))}
+         (if (st/blank? s)
+           [:span.jh-empty-string {:on-click #(on-add % {:ns (ns-str namespace)})}]
+           (escape-html s))
+         (when @hover?
+           [:span
+            (when-not (nil? on-add)
+              [Icon {:name "add square"
+                     :on-click #(on-add % {:ns (ns-str namespace)})}])])])})))
 
 (defn render-html [v namespace & [on-add]]
   (let [namespace (or namespace "")
@@ -173,7 +174,8 @@
   (linkify-links (html (edn->hiccup edn))))
 
 (defn json->hiccup [{:keys [json on-add]}]
-  [:div.jh-root (render-html (js->clj json :keywordize-keys true) "" on-add)])
+  [:div.jh-root
+   (render-html (js->clj json :keywordize-keys true) "" on-add)])
 
 #_(defn json->html [json & [on-add]]
     (linkify-links (html (json->hiccup json "" on-add))))
