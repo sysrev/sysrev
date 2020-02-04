@@ -46,20 +46,19 @@
 
 (defn IndexedVal [{:keys [namespace on-add i v]}]
   (let [displayed? (r/atom true)]
-    (fn []
-      [:div [:span.jh-key.jh-array-key
-             {:data-namespace (ns-str namespace i)}
-             [Icon {:name (if @displayed?
-                            "caret down"
-                            "caret right")
-                    :on-click (fn [e]
-                                (swap! displayed? not))}] i " : "]
-       (when @displayed?
-         [:span.jh-value.jh-array-value
-          {:data-namespace (ns-str namespace i)}
-          (render-html v (ns-str namespace i) on-add)])
-       (when-not @displayed?
-         "{ ... }")])))
+    [:div [:span.jh-key.jh-array-key
+           {:data-namespace (ns-str namespace i)}
+           [Icon {:name (if @displayed?
+                          "caret down"
+                          "caret right")
+                  :on-click (fn [_]
+                              (swap! displayed? not))}] i " : "]
+     (when @displayed?
+       [:span.jh-value.jh-array-value
+        {:data-namespace (ns-str namespace i)}
+        (render-html v (ns-str namespace i) on-add)])
+     (when-not @displayed?
+       "{ ... }")]))
 
 (defn render-collection [col namespace & [on-add]]
   (if (empty? col)
