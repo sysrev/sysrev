@@ -1,11 +1,13 @@
 (ns sysrev.graphql.resolvers
   (:require [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
-            [honeysql.helpers :as sqlh :refer [merge-where]]
+            [honeysql.helpers :as sqlh :refer [merge-where select from where join]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
+            [sysrev.project.article-list :as alist]
             [sysrev.source.interface :refer [import-source]]
             [sysrev.user.core :refer [user-by-api-token]]
+            [sysrev.util :as util]
             [venia.core :as venia]))
 
 (defn ^ResolverResult project [context {:keys [id]} _]
@@ -159,3 +161,35 @@
               (resolve-as true)
               (catch Exception e
                 (resolve-as false [{:message (str "There was an exception with message: " (.getMessage e))}])))))))
+
+(defn extract-filters-from-url
+  "Covert a url string into a vector of filters that can be passed to query-project-article-ids"
+  [s]
+  (let [{:keys [filters text-search]}
+        (-> (ring.util.codec/form-decode s)
+            (clojure.walk/keywordize-keys)
+            (select-keys [:filters :text-search])
+            (update-in [:filters] #(clojure.data.json/read-str % :key-fn keyword))
+            (util/convert-uuids))]
+    (vec (concat filters (when text-search [{:text-search text-search}])))))
+
+(defn ^ResolverResult import-article-filter-url! [_context {url :url source-id :sourceID target-id :targetID} _]
+  (let [filters (extract-filters-from-url url)
+        articles (alist/query-project-article-ids {:project-id source-id} filters)
+        entities (-> (select [:ad.external-id :id])
+                     (from [:article-data :ad])
+                     (join [:article :a]
+                           [:= :ad.article-data-id :a.article-data-id])
+                     (where [:in :a.article-id articles])
+                     do-query)]
+    (cond (= source-id target-id)
+          (resolve-as nil [{:message "source-id can not be the same as target-id"}])
+          :else
+          (try
+            (import-source :datasource-project-url-filter target-id {:url-filter url
+                                                                     :source-id source-id
+                                                                     :entities entities}
+                           nil)
+            (resolve-as true)
+            (catch Exception e
+              (resolve-as false [{:message (str "There was an exception with message: " (.getMessage e))}]))))))

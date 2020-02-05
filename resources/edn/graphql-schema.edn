@@ -56,4 +56,14 @@
                                                      :description "The project-id to import entities into"}
                                                 :datasource {:type (non-null Int)
                                                              :description "The datasource id to import"}}
-                                         :resolve :resolve-import-datasource-flattened!}}}
+                                         :resolve :resolve-import-datasource-flattened!}
+             :importArticleFilterUrl {:type Boolean
+                                      :description "Import articles using a article filter from a project"
+                                      :args {:url {:type (non-null String)
+                                                   :description "The URL copied from the article filters view of a project"}
+                                             :sourceID {:type (non-null Int)
+                                                        :description "The ID of the project from which articles are being exported"}
+                                             :targetID {:type (non-null Int)
+                                                        :description "The Id of the project to which article are being imported"}}
+                                      :resolve :resolve-import-article-filter-url!}}}
+

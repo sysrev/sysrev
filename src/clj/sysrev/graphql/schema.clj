@@ -15,5 +15,6 @@
                          :resolve-import-articles! resolvers/import-articles
                          :resolve-import-dataset! resolvers/import-dataset
                          :resolve-import-datasource! resolvers/import-datasource
-                         :resolve-import-datasource-flattened! resolvers/import-datasource-flattened})
+                         :resolve-import-datasource-flattened! resolvers/import-datasource-flattened
+                         :resolve-import-article-filter-url! resolvers/import-article-filter-url!})
       (schema/compile {:default-field-resolver schema/hyphenating-default-field-resolver})))

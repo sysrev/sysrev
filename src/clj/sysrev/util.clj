@@ -384,3 +384,12 @@
   `(let [e# ~e]
      (log/logf ~level "%s: %s\n%s"
                (current-function-name) (.getMessage e#) (print-cause-trace-custom e#))))
+
+(defn convert-uuids
+  "Recursively transforms all strings that look like uuids into actual uuids"
+  [coll]
+  (let [uuid-regex #"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"]
+    (clojure.walk/postwalk (fn [x] (if (and (string? x)
+                                            (re-matches uuid-regex x))
+                                     (read-string (str "#uuid \"" x "\""))
+                                     x)) coll)))

@@ -1,6 +1,5 @@
 (ns sysrev.source.datasource
   (:require [clojure.tools.logging :as log]
-            [sysrev.datasource.api :as ds-api]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))
 
@@ -22,7 +21,6 @@
     (if (seq query-source)
       (do (log/warn "import-source datasource query - non-empty query-source: " query-source)
           {:error {:message (str "Datsource GraphQL " query " already imported")}})
-      ;; attempt to create a RIS citation
       (let [source-meta (source/make-source-meta :datasource {:query query})]
         (import-source-impl
          project-id source-meta
@@ -68,6 +66,28 @@
       ;; create the datasource
       (let [source-meta (source/make-source-meta :datasource-datasource {:datasource-id datasource-id
                                                                          :datasource-name datasource-name})]
+        (import-source-impl
+         project-id source-meta
+         {:types {:article-type "datasource"
+                  :article-subtype "entity"}
+          :get-article-refs (constantly entities)
+          :get-articles process-datasource-entities}
+         options)
+        {:result true}))))
+
+(defmethod make-source-meta :datasource-project-url-filter [_ {:keys [url-filter source-id]}]
+  {:source "Datasource: Project URL Filter" :url-filter url-filter :source-id source-id})
+
+(defmethod import-source :datasource-project-url-filter [_ project-id {:keys [url-filter source-id entities]} {:as options}]
+  (let [current-source (->> (source/project-sources project-id)
+                            (filter #(= (get-in % [:meta :url-filter]) url-filter))
+                            (filter #(= (get-in % [:meta :source-id]) source-id)))]
+    ;; this source already exists
+    (if (seq current-source)
+      (do (log/warn "import-source project-url-filter - non-empty current-source: " (str {:source-id source-id :url-filter url-filter}))
+          {:error {:message (str "Datsource GraphQL " {:url-filter url-filter
+                                                       :source-id source-id} " already imported")}})
+      (let [source-meta (source/make-source-meta :datasource-project-url-filter {:url-filter url-filter :source-id source-id})]
         (import-source-impl
          project-id source-meta
          {:types {:article-type "datasource"
