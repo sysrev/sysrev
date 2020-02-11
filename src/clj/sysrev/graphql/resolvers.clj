@@ -1,5 +1,6 @@
 (ns sysrev.graphql.resolvers
-  (:require [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
+  (:require [com.walmartlabs.lacinia.executor :as executor]
+            [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [honeysql.helpers :as sqlh :refer [merge-where select from where join]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :refer [do-query]]
@@ -25,7 +26,80 @@
           (not (seq member-roles))
           (resolve-as nil [{:message (str "You do not have the role of " project-role " for project with id " id)}])
           :else
-          (resolve-as (q/query-project-by-id id [:*]))))  )
+          (let [selections-seq (executor/selections-seq context)]
+            (resolve-as
+             (cond-> (q/query-project-by-id id [:date_created [:project-id :id] :name])
+               (some {:Project/labelDefinitions true} selections-seq)
+               (assoc :labelDefinitions
+                      (-> (select [:label_id :id]
+                                  :value_type
+                                  [:short_label :name]
+                                  :definition
+                                  :question
+                                  :required
+                                  :enabled
+                                  :consensus)
+                          (from :label)
+                          (where [:= :project_id id])
+                          do-query))
+               (some {:Project/articles true} selections-seq)
+               (assoc :articles
+                      (-> (select :enabled
+                                  [:article_id :id]
+                                  [:article_uuid :uuid])
+                          (from :article)
+                          (where [:= :project_id id])
+                          do-query))
+               (some {:Article/labels true} selections-seq)
+               ((fn [m]
+                  (let [labels (group-by :article-id
+                                         (-> (select [:l.label_id :id]
+                                                     [:l.value_type :type]
+                                                     [:l.short_label :name]
+                                                     :l.question
+                                                     :l.required
+                                                     :l.consensus
+                                                     :l.required
+                                                     :al.answer
+                                                     [:al.added-time :created]
+                                                     [:al.updated-time :updated]
+                                                     [:al.confirm_time :confirmed]
+                                                     [:al.article_id :article_id]
+                                                     :al.user_id)
+                                             (from [:article :a])
+                                             (join [:article_label :al] [:= :al.article_id :a.article_id]
+                                                   [:label :l] [:= :al.label_id :l.label_id])
+                                             (where [:= :a.project-id id])
+                                             do-query
+                                             ;; this could cause problems if we
+                                             ;; ever have non-vector or single value
+                                             ;; answers
+                                             (->> (map #(let [answer (:answer %)]
+                                                          (if-not (vector? answer)
+                                                            (assoc % :answer (vector (str answer)))
+                                                            %))))))
+                        articles (:articles m)]
+                    (assoc m :articles
+                           (map #(assoc % :labels
+                                        (get labels (:id %))) articles)))))
+               (some {:Reviewer/id true} selections-seq)
+               ((fn [m]
+                  (let [articles (:articles m)
+                        article-user-ids (->> (map :labels articles)
+                                              flatten
+                                              (map :user-id)
+                                              distinct
+                                              (filter (comp not nil?)))
+                        reviewers (group-by :id (-> (select [:user_id :id]
+                                                            [:email :name])
+                                                    (from :web_user)
+                                                    (where [:in :user_id article-user-ids])
+                                                    do-query
+                                                    (->> (map #(assoc % :name (first (clojure.string/split (:name %) #"@")))))))]
+                    (assoc m :articles
+                           (let [f (fn [[k v]] (if (= :user-id k) [:reviewer (first (get reviewers v))] [k v]))]
+                             ;; only apply to maps
+                             (clojure.walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) articles))))))))))))
 
 (defn ^ResolverResult import-articles [context {:keys [id query]} _]
   (let [project-id id

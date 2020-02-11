@@ -46,7 +46,7 @@
              :style {:margin-top "0.5em"
                      :margin-right "0"}
              :onClick #(swap! editing-view? not)}
-     "Stop Editing"]]
+     "Cancel"]]
    [ReactJSONView {:json json
                    :on-add (fn [e context]
                              (.preventDefault e)
@@ -65,7 +65,7 @@
              :style {:margin-top "0.5em"
                      :margin-right "0"}
              :onClick #(swap! editing-view? not)}
-     "Stop Editing"]]])
+     "Cancel"]]])
 
 (defn PreviewView
   [{:keys [json temp-cursors source-id editing-view? cursors saving? deleting?]}]
@@ -81,7 +81,7 @@
                     :margin-top "0.5em"}}
       [Button {:size "tiny"
                :onClick #(swap! editing-view? not)}
-       "Stop Editing"]
+       "Cancel"]
       [Button {:size "tiny"
                :onClick on-save!
                :disabled (boolean (= @temp-cursors @cursors))
@@ -97,7 +97,7 @@
      [:div {:style {:padding-left "1em"}}
       [Button {:size "tiny"
                :onClick #(swap! editing-view? not)}
-       "Stop Editing"]
+       "Cancel"]
       [Button {:size "tiny"
                :onClick on-save!
                :disabled (= @temp-cursors @cursors)
