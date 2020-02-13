@@ -11,6 +11,104 @@
             [sysrev.util :as util]
             [venia.core :as venia]))
 
+(defn assoc-label-definitions
+  [m project-id]
+  (assoc m :labelDefinitions
+         (-> (select [:label_id :id]
+                     :value_type
+                     [:short_label :name]
+                     :definition
+                     :question
+                     :required
+                     :enabled
+                     :consensus)
+             (from :label)
+             (where [:= :project_id project-id])
+             do-query)))
+
+(defn assoc-articles
+  [m project-id]
+  (assoc m :articles
+         (-> (select :enabled
+                     [:article_id :id]
+                     [:article_uuid :uuid])
+             (from :article)
+             (where [:= :project_id project-id])
+             do-query)))
+
+(defn assoc-article-labels
+  [m project-id]
+  (let [labels (group-by :article-id
+                         (-> (select [:l.label_id :id]
+                                     [:l.value_type :type]
+                                     [:l.short_label :name]
+                                     :l.question
+                                     :l.required
+                                     :l.consensus
+                                     :l.required
+                                     :al.answer
+                                     [:al.added-time :created]
+                                     [:al.updated-time :updated]
+                                     [:al.confirm_time :confirmed]
+                                     [:al.article_id :article_id]
+                                     :al.user_id)
+                             (from [:article :a])
+                             (join [:article_label :al] [:= :al.article_id :a.article_id]
+                                   [:label :l] [:= :al.label_id :l.label_id])
+                             (where [:= :a.project-id project-id])
+                             do-query
+                             ;; this could cause problems if we
+                             ;; ever have non-vector or single value
+                             ;; answers
+                             (->> (map #(let [answer (:answer %)]
+                                          (if-not (vector? answer)
+                                            (assoc % :answer (vector (str answer)))
+                                            %))))))
+        articles (:articles m)]
+    (assoc m :articles
+           (map #(assoc % :labels
+                        (get labels (:id %))) articles))))
+
+(defn assoc-article-reviewers
+  [m]
+  (let [articles (:articles m)
+        article-user-ids (->> (map :labels articles)
+                              flatten
+                              (map :user-id)
+                              distinct
+                              (filter (comp not nil?)))
+        reviewers (group-by :id (-> (select [:user_id :id]
+                                            [:email :name])
+                                    (from :web_user)
+                                    (where [:in :user_id article-user-ids])
+                                    do-query
+                                    (->> (map #(assoc % :name (first (clojure.string/split (:name %) #"@")))))))]
+    (assoc m :articles
+           (let [f (fn [[k v]] (if (= :user-id k) [:reviewer (first (get reviewers v))] [k v]))]
+             ;; only apply to maps
+             (clojure.walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) articles)))))
+
+(defn assoc-article-content
+  [m ds-api-token]
+  (let [articles (:articles m)
+        ;; distinct used because index-by below will fail if there are duplicates
+        article-ids (distinct (map :id articles))
+        datasource-ids (-> (select :a.article_id :ad.external_id)
+                           (from [:article :a])
+                           (join [:article_data :ad]
+                                 [:= :a.article_data_id
+                                  :ad.article_data_id])
+                           (where [:in :a.article_id article-ids])
+                           do-query
+                           (->> (map :article-id)))
+        datasource-content (-> (ds-api/run-ds-query
+                                (venia/graphql-query {:venia/queries [[:entities {:ids datasource-ids} [:id :content]]]})
+                                :auth-key ds-api-token)
+                               (get-in [:body :data :entities])
+                               (->> (sysrev.shared.util/index-by :id)))]
+    (assoc m :articles
+           (map #(assoc % :content (get-in datasource-content [(:id %) :content])) articles))))
+
 (defn ^ResolverResult project [context {:keys [id]} _]
   (let [api-token (:authorization context)
         user (and api-token (user-by-api-token api-token))
@@ -30,76 +128,15 @@
             (resolve-as
              (cond-> (q/query-project-by-id id [:date_created [:project-id :id] :name])
                (some {:Project/labelDefinitions true} selections-seq)
-               (assoc :labelDefinitions
-                      (-> (select [:label_id :id]
-                                  :value_type
-                                  [:short_label :name]
-                                  :definition
-                                  :question
-                                  :required
-                                  :enabled
-                                  :consensus)
-                          (from :label)
-                          (where [:= :project_id id])
-                          do-query))
+               (assoc-label-definitions id)
                (some {:Project/articles true} selections-seq)
-               (assoc :articles
-                      (-> (select :enabled
-                                  [:article_id :id]
-                                  [:article_uuid :uuid])
-                          (from :article)
-                          (where [:= :project_id id])
-                          do-query))
+               (assoc-articles id)
                (some {:Article/labels true} selections-seq)
-               ((fn [m]
-                  (let [labels (group-by :article-id
-                                         (-> (select [:l.label_id :id]
-                                                     [:l.value_type :type]
-                                                     [:l.short_label :name]
-                                                     :l.question
-                                                     :l.required
-                                                     :l.consensus
-                                                     :l.required
-                                                     :al.answer
-                                                     [:al.added-time :created]
-                                                     [:al.updated-time :updated]
-                                                     [:al.confirm_time :confirmed]
-                                                     [:al.article_id :article_id]
-                                                     :al.user_id)
-                                             (from [:article :a])
-                                             (join [:article_label :al] [:= :al.article_id :a.article_id]
-                                                   [:label :l] [:= :al.label_id :l.label_id])
-                                             (where [:= :a.project-id id])
-                                             do-query
-                                             ;; this could cause problems if we
-                                             ;; ever have non-vector or single value
-                                             ;; answers
-                                             (->> (map #(let [answer (:answer %)]
-                                                          (if-not (vector? answer)
-                                                            (assoc % :answer (vector (str answer)))
-                                                            %))))))
-                        articles (:articles m)]
-                    (assoc m :articles
-                           (map #(assoc % :labels
-                                        (get labels (:id %))) articles)))))
+               (assoc-article-labels id)
                (some {:Reviewer/id true} selections-seq)
-               ((fn [m]
-                  (let [articles (:articles m)
-                        article-user-ids (->> (map :labels articles)
-                                              flatten
-                                              (map :user-id)
-                                              distinct
-                                              (filter (comp not nil?)))
-                        reviewers (group-by :id (-> (select [:user_id :id]
-                                                            [:email :name])
-                                                    (from :web_user)
-                                                    (where [:in :user_id article-user-ids])
-                                                    do-query
-                                                    (->> (map #(assoc % :name (first (clojure.string/split (:name %) #"@")))))))]
-                    (assoc m :articles
-                           (let [f (fn [[k v]] (if (= :user-id k) [:reviewer (first (get reviewers v))] [k v]))]
-                             ;; only apply to maps
-                             (clojure.walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) articles))))))))))))
+               (assoc-article-reviewers)
+               (some {:Article/content true} selections-seq)
+               (assoc-article-content api-token)))))))
 
 (defn ^ResolverResult import-articles [context {:keys [id query]} _]
   (let [project-id id

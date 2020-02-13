@@ -55,7 +55,9 @@
                      :enabled {:type (non-null Boolean)
                                :description "Is this article enabled?"}
                      :labels {:type (list :LabelAnswer)
-                              :description "A list of label answers associated with this article"}}}
+                              :description "A list of label answers associated with this article"}
+                     :content {:type String
+                               :description "A string representation of the content"}}}
   :Project {:fields {:id {:type (non-null Int)
                           :description "The sysrev id of the project"}
                      :name {:type (non-null String)
