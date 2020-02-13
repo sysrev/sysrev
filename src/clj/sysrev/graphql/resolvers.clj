@@ -93,21 +93,23 @@
   (let [articles (:articles m)
         ;; distinct used because index-by below will fail if there are duplicates
         article-ids (distinct (map :id articles))
-        datasource-ids (-> (select :a.article_id :ad.external_id)
-                           (from [:article :a])
-                           (join [:article_data :ad]
-                                 [:= :a.article_data_id
-                                  :ad.article_data_id])
-                           (where [:in :a.article_id article-ids])
-                           do-query
-                           (->> (map :article-id)))
+        article-id-external-id (-> (select :a.article_id :ad.external_id)
+                                   (from [:article :a])
+                                   (join [:article_data :ad]
+                                         [:= :a.article_data_id
+                                          :ad.article_data_id])
+                                   (where [:in :a.article_id article-ids])
+                                   do-query)
+        datasource-ids (map :external-id article-id-external-id)
+        datasource-map (-> article-id-external-id (->> (sysrev.shared.util/index-by :article-id)))
         datasource-content (-> (ds-api/run-ds-query
                                 (venia/graphql-query {:venia/queries [[:entities {:ids datasource-ids} [:id :content]]]})
                                 :auth-key ds-api-token)
                                (get-in [:body :data :entities])
                                (->> (sysrev.shared.util/index-by :id)))]
     (assoc m :articles
-           (map #(assoc % :content (get-in datasource-content [(:id %) :content])) articles))))
+           (map #(assoc % :content (get-in datasource-content [(-> (get datasource-map (:id %))
+                                                                   :external-id) :content])) articles))))
 
 (defn ^ResolverResult project [context {:keys [id]} _]
   (let [api-token (:authorization context)
