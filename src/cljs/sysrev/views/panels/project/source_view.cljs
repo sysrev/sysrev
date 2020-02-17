@@ -4,7 +4,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.cursors :refer [map-from-cursors prune-cursor]]
             [sysrev.shared.util :refer [parse-integer]]
-            [sysrev.views.semantic :refer [Button]]
+            [sysrev.views.semantic :refer [Button Icon]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]))
 
 (def state (r/atom {}))
@@ -96,10 +96,10 @@
                        (swap! temp-cursors (fn [m] (remove #(= % cursor) m)))))}]
        [:div
         {:style {:padding-left "1em"
-                 :padding-top "1em"
                  :padding-bottom "1em"}}
-        [:div "{ }"]
-        [:div {:style {:padding-top "1em"}} "Choose fields from 'Default View' to include in 'Reviewer View'"]])
+        [:div {:style {:padding-top "1em"}} "Default View - All Fields Included. "]
+        [:div {:style {:padding-top "1em"}}
+         "Make selections in Available Fields to refine Review Document"]])
      [:div {:style {:padding-left "1em"}}
       [Button {:size "tiny"
                :onClick #(swap! editing-view? not)}
@@ -140,12 +140,17 @@
           [:div {:class (clojure.string/join " " [(when (= @active-tab "edit")
                                                     "active")
                                                   "item"])
+                 :style {:cursor "pointer"}
                  :on-click (fn [_]
-                             (reset! active-tab "edit"))} "Default View"]
+                             (reset! active-tab "edit"))} "Available Fields"]
           [:div {:class (clojure.string/join " " [(when (= @active-tab "preview")
                                                     "active")
                                                   "item"])
-                 :on-click #(reset! active-tab "preview")} "Reviewer View"]]
+                 :style {:cursor "pointer"}
+                 :on-click #(reset! active-tab "preview")} "Selected Fields"] [:a {:href "https://www.youtube.com/watch?v="
+                                                                                   :target "_blank"
+                                                                                   :style {:margin-left "0.25em"}}
+                                                                               [Icon {:name "video camera"}]]] 
          [:div {:class (clojure.string/join " "
                                             ["ui" "bottom" "attached"
                                              (when (= @active-tab "edit") "active")
