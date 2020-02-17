@@ -303,19 +303,10 @@
          [:h2 title ]
          [ui/out-link (str "https://clinicaltrials.gov/ct2/show/" nctid)]
          [:br]
-         [RJson {:src (if (seq cursors)
-                        (clj->js (map-from-cursors json cursors))
-                        json)
-                 :theme (condp = ui-theme
-                          "Default" "bright:inverted"
-                          "Dark" "eighties")
-                 :displayDataTypes false
-                 :enableClipboard false
-                 :onEdit (fn [obj]
-                           (.log js/console obj)
-                           false)
-                 :name false
-                 :collapsed 3}]]))))
+         [ReactJSONView (if (seq cursors)
+                          (clj->js (map-from-cursors json cursors))
+                          (clj->js json))
+          json {:collapsed 3}]]))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})

@@ -512,10 +512,6 @@
                   {:keys [cursors]} (-> request :body)]
               (api/update-source-cursors! source-id cursors)))))
 
-(dr (DELETE "/api/sources/:source-id/cursors" request
-            (with-authorize request {:roles ["admin"]}
-              (let [source-id (parse-integer (-> request :params :source-id))]
-                (api/delete-source-cursors! source-id )))))
 ;;;
 ;;; Project document files
 ;;;
