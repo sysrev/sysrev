@@ -476,6 +476,23 @@
                                 [(not enabled) (- source-id)])
                               sources)))]])]))
 
+(defn EnableCTNotice
+  []
+  [:div.ui.segment.import-upload
+   [:div
+    [:a {:href "https://www.youtube.com/watch?v=Qf-KWG7laLY" :target "_blank"}
+     "Click here"]
+    " to see a demo of our "
+    [:a {:href "https://clinicaltrials.gov" :target "_blank"} "ClinicalTrials.gov"]
+    " integration. To unlock direct access, please"
+    [:a {:href
+         (str "mailto:info@sysrev.com?"
+              "subject=How can I use ClinicalTrials.gov with sysrev?"
+              "&body=Hi, I would like to know more about using"
+              " ClinicalTrials.gov in sysrev to conduct reviews."
+              " Please let me know how I can enable this feature. Thanks!")
+         :target "_blank"} " contact us"]"."]])
+
 (defn ImportArticlesView []
   (ensure-state)
   (let [import-tab (r/cursor state [:import-tab])
@@ -501,10 +518,9 @@
                               {:tab-id :pubmed
                                :content (if full-size? "PubMed Search" "PubMed")
                                :action #(reset! import-tab :pubmed)}
-                              (when (not= js/window.location.hostname "sysrev.com")
-                                {:tab-id :ctgov
-                                 :content "ClinicalTrials.gov"
-                                 :action #(reset! import-tab :ctgov)})
+                              {:tab-id :ctgov
+                               :content [:div "ClinicalTrials.gov" [:sup {:style {:color "red"}} " beta"]]
+                               :action #(reset! import-tab :ctgov)}
                               {:tab-id :pmid
                                :content "PMIDs"
                                :action #(reset! import-tab :pmid)}
@@ -519,7 +535,9 @@
          :endnote   [ImportEndNoteView]
          :zip-file  [ImportPDFZipsView]
          :ris-file  [ImportRISView]
-         :ctgov     [ctgov/SearchBar])]
+         :ctgov (if (= js/window.location.hostname "sysrev.com")
+                  [EnableCTNotice]
+                  [ctgov/SearchBar]))]
       (when (= active-tab :pubmed)
         [pubmed/SearchActions (any-source-processing?)])
       (when (= active-tab :ctgov)
