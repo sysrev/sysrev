@@ -2,7 +2,7 @@
   (:require [re-frame.core :refer
              [subscribe reg-sub reg-event-db trim-v]]
             [sysrev.state.nav :as nav]
-            [sysrev.shared.util :refer [dissoc-in]]))
+            [sysrev.util :refer [dissoc-in]]))
 
 ;;;
 ;;; Panels

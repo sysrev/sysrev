@@ -9,10 +9,9 @@
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.user.core :as user]
             [sysrev.db.queries :as q]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.web.app :as app :refer [with-authorize current-user-id]]
-            [sysrev.util :refer [should-never-happen-exception]]
-            [sysrev.shared.util :refer [in? map-values index-by]]))
+            [sysrev.util :refer [in? map-values index-by should-never-happen-exception]]))
 
 ;; for clj-kondo
 (declare site-routes)

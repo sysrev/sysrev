@@ -10,7 +10,7 @@
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.payment.stripe :as stripe]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.util :as util]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -245,7 +245,7 @@
 
 (deftest-browser subscribe-to-unlimited-through-pricing-no-account
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [email (format "baz+%s@qux.com" (sutil/random-id))
+  [email (format "baz+%s@qux.com" (util/random-id))
    password "bazqux"
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)
@@ -282,7 +282,7 @@
 ;; through the pricing workflow
 (deftest-browser subscribe-to-unlimited-through-pricing-cold-feet
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [email (format "baz+%s@qux.com" (sutil/random-id))
+  [email (format "baz+%s@qux.com" (util/random-id))
    password "bazqux"
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)

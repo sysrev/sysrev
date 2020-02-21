@@ -21,4 +21,5 @@
   <logger name="com.google.javascript.jscomp" level="ERROR" />
   <logger name="com.datastax.driver.core" level="WARN" />
   <logger name="com.datastax.driver.core.Cluster" level="INFO" />
+  <logger name="clj-antlr.common" level="ERROR" />
 </configuration>

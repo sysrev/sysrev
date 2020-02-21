@@ -16,7 +16,7 @@
             [sysrev.db.query-types :as qt]
             [sysrev.project.compensation :as compensation]
             [sysrev.shared.keywords :refer [canonical-keyword]]
-            [sysrev.shared.util :as sutil :refer
+            [sysrev.util :as util :refer
              [in? map-values filter-values index-by opt-keys]])
   (:import java.util.UUID))
 
@@ -293,7 +293,7 @@
   (-> (q/select-project-where true [:project-id :project-uuid])
       (->> do-query
            (filter (fn [{:keys [project-id project-uuid]}]
-                     (= register-hash (sutil/short-uuid project-uuid))))
+                     (= register-hash (util/short-uuid project-uuid))))
            first :project-id)))
 
 (defn-spec project-exists? boolean?
@@ -329,7 +329,7 @@
                :ad.external-id
                :join [:article-data:ad :a.article-data-id]
                :where [:!= :ad.external-id nil])
-       (map sutil/parse-number)
+       (map util/parse-number)
        (remove nil?) distinct vec))
 
 (defn project-url-ids [project-id]
@@ -337,7 +337,7 @@
                :order-by [:date-created :desc])))
 
 (defn project-id-from-url-id [url-id]
-  (or (sutil/parse-integer url-id)
+  (or (util/parse-integer url-id)
       (first (q/find :project-url-id {:url-id url-id} :project-id))))
 
 (defn add-project-url-id

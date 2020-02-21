@@ -5,7 +5,7 @@
             [sysrev.nav :as nav]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Message]]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 ;; for clj-kondo

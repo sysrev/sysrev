@@ -7,8 +7,7 @@
             [sysrev.user.core :as user]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [index-by]]))
+            [sysrev.util :as util :refer [index-by]]))
 
 (defn group-name->id [group-name]
   (q/find-one :groups {:group-name group-name} :group-id))
@@ -131,7 +130,7 @@
 
 (defn group-id-from-url-id [url-id]
   ;; TODO: implement url-id strings for groups
-  (sutil/parse-integer url-id))
+  (util/parse-integer url-id))
 
 (defn search-groups
   "Return groups whose name matches search term q"

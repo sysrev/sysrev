@@ -7,13 +7,13 @@
             [compojure.core :as c]
             [clj-http.client :as http]
             [honeysql.helpers :as sqlh :refer [merge-where]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :refer [user-by-api-token]]
             [sysrev.web.app :refer [make-error-response]]
             [sysrev.shared.spec.web-api :as swa]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (defonce web-api-routes (atom {}))
 (defonce web-api-routes-order (atom []))

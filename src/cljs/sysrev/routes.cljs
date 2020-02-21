@@ -4,7 +4,7 @@
             [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
             [sysrev.views.article-list.base :as article-list]
             [sysrev.views.panels.project.articles :as project-articles]
-            [sysrev.shared.util :refer [parse-integer]]
+            [sysrev.util :refer [parse-integer]]
             [sysrev.macros :refer-macros [sr-defroute sr-defroute-project]]))
 
 (sr-defroute

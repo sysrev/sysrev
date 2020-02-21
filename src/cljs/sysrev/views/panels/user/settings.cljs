@@ -7,7 +7,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as sui :refer
              [Segment Header Grid Column Radio Message MessageHeader]]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo

@@ -11,7 +11,7 @@
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance-api]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
                             {:keys [user-ids-only admin-members-only]}]

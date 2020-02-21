@@ -8,7 +8,7 @@
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
             [aleph.http :as aleph]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.web.session :refer [sysrev-session-store]]
             [sysrev.web.index :as index]
             [sysrev.web.routes.auth :refer [auth-routes]]
@@ -20,7 +20,7 @@
             [sysrev.web.routes.graphql :refer [graphql-routes]]
             sysrev.web.routes.api.handlers
             [sysrev.web.app :as app]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :as util :refer [in?]]))
 
 ;; for clj-kondo
 (declare html-routes)

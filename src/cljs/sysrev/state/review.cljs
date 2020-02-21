@@ -7,7 +7,7 @@
             [sysrev.state.nav :refer [active-panel active-project-id]]
             [sysrev.state.article :as article]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.shared.util :refer [in? map-values]]))
+            [sysrev.util :refer [in? map-values]]))
 
 (defn- review-task-state [db & [project-id]]
   (get-in db [:data :review (or project-id (active-project-id db))]))

@@ -7,7 +7,7 @@
             [clj-webdriver.taxi :as taxi :refer [*driver*]]
             [clj-webdriver.core :refer [->actions move-to-element click-and-hold
                                         move-by-offset release perform]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user]
@@ -17,8 +17,7 @@
             [sysrev.payment.plans :as plans]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer string-ellipsis]])
+            [sysrev.util :as util :refer [parse-integer string-ellipsis ignore-exceptions]])
   (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)
            (org.openqa.selenium.remote DesiredCapabilities)))
 
@@ -87,8 +86,7 @@
 (defn start-webdriver [& [restart?]]
   (if (and @*wd* (not restart?))
     @*wd*
-    (do (when @*wd*
-          (try (taxi/quit @*wd*) (catch Throwable _ nil)))
+    (do (when @*wd* (ignore-exceptions (taxi/quit @*wd*)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments
                              (concat ["headless"
@@ -114,7 +112,7 @@
   (if (and @*wd* (not restart?))
     @*wd*
     (do (when @*wd*
-          (try (taxi/quit @*wd*) (catch Throwable _ nil)))
+          (ignore-exceptions (taxi/quit @*wd*)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments [(format "window-size=%d,%d"
                                                     (:width browser-test-window-size)
@@ -156,15 +154,14 @@
 (def test-password "1234567890")
 
 (defn delete-test-user [& {:keys [email user-id]}]
-  (sutil/assert-exclusive email user-id)
+  (util/assert-exclusive email user-id)
   (db/with-transaction
     (when-let [{:keys [user-id stripe-id]
                 :as user} (if email
                             (user/user-by-email email)
                             (q/find-one :web-user {:user-id user-id}))]
       (when stripe-id
-        (try (stripe/delete-customer! user)
-             (catch Throwable _ nil)))
+        (ignore-exceptions (stripe/delete-customer! user)))
       (when user-id
         (q/delete :compensation-user-period {:user-id user-id}))
       (if email
@@ -177,7 +174,7 @@
                                 project-id nil}}]
   (let [[name domain] (str/split email #"@")
         email (if literal email
-                  (format "%s+%s@%s" name (sutil/random-id) domain))]
+                  (format "%s+%s@%s" name (util/random-id) domain))]
     (db/with-transaction
       (delete-test-user :email email)
       (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
@@ -199,7 +196,7 @@
   (succeeds? (do (apply wait-fn args) true)))
 
 (def web-default-interval
-  (or (some-> (:sr-interval env) sutil/parse-integer)
+  (or (some-> (:sr-interval env) util/parse-integer)
       15))
 
 (defn wait-until
@@ -331,8 +328,8 @@
     (Thread/sleep (quot delay 2))))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
-  (sutil/apply-keyargs set-input-text
-                       q text (merge opts {:clear? false})))
+  (util/apply-keyargs set-input-text
+                      q text (merge opts {:clear? false})))
 
 (defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
   (when wait?
@@ -376,10 +373,10 @@
     (Thread/sleep 20)))
 
 (defn ensure-logged-out []
-  (try (when (taxi/exists? "a#log-out-link")
-         (click "a#log-out-link" :if-not-exists :skip)
-         (wait-until-loading-completes :pre-wait true))
-       (catch Throwable _ nil)))
+  (ignore-exceptions
+   (when (taxi/exists? "a#log-out-link")
+     (click "a#log-out-link" :if-not-exists :skip)
+     (wait-until-loading-completes :pre-wait true))))
 
 (defmacro with-webdriver [& body]
   `(let [visual# (:visual @*wd-config*) ]
@@ -413,8 +410,7 @@
                              (log/warn "got exception in repl cleanup:" (str e#)))))
                     ~body
                     (catch Throwable e#
-                      (log/error "current-url:" (try (taxi/current-url)
-                                                     (catch Throwable e2# nil)))
+                      (log/error "current-url:" (ignore-exceptions (taxi/current-url)))
                       (log-console-messages :error)
                       (take-screenshot :error)
                       (throw e#))
@@ -447,8 +443,8 @@
   Waits until at least one element is displayed unless wait? is
   logical false."
   [q & {:keys [wait? timeout] :or {wait? true timeout 2000}}]
-  (when wait? (try (wait-until #(taxi/exists? q) :timeout timeout)
-                   (catch Throwable _ nil)))
+  (when wait?
+    (ignore-exceptions (wait-until #(taxi/exists? q) :timeout timeout)))
   (if (taxi/exists? q)
     (mapv taxi/text (taxi/elements q))
     []))
@@ -466,7 +462,7 @@
   "Deletes a test user by user-id or email, along with other entities the user is associated with."
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
-  (sutil/assert-exclusive user-id email)
+  (util/assert-exclusive user-id email)
   (let [email (or email (user/get-user user-id :email))
         user-id (or user-id (user/user-by-email email :user-id))]
     (when (and email user-id)

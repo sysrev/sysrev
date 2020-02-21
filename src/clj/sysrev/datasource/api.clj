@@ -5,10 +5,10 @@
             [clj-http.client :as http]
             [medley.core :refer [map-kv]]
             [venia.core :as venia]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.query-types :as qt]
-            [sysrev.shared.util :as sutil :refer
+            [sysrev.util :as util :refer
              [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys]])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
@@ -92,7 +92,7 @@
     (->> (query-api {:name :pubmedEntities
                      :args {:pmids pmids}
                      :fields (concat [:id :pmid] (or fields (all-pubmed-fields)))})
-         (sutil/index-by :pmid))))
+         (util/index-by :pmid))))
 
 (defn fetch-ris-articles-by-hash
   "Queries datasource API to get article data for sequence `pmids`,
@@ -119,7 +119,7 @@
                    :args {:nctids nctids}
                    :fields (concat [:nctid] (or fields [:json]))})
        (map (fn [entry] (update entry :json #(json/read-str % :key-fn keyword))))
-       (sutil/index-by :nctid)))
+       (util/index-by :nctid)))
 
 (defn fetch-nct-entry
   "Queries datasource API to get article data map for a single `nctid`."
@@ -133,7 +133,7 @@
   (->> (query-api {:name :entities
                    :args {:ids coll}
                    :fields [:content :mimetype :id]})
-       (sutil/index-by :id)))
+       (util/index-by :id)))
 
 (defmulti enrich-articles (fn [datasource _coll] datasource))
 
@@ -179,7 +179,7 @@
                   (map #(assoc % :id
                                (:id %)))
                   (map process-data)
-                  (sutil/index-by :id))]
+                  (util/index-by :id))]
     (->> coll (mapv #(merge (get data (-> % :external-id parse-integer))
                             (select-keys % [:article-id :project-id]))))))
 
@@ -221,7 +221,7 @@
                                   :include-disabled true)]
     (->> articles
          enrich-articles-with-datasource
-         (sutil/index-by :article-id))))
+         (util/index-by :article-id))))
 
 (defn get-article-content
   "Returns article content map for `article-id`."

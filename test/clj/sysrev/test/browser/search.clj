@@ -10,7 +10,7 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.core :as test]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.util :as util]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -60,7 +60,7 @@
 
 (deftest-browser basic-search-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [strings (for [_ (range 13)] (str/lower-case (sutil/random-id)))
+  [strings (for [_ (range 13)] (str/lower-case (util/random-id)))
    [s1 s2 & _] strings
    project-names (->> (for [x strings, y strings, z strings]
                         (str x " " y " " z))

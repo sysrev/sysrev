@@ -13,7 +13,7 @@
             [sysrev.views.panels.org.users :refer [OrgUsers]]
             [sysrev.views.semantic :refer
              [Menu MenuItem Message MessageHeader]]
-            [sysrev.shared.util :as sutil :refer [parse-integer css]]
+            [sysrev.util :as util :refer [parse-integer css]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo

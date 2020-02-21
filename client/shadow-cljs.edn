@@ -36,4 +36,12 @@
                 [medley "1.2.0"]
 ;;; Cider
                 [cider/cider-nrepl "0.22.4"]
-                [refactor-nrepl "2.4.1-SNAPSHOT"]]}
+                [refactor-nrepl "2.4.1-SNAPSHOT"]
+;;; Needed for CLJ macro compilation (sysrev.util)
+                [clj-time "0.15.2"]
+                [org.clojure/data.xml "0.2.0-alpha3"]
+                [org.clojure/math.numeric-tower "0.0.4"]
+                [crypto-random "1.2.0"]
+                [me.raynes/fs "1.4.6"]
+                [environ "1.1.0"]
+                [org.apache.commons/commons-lang3 "3.9"]]}

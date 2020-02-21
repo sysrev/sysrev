@@ -10,11 +10,10 @@
             [sysrev.label.core :as labels]
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]
-            [sysrev.config.core :as config]
+            [sysrev.config :as config]
             [sysrev.biosource.core :refer [api-host]]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values map-kv]]))
+            [sysrev.util :as util :refer [in? map-values map-kv]]))
 
 (defonce predict-api (agent nil))
 

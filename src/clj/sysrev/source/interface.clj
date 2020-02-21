@@ -10,8 +10,7 @@
             [sysrev.biosource.importance :as importance]
             [sysrev.slack :refer [log-slack-custom]]
             [sysrev.stacktrace :as strace]
-            [sysrev.util :refer [pp-str]]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]])
+            [sysrev.util :as util :refer [in? parse-integer pp-str]])
   (:import java.util.UUID))
 
 (defn- add-articles-data [{:keys [article-type article-subtype] :as types} articles]

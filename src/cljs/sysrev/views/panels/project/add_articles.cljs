@@ -15,8 +15,7 @@
             [sysrev.views.panels.project.source-view :refer [EditJSONView]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]]
+            [sysrev.util :as util :refer [in?]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 ;; for clj-kondo
@@ -66,7 +65,7 @@
 (defn article-or-articles
   "Return either the singular or plural form of article"
   [item-count]
-  (sutil/pluralize item-count "article"))
+  (util/pluralize item-count "article"))
 
 (defn- source-import-timed-out? [source]
   (let [{:keys [meta date-created]} source
@@ -419,7 +418,7 @@
                                (filter #(pos? (:count %)) (:overlap source))]
                            (let [src-type @(subscribe [:source/display-type overlap-source-id])
                                  src-info (some-> @(subscribe [:source/display-info overlap-source-id])
-                                                  (sutil/string-ellipsis 40))]
+                                                  (util/string-ellipsis 40))]
                              ^{:key [:shared source-id overlap-source-id]}
                              [:div.column (.toLocaleString shared-count) " shared: "
                               [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]

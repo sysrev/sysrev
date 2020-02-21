@@ -14,9 +14,8 @@
             [honeysql.format :as sqlf]
             honeysql-postgres.format
             [postgre-types.json :refer [add-jsonb-type]]
-            [sysrev.config.core :refer [env]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [map-values in?]])
+            [sysrev.config :refer [env]]
+            [sysrev.util :as util :refer [map-values in?]])
   (:import (org.joda.time DateTime)))
 
 ;; for clj-kondo

@@ -3,9 +3,9 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.cursors :refer [map-from-cursors prune-cursor]]
-            [sysrev.shared.util :refer [parse-integer]]
             [sysrev.views.semantic :refer [Button Icon]]
-            [sysrev.views.reagent-json-view :refer [ReactJSONView]]))
+            [sysrev.views.reagent-json-view :refer [ReactJSONView]]
+            [sysrev.util :refer [parse-integer]]))
 
 (def state (r/atom {}))
 
@@ -150,7 +150,7 @@
                  :on-click #(reset! active-tab "preview")} "Selected Fields"] [:a {:href "https://www.youtube.com/watch?v="
                                                                                    :target "_blank"
                                                                                    :style {:margin-left "0.25em"}}
-                                                                               [Icon {:name "video camera"}]]] 
+                                                                               [Icon {:name "video camera"}]]]
          [:div {:class (clojure.string/join " "
                                             ["ui" "bottom" "attached"
                                              (when (= @active-tab "edit") "active")

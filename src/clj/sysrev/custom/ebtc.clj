@@ -6,7 +6,7 @@
             [sysrev.project.core :as project]
             [sysrev.article.core :refer [set-article-flag]]
             [sysrev.label.core :as labels]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (defn label-possible-values [{:keys [label-id] :as label}]
   (case (:value-type label)

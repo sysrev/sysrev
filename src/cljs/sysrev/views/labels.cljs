@@ -6,8 +6,7 @@
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
             [sysrev.state.label :refer [real-answer?]]
-            [sysrev.util :refer [time-from-epoch nbsp]]
-            [sysrev.shared.util :refer [in? css]]
+            [sysrev.util :as util :refer [in? css time-from-epoch nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn LabelAnswerTag [label-id answer]

@@ -5,7 +5,7 @@
             [ring.util.response :as r]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [sysrev.api :as api]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.user.core :refer [get-user user-by-api-token update-member-access-time]]
@@ -14,8 +14,7 @@
             [sysrev.web.index :as index]
             [sysrev.slack :as slack]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? parse-integer ensure-pred]]))
+            [sysrev.util :as util :refer [in? parse-integer ensure-pred]]))
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)

@@ -34,8 +34,7 @@
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.formats.ctgov :as ctgov]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
+            [sysrev.util :as util :refer [parse-integer]])
   (:import (java.io File)))
 
 ;; for clj-kondo
@@ -149,7 +148,7 @@
 (defn add-project-export [project-id export-type tempfile &
                           [{:keys [user-id filters] :as extra}]]
   (assert (isa? (type tempfile) File))
-  (let [entry (merge extra {:download-id (sutil/random-id 5)
+  (let [entry (merge extra {:download-id (util/random-id 5)
                             :export-type export-type
                             :tempfile-path (str tempfile)
                             :added-time (db/sql-now)})]
@@ -219,7 +218,7 @@
 
 (dr (GET "/api/lookup-project-url" request
          (with-authorize request {}
-           {:result (let [url-id (-> request :params :url-id sutil/read-transit-str)
+           {:result (let [url-id (-> request :params :url-id util/read-transit-str)
                           [project-url-id {:keys [user-url-id org-url-id]}] url-id
                           ;; TODO: lookup project-id from combination of owner/project names
                           project-id (project/project-id-from-url-id project-url-id)

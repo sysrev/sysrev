@@ -56,7 +56,6 @@
         #_ sysrev.custom.insilica
         sysrev.misc
         sysrev.init
-        sysrev.shared.util
         sysrev.shared.keywords
         sysrev.shared.transit
         sysrev.test.core
@@ -89,7 +88,7 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [venia.core :refer [graphql-query]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]
@@ -104,17 +103,6 @@
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])
   (:import java.util.UUID))
-
-(try
-  (require '[flambo.api :as f])
-  (require '[flambo.conf :as fc])
-  (require '[flambo.tuple :as ft])
-  (require '[flambo.sql :as fsql])
-  (use 'sysrev.spark.core)
-  (use 'sysrev.spark.similarity)
-  (catch Throwable e
-    ;; Continue silently if Flambo dependencies are not loaded
-    nil))
 
 (defonce started
   (try

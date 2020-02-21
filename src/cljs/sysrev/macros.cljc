@@ -7,8 +7,7 @@
             [secretary.core :refer [defroute]]
             [sysrev.loading]
             #?(:cljs [sysrev.state.ui])
-            #?(:cljs [sysrev.util])
-            [sysrev.shared.util :refer [map-values ensure-pred]]))
+            [sysrev.util :refer [map-values ensure-pred]]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]

@@ -15,8 +15,7 @@
             [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :refer [Checkbox Pagination]]
-            [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.util :as util :refer [wrap-user-event parse-integer css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 ;; `npm install react-pdf` will install the version of pdfjs that it requires, check in node_modules/pdfjs-dist/package.json to set this
@@ -43,7 +42,7 @@
 (defn pdf-url->article-id
   "Given a pdf-url, return the article-id"
   [pdf-url]
-  (sutil/parse-integer
+  (parse-integer
    (if (pdf-url-open-access? pdf-url)
      (second (re-find #"/api/open-access/(\d+)/view" pdf-url))
      (second (re-find #"/api/files/.*/article/(\d+)/view" pdf-url)))))
@@ -177,7 +176,7 @@
       (js/setTimeout #(render-page context pdf num) 25))))
 
 (defn PDFContent [{:keys [pdf-url]}]
-  (let [container-id (sutil/random-id)
+  (let [container-id (util/random-id)
         get-pdf-url #(:pdf-url (r/props %))
         project-id @(subscribe [:active-project-id])
         before-update
@@ -430,9 +429,9 @@
      [:div {:id "pdf-page"}
       (if @checked?
         (doall (for [i (range 1 (+ @num-pages 1))]
-	         ^{:key (str "page-" i)}
-	         [RPage {:pageNumber i
-		         :width @width}]))
+             ^{:key (str "page-" i)}
+             [RPage {:pageNumber i
+                 :width @width}]))
         [RPage {:pageNumber @page-number
                 :width @width}])]
      [:div {:id "bottom-toolbar"}
@@ -457,8 +456,8 @@
 (defn ViewBase64PDF
   [{:keys [content]}]
   (let [content (r/atom (util/base64->uint8 content))
-	container-id "view-base-64-pdf"
-	width (r/atom nil)
+    container-id "view-base-64-pdf"
+    width (r/atom nil)
         num-pages (r/atom nil)
         page-number (r/atom nil)]
     (r/create-class
@@ -466,8 +465,8 @@
       (fn [_]
         [:div {:id container-id}
          [RDocument {:file {:data @content}
-		     :on-load-success (fn [pdf]
-				        (reset! num-pages (.-numPages pdf))
+             :on-load-success (fn [pdf]
+                        (reset! num-pages (.-numPages pdf))
                                         (reset! page-number 1))}
           [PDFPage {:page-number page-number
                     :num-pages num-pages

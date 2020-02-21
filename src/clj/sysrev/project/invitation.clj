@@ -1,7 +1,7 @@
 (ns sysrev.project.invitation
   (:require [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (defn create-invitation!
   "Invite invitee to project-id by inviter. The inviter is the invitee

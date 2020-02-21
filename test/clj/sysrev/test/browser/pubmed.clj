@@ -10,7 +10,7 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]))
+            [sysrev.util :as util :refer [parse-integer]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

@@ -7,8 +7,7 @@
             [reagent.core :as r]
             [reagent.ratom :as ratom]
             [sysrev.views.semantic :refer [TextArea]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [css]]))
+            [sysrev.util :as util :refer [css]]))
 
 ;; security, particularly regarding XSS attacks is a big concern when letting
 ;; users generate their own HTML

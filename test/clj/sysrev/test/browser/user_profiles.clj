@@ -17,7 +17,7 @@
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
+            [sysrev.util :as util :refer [in? parse-integer ignore-exceptions]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -263,8 +263,7 @@
                      :object-content)
                  3000 200)
       (log/info "found file on s3"))
-  :cleanup (when-not (try (user-image/delete-user-avatar-image user-id)
-                          (catch Throwable _ nil))
+  :cleanup (when-not (ignore-exceptions (user-image/delete-user-avatar-image user-id))
              ;; try again in case server handler (create-avatar!) was still running
              (log/warn "delete-user-avatar-image failed on first attempt")
              (Thread/sleep 1500)

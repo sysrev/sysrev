@@ -5,7 +5,6 @@
             [sysrev.accounting :as acct]
             [sysrev.views.semantic :as s]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil]
             [sysrev.macros :refer-macros [setup-panel-state with-mount-body]]))
 
 ;; for clj-kondo
@@ -89,9 +88,9 @@
    [:div#paypal-button]])
 
 (defn amount-validation [amount]
-  (let [amount (some-> (sutil/ensure-pred string? amount)
+  (let [amount (some-> (util/ensure-pred string? amount)
                        not-empty
-                       (sutil/ensure-prefix "$"))]
+                       (util/ensure-prefix "$"))]
     (cond (empty? amount)                                  :empty
           (not (re-matches acct/valid-usd-regex amount))   :invalid-amount
           (< (acct/string->cents amount)

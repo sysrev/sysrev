@@ -2,7 +2,7 @@
   (:require [clojure.data.json :as json]
             [clojure.tools.logging :as log]
             [clj-http.client :as http]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.util :as util :refer [pp-str]]
             [clojure.string :as str]))

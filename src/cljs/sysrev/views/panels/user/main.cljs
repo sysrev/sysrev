@@ -2,8 +2,7 @@
   (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Icon]]
-            [sysrev.util :as util :refer [mobile?]]
-            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.util :as util :refer [css mobile?]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo

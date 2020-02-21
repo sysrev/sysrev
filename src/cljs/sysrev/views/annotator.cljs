@@ -8,9 +8,8 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components.core :as ui]
-            [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer
-             [map-values filter-values css index-by]]))
+            [sysrev.util :as util :refer
+             [map-values filter-values css index-by nbsp]]))
 
 (def view :annotator)
 
@@ -213,7 +212,7 @@
        [:div.ui.small.basic.label.selection-label
         {:class (css [new? "new-annotation"])}
         (pr-str (str (when (string? selection)
-                       (sutil/string-ellipsis
+                       (util/string-ellipsis
                         selection 400 (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))))]]
       [:div.field.semantic-class
        [:label "Semantic Class"]
@@ -446,7 +445,7 @@
               (set [:selection] (:selection selection-map))
               (if (empty? (:selection selection-map))
                 (set [:new-annotation] nil)
-                (let [entry {:annotation-id (str "new-ann-" (sutil/random-id))
+                (let [entry {:annotation-id (str "new-ann-" (util/random-id))
                              :selection (:selection selection-map)
                              :context (-> (dissoc selection-map :selection)
                                           (assoc :client-field field))

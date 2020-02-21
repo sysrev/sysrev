@@ -12,7 +12,7 @@
             [me.raynes.fs :as fs]
             [ring.util.response :as response]
             [sysrev.cache :refer [db-memo]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.biosource.annotations :as api-ann]
@@ -42,8 +42,7 @@
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by req-un parse-integer]])
+            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer]])
   (:import (java.util UUID)))
 
 ;; HTTP error codes
@@ -138,12 +137,12 @@
         (project/set-member-permissions project-id user-id ["member" "admin" "owner"])))))
 
 (defn change-project-owner [project-id & {:keys [user-id group-id]}]
-  (sutil/assert-exclusive user-id group-id)
+  (util/assert-exclusive user-id group-id)
   (cond user-id   (change-project-owner-to-user project-id user-id)
         group-id  (change-project-owner-to-group project-id group-id)))
 
 (defn transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
-  (sutil/assert-exclusive user-id group-id)
+  (util/assert-exclusive user-id group-id)
   (with-transaction
     (let [users-projects (->> (user/user-projects owner-user-id [:permissions])
                               (filter #(contains? (set (:permissions %)) "owner"))

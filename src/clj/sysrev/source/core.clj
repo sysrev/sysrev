@@ -10,7 +10,7 @@
             [sysrev.project.core :as p]
             [sysrev.article.core :as a]
             [sysrev.file.s3 :as s3-file]
-            [sysrev.shared.util :as sutil :refer [map-values index-by]]))
+            [sysrev.util :as util :refer [map-values index-by]]))
 
 ;; for clj-kondo
 (declare source-id->project-id alter-source-meta)

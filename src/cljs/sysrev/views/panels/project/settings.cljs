@@ -10,8 +10,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? css]]
+            [sysrev.util :as util :refer [in? css parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
@@ -535,7 +534,7 @@
              [:span [:i.user.icon] @(subscribe [:user/display user-id])]]))
      {:class "ui fluid search selection dropdown"
       :onChange (fn [value _text _item]
-                  (let [user-id (sutil/parse-integer value)]
+                  (let [user-id (parse-integer value)]
                     (swap! members-state assoc :selected-user user-id)))}]))
 
 (def permission-values ["admin"])

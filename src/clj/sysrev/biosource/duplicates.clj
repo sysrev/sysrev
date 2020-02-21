@@ -7,7 +7,7 @@
             [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.source.core :as source]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.util :refer [in?]]
             [sysrev.biosource.core :refer [api-host]]))
 
 (def flag-name "auto-duplicate")

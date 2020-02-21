@@ -3,7 +3,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.shared.util :as sutil :refer [map-values]]))
+            [sysrev.util :as util :refer [map-values]]))
 
 (defn create-annotation! [selection annotation context article-id]
   (q/create :annotation {:selection selection
@@ -62,7 +62,7 @@
                 {:annotation annotation :semantic-class-id semantic-class-id}))))
 
 (defn find-annotation [match-by fields & {:keys [] :as opts}]
-  (vec (sutil/apply-keyargs
+  (vec (util/apply-keyargs
         q/find [:annotation :ann] match-by fields
         (merge opts {:left-join (concat [[:semantic-class:ann-sc :ann.semantic-class-id]
                                          [:ann-user:ann-u :ann.annotation-id]

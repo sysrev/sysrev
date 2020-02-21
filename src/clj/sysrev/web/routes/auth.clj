@@ -7,7 +7,7 @@
             [sysrev.mail.core :refer [send-email]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.web.app :as web :refer [with-authorize]]
-            [sysrev.config.core :refer [env]])
+            [sysrev.config :refer [env]])
   (:import com.google.api.client.http.javanet.NetHttpTransport
            com.google.api.client.json.jackson2.JacksonFactory
            #_ com.google.api.client.auth.oauth2.TokenResponseException

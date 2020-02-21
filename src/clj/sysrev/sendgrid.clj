@@ -1,6 +1,6 @@
 (ns sysrev.sendgrid
   (:require [clj-http.client :as client]
-            [sysrev.config.core :refer [env]]))
+            [sysrev.config :refer [env]]))
 
 (def sendgrid-api-key (env :sendgrid-api-key))
 (def sendgrid-api-url "https://api.sendgrid.com/v3/")

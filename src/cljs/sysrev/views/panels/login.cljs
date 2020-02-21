@@ -11,8 +11,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.loading :as loading]
-            [sysrev.util :refer [validate wrap-prevent-default nbsp on-event-value]]
-            [sysrev.shared.util :refer [css]]
+            [sysrev.util :refer [css validate wrap-prevent-default nbsp on-event-value]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (def login-panel [:login])

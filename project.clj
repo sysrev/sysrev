@@ -10,6 +10,7 @@
                  [commons-io/commons-io "2.6"]
                  [commons-codec "1.14"]
                  [org.apache.commons/commons-compress "1.19"]
+                 [prismatic/schema "1.1.12"]
 
 ;;; Logging
                  [org.clojure/tools.logging "0.5.0"]
@@ -87,14 +88,16 @@
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-server"
+             ;; silence reflection warning in JVM >=10:
+             ;; "--add-opens" "java.xml/com.sun.xml.internal.stream=ALL-UNNAMED"
              "-Xms500m" "-Xmx1000m"
              "-XX:+TieredCompilation"
-             #_ "-XX:+AggressiveOpts"
-             "-Xverify:none"
              #_ "-XX:TieredStopAtLevel=1"
+             #_ "-XX:+AggressiveOpts"
+             #_ "-Xverify:none"
              #_ "-XX:+UseParallelGC"
-             #_ "-XX:+UseConcMarkSweepGC"
-             #_ "-XX:+CMSClassUnloadingEnabled"]
+             #_ "-XX:+UnlockExperimentalVMOptions"
+             #_ "-XX:+UseZGC"]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"run-tests"              ["with-profile" "+test-config" "eftest"]
             "jenkins"                ["with-profile" "+jenkins" "eftest"]

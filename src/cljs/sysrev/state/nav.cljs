@@ -5,7 +5,7 @@
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.project.base :refer [get-project-raw]]
-            [sysrev.shared.util :as sutil :refer
+            [sysrev.util :as util :refer
              [in? parse-integer ensure-pred filter-values]]))
 
 (defn active-panel [db]
@@ -209,7 +209,7 @@
   :loaded? (fn [db url-id] (-> (get-in db [:data :project-lookups])
                                (contains? url-id)))
   :uri (fn [_] "/api/lookup-project-url")
-  :content (fn [url-id] {:url-id (sutil/write-transit-str url-id)})
+  :content (fn [url-id] {:url-id (util/write-transit-str url-id)})
   :process (fn [_ [url-id] project-full-id]
              #_ (println (pr-str {:project-full-id project-full-id}))
              {:dispatch [:load-project-lookup url-id project-full-id]}))

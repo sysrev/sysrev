@@ -5,7 +5,7 @@
             [sysrev.state.core :refer [store-user-maps]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.article-list.base :as al]
-            [sysrev.shared.util :as sutil :refer [index-by dissoc-in]]))
+            [sysrev.util :as util :refer [index-by dissoc-in]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))

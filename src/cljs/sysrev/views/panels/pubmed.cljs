@@ -10,8 +10,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.list-pager :refer [ListPager]]
-            [sysrev.util :refer [wrap-prevent-default nbsp]]
-            [sysrev.shared.util :as util]
+            [sysrev.util :as util :refer [wrap-prevent-default nbsp]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo

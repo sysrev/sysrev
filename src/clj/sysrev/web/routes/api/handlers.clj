@@ -12,7 +12,7 @@
             [sysrev.web.app :refer [make-error-response]]
             [sysrev.web.routes.api.core :refer
              [def-webapi web-api-routes web-api-routes-order]]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
+            [sysrev.util :as util :refer [in? parse-integer]]))
 
 ;; weird bug in cider:
 ;; If you (run-tests) in sysrev.test.web.routes.api.handlers
@@ -425,7 +425,7 @@
   (fn [request]
     (let [{:keys [project-id predict-run-id label-id article-values] :as body}
           (-> request :body)
-          label-id (sutil/to-uuid label-id)]
+          label-id (util/to-uuid label-id)]
       (assert (integer? project-id))
       (assert (integer? predict-run-id))
       (assert (uuid? label-id))

@@ -3,7 +3,7 @@
              [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
             [sysrev.base :as base :refer [ga-event]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.shared.util :as sutil :refer [dissoc-in]]))
+            [sysrev.util :as util :refer [dissoc-in]]))
 
 (reg-event-db :initialize-db (constantly base/default-db))
 
@@ -27,7 +27,7 @@
                     (dissoc-in [:state :navigation :subpanels])
                     (update-in [:state :panels]
                                (fn [panels-map]
-                                 (sutil/filter-keys
+                                 (util/filter-keys
                                   #(if (sequential? %)
                                      (not= :project (first %))
                                      ;; panel key should always be a vector, handling

@@ -3,7 +3,7 @@
             [hiccup.page :as page]
             [sitemap.core :refer [generate-sitemap]]
             [sysrev.shared.components :refer [loading-content]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.payment.paypal :refer [paypal-env paypal-client-id]]
             [sysrev.web.build :as build]
             [sysrev.payment.stripe :refer [stripe-public-key stripe-client-id]]

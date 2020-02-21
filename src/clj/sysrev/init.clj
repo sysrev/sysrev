@@ -1,12 +1,13 @@
 (ns sysrev.init
-  (:require sysrev.logging
+  (:require [clojure.tools.logging :as log]
+            sysrev.logging
             sysrev.stacktrace
             sysrev.all-entities
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.web.core :refer [run-web]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.web.routes.site :as site]
-            [clojure.tools.logging :as log])
+            [sysrev.util :as util])
   (:import [java.net BindException]))
 
 (defn start-db [& [postgres-overrides only-if-new]]

@@ -2,7 +2,7 @@
 ;; Wrapper interface of https://github.com/weavejester/environ
 ;;
 
-(ns sysrev.config.core
+(ns sysrev.config
   (:require [environ.core :as environ]
             [clojure.java.io :as io]
             [clojure.edn :as edn])

@@ -10,7 +10,7 @@
             [sysrev.db.query-types :as qt]
             [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
+            [sysrev.util :as util :refer [in? map-values index-by]]))
 
 ;;;
 ;;; Article data lookup functions
@@ -129,7 +129,7 @@
     (let [pmid->id (->> (qt/find-article
                          {:a.project-id project-id :ad.datasource-name "pubmed"}
                          :article-id, :index-by :external-id, :where [:!= :ad.external-id nil])
-                        (sutil/map-keys sutil/parse-integer))]
+                        (util/map-keys util/parse-integer))]
       (mapv (partial get pmid->id)
             (ds-api/search-text-by-pmid text (sort (keys pmid->id)))))))
 

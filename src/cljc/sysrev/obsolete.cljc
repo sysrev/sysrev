@@ -16,7 +16,7 @@
          (mapv (fn [[k v]]
                  (let [k-int (and (keyword? k)
                                   (re-matches #"^\d+$" (name k))
-                                  (sutil/parse-number (name k)))
+                                  (util/parse-number (name k)))
                        k-new (if (integer? k-int) k-int k)
                        v-new (if (map? v) ; convert sub-maps recursively
                                (integerify-map-keys v)

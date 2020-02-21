@@ -10,7 +10,7 @@
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.util :as util]))
 
 (use-fixtures :once default-fixture)
 
@@ -63,7 +63,7 @@
         search-term "foo bar"
         route-response (route-response-fn handler)
         {:keys [email password]} (b/create-test-user)
-        test-project-name (str test-project-name " " (sutil/random-id))]
+        test-project-name (str test-project-name " " (util/random-id))]
     (with-cleanup-users [email]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login" {:email email :password password})
@@ -108,7 +108,7 @@
   (let [handler (sysrev-handler)
         route-response (route-response-fn handler)
         {:keys [email user-id password]} (b/create-test-user)
-        test-project-name (str test-project-name " " (sutil/random-id))]
+        test-project-name (str test-project-name " " (util/random-id))]
     (with-cleanup-users [email]
       (is (integer? user-id))
       (user/set-user-permissions user-id ["user"])
@@ -139,7 +139,7 @@
         route-response (route-response-fn handler)
         {:keys [email password]} (b/create-test-user)
         new-user (b/create-test-user :email "baz@qux.com" :password "bazqux")
-        test-project-name (str test-project-name " " (sutil/random-id))]
+        test-project-name (str test-project-name " " (util/random-id))]
     (with-cleanup-users [(:email new-user) email]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login"
@@ -213,7 +213,7 @@
     (let [handler (sysrev-handler)
           {:keys [email password]} (b/create-test-user)
           route-response (route-response-fn handler)
-          test-project-name (str test-project-name " " (sutil/random-id))]
+          test-project-name (str test-project-name " " (util/random-id))]
       (with-cleanup-users [email]
         (let [_ (route-response :post "/api/auth/login" {:email email :password password})
               create-project-response (route-response :post "/api/create-project"

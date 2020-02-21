@@ -111,4 +111,3 @@
                                              :targetID {:type (non-null Int)
                                                         :description "The Id of the project to which article are being imported"}}
                                       :resolve :resolve-import-article-filter-url!}}}
-

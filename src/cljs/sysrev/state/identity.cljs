@@ -3,8 +3,7 @@
             [sysrev.state.core :refer [store-user-map]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? to-uuid dissoc-in]]))
+            [sysrev.util :as util :refer [in? to-uuid dissoc-in]]))
 
 (defn have-identity? [db]
   (contains? (:state db) :identity))

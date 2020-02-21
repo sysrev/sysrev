@@ -5,7 +5,7 @@
             [sysrev.project.core :as project]
             [sysrev.label.answer :as answer]
             [sysrev.shared.labels :refer [sort-project-labels]]
-            [sysrev.shared.util :refer [index-by]]))
+            [sysrev.util :refer [index-by]]))
 
 ;;;
 ;;; article_resolve migration

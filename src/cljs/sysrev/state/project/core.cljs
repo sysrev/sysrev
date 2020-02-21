@@ -4,7 +4,7 @@
             [sysrev.nav :as nav]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.state.identity :refer [get-self-projects]]
-            [sysrev.shared.util :refer [short-uuid]]))
+            [sysrev.util :refer [short-uuid]]))
 
 (reg-sub :project/name
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))

@@ -4,7 +4,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.file.core :as file]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.util :as util]))
 
 ;; for clj-kondo
 (declare s3-id-from-article-key article-pdf-associated?
@@ -41,7 +41,7 @@
           [:s3.s3-id :s3.key :s3.filename]))
 
 (defn save-article-pdf [{:keys [article-id filename file file-bytes]}]
-  (sutil/assert-exclusive file file-bytes)
+  (util/assert-exclusive file file-bytes)
   (db/with-transaction
     (let [{:keys [key s3-id]}
           (file/save-s3-file :pdf filename (or (some->> file (hash-map :file))

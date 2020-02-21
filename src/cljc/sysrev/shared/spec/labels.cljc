@@ -2,8 +2,8 @@
   (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.project :as sp]
-            #?(:clj  [sysrev.shared.util :refer [defspec-keys+partial]]
-               :cljs [sysrev.shared.util :refer-macros [defspec-keys+partial]])))
+            #?(:clj  [sysrev.util :refer [defspec-keys+partial]]
+               :cljs [sysrev.util :refer-macros [defspec-keys+partial]])))
 
 (s/def ::label-id ::sc/uuid)
 (s/def ::label-id-local ::sc/sql-serial-id)

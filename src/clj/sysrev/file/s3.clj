@@ -3,9 +3,8 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [amazonica.aws.s3 :as s3]
-            [sysrev.config.core :refer [env]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? opt-keys]])
+            [sysrev.config :refer [env]]
+            [sysrev.util :as util :refer [in? opt-keys]])
   (:import (java.io ByteArrayInputStream)))
 
 ;; for clj-kondo

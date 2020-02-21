@@ -8,14 +8,14 @@
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer [select from join merge-join where order-by group]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db :refer
              [do-query with-transaction sql-now]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [add-project-member]]
             [sysrev.shared.spec.users :as su]
             [sysrev.payment.stripe :as stripe]
-            [sysrev.shared.util :as sutil :refer [map-values in?]])
+            [sysrev.util :as util :refer [map-values in?]])
   (:import java.util.UUID))
 
 (defn all-users
@@ -354,4 +354,4 @@
 
 (defn user-id-from-url-id [url-id]
   ;; TODO: implement url-id strings for users
-  (sutil/parse-integer url-id))
+  (util/parse-integer url-id))

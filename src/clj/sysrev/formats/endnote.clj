@@ -3,8 +3,8 @@
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
-            [sysrev.util :as util :refer [xml-find xml-find-vector xml-find-vector]]
-            [sysrev.shared.util :as sutil :refer [map-values parse-integer]]))
+            [sysrev.util :as util :refer [xml-find xml-find-vector xml-find-vector
+                                          map-values parse-integer]]))
 
 (defn parse-endnote-file [fname]
   (-> fname io/file io/reader dxml/parse))

@@ -11,8 +11,7 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.filters :as f]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? css index-by]]
+            [sysrev.util :as util :refer [in? css index-by]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (reg-sub-raw ::prev-next-article-ids

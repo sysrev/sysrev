@@ -10,7 +10,7 @@
             [clojure.set :as set]
             [honeysql.helpers :as sqlh :refer [select from where limit]]
             [sysrev.db.core :as db :refer [do-query]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :as util :refer [in?]]))
 
 ;; for clj-kondo
 (declare entity-columns entity-custom-fields entity-fields)

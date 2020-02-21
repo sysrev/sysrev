@@ -50,8 +50,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :as review]
             [sysrev.views.search.core]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [css]]
+            [sysrev.util :as util :refer [css]]
             [sysrev.shared.components :refer [loading-content]]))
 
 (defmethod panel-content :default []

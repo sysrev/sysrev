@@ -1,10 +1,10 @@
 (ns sysrev.source.pubmed
-  (:require [sysrev.config.core :as config]
+  (:require [sysrev.config :as config]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]))
+            [sysrev.util :as util :refer [parse-integer]]))
 
 (defn pubmed-get-articles [pmids]
   (->> (map parse-integer pmids)

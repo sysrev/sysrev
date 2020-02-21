@@ -13,7 +13,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review-articles]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.shared.util :as sutil :refer [in? ensure-pred css]]))
+            [sysrev.util :as util :refer [in? ensure-pred css ignore-exceptions]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -73,12 +73,12 @@
                              (ensure-pred #(<= (count %) 1))
                              first))
                   (find-input-value [parent-q]
-                    (or (try (some-> (find-el (css parent-q "input[type=text]"))
-                                     (taxi/value))
-                             (catch Throwable _ nil))
-                        (try (some-> (find-el (css parent-q ".item.active.selected"))
-                                     (taxi/attribute "data-value"))
-                             (catch Throwable _ nil))
+                    (or (ignore-exceptions
+                         (some-> (find-el (css parent-q "input[type=text]"))
+                                 taxi/value))
+                        (ignore-exceptions
+                         (some-> (find-el (css parent-q ".item.active.selected"))
+                                 (taxi/attribute "data-value")))
                         ""))]
             {:selection (remove-quotes (taxi/text (find-el ".ui.label.selection-label")))
              :semantic-class (find-input-value ".field.semantic-class")
