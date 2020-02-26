@@ -100,9 +100,8 @@
           (log/info "Initializing test DB...")
           (db/close-active-db)
           (db/terminate-db-connections config)
-          (ignore-exceptions (db-shell "dropdb" [] config))
+          (-> (db-shell "dropdb" [] config) (ignore-exceptions))
           (db-shell "createdb" [] config)
-
           (when-not (util/ms-windows?)
             (shell "./scripts/install-flyway"))
           (with-flyway-config config

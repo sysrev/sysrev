@@ -243,8 +243,8 @@
 
 (defmulti import-source
   "Multimethod for import implementation per source type."
-  (fn [stype _project-id _input _options] stype))
+  (fn [stype _project-id _input & [_options]] stype))
 
-(defmethod import-source :default [stype _project-id _input _options]
+(defmethod import-source :default [stype _project-id _input & [_options]]
   (throw (Exception. (format "import-source - invalid source type (%s)"
                              (pr-str stype)))))

@@ -15,6 +15,7 @@
         sysrev.datasource.core
         sysrev.datasource.api
         sysrev.project.core
+        sysrev.project.member
         sysrev.project.description
         sysrev.project.clone
         sysrev.project.article-list
@@ -25,6 +26,7 @@
         sysrev.source.endnote
         sysrev.source.pdf-zip
         sysrev.source.ris
+        sysrev.source.import
         sysrev.payment.paypal
         sysrev.payment.stripe
         sysrev.payment.plans
@@ -87,7 +89,6 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [venia.core :refer [graphql-query]]
             [sysrev.config :refer [env]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]

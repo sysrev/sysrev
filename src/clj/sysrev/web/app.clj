@@ -10,6 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.user.core :refer [get-user user-by-api-token update-member-access-time]]
             [sysrev.project.core :as project]
+            [sysrev.project.member :refer [project-member]]
             [sysrev.web.build :as build]
             [sysrev.web.index :as index]
             [sysrev.slack :as slack]
@@ -266,7 +267,7 @@
          public-project# (and valid-project# (-> (project/project-settings project-id#)
                                                  ((comp true? :public-access))))
          user# (and user-id# (get-user user-id#))
-         member# (and user-id# valid-project# (project/project-member project-id# user-id#))
+         member# (and user-id# valid-project# (project-member project-id# user-id#))
          dev-user?# (in? (:permissions user#) "admin")
          mperms# (:permissions member#)
 

@@ -21,6 +21,7 @@
                        [clojure.math.numeric-tower :as math]
                        [me.raynes.fs :as fs]
                        [crypto.random]
+                       [venia.core :as venia]
                        [sysrev.config :refer [env]]
                        [sysrev.stacktrace :refer [print-cause-trace-custom]]]
                 :cljs [["jquery" :as $]
@@ -462,6 +463,9 @@
   [coll]
   (walk/postwalk #(cond-> % (uuid-str? %) (to-uuid)) coll))
 
+(defn url-join [& sections]
+  (str/join "/" sections))
+
 ;;;
 ;;; CLJ code
 ;;;
@@ -755,6 +759,9 @@
           `(let [e# ~e]
              (log/logf ~level "%s: %s\n%s"
                        (current-function-name) (.getMessage e#) (print-cause-trace-custom e#)))))
+
+#?(:clj (defn gquery [query-form]
+          (venia/graphql-query {:venia/queries query-form})))
 
 ;;;
 ;;; CLJS code
@@ -1077,8 +1084,10 @@
                 js/window.location.search
                 js/window.location.hash)))
 
-#?(:cljs (defn write-json [x]
-           (js/JSON.stringify (clj->js x))))
+#?(:cljs (defn write-json [x & [pretty?]]
+           (cond-> (clj->js x)
+             pretty?        (js/JSON.stringify nil 2)
+             (not pretty?)  (js/JSON.stringify))))
 
 #?(:cljs (defn read-json [s]
            (js->clj (js/JSON.parse s) :keywordize-keys true)))
@@ -1161,3 +1170,5 @@
                          (map-values #(if (map? %)
                                         (clojurize-map %)
                                         %))))))))
+#?(:cljs (defn base64->uint8 [base64]
+           (-> base64 js/atob (js/Uint8Array.from #(.charCodeAt % 0)))))

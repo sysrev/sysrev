@@ -12,7 +12,7 @@
             [sysrev.db.core :as db :refer
              [do-query with-transaction sql-now]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :refer [add-project-member]]
+            [sysrev.project.member :refer [add-project-member]]
             [sysrev.shared.spec.users :as su]
             [sysrev.payment.stripe :as stripe]
             [sysrev.util :as util :refer [map-values in?]])

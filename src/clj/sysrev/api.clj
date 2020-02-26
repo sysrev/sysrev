@@ -19,6 +19,7 @@
             [sysrev.biosource.importance :as importance]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
             [sysrev.project.charts :as charts]
             [sysrev.project.funds :as funds]
             [sysrev.project.compensation :as compensation]
@@ -77,8 +78,8 @@
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (label/add-label-overall-include project-id)
       (project/add-project-note project-id {})
-      (project/add-project-member project-id user-id
-                                  :permissions ["member" "admin" "owner"])
+      (member/add-project-member project-id user-id
+                                 :permissions ["member" "admin" "owner"])
       {:project (select-keys project [:project-id :name])})))
 
 (defn-spec create-project-for-org! (req-un ::project)
@@ -90,13 +91,13 @@
       (label/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (group/create-project-group! project-id group-id)
-      (project/add-project-member project-id user-id
-                                  ;; NOT owner, create-project-group!
-                                  ;; makes the group the owner of this project
-                                  ;; group projects shouldn't have
-                                  ;; a project_member entry with
-                                  ;; an "owner" permission
-                                  :permissions ["member" "admin"])
+      (member/add-project-member project-id user-id
+                                 ;; NOT owner, create-project-group!
+                                 ;; makes the group the owner of this project
+                                 ;; group projects shouldn't have
+                                 ;; a project_member entry with
+                                 ;; an "owner" permission
+                                 :permissions ["member" "admin"])
       {:project (select-keys project [:project-id :name])})))
 
 (defn-spec delete-project! (req-un ::sp/project-id)
@@ -104,7 +105,7 @@
   user is an admin of that project. If there are reviewed articles in
   the project, disables project instead of deleting it"
   [project-id int?, user-id int?]
-  (assert (or (project/member-has-permission? project-id user-id "admin")
+  (assert (or (member/member-role? project-id user-id "admin")
               (in? (get-user user-id :permissions) "admin")))
   (if (project/project-has-labeled-articles? project-id)
     (project/disable-project! project-id)
@@ -114,15 +115,15 @@
 (defn remove-current-owner [project-id]
   (db/with-clear-project-cache project-id
     (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
-      (cond user-id   (project/set-member-permissions project-id user-id ["member" "admin"])
+      (cond user-id   (member/set-member-permissions project-id user-id ["member" "admin"])
             group-id  (group/delete-project-group! project-id group-id)))))
 
 (defn change-project-owner-to-user [project-id user-id]
   (db/with-clear-project-cache project-id
     (remove-current-owner project-id)
-    (if (project/project-member project-id user-id)
-      (project/set-member-permissions project-id user-id ["member" "admin" "owner"])
-      (project/add-project-member project-id user-id :permissions ["member" "admin" "owner"]))))
+    (if (member/project-member project-id user-id)
+      (member/set-member-permissions project-id user-id ["member" "admin" "owner"])
+      (member/add-project-member project-id user-id :permissions ["member" "admin" "owner"]))))
 
 (defn change-project-owner-to-group [project-id group-id]
   (db/with-clear-project-cache project-id
@@ -131,10 +132,10 @@
     (group/create-project-group! project-id group-id)
     ;; make the group owner an admin of the project
     (let [user-id (group/get-group-owner group-id)]
-      (if (empty? (project/project-member project-id user-id))
+      (if (member/project-member project-id user-id)
+        (member/set-member-permissions project-id user-id ["member" "admin" "owner"])
         ;; FIX: this breaks ownership logic? owned by user and group?
-        (project/add-project-member project-id user-id :permissions ["member" "admin" "owner"])
-        (project/set-member-permissions project-id user-id ["member" "admin" "owner"])))))
+        (member/add-project-member project-id user-id :permissions ["member" "admin" "owner"])))))
 
 (defn change-project-owner [project-id & {:keys [user-id group-id]}]
   (util/assert-exclusive user-id group-id)
@@ -235,8 +236,12 @@
   "Return a sample article from source"
   [source-id]
   (if (source/source-exists? source-id)
-    (let [article-id (first (q/find [:article :a] {} :as.article-id :join [:article-source:as :a.article-id] :limit 1 :where [:= :as.source-id source-id]))]
-      {:article (article/get-article article-id)})
+    (if-let [article (some-> (first (q/find :article-source {:source-id source-id} :article-id
+                                            :limit 1))
+                             (article/get-article))]
+      {:article article}
+      {:error {:status not-found
+               :message (str "source-id " source-id " has no articles")}})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 
@@ -380,7 +385,7 @@
             :else     "Basic"))))
 
 (defn- project-grandfathered? [project-id]
-  (let [{:keys [date-created]} (project/get-project-by-id project-id)]
+  (let [{:keys [date-created]} (q/find-one :project {:project-id project-id})]
     (t/before? (tc/from-sql-time date-created)
                (util/parse-time-string paywall-grandfather-date))))
 
@@ -956,7 +961,7 @@
 
 (defn project-annotation-status [project-id & {:keys [user-id]}]
   (with-transaction
-    (let [member? (and user-id (project/member-has-permission? project-id user-id "member"))]
+    (let [member? (and user-id (member/member-role? project-id user-id "member"))]
       {:status (cond-> {:project (ann/project-annotation-status project-id)}
                  member? (assoc :member (ann/project-annotation-status
                                          project-id :user-id user-id)))})))
@@ -966,7 +971,7 @@
   (assert project-id)
   (with-transaction
     (doseq [[user-id perms] (vec users-map)]
-      (project/set-member-permissions project-id user-id perms))
+      (member/set-member-permissions project-id user-id perms))
     {:success true}))
 
 (defn public-projects []
@@ -999,7 +1004,7 @@
 (defn send-invitation-email
   "Send an invitation email"
   [email project-id]
-  (let [project-name (:name (project/get-project-by-id project-id))]
+  (let [project-name (q/find-one :project {:project-id project-id} :name)]
     (sendgrid/send-template-email
      email (str "You've been invited to " project-name " as a reviewer")
      (str "You've been invited to <b>" project-name
@@ -1041,8 +1046,8 @@
   ;; user joins project when invitation is accepted
   (when accepted?
     (let [{:keys [project-id user-id]} (invitation/get-invitation invitation-id)]
-      (when (nil? (project/project-member project-id user-id))
-        (project/add-project-member project-id user-id))))
+      (when (nil? (member/project-member project-id user-id))
+        (member/add-project-member project-id user-id))))
   (invitation/update-invitation-accepted! invitation-id accepted?)
   {:success true})
 

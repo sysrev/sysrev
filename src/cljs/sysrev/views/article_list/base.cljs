@@ -146,19 +146,22 @@
                   (if (contains? m field)
                     (update m field #(some-> % f))
                     m))]
-    {k (cond-> (convert v :label-id str)
-         (= k :consensus) (convert :status name))}))
+    {k (->> (cond-> (convert v :label-id str)
+              (= k :consensus) (convert :status name))
+            (util/filter-values (comp not nil?)))}))
 
 (defn- filter-from-json [entry]
   (let [[[k v]] (vec entry)
         convert (fn [m field f]
-                  (if (contains? m field)
-                    (update m field #(some-> % f))
-                    m))]
+                  (cond-> m (contains? m field) (update field #(some-> % f))))
+        convert-boolean (fn [m field]
+                          (convert m field
+                                   #(get {"true" true "false" false "any" nil "null" nil}
+                                         % %)))]
     {k (cond-> (-> (convert v :label-id util/to-uuid)
                    (convert :content keyword)
-                   (convert :confirmed #(case % "true" true, "false" false, "any" nil,
-                                              "null" nil, %)))
+                   (convert-boolean :confirmed)
+                   (convert-boolean :inclusion))
          (= k :consensus)   (convert :status keyword)
          (= k :prediction)  (convert :direction keyword))}))
 

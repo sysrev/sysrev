@@ -263,7 +263,7 @@
                      :object-content)
                  3000 200)
       (log/info "found file on s3"))
-  :cleanup (when-not (ignore-exceptions (user-image/delete-user-avatar-image user-id))
+  :cleanup (when-not (-> (user-image/delete-user-avatar-image user-id) (ignore-exceptions))
              ;; try again in case server handler (create-avatar!) was still running
              (log/warn "delete-user-avatar-image failed on first attempt")
              (Thread/sleep 1500)

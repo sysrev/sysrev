@@ -7,6 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
             [sysrev.project.clone :as clone]
             [sysrev.source.import :as import]
             [sysrev.web.app :refer [make-error-response]]
@@ -170,7 +171,7 @@
          {:success true
           :message "User is already a member of project"}}
         :else
-        (do (project/add-project-member project-id user-id)
+        (do (member/add-project-member project-id user-id)
             {:result {:success true}})))))
 
 ;; disabled, too dangerous, can be done via web UI

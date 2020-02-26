@@ -15,6 +15,7 @@
             [sysrev.db.query-types :as qt]
             [sysrev.user.core :as user]
             [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
             [sysrev.project.description
              :refer [read-project-description set-project-description!]]
             [sysrev.project.article-list :as alist]
@@ -195,9 +196,9 @@
                   session (assoc-in (:session request)
                                     [:identity :default-project-id]
                                     project-id)]
-              (assert (nil? (project/project-member project-id user-id))
+              (assert (nil? (member/project-member project-id user-id))
                       "join-project: User is already a member of this project")
-              (project/add-project-member project-id user-id)
+              (member/add-project-member project-id user-id)
               (user/set-user-default-project user-id project-id)
               (with-meta
                 {:result {:project-id project-id}}

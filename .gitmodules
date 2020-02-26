@@ -1,0 +1,4 @@
+[submodule "datasource"]
+	path = datasource
+	url = git@github.com:/insilica/datasource
+	branch = dev

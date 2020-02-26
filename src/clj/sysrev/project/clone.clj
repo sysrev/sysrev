@@ -5,6 +5,7 @@
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
             [sysrev.file.article :as article-file]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
@@ -18,11 +19,11 @@
   (doseq [user-id (project/project-user-ids src-project-id)]
     (when (or (nil? user-ids-only)
               (in? user-ids-only user-id))
-      (let [{:keys [permissions]} (project/project-member src-project-id user-id)]
+      (let [{:keys [permissions]} (member/project-member src-project-id user-id)]
         (when (or (not admin-members-only)
                   (in? permissions "admin"))
-          (project/add-project-member dest-project-id user-id
-                                      :permissions permissions))))))
+          (member/add-project-member dest-project-id user-id
+                                     :permissions permissions))))))
 
 (defn copy-project-label-defs [src-project-id dest-project-id]
   (->> (q/find :label {:project-id src-project-id})
@@ -210,8 +211,7 @@
   `user-ids-only` (optional) explicitly lists which users to add as members
   of new project."
   [project-name src-id &
-   {:keys [articles labels answers members
-           user-ids-only admin-members-only]
+   {:keys [articles labels answers members user-ids-only admin-members-only]
     :or {labels false, answers false, articles false, members true}}]
   (with-transaction
     (let [dest-id

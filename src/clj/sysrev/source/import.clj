@@ -1,6 +1,14 @@
 (ns sysrev.source.import
   (:require [sysrev.source.interface :refer [import-source]]
-            (sysrev.source pubmed pmid endnote pdf-zip extra ris ctgov datasource)))
+            sysrev.source.pubmed
+            sysrev.source.pmid
+            sysrev.source.endnote
+            sysrev.source.pdf-zip
+            sysrev.source.extra
+            sysrev.source.ris
+            sysrev.source.ctgov
+            sysrev.source.datasource
+            sysrev.source.project-filter))
 
 (defn import-pubmed-search
   [project-id {:keys [search-term] :as input} & [{:as options}]]
@@ -37,3 +45,19 @@
 (defn import-ctgov-search
   [project-id {:keys [search-term] :as input} & [{:as options}]]
   (import-source :ctgov project-id input options))
+
+(defn import-datasource-query
+  [project-id {:keys [query entities] :as input} & [{:as options}]]
+  (import-source :datasource-query project-id input options))
+
+(defn import-datasource
+  [project-id {:keys [datasource-id datasource-name entities] :as input} & [{:as options}]]
+  (import-source :datasource project-id input options))
+
+(defn import-dataset
+  [project-id {:keys [dataset-id dataset-name entities] :as input} & [{:as options}]]
+  (import-source :dataset project-id input options))
+
+(defn import-project-filter
+  [project-id {:keys [url-filter source-project-id] :as input} & [{:as options}]]
+  (import-source :project-filter project-id input options))

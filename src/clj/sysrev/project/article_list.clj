@@ -213,7 +213,8 @@
 
 (defn article-consensus-filter
   [{:keys [project-id] :as _context} {:keys [status inclusion]}]
-  (let [overall-id (project/project-overall-label-id project-id)
+  (let [status (keyword status)
+        overall-id (project/project-overall-label-id project-id)
         all-labels (project-article-labels project-id)
         all-consensus (project-article-consensus project-id)]
     (fn [{:keys [article-id]}]

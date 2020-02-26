@@ -7,6 +7,7 @@
                        (sysrev.macros/sr-defroute nil)
                        (sysrev.macros/sr-defroute-project nil)
                        (sysrev.macros/defroute-app-id nil)
+                       (sysrev.graphql.core/with-datasource-proxy nil)
                        (orchestra.core/defn-spec nil)
                        (clojure.core.cache/defcache nil)
                        (compojure.core/GET nil)

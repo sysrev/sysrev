@@ -1,98 +1,152 @@
 (ns sysrev.source.datasource
   (:require [clojure.tools.logging :as log]
+            [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
+            [medley.core :as medley]
             [sysrev.source.core :as source :refer [make-source-meta]]
-            [sysrev.source.interface :refer [import-source import-source-impl]]))
+            [sysrev.source.interface :refer [import-source import-source-impl]]
+            [sysrev.graphql.core :refer [fail with-datasource-proxy]]))
 
-(defn process-datasource-entities
-  [coll]
-  (->> coll
-       (map #(let [{:keys [id]} %]
-               {:external-id id
-                :primary-title (str "Datasource Entity: " id)}))
-       (into [])))
+(defn process-datasource-entities [coll]
+  (->> coll (mapv (fn [{:keys [id]}]
+                    {:external-id id
+                     :primary-title (str "Datasource Entity: " id)}))))
 
-(defmethod make-source-meta :datasource [_ {:keys [query]}]
-  {:source "Datasource: Query" :query query})
+;;;
+;;; datasource-query
+;;;
 
-(defmethod import-source :datasource [_ project-id {:keys [query entities]} {:as options}]
-  (let [query-source (->> (source/project-sources project-id)
-                          (filter #(= (get-in % [:meta :query]) query)))]
-    ;; this source already exists
-    (if (seq query-source)
-      (do (log/warn "import-source datasource query - non-empty query-source: " query-source)
-          {:error {:message (str "Datsource GraphQL " query " already imported")}})
-      (let [source-meta (source/make-source-meta :datasource {:query query})]
-        (import-source-impl
-         project-id source-meta
-         {:types {:article-type "datasource"
-                  :article-subtype "entity"}
+(defmethod make-source-meta :datasource-query
+  [_ {:keys [query]}]
+  {:source "Datasource Query" :query query})
+
+(defmethod import-source :datasource-query
+  [_x project-id {:keys [query entities]} {:as options}]
+  (if (seq (->> (source/project-sources project-id)
+                (filter #(= (get-in % [:meta :query]) query))))
+    (do (log/warnf "import-source %s - query %s already imported" _x (pr-str query))
+        {:error {:message (format "Datasource query %s already imported" (pr-str query))}})
+    (do (import-source-impl
+         project-id
+         (source/make-source-meta _x {:query query})
+         {:types {:article-type "datasource" :article-subtype "entity"}
           :get-article-refs (constantly entities)
           :get-articles process-datasource-entities}
          options)
-        {:result true}))))
+        {:result true})))
 
-(defmethod make-source-meta :datasource-dataset [_ {:keys [dataset-id dataset-name]}]
-  {:source "Datasource: Dataset" :dataset-id dataset-id :dataset-name dataset-name})
+(defn ^ResolverResult import-ds-query [context {:keys [id query]} _]
+  (let [project-id id
+        api-token (:authorization context)]
+    (with-datasource-proxy result {:query query :project-id project-id :project-role "admin"
+                                   :api-token api-token}
+      ;; https://stackoverflow.com/questions/28091305/find-value-of-specific-key-in-nested-map
+      ;; this is hack which assumes that only vectors will
+      ;; contain entities in a response.
+      (import-source :datasource-query
+                     project-id {:query query :entities (->> (:body result)
+                                                             (tree-seq map? vals)
+                                                             (filter vector?)
+                                                             flatten
+                                                             (into []))})
+      (resolve-as true))))
 
-(defmethod import-source :datasource-dataset [_ project-id {:keys [dataset-id entities dataset-name]} {:as options}]
-  (let [dataset-source (->> (source/project-sources project-id)
-                            (filter #(= (get-in % [:meta :dataset-id]) dataset-id)))]
-    ;; this source already exists
-    (if (seq dataset-source)
-      (do (log/warn "import-source datasource-dataset - already imported dataset-id: " dataset-id)
-          {:error {:message (str "Datsource Dataset id:" dataset-id " already imported")}})
-      ;; create the datasource
-      (let [source-meta (source/make-source-meta :datasource-dataset {:dataset-id dataset-id
-                                                                      :dataset-name dataset-name})]
-        (import-source-impl
-         project-id source-meta
-         {:types {:article-type "datasource"
-                  :article-subtype "entity"}
+;;;
+;;; datasource
+;;;
+
+(defmethod make-source-meta :datasource
+  [_ {:keys [datasource-id datasource-name]}]
+  {:source "Datasource" :datasource-id datasource-id :datasource-name datasource-name})
+
+(defmethod import-source :datasource
+  [_x project-id {:keys [datasource-id entities datasource-name]} {:as options}]
+  (if (seq (->> (source/project-sources project-id)
+                (filter #(= (get-in % [:meta :datasource-id]) datasource-id))))
+    (do (log/warnf "import-source %s - datasource-id %s already imported" _x datasource-id)
+        {:error {:message (format "datasource-id %s already imported" datasource-id)}})
+    (do (import-source-impl
+         project-id
+         (source/make-source-meta _x {:datasource-id datasource-id
+                                      :datasource-name datasource-name})
+         {:types {:article-type "datasource" :article-subtype "entity"}
           :get-article-refs (constantly entities)
           :get-articles process-datasource-entities}
          options)
-        {:result true}))))
+        {:result true})))
 
-(defmethod make-source-meta :datasource-datasource [_ {:keys [datasource-id datasource-name]}]
-  {:source "Datasource: Datasource" :datasource-id datasource-id :datasource-name datasource-name})
+(defn ^ResolverResult import-datasource-flattened [context {:keys [id datasource]} _]
+  (let [project-id id
+        api-token (:authorization context)]
+    (if (<= datasource 3)
+      (fail "That datasource can't be imported, please select an id > 3")
+      (with-datasource-proxy result {:query [[:datasource {:id datasource}
+                                              [:name [:datasets
+                                                      [:id :name [:entities [:id]]]]]]]
+                                     :project-id project-id :project-role "admin"
+                                     :api-token api-token}
+        (let [{:keys [datasets name]} (get-in result [:body :data :datasource])
+              entities (medley/join (map :entities datasets))]
+          (try (import-source :datasource project-id {:datasource-id datasource
+                                                      :datasource-name name
+                                                      :entities entities})
+               (resolve-as true)
+               (catch Exception e
+                 (fail (str "There was an exception with message: " (.getMessage e))))))))))
 
-(defmethod import-source :datasource-datasource [_ project-id {:keys [datasource-id entities datasource-name]} {:as options}]
-  (let [datasource-source (->> (source/project-sources project-id)
-                               (filter #(= (get-in % [:meta :datasource-id]) datasource-id)))]
-    ;; this source already exists
-    (if (seq datasource-source)
-      (do (log/warn "import-source datasource-datasource - already imported datasource-id: " datasource-id)
-          {:error {:message (str "Datasource id:" datasource-id " already imported")}})
-      ;; create the datasource
-      (let [source-meta (source/make-source-meta :datasource-datasource {:datasource-id datasource-id
-                                                                         :datasource-name datasource-name})]
-        (import-source-impl
-         project-id source-meta
-         {:types {:article-type "datasource"
-                  :article-subtype "entity"}
+;;;
+;;; dataset
+;;;
+
+(defmethod make-source-meta :dataset
+  [_ {:keys [dataset-id dataset-name]}]
+  {:source "Dataset" :dataset-id dataset-id :dataset-name dataset-name})
+
+(defmethod import-source :dataset
+  [_x project-id {:keys [dataset-id entities dataset-name]} {:as options}]
+  (if (seq (->> (source/project-sources project-id)
+                (filter #(= (get-in % [:meta :dataset-id]) dataset-id))))
+    (do (log/warnf "import-source %s - dataset-id %s already imported" _x dataset-id)
+        {:error {:message (format "dataset-id %s already imported" dataset-id)}})
+    (do (import-source-impl
+         project-id
+         (source/make-source-meta _x {:dataset-id dataset-id :dataset-name dataset-name})
+         {:types {:article-type "datasource" :article-subtype "entity"}
           :get-article-refs (constantly entities)
           :get-articles process-datasource-entities}
          options)
-        {:result true}))))
+        {:result true})))
 
-(defmethod make-source-meta :datasource-project-url-filter [_ {:keys [url-filter source-id]}]
-  {:source "Datasource: Project URL Filter" :url-filter url-filter :source-id source-id})
+(defn ^ResolverResult import-dataset [context {:keys [id dataset]} _]
+  (let [project-id id
+        api-token (:authorization context)]
+    (if (<= dataset 7)
+      (fail "That dataset can't be imported, please select an id > 7")
+      (with-datasource-proxy result {:query [[:dataset {:id dataset}
+                                              [:name [:entities [:id]]]]]
+                                     :project-id project-id :project-role "admin"
+                                     :api-token api-token}
+        (let [{:keys [entities name]} (get-in result [:body :data :dataset])]
+          (import-source :dataset project-id {:dataset-id dataset
+                                              :dataset-name name
+                                              :entities entities})
+          (resolve-as true))))))
 
-(defmethod import-source :datasource-project-url-filter [_ project-id {:keys [url-filter source-id entities]} {:as options}]
-  (let [current-source (->> (source/project-sources project-id)
-                            (filter #(= (get-in % [:meta :url-filter]) url-filter))
-                            (filter #(= (get-in % [:meta :source-id]) source-id)))]
-    ;; this source already exists
-    (if (seq current-source)
-      (do (log/warn "import-source project-url-filter - non-empty current-source: " (str {:source-id source-id :url-filter url-filter}))
-          {:error {:message (str "Datsource GraphQL " {:url-filter url-filter
-                                                       :source-id source-id} " already imported")}})
-      (let [source-meta (source/make-source-meta :datasource-project-url-filter {:url-filter url-filter :source-id source-id})]
-        (import-source-impl
-         project-id source-meta
-         {:types {:article-type "datasource"
-                  :article-subtype "entity"}
-          :get-article-refs (constantly entities)
-          :get-articles process-datasource-entities}
-         options)
-        {:result true}))))
+(defn ^ResolverResult import-datasource [context {:keys [id datasource]} _]
+  (let [project-id id
+        api-token (:authorization context)]
+    (if (<= datasource 3)
+      (fail "That datasource can't be imported, please select an id > 3")
+      (with-datasource-proxy result {:query [[:datasource {:id datasource}
+                                              [[:datasets [:id :name [:entities [:id]]]]]]]
+                                     :project-id project-id :project-role "admin"
+                                     :api-token api-token}
+        (let [datasets (get-in result [:body :data :datasource :datasets])]
+          (try (doseq [{:keys [id name entities]} datasets]
+                 (import-source :dataset project-id {:dataset-id id
+                                                     :dataset-name name
+                                                     :entities entities}))
+               (resolve-as true)
+               (catch Exception e
+                 (fail (str "There was an exception with message: " (.getMessage e))))))))))
+
+

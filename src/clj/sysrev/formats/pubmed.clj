@@ -139,7 +139,7 @@
         create-raw? (assoc :raw (dxml/emit-str pxml))))
     (catch Throwable e
       (log/warn "parse-pmid-xml:" "error while parsing article -" (.getMessage e))
-      (ignore-exceptions (log/warn "xml =" (dxml/emit-str pxml)))
+      (-> (log/warn "xml =" (dxml/emit-str pxml)) (ignore-exceptions))
       nil)))
 
 (defn fetch-pmids-xml [pmids]

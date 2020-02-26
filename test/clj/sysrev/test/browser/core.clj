@@ -86,7 +86,7 @@
 (defn start-webdriver [& [restart?]]
   (if (and @*wd* (not restart?))
     @*wd*
-    (do (when @*wd* (ignore-exceptions (taxi/quit @*wd*)))
+    (do (when @*wd* (-> (taxi/quit @*wd*) (ignore-exceptions)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments
                              (concat ["headless"
@@ -111,8 +111,7 @@
   [& [restart?]]
   (if (and @*wd* (not restart?))
     @*wd*
-    (do (when @*wd*
-          (ignore-exceptions (taxi/quit @*wd*)))
+    (do (when @*wd* (-> (taxi/quit @*wd*) (ignore-exceptions)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments [(format "window-size=%d,%d"
                                                     (:width browser-test-window-size)
@@ -161,7 +160,7 @@
                             (user/user-by-email email)
                             (q/find-one :web-user {:user-id user-id}))]
       (when stripe-id
-        (ignore-exceptions (stripe/delete-customer! user)))
+        (-> (stripe/delete-customer! user) (ignore-exceptions)))
       (when user-id
         (q/delete :compensation-user-period {:user-id user-id}))
       (if email
@@ -410,12 +409,12 @@
                              (log/warn "got exception in repl cleanup:" (str e#)))))
                     ~body
                     (catch Throwable e#
-                      (log/error "current-url:" (ignore-exceptions (taxi/current-url)))
+                      (log/error "current-url:" (-> (taxi/current-url) (ignore-exceptions)))
                       (log-console-messages :error)
                       (take-screenshot :error)
                       (throw e#))
                     (finally
-                      (try (wait-until-loading-completes :pre-wait true :timeout 1500)
+                      (try (wait-until-loading-completes :pre-wait 50 :timeout 1500)
                            (catch Throwable e2#
                              (log/info "test cleanup - wait-until-loading-completes timed out")))
                       (let [failed# (and (instance? clojure.lang.IDeref *report-counters*)

@@ -9,7 +9,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.user.core :refer [user-by-email]]
-            [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member]]
             [sysrev.stacktrace :as strace]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -251,7 +251,7 @@
       ;; set it to default
       (select-compensation-dropdown nil amount)
       ;; create a new member, check that that their compensation level is set to the default
-      (project/add-project-member @project-id (:user-id new-user))
+      (add-project-member @project-id (:user-id new-user))
       (randomly-set-unreviewed-articles @project-id (:user-id new-user) n-articles)
       ;; new user reviews some articles
       ;; (switch-user test-user)
@@ -310,7 +310,7 @@
              (throw (ex-info "PayPal Error" {:type :paypal} e))))
       ;; create users
       (doseq [{:keys [user-id]} test-users]
-        (project/add-project-member @(:project-id project1) user-id))
+        (add-project-member @(:project-id project1) user-id))
       ;; review some articles from all users
       (db-review-articles user1 project1)
       (db-review-articles user2 project1)
@@ -333,7 +333,7 @@
         (select-compensation-dropdown nil (-> project2 :amounts (nth 0)))
         ;; associate the other users with the second project
         (doseq [{:keys [user-id]} test-users]
-          (project/add-project-member @(:project-id project2) user-id))
+          (add-project-member @(:project-id project2) user-id))
         ;; review some articles from all users
         (db-review-articles user1 project2)
         (db-review-articles user2 project2)

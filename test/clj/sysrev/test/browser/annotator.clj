@@ -6,6 +6,7 @@
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
             [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member]]
             [sysrev.export.core :as export]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -327,7 +328,7 @@
       (reset! project-id (b/current-project-id))
       (pm/import-pubmed-search-via-db "foo bar enthalpic mesoporous")
       (doseq [{:keys [user-id]} test-users]
-        (project/add-project-member @project-id user-id))
+        (add-project-member @project-id user-id))
       (switch-user (:email user1))
       (nav/go-project-route "/review")
       ;; select a value for "Include", don't save yet

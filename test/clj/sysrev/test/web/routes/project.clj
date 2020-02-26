@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is use-fixtures]]
             [clojure.string :as str]
             [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member set-member-permissions]]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.user.core :as user]
@@ -93,13 +94,13 @@
                                            {:project-id new-project-id})
                            [:error :message])))
             ;; deletion can't happen for a user who isn't an admin of the project
-            (project/add-project-member new-project-id (:user-id non-member))
+            (add-project-member new-project-id (:user-id non-member))
             (is (= "Not authorized (project member)"
                    (get-in (route-response :post "/api/delete-project"
                                            {:project-id new-project-id})
                            [:error :message])))
             ;; add the user as an admin, they can now delete the project
-            (project/set-member-permissions new-project-id (:user-id non-member) ["member" "admin"])
+            (set-member-permissions new-project-id (:user-id non-member) ["member" "admin"])
             (is (get-in (route-response :post "/api/delete-project"
                                         {:project-id new-project-id})
                         [:result :success]))))))))
