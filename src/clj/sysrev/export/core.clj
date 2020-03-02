@@ -38,7 +38,7 @@
   [project-id & {:keys [article-ids separator]}]
   (with-transaction
     (let [all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
-                         (order-by :label-id-local) do-query)
+                         (order-by :project_ordering :label-id-local) do-query)
           all-articles (-> (project-labeled-article-ids project-id)
                            (ds-api/get-articles-content))
           user-answers (-> (q/select-project-articles
@@ -92,7 +92,7 @@
   (with-transaction
     (let [project-url (str "https://sysrev.com/p/" project-id)
           all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
-                         (order-by :label-id-local) do-query)
+                         (order-by :project_ordering :label-id-local) do-query)
           all-articles (-> (project-labeled-article-ids project-id)
                            (ds-api/get-articles-content))
           anotes (-> (q/select-project-articles
