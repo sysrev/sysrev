@@ -535,7 +535,13 @@
          :endnote   [ImportEndNoteView]
          :zip-file  [ImportPDFZipsView]
          :ris-file  [ImportRISView]
-         :ctgov (if (= js/window.location.hostname "sysrev.com")
+         :ctgov (if (and (= js/window.location.hostname "sysrev.com")
+                         (not (some #{@(subscribe [:user/email])}
+                                    #{"geoffreyweiner@gmail.com"
+                                      "james@insilica.co"
+                                      "tom@insilica.co"
+                                      "jeff@insilica.co"
+                                      "tj@insilica.co"})))
                   [EnableCTNotice]
                   [ctgov/SearchBar]))]
       (when (= active-tab :pubmed)
