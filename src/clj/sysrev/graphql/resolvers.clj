@@ -29,10 +29,12 @@
 (defn assoc-articles
   [m project-id]
   (assoc m :articles
-         (-> (select :enabled
-                     [:article_id :id]
-                     [:article_uuid :uuid])
-             (from :article)
+         (-> (select :a.enabled
+                     [:a.article_id :id]
+                     [:a.article_uuid :uuid]
+                     [:ad.external_id :datasource_id])
+             (from [:article :a])
+             (join [:article_data :ad] [:= :ad.article_data_id :a.article_data_id])
              (where [:= :project_id project-id])
              do-query)))
 

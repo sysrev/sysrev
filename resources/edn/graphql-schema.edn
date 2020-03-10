@@ -52,6 +52,8 @@
                           :description "Sysrev id of article"}
                      :uuid {:type (non-null String)
                             :description "The sysrev UUID for the article"}
+                     :datasource_id {:type String
+                                     :description "The entity id associated with this article on datasource"}
                      :enabled {:type (non-null Boolean)
                                :description "Is this article enabled?"}
                      :labels {:type (list :LabelAnswer)
