@@ -8,6 +8,7 @@
             [sysrev.ajax]
             [sysrev.nav]
             [sysrev.state.all]
+            [sysrev.luckyorange]
             [sysrev.data.core :as data]
             [sysrev.action.core]
             [sysrev.loading]
