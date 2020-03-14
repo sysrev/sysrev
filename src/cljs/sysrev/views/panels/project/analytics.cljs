@@ -31,11 +31,9 @@
                               :scroll-top? true)
             [:div])
         [:div.project-content
-
          [:div.ui.center.aligned.segment
           [:iframe
            {:src "https://docs.google.com/forms/d/e/1FAIpQLSejOldFq7U0zo-8AwxRwqrV77CqD3x4uIFOiwcDd-WsNIuvhQ/viewform?embedded=true"
-            :width "640" :height "700px" :frameBorder "0" :marginHeight "0" :marginWidth "0"
-            :overflow "visible"} "Loading…"]
-          ]
+            :width "640" :height "700px" :frameborder "0" :marginheight "0" :marginwidth "0"
+            :overflow "visible"} "Loading…"]]
          child]))))
