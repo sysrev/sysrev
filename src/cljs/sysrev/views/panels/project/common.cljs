@@ -122,6 +122,14 @@
            :action (project-uri project-id "/articles")
            :disabled (not ready?)
            :tooltip not-ready-msg}
+          {:tab-id [:project :analytics]
+           :class "analytics"
+           :content [:div
+                     (when-not mobile? [:span [:i.chart.bar.icon] " "])
+                     "Analytics" [:sup {:style {:color "red"}} " beta"]]
+           :action (project-uri project-id "/analytics")
+           :disabled (not ready?)
+           :tooltip not-ready-msg}
           {:tab-id [:review]
            :class "review"
            :content [:span
