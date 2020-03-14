@@ -59,6 +59,16 @@
          (dispatch load-params))))
 
 (sr-defroute-project
+  analytics "/analytics" [project-id]
+  (let [panel [:project :project :analytics]
+        prev-panel @(subscribe [:active-panel])
+        diff-panel (and prev-panel (not= panel prev-panel))
+        all-data-items [[:project project-id]]]
+    (dispatch [:set-active-panel panel])
+    (when diff-panel
+      (doseq [item all-data-items] (dispatch [:reload item])))))
+
+(sr-defroute-project
  article-id "/article/:article-id" [project-id article-id]
  (let [panel [:project :project :single-article]
        article-id (parse-integer article-id)
