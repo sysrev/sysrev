@@ -1,20 +1,17 @@
 (ns sysrev.luckyorange
-  (:require [reagent.core :as r]
+  (:require [clojure.string :as str]
+            [reagent.core :as r]
             [re-frame.db :refer [app-db]]))
 
-
-; TODO - we should be able to subscribe to changes in :user/display directly
+; TODO - we should be able to subscribe to changes in :user/display directly but seems like track! doesn't work on subscribe items
 (def user-display-atom (r/cursor app-db [:state :identity :email]))
-;(def user-display-atom (subscribe [:user/display]))
 
 (defn send-luckyorange-update [email]
-  (when email
-    (when-not js/window._loq
-      (set! js/window._loq (clj->js [])))
-    (js/window._loq.push (clj->js ["custom" {:email email}]))))
+  (let [name (first (str/split @email #"@"))]
+    (.log js/console (str "chewy name is: " name " email is " @email))
+    (when @email
+      (if-not js/window._loq (set! js/window._loq (clj->js [])))
+      (.log js/console (str "name is: " name " email is " @email))
+      (-> ["custom",{:name name :email @email}] clj->js js/window._loq.push))))
 
-(add-watch user-display-atom :luckyorange-watch
-           (fn [_ _ _old-state new-state]
-             (send-luckyorange-update new-state)))
-
-(send-luckyorange-update user-display-atom)
+(r/track! send-luckyorange-update user-display-atom)
