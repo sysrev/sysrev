@@ -9,15 +9,15 @@
             [sysrev.shared.util :as sutil :refer [css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
-(defn- ProjectListItem [{:keys [project-id name member?]}]
+(defn- ProjectListItem [{:keys [project-id name member? description]}]
   (if member?
     [:a.ui.middle.aligned.grid.segment.project-list-project
      {:href (project-uri project-id "")}
      [:div.row>div.sixteen.wide.column
-      [:h4.ui.header.blue-text
+      [:h4.ui.header
        [:i.grey.list.alternate.outline.icon]
-       [:div.content
-        [:span.project-title name]]]]]
+       [:div.content {:display "inline-block"}
+        [:span.project-title.blue-text name] description]]]]
     [:div.ui.middle.aligned.stackable.two.column.grid.segment.project-list-project.non-member
      [:div.column {:class (css [(not (util/mobile?)) "twelve wide"])}
       [:a {:href (project-uri project-id "")}
@@ -87,12 +87,47 @@
   [:div.ui.segments.projects-list
    [:div.ui.segment.projects-list-header
     [:h4.ui.header "Featured Projects"]]
-   (doall (for [project-id [100 269 2026 844 3144]]
-            (when-let [project @(subscribe [:public-projects project-id])]
-              ^{:key [:public-project project-id]}
-              [ProjectListItem {:project-id project-id
-                                :name (:name project)
-                                :member? true}])))])
+   [ProjectListItem {:project-id 21696
+                     :name (:name @(subscribe [:public-projects 21696]))
+                     :description [:span " - A managed review discovering relationships between diseases and mangiferin."
+                                   " Read more at " [:a {:href "https://blog.sysrev.com/tag/mangiferin"}
+                                                    "blog.sysrev.com/tag/mangiferin"]]
+                     :member? true}]
+   [ProjectListItem {:project-id 16612
+                     :name (:name @(subscribe [:public-projects 16612]))
+                     :description [:span " - Winner of the sysrev "
+                                   [:a {:href "https://blog.sysrev.com/mini-grants"} "mini-grants"]
+                                   ". This project tracks changes in insect populations."]
+                     :member? true}]
+   [ProjectListItem {:project-id 23706
+                     :name (:name @(subscribe [:public-projects 23706]))
+                     :description [:span " - A search for papers which sequenced the mitochondrial ND2 gene in island birds. "
+                                   "Performed by the Avipelago group at ..."
+                                   ]
+                     :member? true}]
+   [ProjectListItem {:project-id 26314
+                     :name (:name @(subscribe [:public-projects 26314]))
+                     :description [:span " - A comprehensive review of respiratory devices done by researchers at "
+                     [:a {:href "https://www.mayo.edu/research/labs/human-integrative-environmental-physiology/about/faculty-staff"} "mayo clinic."]]
+                     :member? true}]
+   [ProjectListItem {:project-id 24557
+                     :name (:name @(subscribe [:public-projects 24557]))
+                     :description [:span " -  aims to synthesise peer-reviewed evidence on the effects of fire on Australian invertebrates. "
+                                   "Performed by ..."
+                                   ]
+                     :member? true}]
+   [ProjectListItem {:project-id 3509
+                     :name (:name @(subscribe [:public-projects 3509]))
+                     :description [:span " - An educational project by " [:a {:href "https://www.jhsph.edu/faculty/directory/profile/2681/lena-smirnova"} "Dr. Lena Smirnova"]
+                     " at Johns Hopkins School of Public Health. Meant to teach students about zebrafish toxicology and systematic review. See the coursera course at "
+                     [:a {:href "https://www.coursera.org/lecture/evidence-based-toxicology/zebrafish-systematic-review-d7G9T"} "coursera.org"]]
+                     :member? true}]
+   [ProjectListItem {:project-id 16309
+                     :name (:name @(subscribe [:public-projects 16309]))
+                     :description [:span " - A project rigorously evaluating published systematic reviews in the humanitarian field, specifically on conflict and war. By the "
+                                   [:a {:href "https://gesi.org/"} "Global Evidence Synthesis Initiative (GESI) "]]
+                     :member? true}]
+   ])
 
 (defn UserProjectListFull []
   (with-loader [[:identity] [:public-projects]] {}
