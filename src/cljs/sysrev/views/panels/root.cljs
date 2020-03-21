@@ -72,15 +72,13 @@
           [:a.black-text {:href "https://blog.sysrev.com/intro-managed-reviews/"}
            [:h4.ui.header.blue-text "Managed Review & Data Extraction "]
            [:p "Hire Sysrev to manage all of your data extraction needs."]
-          [:ul
-           [:li.black-text "Collect documents"]
-           [:li "Extract data"]
-           [:li "Manage & recruit expert reviewers"]
-           [:Li "Automate review tasks"]
-           [:li "Analyse resulting data"]]
-           [:p "Get a quote or learn more at "
-            [:a {:href "https://blog.sysrev.com/intro-managed-reviews/"} "sysrev managed review."]]
-          ]]
+           [:ol
+            [:li "Collect documents"]
+            [:li "Extract data"]
+            [:li "Manage & recruit expert reviewers"]
+            [:li "Automate review tasks"]
+            [:li "Analyse resulting data"]]
+           [:p "Click here to get a quote and learn more."]]]
          [:a {:href "https://blog.sysrev.com/getting-started/"
               :target "_blank"}
           [:img {:src "/getting_started_01.png"

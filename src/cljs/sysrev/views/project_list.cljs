@@ -89,43 +89,36 @@
     [:h4.ui.header "Featured Projects"]]
    [ProjectListItem {:project-id 21696
                      :name (:name @(subscribe [:public-projects 21696]))
-                     :description [:span " - A managed review discovering relationships between diseases and mangiferin."
-                                   " Read more at " [:a {:href "https://blog.sysrev.com/tag/mangiferin"}
-                                                    "blog.sysrev.com/tag/mangiferin"]]
+                     :description [:span " - A managed review discovering relationships between diseases and mangiferin."]
                      :member? true}]
    [ProjectListItem {:project-id 16612
                      :name (:name @(subscribe [:public-projects 16612]))
-                     :description [:span " - Winner of the sysrev "
-                                   [:a {:href "https://blog.sysrev.com/mini-grants"} "mini-grants"]
+                     :description [:span " - Winner of the sysrev mini-grants"
                                    ". This project tracks changes in insect populations."]
                      :member? true}]
    [ProjectListItem {:project-id 23706
                      :name (:name @(subscribe [:public-projects 23706]))
-                     :description [:span " - A search for papers which sequenced the mitochondrial ND2 gene in island birds. "
-                                   "Performed by the Avipelago group at ..."
-                                   ]
+                     :description [:span " - A search for papers which sequenced the mitochondrial ND2 gene in island birds. "]
                      :member? true}]
    [ProjectListItem {:project-id 26314
                      :name (:name @(subscribe [:public-projects 26314]))
-                     :description [:span " - A comprehensive review of respiratory devices done by researchers at "
-                     [:a {:href "https://www.mayo.edu/research/labs/human-integrative-environmental-physiology/about/faculty-staff"} "mayo clinic."]]
+                     :description [:span " - A data extraction project evaluating the methods
+                     used to measure \"work of breathing\" during exercise.
+                     Led by Troy Cross at Mayo Clinic & University of Sydney and other researchers."]
                      :member? true}]
    [ProjectListItem {:project-id 24557
                      :name (:name @(subscribe [:public-projects 24557]))
-                     :description [:span " -  aims to synthesise peer-reviewed evidence on the effects of fire on Australian invertebrates. "
-                                   "Performed by ..."
-                                   ]
+                     :description [:span " -  aims to synthesize peer-reviewed evidence on the effects of fire on Australian invertebrates. "]
                      :member? true}]
    [ProjectListItem {:project-id 3509
                      :name (:name @(subscribe [:public-projects 3509]))
-                     :description [:span " - An educational project by " [:a {:href "https://www.jhsph.edu/faculty/directory/profile/2681/lena-smirnova"} "Dr. Lena Smirnova"]
-                     " at Johns Hopkins School of Public Health. Meant to teach students about zebrafish toxicology and systematic review. See the coursera course at "
-                     [:a {:href "https://www.coursera.org/lecture/evidence-based-toxicology/zebrafish-systematic-review-d7G9T"} "coursera.org"]]
+                     :description [:span " - An educational project by Dr. Lena Smirnova "
+                     " at Johns Hopkins School of Public Health. Meant to teach students about zebrafish toxicology and systematic review."]
                      :member? true}]
    [ProjectListItem {:project-id 16309
                      :name (:name @(subscribe [:public-projects 16309]))
                      :description [:span " - A project rigorously evaluating published systematic reviews in the humanitarian field, specifically on conflict and war. By the "
-                                   [:a {:href "https://gesi.org/"} "Global Evidence Synthesis Initiative (GESI) "]]
+                                   "Global Evidence Synthesis Initiative (GESI) "]
                      :member? true}]
    ])
 
