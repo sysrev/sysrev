@@ -105,7 +105,7 @@
       (b/init-route (-> (taxi/current-url) b/url->path))
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click "a.column.article-title" :displayed? true :delay 200)
-      (b/is-soon (taxi/exists? "div.pdf-container div.page div.canvasWrapper"))
+      (b/is-soon (taxi/exists? (xpath  "//canvas[contains(@class,'react-pdf__Page__canvas')]")))
       (b/click ".ui.menu > .item.articles" :delay 100)
       (b/is-soon (taxi/exists? "a.column.article-title"))))
 
