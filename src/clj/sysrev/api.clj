@@ -332,6 +332,16 @@
 (defn group-current-plan [group-id]
   {:success true, :plan (plans/group-current-plan group-id)})
 
+;; manually add:
+;; 1. connect to prod database
+;; 2. redefine keys in sysrev.payment.stripe
+;; (def stripe-secret-key "sk_live_________________________")
+;; then re-eval default-req
+;; 3. Check the plan id matches the one on stripe.com
+;; (stripe/get-plan-id "Unlimited_User")
+;; 4. subscribe the user
+;; (subscribe-user-to-plan <user-id> "Unlimited_User") or
+;; (subscribe-user-to-plan <user-id> "Unlimited_Org")
 (defn subscribe-user-to-plan [user-id plan-name]
   (with-transaction
     (let [{:keys [sub-id]} (plans/user-current-plan user-id)
