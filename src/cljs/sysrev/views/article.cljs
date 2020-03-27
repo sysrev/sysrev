@@ -227,9 +227,7 @@
            [:h5.header {:style {:margin-top "0px"}} (display-author-names 5 authors)])
          ;; show pdf
          (if visible-url
-           [:div
-            [:h3 (:filename pdf)]
-            [pdf/ViewPDF {:pdf-url visible-url}]]
+           [pdf/ViewPDF {:pdf-url visible-url :entry pdf}]
            (when (seq abstract)
              (if annotator?
                [ArticleAnnotatedField article-id "abstract" abstract
@@ -381,7 +379,6 @@
                 "entity"
                 [Entity article-id]
                 [ArticleInfoMain article-id :context context])]
-             ;;^{:key :article-pdfs} [pdf/PDFs article-id]
-             ))
+             ^{:key :article-pdfs} [pdf/PDFs article-id]))
      (when change-labels-button [change-labels-button])
      (when show-labels? [ArticleLabelsView article-id :self-only? private-view?])]))

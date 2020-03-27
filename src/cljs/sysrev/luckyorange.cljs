@@ -8,10 +8,8 @@
 
 (defn send-luckyorange-update [email]
   (let [name (first (str/split @email #"@"))]
-    (.log js/console (str "chewy name is: " name " email is " @email))
     (when @email
       (if-not js/window._loq (set! js/window._loq (clj->js [])))
-      (.log js/console (str "name is: " name " email is " @email))
       (-> ["custom",{:name name :email @email}] clj->js js/window._loq.push))))
 
 (r/track! send-luckyorange-update user-display-atom)
