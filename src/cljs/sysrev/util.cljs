@@ -432,3 +432,8 @@
                 (map-values #(if (map? %)
                                (clojurize-map %)
                                %)))))))
+(defn base64->uint8
+  [base64]
+  (-> base64
+      js/atob
+      (js/Uint8Array.from (fn [c] (.charCodeAt c 0)))))
