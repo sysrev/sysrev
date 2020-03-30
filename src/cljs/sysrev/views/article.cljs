@@ -379,6 +379,7 @@
                 "entity"
                 [Entity article-id]
                 [ArticleInfoMain article-id :context context])]
-             ^{:key :article-pdfs} [pdf/PDFs article-id]))
+             (when-not (= datasource-name "entity")
+               ^{:key :article-pdfs} [pdf/PDFs article-id])))
      (when change-labels-button [change-labels-button])
      (when show-labels? [ArticleLabelsView article-id :self-only? private-view?])]))

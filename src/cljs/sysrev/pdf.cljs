@@ -14,7 +14,7 @@
             [sysrev.state.article :as article]
             [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.components.list-pager :refer [ListPager]]
-            [sysrev.views.semantic :refer [Checkbox]]
+            [sysrev.views.semantic :refer [Checkbox Pagination]]
             [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.shared.util :as sutil :refer [css]]
             [sysrev.macros :refer-macros [with-loader]]))
@@ -404,77 +404,74 @@
 
 (def checked? (r/atom false))
 
+(defn PDFPage
+  [{:keys [page-number num-pages width]}]
+  (when-not (nil? @num-pages)
+    [:div {:id "pdf-page-container"}
+     [:div {:id "top-toolbar"
+            :style {:padding "0px, auto"
+                    :margin-bottom "1rem"}}
+      [Checkbox {:as "h4"
+                 :style {:margin-top "0.75rem"}
+                 :checked @checked?
+                 :on-change #(reset! checked? (not @checked?))
+                 :toggle true
+                 :label "Single Page"}]
+      (when-not @checked?
+        [Pagination
+         {:total-pages @num-pages
+          :active-page @page-number
+          :style {:float "right"}
+          :on-page-change
+          (fn [_ data]
+            (let [{:keys [activePage]} (js->clj data :keywordize-keys true)]
+              (reset! page-number activePage)))}])
+      [:div {:style {:clear "both"}}]]
+     [:div {:id "pdf-page"}
+      (if @checked?
+        (doall (for [i (range 1 (+ @num-pages 1))]
+	         ^{:key (str "page-" i)}
+	         [RPage {:pageNumber i
+		         :width @width}]))
+        [RPage {:pageNumber @page-number
+                :width @width}])]
+     [:div {:id "bottom-toolbar"}
+      [Checkbox {:as "h4"
+                 :checked @checked?
+                 :on-change #(reset! checked? (not @checked?))
+                 :toggle true
+                 :label "Single Page"
+                 :style {:margin-top "1.75rem"}}]
+      (when-not @checked?
+        [Pagination
+         {:total-pages @num-pages
+          :active-page @page-number
+          :style {:float "right"
+                  :margin-top "1rem"}
+          :on-page-change
+          (fn [_ data]
+            (let [{:keys [activePage]} (js->clj data :keywordize-keys true)]
+              (reset! page-number activePage)))}])
+      [:div {:style {:clear "both"}}]]]))
+
 (defn ViewBase64PDF
   [{:keys [content]}]
   (let [content (r/atom (util/base64->uint8 content))
-	container-id "pdf-view"
-        pdf-finger-print (r/atom nil)
+	container-id "view-base-64-pdf"
 	width (r/atom nil)
         num-pages (r/atom nil)
-        page-number (r/atom nil)
-        panel @(subscribe [:active-panel])]
+        page-number (r/atom nil)]
     (r/create-class
      {:render
       (fn [_]
         [:div {:id container-id}
          [RDocument {:file {:data @content}
 		     :on-load-success (fn [pdf]
-                                        (reset! pdf-finger-print (.-fingerprint pdf))
 				        (reset! num-pages (.-numPages pdf))
                                         (reset! page-number 1))}
-          (when-not (nil? @page-number)
-            [:div
-             (when @checked?
-               [Checkbox {:as "h4"
-                          :checked @checked?
-                          :on-change #(reset! checked? (not @checked?))
-                          :toggle true
-                          :label "Single Page"}]               )
-             (if @checked?
-               [:div
-                (doall (for [i (range 1 (+ @num-pages 1))]
-		         ^{:key (str "page-" i)}
-		         [RPage {:pageNumber i
-			         :width @width}]))]
-               [:div
-                [:div {:style {:margin-bottom "1rem"
-                               :margin-right "0.5rem"}}
-                 [Checkbox {:as "h4"
-                            :checked @checked?
-                            :on-change #(reset! checked? (not @checked?))
-                            :toggle true
-                            :label "Single Page"
-                            :style {:float "left"
-                                    :margin-top "1rem"}}]
-                 [ListPager {:panel panel
-                             :instance-key [pdf-finger-print]
-                             :offset (dec @page-number)
-                             :total-count (or @num-pages 1)
-                             :items-per-page 1
-                             :item-name-string ""
-                             :set-offset #(do
-                                            (reset! page-number (inc %)))
-                             :loading? nil}]]
-                [RPage {:pageNumber @page-number
-                        :width @width}]
-                [:div {:style {:margin-top "1rem"
-                               :margin-right "0.5rem"}}
-                 [Checkbox {:as "h4"
-                            :checked @checked?
-                            :on-change #(reset! checked? (not @checked?))
-                            :toggle true
-                            :label "Single Page"
-                            :style {:float "left"
-                                    :margin-top "0.5rem"}}]
-                 [ListPager {:panel panel
-                             :instance-key [pdf-finger-print]
-                             :offset (dec @page-number)
-                             :total-count (or @num-pages 1)
-                             :items-per-page 1
-                             :item-name-string ""
-                             :set-offset #(do
-                                            (reset! page-number (inc %)))
-                             :loading? nil}]]])])]])
+          [PDFPage {:page-number page-number
+                    :num-pages num-pages
+                    :width width}]]])
       :component-will-receive-props
       (fn [_ new-argv]
         (let [new-content (-> new-argv second :content)]
