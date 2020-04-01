@@ -253,7 +253,7 @@
                               ;; another value (jeff chromium linux)
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
                             (:key (user-image/user-active-avatar-image user-id)))
-                 3000 200)
+                 5000 250)
       (log/info "got file key")
       (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
@@ -261,12 +261,12 @@
       (b/is-soon (-> (:key (user-image/user-active-avatar-image user-id))
                      (s3-file/lookup-file :image)
                      :object-content)
-                 3000 200)
+                 5000 500)
       (log/info "found file on s3"))
   :cleanup (when-not (-> (user-image/delete-user-avatar-image user-id) (ignore-exceptions))
              ;; try again in case server handler (create-avatar!) was still running
              (log/warn "delete-user-avatar-image failed on first attempt")
-             (Thread/sleep 1500)
+             (Thread/sleep 2000)
              (user-image/delete-user-avatar-image user-id)))
 
 (def opt-in-toggle (xpath "//input[@id='opt-in-public-reviewer']"))
