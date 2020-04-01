@@ -3,10 +3,18 @@ set -eu
 
 source vars.sh
 
-set -x
-
-cd client
-shadow-cljs release prod
-cd ..
+changes="$(./scripts/find-client-changes)"
+if [ ! -z "$changes" ] ; then
+  echo "Found client changes:"
+  echo -e "$(echo "$changes" | head -n100)\n"
+  echo -e "Rebuilding client code...\n"
+  set -x
+  cd client
+  shadow-cljs release prod
+  cd ..
+else
+  echo "Client code not changed"
+  set -x
+fi
 
 time lein run-tests
