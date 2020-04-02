@@ -1,7 +1,7 @@
 (ns sysrev.project.clone
   (:require [clojure.tools.logging :as log]
             [honeysql.helpers :as sqlh :refer [select from join insert-into values where]]
-            [sysrev.db.core :refer
+            [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
@@ -12,7 +12,7 @@
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance-api]
-            [sysrev.util :refer [in?]]))
+            [sysrev.util :refer [in? index-by]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
                             {:keys [user-ids-only admin-members-only]}]
@@ -332,3 +332,60 @@
       (copy-project-label-defs parent-id child-id)
       (copy-project-keywords parent-id child-id)
       (log/info "clone-subproject-endnote done"))))
+
+(defn copy-article-source-defs!
+  "Given a src-project-id and dest-project-id, create source entries in dest-project-id and return a map of
+  {<src-source-id> <dest-source-id>
+   ...}"
+  [src-project-id dest-project-id]
+  (let [src-sources (-> (select :meta :enabled :source-id)
+                        (from :project-source)
+                        (where [:= :project-id src-project-id])
+                        do-query)
+        create-source (fn [project-id metadata]
+                        (db/with-clear-project-cache project-id
+                          (q/create :project-source {:project-id project-id :meta metadata}
+                                    :returning [:source-id :meta])))
+        dest-sources (map #(create-source dest-project-id (:meta %)) src-sources)
+        src-sources-index (index-by :meta src-sources)]
+    (->> dest-sources
+         (map (fn [source]
+                {:src-source-id (-> (get src-sources-index
+                                         (:meta source))
+                                    :source-id)
+                 :dest-source-id (:source-id source)}))
+         (map #(hash-map (:src-source-id %) (:dest-source-id %)))
+         (apply merge))))
+
+(defn copy-articles!
+  "Given a map of src-dest-source-map {<src-source-id> <dest-source-id> ...}, copy the articles from src-project-id to dest-project-id"
+  [src-dest-source-map src-project-id dest-project-id]
+  (with-transaction
+    (let [article-sources-map (source/project-article-sources-map src-project-id)
+          project-articles (-> (q/select-project-articles src-project-id [:*] {:include-disabled? true}) do-query)
+          src-dest-article-map (->> project-articles
+                                    (map (fn [article]
+                                           (let [dest-article-id
+                                                 (q/create :article (-> article
+                                                                        (assoc :project-id dest-project-id)
+                                                                        (dissoc :article-id :article-uuid
+                                                                                :duplicate-of :parent-article-uuid)
+                                                                        (article/article-to-sql))
+                                                           :returning :article-id)]
+                                             {(:article-id article) dest-article-id})))
+                                    (apply merge))
+          article-pdfs (-> (select :ap.*)
+                           (from [:article_pdf :ap])
+                           (join [:article :a] [:= :ap.article_id :a.article_id])
+                           (where [:= :a.project-id src-project-id])
+                           do-query)]
+      (doall (map #(let [sources (second %)]
+                     (mapv (fn [source]
+                             (q/create :article-source {:source-id (get src-dest-source-map source)
+                                                        :article-id (get src-dest-article-map (first %))}))
+                           sources))
+                  article-sources-map))
+      ;; associate article pdfs
+      (doall (map #(q/create :article-pdf {:s3-id (:s3-id %)
+                                           :article-id (get  src-dest-article-map (:article-id %))})
+                  article-pdfs)))))

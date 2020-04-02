@@ -21,6 +21,8 @@
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
             [sysrev.project.charts :as charts]
+            [sysrev.project.clone :as clone]
+            [sysrev.project.description :as description]
             [sysrev.project.funds :as funds]
             [sysrev.project.compensation :as compensation]
             [sysrev.project.invitation :as invitation]
@@ -1291,3 +1293,45 @@
   (println "I was triggered")
   (reset! stripe-hooks-atom request)
   {})
+
+(defn clone-project
+  "Given a src-project-id, clone it with user-id as the owner and return the new project-id. This copies the Project Description, Label Definitions and all article sources."
+  [src-project-id]
+  (with-transaction
+    (let [project-name (:name (q/find-one :project {:project-id src-project-id}))
+          project-description (description/read-project-description src-project-id)
+          dest-project-id (:project-id (project/create-project project-name :parent-project-id src-project-id))
+          ;; copy project sources
+          src-dest-source-map (clone/copy-article-source-defs! src-project-id dest-project-id)]
+      ;; copy the labels
+      (clone/copy-project-label-defs src-project-id dest-project-id)
+      ;; copy article sources
+      (clone/copy-articles! src-dest-source-map src-project-id dest-project-id)
+      ;; set project description
+      (description/set-project-description! dest-project-id project-description)
+      dest-project-id)))
+
+(defn clone-project-for-user! [{:keys [src-project-id user-id]}]
+  (with-transaction
+    (let [dest-project-id (clone-project src-project-id)]
+      ;; set the user-id as owner
+      (member/add-project-member dest-project-id user-id
+                                 :permissions ["member" "admin" "owner"])
+      {:dest-project-id dest-project-id})))
+
+
+(defn clone-project-for-org! [{:keys [src-project-id user-id org-id]}]
+  (with-transaction
+    (let [dest-project-id (clone-project src-project-id)]
+      ;; add the project to the group
+      (group/create-project-group! dest-project-id org-id)
+      ;; add this user as a member, admin of project
+      (member/add-project-member dest-project-id user-id
+                                 ;; NOT owner, create-project-group!
+                                 ;; makes the group the owner of this project
+                                 ;; group projects shouldn't have
+                                 ;; a project_member entry with
+                                 ;; an "owner" permission
+                                 :permissions ["member" "admin"])
+      {:dest-project-id dest-project-id})))
+

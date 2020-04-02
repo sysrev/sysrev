@@ -211,6 +211,14 @@
               (assert (integer? user-id))
               (api/create-project-for-user! project-name user-id)))))
 
+(dr (POST "/api/clone-project" request
+          (with-authorize request {:logged-in true}
+            (let [user-id (current-user-id request)
+                  {:keys [src-project-id]} (:body request)]
+              (assert (integer? user-id))
+              (api/clone-project-for-user! {:src-project-id src-project-id
+                                            :user-id  user-id})))))
+
 (dr (POST "/api/delete-project" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)

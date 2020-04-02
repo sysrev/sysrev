@@ -54,8 +54,7 @@
         retrieving? (r/cursor state [:remove-from-org! :retrieving])]
     [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
-            :on-close #(reset! modal-open false)
-            :close-icon true}
+            :on-close #(reset! modal-open false)}
      [ModalHeader (str "Removing 1 member from " @(subscribe [:org/name org-id]))]
      [ModalContent
       [ModalDescription
@@ -108,8 +107,7 @@
       (fn [_]
         [Modal {:open @modal-open
                 :on-open #(reset! modal-open true)
-                :on-close #(reset! modal-open false)
-                :close-icon true}
+                :on-close #(reset! modal-open false)}
          [ModalHeader (str "Change the role of " @username "?")]
          [ModalContent
           [ModalDescription
@@ -286,8 +284,7 @@
                                           "Add Member"])
                 :open @modal-open
                 :on-open #(reset! modal-open true)
-                :on-close #(reset! modal-open false)
-                :close-icon true}
+                :on-close #(reset! modal-open false)}
          [ModalHeader (str "Invite Member to " @(subscribe [:org/name org-id]))]
          [ModalContent
           [ModalDescription

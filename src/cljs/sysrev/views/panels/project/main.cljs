@@ -4,6 +4,7 @@
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri group-uri]]
             [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.components.clone-project :refer [CloneProject]]
             [sysrev.views.panels.project.common :refer [project-page-menu]]
             [sysrev.views.project-list :as plist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
@@ -27,7 +28,7 @@
         [:div
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
-           [:div.fourteen.wide.column
+           [:div.thirteen.wide.column
             [:span.ui.header.title-header
              [:i.grey.list.alternate.outline.icon]
              [:div.content.project-title
@@ -39,12 +40,15 @@
                   (:name project-owner)]
                  [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
               [:a {:href (project-uri nil "")} project-name]]]]
-           [:div.two.wide.right.aligned.column access-label]]]
+           [:div.three.wide.right.aligned.column
+            [CloneProject]
+            access-label]]]
          [:div.ui.top.attached.segment.project-header.mobile
           [:h4.ui.header.title-header
            [:i.grey.list.alternate.outline.icon]
            [:div.content
             [:span.project-title project-name]
+            [CloneProject]
             [:span.access-header access-label]]]]
          (project-page-menu)
          child]))))

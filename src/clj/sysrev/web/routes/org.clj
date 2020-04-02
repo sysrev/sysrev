@@ -52,6 +52,13 @@
                     (let [project-name (-> request :body :project-name)
                           user-id (current-user-id request)]
                       (api/create-project-for-org! project-name user-id org-id))))
+            (POST "/project/clone" request
+                  (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
+                    (let [{:keys [src-project-id]} (:body request)
+                          user-id (current-user-id request)]
+                      (api/clone-project-for-org! {:src-project-id src-project-id
+                                                   :user-id user-id
+                                                   :org-id org-id}))))
             (GET "/projects" request
                  (with-authorize request {}
                    (api/group-projects org-id :private-projects?
