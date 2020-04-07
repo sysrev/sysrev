@@ -15,6 +15,7 @@
             [sysrev.db.query-types :as qt]
             [sysrev.user.core :as user]
             [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
             [sysrev.project.description
              :refer [read-project-description set-project-description!]]
             [sysrev.project.article-list :as alist]
@@ -34,8 +35,7 @@
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.formats.ctgov :as ctgov]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
+            [sysrev.util :as util :refer [parse-integer]])
   (:import (java.io File)))
 
 ;; for clj-kondo
@@ -149,7 +149,7 @@
 (defn add-project-export [project-id export-type tempfile &
                           [{:keys [user-id filters] :as extra}]]
   (assert (isa? (type tempfile) File))
-  (let [entry (merge extra {:download-id (sutil/random-id 5)
+  (let [entry (merge extra {:download-id (util/random-id 5)
                             :export-type export-type
                             :tempfile-path (str tempfile)
                             :added-time (db/sql-now)})]
@@ -196,9 +196,9 @@
                   session (assoc-in (:session request)
                                     [:identity :default-project-id]
                                     project-id)]
-              (assert (nil? (project/project-member project-id user-id))
+              (assert (nil? (member/project-member project-id user-id))
                       "join-project: User is already a member of this project")
-              (project/add-project-member project-id user-id)
+              (member/add-project-member project-id user-id)
               (user/set-user-default-project user-id project-id)
               (with-meta
                 {:result {:project-id project-id}}
@@ -211,6 +211,14 @@
               (assert (integer? user-id))
               (api/create-project-for-user! project-name user-id)))))
 
+(dr (POST "/api/clone-project" request
+          (with-authorize request {:logged-in true}
+            (let [user-id (current-user-id request)
+                  {:keys [src-project-id]} (:body request)]
+              (assert (integer? user-id))
+              (api/clone-project-for-user! {:src-project-id src-project-id
+                                            :user-id user-id})))))
+
 (dr (POST "/api/delete-project" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)
@@ -219,7 +227,7 @@
 
 (dr (GET "/api/lookup-project-url" request
          (with-authorize request {}
-           {:result (let [url-id (-> request :params :url-id sutil/read-transit-str)
+           {:result (let [url-id (-> request :params :url-id util/read-transit-str)
                           [project-url-id {:keys [user-url-id org-url-id]}] url-id
                           ;; TODO: lookup project-id from combination of owner/project names
                           project-id (project/project-id-from-url-id project-url-id)

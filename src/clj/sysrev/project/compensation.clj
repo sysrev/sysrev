@@ -10,7 +10,7 @@
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :refer [transaction-source-descriptor]]
-            [sysrev.shared.util :as sutil :refer [index-by nilable-coll]]))
+            [sysrev.util :as util :refer [index-by nilable-coll]]))
 
 ;; for clj-kondo
 (declare create-project-compensation! read-project-compensations)

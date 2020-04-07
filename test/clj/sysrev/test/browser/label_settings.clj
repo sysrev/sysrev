@@ -4,6 +4,7 @@
             [clojure-csv.core :as csv]
             [clj-webdriver.taxi :as taxi]
             [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member set-member-permissions]]
             [sysrev.export.core :as export]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
@@ -12,7 +13,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
             [sysrev.test.browser.define-labels :as define]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :as util :refer [in?]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -67,9 +68,8 @@
       (is (b/exists? (x/match-text "span" (:short-label label1))))
       ;; create users
       (doseq [{:keys [user-id]} test-users]
-        (project/add-project-member @project-id user-id))
-      (project/set-member-permissions @project-id (:user-id user1)
-                                      ["member" "admin"])
+        (add-project-member @project-id user-id))
+      (set-member-permissions @project-id (:user-id user1) ["member" "admin"])
       ;; review article from user1
       (switch-user (:email user1))
       (nav/go-project-route "/review")

@@ -1,5 +1,5 @@
 (ns sysrev.source.ctgov
-  (:require [sysrev.config.core :as config]
+  (:require [sysrev.config :as config]
             [sysrev.formats.ctgov :as ctgov]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))

@@ -6,8 +6,7 @@
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
             [sysrev.project.core :as project]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
+            [sysrev.util :as util :refer [in? map-values index-by]]))
 
 (defn query-assignment-articles [project-id & [predict-run-id]]
   (with-project-cache project-id [:label-values :saved :articles predict-run-id]

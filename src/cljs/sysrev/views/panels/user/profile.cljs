@@ -15,8 +15,7 @@
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select
               Modal ModalContent ModalHeader ModalDescription]]
-            [sysrev.util :as util :refer [wrap-prevent-default]]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.util :as util :refer [parse-integer wrap-prevent-default]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo

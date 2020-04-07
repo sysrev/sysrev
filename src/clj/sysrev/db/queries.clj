@@ -8,7 +8,7 @@
                                                merge-select]]
             [honeysql-postgres.helpers :as sqlh-pg]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
-            [sysrev.shared.util :as sutil :refer
+            [sysrev.util :as util :refer
              [in? map-values apply-keyargs ensure-pred assert-pred]])
   (:import java.util.UUID))
 
@@ -213,7 +213,7 @@
                          (mapv do-query)
                          (apply concat))
                     (cond->> limit (take limit))
-                    (cond->> index-by (sutil/index-by index-by))
+                    (cond->> index-by (util/index-by index-by))
                     (cond->> group-by (clojure.core/group-by group-by))
                     (cond->> specified (map-fields #(select-keys % specified)))
                     (cond->> single-field (map-fields single-field))

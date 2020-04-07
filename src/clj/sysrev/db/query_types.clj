@@ -1,7 +1,7 @@
 (ns sysrev.db.query-types
   (:require [honeysql.helpers :as sqlh :refer [merge-where]]
             [sysrev.db.queries :as q]
-            [sysrev.shared.util :as sutil :refer [apply-keyargs]]))
+            [sysrev.util :as util :refer [apply-keyargs]]))
 
 ;; for clj-kondo
 (declare find-label find-label-1 find-article find-article-1)

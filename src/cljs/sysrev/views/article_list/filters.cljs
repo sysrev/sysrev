@@ -10,9 +10,9 @@
             [sysrev.state.label :refer [project-overall-label-id]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.article-list.base :as al]
-            [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer
-             [in? map-values css space-join wrap-parens parse-integer parse-number ensure-pred]]))
+            [sysrev.util :as util :refer
+             [in? map-values css space-join wrap-parens parse-integer parse-number
+              ensure-pred nbsp]]))
 
 (reg-sub ::inputs
          (fn [[_ context path]]
@@ -249,7 +249,7 @@
     (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
           source-type @(subscribe [:source/display-type source-id])
           description (or (some-> @(subscribe [:source/display-info source-id])
-                                  (sutil/string-ellipsis 70 "[.....]"))
+                                  (util/string-ellipsis 70 "[.....]"))
                           (str source-id))]
       (space-join [(wrap-parens article-count :parens "[]")
                    (wrap-parens source-type :parens "[]")

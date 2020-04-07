@@ -12,8 +12,7 @@
             [sysrev.state.label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
-            [sysrev.util :as util :refer [format nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? css]]
+            [sysrev.util :as util :refer [in? css nbsp #_format]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn set-label-value [db article-id label-id label-value]
@@ -524,7 +523,7 @@
                                 :else             3))
         label-ids @(subscribe [:project/label-ids])]
     [:div.label-section
-     {:class (css "ui" (sutil/num-to-english n-cols) "column celled grid" class)}
+     {:class (css "ui" (util/num-to-english n-cols) "column celled grid" class)}
      (when (some-> article-id (= @(subscribe [:review/editing-id])))
        (make-label-columns article-id label-ids n-cols))]))
 

@@ -1,7 +1,7 @@
 (ns sysrev.state.project.members
   (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw]]
             [reagent.ratom :refer [reaction]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (reg-sub ::members
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))

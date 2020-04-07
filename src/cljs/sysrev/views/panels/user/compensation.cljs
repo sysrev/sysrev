@@ -7,8 +7,7 @@
             [sysrev.views.semantic :as sui :refer
              [Grid Row Column Segment Header ListUI ListItem]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 ;; for clj-kondo

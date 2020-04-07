@@ -8,8 +8,7 @@
             [sysrev.label.core :as labels]
             [sysrev.article.core :as article]
             [sysrev.formats.endnote :refer [parse-endnote-file]]
-            [sysrev.util :as util :refer [xml-find-value parse-xml-str]]
-            [sysrev.shared.util :as sutil :refer [map-values]]))
+            [sysrev.util :as util :refer [map-values xml-find-value parse-xml-str]]))
 
 (defn all-included-articles [project-id]
   (->> (keys (labels/project-included-articles project-id))

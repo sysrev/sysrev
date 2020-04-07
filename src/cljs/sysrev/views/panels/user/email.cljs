@@ -6,8 +6,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [index-by parse-integer]]
+            [sysrev.util :as util :refer [index-by parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo

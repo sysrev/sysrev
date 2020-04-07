@@ -4,7 +4,7 @@
             [sysrev.db.query-types :as qt]
             [sysrev.project.core :as project]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :as util :refer [in?]]))
 
 (defn label-answer-valid? [{:keys [label-id value-type definition] :as _label} answer]
   (case value-type

@@ -9,8 +9,7 @@
             [sysrev.views.semantic :refer
              [Form FormGroup FormInput FormRadio]]
             [sysrev.stripe :as stripe]
-            [sysrev.util :as util :refer [wrap-prevent-default]]
-            [sysrev.shared.util :as sutil :refer [in?]]
+            [sysrev.util :as util :refer [in? ensure-prefix wrap-prevent-default]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
@@ -152,7 +151,7 @@
        [:div
         [FormInput {:value @user-support-level
                     :on-change (util/on-event-value
-                                #(reset! user-support-level (-> % (sutil/ensure-prefix "$"))))
+                                #(reset! user-support-level (ensure-prefix % "$")))
                     :on-click #(reset! support-level :user-defined)}]
         " per month"]]
       (when-not @confirming-cancel?
@@ -225,7 +224,7 @@
                        :value @user-defined-support-level
                        :on-change (util/on-event-value
                                    #(reset! user-defined-support-level
-                                            (-> % (sutil/ensure-prefix "$"))))
+                                            (ensure-prefix % "$")))
                        :on-click #(reset! support-level :user-defined)}]]
           [:div.field
            (when-not @need-card?

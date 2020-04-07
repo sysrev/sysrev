@@ -1,10 +1,9 @@
 (ns sysrev.datasource.core
   (:require [clojure.spec.alpha :as s]
-            #_ [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]))
+            [sysrev.util :as util :refer [parse-integer]]))
 
 (s/def ::article-type string?)
 (s/def ::article-subtype (s/nilable string?))
@@ -13,7 +12,7 @@
 (s/def ::title string?)
 (s/def ::content (s/nilable any?))
 
-(sutil/defspec-keys+partial ::article-data ::article-data-partial
+(util/defspec-keys+partial ::article-data ::article-data-partial
   [::article-type
    ::article-subtype
    ::datasource-name
@@ -85,7 +84,7 @@
                 (->> (dissoc article
                              :source-meta :text-search :enabled :article-data-id
                              :article-id :article-uuid :parent-article-uuid)
-                     (sutil/filter-values (comp not nil?))))}))
+                     (util/filter-values (comp not nil?))))}))
 
 (defn copy-legacy-article-content [article-id]
   (db/with-transaction

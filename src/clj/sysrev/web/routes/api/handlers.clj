@@ -7,12 +7,13 @@
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
             [sysrev.project.clone :as clone]
             [sysrev.source.import :as import]
             [sysrev.web.app :refer [make-error-response]]
             [sysrev.web.routes.api.core :refer
              [def-webapi web-api-routes web-api-routes-order]]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
+            [sysrev.util :as util :refer [in? parse-integer]]))
 
 ;; weird bug in cider:
 ;; If you (run-tests) in sysrev.test.web.routes.api.handlers
@@ -170,7 +171,7 @@
          {:success true
           :message "User is already a member of project"}}
         :else
-        (do (project/add-project-member project-id user-id)
+        (do (member/add-project-member project-id user-id)
             {:result {:success true}})))))
 
 ;; disabled, too dangerous, can be done via web UI
@@ -425,7 +426,7 @@
   (fn [request]
     (let [{:keys [project-id predict-run-id label-id article-values] :as body}
           (-> request :body)
-          label-id (sutil/to-uuid label-id)]
+          label-id (util/to-uuid label-id)]
       (assert (integer? project-id))
       (assert (integer? predict-run-id))
       (assert (uuid? label-id))

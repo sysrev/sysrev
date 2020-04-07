@@ -7,7 +7,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.core :refer [default-fixture]]
-            [sysrev.config.core :refer [env]]))
+            [sysrev.config :refer [env]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

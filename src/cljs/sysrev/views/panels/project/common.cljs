@@ -3,8 +3,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.core :refer
              [primary-tabbed-menu secondary-tabbed-menu]]
-            [sysrev.util :refer [mobile?]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in? mobile?]]))
 
 (defn admin? []
   (or @(subscribe [:member/admin?])

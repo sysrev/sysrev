@@ -6,8 +6,7 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? css]]))
+            [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -59,7 +58,7 @@
       (for [{:keys [action content] :as entry} entries]
         (when entry ^{:key entry}
           [:a.item {:href (when (string? action) action)
-                    :on-click (util/wrap-user-event
+                    :on-click (wrap-user-event
                                (cond (and (seq? action)
                                           (= (count action) 2))
                                      #(dispatch [:navigate
@@ -112,7 +111,7 @@
         left-entries (remove nil? left-entries)
         right-entries (remove nil? right-entries)
         ;; n-tabs (count entries)
-        ;; n-tabs-word (sutil/num-to-english n-tabs)
+        ;; n-tabs-word (util/num-to-english n-tabs)
         render-entry
         (fn [{:keys [tab-id action content class disabled tooltip] :as entry}]
           (let [active? (= tab-id active-tab-id)
@@ -125,7 +124,7 @@
                                    [disabled "disabled"])
                        :href (when (string? action) action)
                        :on-click
-                       (util/wrap-user-event
+                       (wrap-user-event
                         (cond (and (seq? action)
                                    (= (count action) 2))
                               #(dispatch [:navigate (first action) (second action)])
@@ -164,7 +163,7 @@
                  :class (css [(= tab-id active-tab-id) "active"] "item" class)
                  :href (when (string? action) action)
                  :on-click
-                 (util/wrap-user-event
+                 (wrap-user-event
                   (cond (and (seq? action)
                              (= (count action) 2))
                         #(dispatch [:navigate (first action) (second action)])
@@ -201,7 +200,7 @@
                                (str "tab-" (name tab-id)))
                    :href (when (string? action) action)
                    :on-click
-                   (util/wrap-user-event
+                   (wrap-user-event
                     (cond (and (seq? action)
                                (= (count action) 2))
                           #(dispatch [:navigate
@@ -215,7 +214,7 @@
                           :else action))}
                content])))]
     [:div.tabbed-panel
-     [:div {:class (css "ui" (sutil/num-to-english (count entries))
+     [:div {:class (css "ui" (util/num-to-english (count entries))
                         "item tabbed menu tabbed-panel" menu-class)}
       (doall (for [entry entries]
                (render-entry entry)))]]))
@@ -236,7 +235,7 @@
   }"
   [{:keys [set-answer! value]}]
   ;; nil for unset, true, false
-  (let [domid (sutil/random-id)]
+  (let [domid (util/random-id)]
     (fn [{:keys [set-answer! value]}]
       (let [size (if (util/full-size?) "large" "small")
             class (str "ui " size " buttons three-state")
@@ -257,7 +256,7 @@
                  (cond->
                      {:id (get-domid bvalue)
                       :class (bclass (nil? bvalue) (= curval bvalue))
-                      :on-click (util/wrap-user-event #(set-value-focus bvalue))
+                      :on-click (wrap-user-event #(set-value-focus bvalue))
                       :on-key-down
                       (when (= curval bvalue)
                         #(cond (->> % .-key (in? ["Backspace" "Delete" "Del"]))
@@ -298,13 +297,13 @@
                       " icon button"))]
     [:div {:class class}
      [:div.ui {:class (bclass false (false? curval))
-               :on-click (util/wrap-user-event #(on-change false))}
+               :on-click (wrap-user-event #(on-change false))}
       (get icons false)]
      [:div.ui {:class (bclass true (nil? curval))
-               :on-click (util/wrap-user-event #(on-change nil))}
+               :on-click (wrap-user-event #(on-change nil))}
       (get icons nil)]
      [:div.ui {:class (bclass false (true? curval))
-               :on-click (util/wrap-user-event #(on-change true))}
+               :on-click (wrap-user-event #(on-change true))}
       (get icons true)]]))
 
 (defn true-false-nil-tag
@@ -516,7 +515,7 @@
   [{:keys [checked? on-change label]}]
   [:div.ui.checkbox {:style {:margin-right "0.5em"}}
    [:input {:type "checkbox"
-            :on-change (util/wrap-user-event on-change :timeout false)
+            :on-change (wrap-user-event on-change :timeout false)
             :checked checked?}]
    [:label label]])
 
@@ -528,7 +527,7 @@
    [:div.ui.checkbox {:style {:width "100%"} ;; need width 100% to fit tooltip
                       :class (css [disabled? "disabled"])}
     [:input {:type "checkbox"
-             :on-change (util/wrap-user-event on-change :timeout false)
+             :on-change (wrap-user-event on-change :timeout false)
              :checked (boolean checked?)}]
     [FormLabelInfo label :tooltip tooltip :optional optional]]
    (when error
@@ -541,13 +540,13 @@
      {:id id
       :class (css [(not can-save?) "disabled"]
                   [saving? "loading"])
-      :on-click (util/wrap-user-event #(when (and can-save? on-save (not saving?)) (on-save)))}
+      :on-click (wrap-user-event #(when (and can-save? on-save (not saving?)) (on-save)))}
      "Save Changes"
      [:i.check.circle.outline.icon]]]
    [:div.column.reset
     [:button.ui.fluid.right.labeled.icon.button.cancel-changes
      {:class (css [(not can-reset?) "disabled"])
-      :on-click (util/wrap-user-event #(when (and can-reset? on-reset) (on-reset)))}
+      :on-click (wrap-user-event #(when (and can-reset? on-reset) (on-reset)))}
      "Cancel"
      [:i.times.icon]]]])
 
@@ -572,16 +571,16 @@
      (when message [:p.bold {:style {:font-size "16px"}} message])]]
    [:div.ui.two.column.grid.confirm-cancel-form
     [:div.column>button.ui.fluid.button
-     {:on-click (util/wrap-user-event on-confirm) :class action-color :id "confirm-cancel-form-confirm"}
+     {:on-click (wrap-user-event on-confirm) :class action-color :id "confirm-cancel-form-confirm"}
      "Confirm"]
     [:div.column>button.ui.fluid.button
-     {:on-click (util/wrap-user-event on-cancel)}
+     {:on-click (wrap-user-event on-cancel)}
      "Cancel"]]])
 
 (defn UploadContainer
   "Create uploader form component."
   [_childer upload-url on-success & _args]
-  (let [id (sutil/random-id)
+  (let [id (util/random-id)
         csrf-token (subscribe [:csrf-token])
         opts {:url upload-url
               :headers (when-let [token @csrf-token] {"x-csrf-token" token})

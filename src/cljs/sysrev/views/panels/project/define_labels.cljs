@@ -13,8 +13,7 @@
             [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.dnd :as dnd]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values map-kv css]]
+            [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; Convention -
@@ -115,7 +114,7 @@
              (map-values #(select-keys % [:project-ordering :short-label])))))))
 
 (defn create-blank-label [value-type]
-  (let [label-id (str "new-label-" (sutil/random-id))]
+  (let [label-id (str "new-label-" (util/random-id))]
     {:definition (case value-type
                    "boolean"      {:inclusion-values []}
                    "string"       {:multi? false :max-length 100}
@@ -123,7 +122,7 @@
                    {})
      :inclusion false
      :category "extra"
-     :name (str value-type (sutil/random-id))
+     :name (str value-type (util/random-id))
      :project-ordering (inc (max-project-ordering))
      :label-id label-id ;; this is a string, to distinguish unsaved labels
      :project-id (active-project-id @app-db)
@@ -390,7 +389,7 @@
         (make-args :max-length
                    {:value max-length
                     :on-change #(let [value (-> % .-target .-value)]
-                                  (reset! max-length (or (sutil/parse-integer value) value)))})])
+                                  (reset! max-length (or (parse-integer value) value)))})])
      ;; regex on a string label
      (when (= @value-type "string")
        [ui/TextInputField

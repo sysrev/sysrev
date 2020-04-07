@@ -4,8 +4,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Divider]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 ;; for clj-kondo

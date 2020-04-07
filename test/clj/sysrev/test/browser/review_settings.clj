@@ -1,6 +1,7 @@
 (ns sysrev.test.browser.review-settings
   (:require [clojure.test :refer [is use-fixtures]]
             [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member]]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -34,7 +35,7 @@
       (b/click ".project-options button.save-changes")
       ;; create users
       (doseq [{:keys [user-id]} test-users]
-        (project/add-project-member @project-id user-id))
+        (add-project-member @project-id user-id))
       (switch-user user1)
       (review-n-articles 2)
       (is (b/exists? ".ui.segments.article-info"))

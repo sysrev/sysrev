@@ -1,7 +1,7 @@
 (ns sysrev.state.user
   (:require [clojure.string :as str]
             [re-frame.core :refer [subscribe reg-sub]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (reg-sub ::users #(get-in % [:data :users]))
 

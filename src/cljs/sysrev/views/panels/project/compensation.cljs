@@ -9,8 +9,7 @@
             [sysrev.paypal :as paypal]
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.shared.charts :refer [paul-tol-colors]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [index-by ensure-pred]]
+            [sysrev.util :as util :refer [index-by ensure-pred]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo

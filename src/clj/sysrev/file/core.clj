@@ -4,8 +4,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.file.s3 :as s3]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.util :as util]))
 
 (s/def ::time any?)
 (s/def ::count int?)
@@ -49,7 +48,7 @@
   different filenames."
   [bucket ::s3/bucket, filename ::filename,
    {:keys [file file-bytes created]} (s/keys :opt-un [::s3/file ::s3/file-bytes ::created])]
-  (sutil/assert-exclusive file file-bytes)
+  (util/assert-exclusive file file-bytes)
   (db/with-transaction
     (let [file-key (or (some-> file util/file->sha-1-hash)
                        (some-> file-bytes util/byte-array->sha-1-hash))]

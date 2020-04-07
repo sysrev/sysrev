@@ -6,7 +6,7 @@
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]]
-            [sysrev.shared.util :refer [index-by space-join parse-integer]]
+            [sysrev.util :refer [index-by space-join parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo

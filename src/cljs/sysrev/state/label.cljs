@@ -3,7 +3,7 @@
             [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.project.base :refer [get-project-raw]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (reg-sub ::labels
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))

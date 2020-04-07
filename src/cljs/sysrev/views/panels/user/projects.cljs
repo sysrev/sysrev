@@ -8,8 +8,7 @@
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Divider Button]]
-            [sysrev.util :as util :refer [condensed-number]]
-            [sysrev.shared.util :as sutil :refer [parse-integer]]
+            [sysrev.util :as util :refer [condensed-number parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 ;; for clj-kondo

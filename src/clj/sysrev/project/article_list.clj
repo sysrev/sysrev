@@ -10,7 +10,7 @@
             [sysrev.db.query-types :as qt]
             [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
+            [sysrev.util :as util :refer [in? map-values index-by]]))
 
 ;;;
 ;;; Article data lookup functions
@@ -129,7 +129,7 @@
     (let [pmid->id (->> (qt/find-article
                          {:a.project-id project-id :ad.datasource-name "pubmed"}
                          :article-id, :index-by :external-id, :where [:!= :ad.external-id nil])
-                        (sutil/map-keys sutil/parse-integer))]
+                        (util/map-keys util/parse-integer))]
       (mapv (partial get pmid->id)
             (ds-api/search-text-by-pmid text (sort (keys pmid->id)))))))
 
@@ -213,7 +213,8 @@
 
 (defn article-consensus-filter
   [{:keys [project-id] :as _context} {:keys [status inclusion]}]
-  (let [overall-id (project/project-overall-label-id project-id)
+  (let [status (keyword status)
+        overall-id (project/project-overall-label-id project-id)
         all-labels (project-article-labels project-id)
         all-consensus (project-article-consensus project-id)]
     (fn [{:keys [article-id]}]

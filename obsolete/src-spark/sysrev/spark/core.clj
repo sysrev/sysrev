@@ -6,7 +6,7 @@
             [flambo.tuple :as ft]
             [flambo.sql :as fsql]
             [honeysql.core :as sql]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db])
   (:import [org.apache.spark.sql SQLContext SparkSession Dataset]
            [org.apache.spark SparkConf SparkContext]

@@ -1,7 +1,30 @@
 (ns sysrev.graphql.handler
-  (:require [clojure.data.codec.base64 :as base64]
+  (:require [clojure.string :as str]
+            [clojure.data.codec.base64 :as base64]
             [clojure.data.json :as json]
-            [com.walmartlabs.lacinia :refer [execute]]))
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [clojure.walk :as walk]
+            [com.walmartlabs.lacinia :refer [execute]]
+            [com.walmartlabs.lacinia.schema :as schema]
+            [com.walmartlabs.lacinia.util :refer [attach-resolvers]]
+            [sysrev.source.datasource :refer
+             [import-ds-query import-dataset import-datasource import-datasource-flattened]]
+            [sysrev.source.project-filter :refer [import-article-filter-url!]]
+            [sysrev.project.graphql :as project]
+            [sysrev.util :as util]))
+
+(defn sysrev-schema []
+  (-> (io/resource "edn/graphql-schema.edn")
+      slurp
+      edn/read-string
+      (attach-resolvers {:resolve-project project/project
+                         :resolve-import-articles! import-ds-query
+                         :resolve-import-dataset! import-dataset
+                         :resolve-import-datasource! import-datasource
+                         :resolve-import-datasource-flattened! import-datasource-flattened
+                         :resolve-import-article-filter-url! import-article-filter-url!})
+      (schema/compile {:default-field-resolver schema/hyphenating-default-field-resolver})))
 
 (defn variable-map
   "Reads the `variables` query parameter, which contains a JSON string
@@ -12,12 +35,12 @@
                     :get (try (-> request
                                   (get-in [:query-params "variables"]))
                               (json/read-str :key-fn keyword)
-                              (catch Exception _ nil))
+                              (catch Throwable _ nil))
                     :post (try (-> request
                                    :body
                                    (json/read-str :key-fn keyword)
                                    :variables)
-                               (catch Exception _ nil)))]
+                               (catch Throwable _ nil)))]
     (or (not-empty variables) {})))
 
 (defn extract-query
@@ -26,17 +49,13 @@
   string.  Note that this differs from the PersistentArrayMap returned
   by variable-map. e.g. The variable map is a hashmap whereas the
   query is still a plain string."
-  [request]
-  (case (:request-method request)
-    :get  (get-in request [:query-params "query"])
+  [{:keys [body request-method query-params] :as _request}]
+  (case request-method
+    :get  (get query-params "query")
     ;; Additional error handling because the clojure ring server still
     ;; hasn't handed over the values of the request to lacinia GraphQL
-    :post (try (-> request
-                   :body
-                   slurp
-                   (json/read-str :key-fn keyword)
-                   :query)
-               (catch Exception _ ""))
+    :post (try (-> (slurp body) (json/read-str :key-fn keyword) :query)
+               (catch Throwable _ ""))
     :else ""))
 
 ;; https://github.com/remvee/ring-basic-authentication/blob/master/src/ring/middleware/basic_authentication.clj
@@ -44,9 +63,8 @@
   "Used to encode and decode strings.  Returns nil when an exception
   was raised."
   [direction-fn string]
-  (try
-    (apply str (map char (direction-fn (.getBytes string))))
-    (catch Exception _)))
+  (util/ignore-exceptions
+   (apply str (map char (direction-fn (.getBytes string))))))
 
 (defn decode-base64
   "Will do a base64 decoding of a string and return a string."
@@ -57,19 +75,15 @@
 (defn extract-authorization-key
   "Extract the authorization key from the request header. The
   authorization header is of the form: Authorization: Basic <key>"
-  [request]
-  (let [auth-header (-> request
-                        :headers
-                        (get "authorization"))
+  [{:keys [headers] :as _request}]
+  (let [auth-header (get headers "authorization")
         cred (and auth-header (decode-base64 (last (re-find #"^Basic (.*)$" auth-header))))
-        [user pass] (and cred (clojure.string/split (str cred) #":" 2))]
+        [user _pass] (and cred (str/split (str cred) #":" 2))]
     user))
 
-(defn bearer-key
-  [request]
-  (let [auth (-> request :headers (get "authorization"))]
-    (and auth (->> auth (re-find #"^Bearer (.*)$")
-                   second))))
+(defn bearer-key [{:keys [headers] :as _request}]
+  (second (some->> (get headers "authorization")
+                   (re-find #"^Bearer (.*)$"))))
 
 (defn get-authorization-key
   "Extract the authorization key from the request header. The
@@ -82,8 +96,8 @@
 (defn transform-keys-to-json
   "Recursively transforms all map keys with - to _"
   [m]
-  (let [f (fn [[k v]] [(-> k symbol str (clojure.string/replace "-" "_") keyword) v])]
-    (clojure.walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) m)))
+  (let [f (fn [[k v]] [(-> k symbol str (str/replace "-" "_") keyword) v])]
+    (walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) m)))
 
 (defn graphql-handler
   "Accepts a GraphQL query via GET or POST, and executes the query.
@@ -92,10 +106,8 @@
   (fn [request]
     (let [vars (variable-map request)
           query (extract-query request)
-          result (execute compiled-schema query vars {:authorization (get-authorization-key request)})
-          status (if (-> result :errors seq)
-                   400
-                   200)]
-      {:status status
+          result (execute compiled-schema query vars
+                          {:authorization (get-authorization-key request)})]
+      {:status (if (seq (:errors result)) 400 200)
        :headers {"Content-Type" "application/json"}
        :body (json/write-str (transform-keys-to-json result))})))

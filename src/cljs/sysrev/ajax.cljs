@@ -1,12 +1,12 @@
 (ns sysrev.ajax
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
-            [cognitect.transit]
             [ajax.core :as ajax]
-            [day8.re-frame.http-fx]
-            [re-frame.core :refer [reg-sub reg-event-db reg-event-fx trim-v reg-fx
-                                   dispatch ->interceptor]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            cognitect.transit
+            day8.re-frame.http-fx
+            [re-frame.core :refer [reg-sub reg-event-db reg-event-fx trim-v
+                                   reg-fx dispatch ->interceptor]]
+            [sysrev.util :as util :refer [in?]]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
 (s/def ::uri string?)

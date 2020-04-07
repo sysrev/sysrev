@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is use-fixtures]]
             [clojure.string :as str]
             [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member set-member-permissions]]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.user.core :as user]
@@ -10,7 +11,7 @@
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.util :as util]))
 
 (use-fixtures :once default-fixture)
 
@@ -63,7 +64,7 @@
         search-term "foo bar"
         route-response (route-response-fn handler)
         {:keys [email password]} (b/create-test-user)
-        test-project-name (str test-project-name " " (sutil/random-id))]
+        test-project-name (str test-project-name " " (util/random-id))]
     (with-cleanup-users [email]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login" {:email email :password password})
@@ -93,13 +94,13 @@
                                            {:project-id new-project-id})
                            [:error :message])))
             ;; deletion can't happen for a user who isn't an admin of the project
-            (project/add-project-member new-project-id (:user-id non-member))
+            (add-project-member new-project-id (:user-id non-member))
             (is (= "Not authorized (project member)"
                    (get-in (route-response :post "/api/delete-project"
                                            {:project-id new-project-id})
                            [:error :message])))
             ;; add the user as an admin, they can now delete the project
-            (project/set-member-permissions new-project-id (:user-id non-member) ["member" "admin"])
+            (set-member-permissions new-project-id (:user-id non-member) ["member" "admin"])
             (is (get-in (route-response :post "/api/delete-project"
                                         {:project-id new-project-id})
                         [:result :success]))))))))
@@ -108,7 +109,7 @@
   (let [handler (sysrev-handler)
         route-response (route-response-fn handler)
         {:keys [email user-id password]} (b/create-test-user)
-        test-project-name (str test-project-name " " (sutil/random-id))]
+        test-project-name (str test-project-name " " (util/random-id))]
     (with-cleanup-users [email]
       (is (integer? user-id))
       (user/set-user-permissions user-id ["user"])
@@ -139,7 +140,7 @@
         route-response (route-response-fn handler)
         {:keys [email password]} (b/create-test-user)
         new-user (b/create-test-user :email "baz@qux.com" :password "bazqux")
-        test-project-name (str test-project-name " " (sutil/random-id))]
+        test-project-name (str test-project-name " " (util/random-id))]
     (with-cleanup-users [(:email new-user) email]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login"
@@ -213,7 +214,7 @@
     (let [handler (sysrev-handler)
           {:keys [email password]} (b/create-test-user)
           route-response (route-response-fn handler)
-          test-project-name (str test-project-name " " (sutil/random-id))]
+          test-project-name (str test-project-name " " (util/random-id))]
       (with-cleanup-users [email]
         (let [_ (route-response :post "/api/auth/login" {:email email :password password})
               create-project-response (route-response :post "/api/create-project"

@@ -1,5 +1,5 @@
 (ns sysrev.shared.transit
-  (:require [sysrev.shared.util :refer [map-values]]))
+  (:require [sysrev.util :refer [map-values]]))
 
 ;;;
 ;;; /api/public-labels

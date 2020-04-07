@@ -1,7 +1,7 @@
 (ns sysrev.source.pmid
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [sysrev.config.core :as config]
+            [sysrev.config :as config]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.source.pubmed :refer [pubmed-get-articles]]))

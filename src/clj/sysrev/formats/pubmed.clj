@@ -9,11 +9,11 @@
             [hickory.select :as hs]
             [me.raynes.fs :as fs]
             [miner.ftp :as ftp]
-            [sysrev.config.core :as config]
+            [sysrev.config :as config]
             [sysrev.cassandra :as cdb]
             [sysrev.util :as util :refer
-             [parse-xml-str xml-find xml-find-value xml-find-vector]]
-            [sysrev.shared.util :as sutil :refer [parse-integer ensure-pred]]))
+             [parse-integer ensure-pred ignore-exceptions
+              parse-xml-str xml-find xml-find-value xml-find-vector]]))
 
 (def e-util-api-key (:e-util-api-key config/env))
 
@@ -139,8 +139,7 @@
         create-raw? (assoc :raw (dxml/emit-str pxml))))
     (catch Throwable e
       (log/warn "parse-pmid-xml:" "error while parsing article -" (.getMessage e))
-      (try (log/warn "xml =" (dxml/emit-str pxml))
-           (catch Throwable _ nil))
+      (-> (log/warn "xml =" (dxml/emit-str pxml)) (ignore-exceptions))
       nil)))
 
 (defn fetch-pmids-xml [pmids]

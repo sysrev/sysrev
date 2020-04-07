@@ -6,7 +6,7 @@
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
             [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
+            [sysrev.util :as util :refer [in? map-values index-by]]))
 
 ;; for clj-kondo
 (declare article-to-sql)

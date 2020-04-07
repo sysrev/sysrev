@@ -8,7 +8,7 @@
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by]]))
+            [sysrev.util :as util :refer [in? map-values index-by]]))
 
 (def default-csv-separator "|||")
 

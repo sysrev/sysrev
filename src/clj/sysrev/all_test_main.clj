@@ -8,7 +8,7 @@
             [clojure.pprint :as pprint]
             sysrev.test.all
             [sysrev.test.core :as test]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.project.core :as project]
             [sysrev.db.migration :as migration]
             [sysrev.init :as init]))

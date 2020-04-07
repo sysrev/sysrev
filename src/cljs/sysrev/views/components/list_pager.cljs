@@ -1,8 +1,7 @@
 (ns sysrev.views.components.list-pager
   (:require [re-frame.core :refer
              [subscribe dispatch-sync reg-sub reg-event-fx trim-v]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? css space-join]]))
+            [sysrev.util :as util :refer [in? css space-join parse-integer]]))
 
 (defn- state-path [instance-key & path]
   (vec (concat [:list-pager instance-key] path)))
@@ -62,7 +61,7 @@
         on-next #(when have-next? (on-nav :next (+ offset items-per-page)))
         on-page-num (util/wrap-prevent-default
                      (fn []
-                       (let [value (sutil/parse-integer current-page-display)]
+                       (let [value (parse-integer current-page-display)]
                          (if (and (integer? value)
                                   (< 0 value
                                      (inc (js/Math.ceil (/ total-count items-per-page)))))

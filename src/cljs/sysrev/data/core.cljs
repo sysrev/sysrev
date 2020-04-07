@@ -6,7 +6,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
             [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
-            [sysrev.shared.util :as sutil :refer [in? dissoc-in]]))
+            [sysrev.util :as util :refer [in? dissoc-in]]))
 
 (defonce
   ^{:doc "Holds static definitions for data items fetched from server"}

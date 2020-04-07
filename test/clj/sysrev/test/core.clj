@@ -3,14 +3,13 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-time.core :as time]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.init :refer [start-app]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
             [sysrev.db.migration :refer [ensure-updated-db]]
             [sysrev.label.core :as labels]
-            [sysrev.util :as util :refer [shell]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :as util :refer [in? ignore-exceptions shell]]))
 
 (def test-dbname "sysrev_auto_test")
 (def test-db-host (get-in env [:postgres :host]))
@@ -101,15 +100,13 @@
           (log/info "Initializing test DB...")
           (db/close-active-db)
           (db/terminate-db-connections config)
-          (try (db-shell "dropdb" [] config)
-               (catch Throwable _ nil))
+          (-> (db-shell "dropdb" [] config) (ignore-exceptions))
           (db-shell "createdb" [] config)
-          (log/info "Applying Flyway schema...")
           (when-not (util/ms-windows?)
             (shell "./scripts/install-flyway"))
           (with-flyway-config config
-            (log/info (str "\n" (slurp "flyway.conf")))
-            (log/info "Applying flyway migrations...")
+            (log/info (str "Applying Flyway migrations...\n"
+                           (str/trimr (slurp "flyway.conf"))))
             (if (util/ms-windows?)
               (shell ".flyway-5.2.4/flyway.cmd" "migrate")
               (shell "./flyway" "migrate")))

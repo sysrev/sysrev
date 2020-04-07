@@ -2,7 +2,7 @@
   (:require [clj-http.client :as http]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.payment.plans :as db-plans]
             [sysrev.project.funds :as funds]
             [sysrev.util :as util :refer [current-function-name]]))

@@ -4,12 +4,12 @@
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
             [honeysql.helpers :as sqlh :refer [select from where]]
+            [sysrev.config :as config]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
-            [sysrev.shared.util :refer [in?]]
-            [sysrev.config.core :as config]
-            [sysrev.biosource.core :refer [api-host]]))
+            [sysrev.biosource.core :refer [api-host]]
+            [sysrev.util :refer [in?]]))
 
 (defonce importance-api (agent nil))
 

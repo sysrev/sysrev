@@ -13,8 +13,7 @@
             [sysrev.export.core :as export]
             [sysrev.source.import :as import]
             [sysrev.formats.endnote :refer [load-endnote-library-xml]]
-            [sysrev.util :as util :refer [parse-xml-str xml-find]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :as util :refer [in? parse-xml-str xml-find]]))
 
 (use-fixtures :once test/default-fixture)
 #_ (use-fixtures :each test/database-rollback-fixture)
@@ -153,11 +152,11 @@
              (let [adata (q/find [:article :a] {:a.project-id project-id}
                                  :ad.*, :join [:article-data:ad :a.article-data-id])
                    db-titles (->> adata
-                                  (sutil/index-by #(-> % :external-id sutil/parse-integer))
-                                  (sutil/map-values :title))
+                                  (util/index-by #(-> % :external-id util/parse-integer))
+                                  (util/map-values :title))
                    ds-titles (->> (ds-api/fetch-pubmed-articles
                                    (keys db-titles) :fields [:primary-title])
-                                  (sutil/map-values :primary-title))]
+                                  (util/map-values :primary-title))]
                (log/infof "loaded %d pubmed titles" (count db-titles))
                (is (= (count db-titles) (count ds-titles)))
                (is (= db-titles ds-titles)))

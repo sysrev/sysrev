@@ -12,7 +12,7 @@
             [sysrev.label.answer :as answer]
             [sysrev.web.routes.api.core :refer [webapi-get webapi-post]]
             sysrev.web.routes.api.handlers
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (use-fixtures :once default-fixture)
 

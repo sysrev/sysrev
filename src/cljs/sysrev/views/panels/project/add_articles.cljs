@@ -16,7 +16,6 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 ;; for clj-kondo
@@ -66,7 +65,7 @@
 (defn article-or-articles
   "Return either the singular or plural form of article"
   [item-count]
-  (sutil/pluralize item-count "article"))
+  (util/pluralize item-count "article"))
 
 (defn- source-import-timed-out? [source]
   (let [{:keys [meta date-created]} source
@@ -229,19 +228,18 @@
 (reg-sub :source/display-info
          (fn [[_ source-id project-id]]
            (subscribe [:project/sources source-id project-id]))
-         (fn [source _]
-           (let [stype (-> source :meta :source)]
-             (cond (= "PubMed search" stype)
-                   (-> source :meta :search-term str)
-
-                   (in? ["PMID file" "EndNote file" "PDF Zip file" "RIS file"] stype)
-                   (-> source :meta :filename str)
-                   (= "Datasource: Query" stype)
-                   (str "query: " (get-in source [:meta :query]))
-                   (= "Datasource: Dataset" stype)
-                   (str "dataset id:" (get-in source [:meta :dataset-id]))
-                   (= "Datasource: Datasource" stype)
-                   (str "datasource id: " (get-in source [:meta :datasource-id]))))))
+         (fn [{:keys [meta] :as source} _]
+           (case (:source meta)
+             "PubMed search"      (str (:search-term meta))
+             ("PMID file" "EndNote file" "PDF Zip file"
+              "RIS file")         (str (:filename meta))
+             "Datasource Query"   (str (:query meta))
+             "Dataset"            (str "Dataset ID: " (:dataset-id meta))
+             "Datasource"         (str "Datasource ID: " (:datasource-id meta))
+             "Project Filter"     (let [{:keys [source-project-id filters]} (:meta source)]
+                                    (-> {:source-project-id source-project-id :filters filters}
+                                        (util/write-json true)))
+             nil)))
 
 (defn SourceArticlesLink [source-id]
   [:div.ui.primary.tiny.left.labeled.icon.button.view-articles
@@ -277,6 +275,8 @@
                       :target "_blank"
                       :download (:filename s3-file)}
                   import-label " " [:i.download.icon]]
+                 (= source "Project Filter")
+                 [:pre {:style {:font-size "0.95em" :margin 0}} import-label]
                  :else
                  import-label)]])]]]))
 
@@ -419,7 +419,7 @@
                                (filter #(pos? (:count %)) (:overlap source))]
                            (let [src-type @(subscribe [:source/display-type overlap-source-id])
                                  src-info (some-> @(subscribe [:source/display-info overlap-source-id])
-                                                  (sutil/string-ellipsis 40))]
+                                                  (util/string-ellipsis 40))]
                              ^{:key [:shared source-id overlap-source-id]}
                              [:div.column (.toLocaleString shared-count) " shared: "
                               [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
@@ -537,7 +537,8 @@
          :ris-file  [ImportRISView]
          :ctgov (if (and (= js/window.location.hostname "sysrev.com")
                          (not (some #{@(subscribe [:user/email])}
-                                    #{"geoffreyweiner@gmail.com"
+                                    #{"amarluniwal@gmail.com"
+                                      "geoffreyweiner@gmail.com"
                                       "james@insilica.co"
                                       "tom@insilica.co"
                                       "jeff@insilica.co"

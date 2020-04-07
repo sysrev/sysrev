@@ -16,8 +16,7 @@
             [sysrev.views.labels :refer [ArticleLabelsView]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
-            [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [css filter-values]]
+            [sysrev.util :as util :refer [css filter-values nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (def RJson (r/adapt-react-class ReactJson))
@@ -114,7 +113,7 @@
 (defn- WithProjectSourceTooltip [source-id element]
   (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
         source-info (some-> @(subscribe [:source/display-info source-id])
-                            (sutil/string-ellipsis 150 "[.....]"))]
+                            (util/string-ellipsis 150 "[.....]"))]
     [ui/FixedTooltipElement element
      [:div
       [:h5.ui.header {:class (css [(seq source-info) "dividing"])}

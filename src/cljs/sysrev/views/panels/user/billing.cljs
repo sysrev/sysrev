@@ -3,8 +3,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
              [Segment Grid Row Column Button Icon Loader Header ListUI ListItem]]
-            [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? css parse-integer]]
+            [sysrev.util :as util :refer [in? css parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo

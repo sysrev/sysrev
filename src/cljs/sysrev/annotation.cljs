@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [sysrev.views.semantic :refer [Popup]]
-            [sysrev.shared.util :as sutil :refer [index-by]]))
+            [sysrev.util :as util :refer [index-by]]))
 
 ;; accessing state for testing:
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))

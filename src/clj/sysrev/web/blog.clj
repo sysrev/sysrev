@@ -7,7 +7,7 @@
             [honeysql.helpers :as sqlh :refer [select from order-by insert-into values]]
             [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.shared.components :refer [loading-content]]
-            [sysrev.config.core :refer [env]]
+            [sysrev.config :refer [env]]
             [sysrev.web.build :as build]
             [sysrev.web.index :as index]
             [sysrev.web.app :refer [not-found-response]]))

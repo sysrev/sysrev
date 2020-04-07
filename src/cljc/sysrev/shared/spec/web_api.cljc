@@ -1,6 +1,6 @@
 (ns sysrev.shared.spec.web-api
   (:require [clojure.spec.alpha :as s]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.util :refer [in?]]
             [clojure.string :as str]))
 
 (s/def ::name keyword?)

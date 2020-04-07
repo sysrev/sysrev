@@ -1,14 +1,15 @@
 (ns sysrev.web.build
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [sysrev.util :refer [ignore-exceptions]]))
 
 (defn read-build-id []
-  (try (-> (io/resource "git-commit") slurp str/split-lines first)
-       (catch Throwable _ nil)))
+  (ignore-exceptions
+   (-> (io/resource "git-commit") slurp str/split-lines first)))
 
 (defn read-build-time []
-  (try (-> (io/resource "build-time") slurp str/split-lines first)
-       (catch Throwable _ nil)))
+  (ignore-exceptions
+   (-> (io/resource "build-time") slurp str/split-lines first)))
 
 (def build-id (read-build-id))
 (def build-time (read-build-time))

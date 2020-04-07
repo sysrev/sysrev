@@ -12,7 +12,7 @@
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.util :as sutil :refer [in? map-values index-by or-default]]))
+            [sysrev.util :as util :refer [in? map-values index-by or-default]]))
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
 (def valid-label-value-types  ["boolean" "categorical" "string"])
@@ -153,8 +153,8 @@
 (defn alter-label-entry [project-id label-id values-map]
   (db/with-clear-project-cache project-id
     (let [current (->> (q/find-one :label {:label-id label-id})
-                       (sutil/assert-pred map?)
-                       (sutil/assert-pred #(= project-id (:project-id %))))
+                       (util/assert-pred map?)
+                       (util/assert-pred #(= project-id (:project-id %))))
           old-enabled (:enabled current)
           new-enabled (get values-map :enabled old-enabled)
           ;; Ensure project-ordering consistency with enabled value
@@ -258,7 +258,7 @@
                        [:= :a.enabled true]])
                (->> do-query (group-by :article-id)
                     (map-values (fn [xs] (first (->> xs (sort-by #(-> % :resolve-time tc/to-epoch) >)))))
-                    (map-values (fn [x] (some-> x (update :label-ids #(mapv sutil/to-uuid %))))))))]
+                    (map-values (fn [x] (some-> x (update :label-ids #(mapv util/to-uuid %))))))))]
       (apply merge (for [article-id (keys all-labels)]
                      {article-id
                       {:updated-time (get-in all-labels [article-id :updated-time])
@@ -297,7 +297,7 @@
         (limit 1)
         (some-> do-query
                 first
-                (update :label-ids #(mapv sutil/to-uuid %))))
+                (update :label-ids #(mapv util/to-uuid %))))
     (-> (query-public-article-labels project-id)
         (get-in [article-id :resolve]))))
 

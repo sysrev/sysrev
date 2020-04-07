@@ -1,9 +1,12 @@
 (ns sysrev.views.panels.project.main
-  (:require [re-frame.core :refer [subscribe dispatch]]
+  (:require [goog.uri.utils :as uri-utils]
+            [re-frame.core :refer [subscribe dispatch]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri group-uri]]
+            [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.components.clone-project :refer [CloneProject]]
             [sysrev.views.panels.project.common :refer [project-page-menu]]
             [sysrev.views.project-list :as plist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
@@ -27,7 +30,7 @@
         [:div
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
-           [:div.fourteen.wide.column
+           [:div.thirteen.wide.column
             [:span.ui.header.title-header
              [:i.grey.list.alternate.outline.icon]
              [:div.content.project-title
@@ -39,12 +42,17 @@
                   (:name project-owner)]
                  [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
               [:a {:href (project-uri nil "")} project-name]]]]
-           [:div.two.wide.right.aligned.column access-label]]]
+           [:div.three.wide.right.aligned.column
+            (when-not (util/mobile?)
+              [CloneProject])
+            access-label]]]
          [:div.ui.top.attached.segment.project-header.mobile
           [:h4.ui.header.title-header
            [:i.grey.list.alternate.outline.icon]
            [:div.content
             [:span.project-title project-name]
+            (when (util/mobile?)
+              [CloneProject])
             [:span.access-header access-label]]]]
          (project-page-menu)
          child]))))
@@ -120,7 +128,10 @@
                   [ProjectContent child])))))))
 
 (defmethod panel-content [:project] []
-  (fn [child] [ProjectPanel child]))
+  (fn [child]
+    (when (uri-utils/getParamValue @active-route "cloning")
+      (dispatch [:sysrev.views.components.clone-project/modal-open? true]))
+    [ProjectPanel child]))
 
 (defmethod panel-content [:project :project] []
   (fn [child]

@@ -5,7 +5,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.queries :as q]
-            [sysrev.shared.util :as sutil :refer [map-values]]))
+            [sysrev.util :as util :refer [map-values]]))
 
 (defn articles-matching-regex-clause [field-name regexs]
   (sql/raw

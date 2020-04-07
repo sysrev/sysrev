@@ -19,6 +19,7 @@
 (def Header (component S/Header))
 (def Icon (component S/Icon))
 (def Loader (component S/Loader))
+(def Dimmer (component S/Dimmer))
 (def Image (component S/Image))
 (def Divider (component S/Divider))
 

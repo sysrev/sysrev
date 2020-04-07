@@ -77,7 +77,8 @@
                 [Button {:on-click (fn [_e]
                                      (if @logged-in?
                                        (nav "/user/plans")
-                                       (nav "/register" :params {:redirect "/user/plans"})))
+                                       (nav "/register" :params {:redirect "/user/plans"
+                                                                 :redirect_message "Create a free account to upgrade to Pro Plan"})))
                          :primary true
                          :fluid true
                          :disabled (= current-plan "Unlimited_User")}
@@ -105,7 +106,8 @@
                                       (nav (make-url "/create/org" {:type "existing-account"}))
                                       (nav "/register"
                                            :params {:redirect (make-url "/create/org"
-                                                                        {:type "new-account"})}))
+                                                                        {:type "new-account"})
+                                                    :redirect_message "Create a free account before moving on to team creation"}))
                          :primary true
                          :fluid true}
                  "Choose Team Pro"]]]

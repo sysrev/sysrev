@@ -11,7 +11,7 @@
             [sysrev.views.semantic :refer
              [Message MessageHeader Icon Loader Table TableHeader TableHeaderCell
               TableBody TableRow TableCell]]
-            [sysrev.shared.util :refer [index-by]]
+            [sysrev.util :refer [index-by]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo

@@ -14,7 +14,7 @@
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.core :as test]
-            [sysrev.shared.util :as sutil :refer [index-by]]))
+            [sysrev.util :as util :refer [index-by random-id]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -123,9 +123,9 @@
 (deftest-browser simple-org-tests
   ;; for some reason add-user-to-org is having problems with remote test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [org-name-1 (str "Foo Bar Inc. " (sutil/random-id))
-   org-name-2 (str "Baz Qux " (sutil/random-id))
-   org-name-1-project (str "Foo Bar Article Reviews " (sutil/random-id))
+  [org-name-1 (str "Foo Bar Inc. " (random-id))
+   org-name-2 (str "Baz Qux " (random-id))
+   org-name-1-project (str "Foo Bar Article Reviews " (random-id))
    {:keys [user-id email]} test-user
    user1 (b/create-test-user :email "foo@bar.com")
    [user1-name] (str/split (:email user1) #"@")
@@ -209,7 +209,7 @@
 (deftest-browser user-project-plan
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [{:keys [user-id email]} test-user
-   user-project (str "Baz Qux " (sutil/random-id))
+   user-project (str "Baz Qux " (random-id))
    user-cc {:cardnumber bstripe/valid-visa-cc}]
   (do
     ;; need to be a stripe customer
@@ -293,8 +293,8 @@
 (deftest-browser org-project-plan
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [{:keys [user-id email]} test-user
-   org-name-1 (str "Foo Bar Inc. " (sutil/random-id))
-   org-name-1-project (str "Foo Bar Article Reviews " (sutil/random-id))
+   org-name-1 (str "Foo Bar Inc. " (random-id))
+   org-name-1-project (str "Foo Bar Article Reviews " (random-id))
    org-cc {:cardnumber bstripe/valid-visa-cc}]
   (do
     ;; need to be a stripe customer
@@ -381,8 +381,8 @@
 ;; test no-account pricing org sign up
 (deftest-browser subscribe-to-org-unlimited-through-pricing-no-account
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [org-name (str "Foo Bar Inc. " (sutil/random-id))
-   email (format "foo+%s@bar.com" (sutil/random-id))]
+  [org-name (str "Foo Bar Inc. " (random-id))
+   email (format "foo+%s@bar.com" (random-id))]
   (do
     (nav/go-route "/")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
@@ -426,8 +426,8 @@
 ;; test that pricing works from any point in the workflow
 (deftest-browser org-pricing-flow-intermittent
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [email (format "baz+%s@qux.com" (sutil/random-id))
-   org-name (str "Foo Bar Inc. " (sutil/random-id))]
+  [email (format "baz+%s@qux.com" (random-id))
+   org-name (str "Foo Bar Inc. " (random-id))]
   (do
     (nav/go-route "/")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")

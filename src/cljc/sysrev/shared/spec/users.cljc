@@ -1,7 +1,7 @@
 (ns sysrev.shared.spec.users
   (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.util :refer [in?]]))
 
 (def all-user-settings
   [:ui-theme])

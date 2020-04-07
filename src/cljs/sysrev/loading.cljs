@@ -3,8 +3,7 @@
             [orchestra.core :refer-macros [defn-spec]]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch reg-fx]]
-            [sysrev.util :as util :refer [now-ms]]
-            [sysrev.shared.util :as sutil :refer [in? apply-keyargs]
+            [sysrev.util :as util :refer [in? apply-keyargs now-ms]
              :refer-macros [opt-keys]]))
 
 ;; for clj-kondo

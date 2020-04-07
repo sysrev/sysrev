@@ -10,8 +10,7 @@
             [sysrev.biosource.importance :as importance]
             [sysrev.slack :refer [log-slack-custom]]
             [sysrev.stacktrace :as strace]
-            [sysrev.util :refer [pp-str]]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]])
+            [sysrev.util :as util :refer [in? parse-integer pp-str]])
   (:import java.util.UUID))
 
 (defn- add-articles-data [{:keys [article-type article-subtype] :as types} articles]
@@ -244,8 +243,8 @@
 
 (defmulti import-source
   "Multimethod for import implementation per source type."
-  (fn [stype _project-id _input _options] stype))
+  (fn [stype _project-id _input & [_options]] stype))
 
-(defmethod import-source :default [stype _project-id _input _options]
+(defmethod import-source :default [stype _project-id _input & [_options]]
   (throw (Exception. (format "import-source - invalid source type (%s)"
                              (pr-str stype)))))
