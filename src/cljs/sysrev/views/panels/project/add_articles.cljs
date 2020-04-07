@@ -537,7 +537,8 @@
          :ris-file  [ImportRISView]
          :ctgov (if (and (= js/window.location.hostname "sysrev.com")
                          (not (some #{@(subscribe [:user/email])}
-                                    #{"geoffreyweiner@gmail.com"
+                                    #{"amarluniwal@gmail.com"
+                                      "geoffreyweiner@gmail.com"
                                       "james@insilica.co"
                                       "tom@insilica.co"
                                       "jeff@insilica.co"
