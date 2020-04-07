@@ -1,8 +1,9 @@
 (ns sysrev.project.core
   (:require [clojure.string :as str]
             [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
             [honeysql.helpers :as sqlh :refer [select from where join merge-join sset]]
+            [orchestra.core :refer [defn-spec]]
+            [medley.core :as medley]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.labels :as sl]
@@ -369,3 +370,10 @@
   (q/find [:project :p] {} :p.project-id
           :where [:< 1 (q/find-count [:label :l] {:l.project-id :p.project-id}
                                      :return :query)]))
+(defn project-admin-or-owner?
+  "Is user-id an owner or admin of project-id?"
+  [user-id project-id]
+  (->> (conj (get-project-admins project-id)
+             (get-project-owner project-id))
+       (medley/find-first #(= (:user-id %) user-id))
+       boolean))

@@ -1311,27 +1311,45 @@
       (description/set-project-description! dest-project-id project-description)
       dest-project-id)))
 
-(defn clone-project-for-user! [{:keys [src-project-id user-id]}]
-  (with-transaction
-    (let [dest-project-id (clone-project src-project-id)]
-      ;; set the user-id as owner
-      (member/add-project-member dest-project-id user-id
-                                 :permissions ["member" "admin" "owner"])
-      {:dest-project-id dest-project-id})))
+(defn clone-authorized?
+  [{:keys [src-project-id user-id]}]
+  (cond
+    ;; public projects are cloneable
+    (:public-access (project/project-settings src-project-id))
+    true
+    ;; a project admin can clone the project
+    (and (not (:public-access (project/project-settings src-project-id)))
+         (project/project-admin-or-owner? user-id src-project-id))
+    true
+    ;; otherwise, false
+    :else false))
 
+(defn clone-project-for-user! [{:keys [src-project-id user-id] :as args}]
+  (if (clone-authorized? args)
+    (with-transaction
+      (let [dest-project-id (clone-project src-project-id)]
+        ;; set the user-id as owner
+        (member/add-project-member dest-project-id user-id
+                                   :permissions ["member" "admin" "owner"])
+        {:dest-project-id dest-project-id}))
+    {:error {:status forbidden
+             :message "You don't have permission to clone that project"}}))
 
-(defn clone-project-for-org! [{:keys [src-project-id user-id org-id]}]
-  (with-transaction
-    (let [dest-project-id (clone-project src-project-id)]
-      ;; add the project to the group
-      (group/create-project-group! dest-project-id org-id)
-      ;; add this user as a member, admin of project
-      (member/add-project-member dest-project-id user-id
-                                 ;; NOT owner, create-project-group!
-                                 ;; makes the group the owner of this project
-                                 ;; group projects shouldn't have
-                                 ;; a project_member entry with
-                                 ;; an "owner" permission
-                                 :permissions ["member" "admin"])
-      {:dest-project-id dest-project-id})))
+(defn clone-project-for-org! [{:keys [src-project-id user-id org-id] :as args}]
+  (if (clone-authorized? args)
+    (with-transaction
+      (let [dest-project-id (clone-project src-project-id)]
+        ;; add the project to the group
+        (group/create-project-group! dest-project-id org-id)
+        ;; add this user as a member, admin of project
+        (member/add-project-member dest-project-id user-id
+                                   ;; NOT owner, create-project-group!
+                                   ;; makes the group the owner of this project
+                                   ;; group projects shouldn't have
+                                   ;; a project_member entry with
+                                   ;; an "owner" permission
+                                   :permissions ["member" "admin"])
+        {:dest-project-id dest-project-id}))
+    {:error {:status forbidden
+             :message "You don't have permission to clone that project"}}))
 

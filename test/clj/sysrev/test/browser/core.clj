@@ -7,6 +7,7 @@
             [clj-webdriver.taxi :as taxi :refer [*driver*]]
             [clj-webdriver.core :refer [->actions move-to-element click-and-hold
                                         move-by-offset release perform]]
+            [me.raynes.fs :as fs]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
@@ -589,6 +590,6 @@
   [filename]
   (let [base64-file (-> filename io/resource io/file util/slurp-bytes util/bytes->base64)
         upload-blob-js (when (seq base64-file)
-                         (str "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e}); c.name='testfile.png'; return c} "
+                         (str "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e}); c.name='" (fs/base-name filename) "'; return c} "
                               (format "return sysrev.util.add_dropzone_file_blob(base64toBlob, '%s');" base64-file)))]
     (taxi/execute-script upload-blob-js)))

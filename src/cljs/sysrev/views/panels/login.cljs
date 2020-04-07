@@ -265,17 +265,14 @@
         field-error #(when-let [msg (get form-errors %)]
                        [:div.ui.warning.message msg])
         form-class (when-not (empty? form-errors) "warning")
-        redirect (uri-utils/getParamValue @active-route "redirect")]
+        redirect (uri-utils/getParamValue @active-route "redirect")
+        redirect-message (uri-utils/getParamValue @active-route "redirect_message")]
     (with-loader (if register-hash
                    [[:register-project register-hash]]
                    []) {}
       [:div
-       (when (= (uri-utils/getPath (or redirect "")) "/user/plans")
-         [:h4 {:style {:text-align "center"}}
-          "Create a free account to upgrade to Pro Plan"])
-       (when (= (uri-utils/getPath (or redirect "")) "/create/org")
-         [:h4 {:style {:text-align "center"}}
-          "Create a free account before moving on to team creation"])
+       [:h4 {:style {:text-align "center"}}
+        redirect-message]
        [:div.ui.segment.auto-margin.auth-segment
         {:id "login-register-panel"}
         (when register-hash

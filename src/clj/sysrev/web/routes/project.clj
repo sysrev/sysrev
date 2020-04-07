@@ -217,7 +217,7 @@
                   {:keys [src-project-id]} (:body request)]
               (assert (integer? user-id))
               (api/clone-project-for-user! {:src-project-id src-project-id
-                                            :user-id  user-id})))))
+                                            :user-id user-id})))))
 
 (dr (POST "/api/delete-project" request
           (with-authorize request {:roles ["admin"]}
