@@ -3,6 +3,8 @@
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [com.walmartlabs.lacinia.executor :as executor]
+            [honeysql.helpers :as sqlh :refer [merge-where select from where join]]
+            [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
             [sysrev.graphql.core :refer [with-graphql-auth]]
@@ -16,31 +18,45 @@
 
 (defn- merge-articles [m project-id]
   (assoc m :articles
-         (q/find :article {:project-id project-id}
-                 [[:article-id :id] [:article-uuid :uuid] :enabled])))
+         (-> (select :a.enabled
+                     [:a.article_id :id]
+                     [:a.article_uuid :uuid]
+                     [:ad.external_id :datasource_id])
+             (from [:article :a])
+             (join [:article_data :ad] [:= :ad.article_data_id :a.article_data_id])
+             (where [:= :project_id project-id])
+             do-query)))
 
 (defn- merge-article-labels [m project-id]
-  (let [labels (->> (q/find [:article-label :al] {:a.project-id project-id}
-                            [[:l.label-id :id]
-                             [:l.value-type :type]
-                             [:l.short-label :name]
-                             :l.question :l.required :l.consensus :l.required
-                             [:al.added-time :created]
-                             [:al.updated-time :updated]
-                             [:al.confirm-time :confirmed]
-                             [:al.article-id :article-id]
-                             :al.user-id :al.answer]
-                            :join [[:article:a :al.article-id]
-                                   [:label:l :al.label-id]]
-                            :group-by :al.article-id)
-                    ;; this could cause problems if we ever have
-                    ;; non-vector or single value answers
-                    (map #(let [answer (:answer %)]
-                            (if-not (vector? answer)
-                              (assoc % :answer (vector (str answer)))
-                              %))))]
-    (update m :articles
-            (partial map #(assoc % :labels (get labels (:id %)))))))
+  (let [labels (group-by :article-id
+                         (-> (select [:l.label_id :id]
+                                     [:l.value_type :type]
+                                     [:l.short_label :name]
+                                     :l.question
+                                     :l.required
+                                     :l.consensus
+                                     :l.required
+                                     :al.answer
+                                     [:al.added-time :created]
+                                     [:al.updated-time :updated]
+                                     [:al.confirm_time :confirmed]
+                                     [:al.article_id :article_id]
+                                     :al.user_id)
+                             (from [:article :a])
+                             (join [:article_label :al] [:= :al.article_id :a.article_id]
+                                   [:label :l] [:= :al.label_id :l.label_id])
+                             (where [:= :a.project-id project-id])
+                             do-query
+                             ;; this could cause problems if we ever have
+                             ;; non-vector or single value answers
+                             (->> (map #(let [answer (:answer %)]
+                                          (if-not (vector? answer)
+                                            (assoc % :answer (vector (str answer)))
+                                            %))))))
+        articles (:articles m)]
+    (assoc m :articles
+           (map #(assoc % :labels
+                        (get labels (:id %))) articles))))
 
 (defn- merge-article-reviewers [m]
   (let [{:keys [articles]} m
