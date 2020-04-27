@@ -48,8 +48,9 @@
               {:class class
                :on-click
                (when (and enabled? has-value? editing?)
+                 ;; this is broken for group labels
                  #(dispatch [:review/trigger-enable-label-value
-                             article-id label-id label-value]))}
+                             article-id "na" label-id label-value]))}
               text)
              " "]]
         (if (and show-tooltip? enabled? editing? full-size?)
