@@ -47,10 +47,11 @@
      [:div.ui.button {:class (when dark-theme? "basic")}
       (str display-label " ")]
      [:div.ui.basic.label
-      (for [[label-id answer] (:labels answers)]
-        (when (real-answer? answer)
-          ^{:key (str label-id)}
-          [LabelAnswerTag group-label-id label-id answer]))]]))
+      (map
+       #(for [[label-id answer] %]
+          (when (real-answer? answer)
+            ^{:key (str label-id)}
+            [LabelAnswerTag group-label-id label-id answer])) (vals (:labels answers)))]]))
 
 (defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
   (let [dark-theme? @(subscribe [:self/dark-theme?])]

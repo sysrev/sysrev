@@ -17,7 +17,7 @@
   (get (project-labels db project-id) label-id))
 
 (reg-sub ::label
-         (fn [[_ _ _ project-id]]
+         (fn [[_ _ _ _ project-id]]
            (subscribe [::labels project-id]))
          (fn [labels [_ root-label-id label-id _]]
            (if (= root-label-id "na")
@@ -99,7 +99,7 @@
          (fn [label] (:question label)))
 
 (reg-sub :label/value-type
-         (fn [[_ root-label-id label-id project-id]]
+         (fn [[_ root-label-id label-id _project-id]]
            (subscribe [::label root-label-id label-id]))
          (fn [label]
            (:value-type label)))
@@ -135,7 +135,7 @@
          (fn [definition] (:examples definition)))
 
 (reg-sub :label/enabled?
-         (fn [[_ label-id project-id]] (subscribe [::label label-id project-id]))
+         (fn [[_ root-label-id label-id _project-id]] (subscribe [::label root-label-id label-id]))
          (fn [label] (:enabled label)))
 
 (reg-sub :label/multi?
@@ -146,7 +146,7 @@
          (fn [[_ root-label-id label-id _val project-id]]
            [(subscribe [:label/value-type root-label-id label-id project-id])
             (subscribe [::definition root-label-id label-id project-id])])
-         (fn [[value-type definition] [_ _ _ val _]]
+         (fn [[value-type definition] [_ _ _  val _]]
            (when (= value-type "string")
              (let [{:keys [regex max-length]} definition]
                (boolean (and (string? val)

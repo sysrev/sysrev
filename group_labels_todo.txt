@@ -1,0 +1,48 @@
+1. [X] multiple group answers
+2. [X] labels within a group should be orderable
+3. [X] sub labels should have correct *initial* label ordering (label editor)
+4. [X] single sub labels should not be orderable
+5. [X] when editing /setting labels, a multiple group label should be deletable
+6. [X] check behavior of disable labels, including those within group labels (label editor)
+7. [X] check behavior of disabled labels  (review editor)
+8. [X] Fix overall save button, buttons positions (issue: There are forms within forms perhaps?)
+9. [X] cancel button should dismiss form in sublabels
+10. [X] cancel button shouldn't destroy label!
+11. [X] fix layout of buttons in label editor
+12. [X] prettify 'move-up' 'move-down' labels
+13. [ ] Make labels collapsible when setting labels on article
+14. [ ] fix layout of label answers for article (also, fix overlap)
+15. [X] remove hamburger button on edit label views
+16. [ ] check projects that don't have group labels
+17. [X] re-enable drag/drop functionality
+18. [ ] when labeling, check that required, allow multiple, blank answer check, etc.
+	still work for grouped labels (define labels)
+19. [X] change labels is broken for group labels
+20. [ ] label counts for users? in charts?
+21. [ ] check 'unconfirmed/resolved' labels in sysrev.view.label/LabelValuesView
+22. [ ] There is no cancel button for editing label responses
+23. [X] include label is not turning orange / green
+24. [ ] make sure to include **multiple** group labels for 'missing' / 'invalid' labels
+        (disable save button)
+25. [ ] replace inline css with actual css (define_labels.cljs, review.cljs<views>)
+26. [ ] Remove this file from the repo
+
+
+sysrev.view.label has the actual view of the labels on the articles (LabelValuesView)
+               label_id               | short_label | root_label_id_local 
+--------------------------------------+-------------+---------------------
+ 96077764-3b67-4d3b-8993-d9ca95732304 | X-Ray       | d572bc2c-edab-4636-b1c4-4ec4195345bc
+ 1a91184c-e640-46e8-a2ae-ecb19fdb1715 | Foxtrot     | 252611a5-b52a-4976-bdef-eeb8a54bfa7d
+ 290cbeb7-c5bd-4813-afb4-7e9f8ae5083f | Qux         |                    
+ 7e263dc8-7c6e-45ec-8cf9-06c4b59e6b49 | Whiskey     | d572bc2c-edab-4636-b1c4-4ec4195345bc
+ aff56948-c9ea-4599-9259-0725798bb5dd | Bravo       | 252611a5-b52a-4976-bdef-eeb8a54bfa7d
+ 42058840-9f8e-4ced-b07f-8aab5c50d3db | India       | 252611a5-b52a-4976-bdef-eeb8a54bfa7d
+ 5101551b-1ca4-446d-889b-aa25a91ea24a | foo         |                    
+ f88ce820-d99b-4579-8989-84010c385975 | Include     |                    
+ d572bc2c-edab-4636-b1c4-4ec4195345bc | Zulu        |                    
+ 5125bf66-afae-4850-ae9c-5bf10825dd6f | Alpha       | 252611a5-b52a-4976-bdef-eeb8a54bfa7d
+ 9f252c97-9f71-4d03-943e-f9de282c42a6 | Golf        | 252611a5-b52a-4976-bdef-eeb8a54bfa7d
+ 3e0e582a-62aa-4128-a423-87d5698af546 | Hotel       | 252611a5-b52a-4976-bdef-eeb8a54bfa7d
+ cab0cbcb-b674-4280-80e5-edd4cd34ee20 | Juliet      | 252611a5-b52a-4976-bdef-eeb8a54bfa7d
+ 16869ed7-a98e-46d5-9557-70a20e771956 | Baz         |                    
+ 252611a5-b52a-4976-bdef-eeb8a54bfa7d | Corge       |                    

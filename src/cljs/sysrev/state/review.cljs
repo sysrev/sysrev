@@ -6,7 +6,6 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel active-project-id]]
             [sysrev.state.article :as article]
-            [sysrev.state.identity :refer [current-user-id]]
             [sysrev.util :refer [in? map-values]]))
 
 (defn- review-task-state [db & [project-id]]
@@ -111,12 +110,6 @@
 (defn review-ui-labels [db article-id]
   (get-in db [:state :review :labels article-id]))
 
-#_(defn active-labels [db article-id]
-    (when-let [user-id (current-user-id db)]
-      (merge (->> (article/article-labels db article-id user-id)
-                  (map-values :answer))
-             (review-ui-labels db article-id))))
-
 ;;https://clojuredocs.org/clojure.core/merge
 ;; note: "correct" version converts false->nil
 ;; which isn't what we want!
@@ -130,11 +123,11 @@
       (last vs))))
 
 (reg-sub :review/active-labels
-         (fn [[_ article-id _ _]]
+         (fn [[_ article-id _ _ _]]
            [(subscribe [:self/user-id])
             (subscribe [::labels])
             (subscribe [:article/labels article-id])])
-         (fn [[user-id ui-labels article-labels] [_ article-id root-label-id label-id]]
+         (fn [[user-id ui-labels article-labels] [_ article-id root-label-id label-id ith]]
            (let [ui-vals (get-in ui-labels [article-id] {})
                  article-vals (->> (get-in article-labels [user-id] {})
                                    (map-values :answer))
@@ -150,7 +143,7 @@
                ;; grouped label
                (and (not= "na" root-label-id)
                     label-id)
-               (get-in merged-vals [root-label-id :labels label-id])))))
+               (get-in merged-vals [root-label-id :labels ith label-id])))))
 
 (reg-sub-raw :review/inconsistent-labels
              (fn [_ [_ article-id label-id]]
@@ -172,31 +165,6 @@
                   (if label-id
                     (boolean (in? inconsistent label-id))
                     (vec inconsistent))))))
-
-(reg-sub-raw :review/missing-labels
-             (fn [_ [_ article-id]]
-               (reaction
-                (let [active-labels @(subscribe [:review/active-labels article-id])
-                      labels @(subscribe [:project/labels-raw])
-                      required-ids (->> labels
-                                        vals
-                                        (map :label-id)
-                                        (filter #(deref (subscribe [:label/required? "na" %])))
-                                        (remove (fn [label-id]
-                                                  @(subscribe [:label/non-empty-answer? "na" label-id (get active-labels label-id)])))
-                                        vec)
-                      group-required-label-ids (->> labels
-                                                    vals
-                                                    (filter #(= "group" (:value-type %)))
-                                                    (map #(->> % :labels vals
-                                                               (filter (fn [sub-label]
-                                                                         (deref (subscribe [:label/required? (:label-id %) (:label-id sub-label)]))))
-                                                               (map :label-id)
-                                                               (remove (fn [label-id]
-                                                                         @(subscribe [:label/non-empty-answer? (:label-id %) label-id (get-in active-labels [(:label-id %) :labels label-id])])))
-                                                               (map (partial vector (:label-id %)))))
-                                                    (apply concat))]
-                  (remove seq? (apply merge required-ids group-required-label-ids))))))
 
 ;; not sure this is even relevant, not refactored for group labels
 (reg-sub-raw :review/invalid-labels
@@ -243,7 +211,7 @@
 ;; taken from active review interface.
 (reg-event-fx :review/send-labels [trim-v]
               (fn [{:keys [db]} [{:keys [project-id article-id confirm? resolve? on-success]}]]
-                (let [label-values @(subscribe [:review/active-labels article-id]) ;;(active-labels db article-id)
+                (let [label-values @(subscribe [:review/active-labels article-id])
                       change? (= :confirmed (article/article-user-status db article-id))
                       panel (active-panel db)]
                   {:dispatch-n

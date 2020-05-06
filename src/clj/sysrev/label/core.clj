@@ -23,9 +23,15 @@
   [label-id ::sl/label-id, & args (s/? any?)]
   (apply q/find-one :label {:label-id label-id} args))
 
-(defn next-project-ordering [project-id]
-  (or-default 0 (some-> (q/find-one :label {:project-id project-id}
-                                    [[:%max.project-ordering :max]])
+(defn next-project-ordering [project-id & [root-label-id-local]]
+  (or-default 0 (some-> (-> (select [:%max.project-ordering :max])
+                            (from :label)
+                            (where [:and
+                                    [:= :project-id project-id]
+                                    [:= :root-label-id-local root-label-id-local]])
+                            do-query
+                            first
+                            :max)
                         inc)))
 
 (defn add-label-entry
@@ -41,7 +47,7 @@
   (db/with-clear-project-cache project-id
     (q/create :label
               (cond-> {:project-id project-id
-                       :project-ordering (when enabled (next-project-ordering project-id))
+                       :project-ordering (when enabled (next-project-ordering project-id root-label-id-local))
                        :value-type value-type
                        :name name
                        :question question
@@ -159,11 +165,12 @@
     (let [current (->> (q/find-one :label {:label-id label-id})
                        (util/assert-pred map?)
                        (util/assert-pred #(= project-id (:project-id %))))
+          root-label-id-local (:root-label-id-local current)
           old-enabled (:enabled current)
           new-enabled (get values-map :enabled old-enabled)
           ;; Ensure project-ordering consistency with enabled value
           ordering (cond (not new-enabled) nil
-                         (and new-enabled (not old-enabled)) (next-project-ordering project-id)
+                         (and new-enabled (not old-enabled)) (next-project-ordering project-id root-label-id-local)
                          :else (get values-map :project-ordering (:project-ordering current)))]
       ;; If changing project-ordering value for this label and the
       ;; value already exists in project, increment values for all
@@ -173,15 +180,37 @@
       (when (and new-enabled old-enabled ordering
                  (q/find :label {:project-id project-id
                                  :project-ordering ordering}
-                         :label-id, :where [:!= :label-id label-id]))
+                         :label-id, :where [:and
+                                            [:!= :label-id label-id]
+                                            [:= :root-label-id-local root-label-id-local]]))
         (q/modify :label {:project-id project-id}
                   {:project-ordering (sql/raw "project_ordering + 1")}
                   :where [:and
                           [:!= :project-ordering nil]
-                          [:>= :project-ordering ordering]]))
+                          [:>= :project-ordering ordering]
+                          [:= :root-label-id-local root-label-id-local]]))
       (q/modify :label {:label-id label-id}
                 (-> (assoc values-map :project-ordering ordering)
                     (dissoc :label-id :project-id))))))
+
+(defn set-project-ordering-sequence
+  "Ensure the project ordering sequence is correct for project-id with optional root-label-id-local. When root-label-id-local is nil, orders the top-level labels and ignore sublabels"
+  [project-id & [root-label-id-local]]
+  (doseq [{:keys [label-id project-ordering i]}
+          (->> (q/find :label {:project-id project-id :enabled true
+                               :root-label-id-local root-label-id-local}
+                       :*, :order-by [:project-ordering :asc])
+               (map-indexed (fn [i label] (merge label {:i i}))))]
+    (when (not= i project-ordering)
+      (q/modify :label {:label-id label-id} {:project-ordering i}))))
+
+(defn ensure-correct-project-ordering-sequence
+  "Ensure the entire project, sublabels included, are in the correct sequence"
+  [project-id]
+  (let [all-labels (q/find :label {:project-id project-id :enabled true}
+                           :*)]
+    (doseq [x (keys (group-by :root-label-id-local all-labels))]
+      (set-project-ordering-sequence project-id x))))
 
 (defn adjust-label-project-ordering-values
   "Adjusts project-ordering values for all labels in project to ensure consistency
@@ -197,18 +226,13 @@
         (when-not (nil? project-ordering)
           (q/modify :label {:label-id label-id} {:project-ordering nil})))
       ;; ensure non-nil project-ordering for enabled labels
-      (doseq [{:keys [label-id project-ordering]} l-enabled]
+      (doseq [{:keys [label-id project-ordering root-label-id-local]} l-enabled]
         (when (nil? project-ordering)
           (q/modify :label {:label-id label-id}
-                    {:project-ordering (next-project-ordering project-id)})))
+                    {:project-ordering (next-project-ordering project-id root-label-id-local)})))
       ;; set project-ordering sequence to (range n-enabled) using
       ;; existing sort order
-      (doseq [{:keys [label-id project-ordering i]}
-              (->> (q/find :label {:project-id project-id :enabled true}
-                           :*, :order-by [:project-ordering :asc])
-                   (map-indexed (fn [i label] (merge label {:i i}))))]
-        (when (not= i project-ordering)
-          (q/modify :label {:label-id label-id} {:project-ordering i}))))))
+      (ensure-correct-project-ordering-sequence project-id))))
 
 ;; TODO: move into article entity
 (defn article-user-labels-map [article-id]
@@ -227,6 +251,7 @@
                              :confirm-epoch (if (nil? confirm-time) 0
                                                 (max (tc/to-epoch confirm-time)
                                                      (tc/to-epoch updated-time)))})))))
+           ;; convert all string representations of uuids into uuids
            (walk/postwalk (fn [x] (try
                                     ;; the try short-circuits to just x unless
                                     ;; x can be transformed to a uuid
@@ -234,7 +259,11 @@
                                       (when (uuid? uuid)
                                         uuid))
                                     (catch Exception _
-                                      x)))))))
+                                      x))))
+           ;; convert all integer keywords back into string keywords
+           (walk/postwalk (fn [x] (if (and (keyword? x) (integer? (read-string (str (symbol x)))))
+                                    (str (symbol x))
+                                    x))))))
 
 (defn user-article-confirmed? [user-id article-id]
   (assert (and (integer? user-id) (integer? article-id)))
@@ -486,11 +515,11 @@
                                 (psqlh/returning :*)
                                 do-query
                                 first))
-            root-label-local-id (:label-id-local current-label)
+            root-label-id-local (:label-id-local current-label)
             client-labels (-> m :labels vals set)
             server-labels (-> (select :*)
                               (from :label)
-                              (where [:= :root-label-id-local root-label-local-id])
+                              (where [:= :root-label-id-local root-label-id-local])
                               do-query
                               set)
             ;; new labels are given a randomly generated string id on
@@ -499,18 +528,16 @@
             new-client-labels (set (filter (comp string? :label-id) client-labels))
             current-client-labels (set (filter (comp uuid? :label-id) client-labels))
             modified-client-labels (set/difference current-client-labels server-labels)]
-        ;; handle the child labels
+        ;; handle the sub labels
         (doseq [label new-client-labels]
-          (add-label-entry project-id (assoc label :root-label-id-local root-label-local-id)))
+          (add-label-entry project-id (assoc label :root-label-id-local root-label-id-local)))
         (doseq [{:keys [label-id] :as label} modified-client-labels]
-          (alter-label-entry project-id label-id (assoc label :root-label-id-local root-label-local-id)))
-        ;; need to also alter the root label if it didn't already exist
+          (alter-label-entry project-id label-id (assoc label :root-label-id-local root-label-id-local)))
+        ;; need to also alter the root label if it already exists
         (when label-existed?
           (alter-label-entry project-id label-id (dissoc m :labels)))
         ;; adjust the label ordering
         (adjust-label-project-ordering-values project-id)
-        ;; need to adjust group label ordering as well...
-        ;; unless we can come up with a hack to use project label ordering instead
         {:valid? true
          :labels (project/project-labels project-id true)}))))
 
