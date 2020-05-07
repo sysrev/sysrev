@@ -13,7 +13,7 @@
             [sysrev.state.label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Button Icon]]
+            [sysrev.views.semantic :refer [Button Icon Accordion AccordionContent AccordionTitle]]
             [sysrev.util :as util :refer [in? css nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -240,7 +240,7 @@
   [[root-label-id label-id ith] article-id]
   (let [curvals (or (not-empty @(subscribe [:review/active-labels article-id root-label-id label-id ith]))
                     [""])
-        multi? @(subscribe [:label/multi? root-label-id label-id ith])
+        multi? @(subscribe [:label/multi? root-label-id label-id])
         nvals (count curvals)
         class-for-idx #(str root-label-id "_" label-id "-" ith "__value_" %)]
     (when (= article-id @(subscribe [:review/editing-id]))
@@ -311,12 +311,12 @@
   (let [criteria? @(subscribe [:label/inclusion-criteria? root-label-id label-id])
         answer @(subscribe [:review/active-labels article-id root-label-id label-id ith])
         inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])]
-    (when criteria?
-      [:i.left.floated.fitted {:class (css [(not criteria?)     "grey content"
-                                            (true? inclusion)   "green circle plus"
+    (if criteria?
+      [:i.left.floated.fitted {:class (css [(true? inclusion)   "green circle plus"
                                             (false? inclusion)  "orange circle minus"
                                             (nil? inclusion)    "grey circle outline"]
-                                           "icon")}])))
+                                           "icon")}]
+      [Icon {:style {:margin "0"}}])))
 
 (defn label-help-popup [label]
   (let [{:keys [category required question definition]} label
@@ -426,31 +426,54 @@
 
 (defn GroupLabelInstance
   [article-id label-id ith]
-  (let [labels (subscribe [:label/labels "na" label-id "na"])]
-    [:div.group-label-instance
-     (when-not (= ith "0")
-       [Icon {:name "delete"
-              :on-click #(do
-                           (dispatch [::delete-group-label-instance article-id label-id ith]))}])
-     (for [label (->> (vals @labels)
-                      (sort-by :project-ordering <)
-                      (filter :enabled))]
-       ^{:key (str article-id label-id (:label-id label) ith)}
-       [SubGroupLabelInput article-id label-id (:label-id label) ith])]))
+  (let [labels (subscribe [:label/labels "na" label-id "na"])
+        active (r/atom true)
+        label-name @(subscribe [:label/display "na" label-id "na"])]
+    (r/create-class
+     {:reagent-render
+      (fn [_]
+        [Accordion
+         [AccordionTitle {:active @active
+                          :on-click (fn [_]
+                                      (swap! active not))}
+          [Icon {:name "dropdown"}] label-name
+          (when-not (= ith "0")
+            [Icon {:name "delete"
+                   :on-click #(do
+                                (dispatch [::delete-group-label-instance article-id label-id ith]))
+                   :style {:float "right"}}])]
+         [AccordionContent {:active @active}
+          (for [label (->> (vals @labels)
+                           (sort-by :project-ordering <)
+                           (filter :enabled))]
+            ^{:key (str article-id label-id (:label-id label) ith)}
+            [SubGroupLabelInput article-id label-id (:label-id label) ith])]])})))
 
 (defn GroupLabelInput
   [label-id article-id]
-  ;; do some housekeeping with regards to a labels instance
-  (when (= @(subscribe [:review/active-labels article-id "na" label-id "na"])
-           nil)
-    (dispatch [::add-group-label-instance article-id label-id]))
-  [:div {:id (str "group-label-input-" label-id)
-         :style {:width "100%"
-                 :padding "0"}}
-   [Button {:on-click #(dispatch [::add-group-label-instance article-id label-id])} "Add Label"]
-   (for [ith (range 0 (group-label-instances article-id label-id))]
-     ^{:key (str article-id "-" label-id "-instance-count-" ith)}
-     [GroupLabelInstance article-id label-id (str ith)])])
+  (let [multi? @(subscribe [:label/multi? "na" label-id])
+        label-name @(subscribe [:label/display "na" label-id "na"])]
+    ;; do some housekeeping with regards to a labels instance
+    (when (= @(subscribe [:review/active-labels article-id "na" label-id "na"])
+             nil)
+      (dispatch [::add-group-label-instance article-id label-id]))
+    [:div {:id (str "group-label-input-" label-id)
+           :style {:width "100%"
+                   :padding "0"
+                   :border-radius ".28571429rem .28571429rem 0 0"
+                   :border-top "1px solid"
+                   :border-left "1px solid"
+                   :border-right "1px solid"}}
+     ;; sub labels
+     (for [ith (range 0 (group-label-instances article-id label-id))]
+       ^{:key (str article-id "-" label-id "-instance-count-" ith)}
+       [:div {:class "group-label-instance"
+              :style {}}
+        [GroupLabelInstance article-id label-id (str ith)]])
+     ;; add a new instance
+     (when multi?
+       [Button {:on-click #(dispatch [::add-group-label-instance article-id label-id])
+                :attached "bottom"} [Icon {:name "plus"}] label-name])]))
 
 (reg-sub ::label-css-class
          (fn [[_ article-id label-id]]
@@ -463,15 +486,17 @@
                  (not criteria?) "extra"
                  :else           "")))
 
+(defn GroupLabelColumn [article-id label-id row-position n-cols label-position]
+  [GroupLabelInput label-id article-id])
+
 ;; Component for label column in inputs grid
-(defn- label-column [article-id label-id row-position n-cols label-position _n-labels]
+(defn- LabelColumn [article-id label-id row-position n-cols label-position]
   (let [value-type @(subscribe [:label/value-type "na" label-id "na"])
         label-css-class @(subscribe [::label-css-class article-id label-id])
         label-string @(subscribe [:label/display "na" label-id "na"])
         question @(subscribe [:label/question "na" label-id "na"])
         on-click-help (util/wrap-user-event #(do nil) :timeout false)
         answer (subscribe [:review/active-labels article-id "na" label-id "na"])]
-    ^{:key {:article-label [article-id label-id]}}
     [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
       [ui/with-tooltip
@@ -507,18 +532,16 @@
                          :required @(subscribe [:label/required? "na" label-id "na"])
                          :question @(subscribe [:label/question "na" label-id "na"])
                          :definition {:examples @(subscribe [:label/examples "na" label-id "na"])}}]
-      (if (= value-type "group")
-        [GroupLabelInput label-id article-id]
-        [:div.ui.row.label-edit-value {:class (condp = value-type
-                                                "boolean"      "boolean"
-                                                "categorical"  "category"
-                                                "string"       "string"
-                                                "")}
-         [:div.inner (condp = value-type
-                       "boolean" [BooleanLabelInput ["na" label-id "na"] article-id]
-                       "categorical" [CategoricalLabelInput ["na" label-id "na"] article-id]
-                       "string" [StringLabelInput ["na" label-id "na"] article-id]
-                       [:div "unknown label - label-column"])]])]
+      [:div.ui.row.label-edit-value {:class (condp = value-type
+                                              "boolean"      "boolean"
+                                              "categorical"  "category"
+                                              "string"       "string"
+                                              "")}
+       [:div.inner (condp = value-type
+                     "boolean" [BooleanLabelInput ["na" label-id "na"] article-id]
+                     "categorical" [CategoricalLabelInput ["na" label-id "na"] article-id]
+                     "string" [StringLabelInput ["na" label-id "na"] article-id]
+                     [:div "unknown label - label-column"])]]]
      (if (and (not= value-type "group")
               @(subscribe [:label/required? "na" label-id])
               (not @(subscribe [:label/non-empty-answer? "na" label-id @answer])))
@@ -696,15 +719,16 @@
            ^{:key [(first row)]}
            [:div.row
             (doall (for [i (range (count row))]
-                     (let [label-id (nth row i)]
-                       (label-column article-id
-                                     label-id
-                                     (cond (= i 0)            :left
-                                           (= i (dec n-cols)) :right
-                                           :else              :middle)
-                                     n-cols
-                                     (->> label-ids (take-while #(not= % label-id)) count)
-                                     (count label-ids)))))
+                     (let [label-id (nth row i)
+                           row-position (cond (= i 0)            :left
+                                              (= i (dec n-cols)) :right
+                                              :else              :middle)
+                           label-position (->> label-ids (take-while #(not= % label-id)) count)]
+                       (if (= "group" @(subscribe [:label/value-type "na" label-id "na"]))
+                         ^{:key {:article-label [article-id label-id]}}
+                         [GroupLabelColumn article-id label-id row-position n-cols label-position]
+                         ^{:key {:article-label [article-id label-id]}}
+                         [LabelColumn article-id label-id row-position n-cols label-position]))))
             (when (< (count row) n-cols) [:div.column])])))
 
 (defn LabelsColumns [article-id & {:keys [n-cols class] :or {class "segment"}}]

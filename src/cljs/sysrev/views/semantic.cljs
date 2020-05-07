@@ -87,3 +87,9 @@
 
 ;; tab
 (def Tab (component S/Tab))
+
+;; accordion
+(def Accordion (component S/Accordion))
+(def AccordionContent (component S/Accordion "Content"))
+(def AccordionTitle (component S/Accordion "Title"))
+

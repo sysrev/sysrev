@@ -10,22 +10,26 @@
 10. [X] cancel button shouldn't destroy label!
 11. [X] fix layout of buttons in label editor
 12. [X] prettify 'move-up' 'move-down' labels
-13. [ ] Make labels collapsible when setting labels on article
-14. [ ] fix layout of label answers for article (also, fix overlap)
+13. [X] Make labels collapsible when setting labels on article
+14. [X] fix layout of label answers for article (also, fix overlap)
 15. [X] remove hamburger button on edit label views
-16. [ ] check projects that don't have group labels
-17. [X] re-enable drag/drop functionality
-18. [ ] when labeling, check that required, allow multiple, blank answer check, etc.
+16. [X] re-enable drag/drop functionality
+17. [X] when labeling, check that required, allow multiple, blank answer check, etc.
 	still work for grouped labels (define labels)
-19. [X] change labels is broken for group labels
+18. [X] change labels is broken for group labels
+19. [ ] fix issue where reviewing, then navigating away, it tries to send the labels
 20. [ ] label counts for users? in charts?
 21. [ ] check 'unconfirmed/resolved' labels in sysrev.view.label/LabelValuesView
 22. [ ] There is no cancel button for editing label responses
 23. [X] include label is not turning orange / green
-24. [ ] make sure to include **multiple** group labels for 'missing' / 'invalid' labels
+24. [ ] check projects that don't have group labels
+25. [ ] make sure to include **multiple** group labels for 'missing' / 'invalid' labels
         (disable save button)
-25. [ ] replace inline css with actual css (define_labels.cljs, review.cljs<views>)
-26. [ ] Remove this file from the repo
+26. [ ] css - replace inline display with actual css (define_labels.cljs, review.cljs<views>, labels.cljs<views>)
+27. [ ] make sure dark / light mode looks good
+28. [ ] make sure mobile looks good (label editor, label tags, review label)
+29. [ ] Remove this file from the repo
+
 
 
 sysrev.view.label has the actual view of the labels on the articles (LabelValuesView)

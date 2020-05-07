@@ -5,13 +5,13 @@
             [sysrev.views.components.core :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
+            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
-(defn LabelAnswerTag [root-label-id label-id answer]
-  (let [display @(subscribe [:label/display root-label-id label-id])
-        inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])
+(defn ValueDisplay [root-label-id label-id answer]
+  (let [inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])
         color (case inclusion
                 true   "green"
                 false  "orange"
@@ -21,7 +21,16 @@
                    [answer] [])
                  (cond (nil? answer)        nil
                        (sequential? answer) answer
-                       :else                [answer]))
+                       :else                [answer]))]
+    [:span {:class (when color (str color "-text"))}
+     (if (empty? values)
+       [:i.grey.question.circle.icon
+        {:style {:margin-right "0"}
+         :aria-hidden true}]
+       (str/join ", " values))]))
+
+(defn LabelAnswerTag [root-label-id label-id answer]
+  (let [display @(subscribe [:label/display root-label-id label-id])
         display-label (if (= "boolean" @(subscribe [:label/value-type root-label-id label-id]))
                         (str display "?")
                         display)
@@ -30,28 +39,35 @@
      [:div.ui.button {:class (when dark-theme? "basic")}
       (str display-label " ")]
      [:div.ui.basic.label
-      [:span {:class (when color (str color "-text"))}
-       (if (empty? values)
-         [:i.grey.question.circle.icon
-          {:style {:margin-right "0"}
-           :aria-hidden true}]
-         (str/join ", " values))]]]))
+      [ValueDisplay root-label-id label-id answer]]]))
 
 (defn GroupLabelAnswerTag [group-label-id answers]
-  (let [display @(subscribe [:label/display "na" group-label-id])
+  (let [labels (->> (vals @(subscribe [:label/labels "na" group-label-id "na"]))
+                    (sort-by :project-ordering <)
+                    (filter :enabled))
+        display @(subscribe [:label/display "na" group-label-id])
         display-label (if (= "boolean" @(subscribe [:label/value-type "na" group-label-id]))
                         (str display "?")
-                        display)
-        dark-theme? @(subscribe [:self/dark-theme?])]
-    [:div.ui.tiny.labeled.button.label-answer-tag
-     [:div.ui.button {:class (when dark-theme? "basic")}
-      (str display-label " ")]
-     [:div.ui.basic.label
-      (map
-       #(for [[label-id answer] %]
-          (when (real-answer? answer)
-            ^{:key (str label-id)}
-            [LabelAnswerTag group-label-id label-id answer])) (vals (:labels answers)))]]))
+                        display)]
+    (when (seq answers)
+      [:div.ui.tiny.labeled.button.label-answer-tag
+       [Table {:striped true}
+        [TableHeader {:fullWidth true}
+         [TableRow {:textAlign "center"}
+          [TableHeaderCell {:colSpan (count labels)} display-label]]]
+        [TableHeader
+         [TableRow
+          (doall (for [label labels]
+                   ^{:key (str group-label-id "-" (:label-id label) "-table-header" )}
+                   [TableHeaderCell @(subscribe [:label/display group-label-id (:label-id label)])]))]]
+        [TableBody
+         (for [ith (sort (keys answers))]
+           ^{:key (str group-label-id "-" ith "-row")}
+           [TableRow
+            (for [label labels]
+              ^{:key (str group-label-id "-" ith "-row-" (:label-id label) "-cell")}
+              [TableCell
+               [ValueDisplay group-label-id (:label-id label) (get-in answers [ith (:label-id label)])]])])]]])))
 
 (defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
   (let [dark-theme? @(subscribe [:self/dark-theme?])]
@@ -72,7 +88,7 @@
                                                (remove #(not= "group" @(subscribe [:label/value-type "na" %])))
                                                (map #(list % (get-in labels [% :answer]))))]
               ^{:key (str group-label-id)}
-              [GroupLabelAnswerTag group-label-id answer]))
+              [GroupLabelAnswerTag group-label-id (:labels answer)]))
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])
