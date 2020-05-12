@@ -293,7 +293,7 @@
                          (:entries query-result))}))))
 
 ;;;
-;;; Charts data
+;;; Overview Charts data
 ;;;
 
 (dr (GET "/api/important-terms" request
@@ -308,6 +308,15 @@
 (dr (GET "/api/charts/label-count-data" request
          (with-authorize request {:allow-public true}
            (api/label-count-chart-data (active-project request)))))
+
+;;;
+;;; Analytics Charts data
+;;;
+
+(dr (GET "/api/concordance" request
+      (with-authorize request {:allow-public true}
+        (let [{:keys [n]} (-> request :params)]
+          (api/project-concordance (active-project request))))))
 
 ;;;
 ;;; Article import
