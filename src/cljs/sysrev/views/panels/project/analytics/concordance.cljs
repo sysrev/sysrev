@@ -1,0 +1,674 @@
+(ns sysrev.views.panels.project.analytics.concordance
+  (:require
+    ["jquery" :as $]
+    [reagent.core :as r]
+    [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
+    [sysrev.views.panels.project.description :refer [ProjectDescription]]
+    [sysrev.nav :as nav]
+    [sysrev.state.nav :refer [project-uri]]
+    [sysrev.views.base :refer [panel-content]]
+    [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
+    [sysrev.shared.charts :refer [processed-label-color-map]]
+    [sysrev.views.charts :as charts]
+    [sysrev.views.components.core :refer
+     [primary-tabbed-menu secondary-tabbed-menu]]
+    [sysrev.views.semantic :refer [Segment Grid Row Column Checkbox Dropdown Select Button Modal]]
+    [sysrev.macros :refer-macros [with-loader setup-panel-state]]
+    [sysrev.charts.chartjs :as chartjs]
+    [sysrev.data.core :refer [def-data]]
+    [sysrev.views.components.core :refer [selection-dropdown]]
+    [sysrev.util :as util]
+    [goog.string :as gstring]
+    ))
+
+;; for clj-kondo
+(declare panel)
+
+(setup-panel-state panel [:project :project :analytics :concordance])
+
+; UTILITY FUNCTIONS
+(defn mean [coll]
+  (let [sum (apply + coll)
+        count (count coll)]
+    (if (pos? count)
+      (/ sum count)
+      0)))
+
+(defn median [coll]
+  (let [sorted (sort coll)
+        cnt (count sorted)
+        halfway (quot cnt 2)]
+    (if (odd? cnt)
+      (nth sorted halfway) ; (1)
+      (let [bottom (dec halfway)
+            bottom-val (nth sorted bottom)
+            top-val (nth sorted halfway)]
+        (mean [bottom-val top-val])))))
+
+(def example-concordance
+  [
+   {:user-a "joe" :user-b "tom"   :label "Include" :concordance 0.1 :count 100}
+   {:user-a "joe" :user-b "james" :label "Include" :concordance 0.4 :count 100}
+   {:user-a "joe" :user-b "joe"   :label "Include" :concordance 1.0 :count 100}
+
+   {:user-a "joe" :user-b "tom"   :label "Species" :concordance 0.1 :count 80}
+   {:user-a "joe" :user-b "james" :label "Species" :concordance 0.5 :count 80}
+   {:user-a "joe" :user-b "joe"   :label "Species" :concordance 1.0 :count 80}
+
+   {:user-a "james" :user-b "tom" :label "Include"   :concordance 0.1 :count 100}
+   {:user-a "james" :user-b "james" :label "Include" :concordance 1.0 :count 100}
+   {:user-a "james" :user-b "joe" :label "Include"   :concordance 0.1 :count 100}
+
+   {:user-a "james" :user-b "tom" :label "Species"   :concordance 0.1 :count 80 }
+   {:user-a "james" :user-b "james" :label "Species" :concordance 1.0 :count 80 }
+   {:user-a "james" :user-b "joe" :label "Species"   :concordance 1.0 :count 80 }
+
+   {:user-a "tom" :user-b "tom" :label "Include"   :concordance 1.0 :count 100}
+   {:user-a "tom" :user-b "james" :label "Include" :concordance 0.1 :count 80 }
+   {:user-a "tom" :user-b "joe" :label "Include"   :concordance 0.1 :count 100}
+
+   {:user-a "tom" :user-b "tom" :label "Species"   :concordance 1.0     :count 80 }
+   {:user-a "tom" :user-b "james" :label "Species" :concordance 0.1 :count 100}
+   {:user-a "tom" :user-b "joe" :label "Species"   :concordance 0.1   :count 80 }
+   ])
+
+(def colors {:grey "rgba(160,160,160,0.5)"
+             :green "rgba(33,186,69,0.55)"
+             :bright-green "rgba(33,186,69,0.9)"
+             :gold "rgba(255,215,0,1.0)"
+             :dim-green "rgba(33,186,69,0.35)"
+             :orange "rgba(242,113,28,0.55)"
+             :bright-orange "rgba(242,113,28,2.0)"
+             :dim-orange "rgba(242,113,28,0.35)"
+             :red "rgba(255, 86, 77,1.0)"
+             :blue "rgba(84, 152, 169,1.0)"
+             :purple "rgba(146,29,252,0.5)"
+             :bright-purple "rgba(146,29,252,1.0)"
+             :select-blue "rgb(50,150,226)"})
+
+(defn all-users [concordance-data] (set (map :user-a concordance-data)))
+
+(defn all-labels [concordance-data] (set (map :label concordance-data)))
+
+; STATISTICS
+(defn measure-overall-concordance [concordance-data]
+  "Take each user-user-label key. Weight it by the count and average over concordance"
+  (let [conc-data  (:label concordance-data)
+        tot-weight (reduce + (mapv #(:count %) conc-data))
+        weight-con (reduce + (mapv #(:concordant %) conc-data))]
+    (/ weight-con tot-weight)
+    ))
+
+(defn median-lbl-concordance [selected-labels selected-users concordance-data]
+  (let [con-data        (filter (fn [item]
+                                  (and
+                                    (contains? selected-labels (:label item))
+                                    (contains? selected-users (:user-b item))
+                                    (< (:user-a item) (:user-b item))
+                                    )) concordance-data)
+        con-gp          (group-by :label con-data)
+        lbls            (keys con-gp)
+        con-val         (mapv (fn [x]
+                                {
+                                 :conc      (/ (reduce + (mapv (fn [uul] (* (:count uul) (:concordance uul))) x)) (reduce + (mapv :count x)))
+                                 :count     (reduce + (mapv :count x))
+                                 :con-count (js/Math.round (reduce + (mapv (fn [uul] (* (:count uul) (:concordance uul))) x)))
+                                 :dis-count (js/Math.round (reduce + (mapv (fn [uul] (* (:count uul) (- 1.0 (:concordance uul)))) x)))
+                                 }) (vals con-gp))
+        ]
+    (zipmap lbls con-val)
+    ))
+
+(defn median-user-concordance [selected-labels selected-users concordance-data]
+  (let [con-data        (filter (fn [item]
+                                  (and
+                                    (contains? selected-labels (:label item))
+                                    (contains? selected-users (:user-b item))
+                                    (< (:user-a item) (:user-b item))
+                                    ))
+                                concordance-data)
+        con-gp          (group-by :user-a con-data)
+        users           (keys con-gp)
+        con-val         (mapv (fn [x]
+                                {
+                                 :conc (/ (js/Math.round (* 100 (median (mapv :concordance x)) )) 100.0)
+                                 :count (reduce + (mapv :count x))
+                                 :con-count (js/Math.round (reduce + (mapv (fn [uul] (* (:count uul) (:concordance uul))) x)))
+                                 :dis-count (js/Math.round (reduce + (mapv (fn [uul] (* (:count uul) (- 1.0 (:concordance uul)))) x)))
+                                 }) (vals con-gp))
+        ]
+    (zipmap users con-val)
+    ))
+
+; EVENTS & SUBSCRIPTIONS
+(def-data :project/concordance
+          :loaded? (fn [db project-id]
+                     (-> (get-in db [:data :project project-id])
+                         (contains? :concordance)))
+          :uri (fn [_] "/api/concordance")
+          :content (fn [project-id] {:project-id project-id})
+          :prereqs (fn [project-id] [[:project project-id]])
+          :process
+          (fn [{:keys [db]} [project-id] result]
+            {:db (assoc-in db [:data :project project-id :concordance] result)})
+          :on-error
+          (fn [{:keys [db error]} [project-id] _]
+            {:db (assoc-in db [:data :project project-id :concordance] {:error error})})
+          )
+
+(reg-sub :project/concordance
+         (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project] (:concordance project)))
+
+(reg-event-db
+  :set-concordance-user-selection
+  (fn [db [_ selected-user]]
+    (let [curlist (if (nil? (:concordance-user-selection db))
+                    (set [])
+                    (:concordance-user-selection db))]
+
+      (cond
+        (nil? selected-user) (assoc db :concordance-user-selection (set []))
+        (contains? curlist selected-user)
+        (assoc db :concordance-user-selection (disj curlist selected-user))
+        :else (assoc db :concordance-user-selection (set [selected-user]))
+        ))))
+
+(reg-sub :concordance-user-selection
+         (fn [db _] (:concordance-user-selection db)))
+
+(reg-event-db
+  :set-concordance-label-selection
+  (fn [db [_ selected-label]]
+    (let [curlist (if (nil? (:concordance-label-selection db))
+                    (set [])
+                    (:concordance-label-selection db))]
+
+      (cond
+        (nil? selected-label) (assoc db :concordance-label-selection (set []))
+        (contains? curlist selected-label)
+        (assoc db :concordance-label-selection (disj curlist selected-label))
+        :else (assoc db :concordance-label-selection (set [selected-label]))
+        ))))
+
+(reg-sub :concordance-label-selection
+         (fn [db _]
+           (let [current-set (:concordance-label-selection db)]
+             ;(if (empty? current-set) (set ["Include"]) current-set))
+             current-set)
+           )
+         )
+
+(reg-event-db :set-show-counts/step-1 (fn [db [_ new-value]] (assoc db :show-counts/step-1 new-value)))
+
+(reg-sub :show-counts/step-1 (fn [db _] (if (nil? (:show-counts/step-1 db)) true (:show-counts/step-1 db))))
+
+(reg-event-db :set-show-counts/step-2 (fn [db [_ new-value]] (assoc db :show-counts/step-2 new-value)))
+
+(reg-sub :show-counts/step-2 (fn [db _] (if (nil? (:show-counts/step-2 db)) true (:show-counts/step-2 db))))
+
+(reg-event-db :set-show-counts/step-3 (fn [db [_ new-value]] (assoc db :show-counts/step-3 new-value)))
+
+(reg-sub :show-counts/step-3 (fn [db _] (if (nil? (:show-counts/step-3 db)) true (:show-counts/step-3 db))))
+
+; CHART SETTINGS
+(defn conc-axis []
+  (let [font    (charts/graph-font-settings)]
+    {
+     :id "conc"
+     :type "linear"
+     :position "bottom"
+     :scaleLabel (->> {:display true
+                       :labelString "Concordance"}
+                      (merge font))
+     :stacked true
+     :ticks {:min 0 :max 1.0
+             :fontColor (if (= "Dark" (:ui-theme @(subscribe [:self/settings]))) "white" "#282828")}
+     :gridLines {:color (charts/graph-border-color)}}))
+
+(defn count-axis [max]
+  (let [font    (charts/graph-font-settings)]
+    {
+     :id "count"
+     :type "linear"
+     :position "bottom"
+     :scaleLabel (->> {:display true :labelString "Article Count"} (merge font))
+     :stacked true
+     :ticks {:min 0 :max (js/Math.round (* 1.1 max))
+             :precision 0 :stepSize (/ (* 1.1 max) 10)
+             :fontColor (if (= "Dark" (:ui-theme @(subscribe [:self/settings]))) "white" "#282828")}
+     :precision 0
+     :gridLines {:color (charts/graph-border-color)}}))
+
+(defn label-axis []
+  (let [font (charts/graph-font-settings)]
+  [{:id "label"
+    :maxBarThickness 15
+    :stacked true
+    :scaleLabel font
+    :ticks (->> {
+                 :padding 7
+                 :callback (fn [text]
+                             (cond
+                               (> (.-length text) 35) (str (.substr text 0 32) "...")
+                               :else text
+                             ))
+                 }
+                (merge font))
+    :gridLines {:drawTicks false
+                :color (charts/graph-border-color)}}]))
+
+(defn height [num-elements]
+  (+ 80 (* 2 (+ 8 (* 10 num-elements)))))
+
+; STEP 1
+(defn concordance-description []
+  [:div
+   [:h3 "Step 1 - Label difficulty"]
+   [:span "Track label difficulty by comparing the number of articles where all 2+ users agree (concordant) vs articles where 1+ users disagree (discordant)"]
+   [:br][:br]
+   [:span "Only boolean labels with 1+ double reviewed articles are shown."]
+   ]
+  )
+
+(defn label-concordance [concordance-data]
+  (let [conc-data       (filter #(> (:count %) 0) (sort-by :count > (:label concordance-data)))
+        labels          (mapv :label conc-data)
+        concordance     (mapv (fn [r] (/ (js/Math.round (* 100 (/ (:concordant r) (:count r)))) 100)) conc-data)
+        discordance     (mapv #(/ (js/Math.round (* 100 (- 1.0 %))) 100) concordance)
+        counts          (mapv :count conc-data)
+        con-counts      (mapv :concordant conc-data)
+        dis-counts      (mapv (fn [r] (- (:count r) (:concordant r))) conc-data)
+        max-count       (reduce max counts)
+        height          (height (count labels))
+        show-counts     @(subscribe [:show-counts/step-1])
+        con-count-ds {:xAxisID "count" :label "concordant"
+                      :backgroundColor (:blue colors)
+                      :data con-counts
+                      :borderWidth 0
+                      :borderColor (:gold colors) :stack "1"
+                      }
+        dis-count-ds {:xAxisID "count" :label "discordant"
+                      :backgroundColor (:red colors)
+                      :data dis-counts :stack "1"
+                      }
+        con-perc-ds  {:xAxisID "conc" :label "concordant"
+                      :backgroundColor (:blue colors)
+                      :data concordance
+                      :borderWidth 0
+                      :stack "1"
+                      }
+        dis-perc-ds  {:xAxisID "conc" :label "discordant"
+                      :backgroundColor (:red colors)
+                      :data discordance
+                      :borderWidth 0
+                      :stack "1"
+                      }
+        data {:labels labels :datasets (if show-counts [con-count-ds dis-count-ds] [con-perc-ds dis-perc-ds])}
+        inv-color     (if (= "Dark" (:ui-theme @(subscribe [:self/settings]))) "white" "#282828")
+        options (charts/wrap-default-options
+                  {:legend {:display true :labels {:fontColor inv-color}}
+                   :scales
+                           {:xAxes (if show-counts [(count-axis max-count)] [(conc-axis)])
+                            :yAxes (label-axis)
+                            }
+                   :onClick
+                           (fn [_e elts]
+                             (let [elts (-> elts js->clj)]
+                               (when (and (coll? elts) (not-empty elts))
+                                 (when-let [idx (-> elts first (aget "_index"))]
+                                   (dispatch [:set-concordance-label-selection (nth labels idx)])
+                                   ))))
+                   }
+                  :animate? false
+                  :items-clickable? true
+                  )]
+    [:div
+     [:h5 {:style {:display "inline-block"}} "Concordant Articles by Label"]
+     [:div {:style {:float "right" }}
+      [Checkbox {:as "h4"
+                 :style {:margin-top "0.0rem" :margin-right "10px"}
+                 :checked (or (nil? show-counts) (false? show-counts))
+                 :on-change #(dispatch [:set-show-counts/step-1 (not show-counts)])
+                 :radio true
+                 :size "mini"
+                 :label "Percent"}]
+      [Checkbox {:as "h4"
+                 :style {:margin-top "0.0rem" :margin-right "10px"}
+                 :checked show-counts
+                 :on-change #(dispatch [:set-show-counts/step-1 (not show-counts)])
+                 :radio true
+                 :label "Count"}]
+      ]
+     [chartjs/horizontal-bar {:data data :height height :options options}]
+
+     ]
+    ))
+
+; STEP 2
+(defn user-concordance-description [concordance-data]
+  (let [labels (distinct (mapv :label (sort-by :count > (:label concordance-data))))
+        selected-label @(subscribe [:concordance-label-selection])
+        buttons (map (fn [lbl]
+                       (if (contains? selected-label lbl)
+                         ^{:key (str "step2_sel_" lbl)}
+                         [Button {:size "mini" :primary true
+                                  :style {:margin "2px"}
+                                  :on-click #(dispatch [:set-concordance-label-selection lbl])} lbl]
+                         ^{:key (str "step2_" lbl)}
+                         [Button {:id (str "step2_" lbl) :size "mini" :secondary true
+                                  :style {:margin "2px"}
+                                  :on-click #(dispatch [:set-concordance-label-selection lbl])} lbl]
+                         )) labels)]
+
+    [:div
+     [:h3 "Step 2 - User Performance"]
+     [:span "Discover which users have the best performance on the selected label. "]
+     [:span "Select a label below, or click a bar in Step 1"]
+     [:div {:style {:padding-top "10px"}}
+      [:h5 "Select Label:"] buttons ]]
+    ))
+
+(defn user-concordance-empty [concordance-data]
+  [:div
+   [:span "Select a label"] ])
+
+(defn user-concordance [concordance-data]
+  (let [selected-labels @(subscribe [:concordance-label-selection])
+        conc-data       (filter #(contains? selected-labels (:label %)) (sort-by :count > (:user_label concordance-data)))
+        users           (mapv :user conc-data)
+        concordance     (mapv (fn [r] (/ (js/Math.round (* 100 (/ (:concordant r) (:count r)))) 100)) conc-data)
+        discordance     (mapv #(/ (js/Math.round (* 100 (- 1.0 %))) 100) concordance)
+        counts          (mapv :count conc-data)
+        con-counts      (mapv :concordant conc-data)
+        dis-counts      (mapv (fn [r] (- (:count r) (:concordant r))) conc-data)
+        max-count       (reduce max counts)
+        height          (height (count users))
+        con-count-ds {:xAxisID "count" :label "concordant"
+                      :backgroundColor (:blue colors)
+                      :data con-counts
+                      :borderWidth 0
+                      :borderColor (:gold colors) :stack "1"
+                      }
+        dis-count-ds {:xAxisID "count" :label "discordant"
+                      :backgroundColor (:red colors)
+                      :data dis-counts :stack "1"
+                      }
+        con-perc-ds  {:xAxisID "conc" :label "concordant"
+                      :backgroundColor (:blue colors)
+                      :data concordance
+                      :borderWidth 0
+                      :stack "1"
+                      }
+        dis-perc-ds  {:xAxisID "conc" :label "discordant"
+                      :backgroundColor (:red colors)
+                      :data discordance
+                      :borderWidth 0
+                      :stack "1"
+                      }
+        show-counts     @(subscribe [:show-counts/step-2])
+        data {:labels   users
+              :datasets (if show-counts [con-count-ds dis-count-ds] [con-perc-ds dis-perc-ds])
+              }
+        font (charts/graph-font-settings)
+        inv-color     (if (= "Dark" (:ui-theme @(subscribe [:self/settings]))) "white" "#282828")
+        options (charts/wrap-default-options
+                  {
+                   :legend {:display true :labels {:fontColor inv-color}}
+                   :scales
+                           {:xAxes (if show-counts [(count-axis max-count)][(conc-axis)])
+                            ;; this is actually controlling the labels
+                            :yAxes (label-axis)}
+                   :onClick
+                           (fn [_e elts]
+                             (let [elts (-> elts js->clj)]
+                               (when (and (coll? elts) (not-empty elts))
+                                 (when-let [idx (-> elts first (aget "_index"))]
+                                   (dispatch [:set-concordance-user-selection (nth users idx)])))))
+                   }
+                  :animate? false
+                  :items-clickable? true
+                  )]
+    [:div
+     [:h5 {:style {:display "inline-block"}} "User Concordant Articles on  " [:span {:style {:color (:select-blue colors)}} (str (first selected-labels))]]
+     [:div {:style {:float "right" }}
+      [Checkbox {:as "h4"
+                 :style {:margin-top "0.0rem" :margin-right "10px"}
+                 :checked (or (nil? show-counts) (false? show-counts))
+                 :on-change #(dispatch [:set-show-counts/step-2 (not show-counts)])
+                 :radio true
+                 :size "mini"
+                 :label "Percent"}]
+      [Checkbox {:as "h4"
+                 :style {:margin-top "0.0rem" :margin-right "10px"}
+                 :checked show-counts
+                 :on-change #(dispatch [:set-show-counts/step-2 (not show-counts)])
+                 :radio true
+                 :label "Count"}]
+      ]
+     [chartjs/horizontal-bar {:data data :height height :options options}]
+     ]
+    )
+  )
+
+; STEP 3
+(defn user-label-specific-description [concordance-data]
+  (let [labels (mapv :label (sort-by :count > (:label concordance-data)))
+        selected-label @(subscribe [:concordance-label-selection])
+        selected-user  @(subscribe [:concordance-user-selection])
+        users  (distinct (mapv :user  (sort-by :count > (filter #(contains? selected-label (:label %)) (:user_label concordance-data)))))
+        lbl-buttons (map (fn [lbl]
+                           (if (contains? selected-label lbl)
+                             ^{:key (str "step3-lbl-sel-" lbl)}
+                             [Button { :size "mini" :primary true
+                                      :style {:margin "2px"}
+                                      :on-click #(dispatch [:set-concordance-label-selection lbl])} lbl]
+                             ^{:key (str "step3-lbl-" lbl)}
+                             [Button {:size "mini" :secondary true
+                                      :style {:margin "2px"}
+                                      :on-click #(dispatch [:set-concordance-label-selection lbl])} lbl]
+                             )) labels)
+        usr-buttons (map (fn [usr]
+                           (if (contains? selected-user usr)
+                             ^{:key (str "usr-usr-sel-" usr)}
+                             [Button {
+                                      :size "mini" :primary true
+                                      :style {:margin "2px"}
+                                      :on-click #(dispatch [:set-concordance-user-selection usr])} usr]
+                             ^{:key (str "usr-usr-" usr)}
+                             [Button {
+                                      :size "mini" :secondary true
+                                      :style {:margin "2px"}
+                                      :on-click #(dispatch [:set-concordance-user-selection usr])} usr]
+                             )) users)]
+    [:div
+     [:h3 "Step 3 - User / User Investigation"]
+     [:span "Select a label and a user below to discover user-user pairs are most concordant and discordant. "]
+     [:span "Tracking concordance against your most trusted users can help discover difficult tasks or low performance reviewers."]
+     [:div {:style {:padding-top "10px"}} [:h5 "Select Label:"] lbl-buttons ]
+     [:div {:style {:padding-top "10px"}} [:h5 "Select User :"] usr-buttons ]]
+    ))
+
+(defn user-label-specific-empty [concordance-data]
+  (let [selected-user   @(subscribe [:concordance-user-selection])
+        selected-label  @(subscribe [:concordance-label-selection])]
+    (cond
+      (and (empty? selected-user) (empty? selected-label))
+      [:span "Select a user and label"]
+
+      (empty? selected-user) [:span "Select a user"]
+      (empty? selected-label) [:span "Select a label"])
+
+    ))
+
+(defn user-label-specific-concordance [concordance-data]
+  (let [selected-user   @(subscribe [:concordance-user-selection])
+        selected-label  @(subscribe [:concordance-label-selection])
+        conc-data       (filter (fn [r] (and
+                                          (contains? selected-label (:label r))
+                                          (contains? selected-user (:user-a r))))
+                                (sort-by :count > (:user_user_label concordance-data)))
+
+        users           (mapv :user-b conc-data)
+        concordance     (mapv (fn [r] (/ (js/Math.round (* 100 (/ (:concordant r) (:count r)))) 100)) conc-data)
+        discordance     (mapv #(/ (js/Math.round (* 100 (- 1.0 %))) 100) concordance)
+        counts          (mapv :count conc-data)
+        con-counts      (mapv :concordant conc-data)
+        dis-counts      (mapv (fn [r] (- (:count r) (:concordant r))) conc-data)
+        max-count       (reduce max counts)
+        height          (height (count users))
+
+        con-count-ds {:xAxisID "count" :label "concordant"
+                      :backgroundColor (:blue colors)
+                      :data con-counts
+                      :borderWidth 0
+                      :borderColor (:gold colors) :stack "1"
+                      }
+        dis-count-ds {:xAxisID "count" :label "discordant"
+                      :backgroundColor (:red colors)
+                      :data dis-counts :stack "1"
+                      }
+        con-perc-ds  {:xAxisID "conc" :label "concordant"
+                      :backgroundColor (:blue colors)
+                      :data concordance
+                      :borderWidth 0
+                      :stack "1"
+                      }
+        dis-perc-ds  {:xAxisID "conc" :label "discordant"
+                      :backgroundColor (:red colors)
+                      :data discordance
+                      :borderWidth 0
+                      :stack "1"
+                      }
+        show-counts   @(subscribe [:show-counts/step-3])
+        data          {:labels users :datasets (if show-counts [con-count-ds dis-count-ds] [con-perc-ds dis-perc-ds]) }
+        inv-color     (if (= "Dark" (:ui-theme @(subscribe [:self/settings]))) "white" "#282828")
+        font (charts/graph-font-settings)
+        options (charts/wrap-default-options
+                  {:legend {:display true :labels {:fontColor inv-color}}
+                   :scales
+                           {:xAxes (if show-counts [(count-axis max-count)] [(conc-axis)])
+                            ;; this is actually controlling the labels
+                            :yAxes (label-axis)
+                            }
+                   :onClick
+                           (fn [_e elts]
+                             (let [elts (-> elts js->clj)]
+                               (when (and (coll? elts) (not-empty elts))
+                                 (when-let [idx (-> elts first (aget "_index"))]
+                                   (dispatch [:set-concordance-user-selection (nth users idx)])))))
+                   }
+                  :animate? false
+                  :items-clickable? true
+                  )]
+    [:div
+     [:h5 {:style {:display "inline-block"}} "User Concordant Articles "
+      " vs " [:span {:style {:color (:select-blue colors)}} (str (first selected-user))]
+      " on " [:span {:style {:color (:select-blue colors)}} (str (first selected-label))]
+      ]
+     [:div {:style {:float "right" }}
+      [Checkbox {:as "h4"
+                 :style {:margin-top "0.0rem" :margin-right "10px"}
+                 :checked (or (nil? show-counts) (false? show-counts))
+                 :on-change #(dispatch [:set-show-counts/step-3 (not show-counts)])
+                 :radio true
+                 :size "mini"
+                 :label "Percent"}]
+      [Checkbox {:as "h4"
+                 :style {:margin-top "0.0rem" :margin-right "10px"}
+                 :checked show-counts
+                 :on-change #(dispatch [:set-show-counts/step-3 (not show-counts)])
+                 :radio true
+                 :label "Count"}]
+      ]
+     [chartjs/horizontal-bar {:data data :height height :options options}]]
+    )
+  )
+
+(defn worst-label [concordance-data]
+
+  )
+
+; PAGE DEFINITION
+(defn overall-concordance []
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader
+      [[:project/concordance project-id]] {}
+      (let [concordance-data @(subscribe [:project/concordance])]
+        (cond
+          (exists? (:error concordance-data))
+          [:div
+           [:span "The concordance analytics service is currently down. We are working to bring it back."]]
+
+          (->> (:label @(subscribe [:project/concordance])) (mapv :count) (reduce +) (= 0))
+          [:div
+           "To view concordance data, you need 2+ users to review boolean labels on the same article at least once."
+           [:br][:br]
+           "Set the 'Article Review Priority' to 'balanced' or 'full' under manage -> settings to guarantee overlaps."
+           [:br][:br]
+           "Invite a friend with the invite link on the overview page and get reviewing!"]
+
+          true
+          (let [mean-conc         (* 100 (measure-overall-concordance concordance-data))
+                selected-label    @(subscribe [:concordance-label-selection])
+                has-label         (not (nil? (some #(contains? (all-labels concordance-data) %) selected-label)))
+                selected-user     @(subscribe [:concordance-user-selection])
+                has-user          (not (nil? (some #(contains? (all-users concordance-data) %) selected-user)))
+                ]
+            [Grid {:stackable true}
+             [Row
+              [Column {:width 8}
+               [:h2 (gstring/format "Concordance %.1f%%" mean-conc)]
+               (cond
+                 (> mean-conc 98)
+                 [:span {:style {:color (:bright-green colors)}} "Great job! Your project is highly concordant"]
+                 (> mean-conc 90)
+                 [:span {:style {:color (:bright-orange colors)}} "Some discordance in your labels.
+             Make sure your reviewers understand their tasks "]
+                 :else
+                 [:span {:style {:color (:red colors)}} "Significant discordance in your labels.
+             Make sure your reviewers all understand their tasks. "])
+               [:br]
+               [:span "This is the Beta version of analytics. Email errors and suggestions to us info@insilica.co. "]
+               [:br]
+               [:span "User concordance tracks how often users agree with each other. Learn more at "]
+               [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]
+               [:span "."]]
+              [Column {:width 8 :text-align "center" :vertical-align "middle"}
+               [:h3 [:a {:href "https://www.youtube.com/watch?v=HmQhiVNtB2s"} "Youtube Demo Video"]]
+              ]]
+             [:div.ui.divider]
+             [Row
+              [Column {:width 6}  [concordance-description]]
+              [Column {:width 10} [label-concordance concordance-data]]
+              ]
+             [:div.ui.divider]
+             [Row
+              [Column {:width 6}  [user-concordance-description concordance-data]]
+              (if (empty? selected-label)
+                [Column {:width 10 :text-align "center" :vertical-align "middle"} [user-concordance-empty concordance-data]]
+                [Column {:width 10} [user-concordance concordance-data]])]
+             [:div.ui.divider]
+             [Row
+              [Column {:width 6}  [user-label-specific-description concordance-data]]
+              (if (or (empty? selected-label) (empty? selected-user) )
+                [Column {:width 10 :text-align "center" :vertical-align "middle"} [user-label-specific-empty concordance-data]]
+                [Column {:width 10} [user-label-specific-concordance concordance-data]])]
+             ]))
+        )
+      )
+    )
+  )
+
+(defn ConcordanceView []
+  (r/create-class {:reagent-render (fn [] [overall-concordance])
+                   :component-did-mount (fn []
+                                          (dispatch [:set-concordance-label-selection nil])
+                                          (dispatch [:set-concordance-user-selection nil])
+                                          )}))
+
+(defmethod panel-content [:project :project :analytics :concordance] []
+  (fn [child]
+    [:div.ui.aligned.segment
+     [ConcordanceView]
+     child]))
