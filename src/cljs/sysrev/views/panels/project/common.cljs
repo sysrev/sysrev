@@ -14,6 +14,22 @@
 (defn beta-compensation-user? [email]
   (contains? beta-compensation-users email))
 
+(defn analytics-submenu-full []
+  (let [project-id @(subscribe [:active-project-id])
+        active-tab (->> @(subscribe [:active-panel]) last)]
+    [secondary-tabbed-menu
+     [{:tab-id :concordance
+       :content [:span [:i.handshake.icon] "Concordance"]
+       :action (project-uri project-id "/analytics/concordance")}
+      {:tab-id :labels
+       :content [:span [:i.tags.icon] "Labels"]
+       :action (project-uri project-id "/analytics/labels")}
+     ]
+     []
+     active-tab
+     "bottom attached project-menu-2"
+     false]))
+
 (defn project-submenu-full []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
@@ -126,7 +142,7 @@
            :content [:div
                      (when-not mobile? [:span [:i.chart.bar.icon] " "])
                      "Analytics" [:sup {:style {:color "red"}} " beta"]]
-           :action (project-uri project-id "/analytics")
+           :action (project-uri project-id "/analytics/concordance")
            :disabled (not ready?)
            :tooltip not-ready-msg}
           {:tab-id [:review]
@@ -145,13 +161,16 @@
                       [:span [:i.cog.icon] " Manage"])
            :action (project-uri project-id "/manage")}]
          active-tab
-         (if manage?
+         (if (or manage? (= active-tab [:project :analytics]))
            "attached project-menu"
            "bottom attached project-menu")
          mobile?]
         (when manage?
           ^{:key [:project-manage-menu]}
-          [project-submenu]))))))
+          [project-submenu])
+        (when (= active-tab [:project :analytics])
+          ^{:key [:project-analytics-menu]} 
+          [analytics-submenu-full]))))))
 
 (defn ReadOnlyMessage [text & [message-closed-atom]]
   (when (and (not (or @(subscribe [:member/admin?])
