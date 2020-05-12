@@ -26,6 +26,8 @@
             [sysrev.views.panels.project.overview]
             [sysrev.views.panels.project.articles :as project-articles]
             [sysrev.views.panels.project.analytics]
+            [sysrev.views.panels.project.analytics.concordance]
+            [sysrev.views.panels.project.analytics.labels]
             [sysrev.views.panels.project.single-article :as single-article]
             [sysrev.views.panels.project.define-labels]
             [sysrev.views.panels.project.settings]
