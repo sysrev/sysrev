@@ -7,6 +7,9 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
             [sysrev.shared.charts :refer [processed-label-color-map]]
+            [sysrev.views.charts :as charts]
+            [sysrev.views.components.core :refer
+             [primary-tabbed-menu secondary-tabbed-menu]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 ;; for clj-kondo
@@ -14,26 +17,62 @@
 
 (setup-panel-state panel [:project :project :analytics])
 
-(def colors {:grey "rgba(160,160,160,0.5)"
-             :green "rgba(33,186,69,0.55)"
-             :dim-green "rgba(33,186,69,0.35)"
-             :orange "rgba(242,113,28,0.55)"
-             :dim-orange "rgba(242,113,28,0.35)"
-             :red "rgba(230,30,30,0.6)"
-             :blue "rgba(30,100,230,0.5)"
-             :purple "rgba(146,29,252,0.5)"})
+(defn admin? []
+  (or @(subscribe [:member/admin?])
+      @(subscribe [:user/admin?])))
+
+
+(defn not-admin-description []
+  [:div.ui.aligned.segment {:style {:text-align "center" }}
+   [:div
+    [:h2 "Analytics is not available for your account"]
+    [:h3 "1. You must have admin permissions for this project" [:br] "2. Project owner must have a Pro account" [:br]
+     "see " [:a {:href "/pricing"} "sysrev.com/pricing"]]
+    [:span "Learn more about analytics in the below video or at "
+     [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]]
+    [:br]
+    [:span "Play with a live demo of analytics at "
+     [:a {:href "p/21696/analytics/concordance"} "Live Demo"]]
+    [:br][:br]]
+   [:div {:style {:height "50vh"}}
+    [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
+              :frameborder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+              :allowfullscreen "true"}]]]
+  )
+
+(defn paywall []
+  [:div.ui.aligned.segment {:style {:text-align "center" }}
+   [:div
+    [:h2 "Analytics is only available for pro accounts" [:br]
+     "Sign up at " [:a {:href "/pricing"} "sysrev.com/pricing"]]
+    [:span "Learn more about analytics in the below video or at "
+     [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]]
+    [:br]
+    [:span "Play with a live demo of analytics at "
+     [:a {:href "p/21696/analytics/concordance"} "Live Demo"]]
+    [:br][:br]]
+   [:div  {:style {:height "50vh"}}
+    [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
+              :frameborder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+              :allowfullscreen "true"}]]]
+  )
 
 (defmethod panel-content [:project :project :analytics] []
   (fn [child]
-    (when-let [project-id @(subscribe [:active-project-id])]
-      (if (false? @(subscribe [:project/has-articles?]))
-        (do (nav/nav-redirect (project-uri project-id "/add-articles")
-                              :scroll-top? true)
-            [:div])
-        [:div.project-content
-         [:div.ui.center.aligned.segment
-          [:iframe
-           {:src "https://docs.google.com/forms/d/e/1FAIpQLSejOldFq7U0zo-8AwxRwqrV77CqD3x4uIFOiwcDd-WsNIuvhQ/viewform?embedded=true"
-            :width "640" :height "700px" :frameBorder "0" :marginHeight "0" :marginWidth "0"
-            :overflow "visible"} "Loading…"]]
-         child]))))
+    (let [project-id    @(subscribe [:active-project-id])
+          project-plan  @(subscribe [:project/plan project-id])
+          superuser?    @(subscribe [:user/actual-admin?])]
+      [:div.project-content
+       (cond
+         superuser? child ;superusers like the insilica team can always see analytics
+         (= project-id 21696)
+         [:div
+          [:div {:style {:text-align "right"}}
+           [:span {:style {:color "red"}}
+            [:b "Analytics Demo - Register For " [:a {:href "/pricing"} "Sysrev Pro"] " To Access On Personal Projects"]]
+           ]
+          child]
+         (not (admin?)) [not-admin-description]
+         (and (not= project-plan "Basic") (admin?)) child ;project admins of paid plan projects can see analytics
+         :else [paywall])
+       ])))
