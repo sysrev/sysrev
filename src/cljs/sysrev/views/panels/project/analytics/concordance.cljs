@@ -629,10 +629,11 @@
                  [:span {:style {:color (:red colors)}} "Significant discordance in your labels.
              Make sure your reviewers all understand their tasks. "])
                [:br]
-               [:span "This is the Beta version of analytics. Email errors and suggestions to us info@insilica.co. "]
+               [:span "This is the Beta version of analytics. Provide feedback on this " [:a {:href "https://forms.gle/r9gfb96jCmBrWUBY9"} "google form"] "."]
                [:br]
-               [:span "User concordance tracks how often users agree with each other. Learn more at "]
-               [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]
+               [:span "User concordance tracks how often users agree with each other. "]
+               [:br]
+               [:span "Learn more at " [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]]
                [:span "."]]
               [Column {:width 8 :text-align "center" :vertical-align "middle"}
                [:h3 [:a {:href "https://www.youtube.com/watch?v=HmQhiVNtB2s"} "Youtube Demo Video"]]
