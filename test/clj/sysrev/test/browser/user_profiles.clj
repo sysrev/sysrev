@@ -26,10 +26,10 @@
 (def user-profile-tab (xpath "//a[@id='user-profile']"))
 (def activity-values (xpath "//h2[contains(@class,'articles-reviewed' | 'labels-contributed' | 'annotations-contributed')]"))
 (def user-activity-summary-div (xpath "//div[contains(@class,'user-activity-summary')]" activity-values))
-(defn project-activity-summary-div [project-name]
+(defn project-activity-summary-headers [project-name]
   (xpath "//a[contains(text(),'" project-name "')]"
          "/ancestor::div[contains(@id,'project-')]"
-         activity-values))
+         "//h2"))
 (def edit-introduction (xpath "//a[@id='edit-introduction']"))
 
 ;; avatar
@@ -44,23 +44,26 @@
   (b/get-elements-text (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/a")))
 
 (defn user-activity-summary []
-  (b/wait-until-displayed user-activity-summary-div)
-  (select-keys
-   (->> (taxi/elements user-activity-summary-div)
-        (mapv #(hash-map (keyword (taxi/attribute % :class))
-                         (parse-integer (taxi/text %))))
-        (apply merge))
-   [:articles-reviewed :labels-contributed :annotations-contributed]))
+  (b/wait-until-displayed "div.user-activity-summary")
+  (let [articles-reviewed (parse-integer (taxi/text (taxi/element "h2.articles-reviewed")))
+        labels-contributed (parse-integer (taxi/text (taxi/element "h2.labels-contributed")))
+        annotations-contributed (if (taxi/exists? "h2.annotations-contributed")
+                                  (parse-integer (taxi/text (taxi/element "h2.annotations-contributed")))
+                                  0)
+        ]
+    {:articles-reviewed articles-reviewed
+     :labels-contributed labels-contributed
+     :annotations-contributed annotations-contributed}
+    ))
 
 (defn project-activity-summary [project-name]
-  (let [q (project-activity-summary-div project-name)]
-    (b/wait-until-displayed q)
-    (select-keys
-     (->> (taxi/elements q)
-          (mapv #(hash-map (keyword (taxi/attribute % :class))
-                           (parse-integer (taxi/text %))))
-          (apply merge))
-     [:articles-reviewed :labels-contributed :annotations-contributed])))
+  (b/wait-until-displayed (project-activity-summary-headers project-name))
+  (select-keys
+    (->> (taxi/elements (project-activity-summary-headers project-name))
+         (mapv #(hash-map (keyword (taxi/attribute % :class))
+                          (parse-integer (taxi/text %))))
+         (apply merge))
+    [:articles-reviewed :labels-contributed :annotations-contributed]))
 
 (defn make-public-reviewer [user-id email]
   (with-transaction
