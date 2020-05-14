@@ -5,6 +5,7 @@
             sysrev.test.db.labels
             sysrev.test.api
             sysrev.test.browser.core
+            sysrev.test.browser.analytics
             sysrev.test.browser.annotator
             sysrev.test.browser.group-labels
             sysrev.test.browser.simple
