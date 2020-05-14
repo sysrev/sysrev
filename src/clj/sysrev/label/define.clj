@@ -184,6 +184,7 @@
 (defn group-label-valid?
   [m]
   (and (b/valid? m (label-validations m))
+       (not (nil? (-> m :labels)))
        (regular-labels-valid? (-> m :labels vals))))
 
 (defn group-labels-valid?
@@ -225,9 +226,13 @@
   [m]
   (let [label-id (:label-id m)
         label-validation (regular-label-validated m)
-        labels-validation (-> m :labels vals
-                              regular-labels-validated)]
-    (assoc-in label-validation [label-id :labels] labels-validation)))
+        labels (-> m :labels vals)
+        labels-validation (regular-labels-validated labels)]
+    (if (nil? labels)
+      ;; note: because code in define_labels.cljs does a postwalk and looks for :labels
+      ;; this must use :labels-error and NOT :labels to avoid this error
+      (assoc-in label-validation [label-id :errors :labels-error] '("Group label must include at least one sub label"))
+      (assoc-in label-validation [label-id :labels] labels-validation))))
 
 (defn group-labels-validated
   [coll]

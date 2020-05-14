@@ -6,6 +6,7 @@
             sysrev.test.api
             sysrev.test.browser.core
             sysrev.test.browser.annotator
+            sysrev.test.browser.group-labels
             sysrev.test.browser.simple
             sysrev.test.browser.sources
             sysrev.test.browser.orgs

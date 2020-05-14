@@ -14,9 +14,9 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.semantic :refer [Divider Button]]
+            [sysrev.views.semantic :refer [Divider Button Message]]
             [sysrev.dnd :as dnd]
-            [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
+            [sysrev.util :as util :refer [in? parse-integer map-values map-kv css index-by]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; Convention -
@@ -45,7 +45,11 @@
   (let [insert-answer #(assoc % :answer (case (:value-type %)
                                           "boolean" nil
                                           []))
-        add-local-keys #(assoc % :editing? (not-empty (:errors %)))
+        add-local-keys (fn [label]
+                         (if (= (:value-type label) "group")
+                           (assoc label :editing? (boolean (or (not-empty (:errors label))
+                                                               (->> label :labels vals (map :errors) (every? nil?) not))))
+                           (assoc label :editing? (boolean (not-empty (:errors label))))))
         set-inclusion #(cond-> %
                          (not (contains? % :inclusion))
                          (assoc :inclusion (pos? (-> % :definition :inclusion-values count))))]
@@ -77,6 +81,31 @@
   "Obtain the max-project-ordering from the local state of labels"
   []
   (apply max (map :project-ordering (vals (get-local-labels)))))
+
+(defn max-group-label-ordering
+  "Obtain the max-project-ordering for a group label"
+  [group-label-id]
+  (->> (-> (get-local-labels) (get group-label-id) (get :labels))
+       vals
+       (map :project-ordering)
+       (apply max)))
+
+(defn rearrange-group-label-project-ordering!
+  [labels-atom group-label-id]
+  (let [labels (-> (get-local-labels) (get group-label-id) :labels vals)
+        correct-ordering-labels (->> labels
+                                     (map-indexed (fn [idx label]
+                                                    (assoc label :project-ordering idx)))
+                                     (index-by :label-id))]
+    (swap! labels-atom assoc-in [group-label-id :labels] correct-ordering-labels)))
+
+(defn rearrange-all-local-group-labels!
+  []
+  (let [group-labels (->> (get-local-labels)
+                          vals
+                          (filter #(= "group" (:value-type %)))
+                          (map :label-id))]
+    (doall (map (partial rearrange-group-label-project-ordering! (r/cursor state [:labels])) group-labels))))
 
 (defn default-answer [value-type]
   (case value-type
@@ -175,9 +204,6 @@
   [labels-atom label]
   (swap! labels-atom assoc (:label-id label) label))
 
-(defn errors-in-labels? [labels]
-  (not (every? nil? (map :errors (vals labels)))))
-
 (defn local-label->server-label
   "Convert labels map to format used by global client state and server."
   [labels]
@@ -255,8 +281,11 @@
   (let [{:keys [label-id]} @label
         text (if (string? label-id) "Discard" "Cancel")]
     [:button.ui.small.fluid.labeled.icon.button
-     {:on-click (util/wrap-user-event #(reset-local-label! labels-atom root-label-id label-id)
-                                      :prevent-default true)}
+     {:on-click (fn [e]
+                  (.preventDefault e)
+                  (.stopPropagation e)
+                  (rearrange-all-local-group-labels!)
+                  (reset-local-label! labels-atom root-label-id label-id))}
      [:i.circle.times.icon] text]))
 
 (defn save-request-active? []
@@ -290,6 +319,7 @@
    {:on-click  (fn [e]
                  (.preventDefault e)
                  (.stopPropagation e)
+                 (rearrange-all-local-group-labels!)
                  (add-label-fn (create-blank-label value-type (inc (max-project-ordering)))))}
    [:i.plus.circle.icon]
    (str "Add " (str/capitalize value-type) " Label")])
@@ -562,7 +592,7 @@
         errors (r/cursor label [:errors])
         multi? (r/cursor definition [:multi?])
         labels (r/cursor label [:labels])]
-    [:div.ui.form.define-label
+    [:div.ui.form.define-group-label {:id (str "group-label-id-" @root-label-id)}
      ;; short-label
      [ui/TextInputField
       (make-args :short-label
@@ -576,6 +606,8 @@
                   :on-change #(reset! multi? (-> % .-target .-checked boolean))}
                  errors)]
      [:div
+      (when (:labels-error @errors)
+        [:div.ui.red.message (:labels-error @errors)])
       ;; enabled labels
       (doall (for [label (->> (vals @labels)
                               (sort-by :project-ordering <)
@@ -583,31 +615,34 @@
                ^{:key (:label-id label)}
                [:div
                 [LabelEditForm labels @root-label-id (r/cursor labels [(:label-id label)])]]))
-      ;; disabled labels
-      [Divider]
-      [:div "Disabled Labels"
-       (doall (for [label (->> (vals @labels)
-                               (sort-by :project-ordering <)
-                               (filter (comp not :enabled)))]
-                ^{:key (:label-id label)}
-                [:div
-                 [LabelEditForm labels @root-label-id (r/cursor labels [(:label-id label)])]]))]
+      (let [disabled-labels (->> (vals @labels)
+                                 (sort-by :project-ordering <)
+                                 (filter (comp not :enabled)))]
+        (when (seq disabled-labels)
+          ;; disabled labels
+          [Divider]
+          [:div "Disabled Labels"
+           (doall (for [label disabled-labels]
+                    ^{:key (:label-id label)}
+                    [:div
+                     [LabelEditForm labels @root-label-id (r/cursor labels [(:label-id label)])]]))]))
       [Divider]
       [:div.ui.one.column.stackable.grid
-       [:div.column [AddLabelButton "boolean" (partial add-new-group-label! labels)]]
-       [:div.column [AddLabelButton "categorical" (partial add-new-group-label! labels)]]
-       [:div.column [AddLabelButton "string" (partial add-new-group-label! labels)]]]]
+       [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)]]
+       [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels)]]
+       [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels)]]]]
      [:div.field {:style {:margin-bottom "0.75em"}}
       [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
        [:div.column {:style {:padding "0.5em"}
-                     :id "group-id-submit"} [SaveLabelButton label :on-click (util/wrap-user-event
-                                                                              (fn [_]
-                                                                                (if (not (labels-synced?))
-                                                                                  ;; save on server
-                                                                                  (sync-to-server)
-                                                                                  ;; just reset editing
-                                                                                  (reset! (r/cursor label [:editing?]) false)))
-                                                                              :prevent-default true) ]]
+                     :id "group-id-submit"}
+        [SaveLabelButton label :on-click (util/wrap-user-event
+                                          (fn [_]
+                                            (if (not (labels-synced?))
+                                              ;; save on server
+                                              (sync-to-server)
+                                              ;; just reset editing
+                                              (reset! (r/cursor label [:editing?]) false)))
+                                          :prevent-default true) ]]
        [:div.column {:style {:padding "0.5em"}} [CancelDiscardButton labels-atom "na" label]]]]]))
 
 ;; this corresponds to
@@ -689,7 +724,7 @@
     [:div.ui.middle.aligned.grid.label-edit
      [ui/with-tooltip
       (let [name-content [:span.name {:class (css [(>= (count short-label) 30) "small-text"])}
-                          [:span.inner (str short-label)]]]
+                          [:span.inner.short-label (str short-label)]]]
         (if (and (util/mobile?) (>= (count short-label) 30))
           [:div.ui.row.label-edit-name {:on-click on-click-help}
            [InclusionTag @label]
@@ -797,24 +832,28 @@
             max-ordering-value (->> (map  :project-ordering sub-label-vals)
                                     sort reverse
                                     first)]
-        ;; enabled
-        (doall (for [sub-label (filter :enabled sub-label-vals)]
-                 (let [sub-label-id (:label-id sub-label)
-                       label (r/cursor label [:labels sub-label-id])]
-                   ^{:key sub-label-id}
-                   [:div {:id (str "sub-label-" sub-label-id)
-                          :style {:border "solid 1px grey"
-                                  :border-radius ".28571429rem"
-                                  :margin-bottom "0.5rem"}}
-                    (when-not (= (:project-ordering sub-label) 0) [Button {:on-click #(move-label-fn sub-label-id "up")
-                                                                           :attached "top"
-                                                                           :color "grey"} (str "Move Up")])
-                    [:div.ui.column.label-edit {:class (css [(:required @label) "required"])
-                                                :style {:border "none"}}
-                     [Label label]]
-                    (when-not (= (:project-ordering sub-label) max-ordering-value) [Button {:on-click #(move-label-fn sub-label-id "down")
-                                                                                            :attached "bottom"
-                                                                                            :color "grey"} (str "Move Down")])]))))]]))
+        [:div
+         (when (and (not (seq (filter :enabled sub-label-vals)))
+                    (filter :disabled sub-label-vals))
+           [Message {:style {:margin-bottom "0.5rem"}} "There are disabled labels, edit label to view them"])
+         ;; enabled
+         (doall (for [sub-label (filter :enabled sub-label-vals)]
+                  (let [sub-label-id (:label-id sub-label)
+                        label (r/cursor label [:labels sub-label-id])]
+                    ^{:key sub-label-id}
+                    [:div {:id (str "sub-label-" sub-label-id)
+                           :style {:border "solid 1px grey"
+                                   :border-radius ".28571429rem"
+                                   :margin-bottom "0.5rem"}}
+                     (when-not (= (:project-ordering sub-label) 0) [Button {:on-click #(move-label-fn sub-label-id "up")
+                                                                            :attached "top"
+                                                                            :color "grey"} (str "Move Up")])
+                     [:div.ui.column.label-edit {:class (css [(:required @label) "required"])
+                                                 :style {:border "none"}}
+                      [Label label]]
+                     (when-not (= (:project-ordering sub-label) max-ordering-value) [Button {:on-click #(move-label-fn sub-label-id "down")
+                                                                                             :attached "bottom"
+                                                                                             :color "grey"} (str "Move Down")])])))])]]))
 
 (defn- LabelItem [labels-atom i label & {:keys [status]}]
   (let [{:keys [label-id name editing? enabled]} @label

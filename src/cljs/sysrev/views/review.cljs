@@ -13,8 +13,8 @@
             [sysrev.state.label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Button Icon Accordion AccordionContent AccordionTitle]]
-            [sysrev.util :as util :refer [in? css nbsp]]
+            [sysrev.views.semantic :refer [Button Icon Accordion AccordionContent AccordionTitle Message]]
+            [sysrev.util :as util :refer [in? css nbsp parse-integer]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn set-label-value [db article-id root-label-id label-id ith label-value]
@@ -118,10 +118,16 @@
               [trim-v]
               delete-label-instance)
 
+;; missing labels
 (reg-event-db ::create-missing-label
               [trim-v]
               (fn [db [article-id root-label-id label-id ith]]
                 (assoc-in db [:state :review :labels article-id :missing-labels root-label-id label-id ith] true)))
+
+(reg-event-db ::delete-missing-label
+              [trim-v]
+              (fn [db [article-id root-label-id label-id ith]]
+                (dissoc-in db [:state :review :labels article-id :missing-labels root-label-id label-id ith])))
 
 ;; we don't care if it is a group label or not, we are just going to check
 ;; overall for missing labels
@@ -129,11 +135,20 @@
          (fn [db [_ article-id]]
            (get-in db [:state :review :labels article-id :missing-labels])))
 
-(reg-event-db ::delete-missing-label
+;; invalid labels
+(reg-event-db ::create-invalid-label
               [trim-v]
               (fn [db [article-id root-label-id label-id ith]]
-                (dissoc-in db [:state :review :labels article-id :missing-labels root-label-id label-id ith])))
+                (assoc-in db [:state :review :labels article-id :invalid-label root-label-id label-id ith] true)))
 
+(reg-event-db ::delete-invalid-label
+              [trim-v]
+              (fn [db [article-id root-label-id label-id ith]]
+                (dissoc-in db [:state :review :labels article-id :invalid-label root-label-id label-id ith])))
+
+(reg-sub ::invalid-labels
+         (fn [db [_ article-id]]
+           (get-in db [:state :review :labels article-id :invalid-label])))
 
 (defn BooleanLabelInput
   [[root-label-id label-id ith] article-id]
@@ -252,7 +267,7 @@
           (fn [i val]
             (let [left-action? true
                   right-action? (and multi? (= i (dec nvals)))
-                  valid? @(subscribe [:label/valid-string-value? root-label-id label-id ith val])
+                  valid? @(subscribe [:label/valid-string-value? root-label-id label-id val])
                   focus-elt (fn [value-idx]
                               #(js/setTimeout
                                 (fn []
@@ -305,7 +320,19 @@
                  (when right-action?
                    [:div.ui.icon.button.input-row {:class (css [(not can-add?) "disabled"])
                                                    :on-click add-next-handler}
-                    [:i.plus.icon]])]]])))))])))
+                    [:i.plus.icon]])]]
+               (when (and (not valid?)
+                          (not (clojure.string/blank? val)))
+                 (dispatch [::create-invalid-label article-id root-label-id label-id ith])
+                 [Message {:color "red"} "Invalid Value"])
+               ;; check that the labels are no longer invalid, clear if they're not
+               (when (if-let [validated-vals (->> curvals
+                                                  (filter (comp not clojure.string/blank?))
+                                                  (map (fn [val] @(subscribe [:label/valid-string-value? root-label-id label-id val]))))]
+                       (every? true? validated-vals)
+                       true)
+                 ;; when every value is valid, clear out invalid label setting for this label
+                 (dispatch [::delete-invalid-label article-id root-label-id label-id ith]))])))))])))
 
 (defn- inclusion-tag [article-id root-label-id label-id ith]
   (let [criteria? @(subscribe [:label/inclusion-criteria? root-label-id label-id])
@@ -411,11 +438,9 @@
                        :width "100%"}}
          [StringLabelInput [root-label-id label-id ith] article-id]]
         [:div "unknown label - label-column"])
+      ;; missing label
       (if (and @(subscribe [:label/required? root-label-id label-id])
-               (not @(subscribe [:label/non-empty-answer? root-label-id label-id @answer]))
-               ;; doesn't seem to be needed, oddly
-               ;;@(subscribe [:label/enabled? root-label-id label-id])
-               )
+               (not @(subscribe [:label/non-empty-answer? root-label-id label-id @answer])))
         (do
           (dispatch [::create-missing-label article-id root-label-id label-id ith])
           [:div {:style {:text-align "center"
@@ -436,7 +461,7 @@
          [AccordionTitle {:active @active
                           :on-click (fn [_]
                                       (swap! active not))}
-          [Icon {:name "dropdown"}] label-name
+          [Icon {:name "dropdown"}] (str label-name " " (+ (parse-integer ith) 1))
           (when-not (= ith "0")
             [Icon {:name "delete"
                    :on-click #(do
@@ -586,8 +611,7 @@
         on-review-task? @(subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
         missing @(subscribe [::missing-labels article-id])
-        ;; not sure this is relevant, not refactored for group labels
-        invalid @(subscribe [:review/invalid-labels article-id])
+        invalid @(subscribe [::invalid-labels article-id])
         disabled? (or (seq missing) (not-empty invalid))
         saving? (and @(subscribe [:review/saving? article-id])
                      (or (loading/any-action-running? :only :review/send-labels)
@@ -642,14 +666,9 @@
            {:style {:min-width "20em"}}
            [:ul {:style {:padding-left "1.25em"}}
             (when (seq missing)
-              [:li #_(str "Answer missing for a required label: ("
-                          (show-label-names missing)
-                          ")")
-               "Answer missing for a required label"])
+              [:li "Answer missing for a required label"])
             (when (seq invalid)
-              [:li (str "Invalid answer for one or more labels: ("
-                        (show-label-names invalid)
-                        ")")])]])))
+              [:li "Invalid label answer(s)"])]])))
 
 (defn SkipArticle [article-id & [small? fluid?]]
   (let [saving? (and @(subscribe [:review/saving? article-id])
@@ -671,10 +690,11 @@
                           (nil? (aget ($ "div.view-pdf.updating") 0)))
                     #(when on-review-task?
                        (sync-article-notes article-id)
-                       (dispatch [:review/send-labels {:project-id project-id
-                                                       :article-id article-id
-                                                       :confirm? false
-                                                       :resolve? false}])
+                       ;; skip article should not SAVE labels!
+                       #_(dispatch [:review/send-labels {:project-id project-id
+                                                         :article-id article-id
+                                                         :confirm? false
+                                                         :resolve? false}])
                        (dispatch [:fetch [:review/task project-id]])))))]
     (list ^{:key :skip-article}
           [:button.ui.right.labeled.icon.button.skip-article

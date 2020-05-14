@@ -38,7 +38,7 @@
   "Creates an entry for a label definition.
   Ordinarily this will be directly called only by one of the type-specific
   label creation functions."
-  [project-id {:keys [name question short-label category enabled
+  [project-id {:keys [name question short-label category enabled project-ordering
                       required consensus value-type definition root-label-id-local]
                :or {enabled true
                     root-label-id-local nil}}]
@@ -47,7 +47,10 @@
   (db/with-clear-project-cache project-id
     (q/create :label
               (cond-> {:project-id project-id
-                       :project-ordering (when enabled (next-project-ordering project-id root-label-id-local))
+                       :project-ordering (when enabled
+                                           (if root-label-id-local
+                                             project-ordering
+                                             (next-project-ordering project-id root-label-id-local)))
                        :value-type value-type
                        :name name
                        :question question
@@ -535,7 +538,11 @@
           (alter-label-entry project-id label-id (assoc label :root-label-id-local root-label-id-local)))
         ;; need to also alter the root label if it already exists
         (when label-existed?
-          (alter-label-entry project-id label-id (dissoc m :labels)))
+          (->> (alter-label-entry project-id label-id (-> m
+                                                          (dissoc :labels)
+                                                          (assoc :enabled
+                                                                 ;; this label is disabled if all sublabels are disabled
+                                                                 (not (every? false? (map :enabled client-labels))))))))
         ;; adjust the label ordering
         (adjust-label-project-ordering-values project-id)
         {:valid? true

@@ -166,21 +166,6 @@
                     (boolean (in? inconsistent label-id))
                     (vec inconsistent))))))
 
-;; not sure this is even relevant, not refactored for group labels
-(reg-sub-raw :review/invalid-labels
-             (fn [_ [_ article-id]]
-               (reaction
-                (let [answers @(subscribe [:review/active-labels article-id])
-                      valid? (fn [label-id]
-                               (case @(subscribe [:label/value-type "na" label-id])
-                                 "string"
-                                 (->> (get answers label-id)
-                                      (filter not-empty)
-                                      (every? #(deref (subscribe [:label/valid-string-value?
-                                                                  "na" label-id %]))))
-                                 true))]
-                  (vec (remove valid? @(subscribe [:project/label-ids])))))))
-
 ;; Record POST action to send labels having been initiated,
 ;; to show loading indicator on the button that was clicked.
 (reg-event-fx :review/mark-saving [trim-v]

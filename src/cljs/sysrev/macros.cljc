@@ -90,11 +90,13 @@
           sync-notes? (not @(subscribe [:review/all-notes-synced? article-id]))
           ui-notes @(subscribe [:review/ui-notes article-id])
           article-notes @(subscribe [:article/notes article-id user-id])]
-      (when send-labels?
-        (dispatch [:action [:review/send-labels
-                            project-id {:article-id article-id
-                                        :label-values active-values
-                                        :confirm? false :resolve? false :change? false}]]))
+      ;; not sure this should occur here anymore, labels should
+      ;; be manually saved and this causes errors in the console
+      #_(when send-labels?
+          (dispatch [:action [:review/send-labels
+                              project-id {:article-id article-id
+                                          :label-values active-values
+                                          :confirm? false :resolve? false :change? false}]]))
       (when sync-notes?
         (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
       (if (or send-labels? sync-notes?)

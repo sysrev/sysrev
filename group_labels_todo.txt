@@ -1,34 +1,53 @@
 1. [X] multiple group answers
 2. [X] labels within a group should be orderable
 3. [X] sub labels should have correct *initial* label ordering (label editor)
-4. [X] single sub labels should not be orderable
-5. [X] when editing /setting labels, a multiple group label should be deletable
-6. [X] check behavior of disable labels, including those within group labels (label editor)
-7. [X] check behavior of disabled labels  (review editor)
-8. [X] Fix overall save button, buttons positions (issue: There are forms within forms perhaps?)
-9. [X] cancel button should dismiss form in sublabels
-10. [X] cancel button shouldn't destroy label!
-11. [X] fix layout of buttons in label editor
-12. [X] prettify 'move-up' 'move-down' labels
-13. [X] Make labels collapsible when setting labels on article
-14. [X] fix layout of label answers for article (also, fix overlap)
-15. [X] remove hamburger button on edit label views
-16. [X] re-enable drag/drop functionality
-17. [X] when labeling, check that required, allow multiple, blank answer check, etc.
+   1. [X] Don't allow nil :labels values
+   2. [X] check what happens after a discard
+4. [X] check behavior of disabled labels  (review editor)
+   1. [X] Ensure that if an article with a label has only disabled sublabels, it is not shown as a tag
+   2. [X] Ensure that the review setting does not show a label if all sublabels are disabled
+5. [X] ensure that the regex validator works
+   1. [X] for individual labels as being edited
+   2. [X] The overall save button is disabled
+6. [X] ensure that the inconsistent class works - currently: only when overall is true and boolean inclusion criteria is opposite it... seems broken
+       not going to worry about this... not really function
+7. [X] Add Label indexing (Label 0... Label n) to label editor view
+8. [X] Issue that multiple string labels have a blank "" in answer?
+9. [X] "disabling" a sublabel ruins everything
+10. [X] Saving an invalid sub label is allowed!
+11. [X] single sub labels should not be orderable
+12. [X] when editing /setting labels, a multiple group label should be deletable
+13. [X] check behavior of disable labels, including those within group labels (label editor)
+14. [X] Fix overall save button, buttons positions (issue: There are forms within forms perhaps?)
+15. [X] cancel button should dismiss form in sublabels
+16. [X] cancel button shouldn't destroy label!
+17. [X] fix layout of buttons in label editor
+18. [X] prettify 'move-up' 'move-down' labels
+19. [X] Make labels collapsible when setting labels on article
+20. [X] fix layout of label answers for article (also, fix overlap)
+21. [X] remove hamburger button on edit label views
+22. [X] re-enable drag/drop functionality
+23. [X] when labeling, check that required, allow multiple, blank answer check, etc.
 	still work for grouped labels (define labels)
-18. [X] change labels is broken for group labels
-19. [ ] fix issue where reviewing, then navigating away, it tries to send the labels
-20. [ ] label counts for users? in charts?
-21. [ ] check 'unconfirmed/resolved' labels in sysrev.view.label/LabelValuesView
-22. [ ] There is no cancel button for editing label responses
-23. [X] include label is not turning orange / green
-24. [ ] check projects that don't have group labels
-25. [ ] make sure to include **multiple** group labels for 'missing' / 'invalid' labels
+24. [X] change labels is broken for group labels
+25. [X] fix issue where reviewing, then navigating away, it tries to send the labels
+26. [ ] label counts for users? in charts?
+28. [ ] labels in csv export?
+29. [ ] Ensure GraphQL query is correct
+30. [ ] check 'unconfirmed/resolved' labels in sysrev.view.label/LabelValuesView
+31. [X] include label is not turning orange / green
+32. [ ] check projects that don't have group labels
+33. [X] make sure to include **multiple** group labels for 'missing' / 'invalid' labels
         (disable save button)
-26. [ ] css - replace inline display with actual css (define_labels.cljs, review.cljs<views>, labels.cljs<views>)
-27. [ ] make sure dark / light mode looks good
-28. [ ] make sure mobile looks good (label editor, label tags, review label)
-29. [ ] Remove this file from the repo
+34. [X] css - replace inline display with actual css (define_labels.cljs, review.cljs<views>, labels.cljs<views>)
+35. [ ] make sure dark / light mode looks good
+36. [ ] make sure mobile looks good (label editor, label tags, review label)
+37. [X] No way to disable grouped labels either!
+38. [X] why does 'define-group-label' not create them in order?
+39. [ ] There is no cancel button for editing label responses
+40. [ ] does the client always crash when clicking "Add Group Label" ? in prod?
+41. [ ] Remove this file from the repo
+
 
 
 

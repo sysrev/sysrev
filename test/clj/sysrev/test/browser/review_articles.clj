@@ -50,7 +50,7 @@
   (xpath "//span[contains(@class,'name')]"
          (format "/span[contains(@class,'inner') and text()='%s']" short-label)
          "/ancestor::div[contains(@class,'label-edit')"
-         " and contains(@class,'column')]"))
+         " and contains(@class,'column')][1]"))
 
 (defn-spec set-boolean-value any?
   "Sets boolean label `short-label` to `value` in review interface."

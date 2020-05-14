@@ -192,7 +192,7 @@
             pdf-only? (and title visible-url (:filename pdf)
                            (= (str/trim title) (str/trim (:filename pdf))))]
         ;;(get-annotations article-id)
-        [:div {:data-article-id article-id}
+        [:div
          ;; abstract / pdf selection
          (when (and (not-empty pdfs) (not-empty abstract))
            [:div {:style {:margin-bottom "0.5em"}}
@@ -354,7 +354,7 @@
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
        (list [:div.ui.middle.aligned.header.grid.segment.article-header {:key :article-header}
-              [:div.five.wide.middle.aligned.column>h4.ui.article-info "Article Info"]
+              [:div.five.wide.middle.aligned.column>h4.ui.article-info {:data-article-id article-id} "Article Info"]
               [:div.eleven.wide.column.right.aligned
                (when disabled?
                  [:div.ui.basic.label.review-status.orange "Disabled"])
