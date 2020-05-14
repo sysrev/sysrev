@@ -23,7 +23,7 @@
 
 
 (defn not-admin-description []
-  [:div.ui.aligned.segment {:style {:text-align "center" }}
+  [:div.ui.aligned.segment {:id "no-admin-paywall" :style {:text-align "center" }}
    [:div
     [:h2 "Analytics is not available for your account"]
     [:h3 "1. You must have admin permissions for this project" [:br] "2. Project owner must have a Pro account" [:br]
@@ -31,8 +31,8 @@
     [:span "Learn more about analytics in the below video or at "
      [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]]
     [:br]
-    [:span "Play with a live demo of analytics at "
-     [:a {:href "p/21696/analytics/concordance"} "Live Demo"]]
+    [:span "or try the "
+     [:a {:href "/p/21696/analytics/concordance"} "Live Demo"]]
     [:br][:br]]
    [:div {:style {:height "50vh"}}
     [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
@@ -41,15 +41,15 @@
   )
 
 (defn paywall []
-  [:div.ui.aligned.segment {:style {:text-align "center" }}
+  [:div.ui.aligned.segment {:id "paywall" :style {:text-align "center" }}
    [:div
     [:h2 "Analytics is only available for pro accounts" [:br]
      "Sign up at " [:a {:href "/pricing"} "sysrev.com/pricing"]]
-    [:span "Learn more about analytics in the below video or at "
+    [:span "Learn more at "
      [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]]
     [:br]
-    [:span "Play with a live demo of analytics at "
-     [:a {:href "p/21696/analytics/concordance"} "Live Demo"]]
+    [:span "or try the  "
+     [:a {:href "/p/21696/analytics/concordance"} "Live Demo"]]
     [:br][:br]]
    [:div  {:style {:height "50vh"}}
     [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
@@ -73,6 +73,7 @@
            ]
           child]
          (not (admin?)) [not-admin-description]
-         (and (not= project-plan "Basic") (admin?)) child ;project admins of paid plan projects can see analytics
+         (and (= project-plan "Unlimited_User") (admin?)) child ;project admins of paid plan projects can see analytics
+         (and (= project-plan "Unlimited_Org") (admin?)) child ;project admins of paid plan projects can see analytics
          :else [paywall])
        ])))
