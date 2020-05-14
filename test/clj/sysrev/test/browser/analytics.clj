@@ -80,7 +80,7 @@
       (is (->> (taxi/element "h2#overall-concordance")
                (taxi/text)
                (= "Concordance 100.0%")))
-      (taxi/take-screenshot :file "/home/thomas/tmp/test.png")))
+      ))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)
                (is (b/exists? "div#login-register-panel"))))
