@@ -601,7 +601,7 @@
            [:span "The concordance analytics service is currently down. We are working to bring it back."]]
 
           (->> (:label @(subscribe [:project/concordance])) (mapv :count) (reduce +) (= 0))
-          [:div
+          [:div {:id "no-data-concordance"}
            "To view concordance data, you need 2+ users to review boolean labels on the same article at least once."
            [:br][:br]
            "Set the 'Article Review Priority' to 'balanced' or 'full' under manage -> settings to guarantee overlaps."
@@ -618,7 +618,7 @@
             [Grid {:stackable true}
              [Row
               [Column {:width 8}
-               [:h2 (gstring/format "Concordance %.1f%%" mean-conc)]
+               [:h2 {:id "overall-concordance"} (gstring/format "Concordance %.1f%%" mean-conc)]
                (cond
                  (> mean-conc 98)
                  [:span {:style {:color (:bright-green colors)}} "Great job! Your project is highly concordant"]
@@ -629,7 +629,8 @@
                  [:span {:style {:color (:red colors)}} "Significant discordance in your labels.
              Make sure your reviewers all understand their tasks. "])
                [:br]
-               [:span "This is the Beta version of analytics. Provide feedback on this " [:a {:href "https://forms.gle/r9gfb96jCmBrWUBY9"} "google form"] "."]
+               [:span "This is the Beta version of analytics. Provide feedback on this "
+                [:a {:href "https://forms.gle/r9gfb96jCmBrWUBY9"} "google form"] "."]
                [:br]
                [:span "User concordance tracks how often users agree with each other. "]
                [:br]
