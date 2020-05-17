@@ -663,13 +663,15 @@
 
 (defn join-article-predict-values [m & [predict-run-id]]
   (if-not predict-run-id m
-          (cond-> m
-            true (merge-left-join [:label-predicts :lp]
-                                  [:= :lp.article-id :a.article-id])
-            predict-run-id (merge-where [:= :lp.predict-run-id predict-run-id])
-            true (merge-where [:or
-                               [:= :lp.stage 1]
-                               [:= :lp.stage nil]]))))
+          (-> m
+              (merge-left-join [:label-predicts :lp]
+                               [:= :lp.article-id :a.article-id])
+              (merge-where [:or
+                            [:= :lp.predict-run-id nil] ; no left-join match
+                            [:= :lp.predict-run-id predict-run-id]])
+              (merge-where [:or
+                            [:= :lp.stage nil] ; no left-join match
+                            [:= :lp.stage 1]]))))
 
 (defn with-article-predict-score [m predict-run-id]
   (if-not predict-run-id m
@@ -677,7 +679,9 @@
               (join-article-predict-values predict-run-id)
               (merge-left-join [:label :l]
                                [:= :l.label-id :lp.label-id])
-              (merge-where [:= :l.name "overall include"])
+              (merge-where [:or
+                            [:= :l.name nil] ; no left-join match
+                            [:= :l.name "overall include"]])
               (merge-select [:lp.val :score]))))
 
 (defn select-latest-predict-run [fields]
