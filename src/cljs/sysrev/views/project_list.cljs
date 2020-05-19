@@ -107,7 +107,7 @@
                      :member? true}]
    [ProjectListItem {:project-id 24557
                      :name (:name @(subscribe [:public-projects 24557]))
-                     :description [:span " -  aims to synthesize peer-reviewed evidence on the effects of fire on Australian invertebrates. "]
+                     :description [:span " - This project was established in response to the catastrophic 2019-20 bushfire season in Australia, and will identify key knowledge gaps and research priorities for understanding how Australian invertebrates respond to fire events. "]
                      :member? true}]
    [ProjectListItem {:project-id 3509
                      :name (:name @(subscribe [:public-projects 3509]))
