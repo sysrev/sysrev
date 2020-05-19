@@ -225,21 +225,23 @@
 
 (defn height [num-elements] (+ 80 (* 2 (+ 8 (* 10 num-elements)))))
 
-(defn count-checkbox [event subscription]
-  [Checkbox {:as        "h4"
-             :style     {:margin-top "0.0rem" :margin-right "10px"}
+(defn count-checkbox [event subscription id]
+  [Checkbox {:id        id
+             :as        "h4"
+             :style     {:margin-top "0.0rem" :margin-right "10px" }
              :checked   subscription
              :on-change #(dispatch [event (not subscription)])
              :radio     true
+             :size      "large"
              :label     "Count"}])
 
-(defn perc-checkbox [event subscription]
-  [Checkbox {:as        "h4"
-             :style     {:margin-top "0.0rem" :margin-right "10px"}
+(defn perc-checkbox [event subscription id]
+  [Checkbox {:id        id
+             :as        "h4"
+             :style     {:margin-top "0.0rem" :margin-right "10px" }
              :checked   (or (nil? subscription) (false? subscription))
              :on-change #(dispatch [event (not subscription)])
              :radio     true
-             :size      "mini"
              :label     "Percent"}])
 
 (defn chart-onlick [labels set-event]
@@ -292,9 +294,9 @@
                   :animate? true :items-clickable? true)]
     [:div
      [:h5 {:style {:display "inline-block"}} "Concordant Articles by Label"]
-     [:div {:style {:float "right" }}
-      [perc-checkbox ::set-show-counts-step-1 show-counts]
-      [count-checkbox ::set-show-counts-step-1 show-counts]]
+     [:div
+      [perc-checkbox ::set-show-counts-step-1 show-counts "step-1-percent-checkbox"]
+      [count-checkbox ::set-show-counts-step-1 show-counts "step-1-count-checkbox"]]
      [chartjs/horizontal-bar {:data data :height height :options options}]]))
 
 ; STEP 2
@@ -337,9 +339,9 @@
     [:div
      [:h5 {:style {:display "inline-block"}} "User Concordant Articles on  "
       [:span {:style {:color (:select-blue colors)}} (str (first selected-labels))]]
-     [:div {:style {:float "right" }}
-      [perc-checkbox ::set-show-counts-step-2 show-counts]
-      [count-checkbox ::set-show-counts-step-2 show-counts]]
+     [:div
+      [perc-checkbox ::set-show-counts-step-2 show-counts "step-2-percent-checkbox"]
+      [count-checkbox ::set-show-counts-step-2 show-counts "step-2-count-checkbox"]]
      [chartjs/horizontal-bar {:data data :height height :options options}]]))
 
 ; STEP 3
@@ -397,16 +399,16 @@
      [:h5 {:style {:display "inline-block"}} "User Concordant Articles "
       " vs " [:span {:style {:color (:select-blue colors)}} (str (first selected-user))]
       " on " [:span {:style {:color (:select-blue colors)}} (str (first selected-label))]]
-     [:div {:style {:float "right" }}
-      [perc-checkbox  ::set-show-counts-step-3 show-counts]
-      [count-checkbox ::set-show-counts-step-3 show-counts]]
+     [:div
+      [perc-checkbox  ::set-show-counts-step-3 show-counts "step-3-percent-checkbox"]
+      [count-checkbox ::set-show-counts-step-3 show-counts "step-3-count-checkbox"]]
      [chartjs/horizontal-bar {:data data :height height :options options}]]))
 
 ; PAGE DEFINITION
-(def broken-service-view
+(defn broken-service-view []
   [:div [:span "The concordance analytics service is currently down. We are working to bring it back."]])
 
-(def no-data-view
+(defn no-data-view []
   [:div {:id "no-data-concordance"}
    "To view concordance data, you need 2+ users to review boolean labels on the same article at least once."
    [:br][:br] "Set the 'Article Review Priority' to 'balanced' or 'full' under manage -> settings to guarantee overlaps."
@@ -461,4 +463,6 @@
                             (dispatch [::set-concordance-user-selection nil]))}))
 
 (defmethod panel-content [:project :project :analytics :concordance] []
-  (fn [child] [:div.ui.aligned.segment [ConcordanceView] child]))
+  (fn [child]
+    [:div.ui.aligned.segment
+     [ConcordanceView] child]))

@@ -31,17 +31,14 @@
 (defmethod panel-content [:project :project :analytics :labels] []
   (fn [child]
     [:div.ui.aligned.segment
-     [Grid {:stackable true}
+     [Grid {:stackable true :divided "vertically"}
       [Row
        [Column {:width 12}
         [:h3 "Label Analysis - Coming Soon" ]
         [:span "Beta version of analytics. Email errors and suggestions to us info@insilica.co."]
-        [:br]
-        [:span "Label analysis will provide interactive tools to get counts of label answers under different conditions."]
-        [:br]
-        [:span "Give us your feedback below "
+        [:br] [:span "Label analysis will provide interactive tools to get counts of label answers under different conditions."]
+        [:br] [:span "Give us your feedback below "
          [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]]]]
-      [:div.ui.divider]
       [Row
        [Column {:width 16}
         [:div {:style {:text-align "center"}}

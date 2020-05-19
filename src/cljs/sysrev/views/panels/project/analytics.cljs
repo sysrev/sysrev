@@ -2,12 +2,10 @@
   (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
-            [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
             [sysrev.shared.charts :refer [processed-label-color-map]]
-            [sysrev.views.charts :as charts]
             [sysrev.views.components.core :refer
              [primary-tabbed-menu secondary-tabbed-menu]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
@@ -20,7 +18,6 @@
 (defn admin? []
   (or @(subscribe [:member/admin?])
       @(subscribe [:user/admin?])))
-
 
 (defn not-admin-description []
   [:div.ui.aligned.segment {:id "no-admin-paywall" :style {:text-align "center" }}
@@ -37,8 +34,7 @@
    [:div {:style {:height "50vh"}}
     [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
               :frameborder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-              :allowfullscreen "true"}]]]
-  )
+              :allowfullscreen "true"}]]])
 
 (defn paywall []
   [:div.ui.aligned.segment {:id "paywall" :style {:text-align "center" }}
@@ -54,9 +50,12 @@
    [:div  {:style {:height "50vh"}}
     [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
               :frameborder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-              :allowfullscreen "true"}]]]
-  )
+              :allowfullscreen "true"}]]])
 
+(defn demo-message []
+   [:div {:style {:text-align "right"}}
+    [:span {:style {:color "red"}}
+     [:b "Analytics Demo - Register For " [:a {:href "/pricing"} "Sysrev Pro"] " To Access On Personal Projects"]]])
 (defmethod panel-content [:project :project :analytics] []
   (fn [child]
     (let [project-id    @(subscribe [:active-project-id])
@@ -65,15 +64,8 @@
       [:div.project-content
        (cond
          superuser? child ;superusers like the insilica team can always see analytics
-         (= project-id 21696)
-         [:div
-          [:div {:style {:text-align "right"}}
-           [:span {:style {:color "red"}}
-            [:b "Analytics Demo - Register For " [:a {:href "/pricing"} "Sysrev Pro"] " To Access On Personal Projects"]]
-           ]
-          child]
-         (not (admin?)) [not-admin-description]
+         (= project-id 21696)                             [:div [demo-message] child]
+         (not (admin?))                                   [not-admin-description]
          (and (= project-plan "Unlimited_User") (admin?)) child ;project admins of paid plan projects can see analytics
-         (and (= project-plan "Unlimited_Org") (admin?)) child ;project admins of paid plan projects can see analytics
-         :else [paywall])
-       ])))
+         (and (= project-plan "Unlimited_Org")  (admin?)) child ;project admins of paid plan projects can see analytics
+         :else                                            [paywall])])))
