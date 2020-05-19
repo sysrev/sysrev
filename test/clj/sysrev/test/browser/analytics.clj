@@ -21,7 +21,7 @@
                     [:project :project :add-articles]])))
 
 ; test analytics privileges for basic and unlimited users
-(deftest-browser analytics-permissions true test-user []
+(deftest-browser analytics-permissions (and (test/db-connected?) (not (test/remote-test?))) test-user []
   (do (nav/log-in (:email test-user))
       (nav/new-project "Simple Test")
       ; import some articles
@@ -47,7 +47,7 @@
                (is (b/exists? "div#login-register-panel"))))
 
 ; test concordance with labeled articles
-(deftest-browser concordance-generation true test-user []
+(deftest-browser concordance-generation (and (test/db-connected?) (not (test/remote-test?))) test-user []
   (do
     ; log in user 1
     (nav/log-in (:email test-user))
