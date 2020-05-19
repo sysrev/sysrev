@@ -75,9 +75,7 @@
   "When include? is true, set check box to 'Yes', when false, set to 'No'"
   [xpath include?]
   (let [checkbox #(value-for-inclusion-checkbox xpath (if % "Yes" "No"))]
-    (when (or (and include? (taxi/selected? (checkbox (not include?))))
-              (and (not include?) (taxi/selected? (checkbox (not include?)))))
-      (b/click (checkbox include?)))))
+    (b/click (checkbox include?))))
 
 (defn set-boolean-label-definition
   [xpath {:keys [question short-label required definition]
@@ -186,7 +184,7 @@
                           (define-label label (x/xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" (+ 1 idx) "]")))
                         labels))
     ;; save this label
-    #_(b/click save-button)))
+    (b/click save-button)))
 
 (defn label-definition-div [label-id]
   (xpath (format "//div[@id='%s']" label-id)))

@@ -495,7 +495,7 @@
   [project-id m]
   (db/with-clear-project-cache project-id
     (db/with-transaction
-      (let [{:keys [enabled value-type name short-label required category label-id]} m
+      (let [{:keys [enabled value-type name short-label required category label-id definition]} m
             label-existed? (not (string? label-id)) ; remember: new labels are strings
             current-label (if label-existed?
                             ;; label exists
@@ -514,7 +514,8 @@
                                           :required required
                                           :category category
                                           :enabled enabled
-                                          :question "N/A"}])
+                                          :question "N/A"
+                                          :definition definition}])
                                 (psqlh/returning :*)
                                 do-query
                                 first))

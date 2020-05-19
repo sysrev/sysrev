@@ -1,5 +1,7 @@
 (ns sysrev.state.review
-  (:require [re-frame.core :refer
+  (:require [clojure.walk :as walk]
+            [clojure.string :as string]
+            [re-frame.core :refer
              [subscribe reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
             [sysrev.data.core :refer [def-data]]
@@ -192,6 +194,13 @@
                        [:review/reset-ui-labels]
                        [:review/reset-ui-notes])}))
 
+;; this is needed for group string labels that allow multiple values
+(defn filter-blank-string-labels
+  [m]
+  (let [f (fn [[k v]] (if (vector? v) [k (filterv (comp not string/blank?) v)] [k v]))]
+    ;; only apply to maps
+    (walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) m)))
+
 ;; Runs the :review/send-labels POST action using label values
 ;; taken from active review interface.
 (reg-event-fx :review/send-labels [trim-v]
@@ -205,7 +214,7 @@
                                [:action [:review/send-labels
                                          project-id
                                          {:article-id article-id
-                                          :label-values label-values
+                                          :label-values (filter-blank-string-labels label-values)
                                           :confirm? confirm?
                                           :resolve? resolve?
                                           :change? change?

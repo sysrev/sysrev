@@ -605,7 +605,8 @@
                  {:checked? @multi?
                   :on-change #(reset! multi? (-> % .-target .-checked boolean))}
                  errors)]
-     [:div
+     [:div {:class (when (:labels-error @errors)
+                     "error")}
       (when (:labels-error @errors)
         [:div.ui.red.message (:labels-error @errors)])
       ;; enabled labels
@@ -856,13 +857,18 @@
                                                                                              :color "grey"} (str "Move Down")])])))])]]))
 
 (defn- LabelItem [labels-atom i label & {:keys [status]}]
-  (let [{:keys [label-id name editing? enabled]} @label
+  (let [{:keys [label-id name editing? enabled value-type]} @label
         admin? (or @(subscribe [:member/admin?])
                    @(subscribe [:user/admin?]))
         allow-edit? (and admin? (not= name "overall include"))
         {:keys [draggable]} status]
-    [:div.ui.middle.aligned.grid.label-item {:id (str label-id)
-                                             :class (css [(not enabled) "secondary"] "segment")}
+    [:div.ui.middle.aligned.grid.label-item
+     {:id
+      ;; this is hacky, but needed for group label tests.
+      (if (= "group" value-type)
+        (str "group-label-" label-id)
+        (str label-id))
+      :class (css [(not enabled) "secondary"] "segment")}
      [:div.row
       [ui/TopAlignedColumn
        [:div.ui.label {:class (css [enabled "blue" :else "gray"])} (str (inc i))]
@@ -944,11 +950,6 @@
                       :status {:draggable false}]]
                     ;; other active labels should be movable
                     ^{:key [:label-item i label-id]}
-                    #_[wrap-label-dnd {:idx i, :label-id (str label-id)}
-                       (fn [{:as _props}]
-                         [:div.column {:key [:label-column i label-id]}
-                          [LabelItem (r/cursor state [:labels]) i (r/cursor state [:labels label-id])
-                           :status {:draggable true}]])]
                     [wrap-label-dnd {:idx i :label-id (str label-id)}
                      (fn [{:as _props}]
                        [:div.column {:key [:label-column i label-id]}
