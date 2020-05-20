@@ -1,7 +1,6 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
-  (:require [bouncer.core :as b]
-            [clojure.data.json :as json]
+  (:require [clojure.data.json :as json]
             [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
@@ -686,51 +685,12 @@
 (defn sync-labels [project-id labels-map]
   ;; first let's convert the labels to a set
   (db/with-clear-project-cache project-id
-    (let [client-labels (set (vals labels-map))
-          all-labels-valid? (->> client-labels
-                                 (map #(b/valid? % (ldefine/label-validations %)))
-                                 (every? true?))]
-      ;; labels must be valid
-      (if all-labels-valid?
-        ;; labels are valid
-        (let [server-labels-map (project/project-labels project-id true)
-              server-labels (set (vals server-labels-map))
-              ;; new labels are given a randomly generated string id on
-              ;; the client, so labels that are non-existent on the server
-              ;; will have string as opposed to UUID label-ids
-              new-client-labels (set (filter (comp string? :label-id) client-labels))
-              current-client-labels (set (filter (comp uuid? :label-id) client-labels))
-              modified-client-labels (set/difference current-client-labels server-labels)]
-          ;; creation/modification of labels should be done
-          ;; on labels that have been validated.
-          ;;
-          ;; labels are never deleted, the enabled flag is set to 'empty'
-          ;; instead
-          ;;
-          ;; If there are issues with a label being incorrectly
-          ;; modified, add a validator for that case so that
-          ;; the error can easily be reported in the client
-          (doseq [label new-client-labels]
-            (label/add-label-entry project-id label))
-          (doseq [{:keys [label-id] :as label} modified-client-labels]
-            (label/alter-label-entry project-id label-id label))
-          (label/adjust-label-project-ordering-values project-id)
-          {:valid? true
-           :labels (project/project-labels project-id true)})
-        ;; labels are invalid
-        {:valid? false
-         :labels (->> client-labels
-                      ;; validate each label
-                      (map #(b/validate % (ldefine/label-validations %)))
-                      ;; get the label map with attached errors
-                      (map second)
-                      ;; rename bouncer.core/errors -> errors
-                      (map #(set/rename-keys % {:bouncer.core/errors :errors}))
-                      ;; create a new hash map of labels which include
-                      ;; errors
-                      (map #(hash-map (:label-id %) %))
-                      ;; finally, return a map
-                      (apply merge))}))))
+    (if (ldefine/all-labels-valid? labels-map)
+      ;; labels are valid
+      (label/sync-labels project-id labels-map)
+      ;; labels are invalid
+      {:valid? false
+       :labels (ldefine/validated-labels labels-map)})))
 
 (defn project-important-terms [project-id & [max-terms]]
   (let [max-terms (or max-terms 20)

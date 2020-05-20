@@ -50,14 +50,17 @@
   (xpath "//span[contains(@class,'name')]"
          (format "/span[contains(@class,'inner') and text()='%s']" short-label)
          "/ancestor::div[contains(@class,'label-edit')"
-         " and contains(@class,'column')]"))
+         " and contains(@class,'column')][1]"))
+
+(defn sub-label-div-with-name [root-short-label sub-short-label]
+  (xpath "//div[contains(@class,'title') and contains(text(),'" root-short-label "')]" (label-div-with-name sub-short-label)))
 
 (defn-spec set-boolean-value any?
   "Sets boolean label `short-label` to `value` in review interface."
-  [short-label string?, value (s/nilable boolean?)]
-  (b/click (xpath (label-div-with-name short-label)
-                  (format "/descendant::div[text()='%s']"
-                          (case value true "Yes" false "No" nil "?"))))
+  [short-label string?, value (s/nilable boolean?), & [xpath] any?]
+  (b/click (x/xpath xpath (label-div-with-name short-label)
+                    (format "/descendant::div[text()='%s']"
+                            (case value true "Yes" false "No" nil "?"))) )
   (Thread/sleep 30))
 
 (defn string-plus-button-xpath [short-label]
@@ -66,8 +69,8 @@
          "/ancestor::div[contains(@class,'button')"
          " and contains(@class,'input-row')]"))
 
-(defn string-plus-buttons [short-label]
-  (seq (->> (string-plus-button-xpath short-label)
+(defn string-plus-buttons [short-label & [xpath]]
+  (seq (->> (x/xpath xpath (string-plus-button-xpath short-label))
             (taxi/find-elements)
             (filterv taxi/displayed?))))
 
@@ -79,13 +82,13 @@
 
 (defn-spec add-string-value any?
   "Adds `value` to string label `short-label` in review interface."
-  [short-label string?, value string?]
-  (let [q-empty (string-input-xpath short-label "")
-        q-value (string-input-xpath short-label value"")]
+  [short-label string?, value string?, & [xpath] any?]
+  (let [q-empty (x/xpath xpath (string-input-xpath short-label ""))
+        q-value (x/xpath xpath (string-input-xpath short-label value""))]
     (when-not (taxi/exists? q-empty)
       (if (taxi/exists? (string-plus-button-xpath short-label))
-        (b/click (last (string-plus-buttons short-label)))
-        (b/set-input-text (string-input-xpath short-label) ""))
+        (b/click (last (string-plus-buttons short-label xpath)))
+        (b/set-input-text (x/xpath xpath (string-input-xpath short-label)) ""))
       (Thread/sleep 30))
     (b/set-input-text q-empty value)
     (taxi/send-keys q-value org.openqa.selenium.Keys/ENTER)
@@ -110,11 +113,11 @@
 
 (defn-spec add-categorical-value any?
   "Adds `value` to categorical label `short-label` in review interface."
-  [short-label string?, value string?]
-  (let [dropdown-div (xpath (label-div-with-name short-label)
-                            "/descendant::div[contains(@class,'dropdown')]")
-        entry-div (xpath (label-div-with-name short-label)
-                         "/descendant::div[contains(text(),'" value "')]")]
+  [short-label string?, value string?, & [xpath] any?]
+  (let [dropdown-div (x/xpath xpath (label-div-with-name short-label)
+                              "/descendant::div[contains(@class,'dropdown')]")
+        entry-div (x/xpath xpath (label-div-with-name short-label)
+                           "/descendant::div[contains(text(),'" value "')]")]
     (b/click dropdown-div :displayed? true :delay 75)
     (b/click entry-div :displayed? true :delay 75)))
 
@@ -186,27 +189,28 @@
 
 (defn set-label-answer
   "Set answer value for a single label on current article."
-  [{:keys [short-label value value-type]}]
+  [{:keys [short-label value value-type]} & [xpath]]
   (as-> (case value-type
           "boolean" set-boolean-value
           "string" add-string-value
           "categorical" add-categorical-value) f
-    (f short-label value)))
+    (f short-label value xpath)))
 
 (defn set-article-answers
   "Set and save answers on current article for a sequence of labels."
-  [label-settings]
+  [label-settings & {:keys [save? xpath] :or {save? true}}]
   (let [remote? (test/remote-test?)]
     (log/info "setting article labels")
     (nav/go-project-route "/review" :silent true :wait-ms 50)
     (b/wait-until-loading-completes :pre-wait (if remote? 100 30) :loop 2)
     (b/click x/review-labels-tab :delay 25 :displayed? true)
-    (doseq [x label-settings] (set-label-answer x))
+    (doseq [x label-settings] (set-label-answer x xpath))
     (when remote? (Thread/sleep 100))
-    (b/click ".button.save-labels" :delay 30 :displayed? true)
-    (b/wait-until-loading-completes :pre-wait (if remote? 150 30) :loop 2)
-    (some-> (b/current-project-id)
-            (db/clear-project-cache))))
+    (when save?
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
+      (b/wait-until-loading-completes :pre-wait (if remote? 150 30) :loop 2)
+      (some-> (b/current-project-id)
+              (db/clear-project-cache)))))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article
@@ -223,6 +227,9 @@
              (merge label {:value (nth all-values (rand-int (count all-values)))})))
          label-settings)))
 
+(defn have-errors-now? [coll] #(= (set coll) (set (define/get-all-error-messages))))
+(defn have-errors? [errors] (b/try-wait b/wait-until #(have-errors-now? errors) 2500))
+
 (deftest-browser create-project-and-review-article
   (test/db-connected?) test-user
   [{:keys [user-id email]} test-user
@@ -236,15 +243,12 @@
    boolean-label-value true
    string-label-value "Baz"
    categorical-label-value "Qux"
-   have-errors-now? #(= (set %) (set (define/get-all-error-messages)))
-   have-errors? (fn [errors] (b/try-wait b/wait-until #(have-errors-now? errors) 2500))
    new-label "//div[contains(@id,'new-label-')]"]
   (do (nav/log-in email)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
       (pm/import-pubmed-search-via-db "foo bar")
-
 ;;; create new labels
       (log/info "creating label definitions")
       (nav/go-project-route "/labels/edit")

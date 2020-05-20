@@ -20,6 +20,8 @@
   (xpath "//button[contains(text(),'Add String Label')]"))
 (def add-categorical-label-button
   (xpath "//button[contains(text(),'Add Categorical Label')]"))
+(def add-group-label-button
+  (xpath "//button[contains(text(),'Add Group Label')]"))
 
 (defn get-all-error-messages []
   (->> (taxi/find-elements (xpath "//div[contains(@class,'error')]"
@@ -73,9 +75,7 @@
   "When include? is true, set check box to 'Yes', when false, set to 'No'"
   [xpath include?]
   (let [checkbox #(value-for-inclusion-checkbox xpath (if % "Yes" "No"))]
-    (when (or (and include? (taxi/selected? (checkbox (not include?))))
-              (and (not include?) (taxi/selected? (checkbox (not include?)))))
-      (b/click (checkbox include?)))))
+    (b/click (checkbox include?))))
 
 (defn set-boolean-label-definition
   [xpath {:keys [question short-label required definition]
@@ -105,9 +105,12 @@
 
 (defn set-categorical-label-definition
   [xpath {:keys [question short-label required consensus definition]
-          :or {question "" short-label "" required false}}]
+          :or {question "" short-label "" required false}} & group?]
   (let [{:keys [all-values inclusion-values]
          :or {all-values [] inclusion-values []}} definition
+        xpath (if group?
+                (xpath "//h5[contains(@class,'value-type') and contains(text(),'Categorical Label')]")
+                xpath)
         field-path #(field-input-xpath xpath (str "field-" %))]
     (b/set-input-text (field-path "short-label") short-label)
     (set-checkbox-button (field-path "required") required)
@@ -146,15 +149,42 @@
 
 (defn define-label
   "Create a new label definition using browser interface."
-  [{:keys [value-type] :as label-map}]
-  (let [new-xpath "//div[contains(@id,'new-label-')]"]
+  [{:keys [value-type] :as label-map} & [xpath]]
+  (let [new-xpath (or xpath "//div[contains(@id,'new-label-')]")
+        xpath-str (->> xpath :xpath)
+        group? (if (string? xpath-str)
+                 (->> xpath-str (re-matches #".*define-group-label.*") boolean)
+                 false)]
     (log/info "creating label definition")
     (nav/go-project-route "/labels/edit" :silent true)
-    (b/click (add-label-button value-type))
+    (b/click (if group?
+               (x/xpath (add-label-button value-type) "/ancestor::div[contains(@class,'group')]/button")
+               (add-label-button value-type)))
     (set-label-definition new-xpath label-map)
-    (b/click save-button)
+    (when-not group?
+      (b/click save-button))
     (b/wait-until-loading-completes :pre-wait true)
     (is (empty? (get-all-error-messages)))))
+
+(defn define-group-label
+  "Create a new label definition using the browser interface for a group label. Must only have one group label editor open at one time in order to work properly."
+  [{:keys [value-type short-label definition]}]
+  (let [{:keys [multi? labels]} definition
+        field-path #(field-input-xpath "//div[contains(@id,'new-label-')]" (str "field-" %))]
+    (log/info "creating group label definition")
+    (nav/go-project-route "/labels/edit" :silent true)
+    ;; click on add group label
+    (b/click add-group-label-button)
+    ;; set the group label name
+    (b/set-input-text (field-path "short-label") short-label)
+    ;; if allow multiple value click it
+    (set-checkbox-button (field-path "multi") multi?)
+    ;; create all the labels that are required
+    (doall (map-indexed (fn [idx label]
+                          (define-label label (x/xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" (+ 1 idx) "]")))
+                        labels))
+    ;; save this label
+    (b/click save-button)))
 
 (defn label-definition-div [label-id]
   (xpath (format "//div[@id='%s']" label-id)))

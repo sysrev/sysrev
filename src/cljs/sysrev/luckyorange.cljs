@@ -3,8 +3,8 @@
             [reagent.core :as r]
             [re-frame.db :refer [app-db]]))
 
-;; TODO - we should be able to subscribe to changes in :user/display
-;; directly but seems like track! doesn't work on subscribe items
+;; TODO - we should be able to subscribe to changes in :user/display directly but seems like track! doesn't work on subscribe items
+
 (def user-display-atom (r/cursor app-db [:state :identity :email]))
 
 (defn send-luckyorange-update [email]

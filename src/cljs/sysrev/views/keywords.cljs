@@ -32,7 +32,7 @@
       [(dangerous :span (if (empty? text) nbsp text))]
       (let [has-value? ((comp not nil?) label-value)
             label-name @(subscribe [:label/name label-id])
-            enabled? @(subscribe [:label/enabled? label-id])
+            enabled? @(subscribe [:label/enabled? "na" label-id])
             class (cond (= category "include")
                         (str "ui keyword include-label green basic "
                              label-class " button")
@@ -48,8 +48,9 @@
               {:class class
                :on-click
                (when (and enabled? has-value? editing?)
+                 ;; this is broken for group labels
                  #(dispatch [:review/trigger-enable-label-value
-                             article-id label-id label-value]))}
+                             article-id "na" label-id label-value]))}
               text)
              " "]]
         (if (and show-tooltip? enabled? editing? full-size?)

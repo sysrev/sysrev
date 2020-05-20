@@ -429,9 +429,9 @@
      [:div {:id "pdf-page"}
       (if @checked?
         (doall (for [i (range 1 (+ @num-pages 1))]
-             ^{:key (str "page-" i)}
-             [RPage {:pageNumber i
-                 :width @width}]))
+                 ^{:key (str "page-" i)}
+                 [RPage {:pageNumber i
+                         :width @width}]))
         [RPage {:pageNumber @page-number
                 :width @width}])]
      [:div {:id "bottom-toolbar"}
@@ -456,8 +456,8 @@
 (defn ViewBase64PDF
   [{:keys [content]}]
   (let [content (r/atom (util/base64->uint8 content))
-    container-id "view-base-64-pdf"
-    width (r/atom nil)
+        container-id "view-base-64-pdf"
+        width (r/atom nil)
         num-pages (r/atom nil)
         page-number (r/atom nil)]
     (r/create-class
@@ -466,8 +466,8 @@
         [:div {:id container-id}
          [RDocument {:file {:data @content}
              :on-load-success (fn [pdf]
-                        (reset! num-pages (.-numPages pdf))
-                                        (reset! page-number 1))}
+                                (reset! num-pages (.-numPages pdf))
+                                (reset! page-number 1))}
           [PDFPage {:page-number page-number
                     :num-pages num-pages
                     :width width}]]])

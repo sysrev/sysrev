@@ -2,12 +2,14 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [clojure.set :as set]
+            [clojure.walk :as walk]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer [select from join where merge-where
-                                               order-by limit]]
+                                               order-by limit insert-into values]]
+            [honeysql-postgres.helpers :as psqlh]
             [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
@@ -15,31 +17,40 @@
             [sysrev.util :as util :refer [in? map-values index-by or-default]]))
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
-(def valid-label-value-types  ["boolean" "categorical" "string"])
+(def valid-label-value-types  ["boolean" "categorical" "string" "group"])
 
 (defn-spec get-label (s/nilable ::sl/label)
   [label-id ::sl/label-id, & args (s/? any?)]
   (apply q/find-one :label {:label-id label-id} args))
 
-(defn next-project-ordering [project-id]
-  (or-default 0 (some-> (q/find-one :label {:project-id project-id}
-                                    [[:%max.project-ordering :max]])
+(defn next-project-ordering [project-id & [root-label-id-local]]
+  (or-default 0 (some-> (-> (select [:%max.project-ordering :max])
+                            (from :label)
+                            (where [:and
+                                    [:= :project-id project-id]
+                                    [:= :root-label-id-local root-label-id-local]])
+                            do-query
+                            first
+                            :max)
                         inc)))
 
 (defn add-label-entry
   "Creates an entry for a label definition.
-
   Ordinarily this will be directly called only by one of the type-specific
   label creation functions."
-  [project-id {:keys [name question short-label category enabled
-                      required consensus value-type definition]
-               :or {enabled true}}]
+  [project-id {:keys [name question short-label category enabled project-ordering
+                      required consensus value-type definition root-label-id-local]
+               :or {enabled true
+                    root-label-id-local nil}}]
   (assert (in? valid-label-categories category))
   (assert (in? valid-label-value-types value-type))
   (db/with-clear-project-cache project-id
     (q/create :label
               (cond-> {:project-id project-id
-                       :project-ordering (when enabled (next-project-ordering project-id))
+                       :project-ordering (when enabled
+                                           (if root-label-id-local
+                                             project-ordering
+                                             (next-project-ordering project-id root-label-id-local)))
                        :value-type value-type
                        :name name
                        :question question
@@ -47,7 +58,8 @@
                        :required required
                        :category category
                        :definition (db/to-jsonb definition)
-                       :enabled enabled}
+                       :enabled enabled
+                       :root-label-id-local root-label-id-local}
                 (boolean? consensus)        (assoc :consensus consensus)
                 (= name "overall include")  (assoc :consensus true))))
   true)
@@ -76,6 +88,7 @@
                       :definition (when-not (nil? inclusion-value)
                                     {:inclusion-values [inclusion-value]})})))
 
+;; this is used in tests only
 (defn add-label-entry-categorical
   "Creates an entry for a categorical label definition.
 
@@ -107,7 +120,7 @@
                       :definition {:all-values all-values
                                    :inclusion-values inclusion-values
                                    :multi? (boolean multi?)}})))
-
+;; this is used in tests only
 (defn add-label-entry-string
   "Creates an entry for a string label definition. Value is provided by user
   in a text input field.
@@ -155,11 +168,12 @@
     (let [current (->> (q/find-one :label {:label-id label-id})
                        (util/assert-pred map?)
                        (util/assert-pred #(= project-id (:project-id %))))
+          root-label-id-local (:root-label-id-local current)
           old-enabled (:enabled current)
           new-enabled (get values-map :enabled old-enabled)
           ;; Ensure project-ordering consistency with enabled value
           ordering (cond (not new-enabled) nil
-                         (and new-enabled (not old-enabled)) (next-project-ordering project-id)
+                         (and new-enabled (not old-enabled)) (next-project-ordering project-id root-label-id-local)
                          :else (get values-map :project-ordering (:project-ordering current)))]
       ;; If changing project-ordering value for this label and the
       ;; value already exists in project, increment values for all
@@ -169,15 +183,37 @@
       (when (and new-enabled old-enabled ordering
                  (q/find :label {:project-id project-id
                                  :project-ordering ordering}
-                         :label-id, :where [:!= :label-id label-id]))
+                         :label-id, :where [:and
+                                            [:!= :label-id label-id]
+                                            [:= :root-label-id-local root-label-id-local]]))
         (q/modify :label {:project-id project-id}
                   {:project-ordering (sql/raw "project_ordering + 1")}
                   :where [:and
                           [:!= :project-ordering nil]
-                          [:>= :project-ordering ordering]]))
+                          [:>= :project-ordering ordering]
+                          [:= :root-label-id-local root-label-id-local]]))
       (q/modify :label {:label-id label-id}
                 (-> (assoc values-map :project-ordering ordering)
                     (dissoc :label-id :project-id))))))
+
+(defn set-project-ordering-sequence
+  "Ensure the project ordering sequence is correct for project-id with optional root-label-id-local. When root-label-id-local is nil, orders the top-level labels and ignore sublabels"
+  [project-id & [root-label-id-local]]
+  (doseq [{:keys [label-id project-ordering i]}
+          (->> (q/find :label {:project-id project-id :enabled true
+                               :root-label-id-local root-label-id-local}
+                       :*, :order-by [:project-ordering :asc])
+               (map-indexed (fn [i label] (merge label {:i i}))))]
+    (when (not= i project-ordering)
+      (q/modify :label {:label-id label-id} {:project-ordering i}))))
+
+(defn ensure-correct-project-ordering-sequence
+  "Ensure the entire project, sublabels included, are in the correct sequence"
+  [project-id]
+  (let [all-labels (q/find :label {:project-id project-id :enabled true}
+                           :*)]
+    (doseq [x (keys (group-by :root-label-id-local all-labels))]
+      (set-project-ordering-sequence project-id x))))
 
 (defn adjust-label-project-ordering-values
   "Adjusts project-ordering values for all labels in project to ensure consistency
@@ -193,18 +229,13 @@
         (when-not (nil? project-ordering)
           (q/modify :label {:label-id label-id} {:project-ordering nil})))
       ;; ensure non-nil project-ordering for enabled labels
-      (doseq [{:keys [label-id project-ordering]} l-enabled]
+      (doseq [{:keys [label-id project-ordering root-label-id-local]} l-enabled]
         (when (nil? project-ordering)
           (q/modify :label {:label-id label-id}
-                    {:project-ordering (next-project-ordering project-id)})))
+                    {:project-ordering (next-project-ordering project-id root-label-id-local)})))
       ;; set project-ordering sequence to (range n-enabled) using
       ;; existing sort order
-      (doseq [{:keys [label-id project-ordering i]}
-              (->> (q/find :label {:project-id project-id :enabled true}
-                           :*, :order-by [:project-ordering :asc])
-                   (map-indexed (fn [i label] (merge label {:i i}))))]
-        (when (not= i project-ordering)
-          (q/modify :label {:label-id label-id} {:project-ordering i}))))))
+      (ensure-correct-project-ordering-sequence project-id))))
 
 ;; TODO: move into article entity
 (defn article-user-labels-map [article-id]
@@ -222,7 +253,20 @@
                             {:confirmed (not (nil? confirm-time))
                              :confirm-epoch (if (nil? confirm-time) 0
                                                 (max (tc/to-epoch confirm-time)
-                                                     (tc/to-epoch updated-time)))}))))))))
+                                                     (tc/to-epoch updated-time)))})))))
+           ;; convert all string representations of uuids into uuids
+           (walk/postwalk (fn [x] (try
+                                    ;; the try short-circuits to just x unless
+                                    ;; x can be transformed to a uuid
+                                    (let [uuid (-> x symbol str java.util.UUID/fromString)]
+                                      (when (uuid? uuid)
+                                        uuid))
+                                    (catch Exception _
+                                      x))))
+           ;; convert all integer keywords back into string keywords
+           (walk/postwalk (fn [x] (if (and (keyword? x) (integer? (read-string (str (symbol x)))))
+                                    (str (symbol x))
+                                    x))))))
 
 (defn user-article-confirmed? [user-id article-id]
   (assert (and (integer? user-id) (integer? article-id)))
@@ -445,3 +489,97 @@
                     {:permissions project-permissions
                      :articles (get inclusions user-id)})
                   users))))
+
+(defn sync-group-label
+  "Given a group label, m, sync it with its core label. It does not have to exist on the server"
+  [project-id m]
+  (db/with-clear-project-cache project-id
+    (db/with-transaction
+      (let [{:keys [enabled value-type name short-label required category label-id definition]} m
+            label-existed? (not (string? label-id)) ; remember: new labels are strings
+            current-label (if label-existed?
+                            ;; label exists
+                            (-> (select :*)
+                                (from :label)
+                                (where [:= :label-id label-id])
+                                do-query
+                                first)
+                            ;; create the label
+                            (-> (insert-into :label)
+                                (values [{:project-id project-id
+                                          :project-ordering (when enabled (next-project-ordering project-id))
+                                          :value-type value-type
+                                          :name name
+                                          :short-label short-label
+                                          :required required
+                                          :category category
+                                          :enabled enabled
+                                          :question "N/A"
+                                          :definition definition}])
+                                (psqlh/returning :*)
+                                do-query
+                                first))
+            root-label-id-local (:label-id-local current-label)
+            client-labels (-> m :labels vals set)
+            server-labels (-> (select :*)
+                              (from :label)
+                              (where [:= :root-label-id-local root-label-id-local])
+                              do-query
+                              set)
+            ;; new labels are given a randomly generated string id on
+            ;; the client, so labels that are non-existent on the server
+            ;; will have string as opposed to UUID label-ids
+            new-client-labels (set (filter (comp string? :label-id) client-labels))
+            current-client-labels (set (filter (comp uuid? :label-id) client-labels))
+            modified-client-labels (set/difference current-client-labels server-labels)]
+        ;; handle the sub labels
+        (doseq [label new-client-labels]
+          (add-label-entry project-id (assoc label :root-label-id-local root-label-id-local)))
+        (doseq [{:keys [label-id] :as label} modified-client-labels]
+          (alter-label-entry project-id label-id (assoc label :root-label-id-local root-label-id-local)))
+        ;; need to also alter the root label if it already exists
+        (when label-existed?
+          (->> (alter-label-entry project-id label-id (-> m
+                                                          (dissoc :labels)
+                                                          (assoc :enabled
+                                                                 ;; this label is disabled if all sublabels are disabled
+                                                                 (not (every? false? (map :enabled client-labels))))))))
+        ;; adjust the label ordering
+        (adjust-label-project-ordering-values project-id)
+        {:valid? true
+         :labels (project/project-labels project-id true)}))))
+
+(defn sync-labels
+  "Given a project-id and map containing labels, sync the labels with project "
+  [project-id m]
+  (db/with-transaction
+    (let [client-labels (set (vals m))
+          server-labels (-> (project/project-labels project-id true)
+                            vals
+                            set)
+          ;; new labels are given a randomly generated string id on
+          ;; the client, so labels that are non-existent on the server
+          ;; will have string as opposed to UUID label-ids
+          new-client-labels (set (filter (comp string? :label-id) client-labels))
+          current-client-labels (set (filter (comp uuid? :label-id) client-labels))
+          modified-client-labels (set/difference current-client-labels server-labels)]
+      ;; creation/modification of labels should be done
+      ;; on labels that have been validated.
+      ;;
+      ;; labels are never deleted, the enabled flag is set to 'empty'
+      ;; instead
+      ;;
+      ;; If there are issues with a label being incorrectly
+      ;; modified, add a validator for that case so that
+      ;; the error can easily be reported in the client
+      (doseq [label new-client-labels]
+        (if (= (:value-type label) "group")
+          (sync-group-label project-id label)
+          (add-label-entry project-id label)))
+      (doseq [{:keys [label-id] :as label} modified-client-labels]
+        (if (= (:value-type label) "group")
+          (sync-group-label project-id label)
+          (alter-label-entry project-id label-id label)))
+      (adjust-label-project-ordering-values project-id)
+      {:valid? true
+       :labels (project/project-labels project-id true)})))
