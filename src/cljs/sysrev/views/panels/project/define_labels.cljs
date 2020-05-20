@@ -85,27 +85,11 @@
 (defn max-group-label-ordering
   "Obtain the max-project-ordering for a group label"
   [group-label-id]
-  (->> (-> (get-local-labels) (get group-label-id) (get :labels))
-       vals
-       (map :project-ordering)
-       (apply max)))
-
-(defn rearrange-group-label-project-ordering!
-  [labels-atom group-label-id]
-  (let [labels (-> (get-local-labels) (get group-label-id) :labels vals)
-        correct-ordering-labels (->> labels
-                                     (map-indexed (fn [idx label]
-                                                    (assoc label :project-ordering idx)))
-                                     (index-by :label-id))]
-    (swap! labels-atom assoc-in [group-label-id :labels] correct-ordering-labels)))
-
-(defn rearrange-all-local-group-labels!
-  []
-  (let [group-labels (->> (get-local-labels)
-                          vals
-                          (filter #(= "group" (:value-type %)))
-                          (map :label-id))]
-    (doall (map (partial rearrange-group-label-project-ordering! (r/cursor state [:labels])) group-labels))))
+  (or (->> (-> (get-local-labels) (get group-label-id) (get :labels))
+           vals
+           (map :project-ordering)
+           (apply max))
+      0))
 
 (defn default-answer [value-type]
   (case value-type
@@ -284,7 +268,6 @@
      {:on-click (fn [e]
                   (.preventDefault e)
                   (.stopPropagation e)
-                  (rearrange-all-local-group-labels!)
                   (reset-local-label! labels-atom root-label-id label-id))}
      [:i.circle.times.icon] text]))
 
@@ -314,13 +297,14 @@
                        :else          "circle check"]
                       "icon")}]]))
 
-(defn- AddLabelButton [value-type add-label-fn]
+(defn- AddLabelButton [value-type add-label-fn & [max-ordering]]
   [:button.ui.fluid.large.labeled.icon.button
    {:on-click  (fn [e]
                  (.preventDefault e)
                  (.stopPropagation e)
-                 (rearrange-all-local-group-labels!)
-                 (add-label-fn (create-blank-label value-type (inc (max-project-ordering)))))}
+                 (add-label-fn (create-blank-label value-type (if max-ordering
+                                                                (inc max-ordering)
+                                                                (inc (max-project-ordering))))))}
    [:i.plus.circle.icon]
    (str "Add " (str/capitalize value-type) " Label")])
 
@@ -605,8 +589,9 @@
                  {:checked? @multi?
                   :on-change #(reset! multi? (-> % .-target .-checked boolean))}
                  errors)]
-     [:div {:class (when (:labels-error @errors)
-                     "error")}
+     [:div {:class (str "sub-labels-edit-form "
+                        (when (:labels-error @errors)
+                          "error"))}
       (when (:labels-error @errors)
         [:div.ui.red.message (:labels-error @errors)])
       ;; enabled labels
@@ -629,9 +614,9 @@
                      [LabelEditForm labels @root-label-id (r/cursor labels [(:label-id label)])]]))]))
       [Divider]
       [:div.ui.one.column.stackable.grid
-       [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)]]
-       [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels)]]
-       [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels)]]]]
+       [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels) (max-group-label-ordering @root-label-id)]]
+       [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels) (max-group-label-ordering @root-label-id)]]
+       [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels) (max-group-label-ordering @root-label-id)]]]]
      [:div.field {:style {:margin-bottom "0.75em"}}
       [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
        [:div.column {:style {:padding "0.5em"}
@@ -780,7 +765,7 @@
                                          (reset! (r/cursor this-label [:project-ordering]) this-label-new-ordering)
                                          (reset! (r/cursor above-label [:project-ordering]) this-label-ordering)
                                          (sync-to-server)))
-                       max-ordering-value (->> (map  :project-ordering sub-label-vals)
+                       max-ordering-value (->> (map :project-ordering sub-label-vals)
                                                sort reverse
                                                first)]
                    ;; enabled

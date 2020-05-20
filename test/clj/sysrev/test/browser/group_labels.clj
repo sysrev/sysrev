@@ -66,12 +66,26 @@
   [instance-name sub-short-label]
   (x/xpath (group-label-instance instance-name) "//span[contains(@class,'short-label') and contains(text(),'" sub-short-label "')]//ancestor::div[contains(@id,'group-sub-label')]"))
 
+(defn group-label-edit-form
+  [root-short-label]
+  (x/xpath "(//input[@value='" root-short-label "']"
+           "/ancestor::div[contains(@id,'group-label-')])[1]"))
+
+(defn group-label-edit-form-sub-labels
+  "Given a group label short-label, return the sub short-label values of the input forms in an edit group label form"
+  [root-short-label]
+  (->> (x/xpath (group-label-edit-form root-short-label)
+                "//div[contains(@class,'sub-labels-edit-form')]"
+                "//div[contains(@class,'field-short-label')]/input")
+       taxi/find-elements
+       (map taxi/value)
+       (into [])))
+
 (defn toggle-enable-disable-sub-label-button
   "If enabled is :enable, enable the button, if :disable, disable it"
   [root-short-label sub-short-label enabled]
   (b/click (edit-group-label-button root-short-label))
-  (b/click (x/xpath "(//input[@value='" root-short-label "']"
-                    "/ancestor::div[contains(@id,'group-label-')])[1]"
+  (b/click (x/xpath (group-label-edit-form root-short-label)
                     "//input[@value='" sub-short-label "']"
                     "/ancestor::form"
                     "//button[contains(text(),'" (condp = enabled
@@ -540,7 +554,52 @@
     (log/info "Testing multiple Group Labels"))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
+(deftest-browser consistent-label-ordering
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [project-name "SysRev Browser Test (consistent-label-ordering)"
+   group-label-definition {:value-type "group"
+                           :short-label "Foo"
+                           :definition
+                           {:labels [{:value-type "boolean"
+                                      :short-label "Alpha"
+                                      :question "Is this an alpha?"}
+                                     {:value-type "categorical"
+                                      :short-label "Bravo"
+                                      :question "Is this a bravo?"
+                                      :definition
+                                      {:all-values ["one" "two" "three"]}}
+                                     {:value-type "string"
+                                      :short-label "Charlie"
+                                      :question "Is this a Charlie?"
+                                      :required true}]}}]
+  (do
+    (nav/log-in (:email test-user))
+    (nav/new-project project-name)
+    ;; create new labels
+    (nav/go-project-route "/labels/edit")
+    (dlabels/define-group-label group-label-definition)
+    ;; order is correct
+    (is (= ["Alpha" "Bravo" "Charlie"]
+           (group-sub-short-labels "Foo")))
+    ;; add another label
+    (b/click (edit-group-label-button "Foo"))
+    (b/click (x/xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add String Label')]"))
+    (dlabels/set-label-definition (x/xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" 4 "]")
+                                  {:value-type "string"
+                                   :short-label "Delta"
+                                   :question "Is this a Delta?"
+                                   :required true})
+    (b/click dlabels/save-button)
+    (is (= ["Alpha" "Bravo" "Charlie" "Delta"]
+           (group-sub-short-labels "Foo")))
+    ;; add another label
+    (b/click (edit-group-label-button "Foo"))
+    (b/click (x/xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add Boolean Label')]"))
+    (is (= ["Alpha" "Bravo" "Charlie" "Delta" ""]
+           (group-label-edit-form-sub-labels "Foo"))))
+  :cleanup (b/cleanup-test-user! :email (:email test-user)))
 ;; delete all labels
+
 #_(do (-> (hsql/delete-from :label) (where [:not= :short_label "Include"]) db/do-execute)
       (sysrev.db.core/clear-project-cache @project-id))
 
