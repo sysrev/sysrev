@@ -951,11 +951,17 @@
                     [:div.column [LabelItem labels i (r/cursor state [:labels label-id])]])
                   disabled-ids))])
        (when admin?
-         [:div.ui.four.column.stackable.grid
-          [:div.column [AddLabelButton "boolean" add-new-label!]]
-          [:div.column [AddLabelButton "categorical" add-new-label!]]
-          [:div.column [AddLabelButton "string" add-new-label!]]
-          [:div.column [AddLabelButton "group" add-new-label!]]])])))
+         (if (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+                 (= "TJ@toxtrack.com" @(subscribe [:user/email])))
+           [:div.ui.four.column.stackable.grid
+            [:div.column [AddLabelButton "boolean" add-new-label!]]
+            [:div.column [AddLabelButton "categorical" add-new-label!]]
+            [:div.column [AddLabelButton "string" add-new-label!]]
+            [:div.column [AddLabelButton "group" add-new-label!]]]
+           [:div.ui.three.column.stackable.grid
+            [:div.column [AddLabelButton "boolean" add-new-label!]]
+            [:div.column [AddLabelButton "categorical" add-new-label!]]
+            [:div.column [AddLabelButton "string" add-new-label!]]]))])))
 
 (defmethod panel-content [:project :project :labels] []
   (fn [child]
