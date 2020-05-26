@@ -31,7 +31,7 @@
    :filters (extract-filters-from-url url-filter)})
 
 (defmethod import-source :project-filter
-  [_x project-id {:keys [source-project-id url-filter]} {:as options}]
+  [_x project-id {:keys [source-project-id url-filter]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :url-filter]) url-filter))
                 (filter #(= (get-in % [:meta :source-project-id]) source-project-id))))
@@ -69,7 +69,7 @@
   (if (= source-project-id target-project-id)
     (fail "source-id can not be the same as target-id")
     (try (import-source :project-filter target-project-id
-                        {:source-project-id source-project-id :url url})
+                        {:source-project-id source-project-id :url-filter url})
          (resolve-as true)
          (catch Throwable e
            (fail (str "There was an exception with message: " (.getMessage e)))))))

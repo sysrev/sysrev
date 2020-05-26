@@ -20,7 +20,7 @@
   {:source "Datasource Query" :query query})
 
 (defmethod import-source :datasource-query
-  [_x project-id {:keys [query entities]} {:as options}]
+  [_x project-id {:keys [query entities]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :query]) query))))
     (do (log/warnf "import-source %s - query %s already imported" _x (pr-str query))
@@ -59,7 +59,7 @@
   {:source "Datasource" :datasource-id datasource-id :datasource-name datasource-name})
 
 (defmethod import-source :datasource
-  [_x project-id {:keys [datasource-id entities datasource-name]} {:as options}]
+  [_x project-id {:keys [datasource-id entities datasource-name]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :datasource-id]) datasource-id))))
     (do (log/warnf "import-source %s - datasource-id %s already imported" _x datasource-id)
@@ -102,7 +102,7 @@
   {:source "Dataset" :dataset-id dataset-id :dataset-name dataset-name})
 
 (defmethod import-source :dataset
-  [_x project-id {:keys [dataset-id entities dataset-name]} {:as options}]
+  [_x project-id {:keys [dataset-id entities dataset-name]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :dataset-id]) dataset-id))))
     (do (log/warnf "import-source %s - dataset-id %s already imported" _x dataset-id)
