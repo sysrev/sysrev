@@ -10,6 +10,7 @@
             [honeysql.helpers :as sqlh :refer [select from join where merge-where
                                                order-by limit insert-into values]]
             [honeysql-postgres.helpers :as psqlh]
+            [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
@@ -237,6 +238,23 @@
       ;; existing sort order
       (ensure-correct-project-ordering-sequence project-id))))
 
+(defn sanitize-labels
+  [m]
+  (->> m
+       ;; convert all string representations of uuids into uuids
+       (walk/postwalk (fn [x] (try
+                                ;; the try short-circuits to just x unless
+                                ;; x can be transformed to a uuid
+                                (let [uuid (-> x symbol str java.util.UUID/fromString)]
+                                  (when (uuid? uuid)
+                                    uuid))
+                                (catch Exception _
+                                  x))))
+       ;; convert all integer keywords back into string keywords
+       (walk/postwalk (fn [x] (if (and (keyword? x) (integer? (read-string (str (symbol x)))))
+                                (str (symbol x))
+                                x)))))
+
 ;; TODO: move into article entity
 (defn article-user-labels-map [article-id]
   (-> (q/select-article-by-id article-id [:al.* :l.enabled])
@@ -254,19 +272,7 @@
                              :confirm-epoch (if (nil? confirm-time) 0
                                                 (max (tc/to-epoch confirm-time)
                                                      (tc/to-epoch updated-time)))})))))
-           ;; convert all string representations of uuids into uuids
-           (walk/postwalk (fn [x] (try
-                                    ;; the try short-circuits to just x unless
-                                    ;; x can be transformed to a uuid
-                                    (let [uuid (-> x symbol str java.util.UUID/fromString)]
-                                      (when (uuid? uuid)
-                                        uuid))
-                                    (catch Exception _
-                                      x))))
-           ;; convert all integer keywords back into string keywords
-           (walk/postwalk (fn [x] (if (and (keyword? x) (integer? (read-string (str (symbol x)))))
-                                    (str (symbol x))
-                                    x))))))
+           sanitize-labels)))
 
 (defn user-article-confirmed? [user-id article-id]
   (assert (and (integer? user-id) (integer? article-id)))
@@ -345,26 +351,93 @@
     (-> (query-public-article-labels project-id)
         (get-in [article-id :resolve]))))
 
+(defn group-concordant?
+  [m]
+  (let [label-id (-> m :label-id)
+        project-id (-> (select :project-id)
+                       (from :label)
+                       (where [:= :label-id label-id])
+                       do-query
+                       first
+                       :project-id)
+        consensus-labels (-> (select :label-id)
+                             (from :label)
+                             (where [:and [:= :project-id project-id] [:not= :root-label-id-local nil] [:= :consensus true]])
+                             do-query
+                             (->> (map :label-id))
+                             set)
+        answers (->> m sanitize-labels :answers (map :labels) (map vals))
+        consensus-answers (walk/postwalk #(if (map? %)
+                                            (-> (medley/filter-keys (fn [k] (contains? consensus-labels k))
+                                                                    %)
+                                                vals)
+                                            %)
+                                         answers)
+        consensus-answers-comp (map #(->> (group-by identity %) (medley/map-vals count)) consensus-answers)
+        concordant? (apply = consensus-answers-comp)]
+    concordant?))
+
+(defn concordant?
+  "Given a m with keys [:label-id :answers :value-type], is the label concordant?"
+  [m]
+  (let [boolean-concordant? (fn [m] (-> (:answers m) set count (#(= % 1))))
+        categorical-concordant? (fn [m] (->> (:answers m)
+                                             (map set)
+                                             (sort-by count)
+                                             reverse
+                                             (apply set/difference)
+                                             empty?))
+        ;; leaving this open for future algorithm
+        string-concordant? (fn [_] true)]
+    (if (> (count (:answers m))
+           1)
+      (condp = (:value-type m)
+        "boolean" (boolean-concordant? m)
+        "categorical" (categorical-concordant? m)
+        "string" (string-concordant? m)
+        "group" (group-concordant? m))
+      ;; a label must have more than one answer to be discordant
+      true)))
+
 (defn article-conflict-label-ids
   "Returns list of consensus labels in project for which article has
   conflicting answers."
   [project-id article-id]
-  (let [alabels (-> (query-public-article-labels project-id)
-                    (get article-id))
-        user-ids (->> (vals (:labels alabels)) (apply concat) (map :user-id) distinct)
-        user-label-answer (fn [user-id label-id]
-                            (->> (get-in alabels [:labels label-id])
-                                 (filter #(= (:user-id %) user-id))
+  (let [label-defs (->> (-> (select :label-id :value-type :consensus)
+                            (from :label)
+                            (where [:and
+                                    [:= :project_id project-id]
+                                    [:= :root-label-id-local nil]])
+                            do-query)
+                        ;; filter to either group labels (consensus is filtered by individual label)
+                        ;; or consensus labels
+                        (filter #(or (and (not= (:value-type %) "group") (:consensus %)) (= (:value-type %) "group"))))
+        label-ids (map :label-id label-defs)
+        label-answers (-> (select :label-id :answer :user-id)
+                          (from :article-label)
+                          (where [:= :article_id article-id])
+                          do-query)
+        label-def-map (sysrev.util/index-by :label-id label-defs)
+        get-label-answers (fn [label-id]
+                            (->> label-answers
+                                 (filter #(= (:label-id %) label-id))
                                  (map :answer)
-                                 first))
-        ;; Get answers in this way to include nil values where
-        ;; a user has not answered the particular label.
-        ;;
-        ;; Non-answers may generate conflicts with answers.
-        label-answers (fn [label-id] (->> user-ids (map #(user-label-answer % label-id))))]
-    (->> (project/project-consensus-label-ids project-id)
-         (filter #(-> (label-answers %) distinct count (> 1))))))
+                                 (into [])))
+        label-answers (map #(hash-map
+                             :label-id %
+                             :answers (get-label-answers %))
+                           label-ids)
+        label-def-answers (map #(assoc %
+                                       :value-type
+                                       (get-in label-def-map [(:label-id %) :value-type])) label-answers)
+        concordant-result (->> label-def-answers
+                               (filter (comp not concordant?))
+                               (map :label-id))]
+    concordant-result))
 
+;; this should check to see if there is still a conflict
+;; e.g. handle the case where labels are resolved but further
+;; changes are made to the article, creating new conflicts
 (defn article-resolved-status
   "If article consensus status is resolved, returns a map of the
   corresponding article_resolve entry; otherwise returns nil.
