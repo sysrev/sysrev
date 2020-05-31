@@ -19,12 +19,14 @@
         active-tab (->> @(subscribe [:active-panel]) last)]
     [secondary-tabbed-menu
      [{:tab-id :concordance
-       :content [:span [:i.handshake.icon] "Concordance"]
+       :content [:span  "Concordance"]
        :action (project-uri project-id "/analytics/concordance")}
       {:tab-id :labels
-       :content [:span [:i.tags.icon] "Labels"]
+       :content [:span  "Labels"]
        :action (project-uri project-id "/analytics/labels")}
-     ]
+      {:tab-id :next
+       :content [:span  "Feedback"]
+       :action (project-uri project-id "/analytics/feedback")}]
      []
      active-tab
      "bottom attached project-menu-2"
