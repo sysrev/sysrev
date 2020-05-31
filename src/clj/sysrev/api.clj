@@ -18,6 +18,7 @@
             [sysrev.biosource.importance :as importance]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.concordance :as concordance-api]
+            [sysrev.biosource.countgroup :as biosource-contgroup]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
             [sysrev.project.charts :as charts]
@@ -703,8 +704,9 @@
                                          (into []))))
      :loading (importance/project-importance-loading? project-id)}))
 
-(defn project-concordance [project-id]
-  (concordance-api/get-concordance project-id))
+(defn project-concordance [project-id] (concordance-api/get-concordance project-id))
+
+(defn project-label-count-groups [project-id] (biosource-contgroup/get-label-countgroup project-id))
 
 (defn project-prediction-histogram [project-id]
   (db/with-project-cache project-id [:prediction-histogram]
