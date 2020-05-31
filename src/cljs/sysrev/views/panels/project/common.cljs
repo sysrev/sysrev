@@ -24,7 +24,7 @@
       {:tab-id :labels
        :content [:span  "Labels"]
        :action (project-uri project-id "/analytics/labels")}
-      {:tab-id :next
+      {:tab-id :feedback
        :content [:span  "Feedback"]
        :action (project-uri project-id "/analytics/feedback")}]
      []
