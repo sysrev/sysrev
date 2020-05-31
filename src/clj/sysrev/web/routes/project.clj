@@ -318,6 +318,11 @@
         (let [{:keys [n]} (-> request :params)]
           (api/project-concordance (active-project request))))))
 
+(dr (GET "/api/countgroup" request
+      (with-authorize request {:allow-public true}
+        (let [{:keys [n]} (-> request :params)]
+          (api/project-label-count-groups (active-project request))))))
+
 ;;;
 ;;; Article import
 ;;;
