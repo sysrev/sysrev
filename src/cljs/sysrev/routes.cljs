@@ -74,6 +74,11 @@
   (dispatch [:set-active-panel [:project :project :analytics :labels]]))
 
 (sr-defroute-project
+  analytics-feedback "/analytics/feedback" [project-id]
+  (dispatch [:reload [:project project-id]])
+  (dispatch [:set-active-panel [:project :project :analytics :feedback]]))
+
+(sr-defroute-project
  article-id "/article/:article-id" [project-id article-id]
  (let [panel [:project :project :single-article]
        article-id (parse-integer article-id)
