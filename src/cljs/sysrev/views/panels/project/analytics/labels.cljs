@@ -33,75 +33,21 @@
              :purple "rgba(146,29,252,0.5)"})
 
 ; UTILITIES
-(defn set-subscription-button [event subscription label dispatch-value & {:keys [color title] }]
-  [Button {:size "mini" :style {:margin "2px" :margin-left "0px" :background-color (if color color nil)}
+(defn set-subscription-button [event subscription label dispatch-value & {:keys [color title txt-col] }]
+  [Button {:size "mini" :style {:margin "2px" :margin-left "0px" :background-color (if color color nil) :color txt-col}
            :primary  (contains? @subscription dispatch-value)
            :title title
            :on-click #(dispatch [event {:value dispatch-value :curset @subscription}])} label])
 
-(defn button-array [keyprefix labels dispatch-values set-event subscription & {:keys [colors titles] }]
+(defn button-array [keyprefix labels dispatch-values set-event subscription & {:keys [colors titles txt-col] }]
   [:div {:style {:display "inline"}}
    (for [i (range (count labels))]
      (let [disp (get dispatch-values i)
            color (if colors (get colors i) nil)
-           title (if colors (get titles i) nil)]
-     ^{:key (str keyprefix disp)} [set-subscription-button set-event subscription (get labels i) disp
-                                   :color color :title title]))])
-
-(defn label-count [label-id answer analytics-counts concordance-filter user-filter answer-filter]
-  """
-  @analytics-counts {:groups [{:group [{user:Int :label Int :answer string}{}...] :articles Int} ...]}
-  @answer-filter #{{:label-id :answer}...}
-  returns
-  {:by-article-count num :by-answer-count num :once-count num}
-  """
-  (let [
-        get-lbl-count
-        (fn [ula] (count (distinct (map #(:user %) (filter #(= (:label %) label-id) ula)))))
-        get-num-usr-lbl-count
-        (fn [ula] (count (distinct (map #(:user %) (filter #(and
-                                                              (= (:label %) label-id)
-                                                              (= (:answer %) answer)) ula)))))
-
-        get-lbl-ans-count (fn [ula] (count (filter #(and (= (:label %) label-id) (= (:answer %) answer)) ula)))
-        get-lbl-ans-user-count
-        (fn [ula] (count (filter #(and (= (:label %) label-id)
-                                       (= (:answer %) answer)
-                                       (or (empty? user-filter) (contains? user-filter (:user %)))) ula)))
-
-        get-conc
-        (fn [ula]
-          (let [num-usr-label (get-num-usr-lbl-count ula)
-                lbl-cnt (get-lbl-count ula)]
-            (cond (= lbl-cnt 0) "None"
-                  (= lbl-cnt 1) "Single"
-                  (= num-usr-label lbl-cnt) "Concordant"
-                  :else "Discordant")))
-
-        has-user-filter? (fn [ula] (or (empty? user-filter) (clojure.set/superset? (set (map :user ula)) user-filter)))
-
-        has-lbl-ans-filter? (fn [ula]
-                              (clojure.set/superset?
-                                (set (map #(clojure.set/rename-keys (select-keys % [:label :answer]) {:label :label-id, :answer :answer}) ula))
-                                (set (map #(select-keys % [:label-id :answer]) answer-filter))))
-        has-conc? (fn [ula] (contains? concordance-filter (get-conc ula)))
-
-        filtered-group-counts
-        (filter (fn [{group :group}] (and (has-conc? group)
-                                          (has-lbl-ans-filter? group)
-                                          (has-user-filter? group))) (:groups analytics-counts))
-
-        lbl-counts
-        (map (fn [{user-label-answers :group articles :articles}]
-               (let [lbl-ans-user-count (get-lbl-ans-user-count user-label-answers)
-                     lbl-count (get-lbl-count user-label-answers)]
-               {:by-article-count (* (/ lbl-ans-user-count lbl-count) articles)
-                :by-answer-count (* lbl-ans-user-count articles)
-                :once-per-article (if (> lbl-ans-user-count 0) articles 0)}))
-             filtered-group-counts)]
-    {:by-article-count (reduce + (map :by-article-count lbl-counts))
-     :by-answer-count (reduce + (map :by-answer-count lbl-counts))
-     :once-per-article (reduce + (map :once-per-article lbl-counts))}))
+           title (if colors (get titles i) nil)
+           txt-col (if txt-col (get txt-col i) nil)]
+       ^{:key (str keyprefix disp)} [set-subscription-button set-event subscription (get labels i) disp
+                                     :color color :title title :txt-col txt-col]))])
 
 ; STATISTICS EVENTS / SUBSCRIPTIONS
 (def-data :project/analytics.count-data
@@ -147,8 +93,8 @@
                                     (or (empty? flab-ans) (group-has-lab-ans? group))))
                                 (:groups count-data))]
       (->> (map (fn [{ulas :group articles :articles}]
-             {:group (filter (fn [ulac] (contains? @(subscribe [::article-type-selection]) (:concordant ulac))) ulas)
-              :articles articles}) filter-counts)
+                  {:group (filter (fn [ulac] (contains? @(subscribe [::article-type-selection]) (:concordant ulac))) ulas)
+                   :articles articles}) filter-counts)
            (filter #(> (count (:group %)) 0))))))
 
 (reg-sub
@@ -170,7 +116,7 @@
           (reduce (fn [curmap [k {articles :articles answers :answers}]]
                     (let [{oldarts :articles oldans :answers} (get curmap k {:articles 0 :answers 0})]
                       (assoc curmap k {:articles (+ oldarts articles) :answers (+ oldans answers)})))
-                     lamap)))
+                  lamap)))
       (hash-map)
       filtered-count-data)))
 
@@ -204,7 +150,7 @@
          (fn [[chart-counts filtered-counts]]
            (map (fn [row]
                   (let [key {:label (str (:label-id row)) :answer (str (:value row))}]
-                  (merge row (get filtered-counts key {:articles 0 :answers 0})))) chart-counts)))
+                    (merge row (get filtered-counts key {:articles 0 :answers 0})))) chart-counts)))
 
 ;; CONTROL EVENTS / SUBSCRIPTIONS
 (defn set-event [db-key exclusive]
@@ -237,17 +183,17 @@
 (defn x-axis [font scale]
   (let [count-type (first @(subscribe [::count-type]))
         ]
-  [{:scaleLabel (->> {:display true
-                      :labelString (if (= "Count Every Answer" count-type) "User Answers" "Articles")}
-                     (merge font))
-    :stacked false
-    :ticks (->> {:suggestedMin 0
-                 :callback (fn [value idx values]
-                             (if (or (= 0 (mod idx 5))
-                                     (= idx (dec (count values))))
-                               value ""))}
-                (merge font))
-    :gridLines {:color (charts/graph-border-color)}}]))
+    [{:scaleLabel (->> {:display true
+                        :labelString (if (= "Count Every Answer" count-type) "User Answers" "Articles")}
+                       (merge font))
+      :stacked false
+      :ticks (->> {:suggestedMin 0
+                   :callback (fn [value idx values]
+                               (if (or (= 0 (mod idx 5))
+                                       (= idx (dec (count values))))
+                                 value ""))}
+                  (merge font))
+      :gridLines {:color (charts/graph-border-color)}}]))
 
 (defn y-axis [font]
   [{:maxBarThickness 12
@@ -260,10 +206,11 @@
     (let [elts (-> elts js->clj)]
       (when (and (coll? elts) (not-empty elts))
         (when-let [idx (-> elts first (aget "_index"))]
-          (let [{:keys [label-id value]} (nth entries idx)
+          (let [entry (nth entries idx)
+                {:keys [label-id value short-label]} (nth entries idx)
                 display  @(subscribe [:label/display label-id])]
             (dispatch [::set-filter-answers
-                       {:value {:label-id (str label-id) :name display :answer (str value) :raw-answer value}
+                       {:value {:label-id (str label-id) :name short-label :answer (str value) :raw-answer value}
                         :curset @(subscribe [::filter-answers])}])))))))
 
 (defn LabelCountChart [label-ids entries count-type]
@@ -298,7 +245,7 @@
                           :backgroundColor (if (empty? counts) ["#000000"] background-colors)}]}
         ]
     [:div
-      [chartjs/horizontal-bar {:data data :height height :options options}]
+     [chartjs/horizontal-bar {:data data :height height :options options}]
      ]))
 
 (defn LabelCounts []
@@ -314,12 +261,13 @@
   (let [sampled (:sampled @(subscribe [:project/analytics.count-data]))
         {users :users labels :labels answers :answers rev-arts :reviewed-articles} @(subscribe [::overall-counts])]
     [:div
-     [:h2 {:id "answer-count"} (str "Label Counts - " answers " answers")]
+     [:h2 {:style {:margin-bottom "0em"}} (str "Label Counts")]
+     [:h3 {:id "answer-count" :style {:margin-top "0em"}} (str rev-arts " articles with " answers " answers")]
      (if sampled [:span [:b "This is a large project. A random sample was taken to keep analytics fast. "]])
      (if (> answers 0)
-     [:span (str "So far, " users " users have reviewed " rev-arts " articles.  They provided " answers
-                 " answers to " labels " labels.")]
-     [:span "Label count analytics helps you understand label answer distributions.
+       [:span (str "So far, " users " users have reviewed " rev-arts " articles.  They provided " answers
+                   " answers to " labels " labels.")]
+       [:span "Label count analytics helps you understand label answer distributions.
      Get started reviewing to view some charts"])]))
 
 (defn step-count-method [step-count]
@@ -365,56 +313,60 @@
 
 (defn step-review-type [step-count]
   (let [article-type @(subscribe [::article-type-selection])]
-  [:div
-  [:h5 {:style {:margin-bottom "0px" :margin-top "1em"}} (str step-count ". Filter By Concordance Type")]
-  [set-subscription-button ::set-article-type-selection (subscribe [::article-type-selection]) "Single" "Single"]
-  [set-subscription-button ::set-article-type-selection (subscribe [::article-type-selection]) "Concordant" "Concordant"]
-  [set-subscription-button ::set-article-type-selection (subscribe [::article-type-selection]) "Discordant" "Discordant"]
-   [:span  {:style {:display "block" :margin-left "1em" :margin-top "0.5em"}}
-   (cond
-     (= 3 (count article-type)) "Count all article answers."
-     (= article-type #{"Single" "Concordant"})
-     "Count answers with 1+ agreeing users."
-     (= article-type #{"Single" "Discordant"})
-     "Count answers w/ 1 reviewer, or 2+ disagreeing reviewers."
-     (= article-type #{"Concordant" "Discordant"})
-     "Count answers with 2+ reviewers"
-     (= article-type #{"Single"})
-     "Count answers with exactly one reviewer."
-     (= article-type #{"Concordant"})
-     "Count answers w/ 2+ reviewers who all agree."
-     (= article-type #{"Discordant"})
-     "Count answers with 2+ disagreeing reviewers."
-     :else "Filter answers by their article concordance.")]]))
+    [:div
+     [:h5 {:style {:margin-bottom "0px" :margin-top "1em"}} (str step-count ". Filter By Concordance Type")]
+     [set-subscription-button ::set-article-type-selection (subscribe [::article-type-selection]) "Single" "Single"]
+     [set-subscription-button ::set-article-type-selection (subscribe [::article-type-selection]) "Concordant" "Concordant"]
+     [set-subscription-button ::set-article-type-selection (subscribe [::article-type-selection]) "Discordant" "Discordant"]
+     [:span  {:style {:display "block" :margin-left "1em" :margin-top "0.5em"}}
+      (cond
+        (= 3 (count article-type)) "Count all article answers."
+        (= article-type #{"Single" "Concordant"})
+        "Count answers with 1+ agreeing users."
+        (= article-type #{"Single" "Discordant"})
+        "Count answers w/ 1 reviewer, or 2+ disagreeing reviewers."
+        (= article-type #{"Concordant" "Discordant"})
+        "Count answers with 2+ reviewers"
+        (= article-type #{"Single"})
+        "Count answers with exactly one reviewer."
+        (= article-type #{"Concordant"})
+        "Count answers w/ 2+ reviewers who all agree."
+        (= article-type #{"Discordant"})
+        "Count answers with 2+ disagreeing reviewers."
+        :else "Filter answers by their article concordance.")]]))
 
 (defn step-user-filter [step-count]
   (let [selected-users @(subscribe [::filter-users])
-
         user-counts (->> (mapv (fn [[usr cnt]]
-                            {:usr usr
-                             :cnt cnt
-                             :neg-cnt (* -1 cnt)
-                             :sel-usr (if (contains? selected-users usr) 0 1)
-                             })
-                          @(subscribe [::user-counts]))
+                                 {:usr usr
+                                  :cnt cnt
+                                  :neg-cnt (* -1 cnt)
+                                  :sel-usr (if (contains? selected-users usr) 0 1)
+                                  })
+                               @(subscribe [::user-counts]))
                          (sort-by (juxt :sel-usr :neg-cnt)))
         users       (mapv :usr user-counts)
-        usernames (mapv (fn [uuid] @(subscribe [:user/display uuid])) users)
-        max-cnt (reduce (fn [agg {usr :usr cnt :cnt}] (max agg cnt)) user-counts)
-        colors (mapv (fn [{usr :usr cnt :cnt}]
-                       (if (contains? selected-users usr) nil
-                                     (str "rgba(84, 152, 169," (* 0.8 (/ cnt max-cnt)) ")"))) user-counts)
+        usernames   (mapv (fn [uuid] @(subscribe [:user/display uuid])) users)
+        max-cnt     (reduce (fn [agg {usr :usr cnt :cnt}] (max agg cnt)) user-counts)
+        colors      (mapv (fn [{usr :usr cnt :cnt}]
+                            (if (contains? selected-users usr)
+                              nil
+                              (str "rgba(84, 152, 169," (max 0.2 (* 0.8 (/ cnt max-cnt))) ")")))
+                          user-counts)
         titles (mapv (fn [{cnt :cnt}] (str cnt " answers")) user-counts)
+        inv-color (if (= "Dark" (:ui-theme @(subscribe [:self/settings]))) "white" "#282828")
+        txt-col (mapv (fn [] inv-color) user-counts)
         ]
     [:div {:style {:margin-top "1em"}}
      [:h5 {:style {:margin-bottom "0px"}} (str step-count ". Filter By User ")]
      [button-array "user-filter" usernames users
       ::set-filter-users (subscribe [::filter-users])
-      :colors colors :titles titles
+      :colors colors :titles titles :txt-col txt-col
       ]
-     [Button {:size "mini" :style {:margin "2px" :margin-left "0px"}
-              :primary false
-              :on-click #(dispatch [::set-filter-users {:value #{} :curset #{}}])} "None"]
+     (if (> (count selected-users) 0)
+       [Button {:size "mini" :style {:margin "2px" :margin-left "0px"}
+                :primary false
+                :on-click #(dispatch [::set-filter-users {:value #{} :curset #{}}])} "clear selected users"])
      [:span  {:style {:display "block" :margin-left "1em" :margin-top "0.5em"}}
       "Only count answers from selected users on articles reviewed by" [:i " all "]
       "selected users (count all answers if no selected user)." [:br][:br] "Users colored by number of answers.
@@ -437,7 +389,7 @@
        [:span  {:style {:display "block" :margin-left "1em" :margin-top "0.5em"}}
         "Count answers from articles w/ 1+ answer for each filter."])]))
 
-(defn load-user-label-value-settings [user-ids not-user-ids label-values]
+(defn load-user-label-value-settings [user-ids label-values]
   (let [display {:show-inclusion true
                  :show-labels false
                  :show-notes false}
@@ -450,14 +402,9 @@
         user-filters (mapv (fn [user-id]
                              {:has-user {:user user-id
                                          :content :labels
-                                         :confirmed true}}) user-ids)
-        not-user-filters (mapv (fn [user-id]
-                                 {:has-user {:user user-id
-                                             :content :labels
-                                             :negate true
-                                             :confirmed true}}) not-user-ids)]
+                                         :confirmed true}}) user-ids)]
     (load-settings-and-navigate
-      {:filters (concat answer-filters user-filters not-user-filters)
+      {:filters (concat answer-filters user-filters)
        :display display
        :sort-by :content-updated
        :sort-dir :desc})))
@@ -465,11 +412,13 @@
 (defn step-go-to-articles [step-count]
   (let [answer-filters (mapv (fn [row] {:label-id (uuid (:label-id row)) :value (:raw-answer row)})
                              @(subscribe [::filter-answers]))
-        onclick (fn [] (load-user-label-value-settings @(subscribe [::filter-users]) [] answer-filters))]
-  [:div {:style {:margin-top "1em"}}
-   [:h5  {:style {:margin "0px"}} [:a {:style {:cursor "pointer"} :on-click onclick} (str step-count ". Go To Articles")]]
-   [:div {:style {:margin-left "1em"}}
-   [:span  "Open the articles page with label-answer and user filters."]]]))
+        onclick (fn [] (load-user-label-value-settings @(subscribe [::filter-users]) answer-filters))]
+    [:div {:style {:margin-top "1em"}}
+     [:h5  {:style {:margin "0px"}}
+      (str step-count ".")
+      [:a {:style {:cursor "pointer"} :on-click onclick} " Go To Articles " [:i.arrow.right.icon]]]
+     [:div {:style {:margin-left "1em"}}
+      [:span  "Open the articles page with label-answer and user filters."]]]))
 
 (defn label-count-control []
   [:div
