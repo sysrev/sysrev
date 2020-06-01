@@ -143,7 +143,7 @@
            :class "analytics"
            :content [:div
                      (when-not mobile? [:span [:i.chart.bar.icon] " "])
-                     "Analytics" [:sup {:style {:color "red"}} " beta"]]
+                     "Analytics"]
            :action (project-uri project-id "/analytics/concordance")
            :disabled (not ready?)
            :tooltip not-ready-msg}
