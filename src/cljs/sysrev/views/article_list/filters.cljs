@@ -541,7 +541,7 @@
                             (false? confirmed)  "unconfirmed"
                             :else               nil)
         label-str (if (nil? label-id) (space-join ["any" confirmed-str "label"])
-                      (space-join [confirmed-str (-> @(subscribe [:label/display label-id])
+                      (space-join [confirmed-str (-> @(subscribe [:label/display "na" label-id])
                                                      pr-str wrap-parens)]))
         inclusion-str (case inclusion
                         true   "with positive inclusion"
@@ -573,7 +573,7 @@
   (let [{:keys [label-id label-value direction score]} value]
     (space-join ["has prediction score" (case direction  :above ">", :below "<", "(??)")
                  (some-> score (* 10) int (/ 10.0) (str "%")) "for"
-                 (wrap-parens (space-join [(-> @(subscribe [:label/display label-id]) pr-str)
+                 (wrap-parens (space-join [(-> @(subscribe [:label/display "na" label-id]) pr-str)
                                            "=" (pr-str label-value)]))])))
 
 (defn- FilterDescribeElement
