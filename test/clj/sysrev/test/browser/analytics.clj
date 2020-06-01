@@ -60,7 +60,7 @@
       ; import some articles
       (pm/import-pubmed-search-via-db "foo bar")
       ; label the articles
-      (dotimes [_ 3]
+      (dotimes [_ 6]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ; log in user-2
       (nav/log-out)
@@ -68,7 +68,7 @@
       ; go to project
       (nav/open-project "Simple Test")
       ;label the articles
-      (dotimes [_ 3]
+      (dotimes [_ 6]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ; log out user-2 log in test-user
       (nav/log-out)
