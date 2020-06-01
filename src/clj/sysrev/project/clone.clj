@@ -1,5 +1,6 @@
 (ns sysrev.project.clone
   (:require [clojure.tools.logging :as log]
+            [clojure.set :refer [difference]]
             [honeysql.helpers :as sqlh :refer [select from join insert-into values where]]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction to-jsonb]]
@@ -26,10 +27,38 @@
                                      :permissions permissions))))))
 
 (defn copy-project-label-defs [src-project-id dest-project-id]
-  (->> (q/find :label {:project-id src-project-id})
-       (mapv #(-> (dissoc % :label-id :label-id-local :project-id)
-                  (assoc :project-id dest-project-id)))
-       (q/create :label)))
+  (let [label-definitions (q/find :label {:project-id src-project-id})
+        group-labels (->> label-definitions
+                          (filter #(= "group" (:value-type %)))
+                          (group-by :name))
+        sub-labels (filter (comp not nil? :root-label-id-local) label-definitions)
+        non-sub-labels (difference (set label-definitions)
+                                   (set sub-labels))
+        base-label-fn (fn [m]
+                        (-> (dissoc m :label-id :label-id-local :project-id)
+                            (assoc :project-id dest-project-id)))
+        ;;create non-sub-labels
+        _ (->>
+           non-sub-labels
+           (mapv base-label-fn)
+           (q/create :label))
+        new-group-labels (-> (select :*)
+                             (from :label)
+                             (where [:and [:= :project-id dest-project-id] [:= :value-type "group"]])
+                             db/do-query)
+        old-new-label-id-local-map (->> new-group-labels
+                                        (map #(hash-map (-> (get group-labels (:name %))
+                                                            first
+                                                            :label-id-local)
+                                                        (:label-id-local %)))
+                                        (apply merge))]
+    ;; create the sub labels
+    (->> sub-labels
+         (map base-label-fn)
+         (map #(update % :root-label-id-local (fn [n]
+                                                (get old-new-label-id-local-map
+                                                     n))))
+         (q/create :label))))
 
 (defn copy-project-article-labels [src-project-id dest-project-id]
   (with-transaction

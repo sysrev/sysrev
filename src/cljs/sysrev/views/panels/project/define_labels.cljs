@@ -138,7 +138,7 @@
              (map-values #(select-keys % [:project-ordering :short-label])))))))
 
 (defn create-blank-group-label [value-type label-id]
-  {:definition {:multi? false}
+  {:definition {:multi? true}
    :inclusion false
    :category "extra"
    :name (str value-type (util/random-id))

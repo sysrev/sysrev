@@ -104,8 +104,8 @@
   (b/click "form.create-project .button.create-project")
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
-   (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
-          "//ancestor::div[@id='project']"))
+   (xpath "//div[contains(@class,'project-title')]"
+          "//a[text()='" project-name "']"))
   (b/wait-until-loading-completes :pre-wait 50)
   (log/infof "created project %s for org" (pr-str project-name)))
 

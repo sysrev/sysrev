@@ -13,12 +13,32 @@
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.macros :refer-macros [with-loader]]))
 
+(defn ProjectTitle [project-id]
+  (let [project-owner @(subscribe [:project/owner project-id])
+        project-name @(subscribe [:project/name project-id])
+        parent-project @(subscribe [:project/parent-project project-id])]
+    [:span.ui.header.title-header
+     [:i.grey.list.alternate.outline.icon]
+     [:div.content.project-title
+      (when project-owner
+        [:span
+         [:a {:href (if-let [user-id (:user-id project-owner)]
+                      (user-uri user-id)
+                      (group-uri (:group-id project-owner)))}
+          (:name project-owner)]
+         [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
+      [:a {:href (project-uri nil "")} project-name]]
+     (when parent-project
+       [:div {:style {:margin-top "0.5rem"
+                      :font-size "0.9rem"}}
+        [:span.ui.grey.text {:font-""} "cloned from "]
+        [:a {:href (project-uri (:project-id parent-project) "")}
+         (str (:owner-name parent-project) "/" (:project-name parent-project))]])]))
+
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]] {}
-      (let [project-name @(subscribe [:project/name])
-            public? @(subscribe [:project/public-access?])
-            project-owner @(subscribe [:project/owner])
+      (let [public? @(subscribe [:project/public-access?])
             access-button (fn [content]
                             [:button.ui.tiny.button.project-access
                              {:on-click (when @(subscribe [:user/project-admin?])
@@ -30,27 +50,18 @@
         [:div
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
-           [:div.thirteen.wide.column
-            [:span.ui.header.title-header
-             [:i.grey.list.alternate.outline.icon]
-             [:div.content.project-title
-              (when project-owner
-                [:span
-                 [:a {:href (if-let [user-id (:user-id project-owner)]
-                              (user-uri user-id)
-                              (group-uri (:group-id project-owner)))}
-                  (:name project-owner)]
-                 [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
-              [:a {:href (project-uri nil "")} project-name]]]]
-           [:div.three.wide.right.aligned.column
+           [:div.eleven.wide.column
+            [ProjectTitle project-id]]
+           [:div.right.aligned.column.five.wide
             (when-not (util/mobile?)
               [CloneProject])
             access-label]]]
          [:div.ui.top.attached.segment.project-header.mobile
-          [:h4.ui.header.title-header
-           [:i.grey.list.alternate.outline.icon]
+          [:div.row
+           [:div.thirteen.wid.column]
+           [ProjectTitle project-id]]
+          [:div.row
            [:div.content
-            [:span.project-title project-name]
             (when (util/mobile?)
               [CloneProject])
             [:span.access-header access-label]]]]
