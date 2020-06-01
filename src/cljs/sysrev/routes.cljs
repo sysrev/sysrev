@@ -60,13 +60,23 @@
 
 (sr-defroute-project
   analytics "/analytics" [project-id]
-  (let [panel [:project :project :analytics]
-        prev-panel @(subscribe [:active-panel])
-        diff-panel (and prev-panel (not= panel prev-panel))
-        all-data-items [[:project project-id]]]
-    (dispatch [:set-active-panel panel])
-    (when diff-panel
-      (doseq [item all-data-items] (dispatch [:reload item])))))
+  (dispatch [:reload [:project project-id]])
+  (dispatch [:set-active-panel [:project :project :analytics]]))
+
+(sr-defroute-project
+  analytics-concordance "/analytics/concordance" [project-id]
+  (dispatch [:reload [:project project-id]])
+  (dispatch [:set-active-panel [:project :project :analytics :concordance]]))
+
+(sr-defroute-project
+  analytics-labels "/analytics/labels" [project-id]
+  (dispatch [:reload [:project project-id]])
+  (dispatch [:set-active-panel [:project :project :analytics :labels]]))
+
+(sr-defroute-project
+  analytics-feedback "/analytics/feedback" [project-id]
+  (dispatch [:reload [:project project-id]])
+  (dispatch [:set-active-panel [:project :project :analytics :feedback]]))
 
 (sr-defroute-project
  article-id "/article/:article-id" [project-id article-id]
