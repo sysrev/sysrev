@@ -265,8 +265,8 @@
      [:h3 {:id "answer-count" :style {:margin-top "0em"}} (str rev-arts " articles with " answers " answers")]
      (if sampled [:span [:b "This is a large project. A random sample was taken to keep analytics fast. "]])
      (if (> answers 0)
-       [:span (str "So far, " users " users have reviewed " rev-arts " articles.  They provided " answers
-                   " answers to " labels " labels.")]
+       [:span (str users " users reviewed " rev-arts " articles with " answers
+                   " answers to " labels " binary or categorical labels.")]
        [:span "Label count analytics helps you understand label answer distributions.
      Get started reviewing to view some charts"])]))
 
@@ -456,5 +456,16 @@
           ;(->> (:label label-groupcount-data) (mapv :count) (reduce +) (= 0)) [no-data-view]
           :else [main-view label-groupcount-data])))))
 
+(defn LabelCountReagentView []
+  (r/create-class
+    {:reagent-render (fn [] [label-count-view])
+     :component-did-mount (fn []
+                            (dispatch [::set-filter-users nil])
+                            (dispatch [::set-filter-answers nil])
+                            (dispatch [::set-article-type-selection
+                                       {:value #{"Single" "Concordant" "Discordant"}
+                                        :curset #{}}]))}))
+
+
 (defmethod panel-content [:project :project :analytics :labels] []
-  (fn [child] [:div.ui.aligned.segment [label-count-view] child]))
+  (fn [child] [:div.ui.aligned.segment [LabelCountReagentView] child]))
