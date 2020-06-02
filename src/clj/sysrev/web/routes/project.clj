@@ -87,12 +87,23 @@
      :labels user-labels
      :notes user-notes}))
 
+(defn parent-project-info
+  [project-id]
+  (let [parent-project-id (q/find-one :project {:project-id project-id} :parent-project-id)
+        project-name (q/find-one :project {:project-id parent-project-id} :name)
+        owner (project/get-project-owner parent-project-id)]
+    (when parent-project-id
+      {:project-id parent-project-id
+       :project-name project-name
+       :owner-name (:name owner)})))
+
 (defn project-info [project-id]
   (with-project-cache project-id [:project-info]
     (let [[[fields users labels keywords notes members predict importance
             url-ids files owner plan subscription-lapsed?]
            [_ [status-counts progress]]
-           [articles sources]]
+           [articles sources]
+           parent-project-info]
           (pvalues [(q/query-project-by-id project-id [:*])
                     (project/project-users-info project-id)
                     (project/project-labels project-id true)
@@ -114,8 +125,8 @@
                     (pvalues (labels/project-article-status-counts project-id)
                              (labels/query-progress-over-time project-id 30))]
                    [(project/project-article-count project-id)
-                    #_ (source/project-sources-basic project-id)
-                    (source/project-sources project-id)])]
+                    (source/project-sources project-id)]
+                   (parent-project-info project-id))]
       {:project {:project-id project-id
                  :name (:name fields)
                  :project-uuid (:project-uuid fields)
@@ -134,7 +145,8 @@
                  :url-ids url-ids
                  :owner owner
                  :plan plan
-                 :subscription-lapsed? subscription-lapsed?}
+                 :subscription-lapsed? subscription-lapsed?
+                 :parent-project parent-project-info}
        :users users})))
 
 ;;;
