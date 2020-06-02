@@ -45,10 +45,10 @@
       (nav/open-project "label count test")
       ; go to analytics/labels
       (nav/go-project-route "/analytics/labels")
-      (b/wait-until-displayed "h3#answer-count")
-      (is (->> (taxi/element "h3#answer-count")
+      (b/wait-until-displayed "h4#answer-count")
+      (is (->> (taxi/element "h4#answer-count")
                (taxi/text)
-               (= "6 articles with 12 answers")))
+               (= "6 articles with 12 answers total")))
       ))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)
