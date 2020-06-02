@@ -527,7 +527,7 @@
                     :curset #{}}])
         (cond
           (exists? (:error label-groupcount-data)) [broken-service-view]
-          (= 0 (:answers @(subscribe [::overall-counts]))) [no-data-view]
+          (= 0 (count (:groups label-groupcount-data))) [no-data-view]
           :else [main-view label-groupcount-data])))))
 
 
