@@ -18,7 +18,8 @@
     [sysrev.data.core :refer [def-data]]
     [sysrev.views.components.core :refer [selection-dropdown]]
     [sysrev.util :as util]
-    [goog.string :as gstring]))
+    [goog.string :as gstring]
+    [sysrev.views.panels.project.analytics.common :refer [beta-message]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -405,14 +406,17 @@
      [chartjs/horizontal-bar {:data data :height height :options options}]]))
 
 ; PAGE DEFINITION
+
 (defn broken-service-view []
-  [:div [:span "The concordance analytics service is currently down. We are working to bring it back."]])
+  [:div [:span "The concordance analytics service is currently down. We are working to bring it back."]
+   [:br][beta-message]])
 
 (defn no-data-view []
   [:div {:id "no-data-concordance"}
    "To view concordance data, you need 2+ users to review boolean labels on the same article at least once."
    [:br][:br] "Set the 'Article Review Priority' to 'balanced' or 'full' under manage -> settings to guarantee overlaps."
-   [:br][:br] "Invite a friend with the invite link on the overview page and get reviewing!"])
+   [:br][:br] "Invite a friend with the invite link on the overview page and get reviewing!"
+   [:br][beta-message]])
 
 (defn main-view [concordance-data]
   (let [mean-conc         (* 100 (measure-overall-concordance concordance-data))
@@ -424,9 +428,9 @@
        [:h2 {:id "overall-concordance"} (gstring/format "Concordance %.1f%%" mean-conc)]
        (cond
          (> mean-conc 98) [:span {:style {:color (:bright-green colors)}} "Great job! Your project is highly concordant"]
-         (> mean-conc 90) [:span {:style {:color (:bright-orange colors)}} "Some discordance in your labels. Make sure your reviewers understand their tasks "]
+         (> mean-conc 90) [:span {:style {:color (:bright-orange colors)}} "Some discordance in your labels. Make sure reviewers understand tasks "]
          :else            [:span {:style {:color (:red colors)}} "Significant discordance in your labels. Make sure your reviewers all understand their tasks. "])
-       [:br] [:span "This is the Beta version of analytics. Provide feedback on this " [:a {:href "https://forms.gle/r9gfb96jCmBrWUBY9"} "google form"] "."]
+       [:br] [beta-message]
        [:br] [:span "User concordance tracks how often users agree with each other. "]
        [:br] [:span "Learn more at " [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics."]]]
       [Column {:width 8 :text-align "center" :vertical-align "middle"}
@@ -444,6 +448,7 @@
       (if (or (empty? selected-label) (empty? selected-user) )
         [Column {:width 10 :text-align "center" :vertical-align "middle"} [user-label-specific-empty concordance-data]]
         [Column {:width 10} [user-label-specific-concordance concordance-data]])]]))
+
 
 (defn overall-concordance []
   (when-let [project-id @(subscribe [:active-project-id])]
