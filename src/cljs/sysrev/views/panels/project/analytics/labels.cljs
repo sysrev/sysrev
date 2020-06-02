@@ -290,7 +290,7 @@
        [:div
         [beta-message]
         [:br]
-        [:div {:style {:text-align "center" :margin-top "0.5em"}} [:b (str users " Selected Users with " fil-answers " total answers")]]]
+        [:div {:style {:text-align "center" :margin-top "0.5em"}} [:b (str users " selected users with " fil-answers " filtered answers")]]]
        [:span "Label count analytics helps you understand label answer distributions.
      Get started reviewing to view some charts. " [beta-message]])]))
 
