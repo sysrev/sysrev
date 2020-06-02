@@ -29,6 +29,10 @@
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          (fn [project] (:owner project)))
 
+(reg-sub :project/parent-project
+         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
+         (fn [project] (:parent-project project)))
+
 (reg-sub :project/plan
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          (fn [project] (:plan project)))
