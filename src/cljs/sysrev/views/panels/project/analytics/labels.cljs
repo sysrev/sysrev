@@ -181,7 +181,14 @@
 
 (reg-sub ::count-type (fn [db _] (if (nil? (::count-type db)) #{"Count Every Answer"} (::count-type db))))
 
-(reg-event-db ::set-filter-users (set-event ::filter-users false))
+(reg-event-db ::set-filter-users
+              (fn [db [_ {value :value curset :curset}]]
+                (cond
+                  (nil? value) (assoc db ::filter-users (set []))
+                  (set? value) (assoc db ::filter-users value)
+                  (contains? curset value) (assoc db ::filter-users (disj curset value))
+                  :else (assoc db ::filter-users (conj curset value)))))
+
 (reg-sub ::filter-users (fn [db _] (if (nil? (::filter-users db)) #{} (::filter-users db))))
 
 (reg-event-db ::set-filter-answers (set-event ::filter-answers false))
@@ -499,9 +506,7 @@
 
 (defn no-data-view []
   [:div {:id "no-data-concordance"}
-   "To view concordance data, you need 2+ users to review boolean labels on the same article at least once."
-   [:br][:br] "Set the 'Article Review Priority' to 'balanced' or 'full' under manage -> settings to guarantee overlaps."
-   [:br][:br] "Invite a friend with the invite link on the overview page and get reviewing!"
+   "To view label data, you need to review some boolean or categorical labels."
    [:br] [beta-message]])
 
 (defn main-view [groupcount-data]
@@ -513,23 +518,18 @@
     (with-loader
       [[:project/analytics.count-data project-id]] {}
       (let [label-groupcount-data @(subscribe [:project/analytics.count-data])]
+        (dispatch [::set-filter-users
+                   {:value (set (map #(:user %) @(subscribe [::sorted-user-counts])))
+                    :curset #{}}])
+        (dispatch [::set-filter-answers nil])
+        (dispatch [::set-article-type-selection
+                   {:value #{"Single" "Concordant" "Discordant"}
+                    :curset #{}}])
         (cond
           (exists? (:error label-groupcount-data)) [broken-service-view]
-          ;(->> (:label label-groupcount-data) (mapv :count) (reduce +) (= 0)) [no-data-view]
+          (= 0 (:answers @(subscribe [::overall-counts]))) [no-data-view]
           :else [main-view label-groupcount-data])))))
-
-(defn LabelCountReagentView []
-  (r/create-class
-    {:reagent-render (fn [] [label-count-view])
-     :component-did-mount (fn []
-                            (dispatch [::set-filter-answers nil])
-                            (dispatch [::set-article-type-selection
-                                       {:value #{"Single" "Concordant" "Discordant"}
-                                        :curset #{}}])
-                            (dispatch [::set-filter-users
-                                       {:value (set (map #(:user %) @(subscribe [::sorted-user-counts])))
-                                        :curset #{}}]))}))
 
 
 (defmethod panel-content [:project :project :analytics :labels] []
-  (fn [child] [:div.ui.aligned.segment [LabelCountReagentView] child]))
+  (fn [child] [:div.ui.aligned.segment [label-count-view] child]))
