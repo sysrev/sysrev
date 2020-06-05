@@ -4,6 +4,7 @@
             [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.article-list.core :as alist]
+            [sysrev.views.review :as review :refer [GroupLabelPreview]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -76,5 +77,7 @@
   (fn [child]
     (when @(subscribe [:active-project-id])
       [:div.project-content
+       (when (review/display-sidebar?)
+         [GroupLabelPreview @(subscribe [:visible-article-id])])
        [ArticlePanel]
        child])))

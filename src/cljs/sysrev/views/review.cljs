@@ -13,9 +13,12 @@
             [sysrev.state.label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
+            [sysrev.views.labels :refer [GroupLabelAnswerTag]]
             [sysrev.views.semantic :refer [Button Icon Accordion AccordionContent AccordionTitle Message]]
             [sysrev.util :as util :refer [in? css nbsp parse-integer]]
             [sysrev.macros :refer-macros [with-loader]]))
+
+(def group-label-preview-div "group-label-preview")
 
 (defn set-label-value [db article-id root-label-id label-id ith label-value]
   (cond
@@ -149,6 +152,16 @@
 (reg-sub ::invalid-labels
          (fn [db [_ article-id]]
            (get-in db [:state :review :labels article-id :invalid-label])))
+
+;; for setting the active group label
+(reg-event-db ::set-active-group-label [trim-v]
+              (fn [db [article-id label-id]]
+                (assoc-in db [:state :review :labels :active-group-label article-id]
+                          label-id)))
+
+(reg-sub ::active-group-label
+         (fn [db [_ article-id]]
+           (get-in db [:state :review :labels :active-group-label article-id])))
 
 (defn BooleanLabelInput
   [[root-label-id label-id ith] article-id]
@@ -500,12 +513,12 @@
              nil)
       (dispatch [::add-group-label-instance article-id label-id]))
     [:div {:id (str "group-label-input-" label-id)
-           :style {:width "100%"
-                   :padding "0"
-                   :border-radius ".28571429rem .28571429rem 0 0"
-                   :border-top "1px solid"
-                   :border-left "1px solid"
-                   :border-right "1px solid"}}
+           :style (cond-> {:width "100%"
+                           :padding "0"}
+                    (= label-id @(subscribe [::active-group-label article-id]))
+                    (merge {:border-radius ".28571429rem"
+                            :border "1px solid"}))
+           :on-click (fn [_] (dispatch [::set-active-group-label article-id label-id]))}
      ;; sub labels
      (for [ith (range 0 (group-label-instances article-id label-id))]
        ^{:key (str article-id "-" label-id "-instance-count-" ith)}
@@ -514,7 +527,10 @@
         [GroupLabelInstance article-id label-id (str ith)]])
      ;; add a new instance
      (when multi?
-       [Button {:on-click #(dispatch [::add-group-label-instance article-id label-id])
+       [Button {:on-click #(let [current-div (js/document.getElementById group-label-preview-div )]
+                             (set! (.-scrollTop current-div) (+ (.-scrollHeight current-div)
+                                                                100))
+                             (dispatch [::add-group-label-instance article-id label-id]))
                 :attached "bottom"} [Icon {:name "plus"}] label-name])]))
 
 (reg-sub ::label-css-class
@@ -847,3 +863,17 @@
        [:div.column (SaveButton article-id true true)]
        (when review-task?
          [:div.column (SkipArticle article-id true true)])])))
+
+(defn GroupLabelPreview
+  [article-id]
+  (let [active-group-label @(subscribe [::active-group-label article-id])
+        answers (:labels
+                 @(subscribe [:review/active-labels article-id "na" active-group-label]))]
+    (when-not (nil? active-group-label)
+      [ui/WrapFixedVisibility 10
+       [:div {:id group-label-preview-div
+              :style {:overflow "auto"
+                      :max-height "20rem"}}
+        [GroupLabelAnswerTag {:group-label-id active-group-label
+                              :answers answers
+                              :indexed? true}]]])))

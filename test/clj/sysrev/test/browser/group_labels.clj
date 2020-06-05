@@ -3,6 +3,7 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [honeysql.helpers :as hsql :refer [select from where]]
+            [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.label.core :as labels]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -112,6 +113,13 @@
   [root-short-label]
   (x/xpath "//div[contains(@class,'button') and contains(text(),'" root-short-label "')]"))
 
+(defn group-label-value
+  "In a group label answer, get the short-label values"
+  [short-label group-label-definition]
+  (->>
+   (get-in group-label-definition [:definition :labels])
+   (medley/find-first #(= (:short-label %) short-label)) :value))
+
 (deftest-browser group-labels-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (group-labels-happy-path-test)"
@@ -174,7 +182,11 @@
     ;; set the labels
     (ra/set-article-answers (conj (-> group-label-definition :definition :labels)
                                   (merge ra/include-label-definition
-                                         {:value include-label-value})))
+                                         {:value include-label-value}))
+                            :save? false)
+    (is (b/exists? (xpath "//th[contains(text(),'"
+                          (:short-label group-label-definition) "')]")))
+    (b/click ".button.save-labels" :delay 30 :displayed? true)
     ;;verify we are on the next article
     (is (b/exists? ".ui.button.save-labels.disabled"))
     ;; check in the database for the labels
@@ -197,11 +209,8 @@
                                   (if (vector? answer)
                                     (first answer)
                                     answer)))
-          group-label-value (fn [short-label] (->>
-                                               (get-in group-label-definition [:definition :labels])
-                                               (medley.core/find-first #(= (:short-label %) short-label)) :value))
           test-short-label-answer (fn [short-label]
-                                    (is (= (group-label-value short-label)
+                                    (is (= (group-label-value short-label group-label-definition)
                                            (group-label-setting short-label))))]
       ;; these are just checks in the database
       (is (= true
@@ -221,13 +230,13 @@
              (-> (str (:short-label ra/include-label-definition) "?")
                  ra/label-button-value read-string boolean)))
       ;; check a boolean value
-      (is (= (str (group-label-value "Boolean Label"))
+      (is (= (str (group-label-value "Boolean Label" group-label-definition))
              (group-label-button-value "Boolean Label" "1")))
       ;; check a string value
-      (is (= (group-label-value "String Label")
+      (is (= (group-label-value "String Label" group-label-definition)
              (group-label-button-value "String Label" "1")))
       ;; check a categorical value
-      (is (= (group-label-value "Categorical Label")
+      (is (= (group-label-value "Categorical Label" group-label-definition)
              (group-label-button-value "Categorical Label" "1")))))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
 

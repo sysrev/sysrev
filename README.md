@@ -384,6 +384,11 @@ Testing is done both locally and on our Jenkins continuous deployment server at 
 If a new test namespace is created, it should be added to the sysrev.test.all in order for it to be
 picked up by the Jenkins test server.
 
+To switch between using the production and development versions of the compiled ClojureScript:
+
+> (sysrev.web.index/set-web-asset-path "/out-production")
+> (sysrev.web.index/set-web-asset-path "/out-dev")
+
 ## Config Files
 
 The Clojure project uses https://github.com/yogthos/config for loading config profiles.
