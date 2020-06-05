@@ -7,7 +7,7 @@
             [sysrev.views.annotator :as ann]
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.state.label :refer [real-answer?]]
-            [sysrev.util :as util :refer [in? css time-from-epoch nbsp]]
+            [sysrev.util :as util :refer [in? css time-from-epoch nbsp parse-integer]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ValueDisplay [root-label-id label-id answer]
@@ -41,7 +41,8 @@
      [:div.ui.basic.label
       [ValueDisplay root-label-id label-id answer]]]))
 
-(defn GroupLabelAnswerTag [group-label-id answers]
+(defn GroupLabelAnswerTag [{:keys [group-label-id answers indexed?]
+                            :or {indexed? false}}]
   (let [labels (->> (vals @(subscribe [:label/labels "na" group-label-id "na"]))
                     (sort-by :project-ordering <)
                     (filter :enabled))
@@ -50,13 +51,17 @@
                         (str display "?")
                         display)]
     (when (seq answers)
-      [:div.ui.tiny.labeled.button.label-answer-tag
+      [:div.ui.tiny.labeled.label-answer-tag
        [Table {:striped true}
         [TableHeader {:fullWidth true}
          [TableRow {:textAlign "center"}
-          [TableHeaderCell {:colSpan (count labels)} display-label]]]
+          [TableHeaderCell {:colSpan (if indexed?
+                                       (+ (count labels) 1)
+                                       (count labels))} display-label]]]
         [TableHeader
          [TableRow
+          (when indexed?
+            [TableHeaderCell])
           (doall (for [label labels]
                    ^{:key (str group-label-id "-" (:label-id label) "-table-header" )}
                    [TableHeaderCell @(subscribe [:label/display group-label-id (:label-id label)])]))]]
@@ -64,6 +69,7 @@
          (for [ith (sort (keys answers))]
            ^{:key (str group-label-id "-" ith "-row")}
            [TableRow
+            (when indexed? [TableCell (+ (parse-integer ith) 1)])
             (for [label labels]
               ^{:key (str group-label-id "-" ith "-row-" (:label-id label) "-cell")}
               [TableCell
@@ -88,7 +94,8 @@
                                                (remove #(not= "group" @(subscribe [:label/value-type "na" %])))
                                                (map #(list % (get-in labels [% :answer]))))]
               ^{:key (str group-label-id)}
-              [GroupLabelAnswerTag group-label-id (:labels answer)]))
+              [GroupLabelAnswerTag {:group-label-id group-label-id
+                                    :answers (:labels answer)}]))
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])
