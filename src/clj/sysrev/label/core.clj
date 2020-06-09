@@ -447,7 +447,19 @@
   project consensus labels."
   [project-id article-id]
   (when-let [resolve (article-current-resolve-entry project-id article-id)]
-    (let [conflict-ids (article-conflict-label-ids project-id article-id)]
+    (let [group-label-ids (-> (select :label-id)
+                              (from :label)
+                              (where [:and
+                                      [:= :value-type "group"]
+                                      [:= :project-id project-id]])
+                              do-query
+                              (->> (map :label-id)))
+          conflict-ids (->> (article-conflict-label-ids project-id article-id)
+                            ;; filtering out group labels, for now
+                            ;; the method below gets hairy for multiple group labels
+                            ;; we're just going to assume if a group label has a
+                            ;; resolve entry, that is the article label final value
+                            (remove #(contains? (set group-label-ids) %)))]
       (when (empty? (set/difference (set conflict-ids) (set (:label-ids resolve))))
         (dissoc resolve :article-id)))))
 

@@ -198,12 +198,13 @@
 
 (defn set-article-answers
   "Set and save answers on current article for a sequence of labels."
-  [label-settings & {:keys [save? xpath] :or {save? true}}]
+  [label-settings & {:keys [save? xpath only-set-labels?] :or {save? true only-set-labels? false}}]
   (let [remote? (test/remote-test?)]
-    (log/info "setting article labels")
-    (nav/go-project-route "/review" :silent true :wait-ms 50)
-    (b/wait-until-loading-completes :pre-wait (if remote? 100 30) :loop 2)
-    (b/click x/review-labels-tab :delay 25 :displayed? true)
+    (when-not only-set-labels?
+      (log/info "setting article labels")
+      (nav/go-project-route "/review" :silent true :wait-ms 50)
+      (b/wait-until-loading-completes :pre-wait (if remote? 100 30) :loop 2)
+      (b/click x/review-labels-tab :delay 25 :displayed? true))
     (doseq [x label-settings] (set-label-answer x xpath))
     (when remote? (Thread/sleep 100))
     (when save?

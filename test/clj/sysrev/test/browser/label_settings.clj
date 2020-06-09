@@ -18,6 +18,26 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(defn switch-user
+  [email project-id]
+  (nav/log-in email)
+  (nav/go-project-route "" :project-id project-id :silent true :wait-ms 50))
+
+(def include-full ".label-status-help .include-full-button")
+(def conflicts ".label-status-help .conflict-button")
+(def resolved ".label-status-help .resolve-button")
+
+(defn check-status
+  [n-full n-conflict n-resolved]
+  (nav/go-project-route "" :silent true :wait-ms 50 :pre-wait-ms 50)
+  (is (b/exists? include-full))
+  (b/is-soon (= (format "Full (%d)" n-full) (taxi/text include-full)))
+  (is (b/exists? conflicts))
+  (b/is-soon (= (format "Conflict (%d)" n-conflict) (taxi/text conflicts)))
+  (is (b/exists? resolved))
+  (b/is-soon (= (format "Resolved (%d)" n-resolved) (taxi/text resolved)))
+  (b/wait-until-loading-completes :pre-wait true))
+
 (deftest-browser label-consensus-test
   (test/db-connected?) test-user
   [separator export/default-csv-separator
@@ -28,9 +48,6 @@
    [user1 user2 user3] test-users
    to-user-name #(-> % :email (str/split #"@") first)
    project-name "Label Consensus Test"
-   switch-user (fn [email]
-                 (nav/log-in email)
-                 (nav/go-project-route "" :project-id @project-id :silent true :wait-ms 50))
    label1 {:value-type "categorical"
            :short-label "Test Label 1"
            :question "Is it?"
@@ -42,19 +59,7 @@
    lvalues-1 [(merge review/include-label-definition {:value true})
               (merge label1 {:value "One"})]
    lvalues-2 [(merge review/include-label-definition {:value true})
-              (merge label1 {:value "Two"})]
-   include-full ".label-status-help .include-full-button"
-   conflicts ".label-status-help .conflict-button"
-   resolved ".label-status-help .resolve-button"
-   check-status (fn [n-full n-conflict n-resolved]
-                  (nav/go-project-route "" :silent true :wait-ms 50 :pre-wait-ms 50)
-                  (is (b/exists? include-full))
-                  (b/is-soon (= (format "Full (%d)" n-full) (taxi/text include-full)))
-                  (is (b/exists? conflicts))
-                  (b/is-soon (= (format "Conflict (%d)" n-conflict) (taxi/text conflicts)))
-                  (is (b/exists? resolved))
-                  (b/is-soon (= (format "Resolved (%d)" n-resolved) (taxi/text resolved)))
-                  (b/wait-until-loading-completes :pre-wait true))]
+              (merge label1 {:value "Two"})]]
   (do (nav/log-in (:email test-user))
       ;; create project
       (nav/new-project project-name)
@@ -71,7 +76,7 @@
         (add-project-member @project-id user-id))
       (set-member-permissions @project-id (:user-id user1) ["member" "admin"])
       ;; review article from user1
-      (switch-user (:email user1))
+      (switch-user (:email user1) @project-id)
       (nav/go-project-route "/review")
       (review/set-article-answers lvalues-1)
       (let [uanswers (export/export-user-answers-csv @project-id)
@@ -91,7 +96,7 @@
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; review article from user2 (different categorical answer)
-      (switch-user (:email user2))
+      (switch-user (:email user2) @project-id)
       (nav/go-project-route "/review")
       (review/set-article-answers lvalues-2)
       (is (b/exists? ".no-review-articles"))
@@ -114,7 +119,7 @@
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; enable label consensus setting
-      (switch-user (:email user1))
+      (switch-user (:email user1) @project-id)
       (reset! label-id-1 (->> (vals (project/project-labels @project-id))
                               (filter #(= (:short-label %)
                                           (:short-label label1)))
@@ -140,7 +145,7 @@
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; switch to non-admin user to use "Change Labels"
-      (switch-user (:email user2))
+      (switch-user (:email user2) @project-id)
       ;; check article list interface (Conflict filter)
       (check-status 0 1 0)
       (b/click conflicts :displayed? true :delay 100)
@@ -154,7 +159,7 @@
       ;; check that article still shows as conflict
       (check-status 0 1 0)
       ;; disable label consensus setting
-      (switch-user (:email user1))
+      (switch-user (:email user1) @project-id)
       (define/edit-label @label-id-1 (merge label1 {:consensus false}))
       ;; check that article no longer shows as conflict
       (check-status 1 0 0)

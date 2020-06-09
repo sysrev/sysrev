@@ -1,13 +1,18 @@
 (ns sysrev.test.browser.group-labels
-  (:require [clojure.test :refer [is use-fixtures]]
+  (:require [clojure.string :as string]
+            [clojure.test :refer [is use-fixtures]]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [honeysql.helpers :as hsql :refer [select from where]]
             [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.label.core :as labels]
+            [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member set-member-permissions]]
+            [sysrev.source.import :as import]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.define-labels :as dlabels]
+            [sysrev.test.browser.label-settings :refer [switch-user include-full conflicts resolved]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pubmed]
             [sysrev.test.browser.review-articles :as ra]
@@ -614,3 +619,126 @@
 
 ;; delete the project completely
 ;; (sysrev.test.browser.core/delete-test-user-projects! 2)
+
+(defn check-status
+  [n-full n-conflict n-resolved]
+  (nav/go-project-route "" :silent true :wait-ms 50 :pre-wait-ms 50)
+  (b/wait-until-loading-completes :pre-wait true)
+  (is (b/exists? include-full))
+  (is (= (format "Full (%d)" n-full) (taxi/text include-full)))
+  (is (b/exists? conflicts))
+  (is (= (format "Conflict (%d)" n-conflict) (taxi/text conflicts)))
+  (is (b/exists? resolved))
+  (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved))))
+
+(deftest-browser label-consensus-test
+  (test/db-connected?) test-user
+  [project-id (atom nil)
+   label-id-1 (atom nil)
+   test-users (mapv #(b/create-test-user :email %)
+                    (mapv #(str "user" % "@foo.bar") [1 2]))
+   [user1 user2] test-users
+   to-user-name #(-> % :email (string/split #"@") first)
+   project-name "Label Consensus Test (Group Labels)"
+   group-label-definition {:value-type "group"
+                           :short-label "Group Label"
+                           :definition
+                           {:multi? true
+                            :labels [{:value-type "boolean"
+                                      :short-label "Boolean Label"
+                                      :question "Is this true or false?"
+                                      :definition {:inclusion-values [true]}
+                                      :required true
+                                      :consensus true}
+                                     {:value-type "string"
+                                      :short-label "String Label"
+                                      :question "What value is present for Foo?"
+                                      :definition
+                                      {:max-length 160
+                                       :examples ["foo" "bar" "baz" "qux"]
+                                       :multi? true}
+                                      :required true}
+                                     {:value-type "categorical"
+                                      :short-label "Categorical Label"
+                                      :question "Does this label fit within the categories?"
+                                      :definition
+                                      {:all-values ["Foo" "Bar" "Baz" "Qux"]
+                                       :inclusion-values ["Foo" "Bar"]
+                                       :multi? false}
+                                      :required true
+                                      :consensus true}]}}]
+  (do (nav/log-in (:email test-user))
+      ;; create project
+      (nav/new-project project-name)
+      (reset! project-id (b/current-project-id))
+      ;; import one article
+      (import/import-pmid-vector @project-id {:pmids [25706626]} {:use-future? false})
+      (nav/go-project-route "/labels/edit")
+      ;; create a group label
+      (dlabels/define-group-label group-label-definition)
+      ;; make sure the labels are in the correct order
+      (is (= (->> group-label-definition :definition :labels (mapv :short-label))
+             (group-sub-short-labels "Group Label")))
+      ;; add users to project
+      (doseq [{:keys [user-id]} test-users]
+        (add-project-member @project-id user-id))
+      (set-member-permissions @project-id (:user-id user1) ["member" "admin"])
+      ;; review article from user1
+      (switch-user (:email user1) @project-id)
+      (nav/go-project-route "/review")
+      (ra/set-article-answers (conj [{:short-label "Boolean Label"
+                                      :value false
+                                      :value-type "boolean"}
+                                     {:short-label "String Label"
+                                      :value "bar34"
+                                      :value-type "string"}
+                                     {:short-label "Categorical Label"
+                                      :value "Foo"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      (is (b/exists? ".no-review-articles"))
+      ;; review article from user2 (different categorical answer)
+      (switch-user (:email user2) @project-id)
+      (nav/go-project-route "/review")
+      (ra/set-article-answers (conj [{:short-label "Boolean Label"
+                                      :value true
+                                      :value-type "boolean"}
+                                     {:short-label "String Label"
+                                      :value "bar34"
+                                      :value-type "string"}
+                                     {:short-label "Categorical Label"
+                                      :value "Bar"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      (is (b/exists? ".no-review-articles"))
+      ;; check for conflict
+      (check-status 0 1 0)
+      ;; attempt to resolve conflict as admin
+      (switch-user (:email test-user) @project-id)
+      (nav/go-project-route "/articles" :wait-ms 50)
+      (b/click "a.article-title")
+      ;; the labels are in conflict
+      (is (b/exists? (xpath "//div[contains(@class, 'review-status') and contains(text(),'Conflicting labels')]")))
+      (b/click "div.resolve-labels")
+      ;; set the user1 labels as correct
+      (ra/set-article-answers (conj [{:short-label "Boolean Label"
+                                      :value false
+                                      :value-type "boolean"}
+                                     {:short-label "String Label"
+                                      :value "bar34"
+                                      :value-type "string"}
+                                     {:short-label "Categorical Label"
+                                      :value "Foo"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true}))
+                              :save? false
+                              :only-set-labels? true)
+      (b/click ".save-labels")
+      ;; article is shown as resolved
+      (is (b/exists? (xpath "//div[contains(@class, 'review-status') and contains(text(),'Resolved')]")))
+      (b/click ".overview")
+      ;; there is only a single resolved label
+      (check-status 1 0 1))
+  :cleanup (do (some-> @project-id (project/delete-project))
+               (doseq [{:keys [email]} test-users]
+                 (b/delete-test-user :email email))))

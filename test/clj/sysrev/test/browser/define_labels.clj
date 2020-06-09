@@ -78,25 +78,27 @@
     (b/click (checkbox include?))))
 
 (defn set-boolean-label-definition
-  [xpath {:keys [question short-label required definition]
+  [xpath {:keys [question short-label required consensus definition]
           :or {question "" short-label "" required false}}]
   (let [{:keys [inclusion-values] :or {inclusion-values [true]}} definition
         field-path #(field-input-xpath xpath (str "field-" %))]
     (b/set-input-text (field-path "short-label") short-label)
     (b/set-input-text (field-path "question") question)
     (set-checkbox-button (field-path "required") required)
+    (set-checkbox-button (field-path "consensus") consensus)
     (set-checkbox-button (field-path "inclusion") (seq inclusion-values))
     (when (seq inclusion-values)
       (set-boolean-inclusion xpath (first inclusion-values)))))
 
 (defn set-string-label-definition
-  [xpath {:keys [question short-label required definition]
+  [xpath {:keys [question short-label required consensus definition]
           :or {question "" short-label "" required false}}]
   (let [{:keys [examples regex max-length multi?]
          :or {examples [] regex "" max-length ""}} definition
         field-path #(field-input-xpath xpath (str "field-" %))]
     (b/set-input-text (field-path "short-label") short-label)
     (set-checkbox-button (field-path "required") required)
+    (set-checkbox-button (field-path "consensus") consensus)
     (set-checkbox-button (field-path "multi") multi?)
     (b/set-input-text (field-path "question") question)
     (b/set-input-text (field-path "max-length") (str max-length))
