@@ -8,27 +8,24 @@
             [honeysql.helpers :as sqlh :refer [select limit from join insert-into values where]]))
 
 ;https://api.insilica.co/service/run/concordance/concordance
-(def concordance-route (str api-host "service/run/concordance/concordance"))
+(def concordance-route (str api-host "service/run/concordance-2/concordance"))
 
 (defn munge-sql-body [body]
   (map (fn [row] {
-                  :user (first (str/split (:email row) #"@"))
+                  :user-id (:user-id row)
                   :article (:article-id row)
-                  :label (:short-label row)
+                  :label-id (:label-id row)
                   :value (str (:answer row))})
        body))
 
 (defn get-request-body [project-id]
-  (-> (select :wu.email :article_id :la.short_label :answer)
+  (-> (select :user_id :article_id :al.label_id :answer)
       (from [:article_label :al])
-      (join [:label :la]
-            [:= :al.label-id :la.label-id]
-            [:web_user :wu]
-            [:= :wu.user_id :al.user_id])
+      (join [:label :la] [:= :al.label-id :la.label-id])
       (where [:and
               [:= :project-id project-id]
               [:= :la.value_type "boolean"]
-              ])
+              [:= :al.resolve false]])
       do-query
       munge-sql-body
       json/write-str))

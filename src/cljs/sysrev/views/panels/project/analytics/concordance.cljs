@@ -252,18 +252,17 @@
         (when-let [idx (-> elts first (aget "_index"))]
           (dispatch [set-event (nth labels idx)]))))))
 
-(defn make-buttons [labels selected-labels click-set-event]
-  (map (fn [lbl]
-         (if (contains? selected-labels lbl)
-           ^{:key (str "step2_sel_" lbl)}
-           [Button {:size "mini" :primary true
-                    :style {:margin "2px"}
-                    :on-click #(dispatch [click-set-event lbl])} lbl]
-           ^{:key (str "step2_" lbl)}
-           [Button {:id (str "step2_" lbl) :size "mini" :secondary true
-                    :style {:margin "2px"}
-                    :on-click #(dispatch [click-set-event lbl])} lbl]))
-       labels))
+(defn make-buttons [prefix labels disp-value selected-labels click-set-event]
+  (map (fn [i]
+         (let [lbl (get labels i)
+               disp-value (get disp-value i)]
+             ^{:key (str prefix disp-value)}
+             [Button {:size "mini"
+                      :primary (contains? selected-labels disp-value)
+                      :secondary (not (contains? selected-labels disp-value))
+                      :style {:margin "2px"}
+                      :on-click #(dispatch [click-set-event disp-value])} lbl]))
+       (range (count labels))))
 
 ; STEP 1
 (defn concordance-description []
@@ -274,7 +273,7 @@
 
 (defn label-concordance [concordance-data]
   (let [conc-data       (filter #(> (:count %) 0) (sort-by :count > (:label concordance-data)))
-        labels          (mapv :label conc-data)
+        labels          (mapv (fn [row] @(subscribe [:label/display "na" (uuid (:label-id row))])) conc-data)
         concordance     (mapv (fn [r] (/ (js/Math.round (* 100 (/ (:concordant r) (:count r)))) 100)) conc-data)
         discordance     (mapv #(/ (js/Math.round (* 100 (- 1.0 %))) 100) concordance)
         counts          (mapv :count conc-data)
@@ -302,9 +301,10 @@
 
 ; STEP 2
 (defn user-concordance-description [concordance-data]
-  (let [labels (distinct (mapv :label (sort-by :count > (:label concordance-data))))
+  (let [labels (vec (distinct (mapv :label-id (sort-by :count > (:label concordance-data)))))
+        label-names (vec (distinct (mapv (fn [lid] @(subscribe [:label/display "na" (uuid lid)])) labels)))
         selected-label @(subscribe [::concordance-label-selection])
-        buttons (make-buttons labels selected-label ::set-concordance-label-selection)]
+        buttons (make-buttons "step2_sel_" label-names labels selected-label ::set-concordance-label-selection)]
     [:div
      [:h3 "Step 2 - User Performance"]
      [:span "Discover which users have the best performance on the selected label. "]
@@ -314,11 +314,11 @@
 
 (defn user-concordance-empty [concordance-data]  [:div [:span "Select a label"]])
 
-;TODO - onClick should take you to discordant/concordant articles
+;todo - onClick should take you to discordant/concordant articles
 (defn user-concordance [concordance-data]
   (let [selected-labels @(subscribe [::concordance-label-selection])
-        conc-data       (filter #(contains? selected-labels (:label %)) (sort-by :count > (:user_label concordance-data)))
-        users           (mapv :user conc-data)
+        conc-data       (filter #(contains? selected-labels (:label-id %)) (sort-by :count > (:user_label concordance-data)))
+        users           (mapv (fn [{user :user-id}] @(subscribe [:user/display user])) conc-data)
         concordance     (mapv (fn [r] (/ (js/Math.round (* 100 (/ (:concordant r) (:count r)))) 100)) conc-data)
         discordance     (mapv #(/ (js/Math.round (* 100 (- 1.0 %))) 100) concordance)
         counts          (mapv :count conc-data)
@@ -339,19 +339,24 @@
                   :animate? true)]
     [:div
      [:h5 {:style {:display "inline-block"}} "User Concordant Articles on  "
-      [:span {:style {:color (:select-blue colors)}} (str (first selected-labels))]]
+      [:span {:style {:color (:select-blue colors)}} @(subscribe [:label/display "na" (uuid (first selected-labels))])]]
      [:div
       [perc-checkbox ::set-show-counts-step-2 show-counts "step-2-percent-checkbox"]
       [count-checkbox ::set-show-counts-step-2 show-counts "step-2-count-checkbox"]]
      [chartjs/horizontal-bar {:data data :height height :options options}]]))
 
-; STEP 3
+;; STEP 3
 (defn user-label-specific-description [concordance-data]
-  (let [labels (mapv :label (sort-by :count > (:label concordance-data)))
+  (let [labels (vec (distinct (mapv :label-id (sort-by :count > (:label concordance-data)))))
+        label-names (mapv (fn [lid] @(subscribe [:label/display "na" (uuid lid)])) labels)
         selected-label  @(subscribe [::concordance-label-selection])
-        users  (distinct (mapv :user  (sort-by :count > (filter #(contains? selected-label (:label %)) (:user_label concordance-data)))))
-        lbl-buttons (make-buttons labels @(subscribe [::concordance-label-selection]) ::set-concordance-label-selection)
-        usr-buttons (make-buttons users  @(subscribe [::concordance-user-selection])  ::set-concordance-user-selection)]
+        users  (vec (distinct (mapv :user-id
+                                    (sort-by :count >
+                                             (filter #(contains? selected-label (:label-id %))
+                                                     (:user_label concordance-data))))))
+        user-names  (mapv (fn [uid] @(subscribe [:user/display uid])) users)
+        lbl-buttons (make-buttons "step_3_lbl" label-names labels @(subscribe [::concordance-label-selection]) ::set-concordance-label-selection)
+        usr-buttons (make-buttons "step_3_usr" user-names users  @(subscribe [::concordance-user-selection])  ::set-concordance-user-selection)]
     [:div
      [:h3 "Step 3 - User / User Investigation"]
      [:span "Select a label and a user below to discover user-user pairs are most concordant and discordant. "]
@@ -371,11 +376,11 @@
   (let [selected-user   @(subscribe [::concordance-user-selection])
         selected-label  @(subscribe [::concordance-label-selection])
         conc-data       (filter (fn [r] (and
-                                          (contains? selected-label (:label r))
+                                          (contains? selected-label (:label-id r))
                                           (contains? selected-user (:user-a r))))
                                 (sort-by :count > (:user_user_label concordance-data)))
 
-        users           (mapv :user-b conc-data)
+        users           (mapv (fn [row] @(subscribe [:user/display (:user-b row)])) conc-data)
         concordance     (mapv (fn [r] (/ (js/Math.round (* 100 (/ (:concordant r) (:count r)))) 100)) conc-data)
         discordance     (mapv #(/ (js/Math.round (* 100 (- 1.0 %))) 100) concordance)
         counts          (mapv :count conc-data)
@@ -398,8 +403,9 @@
                         :items-clickable? true)]
     [:div
      [:h5 {:style {:display "inline-block"}} "User Concordant Articles "
-      " vs " [:span {:style {:color (:select-blue colors)}} (str (first selected-user))]
-      " on " [:span {:style {:color (:select-blue colors)}} (str (first selected-label))]]
+      " vs " [:span {:style {:color (:select-blue colors)}} @(subscribe [:user/display (first selected-user)])]
+      " on " [:span {:style {:color (:select-blue colors)}}
+              @(subscribe [:label/display "na" (uuid (first selected-label))])]]
      [:div
       [perc-checkbox  ::set-show-counts-step-3 show-counts "step-3-percent-checkbox"]
       [count-checkbox ::set-show-counts-step-3 show-counts "step-3-count-checkbox"]]
@@ -428,7 +434,7 @@
        (cond
          (> mean-conc 98) [:span {:style {:color (:bright-green colors)}} "Great job! Your project is highly concordant"]
          (> mean-conc 90) [:span {:style {:color (:bright-orange colors)}} "Some discordance in your labels. Make sure reviewers understand tasks "]
-         :else            [:span {:style {:color (:red colors)}} "Significant discordance in your labels. Make sure your reviewers all understand their tasks. "])
+         :else            [:span {:style {:color (:red colors)}} "Significant discordance. Reviewers may not understand some tasks. "])
        [:br] [beta-message]
        [:br] [:span "User concordance tracks how often users agree with each other. "]
        [:br] [:span "Learn more at " [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics."]]]
