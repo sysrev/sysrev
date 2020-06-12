@@ -413,9 +413,15 @@
                         ;; or consensus labels
                         (filter #(or (and (not= (:value-type %) "group") (:consensus %)) (= (:value-type %) "group"))))
         label-ids (map :label-id label-defs)
-        label-answers (-> (select :label-id :answer :user-id)
-                          (from :article-label)
+        label-answers (-> (select :label-id :answer :user-id
+                                  :added-time :updated-time :confirm_time)
+                          (from [:article-label :al])
                           (where [:= :article_id article-id])
+                          ;; why are there nil answers for the inclusion label
+                          ;; set by the project admin?
+                          ;; e.g. https://sysrev.com/u/371/p/16612/article/5799788
+                          ;; this filter removes them
+                          (q/filter-valid-article-label true)
                           do-query)
         label-def-map (sysrev.util/index-by :label-id label-defs)
         get-label-answers (fn [label-id]

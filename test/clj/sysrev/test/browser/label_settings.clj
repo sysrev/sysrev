@@ -44,7 +44,7 @@
    project-id (atom nil)
    label-id-1 (atom nil)
    test-users (mapv #(b/create-test-user :email %)
-                    (mapv #(str "user" % "@fake.com") [1 2 3]))
+                    (mapv #(str "user" % "@foo.bar") [1 2 3]))
    [user1 user2 user3] test-users
    to-user-name #(-> % :email (str/split #"@") first)
    project-name "Label Consensus Test"
@@ -71,7 +71,7 @@
       ;; create a categorical label
       (define/define-label label1)
       (is (b/exists? (x/match-text "span" (:short-label label1))))
-      ;; create users
+      ;; add users to project
       (doseq [{:keys [user-id]} test-users]
         (add-project-member @project-id user-id))
       (set-member-permissions @project-id (:user-id user1) ["member" "admin"])
@@ -156,7 +156,16 @@
       (b/click ".button.change-labels")
       (b/click ".label-edit .dropdown a.label i.delete.icon")
       (b/click ".button.save-labels" :delay 25)
-      ;; check that article still shows as conflict
+      ;; only if label was required should it still shows as a conflict
+      (check-status 1 0 0)
+      ;; now go back and change value to one that conflicts, it should conflict
+      (b/click include-full :displayed? true :delay 100)
+      (b/click "div.article-list-article")
+      (b/click ".button.change-labels")
+      ;;(review/set-article-answers lvalues-2 :save? false)
+      (review/add-categorical-value "Test Label 1" "Two")
+      (b/click ".save-labels")
+      ;; now it should be in conflict
       (check-status 0 1 0)
       ;; disable label consensus setting
       (switch-user (:email user1) @project-id)
@@ -168,7 +177,7 @@
       (is (b/exists? "div.article-list-article"))
       ;; re-enable label consensus setting
       (define/edit-label @label-id-1 (merge label1 {:consensus true}))
-      ;; check that articles shows as conflict again
+      ;; it should show as conflict again
       (check-status 0 1 0)
       ;; resolve article conflict
       (b/click conflicts :delay 100)
