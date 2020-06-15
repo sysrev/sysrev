@@ -329,7 +329,22 @@
                (label-button-value (:short-label string-label-definition))))
         ;; check a categorical value
         (is (= categorical-label-value
-               (label-button-value (:short-label categorical-label-definition))))))
+               (label-button-value (:short-label categorical-label-definition))))
+        ;;manually add labels to an article
+        (nav/go-project-route "/articles" :wait-ms 50)
+        ;;select unlabeled article
+        (b/click "div.article-list-article.last")
+        ;;add labels
+        (b/wait-until-displayed ".ui.button.change-labels")
+        (b/click ".ui.button.change-labels")
+        (set-article-answers  [(merge include-label-definition
+                                      {:value (not include-label-value)})
+                               (merge string-label-definition
+                                      {:value string-label-value})
+                               (merge categorical-label-definition
+                                      {:value categorical-label-value})])
+        ;;check that 2 articles are now labeled
+        (is (= 2 (count (labels/query-public-article-labels @project-id))))))
   :cleanup (some-> @project-id (project/delete-project)))
 
 (deftest-browser review-label-components
