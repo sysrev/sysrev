@@ -100,7 +100,7 @@
   (let [editing? @(subscribe [:article-list/editing? context article-id])
         editing-allowed? @(subscribe [::editing-allowed? context article-id])
         resolving-allowed? @(subscribe [::resolving-allowed? context article-id])]
-    (when (and editing-allowed? (not editing?))
+    (when (not editing?)
       [:div.ui.fluid.left.labeled.icon.button.primary.change-labels
        {:class (css [sidebar "small"] [resolving-allowed? "resolve-labels"])
         :style {:margin-top "1em"}
@@ -108,7 +108,9 @@
                    #(do (dispatch [:review/enable-change-labels article-id (:panel context)])
                         (dispatch [:set-review-interface :labels])))}
        [:i.pencil.icon]
-       (if resolving-allowed? "Resolve Labels" "Change Labels")])))
+       (cond resolving-allowed? "Resolve Labels"
+             editing-allowed? "Change Labels"
+             :else "Manually Add Labels")])))
 
 (defn ArticleContent [context article-id]
   (let [editing? @(subscribe [:article-list/editing? context article-id])
@@ -341,13 +343,12 @@
 (reg-sub :article-list/editing?
          (fn [[_ context article-id]]
            [(subscribe [::al/get context [:active-article]])
-            (subscribe [::editing-allowed? context article-id])
             (subscribe [:article/user-status article-id])
             (subscribe [:review/change-labels? article-id (:panel context)])])
-         (fn [[active-id can-edit? user-status change-labels?]
+         (fn [[active-id user-status change-labels?]
               [_ _context article-id]]
            (when (= article-id active-id)
-             (boolean (and can-edit? (or change-labels? (= user-status :unconfirmed)))))))
+             (boolean (or change-labels? (= user-status :unconfirmed))))))
 
 (reg-sub :article-list/resolving?
          (fn [[_ context article-id]]
