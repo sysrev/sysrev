@@ -19,5 +19,5 @@
   (let [config (read-config-file "config.edn")]
     (merge
      config
-     (some-> (:private-config config) (read-config-file))
-     environ/env)))
+     environ/env
+     (some-> (:private-config config) (read-config-file)))))
