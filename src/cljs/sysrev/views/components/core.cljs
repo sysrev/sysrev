@@ -577,7 +577,6 @@
      {:on-click (wrap-user-event on-cancel)}
      "Cancel"]]])
 
-(def madsf (r/atom nil))
 (defn UploadContainer
   "Create uploader form component."
   [_childer upload-url on-success & _args]
@@ -600,21 +599,19 @@
                                    (merge opts))))
                   (.on "error" (fn [file msg _]
                                  (js/console.log (str "Upload error [" file "]: " msg))
-                                 ;(reset! error-msg (get (re-find #"message\",\"(.*)?\\.*\"" msg) 1))
                                  (reset! error-msg (get (re-find #"message\",\"(.*)?\"" msg) 1))
-                                 (reset! madsf msg)
                                  true))
                   (.on "success" on-success)))]
       (r/create-class
-       {:reagent-render (fn [childer upload-url on-success text class style]
+       {:reagent-render (fn [childer upload-url on-success text class style {:keys [post-error-text]}]
                           [:div
                            [childer id upload-url error-msg text class style]
                            (if (not (nil? @error-msg))
                            [:div.ui {:style {:text-align "center" :margin-top "1em"}}
                             [:i.ui.red.exclamation.icon]
                             [:span @error-msg]
-                            [:span ". Try editing your file to fit the upload instructions above "
-                             " or contact us at info@insilica.co with a copy of your file."]
+                            [:br]
+                            [:span post-error-text]
                             ])])
         :component-did-mount #(init-dropzone)
         :display-name "upload-container"}))))
@@ -646,8 +643,8 @@
       ; [:span {:data-dz-errormessage ""}]]
       ]]]])
 
-(defn UploadButton [upload-url on-success text & [class style]]
-  [UploadContainer UploadButtonImpl upload-url on-success text class style])
+(defn UploadButton [upload-url on-success text & [class style & {:keys [post-error-text]}]]
+  [UploadContainer UploadButtonImpl upload-url on-success text class style {:post-error-text post-error-text}])
 
 (defn WrapFixedVisibility [offset _child]
   (let [on-update

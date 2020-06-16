@@ -136,7 +136,8 @@
       #(dispatch [:reload [:project/sources project-id]])
       "Upload Zip File..."
       (cond-> "fluid"
-        (any-source-processing?) (str " disabled"))]]))
+        (any-source-processing?) (str " disabled"))
+      {} :post-error-text "Try editing your file to fit the upload instructions above or contact us at info@insilica.co with a copy of your zip file."]]))
 
 (defn ImportRISView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -165,7 +166,9 @@
       #(dispatch [:reload [:project/sources project-id]])
       "Upload RIS file..."
       (cond-> "fluid"
-        (any-source-processing?) (str " disabled"))]]))
+        (any-source-processing?) (str " disabled"))
+      {}
+      :post-error-text "Try editing your file to fit the upload instructions above or contact us at info@insilica.co with a copy of your RIS file."]]))
 
 (defn DeleteArticleSource
   [source-id]
