@@ -577,6 +577,7 @@
      {:on-click (wrap-user-event on-cancel)}
      "Cancel"]]])
 
+(def madsf (r/atom nil))
 (defn UploadContainer
   "Create uploader form component."
   [_childer upload-url on-success & _args]
@@ -599,12 +600,22 @@
                                    (merge opts))))
                   (.on "error" (fn [file msg _]
                                  (js/console.log (str "Upload error [" file "]: " msg))
-                                 (reset! error-msg msg)
+                                 ;(reset! error-msg (get (re-find #"message\",\"(.*)?\\.*\"" msg) 1))
+                                 (reset! error-msg (get (re-find #"message\",\"(.*)?\"" msg) 1))
+                                 (reset! madsf msg)
                                  true))
                   (.on "success" on-success)))]
       (r/create-class
-       {:reagent-render (fn [childer upload-url _ & args]
-                          (apply childer id upload-url error-msg args))
+       {:reagent-render (fn [childer upload-url on-success text class style]
+                          [:div
+                           [childer id upload-url error-msg text class style]
+                           (if (not (nil? @error-msg))
+                           [:div.ui {:style {:text-align "center" :margin-top "1em"}}
+                            [:i.ui.red.exclamation.icon]
+                            [:span @error-msg]
+                            [:span ". Try editing your file to fit the upload instructions above "
+                             " or contact us at info@insilica.co with a copy of your file."]
+                            ])])
         :component-did-mount #(init-dropzone)
         :display-name "upload-container"}))))
 
@@ -631,8 +642,9 @@
        [:div.label {:id (str id "-progress-label")}]]
       #_ [:div.dz-progress
           [:span.dz-upload {:data-dz-uploadprogress ""}]]
-      [:div.dz-error-message
-       [:span {:data-dz-errormessage ""}]]]]]])
+      ;[:div.dz-error-message
+      ; [:span {:data-dz-errormessage ""}]]
+      ]]]])
 
 (defn UploadButton [upload-url on-success text & [class style]]
   [UploadContainer UploadButtonImpl upload-url on-success text class style])

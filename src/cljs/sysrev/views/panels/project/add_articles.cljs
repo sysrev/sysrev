@@ -159,7 +159,7 @@
      [:p "Having difficulties importing your RIS file? We recommend using the free, cross-platform tool " [:a {:href "https://zotero.org" :target "_blank"} "zotero"] " to convert your RIS file to a sysrev compatible version. "
       "We've made a "
       [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw" :target "_blank"} "quick video tutorial"]
-      " describing the process."]
+      " describing the process. Please make sure your RIS file is under 7mb. You can upload multiple files."]
      [ui/UploadButton
       (str "/api/import-articles/ris/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
