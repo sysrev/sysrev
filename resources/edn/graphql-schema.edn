@@ -29,9 +29,20 @@
                              :required {:type (non-null Boolean)}
                              :consensus {:type (non-null Boolean)}
                              :definition {:type String
-                                          :description "The EDN definition of a label"}}}
+                                          :description "The JSON definition of a label"}}}
+  :GroupLabelDefinition {:description "The group label definitions used by a project."
+                         :fields {:id {:type (non-null String)}
+                                  :type {:type (non-null String)}
+                                  :name {:type (non-null String)}
+                                  :question {:type (non-null String)}
+                                  :enabled {:type (non-null Boolean)
+                                            :description "Is this label enabled?"}
+                                  :required {:type (non-null Boolean)}
+                                  :definition {:type String
+                                               :description "The JSON definition of a label"}
+                                  :labels {:type (list :LabelDefinition)
+                                           :description "The labels contained in the group label"}}}
   :LabelAnswer {:implements [:label]
-                :description "A label answered for an article"
                 :fields {:id {:type (non-null String)}
                          :type {:type (non-null String)}
                          :name {:type (non-null String)}
@@ -48,6 +59,31 @@
                                    :description "When was this label lasted updated"}
                          :confirmed {:type String
                                      :description "When was this label confirmed if consensus was required?"}}}
+  :GroupLabelSubAnswer {:fields {:id {:type (non-null String)}
+                                 :type {:type (non-null String)}
+                                 :name {:type (non-null String)}
+                                 :question {:type (non-null String)}
+                                 :required {:type (non-null Boolean)}
+                                 :consensus {:type (non-null Boolean)}
+                                 :answer {:type (list String)
+                                          :description "The answer to this label"}}}
+  :GroupLabelAnswer {:implements [:label]
+                     :fields {:id {:type (non-null String)}
+                              :type {:type (non-null String)}
+                              :name {:type (non-null String)}
+                              :question {:type (non-null String)}
+                              :required {:type (non-null Boolean)}
+                              :reviewer {:type :Reviewer
+                                         :description "The reviewer who answered this label"}
+                              :consensus {:type (non-null Boolean)}
+                              :created {:type (non-null String)
+                                        :description "When this was label created"}
+                              :updated {:type (non-null String)
+                                        :description "When was this label lasted updated"}
+                              :confirmed {:type String
+                                          :description "When was this label confirmed if consensus was required?"}
+                              :answer {:type (list (list :GroupLabelSubAnswer))
+                                       :description "The answer to this label"}}}
   :Article {:fields {:id {:type (non-null Int)
                           :description "Sysrev id of article"}
                      :uuid {:type (non-null String)
@@ -58,6 +94,8 @@
                                :description "Is this article enabled?"}
                      :labels {:type (list :LabelAnswer)
                               :description "A list of label answers associated with this article"}
+                     :groupLabels {:type (list :GroupLabelAnswer)
+                                   :description "A list of group label answers associated with this article"}
                      :content {:type String
                                :description "A string representation of the content"}}}
   :Project {:fields {:id {:type (non-null Int)
@@ -69,7 +107,9 @@
                      :articles {:type (list :Article)
                                 :description "The articles associated with this project"}
                      :labelDefinitions {:type (list :LabelDefinition)
-                                        :description "The labels associated with this project"}}}}
+                                        :description "The labels associated with this project"}
+                     :groupLabelDefinitions {:type (list :GroupLabelDefinition)
+                                             :description "The group labels associated with this project"}}}}
  :queries {:project {:type :Project
                      :description "Read a project by its id"
                      :args {:id {:type (non-null Int)}}

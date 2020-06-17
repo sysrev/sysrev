@@ -15,7 +15,7 @@
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.util :as util :refer [in? map-values index-by or-default]]))
+            [sysrev.util :as util :refer [in? map-values index-by or-default sanitize-uuids]]))
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
 (def valid-label-value-types  ["boolean" "categorical" "string" "group"])
@@ -241,15 +241,7 @@
 (defn sanitize-labels
   [m]
   (->> m
-       ;; convert all string representations of uuids into uuids
-       (walk/postwalk (fn [x] (try
-                                ;; the try short-circuits to just x unless
-                                ;; x can be transformed to a uuid
-                                (let [uuid (-> x symbol str java.util.UUID/fromString)]
-                                  (when (uuid? uuid)
-                                    uuid))
-                                (catch Exception _
-                                  x))))
+       sanitize-uuids
        ;; convert all integer keywords back into string keywords
        (walk/postwalk (fn [x] (if (and (keyword? x) (integer? (read-string (str (symbol x)))))
                                 (str (symbol x))
