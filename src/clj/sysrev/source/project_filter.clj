@@ -20,9 +20,12 @@
             (walk/keywordize-keys)
             (select-keys [:filters :text-search])
             (update-in [:filters] #(json/read-str % :key-fn keyword))
-            (util/convert-uuids))]
-    (cond-> (vec filters)
-      text-search (conj {:text-search text-search}))))
+            (util/convert-uuids))
+        ;; keywords are used as values, but converted to strings in url
+        filters (walk/postwalk (fn [x] (if (string? x)
+                                         (keyword x)
+                                         x)) filters)]
+    (vec (concat filters (when text-search [{:text-search text-search}])))))
 
 (defmethod make-source-meta :project-filter
   [_ {:keys [source-project-id url-filter]}]

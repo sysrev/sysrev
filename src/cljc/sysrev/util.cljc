@@ -1173,15 +1173,15 @@
 #?(:cljs (defn base64->uint8 [base64]
            (-> base64 js/atob (js/Uint8Array.from #(.charCodeAt % 0)))))
 
-(defn sanitize-uuids
-  "Given a coll, convert all uuid-like strings and keywords to java.util.UUIDs"
-  [coll]
-  ;; convert all string representations of uuids into uuids
-  (walk/postwalk (fn [x] (try
-                           ;; the try short-circuits to just x unless
-                           ;; x can be transformed to a uuid
-                           (let [uuid (-> x symbol str UUID/fromString)]
-                             (when (uuid? uuid)
-                               uuid))
-                           (catch Exception _
-                             x))) coll))
+#?(:clj (defn sanitize-uuids
+          "Given a coll, convert all uuid-like strings and keywords to java.util.UUIDs"
+          [coll]
+          ;; convert all string representations of uuids into uuids
+          (walk/postwalk (fn [x] (try
+                                   ;; the try short-circuits to just x unless
+                                   ;; x can be transformed to a uuid
+                                   (let [uuid (-> x symbol str UUID/fromString)]
+                                     (when (uuid? uuid)
+                                       uuid))
+                                   (catch Exception _
+                                     x))) coll)))
