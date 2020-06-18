@@ -37,7 +37,9 @@
       (plans/user-subscribe-to-unlimited (:email test-user))
       ; come back to analytics page
       (nav/open-project "Simple Test")
+      (log/info "got here")
       (b/click (xpath "//a[contains(@href,'analytics/concordance')]"))
+      (log/info "got here?")
       ; empty concordance div should be visible
       (b/wait-until-displayed "div#no-data-concordance")
       (is (taxi/exists? "div#no-data-concordance"))

@@ -220,7 +220,6 @@
         :else (let [project-id (source/source-id->project-id source-id)]
                 (source/delete-source source-id)
                 (predict-api/schedule-predict-update project-id)
-                (importance/schedule-important-terms-update project-id)
                 {:success true})))
 
 (defn-spec toggle-source (-> (req-un ::success) or-error)
@@ -230,7 +229,6 @@
     (let [project-id (source/source-id->project-id source-id)]
       (source/toggle-source source-id enabled?)
       (predict-api/schedule-predict-update project-id)
-      (importance/schedule-important-terms-update project-id)
       {:success true})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
@@ -694,15 +692,8 @@
       {:valid? false
        :labels (ldefine/validated-labels labels-map)})))
 
-(defn project-important-terms [project-id & [max-terms]]
-  (let [max-terms (or max-terms 20)
-        terms (importance/project-important-terms project-id)]
-    {:terms (->> terms (map-values #(->> (sort-by :instance-score > %)
-                                         (take max-terms)
-                                         (map (fn [term] (set/rename-keys
-                                                          term {:instance-score :tfidf})))
-                                         (into []))))
-     :loading (importance/project-importance-loading? project-id)}))
+(defn project-important-terms-text [project-id & [max-terms]]
+  {:terms (importance/get-importance project-id (or max-terms 20))})
 
 (defn project-concordance [project-id] (concordance-api/get-concordance project-id))
 

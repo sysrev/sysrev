@@ -271,8 +271,6 @@
         (copy-project-article-labels src-id dest-id))
       (log/info "clone-project done")
       (create-project-legacy-source dest-id)
-      (when articles
-        (importance-api/schedule-important-terms-update dest-id))
       (when (and articles answers)
         (predict-api/schedule-predict-update dest-id))
       dest-id)))

@@ -3,46 +3,49 @@
             [clj-http.client :as http]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
-            [honeysql.helpers :as sqlh :refer [select from where]]
-            [sysrev.config :as config]
-            [sysrev.db.core :as db :refer [do-query]]
-            [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
+            [honeysql.helpers :refer [select from where limit]]
+            [sysrev.db.core :refer [do-query]]
             [sysrev.biosource.core :refer [api-host]]
-            [sysrev.util :refer [in?]]))
+            [sysrev.util :refer [in?]]
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.util :refer [in? map-values map-kv]]))
 
-(defonce importance-api (agent nil))
+(defn- project-article-count [project-id]
+  (-> (select :%count.*)(from :article)(where [:and [:= :project-id project-id] [:= :enabled true]])
+      do-query (first) (:count)))
 
-(defonce importance-loading (atom {}))
+(defn- project-article-sample [project-id art-count]
+  (let [sample-fraction (/ 1000.0 art-count)]
+    (mapv :article-id
+          (if
+            (< art-count 1000)
+            (-> (select :article-id) (from :article)
+                (where [:and [:= :project-id project-id][:= :enabled true]]) do-query)
+            (-> (select :article-id) (from :article)
+                (where [:and [:= :project-id project-id][:= :enabled true][:< :%random sample-fraction]])
+                (limit 1000) do-query)))))
 
-(defn record-importance-load-start [project-id]
-  (swap! importance-loading update project-id
-         #(if (nil? %) 1 (inc %))))
+(defn get-article-text [article-ids]
+  (->> (vals (ds-api/get-articles-content article-ids))
+       (mapv (fn [{:keys [primary-title secondary-title abstract keywords]}]
+               (->> [primary-title secondary-title abstract (str/join " \n " keywords)]
+                    (remove empty?)
+                    (str/join " \n " ))))))
 
-(defn record-importance-load-stop [project-id]
-  (swap! importance-loading update project-id
-         #(if (nil? %) nil (dec %))))
-
-(defn project-importance-loading? [project-id]
-  (let [load-count (get @importance-loading project-id)]
-    (and (integer? load-count) (>= load-count 1))))
-
-(defn project-important-terms [project-id]
-  (db/with-project-cache project-id [:important-terms]
-    (-> (select :entity-type :instance-name :instance-count :instance-score)
-        (from :project-entity)
-        (where [:= :project-id project-id])
-        (->> do-query (group-by #(-> % :entity-type keyword))))))
-
-;; TODO: fix API to handle 30k+ pmids without error
-(defn fetch-important-terms
-  "Given a coll of pmids, return a map of important term counts from biosource"
-  [pmids]
-  (try (let [pmids (->> pmids sort reverse (take 25000))
-             response (http/post (str api-host "sysrev/importance")
+(defn get-importance
+  "Given a project, return a map of important term counts from biosource"
+  [project-id max-terms]
+  (try (let [art-count (project-article-count project-id)
+             text (get-article-text (project-article-sample project-id art-count))
+             min-count (* 0.05 (min 1000 art-count))
+             response (http/post (str api-host "/service/run/importance-2/importance")
                                  {:content-type "application/json"
-                                  :body (json/write-str pmids)})]
-         (try (-> (:body response) (json/read-str :key-fn keyword))
+                                  :body (json/write-str text)})]
+         (try (->>
+                (-> (:body response) (json/read-str :key-fn keyword))
+                (filter #(> (:count %) min-count))
+                (sort-by :tfidf >)
+                (take max-terms))
               (catch Throwable e
                 (log/warnf "error parsing response:\n%s" (pr-str response))
                 (throw e))))
@@ -54,60 +57,3 @@
                nil)
            (do (log/warn "unexpected error in fetch-important-terms")
                (throw e))))))
-
-(defn load-project-important-terms
-  "Queries important terms for `project-id` from Insilica API
-  and stores results in local database."
-  [project-id]
-  (try (when (project/project-exists? project-id :include-disabled? true)
-         (record-importance-load-start project-id)
-         (db/clear-project-cache project-id)
-         (let [max-count 100
-               pmids (project/project-pmids project-id)
-               response-entries (some-> pmids not-empty fetch-important-terms)
-               ;; currently the response will only contain mesh entries
-               entries
-               (some->> response-entries
-                        (mapv (fn [{:keys [term count tfidf uri]}]
-                                {:entity-type "mesh"
-                                 :instance-name term
-                                 :instance-count count
-                                 :instance-score tfidf}))
-                        (sort-by :instance-score >)
-                        (take max-count)
-                        (filter #(and %
-                                      (-> % :entity-type string?)
-                                      (-> % :instance-name string?)
-                                      (-> % :instance-count integer?)
-                                      (or (-> % :instance-score number?)
-                                          (-> % :instance-score nil?))))
-                        (mapv #(assoc % :project-id project-id)))]
-           (db/with-transaction
-             (when (and (not-empty entries)
-                        (project/project-exists? project-id :include-disabled? true))
-               (q/delete :project-entity {:project-id project-id})
-               (doseq [entries-group (partition-all 500 entries)]
-                 (q/create :project-entity entries-group))))
-           nil))
-       (catch Throwable e
-         (let [msg (.getMessage e)]
-           (if (and (string? msg) (some #(str/includes? msg %)
-                                        ["Connection is closed"
-                                         "This statement has been closed"]))
-             (log/info "load-project-important-terms: DB connection closed")
-             (log/info "load-project-important-terms:" msg)))
-         nil)
-       (finally (record-importance-load-stop project-id)
-                (db/clear-project-cache project-id))))
-
-(defn schedule-important-terms-update [project-id]
-  (when-not (in? [:test :remote-test] (-> config/env :profile))
-    (send importance-api (fn [_] (load-project-important-terms project-id)))))
-
-(defn ^:repl force-importance-update-all-projects []
-  (let [project-ids (project/all-project-ids)]
-    (log/info "Updating important terms for projects:" (pr-str project-ids))
-    (doseq [project-id project-ids]
-      (log/info "Loading for project #" project-id "...")
-      (load-project-important-terms project-id))
-    (log/info "Finished updating predictions for" (count project-ids) "projects")))

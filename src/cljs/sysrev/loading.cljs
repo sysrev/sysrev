@@ -120,7 +120,7 @@
 
 (def ignore-data-names [:article/annotations
                         :project/sources
-                        :project/important-terms
+                        :project/important-terms-text
                         :pdf/open-access-available?])
 
 (def ignore-action-names [:sources/delete])

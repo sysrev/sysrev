@@ -112,7 +112,6 @@
                     (labels/project-members-info project-id)
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
-                    (api/project-important-terms project-id)
                     (try (project/project-url-ids project-id)
                          (catch Throwable _
                            (log/info "exception in project-url-ids")
@@ -308,10 +307,9 @@
 ;;; Overview Charts data
 ;;;
 
-(dr (GET "/api/important-terms" request
-         (with-authorize request {:allow-public true}
-           (let [{:keys [n]} (-> request :params)]
-             (api/project-important-terms (active-project request) (parse-integer n))))))
+(dr (GET "/api/important-terms-text" request
+      (with-authorize request {:allow-public true}
+          (api/project-important-terms-text (active-project request)))))
 
 (dr (GET "/api/prediction-histograms" request
          (with-authorize request {:allow-public true}

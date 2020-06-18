@@ -242,48 +242,27 @@
         " labeled articles; " (str total)
         " article predictions loaded"]])))
 
-(def-data :project/important-terms
-  :loaded? (fn [db project-id]
-             (-> (get-in db [:data :project project-id])
-                 (contains? :importance)))
-  :uri (fn [_] "/api/important-terms")
-  :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:project project-id]])
-  :process
-  (fn [{:keys [db]} [project-id] result]
-    {:db (assoc-in db [:data :project project-id :importance] result)}))
+(def-data :project/important-terms-text
+          :loaded? (fn [db project-id]
+                     (-> (get-in db [:data :project project-id])
+                         (contains? :important-terms-text)))
+          :uri (fn [_] "/api/important-terms-text")
+          :content (fn [project-id] {:project-id project-id})
+          :prereqs (fn [project-id] [[:project project-id]])
+          :process (fn [{:keys [db]} [project-id] result]
+                     {:db (assoc-in db [:data :project project-id :important-terms-text] result)})
+          :on-error (fn [{:keys [db error]} [project-id] _]
+                      {:db (assoc-in db [:data :project project-id :important-terms-text] {:error error})}))
 
-(reg-sub :project/important-terms
+(reg-sub :project/important-terms-text
          (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
-         (fn [project [_ entity-type _]]
-           (cond-> (get-in project [:importance :terms])
-             entity-type (get entity-type))))
+         (fn [project] (:important-terms-text project)))
 
-(reg-sub :project/important-terms-loading?
-         (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
-         (fn [project [_ _entity-type _]]
-           (true? (get-in project [:importance :loading]))))
-
-(defonce polling-important-terms? (r/atom false))
-
-(defn poll-important-terms [project-id]
-  (when (not @polling-important-terms?)
-    (reset! polling-important-terms? true)
-    (dispatch [:fetch [:project/important-terms project-id]])
-    (let [server-loading? (subscribe [:project/important-terms-loading?])
-          item [:project/important-terms project-id]
-          updating? (fn [] (or @server-loading?
-                               (loading/item-loading? item)))]
-      (util/continuous-update-until #(dispatch [:fetch item])
-                                    #(not (updating?))
-                                    #(reset! polling-important-terms? false)
-                                    500))))
-
-(defn ImportantTermsChart [{:keys [entity data loading?]}]
+(defn ImportantTermsChart [{:keys [data]}]
   (when (not-empty data)
     (let [height (* 2 (+ 8 (* 10 (count data))))
           entries (->> data (sort-by :tfidf >))
-          labels (->> entries (mapv :instance-name))
+          labels (->> entries (mapv :term))
           scores (->> entries (mapv :tfidf) (mapv #(/ % 10000.0)))]
       [:div [charts/bar-chart height labels ["Relevance"] [scores]
              :colors ["rgba(33,186,69,0.55)"]
@@ -293,30 +272,20 @@
 
 (defn KeyTerms []
   (let [project-id @(subscribe [:active-project-id])
-        terms @(subscribe [:project/important-terms])
-        ;; TODO: fix this for tests against staging.sysrev.com?
-        ;;       seems to get stuck rendering loader if loading of terms fails
-        loading? (if (= js/window.location.hostname "staging.sysrev.com")
-                   false
-                   @(subscribe [:project/important-terms-loading?]))
-        {:keys [mesh #_ chemical #_ gene]} terms
+        terms-res @(subscribe [:project/important-terms-text])
+        {:keys [terms]} terms-res
         project? @(subscribe [:have? [:project project-id]])
         lapsed? @(subscribe [:project/subscription-lapsed?])]
     (with-loader [[:project project-id]
                   (when (and project? (not lapsed?))
-                    [:project/important-terms project-id])] {}
-      (when (or (not-empty terms) loading?)
-        [:div.ui.segment
-         [:h4.ui.dividing.header "Important MeSH Terms"]
-         (with-loader [[:project project-id]
-                       [:project/important-terms project-id]]
-           {:dimmer :fixed :force-dimmer loading?}
-           [:div
-            (when @(subscribe [:project/important-terms-loading?])
-              (poll-important-terms project-id))
-            [unpad-chart [0.25 0.35]
-             [ImportantTermsChart
-              {:entity :mesh, :data mesh, :loading? loading?}]]])]))))
+                    [:project/important-terms-text project-id])] {}
+                 (when (not-empty terms-res)
+                   [:div.ui.segment
+                    [:h4.ui.dividing.header "Important Terms"]
+                    [:div
+                     [unpad-chart [0.25 0.35]
+                      [ImportantTermsChart {:data terms}]]]]))))
+
 
 (reg-sub ::label-counts
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
@@ -537,12 +506,14 @@
          [ReviewStatusBox]
          [RecentProgressChart]
          [LabelPredictionsInfo]
-         [PredictionHistogram]]
+         [PredictionHistogram]
+         [KeyTerms]
+         ]
         [:div.column
          [MemberActivityChart]
-         [ProjectFilesBox]
-         [KeyTerms]
-         [LabelCounts]]]])))
+         ;[ProjectFilesBox]
+         [LabelCounts]
+         ]]])))
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

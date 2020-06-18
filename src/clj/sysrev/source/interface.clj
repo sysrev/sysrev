@@ -169,8 +169,7 @@
     (s/update-project-articles-enabled project-id))
   ;; start threads for updates from api.insilica.co
   (when success?
-    (predict-api/schedule-predict-update project-id)
-    (importance/schedule-important-terms-update project-id))
+    (predict-api/schedule-predict-update project-id))
   success?)
 
 (defn import-source-impl

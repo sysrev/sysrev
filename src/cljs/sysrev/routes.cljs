@@ -26,7 +26,7 @@
        all-data-items [[:project project-id]
                        [:project/markdown-description project-id {:panel panel}]
                        [:project/label-counts project-id]
-                       [:project/important-terms project-id]
+                       [:project/important-terms-text project-id]
                        [:project/prediction-histograms project-id]]]
    (dispatch [:set-active-panel panel])
    #_ (doseq [item all-data-items] (dispatch [:require item]))
