@@ -99,7 +99,7 @@
 
 (defn project-info [project-id]
   (with-project-cache project-id [:project-info]
-    (let [[[fields users labels keywords notes members predict importance
+    (let [[[fields users labels keywords notes members predict
             url-ids files owner plan subscription-lapsed?]
            [_ [status-counts progress]]
            [articles sources]
@@ -140,7 +140,6 @@
                  :settings (:settings fields)
                  :files files
                  :sources sources
-                 :importance importance
                  :url-ids url-ids
                  :owner owner
                  :plan plan
@@ -309,7 +308,7 @@
 
 (dr (GET "/api/important-terms-text" request
       (with-authorize request {:allow-public true}
-          (api/project-important-terms-text (active-project request)))))
+        (api/project-important-terms-text (active-project request)))))
 
 (dr (GET "/api/prediction-histograms" request
          (with-authorize request {:allow-public true}

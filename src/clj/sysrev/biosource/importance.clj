@@ -38,22 +38,31 @@
   (try (let [art-count (project-article-count project-id)
              text (get-article-text (project-article-sample project-id art-count))
              min-count (* 0.05 (min 1000 art-count))
-             response (http/post (str api-host "/service/run/importance-2/importance")
-                                 {:content-type "application/json"
-                                  :body (json/write-str text)})]
-         (try (->>
-                (-> (:body response) (json/read-str :key-fn keyword))
-                (filter #(> (:count %) min-count))
-                (sort-by :tfidf >)
-                (take max-terms))
-              (catch Throwable e
-                (log/warnf "error parsing response:\n%s" (pr-str response))
-                (throw e))))
-       (catch Throwable e
-         (if-let [{:keys [status reason-phrase body]} (ex-data e)]
-           (do (log/warn "error in fetch-important-terms")
-               (when (or status reason-phrase)      (log/warn status reason-phrase))
-               (when ((some-fn string? nil?) body)  (log/warn body))
-               nil)
-           (do (log/warn "unexpected error in fetch-important-terms")
-               (throw e))))))
+             response (http/post
+                        (str api-host "/service/run/importance-2/importance")
+                        {:content-type "application/json"
+                         :body (json/write-str text)})
+             body (:body response)]
+         (cond
+           (clojure.string/ends-with? body "Connection refused")
+           {:error ["importance service is temporarily down"]}
+
+           (< (count text) 5)
+           {:error ["not enough text to build important terms"]}
+
+           :else (try {:terms (->>
+                        (-> (:body response) (json/read-str :key-fn keyword))
+                        (filter #(> (:count %) min-count))
+                        (sort-by :tfidf >)
+                        (take max-terms))}
+                      (catch Throwable e
+                        (log/warnf "error parsing response:\n%s" (pr-str response))
+                        (throw e)))))
+         (catch Throwable e
+           (if-let [{:keys [status reason-phrase body]} (ex-data e)]
+             (do (log/warn "error in fetch-important-terms")
+                 (when (or status reason-phrase)      (log/warn status reason-phrase))
+                 (when ((some-fn string? nil?) body)  (log/warn body))
+                 nil)
+             (do (log/warn "unexpected error in fetch-important-terms")
+                 (throw e))))))

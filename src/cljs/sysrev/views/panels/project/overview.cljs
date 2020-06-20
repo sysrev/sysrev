@@ -507,11 +507,10 @@
          [RecentProgressChart]
          [LabelPredictionsInfo]
          [PredictionHistogram]
-         [KeyTerms]
-         ]
+         (if (:terms @(subscribe [:project/important-terms-text])) [KeyTerms])]
         [:div.column
          [MemberActivityChart]
-         ;[ProjectFilesBox]
+         [ProjectFilesBox]
          [LabelCounts]
          ]]])))
 
