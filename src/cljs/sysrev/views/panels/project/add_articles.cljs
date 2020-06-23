@@ -545,7 +545,8 @@
                                       "james@insilica.co"
                                       "tom@insilica.co"
                                       "jeff@insilica.co"
-                                      "tj@insilica.co"})))
+                                      "tj@insilica.co"
+                                      "g.callegaro@lacdr.leidenuniv.nl"})))
                   [EnableCTNotice]
                   [ctgov/SearchBar]))]
       (when (= active-tab :pubmed)

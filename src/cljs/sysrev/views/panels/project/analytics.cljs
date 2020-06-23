@@ -49,13 +49,13 @@
     [:br][:br]]
    [:div  {:style {:height "50vh"}}
     [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
-              :frameborder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-              :allowfullscreen "true"}]]])
+              :frameBorder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+              :allowFullScreen true}]]])
 
 (defn demo-message []
-   [:div {:style {:text-align "right"}}
-    [:span {:style {:color "red"}}
-     [:b "Analytics Demo - Register For " [:a {:href "/pricing"} "Sysrev Pro"] " To Access On Personal Projects"]]])
+  [:div {:style {:text-align "right"}}
+   [:span {:style {:color "red"}}
+    [:b "Analytics Demo - Register For " [:a {:href "/pricing"} "Sysrev Pro"] " To Access On Personal Projects"]]])
 (defmethod panel-content [:project :project :analytics] []
   (fn [child]
     (let [project-id    @(subscribe [:active-project-id])

@@ -77,7 +77,7 @@
           [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
                    :color (when basic? "green")
                    :href plans-url}
-           (cond basic?      "Get private projects"
+           (cond basic?      "Upgrade Your Plan"
                  unlimited?  "Unsubscribe")]]]))))
 
 (defn UserBilling []

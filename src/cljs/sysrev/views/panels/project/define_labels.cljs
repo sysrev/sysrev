@@ -14,7 +14,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.semantic :refer [Divider Button Message]]
+            [sysrev.views.semantic :refer [Divider Button Message Segment]]
             [sysrev.dnd :as dnd]
             [sysrev.util :as util :refer [in? parse-integer map-values map-kv css index-by]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
@@ -908,6 +908,13 @@
                    #_ (util/log "on-exit: props = %s" (pr-str props))
                    nil)}])
 
+(defn UpgradeMessage []
+  [Segment {:style {:text-align "center"}}
+   [:div
+    [:h2 "Group Labels are available for Pro Accounts"
+     [:br]
+     "Sign up at " [:a {:href "/pricing"} "sysrev.com/pricing"]]]])
+
 (defmethod panel-content panel []
   (fn [_child]
     (let [admin? (or @(subscribe [:member/admin?])
@@ -918,7 +925,12 @@
                            (->> (sort-client-project-labels @labels (not enabled?))
                                 (filter #(= enabled? (:enabled (get @labels %))))))
           active-ids (sort-label-ids true)
-          disabled-ids (sort-label-ids false)]
+          disabled-ids (sort-label-ids false)
+          project-id    @(subscribe [:active-project-id])
+          project-plan  @(subscribe [:project/plan project-id])
+          group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+                                    (= "TJ@toxtrack.com" @(subscribe [:user/email]))
+                                    (contains? #{"Unlimited_User" "Unlimited_Org"} project-plan))]
       (ensure-state)
       [:div.define-labels
        [ReadOnlyMessage
@@ -951,17 +963,20 @@
                     [:div.column [LabelItem labels i (r/cursor state [:labels label-id])]])
                   disabled-ids))])
        (when admin?
-         (if (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
-                 (= "TJ@toxtrack.com" @(subscribe [:user/email])))
-           [:div.ui.four.column.stackable.grid
-            [:div.column [AddLabelButton "boolean" add-new-label!]]
-            [:div.column [AddLabelButton "categorical" add-new-label!]]
-            [:div.column [AddLabelButton "string" add-new-label!]]
-            [:div.column [AddLabelButton "group" add-new-label!]]]
-           [:div.ui.three.column.stackable.grid
-            [:div.column [AddLabelButton "boolean" add-new-label!]]
-            [:div.column [AddLabelButton "categorical" add-new-label!]]
-            [:div.column [AddLabelButton "string" add-new-label!]]]))])))
+         [:div {:style {:margin-top "1rem"}}
+          (if group-labels-allowed?
+            [:div.ui.four.column.stackable.grid
+             [:div.column [AddLabelButton "boolean" add-new-label!]]
+             [:div.column [AddLabelButton "categorical" add-new-label!]]
+             [:div.column [AddLabelButton "string" add-new-label!]]
+             [:div.column [AddLabelButton "group" add-new-label!]]]
+            [:div.ui.three.column.stackable.grid
+             [:div.column [AddLabelButton "boolean" add-new-label!]]
+             [:div.column [AddLabelButton "categorical" add-new-label!]]
+             [:div.column [AddLabelButton "string" add-new-label!]]])
+          (when-not group-labels-allowed?
+            [UpgradeMessage])]
+         )])))
 
 (defmethod panel-content [:project :project :labels] []
   (fn [child]
