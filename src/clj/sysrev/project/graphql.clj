@@ -17,7 +17,10 @@
   (let [labels (->> (project-labels project-id true)
                     vals
                     (walk/postwalk (fn [x] (if (map? x)
-                                             (rename-keys x {:value-type :type})
+                                             (rename-keys x {:value-type :type
+                                                             :short-label :name
+                                                             :label-id :id
+                                                             :project-ordering :ordering})
                                              x)))
                     (walk/postwalk (fn [x] (if (and (map? x)
                                                     (contains? x :definition))
@@ -141,14 +144,17 @@
             (partial map #(assoc % :content (get-in entities [(id->external (:id %))
                                                               :content]))))))
 
+(defonce selections-seq-atom (atom {}))
 (defn ^ResolverResult project [context {:keys [id]} _]
   (let [project-id id
         api-token (:authorization context)]
     (with-graphql-auth {:api-token api-token :project-id project-id :project-role "admin"}
       (let [selections-seq (executor/selections-seq context)]
+        (reset! selections-seq-atom selections-seq)
         (resolve-as
          (cond-> (q/query-project-by-id id [:date-created [:project-id :id] :name])
-           (some {:Project/labelDefinitions true} selections-seq)
+           (some {:Project/labelDefinitions true
+                  :Project/groupLabelDefinitions true} selections-seq)
            (merge-label-definitions id)
            (some {:Project/articles true} selections-seq)
            (merge-articles id)

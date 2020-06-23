@@ -17,6 +17,9 @@
          user-id# (some-> api-token# (user-by-api-token) :user-id)]
      (cond (not (seq api-token#))
            (fail "api-token not supplied in request headers as Authorization: Bearer <api-token>")
+           ;; this to allow sysrev to make queries on itself
+           (= api-token# (ds-api/ds-auth-key))
+           (do ~@body)
            (not user-id#)
            (fail "api-token is not associated with a user")
            (and project-id# user-id#

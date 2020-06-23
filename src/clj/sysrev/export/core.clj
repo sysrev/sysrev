@@ -1,6 +1,8 @@
 (ns sysrev.export.core
   (:require [clojure.string :as str]
             [honeysql.helpers :as sqlh :refer [order-by merge-where merge-join]]
+            [medley.core :as medley]
+            [sysrev.api :refer [graphql-request]]
             [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.db.query-types :as qt]
@@ -8,7 +10,8 @@
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.util :as util :refer [in? map-values index-by]]))
+            [sysrev.util :as util :refer [in? map-values index-by]]
+            [venia.core :as venia]))
 
 (def default-csv-separator "|||")
 
@@ -209,3 +212,61 @@
          (mapv (partial stringify-csv-value separator)
                [article-id user-id annotation definition selection
                 start-offset end-offset field filename file-key]))))))
+
+
+(defn export-group-label-csv
+  "Export the group label-id in project-id"
+  [project-id & {:keys [article-ids separator label-id]}]
+  (with-transaction
+    (let [graphql-resp (->> (graphql-request
+                             (venia/graphql-query
+                              {:venia/queries
+                               [[:project {:id project-id}
+                                 [:name :id :date_created
+                                  [:groupLabelDefinitions [:enabled :name :question :required :type :id :ordering [:labels [:id :consensus :enabled :name :question :required :type :ordering]]]]
+                                  [:articles [:enabled :id
+                                              [:groupLabels [[:answer
+                                                              [:id :answer :name :question :required :type]]
+                                                             :confirmed :consensus :created :id :name :question :required :updated :type
+                                                             [:reviewer [:id :name]]]]]]]]]}))
+                            :data :project
+                            util/convert-uuids)
+          group-label-defs (->> (get-in graphql-resp [:groupLabelDefinitions])
+                                (medley/find-first #(= (:id %) label-id))
+                                :labels
+                                (filterv :enabled)
+                                (medley/index-by :id))
+          header (->> (concat ["Article ID" "User ID" "User Name"] (mapv :name (->> (vals group-label-defs)
+                                                                                    (sort-by :ordering))))
+                      (into []))
+          process-group-answers (fn [answers]
+                                  (->> answers
+                                       (mapv
+                                        #(assoc % :ordering (:ordering (get group-label-defs (:id %)))))
+                                       (sort-by :ordering)
+                                       (mapv (fn [{:keys [answer]}]
+                                               (stringify-csv-value separator answer)))))
+          process-group-labels (fn [group-label]
+                                 (let [{:keys [id name]} (:reviewer group-label)
+                                       answer  (:answer group-label)]
+                                   (->> (mapv process-group-answers answer)
+                                        (mapv (partial concat [(str id) name])))))
+          process-articles (fn [article]
+                             (let [article-id (:id article)]
+                               article-id
+                               (->> article
+                                    :groupLabels
+                                    (filterv #(= (:id %) label-id))
+                                    (mapv process-group-labels)
+                                    (mapv (partial concat [(str article-id)])))))
+          rows (->> graphql-resp
+                    :articles
+                    (mapv process-articles)
+                    (remove (comp not seq))
+                    (mapv #(->> %
+                                (mapv (fn [coll]
+                                        (mapv (partial concat [(first coll)]) (rest coll))))
+                                (apply concat)))
+                    (apply concat)
+                    (into []))]
+      (cons header rows))))

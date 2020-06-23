@@ -591,7 +591,7 @@
             (let [project-id (active-project request)
                   user-id (current-user-id request)
                   export-type (-> request :params :export-type keyword)
-                  {:keys [filters text-search separator]} (:body request)
+                  {:keys [filters text-search separator label-id]} (:body request)
                   text-search (not-empty text-search)
                   filters (vec (concat filters (when text-search [{:text-search text-search}])))
                   article-ids (when filters
@@ -619,7 +619,15 @@
                                  (create-export-tempfile))
                              :endnote-xml
                              (project-to-endnote-xml
-                              project-id :article-ids article-ids :to-file true))
+                              project-id :article-ids article-ids :to-file true)
+                             :group-label-csv
+                             (-> (export/export-group-label-csv project-id :label-id label-id)
+                                 (csv/write-csv)
+                                 (create-export-tempfile))
+                             :json
+                             (-> (api/project-json project-id)
+                                 (clojure.data.json/write-str)
+                                 (create-export-tempfile)))
                   {:keys [download-id]
                    :as entry} (add-project-export
                                project-id export-type tempfile
@@ -629,17 +637,21 @@
                                   :group-answers    "Answers"
                                   :endnote-xml      "Articles"
                                   :articles-csv     "Articles"
-                                  :annotations-csv  "Annotations")
+                                  :annotations-csv  "Annotations"
+                                  :group-label-csv  "GroupLabel"
+                                  :json             "JSON")
                   filename-ext (case export-type
                                  (:user-answers
                                   :group-answers
                                   :articles-csv
-                                  :annotations-csv)  "csv"
-                                 :endnote-xml        "xml")
+                                  :annotations-csv
+                                  :group-label-csv)  "csv"
+                                 :endnote-xml        "xml"
+                                 :json               "json")
                   filename-project (str "P" project-id)
                   filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
                   filename-date (util/today-string "MMdd")
-                  filename (str (->> [filename-base filename-project filename-date filename-articles]
+                  filename (str (->> [filename-base filename-project filename-date (if (= export-type :group-label-csv)  (str "Group-Label-" (-> label-id labels/get-label :short-label)) filename-articles)]
                                      (str/join "_"))
                                 "." filename-ext)]
               {:entry (-> (select-keys entry [:download-id :export-type :added-time])
@@ -662,10 +674,11 @@
                    (nil? file) (web/make-error-response
                                 api/not-found :file "Export file not found")
                    :else (case export-type
-                           (:user-answers :group-answers :articles-csv :annotations-csv)
+                           (:user-answers :group-answers :articles-csv :annotations-csv :group-label-csv)
                            (-> (io/reader file) (web/csv-file-response filename))
                            :endnote-xml
-                           (-> (io/reader file) (web/xml-file-response filename))))))))
+                           (-> (io/reader file) (web/xml-file-response filename))
+                           :json (-> (io/reader file) (web/text-file-response filename))))))))
 
 ;; Legacy route for existing API code
 (dr (GET "/api/export-user-answers-csv/:project-id/:filename" request

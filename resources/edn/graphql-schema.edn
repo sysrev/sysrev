@@ -29,7 +29,9 @@
                              :required {:type (non-null Boolean)}
                              :consensus {:type (non-null Boolean)}
                              :definition {:type String
-                                          :description "The JSON definition of a label"}}}
+                                          :description "The JSON definition of a label"}
+                             :ordering {:type Int
+                                        :description "The ordering of the label, either within its own group for group labels or within its own project"}}}
   :GroupLabelDefinition {:description "The group label definitions used by a project."
                          :fields {:id {:type (non-null String)}
                                   :type {:type (non-null String)}
@@ -40,6 +42,8 @@
                                   :required {:type (non-null Boolean)}
                                   :definition {:type String
                                                :description "The JSON definition of a label"}
+                                  :ordering {:type Int
+                                             :description "The ordering of the label within the project"}
                                   :labels {:type (list :LabelDefinition)
                                            :description "The labels contained in the group label"}}}
   :LabelAnswer {:implements [:label]

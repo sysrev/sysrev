@@ -1,14 +1,20 @@
 (ns sysrev.views.panels.project.export-data
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.project.define-labels :refer [label-settings-config]]
+            [sysrev.views.semantic :refer [Dropdown]]
             [sysrev.util :as util]))
+
+(defonce state (r/atom {}))
 
 (def-action :project/generate-export
   :uri (fn [project-id export-type _]
          (str "/api/generate-project-export/" project-id "/" (name export-type)))
-  :content (fn [_ _ options] (merge options {}))
+  :content (fn [_ _ options]
+             (merge options {}))
   :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry]}]
              {:db (assoc-in db [:data :project-exports [project-id export-type options]] entry)})
   :on-error (fn [{:keys [db error]} [project-id export-type options] _]
@@ -24,6 +30,90 @@
    {:on-click (util/wrap-user-event
                #(dispatch [:articles/load-export-settings export-type true]))}
    [:i.arrow.circle.right.icon] "Configure Export"])
+
+(defn ExportJSON []
+  (let [project-id @(subscribe [:active-project-id])
+        export-type :json
+        options {}
+        action [:project/generate-export project-id export-type options]
+        running? (loading/action-running? action)
+        entry @(subscribe [:project/export-file project-id export-type options])
+        {:keys [filename url error]} entry
+        file? (and entry (not error))]
+    [:div.ui.segment
+     [:h4.ui.dividing.header "Project Data (json)"]
+     [:p "This file contains the project in a hierarchical data format. This data is in the JSON format."]
+     [:p "This includes all data for the project and can not be customized from the Articles page. This format is useful for external data analysis."]
+     [:div.eight.wide.field
+      [:button.ui.tiny.fluid.primary.labeled.icon.button
+       {:on-click (when-not running? (util/wrap-user-event #(dispatch [:action action])))
+        :class (util/css [running? "loading"])}
+       [:i.hdd.icon] "Generate"]]
+     (when-not error
+       [:div.field>div.ui.center.aligned.segment.file-download
+        {:style {:margin-top "1rem"}}
+        (cond running?  [:span "Generating file..."]
+              file?     [:a {:href url :target "_blank" :download filename}
+                         [:i.outline.file.icon] " " filename]
+              :else     [:span "<Generate file to download>"])])
+     (when error
+       [:div.field>div.ui.negative.message
+        {:style {:margin-top "1rem"}}
+        (or (-> error :message)
+            "Sorry, an error occurred while generating the file.")])]))
+
+(defn group-label-values [project-id]
+  (->> @(subscribe [:project/labels-raw project-id])
+       vals
+       (filter #(= "group" (:value-type %)))
+       (map (fn [m]
+              {:text (:short-label m)
+               :value (str (:label-id m))}))))
+
+(defn ExportGroupLabelCSV []
+  (let [project-id @(subscribe [:active-project-id])
+        export-type :group-label-csv
+        value (r/cursor state [:export-group-label-value])
+        options {:label-id (util/to-uuid @value)}
+        action [:project/generate-export project-id export-type options]
+        running? (loading/action-running? action)
+        entry @(subscribe [:project/export-file project-id export-type options])
+        {:keys [filename url error]} entry
+        file? (and entry (not error))]
+    ;; test that there are actually group labels in this project
+    (when (seq (group-label-values project-id))
+      (when-not (seq @value)
+        (reset! value (-> (first (group-label-values project-id))
+                          :value)))
+      [:div.ui.segment
+       [:h4.ui.dividing.header "Group Label CSV"]
+       [:p "This file contains the data for a group label in CSV format."]
+       [:p "Select the Group Label you would like to export"]
+       [:div {:style {:margin-bottom "1rem"}}
+        [Dropdown {:style {:min-width "12rem" :font-size "0.9em"}
+                   :options (group-label-values project-id)
+                   :selection true
+                   :value @value
+                   :on-change (fn [_ ^js data]
+                                (reset! value (.-value data)))}]]
+       [:div.eight.wide.field
+        [:button.ui.tiny.fluid.primary.labeled.icon.button
+         {:on-click (when-not running?
+                      (util/wrap-user-event #(dispatch [:action action])))
+          :class (util/css [running? "loading"])}
+         [:i.hdd.icon] "Generate"]]
+       (when-not error
+         [:div.field>div.ui.center.aligned.segment.file-download
+          {:style {:margin-top "1rem"}}
+          (cond running?  [:span "Generating file..."]
+                file?     [:a {:href url :target "_blank" :download filename}
+                           [:i.outline.file.icon] " " filename]
+                :else     [:span "<Generate file to download>"])])
+       (when error
+         [:div.field>div.ui.negative.message
+          {:style {:margin-top "1rem"}}
+          (or (-> error :message)
+              "Sorry, an error occurred while generating the file.")])])))
 
 (defmethod panel-content [:project :project :export-data] []
   (fn [child]
@@ -62,5 +152,7 @@
           [:p "This provides a set of articles in CSV format, with the basic fields associated with the article from its import."]
           [:p "This file also includes any label prediction scores for each article."]
           [:p "By default, includes all articles; this can be customized from the Articles page."]
-          [ProjectExportNavigateForm :articles-csv]]]]
+          [ProjectExportNavigateForm :articles-csv]]
+         [ExportJSON]
+         [ExportGroupLabelCSV]]]
        child])))

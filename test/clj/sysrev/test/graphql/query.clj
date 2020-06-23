@@ -2,9 +2,9 @@
   (:require [clojure.set :as s]
             [clojure.string :as string]
             [clojure.test :refer [deftest is use-fixtures]]
+            [clojure.walk :as walk]
             [honeysql.helpers :as helpers :refer [sset where select from]]
             [medley.core :as medley]
-            [venia.core :as venia]
             [sysrev.api :as api]
             [sysrev.db.core :as db]
             [sysrev.label.answer :as answer]
@@ -12,7 +12,8 @@
             [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.graphql.core :refer [graphql-request graphql-fixture api-key]]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [venia.core :as venia]))
 
 (use-fixtures :once default-fixture graphql-fixture)
 (use-fixtures :each database-rollback-fixture)
@@ -72,6 +73,14 @@
                                                 :change? false
                                                 :resolve? false))
               (project-article-ids project-id))))
+
+(defn short-label->name
+  "Convert all short-label keys to name"
+  [m]
+  (walk/postwalk (fn [x] (if (map? x)
+                           (s/rename-keys x {:value-type :type :short-label :name})
+                           x))
+                 m))
 
 (deftest project-query
   (when (test/db-connected?)
@@ -245,6 +254,7 @@
                     vals
                     (map #(s/rename-keys % {:value-type :type}))
                     (filter #(not= (:type %) "group"))
+                    short-label->name
                     (map #(select-keys % [:consensus :enabled :name :question :required :type]))
                     set)
                (->> (get-in graphql-resp [:project :labelDefinitions])
@@ -254,6 +264,7 @@
                     vals
                     (map #(s/rename-keys % {:value-type :type}))
                     (filter #(= (:type %) "group"))
+                    short-label->name
                     (map #(select-keys % [:enabled :name :required :type]))
                     set)
                (->> (get-in graphql-resp [:project :groupLabelDefinitions])
@@ -266,6 +277,7 @@
                     (filter #(= (:type %) "group"))
                     first :labels vals
                     (map #(s/rename-keys % {:value-type :type}))
+                    short-label->name
                     (map #(select-keys % [:consensus :enabled :name :question :required :type]))
                     set)
                (->> (get-in graphql-resp [:project :groupLabelDefinitions])

@@ -9,6 +9,7 @@
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [me.raynes.fs :as fs]
+            [ring.mock.request :as mock]
             [ring.util.response :as response]
             [sysrev.cache :refer [db-memo]]
             [sysrev.config :refer [env]]
@@ -19,6 +20,7 @@
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.concordance :as concordance-api]
             [sysrev.biosource.countgroup :as biosource-contgroup]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
             [sysrev.project.charts :as charts]
@@ -37,6 +39,7 @@
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.article :as article-file]
             [sysrev.file.user-image :as user-image]
+            [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.paypal :as paypal]
             [sysrev.payment.plans :as plans]
@@ -46,7 +49,8 @@
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer]])
+            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer]]
+            [venia.core :as venia])
   (:import (java.util UUID)))
 
 ;; HTTP error codes
@@ -1310,3 +1314,36 @@
     {:error {:status forbidden
              :message "You don't have permission to clone that project"}}))
 
+(defn graphql-request
+  "Make a request against out own GraphQL API, using our own dev key. This allows for internal use of GraphQL"
+  [query]
+  (let [body (-> (mock/request :post "/graphql")
+                 (mock/header "Authorization" (str "Bearer " (ds-api/ds-auth-key)))
+                 (mock/json-body {:query query})
+                 ((graphql-handler (sysrev-schema)))
+                 :body)]
+    (try (json/read-str body :key-fn keyword)
+         (catch Exception _
+           body))))
+
+(defn project-json
+  "Given a project-id, return the resulting JSON"
+  [project-id]
+  (let [resp (graphql-request
+              (venia/graphql-query
+               {:venia/queries
+                [[:project {:id project-id}
+                  [:name :id :date_created
+                   [:labelDefinitions [:consensus :enabled :name :question :required :type]]
+                   [:groupLabelDefinitions [:enabled :name :question :required :type [:labels [:consensus :enabled :name :question :required :type]]]]
+                   [:articles [:datasource_id :enabled :id :uuid
+                               [:groupLabels [[:answer
+                                               [:id :answer :name :question :required :type]]
+                                              :confirmed :consensus :created :id :name :question :required :updated :type
+                                              [:reviewer [:id :name]]]]
+                               [:labels [:answer :confirmed :consensus :created :id :name :question :required :updated :type
+                                         [:reviewer [:id :name]]]]]]]]]}))]
+    (if (:errors resp)
+      {:status internal-server-error
+       :errors (:errors resp)}
+      (:data resp))))
