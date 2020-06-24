@@ -909,7 +909,8 @@
                    nil)}])
 
 (defn UpgradeMessage []
-  [Segment {:style {:text-align "center"}}
+  [Segment {:style {:text-align "center"}
+            :id "group-label-paywall"}
    [:div
     [:h2 "Group Labels are available for Pro Accounts"
      [:br]
@@ -929,7 +930,6 @@
           project-id    @(subscribe [:active-project-id])
           project-plan  @(subscribe [:project/plan project-id])
           group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
-                                    (= "TJ@toxtrack.com" @(subscribe [:user/email]))
                                     (contains? #{"Unlimited_User" "Unlimited_Org"} project-plan))]
       (ensure-state)
       [:div.define-labels

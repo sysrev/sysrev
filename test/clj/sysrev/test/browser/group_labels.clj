@@ -7,6 +7,7 @@
             [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.label.core :as labels]
+            [sysrev.test.browser.plans :as plans]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member set-member-permissions]]
             [sysrev.source.import :as import]
@@ -14,8 +15,10 @@
             [sysrev.test.browser.define-labels :as dlabels]
             [sysrev.test.browser.label-settings :refer [switch-user include-full conflicts resolved]]
             [sysrev.test.browser.navigate :as nav]
+            [sysrev.test.browser.orgs :as orgs]
             [sysrev.test.browser.pubmed :as pubmed]
             [sysrev.test.browser.review-articles :as ra]
+            [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]))
 
@@ -742,3 +745,45 @@
   :cleanup (do (some-> @project-id (project/delete-project))
                (doseq [{:keys [email]} test-users]
                  (b/delete-test-user :email email))))
+
+(deftest-browser group-label-paywall
+  (test/db-connected?) test-user
+  [test-user (b/create-test-user :email "baz@foo.bar")
+   project-name "Group Label Paywall Test"
+   project-id (atom nil)
+   org-name "Foo Group Label.org"
+   org-project-name "Org Group Label Paywall Test"]
+  (do (nav/log-in (:email test-user))
+      ;; create project
+      (nav/new-project project-name)
+      (reset! project-id (b/current-project-id))
+      ;; paywall in place?
+      (nav/go-project-route "/labels/edit")
+      (b/exists? "#group-label-paywall")
+      ;; let's sign up for user Pro account
+      (plans/user-subscribe-to-unlimited (:email test-user))
+      ;; go back and see if paywall is in place
+      (nav/go-route (str "/p/" @project-id "/labels/edit"))
+      ;; now we see the 'Add Group Label' button
+      (b/exists? (xpath "//button[contains(text(),'Add Group Label')]"))
+      ;; Now, let's make a group
+      (orgs/create-org org-name)
+      (b/click orgs/org-projects :delay 30)
+      (orgs/create-project-org org-project-name)
+      ;; paywall in place?
+      (nav/go-project-route "/labels/edit")
+      (b/exists? "#group-label-paywall")
+      ;; let's sign up for org Pro account
+      (b/click (xpath "//a[contains(text(),'" org-name  "')]"))
+      (b/click "#org-billing")
+      (b/click ".subscribe")
+      (b/click "a.payment-method.add-method")
+      (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
+      (plans/click-use-card :delay 50)
+      (plans/click-upgrade-plan)
+      ;; now let's check that the paywall is lifted
+      (b/click "#org-projects")
+      (b/click (xpath "//a[contains(text(),'" org-project-name "')]"))
+      (nav/go-project-route "/labels/edit")
+      (b/exists? (xpath "//button[contains(text(),'Add Group Label')]")))
+  :cleanup (b/cleanup-test-user! :email (:email test-user)))
