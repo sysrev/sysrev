@@ -3,7 +3,7 @@
             [clojure.java.io :as io]
             [clojure-csv.core :as csv]
             [clojure.tools.logging :as log]
-            [compojure.core :refer [GET POST PUT DELETE]]
+            [compojure.core :refer [GET POST PUT]]
             [ring.util.response :as response]
             [sysrev.api :as api]
             [sysrev.web.app :as web :refer [with-authorize current-user-id active-project]]

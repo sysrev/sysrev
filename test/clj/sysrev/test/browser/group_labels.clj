@@ -1,10 +1,11 @@
 (ns sysrev.test.browser.group-labels
-  (:require [clojure.string :as string]
-            [clojure.test :refer [is use-fixtures]]
+  (:require [clojure.test :refer [is use-fixtures]]
             [clojure.tools.logging :as log]
+            [clojure-csv.core :as csv]
             [clj-webdriver.taxi :as taxi]
             [honeysql.helpers :as hsql :refer [select from where]]
             [medley.core :as medley]
+            [ring.mock.request :as mock]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.label.core :as labels]
             [sysrev.test.browser.plans :as plans]
@@ -20,7 +21,9 @@
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.test.core :as test]))
+            [sysrev.test.core :as test]
+            [sysrev.test.web.routes.utils :refer [route-response-fn]]
+            [sysrev.web.core :refer [sysrev-handler]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -641,7 +644,6 @@
    test-users (mapv #(b/create-test-user :email %)
                     (mapv #(str "user" % "@foo.bar") [1 2]))
    [user1 user2] test-users
-   to-user-name #(-> % :email (string/split #"@") first)
    project-name "Label Consensus Test (Group Labels)"
    group-label-definition {:value-type "group"
                            :short-label "Group Label"
@@ -787,3 +789,156 @@
       (nav/go-project-route "/labels/edit")
       (b/exists? (xpath "//button[contains(text(),'Add Group Label')]")))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
+
+(deftest-browser group-label-csv-download-test
+  (test/db-connected?) test-user
+  [project-name "Group Label CSV Download Test"
+   project-id (atom nil)
+   test-users (mapv #(b/create-test-user :email %)
+                    (mapv #(str "user" % "@foo.bar") [1 2]))
+   [user1 user2] test-users
+   group-label-definition {:value-type "group"
+                           :short-label "Alpha"
+                           :definition
+                           {:multi? true
+                            :labels [{:value-type "boolean"
+                                      :short-label "Bravo"
+                                      :question "What is a bravo?"
+                                      :definition {:inclusion-values [true]}
+                                      :required true
+                                      :consensus true}
+                                     {:value-type "string"
+                                      :short-label "Charlie"
+                                      :question "What is a Charlie?"
+                                      :definition
+                                      {:max-length 160
+                                       :examples ["X-ray" "Yankee" "Zulu"]
+                                       :multi? true}
+                                      :required true}
+                                     {:value-type "categorical"
+                                      :short-label "Delta"
+                                      :question "Does this label fit within the categories?"
+                                      :definition
+                                      {:all-values ["four" "five" "six"]
+                                       :inclusion-values ["four" "five"]
+                                       :multi? false}
+                                      :required true
+                                      :consensus true}]}}]
+  (do (nav/log-in (:email test-user))
+      (nav/new-project project-name)
+      (reset! project-id (b/current-project-id))
+      ;; import three articles
+      (import/import-pmid-vector @project-id {:pmids [25706626 22716928 9656183]})
+      ;; create a group label
+      (nav/go-project-route "/labels/edit")
+      (dlabels/define-group-label group-label-definition)
+      ;; add users to project
+      (doseq [{:keys [user-id]} test-users]
+        (add-project-member @project-id user-id))
+      ;; user1 reviews some article
+      (switch-user (:email user1) @project-id)
+      (nav/go-project-route "/review")
+      (ra/set-article-answers (conj [{:short-label "Bravo"
+                                      :value false
+                                      :value-type "boolean"}
+                                     {:short-label "Charlie"
+                                      :value "X-ray"
+                                      :value-type "string"}
+                                     {:short-label "Delta"
+                                      :value "four"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      (ra/set-article-answers (conj [{:short-label "Bravo"
+                                      :value true
+                                      :value-type "boolean"}
+                                     {:short-label "Charlie"
+                                      :value "Yankee"
+                                      :value-type "string"}
+                                     {:short-label "Delta"
+                                      :value "five"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      (ra/set-article-answers (conj [{:short-label "Bravo"
+                                      :value false
+                                      :value-type "boolean"}
+                                     {:short-label "Charlie"
+                                      :value "Zulu"
+                                      :value-type "string"}
+                                     {:short-label "Delta"
+                                      :value "six"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      ;; switch users
+      (switch-user (:email user2) @project-id)
+      (ra/set-article-answers (conj [{:short-label "Bravo"
+                                      :value false
+                                      :value-type "boolean"}
+                                     {:short-label "Charlie"
+                                      :value "X-ray"
+                                      :value-type "string"}
+                                     {:short-label "Delta"
+                                      :value "four"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      (ra/set-article-answers (conj [{:short-label "Bravo"
+                                      :value true
+                                      :value-type "boolean"}
+                                     {:short-label "Charlie"
+                                      :value "Yankee"
+                                      :value-type "string"}
+                                     {:short-label "Delta"
+                                      :value "five"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      (ra/set-article-answers (conj [{:short-label "Bravo"
+                                      :value false
+                                      :value-type "boolean"}
+                                     {:short-label "Charlie"
+                                      :value "Zulu"
+                                      :value-type "string"}
+                                     {:short-label "Delta"
+                                      :value "six"
+                                      :value-type "categorical"}]
+                                    (merge ra/include-label-definition {:value true})))
+      ;; let's login to our project and download the json
+      (switch-user (:email test-user) @project-id)
+      (nav/go-project-route "/export")
+      ;; the Group Label CSV download exists
+      (b/exists? (xpath "//h4[contains(text(),'Group Label CSV')]"))
+      ;; download the actual file and check its properties
+      (let [group-label-id (-> (select :label-id)
+                               (from :label)
+                               (where [:and
+                                       [:= :project-id @project-id]
+                                       [:= :short-label "Alpha"]])
+                               do-query
+                               first :label-id)
+            handler (sysrev-handler)
+            route-response (route-response-fn handler)
+            _ (get-in (route-response :post "/api/auth/login" test-user)
+                      [:result :valid])
+            {:keys [download-id filename]} (get-in (route-response :post (str "/api/generate-project-export/" @project-id "/group-label-csv") {:label-id group-label-id}) [:result :entry])
+            csv-file (-> (handler (mock/request :get (str "/api/download-project-export/" @project-id "/group-label-csv/"download-id "/" filename)))
+                         :body
+                         slurp)
+            parsed-csv-file (csv/parse-csv csv-file)
+            csv-data (rest parsed-csv-file)
+            answer-data (->> csv-data (map #(take-last 3 %)) (map #(into [] %)))]
+        ;; there are seven rows, corresponding to the header + 6 data rows
+        (is (= 7 (count parsed-csv-file)))
+        ;; the data labels are in the correct order
+        (is (= ["Bravo" "Charlie" "Delta"]
+               (->> parsed-csv-file first (take-last 3) (into []))))
+        ;; three distinct articles were reviewed
+        (is (= 3 (->> csv-data (map #(nth % 0)) distinct count)))
+        ;; two distinct reviewers did work
+        (is (= 2 (->> csv-data (map #(nth % 1)) distinct count)))
+        (is (= 2 (->> csv-data (map #(nth % 2)) distinct count)))
+        ;; we have the correct label answers
+        (is (= 2 (count (filter #(= ["true" "Yankee" "five"] %) answer-data))))
+        (is (= 2  (count (filter #(= ["false" "X-ray" "four"] %) answer-data))))
+        (is (= 2  (count (filter #(= ["false" "Zulu" "six"] %) answer-data))))))
+  :cleanup (do (some-> @project-id (project/delete-project))
+               (doseq [{:keys [email]} test-users]
+                 (b/delete-test-user :email email))
+               (b/cleanup-test-user! :email (:email test-user))))
