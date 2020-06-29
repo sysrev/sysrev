@@ -2,12 +2,15 @@
   (:require [clj-webdriver.taxi :as taxi]
             [clojure.java.io :as io]
             [clojure.test :refer [use-fixtures is]]
+            [clojure.tools.logging :as log]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
             [sysrev.source.import :as import]
             [sysrev.user.core :as user]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.ctgov :as ctgov]
+            [sysrev.test.browser.define-labels :as dlabels]
+            [sysrev.test.browser.group-labels :as group-labels]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.pubmed :as pubmed]
@@ -20,6 +23,7 @@
 
 (def clone-button (xpath "//button[@id='clone-button']"))
 (def clone-to-user (xpath "//div[@id='clone-to-user']"))
+(def cloned-from (xpath "//span[contains(text(),'cloned from')]"))
 
 (deftest-browser clone-project-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
@@ -165,3 +169,61 @@
   :cleanup (do (b/cleanup-test-user! :email (:email test-user))
                (b/cleanup-test-user! :email (:email test-user-b))))
 
+(deftest-browser group-label-clone-test
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [project-name "SysRev Browser Test (group-label-clone-test)"
+   project-id (atom nil)
+   {:keys [user-id email]} test-user
+   include-label-value true
+   group-label-definition {:value-type "group"
+                           :short-label "Group Label"
+                           :definition
+                           {:labels [{:value-type "boolean"
+                                      :short-label "Boolean Label"
+                                      :question "Is this true or false?"
+                                      :definition {:inclusion-values [true]}
+                                      :required true
+                                      :value true}
+                                     {:value-type "string"
+                                      :short-label "String Label"
+                                      :question "What value is present for Foo?"
+                                      :definition
+                                      {:max-length 160
+                                       :examples ["foo" "bar" "baz" "qux"]
+                                       :multi? true}
+                                      :required true
+                                      :value "Baz"}
+                                     {:value-type "categorical"
+                                      :short-label "Categorical Label"
+                                      :question "Does this label fit within the categories?"
+                                      :definition
+                                      {:all-values ["Foo" "Bar" "Baz" "Qux"]
+                                       :inclusion-values ["Foo" "Bar"]
+                                       :multi? false}
+                                      :required true
+                                      :value "Qux"}]}}]
+  (do
+    (nav/log-in (:email test-user))
+    (nav/new-project project-name)
+    (reset! project-id (b/current-project-id))
+    ;; import article
+    (import/import-pmid-vector @project-id {:pmids [25706626]})
+    ;; create new labels
+    (log/info "Creating Group Label Definitions")
+    (nav/go-project-route "/labels/edit")
+    (dlabels/define-group-label group-label-definition)
+    ;; make sure the labels are in the correct order
+    (is (= (->> group-label-definition :definition :labels (mapv :short-label))
+           (group-labels/group-sub-short-labels "Group Label")))
+    ;; clone this project
+    (nav/go-project-route "")
+    (b/click clone-button)
+    (is (b/exists? clone-to-user))
+    (b/click clone-to-user)
+    ;; make sure this is actually a clone
+    (b/exists? (xpath cloned-from))
+    ;; check that the labels are correct
+    (nav/go-project-route "/labels/edit")
+    (is (= (->> group-label-definition :definition :labels (mapv :short-label))
+           (group-labels/group-sub-short-labels "Group Label"))))
+  :cleanup (b/cleanup-test-user! :email (:email test-user)))
