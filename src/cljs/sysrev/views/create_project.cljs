@@ -36,9 +36,10 @@
   (let [project-name (field [:project-name])
         orgs (subscribe [:self/orgs])
         current-org-id (r/atom (or initial-org-id "current-user"))
-        create-project #(if (= @current-org-id "current-user")
-                          (dispatch [:action [:create-project @project-name]])
-                          (dispatch [:action [:create-org-project @project-name @current-org-id]]))]
+        create-project #(if-not (nil? @project-name)
+                          (if (= @current-org-id "current-user")
+                            (dispatch [:action [:create-project @project-name]])
+                            (dispatch [:action [:create-org-project @project-name @current-org-id]])))]
     (r/create-class
      {:reagent-render
       (fn [_]
@@ -61,6 +62,7 @@
                        :on-change (fn [_event data]
                                     (reset! current-org-id (.-value data)))}]])])
       :component-did-mount (fn [_this]
+                             (set-field-now [:project-name] nil)
                              (dispatch [:require [:self-orgs]])
                              (dispatch [:reload [:self-orgs]]))})))
 
