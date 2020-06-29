@@ -271,20 +271,17 @@
              :log-scale true]])))
 
 (defn KeyTerms []
-  (let [project-id @(subscribe [:active-project-id])
-        terms-res @(subscribe [:project/important-terms-text])
-        {:keys [terms]} terms-res
-        project? @(subscribe [:have? [:project project-id]])
-        lapsed? @(subscribe [:project/subscription-lapsed?])]
-    (with-loader [[:project project-id]
-                  (when (and project? (not lapsed?))
-                    [:project/important-terms-text project-id])] {}
-                 (when (not-empty terms-res)
-                   [:div.ui.segment
-                    [:h4.ui.dividing.header "Important Terms"]
-                    [:div
-                     [unpad-chart [0.25 0.35]
-                      [ImportantTermsChart {:data terms}]]]]))))
+  (let [project-id @(subscribe [:active-project-id])]
+    (with-loader
+      [[:project/important-terms-text project-id]] {}
+      (let [terms-res @(subscribe [:project/important-terms-text])
+            {:keys [terms]} terms-res]
+        (when (not-empty terms)
+          [:div.ui.segment
+           [:h4.ui.dividing.header "Important Terms"]
+           [:div
+            [unpad-chart [0.25 0.35]
+             [ImportantTermsChart {:data terms}]]]])))))
 
 
 (reg-sub ::label-counts
@@ -507,7 +504,7 @@
          [RecentProgressChart]
          [LabelPredictionsInfo]
          [PredictionHistogram]
-         (if (:terms @(subscribe [:project/important-terms-text])) [KeyTerms])]
+         [KeyTerms]]
         [:div.column
          [MemberActivityChart]
          [ProjectFilesBox]
