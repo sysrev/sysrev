@@ -914,7 +914,16 @@
    [:div
     [:h2 "Group Labels are available for Pro Accounts"
      [:br]
-     "Sign up at " [:a {:href "/pricing"} "sysrev.com/pricing"]]]])
+     "Sign up at " [:a {:href "/pricing"} "sysrev.com/pricing"]]
+    [:span {:font-size "0.5em !important"}
+     "Read a " [:a {:href "https://blog.sysrev.com/group-labels/"
+                    :target "_blank"} "blog post"]
+     ", see a " [:a {:href "/o/2/p/31871"
+                     :target "_blank"} "sample project"]
+     " or view a " [:a {:href "https://youtu.be/aKhg-hHea88"
+                        :target "_blank"} "demo video"]
+     " to learn more about this feature"]
+    [:br]]])
 
 (defmethod panel-content panel []
   (fn [_child]
@@ -975,8 +984,7 @@
              [:div.column [AddLabelButton "categorical" add-new-label!]]
              [:div.column [AddLabelButton "string" add-new-label!]]])
           (when-not group-labels-allowed?
-            [UpgradeMessage])]
-         )])))
+            [UpgradeMessage])])])))
 
 (defmethod panel-content [:project :project :labels] []
   (fn [child]

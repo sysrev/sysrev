@@ -957,7 +957,7 @@
         [ExportFiltersInfo context]
         [ExportTypeForm context :endnote-xml "Articles" "EndNote XML"]
         [ExportTypeForm context :articles-csv "Articles" "CSV"]
-        [ExportTypeForm context :group-answers "Group Answers" "CSV"]
+        [ExportTypeForm context :group-answers "Article Answers" "CSV"]
         [ExportTypeForm context :user-answers "User Answers" "CSV"]
         [ExportTypeForm context :annotations-csv "Annotations" "CSV"]])]))
 

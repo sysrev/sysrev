@@ -122,7 +122,7 @@
        [:div.ui.two.column.stackable.grid.export-data
         [:div.column
          [:div.ui.segment
-          [:h4.ui.dividing.header "Group Answers"]
+          [:h4.ui.dividing.header "Article Answers"]
           [:p "This provides a CSV file containing the label answers from all project members for each article."]
           [:p (str "Each row contains answers for one article. Values are combined from all user answers; enabling "
                    (pr-str (-> label-settings-config :consensus :display))
