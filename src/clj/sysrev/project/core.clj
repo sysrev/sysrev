@@ -55,6 +55,8 @@
   ON DELETE CASCADE constraints in Postgres."
   [project-id int?]
   (db/with-clear-project-cache project-id
+    ;; delete the project sources first, to prevent deadlock errors during parallel tests on the remote build server
+    (q/delete :project-source {:project-id project-id})
     (q/delete :project {:project-id project-id})))
 
 (defn-spec enable-project! int?

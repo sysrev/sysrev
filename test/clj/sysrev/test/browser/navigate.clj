@@ -33,7 +33,13 @@
     (assert (integer? project-id))
     (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent
               :pre-wait-ms (or pre-wait-ms
-                               (when (= suburi "/review") 100)))))
+                               (when (= suburi "/review") 200)))
+    ;; this is a hack for the occasional times that /articles
+    ;; doesn't load the first time it is clicked
+    (when (and (= suburi "/articles")
+               (not (taxi/exists? (xpath "//a[contains(text(),'Add/Manage Articles')]"))))
+      (go-route (str base-uri "/manage") :wait-ms wait-ms :silent silent)
+      (go-route (str base-uri "/articles") :wait-ms wait-ms :silent silent))))
 
 (defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")

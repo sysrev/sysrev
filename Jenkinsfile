@@ -201,7 +201,8 @@ node {
     }
   }
   stage('PostDeployTest') {
-    if (branch == 'production') {
+    if (branch == 'production' ||
+				branch == 'staging') {
       if (currentBuild.result == 'SUCCESS') {
         echo 'Running tests against deploy host...'
         try {
