@@ -638,7 +638,7 @@
   (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved))))
 
 (deftest-browser label-consensus-test
-  (test/db-connected?) test-user
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-id (atom nil)
    label-id-1 (atom nil)
    test-users (mapv #(b/create-test-user :email %)
@@ -749,7 +749,7 @@
                  (b/delete-test-user :email email))))
 
 (deftest-browser group-label-paywall
-  (test/db-connected?) test-user
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [test-user (b/create-test-user :email "baz@foo.bar")
    project-name "Group Label Paywall Test"
    project-id (atom nil)
@@ -791,7 +791,7 @@
   :cleanup (b/cleanup-test-user! :email (:email test-user) :groups true))
 
 (deftest-browser group-label-csv-download-test
-  (test/db-connected?) test-user
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "Group Label CSV Download Test"
    project-id (atom nil)
    test-users (mapv #(b/create-test-user :email %)
