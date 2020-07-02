@@ -788,7 +788,7 @@
       (b/click (xpath "//a[contains(text(),'" org-project-name "')]"))
       (nav/go-project-route "/labels/edit")
       (b/exists? (xpath "//button[contains(text(),'Add Group Label')]")))
-  :cleanup (b/cleanup-test-user! :email (:email test-user)))
+  :cleanup (b/cleanup-test-user! :email (:email test-user) :groups true))
 
 (deftest-browser group-label-csv-download-test
   (test/db-connected?) test-user

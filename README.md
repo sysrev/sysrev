@@ -389,6 +389,22 @@ To switch between using the production and development versions of the compiled 
 > (sysrev.web.index/set-web-asset-path "/out-production")
 > (sysrev.web.index/set-web-asset-path "/out-dev")
 
+## Fixing Remote Testing Issues
+
+There are instances when remote tests will fail, but the tests pass locally. It can be difficult
+to pinpoint what is actually causing the error without experiencing it yourself. Try:
+
+1. Isolate the test and transform it into a plain (defn ...) function definition. This will
+generally mean
+	i. rename (deftest-browser failing-test ...) -> (defn failing-test [] ...)
+	ii. deleting the initial lines regarding when to test and the test-user line
+	iii. transforming the vector of local vars into a let block
+	iv. manually inserting the :cleanup statements to the end of the block
+2. Start the visual webdriver
+   > (sysrev.test.browser.core/start-visual-webdriver)
+3. Run the tests multiple times to trigger a failure
+   > (dotimes [n 10] (failing-test))
+
 ## Config Files
 
 The Clojure project uses https://github.com/yogthos/config for loading config profiles.
