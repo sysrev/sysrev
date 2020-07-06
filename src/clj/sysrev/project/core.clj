@@ -1,7 +1,7 @@
 (ns sysrev.project.core
   (:require [clojure.string :as str]
             [clojure.spec.alpha :as s]
-            [honeysql.helpers :as sqlh :refer [select from where join merge-join sset]]
+            [honeysql.helpers :as sqlh :refer [select from where join merge-join sset limit order-by]]
             [orchestra.core :refer [defn-spec]]
             [medley.core :as medley]
             [sysrev.shared.spec.core :as sc]
@@ -366,9 +366,14 @@
 (defn last-active
   "When was the last time an article-label was updated for project-id?"
   [project-id]
-  (first (q/find [:article-label :al] {:a.project-id project-id} :al.updated-time
-                 :join [:article:a :al.article-id]
-                 :order-by [:al.updated-time :desc], :limit 1)))
+  (-> (select :al.updated-time)
+      (from [:article-label :al])
+      (join :article [:= :article.article-id :al.article-id])
+      (where [:= :article.project-id project-id])
+      (order-by [:al.updated-time :desc] [:al.article-id :desc])
+      (limit 1)
+      db/do-query
+      first))
 
 (defn cleanup-browser-test-projects []
   (delete-all-projects-with-name "Sysrev Browser Test")
