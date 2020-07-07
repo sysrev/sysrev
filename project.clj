@@ -5,11 +5,11 @@
                  [orchestra "2018.12.06-2" #_ "2019.02.06-1"]
 
 ;;; Force versions of indirect dependencies
-                 [com.fasterxml.jackson.core/jackson-databind "2.10.2"]
-                 [cheshire "5.9.0"]
-                 [commons-io/commons-io "2.6"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.11.1"]
+                 [cheshire "5.10.0"]
+                 [commons-io/commons-io "2.7"]
                  [commons-codec "1.14"]
-                 [org.apache.commons/commons-compress "1.19"]
+                 [org.apache.commons/commons-compress "1.20"]
                  [prismatic/schema "1.1.12"]
 
 ;;; Logging
@@ -27,22 +27,22 @@
 
 ;;; Data formats
                  [org.clojure/data.json "0.2.7"]
-                 [com.cognitect/transit-clj "0.8.319"]
+                 [com.cognitect/transit-clj "1.0.324"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.3"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
 ;;; GraphQL
-                 [com.walmartlabs/lacinia "0.35.0"]
+                 [com.walmartlabs/lacinia "0.37.0"]
                  [vincit/venia "0.2.5"]
 
 ;;; Postgres
                  [org.clojure/java.jdbc "0.7.11"]
-                 [org.postgresql/postgresql "42.2.9"]
-                 [joda-time "2.10.5"]
+                 [org.postgresql/postgresql "42.2.14"]
+                 [joda-time "2.10.6"]
                  [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "2.10.0"]
+                 [hikari-cp "2.12.0"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.8"]
@@ -56,18 +56,18 @@
                  [javax.servlet/servlet-api "2.5"]
                  [manifold "0.1.8"]
                  [aleph "0.4.6"]
-                 [ring "1.8.0"]
+                 [ring "1.8.1"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.5.0" :exclusions [cheshire]]
                  [ring/ring-mock "0.4.0" :exclusions [cheshire]]
                  [compojure "1.6.1"]
 ;;; profiling
-                 [criterium "0.4.5"]
+                 [criterium "0.4.6"]
 
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication
-                 [clj-http "3.10.0"]
+                 [clj-http "3.10.1"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.3"] ;; email client
                  [amazonica "0.3.152"
@@ -78,13 +78,13 @@
                  ;; =1.23.0 because version conflict in latest
                  ;; (1.30.2 breaks selenium)
                  [com.google.api-client/google-api-client "1.23.0"]
-                 [environ "1.1.0"]
+                 [environ "1.2.0"]
                  [bouncer "1.0.1"] ;; validation
                  [hickory "0.7.1"] ;; html parser
                  [kanwei/sitemap "0.3.1"] ;; sitemap alternative with clojure.spec fix
                  [org.clojure/core.memoize "0.7.2"]
                  [gravatar "1.1.1"]
-                 [medley "1.2.0"]]
+                 [medley "1.3.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-server"
@@ -138,7 +138,7 @@
                                              org.seleniumhq.selenium/selenium-support]]]
                               :plugins [[lein-eftest "0.5.9"]]}
              :repl           {:dependencies []
-                              :plugins [[lein-environ "1.1.0"]]}
+                              :plugins [[lein-environ "1.2.0"]]}
              :test           {:jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"]

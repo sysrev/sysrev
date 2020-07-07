@@ -5,4 +5,4 @@ source ../vars.sh
 
 rm -rf .shadow-cljs/builds/dev || true
 
-shadow-cljs watch dev
+npx shadow-cljs watch dev

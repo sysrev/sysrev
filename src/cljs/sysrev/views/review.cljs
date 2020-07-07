@@ -5,6 +5,7 @@
             [goog.string :as gstr]
             [medley.core :as medley :refer [dissoc-in]]
             [reagent.core :as r]
+            [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
                                    reg-event-db reg-event-fx reg-fx trim-v]]
             [sysrev.loading :as loading]
@@ -124,7 +125,7 @@
         _input-q (str dom-q " input[type!='hidden']")
         ensure-values-loaded
         (fn [this]
-          (let [^js node ($ (r/dom-node this))
+          (let [^js node ($ (dom-node this))
                 _ (.dropdown node "refresh")
                 active-vals (vec @(subscribe [:review/active-labels article-id root-label-id label-id ith]))
                 comp-vals (-> (.dropdown node "get value")
@@ -148,7 +149,7 @@
     (r/create-class
      {:component-did-mount
       (fn [this]
-        (let [node #($ (r/dom-node this))]
+        (let [node #($ (dom-node this))]
           (->> {:duration 125
                 :onAdd     (fn [v _t]
                              (let [val (gstr/unescapeEntities v)]

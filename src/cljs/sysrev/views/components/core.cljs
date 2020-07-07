@@ -5,6 +5,7 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [reagent.core :as r]
+            [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]))
 
@@ -26,7 +27,7 @@
 (defn wrap-dropdown [_elt & [{:keys [onChange]}]]
   (r/create-class
    {:component-did-mount
-    #(.dropdown ($ (r/dom-node %))
+    #(.dropdown ($ (dom-node %))
                 (clj->js (cond-> {}
                            onChange (assoc :onChange onChange))))
     :reagent-render (fn [elt & _opts] elt)}))
@@ -83,7 +84,7 @@
 (defn with-tooltip [_content & [popup-options]]
   (r/create-class
    {:component-did-mount
-    #(.popup ($ (r/dom-node %))
+    #(.popup ($ (dom-node %))
              (clj->js
               (merge
                {:inline true
@@ -372,12 +373,12 @@
               (-> js/window
                   (.setTimeout reset-ui transtime)))
             (get-clipboard [el]
-              (let [clip (Clipboard. (r/dom-node el))]
+              (let [clip (Clipboard. (dom-node el))]
                 (.on clip "success" clip-success)
                 clip))
             (reset-clip! [el] (reset! clip (get-clipboard el)))
             (component-did-mount [this] (reset-clip! this))
-            (component-will-update [this _] (reset-clip! this))
+            (component-did-update [this _] (reset-clip! this))
             (component-will-unmount []
               (when-not (nil? @clip)
                 (.destroy @clip)
@@ -388,7 +389,7 @@
                (if @status success-el child)])]
       (r/create-class
        {:display-name (str "clipboard-from-" target)
-        :component-will-update component-will-update
+        :component-did-update component-did-update
         :component-did-mount component-did-mount
         :component-will-unmount component-will-unmount
         :reagent-render render}))))
@@ -649,7 +650,7 @@
 (defn WrapFixedVisibility [offset _child]
   (let [on-update
         (fn [this]
-          (let [el ($ (r/dom-node this))]
+          (let [el ($ (dom-node this))]
             (-> el (.visibility
                     (clj->js {:type "fixed"
                               :offset (or offset 0)

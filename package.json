@@ -4,8 +4,7 @@
   "description": "FIXME: Write a one-line description of your library/project.",
   "main": "index.js",
   "dependencies": {
-    "jquery": "3.2.1",
-    "fomantic-ui": "2.7.8",
+    "fomantic-ui": "^2.8.6",
     "graceful-fs": "4.2.2",
     "gulp": "^4.0.2"
   },

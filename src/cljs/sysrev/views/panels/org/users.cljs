@@ -5,10 +5,10 @@
             [re-frame.core :refer [subscribe reg-sub dispatch]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.views.semantic :refer
+            [sysrev.views.semantic :as S :refer
              [Table TableBody TableRow TableCell Search Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
-              Input Message MessageHeader Dropdown]]
+              Input Message MessageHeader]]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
@@ -151,8 +151,7 @@
                              (reset! new-role nil)
                              (reset! error ""))})))
 
-(defn UserRow
-  [{:keys [user-id username permissions]} org-id]
+(defn UserRow [{:keys [user-id username permissions]} org-id]
   (let [change-role-modal-open (r/cursor state [:change-role-modal :open])
         remove-modal-open (r/cursor state [:remove-modal :open])
         current-user-id (r/cursor state [:current-user-id])
@@ -168,51 +167,39 @@
      [TableCell
       (when (and
              ;; only admins and owners can change group permissions
-             (some #{"admin" "owner"}
-                   self-permissions)
+             (some #{"admin" "owner"} self-permissions)
              ;; don't allow changing of perms when self is the owner
              (not (and (= self-user-id user-id)
                        (some #{"owner"} self-permissions))))
-        [Dropdown {:button true
-                   :class-name "icon change-org-user"
-                   :text " "
-                   :icon "cog"
-                   :select-on-blur false
-                   :options [{:text "Change role..."
-                              :value "change-role"
-                              :key :change-role}
-                             {:text "Remove from organization..."
-                              :value "remove-from-org"
-                              :key :remove-from-org}]
-                   :on-change (fn [_event ^js data]
-                                (let [value (.-value data)]
-                                  (reset! current-user-id user-id)
-                                  (reset! current-username username)
-                                  (condp = value
-                                    "change-role"
-                                    (do
-                                      (reset! (r/cursor state [:change-role! :error]) "")
-                                      (reset! (r/cursor state [:change-role-modal :new-role]) nil)
-                                      (reset! change-role-modal-open true))
-                                    "remove-from-org"
-                                    (do (reset! (r/cursor state [:remove-from-org! :error]) "")
-                                        (reset! remove-modal-open true)))))}])]]))
+        [S/Dropdown {:button true, :icon "cog", :select-on-blur false
+                     :class-name "icon change-org-user"}
+         [S/DropdownMenu
+          [S/DropdownItem
+           {:text "Change role..."
+            :value "change-role"
+            :key :change-role
+            :on-click (fn [_]
+                        (reset! current-user-id user-id)
+                        (reset! current-username username)
+                        (reset! (r/cursor state [:change-role! :error]) "")
+                        (reset! (r/cursor state [:change-role-modal :new-role]) nil)
+                        (reset! change-role-modal-open true))}]
+          [S/DropdownItem
+           {:text "Remove from organization..."
+            :value "remove-from-org"
+            :key :remove-from-org
+            :on-click (fn [_]
+                        (reset! current-user-id user-id)
+                        (reset! current-username username)
+                        (reset! (r/cursor state [:remove-from-org! :error]) "")
+                        (reset! remove-modal-open true))}]]])]]))
 
 (defn UsersTable [{:keys [org-users org-id]}]
   (when (seq org-users)
-    [Table {:basic true
-            :id "org-user-table"}
-     #_[TableHeader
-        [TableRow
-         [TableCell ;; select all goes here
-          ]
-         [TableCell ;; filter by row goes here
-          ]]]
+    [Table {:id "org-user-table", :basic true}
      [TableBody
-      (map (fn [user]
-             ^{:key (:user-id user)}
-             [UserRow user org-id])
-           org-users)]]))
+      (for [user org-users] ^{:key (:user-id user)}
+        [UserRow user org-id])]]))
 
 (defn user-suggestions! [org-id term]
   (let [retrieving? (r/cursor state [:search-loading?])
@@ -278,10 +265,10 @@
     (r/create-class
      {:reagent-render
       (fn [_]
-        [Modal {:trigger (r/as-component [Button {:id "add-member-button"
-                                                  :on-click #(reset-state!)
-                                                  :positive true}
-                                          "Add Member"])
+        [Modal {:trigger (r/as-element [Button {:id "add-member-button"
+                                                :on-click #(reset-state!)
+                                                :positive true}
+                                        "Add Member"])
                 :open @modal-open
                 :on-open #(reset! modal-open true)
                 :on-close #(reset! modal-open false)}
@@ -312,7 +299,7 @@
                                             (user-suggestions! org-id input-value)))
                       :result-renderer (fn [item]
                                          (let [item (js->clj item :keywordize-keys true)]
-                                           (r/as-component
+                                           (r/as-element
                                             [:div {:style {:display "flex"}}
                                              [Avatar {:user-id (:user-id item)}]
                                              [:p (:username item)]])))

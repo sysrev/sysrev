@@ -40,6 +40,8 @@
 (def LabelDetail (component S/Label "Detail"))
 (def Button (component S/Button))
 (def Dropdown (component S/Dropdown))
+(def DropdownMenu (component S/Dropdown.Menu))
+(def DropdownItem (component S/Dropdown.Item))
 (def Message (component S/Message))
 (def MessageHeader (component S/Message "Header"))
 (def Radio (component S/Radio))

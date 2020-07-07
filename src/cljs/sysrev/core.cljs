@@ -1,6 +1,6 @@
 (ns sysrev.core
   (:require [orchestra-cljs.spec.test :as t]
-            [reagent.core :as reagent]
+            [reagent.dom :as rdom]
             [re-frame.core :refer [dispatch dispatch-sync reg-sub reg-event-db
                                    clear-subscription-cache!]]
             [pushy.core :as pushy]
@@ -32,7 +32,7 @@
   "Global handler for js/window resize event, attached in `mount-root`.
 
   1) Handle change in site layout (desktop, mobile, etc) by running
-     `reagent/force-update-all` when window width changes. Uses
+     `rdom/force-update-all` when window width changes. Uses
      `js/setTimeout` to avoid spamming action during stream of resize
      events.
   2) Adjust height of sidebar when window height changes."
@@ -47,7 +47,7 @@
        (fn [_]
          (let [end-width (util/viewport-width)]
            (when (= start-width end-width)
-             (reagent/force-update-all))))
+             (rdom/force-update-all))))
        100))
     (when (and cur-height (not= start-height cur-height))
       (util/update-sidebar-height))
@@ -57,7 +57,7 @@
   (clear-subscription-cache!)
   (let [el (or (.getElementById js/document "blog-app")
                (.getElementById js/document "app"))]
-    (reagent/render [main-content] el))
+    (rdom/render [main-content] el))
   (js/window.addEventListener "resize" on-window-resize))
 
 (defn dev-setup []

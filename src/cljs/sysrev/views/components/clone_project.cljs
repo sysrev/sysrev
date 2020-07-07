@@ -87,7 +87,7 @@
                                 :redirect_message "First, create an account to clone the project to"}))
               :on-close #(when-not @cloning?
                            (dispatch [::modal-open? false]))
-              :trigger (r/as-component
+              :trigger (r/as-element
                         [Button {:size "tiny"
                                  :class "project-access"
                                  :id "clone-button"

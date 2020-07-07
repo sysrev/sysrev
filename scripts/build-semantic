@@ -16,9 +16,8 @@ rm -f site
 ln -s "site.$theme" site
 cd ..
 rm -rf ./target
-# gulp clean > /dev/null
-gulp build-css > /dev/null
-gulp build-assets > /dev/null
+# npx gulp clean > /dev/null
+npx gulp build-css build-assets > /dev/null
 cd ..
 out_dir="resources/public/semantic/$theme"
 mkdir -p "$out_dir"

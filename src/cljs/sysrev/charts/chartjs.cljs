@@ -1,51 +1,42 @@
 (ns sysrev.charts.chartjs
-  (:require ["chart.js" :as chartjs]
-            [reagent.core :as r]))
+  (:require ["chart.js" :refer [Chart]]
+            [reagent.core :as r]
+            [reagent.dom :refer [dom-node]]))
 
 ;; React component implementation based on core functionality from:
 ;; https://github.com/jerairrest/react-chartjs-2/blob/master/src/index.js
 
-(defn- render-chart [chart]
-  (let [{:keys [type data options]} (r/props chart)]
-    (swap! (r/state-atom chart) assoc
+(defn- render-chart [chart-elt]
+  (let [{:keys [type data options]} (r/props chart-elt)]
+    (swap! (r/state-atom chart-elt) assoc
            :chart-instance
-           (chartjs/Chart. (-> (r/dom-node chart) .-firstChild .-firstChild)
-                           (clj->js {:type type
-                                     :data data
-                                     :options
-                                     (merge {:responsive true
-                                             :maintainAspectRatio false}
-                                            options)})))))
+           (Chart. (-> (dom-node chart-elt) .-firstChild .-firstChild)
+                   (clj->js {:type type, :data data
+                             :options (merge {:responsive true
+                                              :maintainAspectRatio false}
+                                             options)})))))
 
 (defn- chart-component [{:keys [type data options width height]}]
   (let [ref (atom nil)]
     (r/create-class
-     {:component-will-mount
-      (fn [this]
-        (swap! (r/state-atom this) assoc
-               :chart-instance nil))
-
+     {:constructor
+      (fn [this _props]
+        (swap! (r/state-atom this) assoc :chart-instance nil))
       :component-did-mount
       (fn [this]
         (render-chart this))
-
       :component-did-update
       (fn [this]
         (let [{:keys [chart-instance]} (r/state this)]
-          (when chart-instance
-            (.destroy chart-instance))
+          (some-> chart-instance (.destroy))
           (render-chart this)))
-
       :should-component-update
       (fn [_this old-argv new-argv]
         (not= old-argv new-argv))
-
       :component-will-unmount
       (fn [this]
         (let [{:keys [chart-instance]} (r/state this)]
-          (when chart-instance
-            (.destroy chart-instance))))
-
+          (some-> chart-instance (.destroy))))
       :render
       (fn [this]
         (let [{:keys [width height]} (r/props this)]

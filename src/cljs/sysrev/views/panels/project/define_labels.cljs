@@ -4,6 +4,7 @@
             [clojure.walk :as walk]
             [medley.core :refer [find-first]]
             [reagent.core :as r]
+            [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
@@ -661,10 +662,10 @@
   (r/create-class
    {:component-did-mount
     (fn [c]
-      (-> ($ (r/dom-node c))
+      (-> ($ (dom-node c))
           (.dropdown (clj->js {:onAdd onAdd
                                :onRemove onRemove
-                               :onChange (fn [_] (-> ($ (r/dom-node c))
+                               :onChange (fn [_] (-> ($ (dom-node c))
                                                      (.dropdown "hide")))}))))
     :reagent-render
     (fn [{:keys [definition label-id required value onAdd onRemove]}]
