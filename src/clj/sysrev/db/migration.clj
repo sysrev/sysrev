@@ -29,11 +29,14 @@
                    (mapv #(select-keys % [:nickname :created :id]))
                    (mapv #(set/rename-keys % {:nickname :name}))
                    (mapv #(update % :created (partial util/to-clj-time))))]
-    (-> (insert-into :stripe-plan)
-        (values plans)
-        (upsert (-> (on-conflict :name)
-                    (do-update-set :id :created)))
-        do-execute)))
+    (when-let [invalid-plans (seq (->> plans (filter #(nil? (:name %)))))]
+      (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
+    (let [valid-plans (->> plans (remove #(nil? (:name %))))]
+      (-> (insert-into :stripe-plan)
+          (values valid-plans)
+          (upsert (-> (on-conflict :name)
+                      (do-update-set :id :created)))
+          do-execute))))
 
 ;; TODO: has this been run? should it be?
 (defn ^:repl update-dates-from-article-raw
