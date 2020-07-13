@@ -91,6 +91,16 @@
          (str "Resolved (" (+ (scount [:resolved true])
                               (scount [:resolved false])) ")")]]]]]))
 
+(def-data :project/review-status
+          :loaded? (fn [db project-id] (-> (get-in db [:data :project project-id :stats]) (contains? :status-counts)))
+          :uri (fn [_] "/api/review-status")
+          :content (fn [project-id] {:project-id project-id})
+          :prereqs (fn [project-id] [[:project project-id]])
+          :process (fn [{:keys [db]} [project-id] result]
+                     {:db (assoc-in db [:data :project project-id :stats :status-counts] result)})
+          :on-error (fn [{:keys [db error]} [project-id] _]
+                      {:db (assoc-in db [:data :project project-id :stats :status-counts] {:error error})}))
+
 (defn- ReviewStatusBox []
   (let [project-id @(subscribe [:active-project-id])
         {:keys [reviewed total]} @(subscribe [:project/article-counts])
@@ -110,7 +120,7 @@
        [:div.ui.segment
         [:h4.ui.dividing.header
          "Review Status"]
-        (with-loader [[:project project-id]]
+        (with-loader [[:project/review-status project-id]]
           {:dimmer :fixed}
           [:div
            [:h4.ui.center.aligned.header
@@ -282,7 +292,6 @@
            [:div
             [unpad-chart [0.25 0.35]
              [ImportantTermsChart {:data terms}]]]])))))
-
 
 (reg-sub ::label-counts
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
