@@ -49,9 +49,9 @@
                         (api/set-user-group! user-id (group/group-id->name org-id) false))))
             (POST "/project" request
                   (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
-                    (let [project-name (-> request :body :project-name)
+                    (let [{:keys [project-name public-access]} (-> request :body)
                           user-id (current-user-id request)]
-                      (api/create-project-for-org! project-name user-id org-id))))
+                      (api/create-project-for-org! project-name user-id org-id public-access))))
             (POST "/project/clone" request
                   (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
                     (let [{:keys [src-project-id]} (:body request)

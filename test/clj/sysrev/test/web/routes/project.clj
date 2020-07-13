@@ -71,7 +71,7 @@
                   [:result :valid]))
       ;; Create a project
       (let [create-project-response (route-response :post "/api/create-project"
-                                                    {:project-name test-project-name})
+                                                    {:project-name test-project-name :public-access true})
             new-project-id (get-in create-project-response [:result :project :project-id])]
         ;; create a project for this user
         (is (get-in create-project-response [:result :success]))
@@ -122,7 +122,7 @@
             (format "response = %s" (pr-str ident-response))))
       ;; create a new project
       (let [create-response (route-response :post "/api/create-project"
-                                            {:project-name test-project-name})]
+                                            {:project-name test-project-name :public-access true})]
         (is (true? (-> create-response :result :success))))
       (let [projects (->> (:projects (user/user-self-info user-id))
                           (filter :member?))]
@@ -148,7 +148,7 @@
                   [:result :valid]))
       ;; create a project
       (let [create-project-response (route-response :post "/api/create-project"
-                                                    {:project-name test-project-name})
+                                                    {:project-name test-project-name :public-access true})
             project-id (get-in create-project-response [:result :project :project-id])]
         ;; confirm project is created for this user
         (is (get-in create-project-response [:result :success]))
@@ -218,7 +218,7 @@
       (with-cleanup-users [email]
         (let [_ (route-response :post "/api/auth/login" {:email email :password password})
               create-project-response (route-response :post "/api/create-project"
-                                                      {:project-name test-project-name})
+                                                      {:project-name test-project-name :public-access true})
               project-id (get-in create-project-response [:result :project :project-id])
               ;; add articles to the project
               _ (route-response :post "/api/import-articles/pubmed"

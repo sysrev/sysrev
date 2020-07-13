@@ -57,6 +57,8 @@
   (group/user-group-permission user-id (group/group-name->id group-name)))
 
 (defn org-user-table-entries []
+  ;; go to the user table
+  (b/click "a#org-members")
   (b/wait-until-exists org-user-table)
   (->> (taxi/find-elements-under org-user-table {:tag :tr})
        (mapv taxi/text)
@@ -100,14 +102,14 @@
 (defn create-project-org
   "Must be in the Organization Settings for the org for which the project is being created"
   [project-name]
-  (b/set-input-text "form.create-project div.project-name input" project-name)
-  (b/click "form.create-project .button.create-project")
+  (b/click "button#new-project")
+  (b/set-input-text "form#create-project-form div.project-name input" project-name)
+  (b/click (xpath "//button[contains(text(),'Create Project')]"))
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
    (xpath "//div[contains(@class,'project-title')]"
-          "//a[text()='" project-name "']"))
-  (b/wait-until-loading-completes :pre-wait 50)
-  (log/infof "created project %s for org" (pr-str project-name)))
+          "//a[contains(text(),'" project-name "')]"))
+  (b/wait-until-loading-completes :pre-wait true))
 
 (defn switch-to-org
   "switch to org-name, must be in Organization Settings"
@@ -185,7 +187,7 @@
     (switch-to-org org-name-2)
     ;; user can create projects here
     (b/click org-projects :delay 30)
-    (b/wait-until-exists "form.create-project")
+    (b/wait-until-exists "button#new-project")
     ;; can change user permissions for browser+test
     (b/click org-users)
     (b/wait-until-exists (change-user-permission-dropdown (:email test-user)))

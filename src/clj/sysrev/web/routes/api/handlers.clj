@@ -231,7 +231,7 @@
     (let [{:keys [api-token project-name #_ add-self?]} (:body request)
           {:keys [user-id]} (user/user-by-api-token api-token)]
       {:result (merge {:success true}
-                      (api/create-project-for-user! project-name user-id))} )))
+                      (api/create-project-for-user! project-name user-id false))})))
 
 ;; TODO: does tom need this? disable for now
 #_

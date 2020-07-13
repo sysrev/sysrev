@@ -216,10 +216,10 @@
 
 (dr (POST "/api/create-project" request
           (with-authorize request {:logged-in true}
-            (let [project-name (-> request :body :project-name)
+            (let [{:keys [project-name public-access]} (-> request :body)
                   user-id (current-user-id request)]
               (assert (integer? user-id))
-              (api/create-project-for-user! project-name user-id)))))
+              (api/create-project-for-user! project-name user-id public-access)))))
 
 (dr (POST "/api/clone-project" request
           (with-authorize request {:logged-in true}

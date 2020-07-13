@@ -8,7 +8,7 @@
                                    reg-fx dispatch ->interceptor]]
             [sysrev.util :as util :refer [in?]]))
 
-(s/def ::method (and keyword? (in? [:get :post])))
+(s/def ::method (and keyword? (in? [:get :post :put :delete])))
 (s/def ::uri string?)
 (s/def ::content any?)
 (s/def ::on-success vector?)

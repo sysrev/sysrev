@@ -5,7 +5,7 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub reg-event-db trim-v dispatch]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.create-project :refer [CreateProject]]
+            [sysrev.views.panels.project.new :refer [NewProjectButton]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
             [sysrev.views.semantic :refer
@@ -156,7 +156,8 @@
         (let [retrieving? (:retrieving-projects? @state)]
           [:div
            (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
-             [CreateProject org-id])
+             [:div {:style {:margin-bottom "1rem"}}
+              [NewProjectButton {:project-owner org-id}]])
            (when-not retrieving?
              [OrgProjectList @(subscribe [:org/projects org-id])])
            (when (seq @error)

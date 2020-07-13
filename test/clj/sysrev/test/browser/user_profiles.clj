@@ -38,10 +38,14 @@
 (def upload-button (xpath "//button[contains(text(),'Upload Profile Image')]"))
 
 (defn private-project-names []
-  (b/get-elements-text (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/a")))
+  (->>
+   (b/get-elements-text (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/a"))
+   (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
 
 (defn public-project-names []
-  (b/get-elements-text (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/a")))
+  (->>
+   (b/get-elements-text (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/a"))
+   (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
 
 (defn user-activity-summary []
   (b/wait-until-displayed "div.user-activity-summary")
@@ -59,11 +63,11 @@
 (defn project-activity-summary [project-name]
   (b/wait-until-displayed (project-activity-summary-headers project-name))
   (select-keys
-    (->> (taxi/elements (project-activity-summary-headers project-name))
-         (mapv #(hash-map (keyword (taxi/attribute % :class))
-                          (parse-integer (taxi/text %))))
-         (apply merge))
-    [:articles-reviewed :labels-contributed :annotations-contributed]))
+   (->> (taxi/elements (project-activity-summary-headers project-name))
+        (mapv #(hash-map (keyword (taxi/attribute % :class))
+                         (parse-integer (taxi/text %))))
+        (apply merge))
+   [:articles-reviewed :labels-contributed :annotations-contributed]))
 
 (defn make-public-reviewer [user-id email]
   (with-transaction
@@ -309,15 +313,17 @@
   (count (taxi/find-elements (xpath "//h4[@class='email-entry']"))))
 
 (defn your-projects-count []
-  (dec (count (taxi/find-elements (xpath "//div[@id='your-projects']//h4")))))
+  (->> (taxi/find-elements (xpath "//div[@id='your-projects']//h4"))
+       (mapv taxi/text)
+       (filter #(not (contains? #{"Your Projects"
+                                  "You don't have any projects yet, create a new one to get started with sysrev!"} %)))
+       count))
 
 (deftest-browser verify-email-and-project-invite
   (and (test/db-connected?)
-       ;; TODO: invite correct user by name to fix for populated db
-       ;; (staging.sysrev.com)
        (not (test/remote-test?))) test-user
-  [user1 {:email "foo@insilica.co" :password "foobar"}
-   new-email-address "bar@insilica.co"
+  [user1 {:email (str "foo" (util/random-id) "@insilica.co") :password "foobar"}
+   new-email-address (str "bar" (util/random-id) "@insilica.co")
    user-id (user-by-email (:email user1) :user-id)]
   (do (alter-var-root #'sysrev.sendgrid/send-template-email
                       (constantly (fn [& _] (log/info "No email sent"))))
@@ -384,7 +390,7 @@
         ;; log in as foo and check invitation
         (nav/log-in (:email user1) (:password user1))
         ;; confirm we aren't a member of Invitation Test
-        (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))
+        (b/wait-until-exists "button#new-project")
         (is (= 0 (your-projects-count)))
         (b/click "#user-name-link")
         (b/click "#user-settings")

@@ -5,7 +5,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :refer [ConfirmationDialog]]
-            [sysrev.views.create-project :refer [CreateProject]]
+            [sysrev.views.project :refer [ProjectName]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Divider Button]]
             [sysrev.util :as util :refer [condensed-number parse-integer]]
@@ -85,13 +85,14 @@
                              :labels (item-totals :labels)
                              :annotations (item-totals :annotations)}]])))
 
-(defn- UserProject [{:keys [name project-id articles labels annotations settings]
+(defn- UserProject [{:keys [name project-id articles labels annotations settings project-owner]
                      :or {articles 0, labels 0, annotations 0}}]
   [:div {:id (str "project-" project-id)
          :class "user-project-entry"
          :style {:margin-bottom "1em" :font-size "110%"}}
    [:a {:href (project-uri project-id)
-        :style {:margin-bottom "0.5em" :display "inline-block"}} name]
+        :style {:margin-bottom "0.5em" :display "inline-block"}}
+    [ProjectName {:name name} project-owner]]
    (when (and
           ;; user page is for logged in user
           ;; TODO: is this checking that the user is a project admin?
@@ -141,8 +142,6 @@
     (let [projects @(subscribe [:user/projects user-id])]
       [:div
        [UserActivitySummary projects]
-       (when @(subscribe [:user-panel/self?])
-         [CreateProject])
        [UserProjectsList {:user-id user-id}]])))
 
 (defmethod panel-content panel []

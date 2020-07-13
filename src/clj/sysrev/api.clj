@@ -4,6 +4,7 @@
             [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
+            [clojure.string :as string]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [clj-time.core :as t]
@@ -77,22 +78,55 @@
 
 (s/def ::project ::sp/project-partial)
 
+(defn project-owner-plan
+  "Return the plan name for the project owner of project-id"
+  [project-id]
+  (with-transaction
+    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
+      (cond user-id   (:name (plans/user-current-plan user-id))
+            group-id  (:name (plans/group-current-plan group-id))
+            :else     "Basic"))))
+
+(defn- project-grandfathered? [project-id]
+  (let [{:keys [date-created]} (q/find-one :project {:project-id project-id})]
+    (t/before? (tc/from-sql-time date-created)
+               (util/parse-time-string paywall-grandfather-date))))
+
+(defn project-unlimited-access? [project-id]
+  (with-transaction
+    (or (project-grandfathered? project-id)
+        (contains? #{"Unlimited_Org" "Unlimited_User"} (project-owner-plan project-id)))))
+
+(defn change-project-settings [project-id changes]
+  (with-transaction
+    (doseq [{:keys [setting value]} changes]
+      (cond (and (= setting :public-access)
+                 (project-unlimited-access? project-id))
+            (project/change-project-setting project-id (keyword setting) value)
+            (and (= setting :public-access)
+                 (= value false)
+                 (= "Basic" (project-owner-plan project-id))) nil
+            :else (project/change-project-setting project-id (keyword setting) value)))
+    {:success true, :settings (project/project-settings project-id)}))
+
 (defn-spec create-project-for-user! (req-un ::project)
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
-  [project-name string?, user-id int?]
+  [project-name string?, user-id int?, public-access boolean?]
   (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (label/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (member/add-project-member project-id user-id
                                  :permissions ["member" "admin" "owner"])
+      (change-project-settings project-id [{:setting :public-access
+                                            :value public-access}])
       {:project (select-keys project [:project-id :name])})))
 
 (defn-spec create-project-for-org! (req-un ::project)
   "Create a new project for org-id using project-name and insert a
   minimum label, returning the project in a response map"
-  [project-name string?, user-id int?, group-id int?]
+  [project-name string?, user-id int?, group-id int?, public-access boolean?]
   (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (label/add-label-overall-include project-id)
@@ -105,6 +139,8 @@
                                  ;; a project_member entry with
                                  ;; an "owner" permission
                                  :permissions ["member" "admin"])
+      (change-project-settings project-id [{:setting :public-access
+                                            :value public-access}])
       {:project (select-keys project [:project-id :name])})))
 
 (defn-spec delete-project! (req-un ::sp/project-id)
@@ -370,9 +406,9 @@
           sub-item-id (stripe/get-subscription-item sub-id)
           plan (stripe/get-plan-id plan-name)
           sub-resp (stripe/update-subscription-item!
-                          {:id sub-item-id :plan plan
-                           :quantity (count (group/read-users-in-group
-                                             (group/group-id->name group-id)))})]
+                    {:id sub-item-id :plan plan
+                     :quantity (count (group/read-users-in-group
+                                       (group/group-id->name group-id)))})]
       (if (:error sub-resp)
         (update sub-resp :error #(merge % {:status not-found}))
         (do (plans/add-group-to-plan! group-id plan sub-id)
@@ -380,36 +416,6 @@
               (db/clear-project-cache project-id))
             {:stripe-body sub-resp :plan (plans/group-current-plan group-id)})))))
 
-(defn project-owner-plan
-  "Return the plan name for the project owner of project-id"
-  [project-id]
-  (with-transaction
-    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
-      (cond user-id   (:name (plans/user-current-plan user-id))
-            group-id  (:name (plans/group-current-plan group-id))
-            :else     "Basic"))))
-
-(defn- project-grandfathered? [project-id]
-  (let [{:keys [date-created]} (q/find-one :project {:project-id project-id})]
-    (t/before? (tc/from-sql-time date-created)
-               (util/parse-time-string paywall-grandfather-date))))
-
-(defn project-unlimited-access? [project-id]
-  (with-transaction
-    (or (project-grandfathered? project-id)
-        (contains? #{"Unlimited_Org" "Unlimited_User"} (project-owner-plan project-id)))))
-
-(defn change-project-settings [project-id changes]
-  (with-transaction
-    (doseq [{:keys [setting value]} changes]
-      (cond (and (= setting :public-access)
-                 (project-unlimited-access? project-id))
-            (project/change-project-setting project-id (keyword setting) value)
-            (and (= setting :public-access)
-                 (= value false)
-                 (= "Basic" (project-owner-plan project-id))) nil
-            :else (project/change-project-setting project-id (keyword setting) value)))
-    {:success true, :settings (project/project-settings project-id)}))
 
 (defn ^:unused support-project-monthly [user project-id amount]
   (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
@@ -1116,8 +1122,10 @@
   "Return a list of user projects for user-id, including non-public projects when self? is true"
   [user-id self?]
   (with-transaction
-    (let [projects ((if self? user/user-projects user/user-public-projects)
-                    user-id [:p.name :p.settings])
+    (let [projects (->> ((if self? user/user-projects user/user-public-projects)
+                         user-id [:p.name :p.settings])
+                        (mapv #(assoc % :project-owner
+                                      (project/get-project-owner (:project-id %)))))
           labeled-summary (user/projects-labeled-summary user-id)
           annotations-summary (user/projects-annotated-summary user-id)]
       {:projects (vals (merge-with merge
@@ -1174,9 +1182,11 @@
   (with-transaction
     {:orgs (->> (group/read-groups user-id)
                 (filterv #(not= (:group-name %) "public-reviewer"))
-                (mapv #(assoc % :member-count (-> (group/group-id->name (:id %))
+                (mapv #(assoc % :member-count (-> (group/group-id->name (:group-id %))
                                                   (group/read-users-in-group)
-                                                  count))))}))
+                                                  count)))
+                (mapv #(assoc % :plan-name (-> (plans/group-current-plan (:group-id %))
+                                               :name))))}))
 
 (defn create-org! [user-id org-name]
   (with-transaction
@@ -1186,7 +1196,7 @@
           {:error {:status conflict
                    :message (str "An organization with the name '" org-name "' already exists."
                                  " Please try using another name.")}}
-          (clojure.string/blank? org-name)
+          (string/blank? org-name)
           {:error {:status bad-request
                    :message (str "Organization names can't be blank!")}}
           :else
@@ -1198,8 +1208,8 @@
                   stripe-id (group/group-stripe-id new-org-id)]
               ;; set the user as group admin
               (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
-          (stripe/create-subscription-org! new-org-id stripe-id)
-          {:success true, :id new-org-id})))))
+              (stripe/create-subscription-org! new-org-id stripe-id)
+              {:success true, :id new-org-id})))))
 
 (defn search-users [term]
   {:success true, :users (user/search-users term)})

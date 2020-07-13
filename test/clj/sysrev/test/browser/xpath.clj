@@ -31,7 +31,7 @@
    "/descendant::div[contains(@class,'button') and contains(text(),'Delete')]"))
 
 (defn project-title-value [name]
-  (xpath "//span[contains(@class,'project-title') and text()='" name "']"))
+  (xpath "//span[contains(@class,'project-title') and contains(text(),'" name "')]"))
 
 (def project-sources-list
   (xpath "//div[@id='project-sources']"

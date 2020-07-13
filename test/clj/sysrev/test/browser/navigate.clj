@@ -73,7 +73,7 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-exists "form.create-project")
+    (b/wait-until-exists "button#new-project")
     (b/wait-until-loading-completes :pre-wait true :loop 2)
     #_ (log/info "register successful")))
 
@@ -84,14 +84,14 @@
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
   (go-route "/" :silent true)
-  (b/set-input-text "form.create-project div.project-name input" project-name)
-  (b/click "form.create-project .button.create-project")
+  (b/click "button#new-project")
+  (b/set-input-text "form#create-project-form div.project-name input" project-name)
+  (b/click (xpath "//button[contains(text(),'Create Project')]"))
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
    (xpath "//div[contains(@class,'project-title')]"
-          "//a[text()='" project-name "']"))
-  (b/wait-until-loading-completes :pre-wait true)
-  #_ (log/info "project created"))
+          "//a[contains(text(),'" project-name "')]"))
+  (b/wait-until-loading-completes :pre-wait true))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))

@@ -59,24 +59,25 @@
          (dispatch load-params))))
 
 (sr-defroute-project
-  analytics "/analytics" [project-id]
-  (dispatch [:reload [:project project-id]])
-  (dispatch [:set-active-panel [:project :project :analytics]]))
+ analytics "/analytics" [project-id]
+ (dispatch [:reload [:project project-id]])
+ (dispatch [:set-active-panel [:project :project :analytics]]))
 
 (sr-defroute-project
-  analytics-concordance "/analytics/concordance" [project-id]
-  (dispatch [:reload [:project project-id]])
-  (dispatch [:set-active-panel [:project :project :analytics :concordance]]))
+ analytics-concordance "/analytics/concordance" [project-id]
+ (dispatch [:reload [:project project-id]])
+ (dispatch [:set-active-panel [:project :project :analytics :concordance]]))
 
 (sr-defroute-project
-  analytics-labels "/analytics/labels" [project-id]
-  (dispatch [:reload [:project project-id]])
-  (dispatch [:set-active-panel [:project :project :analytics :labels]]))
+ analytics-labels "/analytics/labels" [project-id]
+ (dispatch [:reload [:project project-id]])
+ (dispatch [:set-active-panel [:project :project :analytics :labels]]))
 
 (sr-defroute-project
-  analytics-feedback "/analytics/feedback" [project-id]
-  (dispatch [:reload [:project project-id]])
-  (dispatch [:set-active-panel [:project :project :analytics :feedback]]))
+ analytics-feedback "/analytics/feedback" [project-id]
+ (dispatch [:reload [:project project-id]])
+ (dispatch [:set-active-panel [:project :project :analytics :feedback]]))
+
 
 (sr-defroute-project
  article-id "/article/:article-id" [project-id article-id]
@@ -143,6 +144,9 @@
 ;;
 ;; non-project routes
 ;;
+(sr-defroute
+ new "/new" []
+ (dispatch [:set-active-panel [:new]]))
 
 (sr-defroute
  login "/login" []

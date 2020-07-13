@@ -12,6 +12,7 @@
             [sysrev.db.core :as db :refer
              [do-query with-transaction sql-now]]
             [sysrev.db.queries :as q]
+            [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member]]
             [sysrev.shared.spec.users :as su]
             [sysrev.payment.stripe :as stripe]
@@ -175,9 +176,7 @@
   "Returns a map of values with various user account information.
   This result is sent to client for the user's own account upon login."
   [user-id]
-  (let [uperms (get-user user-id :permissions)
-        admin? (in? uperms "admin")
-        project-url-ids (-> (select :purl.url-id :purl.project-id)
+  (let [project-url-ids (-> (select :purl.url-id :purl.project-id)
                             (from [:project-member :m])
                             (join [:project :p]
                                   [:= :p.project-id :m.project-id])
@@ -195,7 +194,8 @@
                              :m.join-date :m.access-date
                              [:p.enabled :project-enabled]
                              [:m.enabled :member-enabled]
-                             [:m.permissions :permissions])
+                             [:m.permissions :permissions]
+                             [:p.settings :settings])
                      (from [:project-member :m])
                      (join [:project :p]
                            [:= :p.project-id :m.project-id])
@@ -210,21 +210,13 @@
                                      [(or (some-> access-date tc/to-epoch) 0)
                                       (- (tc/to-epoch date-created))]))
                           reverse
-                          (mapv #(-> % (assoc :member? true
-                                              :url-ids (get project-url-ids (:project-id %)))))))
-        self-project-ids (->> projects (map :project-id))
-        all-projects (when admin?
-                       (-> (select :p.project-id :p.name :p.date-created
-                                   [:p.enabled :project-enabled])
-                           (from [:project :p])
-                           (where [:and [:= :p.enabled true]])
-                           (order-by :p.date-created)
-                           (->> do-query
-                                (filterv #(not (in? self-project-ids (:project-id %))))
-                                (mapv #(assoc % :member? false
-                                              :url-ids (get project-url-ids
-                                                            (:project-id %)))))))]
-    {:projects (->> [projects all-projects] (apply concat) vec)}))
+                          (mapv #(-> %
+                                     (assoc :member? true
+                                            :url-ids (get project-url-ids (:project-id %))
+                                            :public-access (-> % :settings :public-access)
+                                            :project-owner (project/get-project-owner (:project-id %)))
+                                     (dissoc :settings)))))]
+    {:projects (->> [projects] (apply concat) vec)}))
 
 (defn create-user-stripe-customer!
   "Create a stripe customer from user"

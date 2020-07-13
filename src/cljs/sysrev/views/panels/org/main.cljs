@@ -72,11 +72,11 @@
                [:div [:h2 @(subscribe [:org/name org-id])]
                 [:nav
                  [Menu {:class "primary-menu" :pointing true :secondary true :attached "bottom"}
+                  [MenuItem {:id "org-projects" :href (uri-fn "projects")
+                             :name "Projects" :class (css [(active? "projects") "active"])}]
                   [MenuItem {:id "org-members" :href (uri-fn "users")
                              :name "Members" :class (css [(active? "users") "active"])}
                    "Members"]
-                  [MenuItem {:id "org-projects" :href (uri-fn "projects")
-                             :name "Projects" :class (css [(active? "projects") "active"])}]
                   (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
                     [MenuItem {:id "org-billing" :href (uri-fn "billing")
                                :name "Billing" :class (css [(active? "billing") "active"])

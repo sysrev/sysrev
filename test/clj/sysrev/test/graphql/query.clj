@@ -86,8 +86,7 @@
   (when (test/db-connected?)
     (let [{:keys [email user-id]} (b/create-test-user)
           project-name  "Graphql - Project Query Test"
-          {:keys [project-id]} (get (api/create-project-for-user! project-name
-                                                                  user-id)
+          {:keys [project-id]} (get (api/create-project-for-user! project-name user-id false)
                                     :project)
           test-user-1 (b/create-test-user :email "user1@foo.bar")
           test-user-2 (b/create-test-user :email "user2@foo.bar")

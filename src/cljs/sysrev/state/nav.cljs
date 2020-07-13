@@ -211,5 +211,4 @@
   :uri (fn [_] "/api/lookup-project-url")
   :content (fn [url-id] {:url-id (util/write-transit-str url-id)})
   :process (fn [_ [url-id] project-full-id]
-             #_ (println (pr-str {:project-full-id project-full-id}))
              {:dispatch [:load-project-lookup url-id project-full-id]}))

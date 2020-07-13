@@ -31,6 +31,7 @@
             [sysrev.views.panels.project.analytics.feedback]
             [sysrev.views.panels.project.single-article :as single-article]
             [sysrev.views.panels.project.define-labels]
+            [sysrev.views.panels.project.new]
             [sysrev.views.panels.project.settings]
             [sysrev.views.panels.project.export-data]
             [sysrev.views.panels.project.review]

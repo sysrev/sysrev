@@ -28,7 +28,7 @@
                   [:result :valid]))
       ;; Create a project
       (let [create-project-response (route-response :post "/api/create-project"
-                                                    {:project-name test-project-name})
+                                                    {:project-name test-project-name :public-access true})
             new-project-id (get-in create-project-response [:result :project :project-id])]
         ;; create a project for this user
         (is (get-in create-project-response [:result :success]))
@@ -64,7 +64,7 @@
             new-org-id (get-in org [:result :id])
             create-project-response (route-response
                                      :post (str "/api/org/" new-org-id "/project")
-                                     {:project-name test-project-name})
+                                     {:project-name test-project-name :public-access true})
             new-project-id (get-in create-project-response [:result :project :project-id])]
         ;; create a new-project
         (is (get-in create-project-response [:result :success]))

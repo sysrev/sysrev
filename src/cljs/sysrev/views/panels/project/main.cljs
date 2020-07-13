@@ -11,14 +11,18 @@
             [sysrev.views.project-list :as plist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
+            [sysrev.views.project :refer [ProjectName]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ProjectTitle [project-id]
   (let [project-owner @(subscribe [:project/owner project-id])
         project-name @(subscribe [:project/name project-id])
-        parent-project @(subscribe [:project/parent-project project-id])]
+        parent-project @(subscribe [:project/parent-project project-id])
+        public? @(subscribe [:project/public-access?])]
     [:span.ui.header.title-header
-     [:i.grey.list.alternate.outline.icon]
+     (if public?
+       [:i.grey.list.alternate.outline.icon]
+       [:i.grey.lock.icon])
      [:div.content.project-title
       (when project-owner
         [:span
@@ -33,7 +37,7 @@
                       :font-size "0.9rem"}}
         [:span.ui.grey.text {:font-""} "cloned from "]
         [:a {:href (project-uri (:project-id parent-project) "")}
-         (str (:owner-name parent-project) "/" (:project-name parent-project))]])]))
+         [ProjectName {:name (:project-name parent-project)} project-owner]]])]))
 
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]
