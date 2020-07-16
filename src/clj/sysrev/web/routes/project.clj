@@ -403,7 +403,6 @@
                                               :change? change?
                                               :resolve? resolve?)
               (let [after-count (labels/count-reviewed-articles project-id)]
-                (println (str "before: " before-count " after: " after-count))
                 (when (and (> after-count before-count)
                            (not= 0 after-count)
                            (= 0 (mod after-count 15)))
