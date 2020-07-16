@@ -546,6 +546,16 @@
                   (map (fn [status] {status (->> (vals entries) (filter (partial = status)) count)}))
                   (apply merge))))))
 
+;TODO this might get slow for large projects. Should create a table that tracks this. Could also use the article-status table
+(defn count-reviewed-articles [project-id]
+  (-> (select :%count.%distinct.al.article-id)
+      (from [:article-label :al])
+      (where [:exists (-> (select 1)(from [:article :ar])
+                          (where [:and
+                                  [:= :ar.article-id :al.article-id]
+                                  [:= :ar.project-id project-id]]))])
+  do-query first :count))
+
 (defn project-article-statuses [project-id]
   (let [articles (query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)]

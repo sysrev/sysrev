@@ -391,8 +391,7 @@
           (with-authorize request {:roles ["member"]}
             (let [user-id (current-user-id request)
                   project-id (active-project request)
-                  before-count (-> (labels/project-article-status-counts project-id)
-                                   :reviewed)
+                  before-count (labels/count-reviewed-articles project-id)
                   {:keys [article-id label-values confirm? change? resolve?]
                    :as body} (-> request :body)]
               (assert (or change? resolve?
@@ -403,8 +402,8 @@
                                               :confirm? confirm?
                                               :change? change?
                                               :resolve? resolve?)
-              (let [after-count (-> (labels/project-article-status-counts project-id)
-                                    :reviewed)]
+              (let [after-count (labels/count-reviewed-articles project-id)]
+                (println (str "before: " before-count " after: " after-count))
                 (when (and (> after-count before-count)
                            (not= 0 after-count)
                            (= 0 (mod after-count 15)))
