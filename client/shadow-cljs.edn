@@ -44,5 +44,8 @@
                 [crypto-random "1.2.0"]
                 [me.raynes/fs "1.4.6"]
                 [environ "1.1.0"]
+                ;; needed because it wasn't autoincluded
+                ;; from a fresh system rebuild
+                [commons-codec/commons-codec "1.14"]
                 [org.apache.commons/commons-lang3 "3.9"]
                 [vincit/venia "0.2.5"]]}

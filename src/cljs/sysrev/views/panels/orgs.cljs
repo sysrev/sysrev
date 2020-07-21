@@ -17,7 +17,7 @@
 (setup-panel-state panel [:orgs] {:state-var state})
 
 (defn create-org! [org-name & {:keys [redirect-subpath]
-                               :or {redirect-subpath "/users"}}]
+                               :or {redirect-subpath "/projects"}}]
   (let [create-org-retrieving? (r/cursor state [:create-org-retrieving?])
         create-org-error (r/cursor state [:create-org-error])]
     (when-not @create-org-retrieving?

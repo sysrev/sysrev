@@ -59,7 +59,8 @@
     (r/create-class
      {:reagent-render (fn [_]
                         [:div {:style {:margin-top "0.5em"}}
-                         [Dropdown {:options (options @orgs)
+                         [Dropdown {:fluid true
+                                    :options (options @orgs)
                                     :value @project-owner
                                     :on-change (fn [_event data]
                                                  (reset! project-owner (.-value data)))}]])
@@ -96,19 +97,22 @@
              [:p "A project contains articles that are labeled by reviewers."]]
             [Divider]
             [:div {:id "create-project-form-owner-name"}
-             [Grid
+             [Grid {:doubling true}
               [Row
-               [Column {:width 2}
+               [Column {:width (if (util/mobile?) 6 3)}
                 [:p "Owner"]]
-               [Column {:width 6}
+               [Column {:width (if (util/mobile?) 10 5)}
                 [:p "Project Name"]]]
-              [Row [Column {:width 2}
+              [Row [Column {:width (if (util/mobile?) 6 3)}
                     [:div {:style {:display "inline-block"
-                                   :width "90%"}}
+                                   :width (if (util/mobile?)
+                                            "80%"
+                                            "88%")}}
                      [OwnerDropdown]]
-                    [:span {:style {:font-size "1.5em"}
+                    [:span {:style {:font-size "1.5em"
+                                    :margin-left "1rem"}
                             :class "bold"} "/"]]
-               [Column {:width 6
+               [Column {:width (if (util/mobile?) 10 5)
                         :text-align "left"}
                 [Input {:placeholder "Project Name"
                         :class "project-name"
@@ -116,10 +120,11 @@
                         :on-change (util/on-event-value #(reset! project-name %))}]]]]]
             [Divider]
             [:div {:id "create-project-form-public-or-private"}
-             [Grid
+             [Grid {:doubling true}
               [Row [Column {:width 12}
-                    [Radio {:style {:float "left"
-                                    :margin-top "0.90rem"}
+                    [Radio {:style
+                            {:float "left"
+                             :margin-top "0.90rem"}
                             :checked @public-access?
                             :on-click (fn [_]
                                         (reset! public-access? true))}]

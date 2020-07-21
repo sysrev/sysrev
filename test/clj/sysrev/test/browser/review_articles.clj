@@ -115,7 +115,8 @@
   "Adds `value` to categorical label `short-label` in review interface."
   [short-label string?, value string?, & [xpath] any?]
   (let [dropdown-div (x/xpath xpath (label-div-with-name short-label)
-                              "/descendant::div[contains(@class,'dropdown')]")
+                              "/descendant::div[contains(@class,'dropdown')]"
+                              "/i[contains(@class,'dropdown')]")
         entry-div (x/xpath xpath (label-div-with-name short-label)
                            "/descendant::div[contains(text(),'" value "')]")]
     (b/click dropdown-div :displayed? true :delay 75)
@@ -345,7 +346,7 @@
                                       {:value categorical-label-value})])
         ;;check that 2 articles are now labeled
         (is (= 2 (count (labels/query-public-article-labels @project-id))))))
-  :cleanup (some-> @project-id (project/delete-project)))
+  :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (deftest-browser review-label-components
   (test/db-connected?) test-user
@@ -370,7 +371,7 @@
                          :examples ["1" "23"]
                          :max-length 100
                          :multi? true}}]
-   [label0 label1 label2] labels
+   [_ label1 label2] labels
    [name0 name1 name2] (map :short-label labels)]
   (do (nav/log-in email)
       (nav/new-project project-name)
@@ -432,7 +433,9 @@
       (remove-string-value name2 "3.5")
       (b/exists? (b/not-disabled ".ui.button.save-labels"))
       (b/click ".button.save-labels" :displayed? true)
-      (b/exists? ".ui.button.save-labels.disabled")))
+      (b/exists? ".ui.button.save-labels.disabled")
+      (b/cleanup-test-user! :email (:email test-user)))
+  :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (defn randomly-review-n-articles
   "Randomly sets labels for n articles using a vector of label-definitions"

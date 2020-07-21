@@ -73,7 +73,7 @@
     (b/click org-users)
     (b/click "#add-member-button" :delay 400)
     (b/set-input-text-per-char "#org-search-users-input" username)
-    (b/click "#submit-add-member" :delay 400)))
+    (b/click (xpath "//button[@id='submit-add-member' and not(contains(@class,'disabled'))]") :delay 400)))
 
 (defn change-user-permission
   "Set username to permission. Must be in Organization Settings of the
@@ -95,7 +95,7 @@
   (b/click user-orgs)
   (b/set-input-text-per-char create-org-input org-name)
   (b/click create-org-button)
-  (b/wait-until-exists "#add-member-button")
+  (b/wait-until-exists "button#new-project")
   (b/wait-until-loading-completes :pre-wait 100)
   (log/infof "created org %s" (pr-str org-name)))
 
