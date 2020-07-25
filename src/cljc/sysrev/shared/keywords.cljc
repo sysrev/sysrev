@@ -137,18 +137,27 @@
                {:raw s
                 :canon (canonical-keyword s)}))))
 
+;(defn process-keywords
+;  "Processes text to find instances of keywords, and returns a map which can
+;   be quickly converted to a Reagent element.
+;   `keywords` is the value from (d/project-keywords) in client."
+;  [text keywords]
+;  (println (str "processing \n\ttext: " text "\n\tkeywords: " keywords))
+;  (let [kmatch-vals (->> (vals keywords)
+;                         (map #(select-keys % [:keyword-id :toks]))
+;                         (map #(assoc % :toks (map canonical-keyword (:toks %))))
+;                         (map #(assoc % :n-toks (count (:toks %))))
+;                         (sort-by :n-toks >))
+;        toks (tokenize-article-text text)]
+;    (split-abstract-elts kmatch-vals [] [] toks)))
+
+
 (defn process-keywords
   "Processes text to find instances of keywords, and returns a map which can
    be quickly converted to a Reagent element.
    `keywords` is the value from (d/project-keywords) in client."
   [text keywords]
-  (let [kmatch-vals (->> (vals keywords)
-                         (map #(select-keys % [:keyword-id :toks]))
-                         (map #(assoc % :toks (map canonical-keyword (:toks %))))
-                         (map #(assoc % :n-toks (count (:toks %))))
-                         (sort-by :n-toks >))
-        toks (tokenize-article-text text)]
-    (split-abstract-elts kmatch-vals [] [] toks)))
+    [{:keyword-id nil, :text text}])
 
 (defn format-abstract
   "Splits abstract text into sections and processes each section for keywords."
