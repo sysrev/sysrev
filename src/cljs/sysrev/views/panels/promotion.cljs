@@ -46,8 +46,7 @@
     [:iframe {
               :src "https://docs.google.com/forms/d/e/1FAIpQLSfwwGo-rbzxZAurT3CmW0pdpcw82a3kYSQbFpsJ41-o5zpJDw/viewform?embedded=true"
               :width "640" :height "1100" :frameBorder "0" :marginHeight "0" :marginWidth "0"} "Loading…"]
-    ]
-   [:div "hi"]])
+    ]])
 
 (defn promotion-expired []
   [:div.ui.aligned.segment {:style {:text-align "center"}}
