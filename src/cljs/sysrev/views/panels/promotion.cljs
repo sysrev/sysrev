@@ -21,27 +21,24 @@
    [:div {:style {:width "700px"}}
     [:h1 "Sysrev Team Pro - $500 for Reviews"]
     [:p
-     "Sysrev will award 10 selected document reviews or systematic reviews $500 for reviewer payments.
-         This promotion is available to teams creating " [:b "Team Pro "] "sysrev accounts.
-         Apply at the bottom of the page. Applications close on August 31."]
+     "Sysrev will award 10 selected projects $500 for reviewer payments. If selected, a project of your choice
+     will receive $500 which can be used to pay reviewers to complete review tasks. Apply at the bottom of the page before August 31."]
     [:p "Learn more about sysrev document reviews at" [:a {:href "/"} " sysrev.com "]
      "or the " [:a {:href "https://blog.sysrev.com/what-is-sysrev"} "what is sysrev?"] " blog."]
 
     [:h2 "What happens after I apply?"]
-    [:p "We will email acceptance decisions within a week."]
-
-     [:p "If your project has been accepted, we will:"
+    [:p "We will email acceptance decisions within a week. If your project is accepted, we will:"
       [:ul
        [:li "Ask you to sign up for team pro."]
        [:li "Enable the sysrev reviewer payments feature on your account."]
        [:li "Provide $500 to your selected project."]
        ]
-      "This review budget will expire after 1 year and individual payments cannot exceed $2. Reviewer payments are subject to
+      "This review budget expires in August 2021 and individual payments cannot exceed $2. Reviewer payments are subject to
       the standard 20% overhead rate."]
 
    [:h2 "Can I apply?"]
    [:p "Awarded applications are required to either sign up for Team Pro at $30/month or already have a team pro account.
-    Priority will be given to new team pro accounts, but anybody can apply! "]
+    Priority is given to new team pro accounts, but anybody can apply! "]
     [:h2 "Apply Below"]
     [:iframe {
               :src "https://docs.google.com/forms/d/e/1FAIpQLSfwwGo-rbzxZAurT3CmW0pdpcw82a3kYSQbFpsJ41-o5zpJDw/viewform?embedded=true"

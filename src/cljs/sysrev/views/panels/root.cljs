@@ -31,7 +31,12 @@
    [:div.description.wrapper.open-sans
     [:p [:span.site-name "sysrev"]
      (first text/site-intro-text)]
-    [:p "Create a project to get started, or explore the featured public projects below."]]])
+    [:p "Easily review uploaded PDFs, RIS citations, Endnote exports, Pubmed exports or review results from pubmed.gov or clinicaltrials.gov searches."]
+    [:p "Sign up for free to to start your own document review project."]
+    (if (< (cljs-time.core/now) (cljs-time.core/date-time 2020 9 1))
+    [:p "Sign up for a "[:b "Team Pro account "] "before Aug 31 2020 to apply for a " [:a {:href "/promotion"} "$500 reviewer payments award."]])
+    [:p "Learn more about different account types at " [:a {:href "/pricing"} "pricing"] " or "
+     [:a {:href "https://blog.sysrev.com/account-types/"} "blog.sysrev.com/account-types"]]]])
 
 (defn GlobalStatsReport []
   [:div.global-stats

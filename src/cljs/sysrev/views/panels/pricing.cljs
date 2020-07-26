@@ -37,7 +37,13 @@
     (when (and @logged-in? (nil? current-plan))
       (dispatch [:data/load [:user/current-plan @(subscribe [:self/user-id])]]))
     [:div
-     [:h3 {:id "pricing-header"} "Pricing"]
+     [:div {:style {:text-align "center"}}
+     [:h2 {:id "pricing-header"} "Pricing"]
+     (if (< (cljs-time.core/now) (cljs-time.core/date-time 2020 9 1))
+        [:h3 {:style {:margin-top "0px" :margin-bottom "10px"} }"Sign up for Team Pro before August 31 2020 to be eligible for a "
+         [:a {:href "/promotion"} "$500 project award."]]
+        )
+      ]
      [Grid (if (util/mobile?)
              {:columns 1}
              {:columns "equal" :id "pricing-plans"})
