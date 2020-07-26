@@ -61,8 +61,6 @@
                (if mobile? {:width "80" :height "25"} {:width "90" :height "28"}))]]
       ;(when (and logged-in? (= "/" (uri-utils/getPath @active-route)))
         [:a.item.distinct {:id "pricing-link" :href "/pricing"} "Pricing"]
-      (if (< (cljs-time.core/now) (cljs-time.core/date-time 2020 9 1))
-        [:a.item.distinct {:id "pricing-link" :href "/promotion"} "Team Pro Promotion"])
     ;)
       (when-not full? dev-menu)
       [loading-indicator]
