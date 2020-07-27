@@ -31,12 +31,12 @@
    [:div.description.wrapper.open-sans
     [:p [:span.site-name "sysrev"]
      (first text/site-intro-text)]
-    [:p "Easily review uploaded PDFs, RIS citations, Endnote exports, Pubmed exports or review results from pubmed.gov or clinicaltrials.gov searches."]
-    [:p "Sign up for free to to start your own document review project."]
+    [:p "Easily review "[:ul [:li "PDFs"] [:li "RIS citations"] [:li "Endnote exports"] [:li "Pubmed exports"][:li "Custom documents"]]]
+    [:p "Sign up for free to get started."]
     (if (< (cljs-time.core/now) (cljs-time.core/date-time 2020 9 1))
-    [:p "Sign up for a "[:b "Team Pro account "] "before Aug 31 2020 to apply for a " [:a {:href "/promotion"} "$500 reviewer payments award."]])
-    [:p "Learn more about different account types at " [:a {:href "/pricing"} "pricing"] " or "
-     [:a {:href "https://blog.sysrev.com/account-types/"} "blog.sysrev.com/account-types"]]]])
+    [:p "Sign up for a "[:b "Team Pro"] " account before Aug 31, 2020 to apply for " [:a {:href "/promotion"} "$500 in reviewer payments."]])
+    [:p "Learn more about different account types at " [:a {:href "/pricing"} "pricing"] " or the "
+     [:a {:href "https://blog.sysrev.com/account-types/"} "account-types"] " blog."]]])
 
 (defn GlobalStatsReport []
   [:div.global-stats

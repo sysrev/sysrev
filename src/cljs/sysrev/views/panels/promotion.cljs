@@ -33,7 +33,7 @@
        [:li "Enable the sysrev reviewer payments feature on your account."]
        [:li "Provide $500 to your selected project."]
        ]
-      "This review budget expires in August 2021 and individual payments cannot exceed $2. Reviewer payments are subject to
+      "This review budget expires in August 2021 and per article payments cannot exceed $2. Reviewer payments are subject to
       the standard 20% overhead rate."]
 
    [:h2 "Can I apply?"]
