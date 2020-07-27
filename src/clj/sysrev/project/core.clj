@@ -373,7 +373,8 @@
       (order-by [:al.updated-time :desc] [:al.article-id :desc])
       (limit 1)
       db/do-query
-      first))
+      first
+      :updated-time))
 
 (defn cleanup-browser-test-projects []
   (delete-all-projects-with-name "Sysrev Browser Test")
