@@ -62,7 +62,9 @@
                          :updated {:type (non-null String)
                                    :description "When was this label lasted updated"}
                          :confirmed {:type String
-                                     :description "When was this label confirmed if consensus was required?"}}}
+                                     :description "When was this label confirmed if consensus was required?"}
+                         :resolve {:type Boolean
+                                   :description "Whether this answer was a 'resolve' answer"}}}
   :GroupLabelSubAnswer {:fields {:id {:type (non-null String)}
                                  :type {:type (non-null String)}
                                  :name {:type (non-null String)}

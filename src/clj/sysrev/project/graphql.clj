@@ -90,6 +90,7 @@
                            [:al.updated-time :updated]
                            [:al.confirm_time :confirmed]
                            [:al.article_id :article_id]
+                           [:al.resolve :resolve]
                            :al.user_id)
                    (from [:article :a])
                    (join [:article_label :al] [:= :al.article_id :a.article_id]
