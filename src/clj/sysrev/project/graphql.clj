@@ -5,7 +5,7 @@
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [com.walmartlabs.lacinia.executor :as executor]
-            [honeysql.helpers :as sqlh :refer [select from where join]]
+            [honeysql.helpers :as sqlh :refer [select from where join left-join]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
@@ -83,18 +83,19 @@
                            [:l.short_label :name]
                            :l.question
                            :l.required
-                           :l.consensus
+                           :l.consensus ;TODO - this is the label definition requiring consensus, not consensus check for answers
                            :l.required
                            :al.answer
                            [:al.added-time :created]
                            [:al.updated-time :updated]
                            [:al.confirm_time :confirmed]
                            [:al.article_id :article_id]
-                           [:al.resolve :resolve]
+                           [:ar.resolve-time :resolve]
                            :al.user_id)
                    (from [:article :a])
                    (join [:article_label :al] [:= :al.article_id :a.article_id]
                          [:label :l] [:= :al.label_id :l.label_id])
+                   (left-join [:article-resolve :ar] [:and [:= :al.user-id :ar.user-id] [:= :a.article-id :ar.article-id]])
                    (where  [:= :a.project-id project-id])
                    do-query)
         non-group-labels (->> (filter #(not= (:type %) "group") labels)
