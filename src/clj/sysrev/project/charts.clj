@@ -36,7 +36,7 @@
         lbls    (distinct (map :label-id counts))
         palette (if (> (count lbls) 12)
                   (last sysrev.shared.charts/paul-tol-colors)
-                  (first (filter #(= (count %) (count counts)) sysrev.shared.charts/paul-tol-colors)))]
+                  (first (filter #(>= (count %) (count lbls)) sysrev.shared.charts/paul-tol-colors)))]
     (map (fn [lblcount]
            (let [lbl-zip-index (.indexOf lbls (:label-id lblcount))]
              (merge lblcount {:color (nth palette (mod lbl-zip-index (count palette)))})))
