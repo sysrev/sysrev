@@ -336,12 +336,11 @@
               background-colors (->>  processed-label-counts
                                       color-filter-fn
                                       (mapv :color))
-              color-map (processed-label-color-map processed-label-counts)
               short-label->label-uuid
               (fn [short-label]
                 @(subscribe [:label/id-from-short-label short-label]))
               legend-labels
-              (->> color-map
+              (->> (map (fn [[_ v]] (first v)) (group-by :label-id processed-label-counts))
                    (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
                               (short-label->label-uuid (:short-label %))))
                    (mapv (fn [{:keys [short-label color]}]

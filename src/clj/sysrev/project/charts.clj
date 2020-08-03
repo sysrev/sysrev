@@ -1,94 +1,43 @@
 (ns sysrev.project.charts
   (:require [sysrev.db.core :refer [with-project-cache]]
-            [sysrev.project.core :as project]
-            [sysrev.label.core :as labels]
-            [sysrev.shared.charts :refer [processed-label-color-map]]))
+            [sysrev.shared.charts :refer [processed-label-color-map]]
+            [honeysql.helpers :as sqlh :refer [select from where merge-where order-by join]]
+            [sysrev.db.core :refer [do-query]]))
 
-(defn label-value-counts
-  "Extract the answer counts for labels for the current project"
-  [article-labels project-labels]
-  (let [article-labels
-        (->> article-labels
-             (mapv #(select-keys % [:labels :article-id])))
-        extract-labels-fn
-        (fn [{:keys [labels article-id]}]
-          (->> labels
-               (map
-                (fn [[label-id entry]]
-                  (let [label (get project-labels label-id)
-                        short-label (or (:short-label label)
-                                        (:name label))
-                        value-type (:value-type label)]
-                    (map
-                     (partial merge
-                              {:article-id article-id
-                               :short-label short-label
-                               :value-type value-type
-                               :label-id label-id})
-                     entry))))
-               flatten))
-        label-values
-        (->> article-labels
-             (map extract-labels-fn)
-             flatten
-             ;; categorical data should be treated as sets, not vectors
-             (map (fn [{:keys [answer] :as entry}]
-                    (if (sequential? answer)
-                      (update entry :answer #(vec %))
-                      (update entry :answer #(vector %))))))
-        label-counts-fn
-        (fn [[short-label entries]]
-          {:short-label short-label
-           :value-counts (->> entries
-                              (map :answer)
-                              (flatten)
-                              (frequencies))
-           :value-type (:value-type (first entries))
-           :label-id (:label-id (first entries))})]
-    (map label-counts-fn (group-by :short-label label-values))))
+(defn count-categorical [project-id]
+  (-> (select :la.label-id :la.short-label :la.value_type :o1.value :o1.count)(from [:label :la])
+      (join
+        [(-> (select :label-id,:value,:%count.*)
+             (from :article-label [:%jsonb_array_elements.answer :value])
+             (where [:exists (-> (select 1)(from :label)
+                                 (where [:= :label.value-type "categorical"])
+                                 (merge-where [:= :label.project-id project-id])
+                                 (merge-where [:= :article-label.label-id :label.label-id])
+                                 (merge-where :confirmed))])
+             (sqlh/group :article-label.label-id :value) ) :o1]
+        [:= :la.label-id :o1.label-id])
+      (sqlh/order-by [:count :desc])
+      do-query))
 
-(defn process-label-count
-  "Given a coll of public-labels, return a vector of value-count maps"
-  [article-labels labels]
-  (->> (label-value-counts article-labels labels)
-       (map (fn [{:keys [value-counts] :as entry}]
-              (map (fn [[value value-count]]
-                     (merge entry {:value value
-                                   :count value-count}))
-                   value-counts)))
-       flatten
-       (into [])))
-
-(defn add-color-processed-label-counts
-  "Given a processed-label-count, add color to each label"
-  [processed-label-counts]
-  (let [color-map (processed-label-color-map processed-label-counts)]
-    (mapv #(merge % {:color (:color (first (filter (fn [m]
-                                                     (= (:short-label %)
-                                                        (:short-label m))) color-map)))})
-          processed-label-counts)))
+(defn count-boolean [project-id]
+  (-> (select :la.label-id :la.short-label :la.value_type [:al.answer :value] :%count.*)
+      (from [:label :la])
+      (join [:article-label :al][:= :la.label-id :al.label-id])
+      (where [:and [:= :la.value_type "boolean"][:= :la.project-id project-id]])
+      (merge-where :confirmed)
+      (sqlh/group :la.label-id :la.short-label :la.value_type :al.answer)
+      (sqlh/order-by [:count :desc])
+      do-query))
 
 (defn process-label-counts [project-id]
-  (with-project-cache project-id [:member-label-counts]
-    (let [article-labels (vals (labels/query-public-article-labels project-id))
-          labels (project/project-labels project-id)]
-      (->>
-       ;; get the counts of the label's values
-       (process-label-count article-labels labels)
-       ;; filter out labels of type string
-       (filterv #(not= (:value-type %) "string"))
-       ;; do initial sort by values
-       (sort-by #(str (:value %)))
-       ;; sort booleans such that true goes before false
-       ;; sort categorical alphabetically
-       ((fn [processed-public-labels]
-          (let [grouped-processed-public-labels
-                (group-by :value-type processed-public-labels)
-                boolean-labels
-                (get grouped-processed-public-labels "boolean")
-                categorical-labels
-                (get grouped-processed-public-labels "categorical")]
-            (concat (reverse (sort-by :value boolean-labels))
-                    (reverse (sort-by :count categorical-labels))))))
-       ;; add color
-       add-color-processed-label-counts))))
+  (let [catcounts  (count-categorical project-id)
+        boolcounts (count-boolean project-id)
+        counts     (filter #(not= (:value %) nil) (concat catcounts boolcounts))
+        lbls    (distinct (map :label-id counts))
+        palette (if (> (count lbls) 12)
+                  (last sysrev.shared.charts/paul-tol-colors)
+                  (first (filter #(= (count %) (count counts)) sysrev.shared.charts/paul-tol-colors)))]
+    (map (fn [lblcount]
+           (let [lbl-zip-index (.indexOf lbls (:label-id lblcount))]
+             (merge lblcount {:color (nth palette (mod lbl-zip-index (count palette)))})))
+         counts)))
