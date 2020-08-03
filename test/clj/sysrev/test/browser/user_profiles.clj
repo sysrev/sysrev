@@ -258,7 +258,9 @@
                               ;; second test value (jeff/james mac, jenkins linux)
                               "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
                               ;; another value (jeff chromium linux)
-                              "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
+                              "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"
+                              ;; another (jeff chromium linux wayland/sway)
+                              "cec7c07b3259529052801ed1714f5d059326151c"}
                             (:key (user-image/user-active-avatar-image user-id)))
                  5000 250)
       (log/info "got file key")
