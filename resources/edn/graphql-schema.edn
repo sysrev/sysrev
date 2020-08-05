@@ -96,6 +96,8 @@
                             :description "The sysrev UUID for the article"}
                      :datasource_id {:type String
                                      :description "The entity id associated with this article on datasource"}
+                     :datasource_name {:type String
+                                     :description "describes which datasource.insilica.co table contains this entity"}
                      :enabled {:type (non-null Boolean)
                                :description "Is this article enabled?"}
                      :labels {:type (list :LabelAnswer)

@@ -39,7 +39,8 @@
          (-> (select :a.enabled
                      [:a.article_id :id]
                      [:a.article_uuid :uuid]
-                     [:ad.external_id :datasource_id])
+                     [:ad.external_id :datasource_id]
+                     [:ad.datasource-name :datasource-name])
              (from [:article :a])
              (join [:article_data :ad] [:= :ad.article_data_id :a.article_data_id])
              (where [:= :project_id project-id])
