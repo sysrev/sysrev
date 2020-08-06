@@ -48,7 +48,7 @@
   different filenames."
   [bucket ::s3/bucket, filename ::filename,
    {:keys [file file-bytes created]} (s/keys :opt-un [::s3/file ::s3/file-bytes ::created])]
-  (util/assert-exclusive file file-bytes)
+  (util/assert-single file file-bytes)
   (db/with-transaction
     (let [file-key (or (some-> file util/file->sha-1-hash)
                        (some-> file-bytes util/byte-array->sha-1-hash))]

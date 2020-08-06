@@ -21,6 +21,8 @@
 ;; for clj-kondo
 (declare sql-identifier-to-clj)
 
+(s/def ::cond #(contains? (where {} %) :where))
+
 ;;; Disable jdbc conversion from numeric to timestamp values
 ;;; (defined in clj-postgresql.types)
 (extend-protocol j/ISQLParameter
@@ -330,18 +332,14 @@
   "Disconnect all clients from named Postgres database"
   [& [postgres-overrides]]
   (let [{:keys [dbname]} (merge (:postgres env) postgres-overrides)]
-    (try
-      (set-active-db! (-> postgres-overrides
-                          (merge {:dbname "postgres"})
-                          make-db-config))
-      (try
-        (-> (select (sql/call "pg_terminate_backend" :pid))
-            (from :pg-stat-activity)
-            (where [:= :datname dbname])
-            do-query
-            count)
-        (finally
-          (close-active-db))))))
+    (try (set-active-db! (make-db-config (assoc postgres-overrides
+                                                :dbname "postgres")))
+         (-> (select (sql/call "pg_terminate_backend" :pid))
+             (from :pg-stat-activity)
+             (where [:= :datname dbname])
+             do-query
+             count)
+         (finally (close-active-db)))))
 
 (defmethod sqlf/fn-handler "textmatch" [_ a b & _more]
   (assert (nil? _more))

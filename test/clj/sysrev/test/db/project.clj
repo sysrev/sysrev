@@ -1,6 +1,6 @@
 (ns sysrev.test.db.project
   (:require [clojure.test :refer [deftest is use-fixtures]]
-            [sysrev.db.core :refer [do-query]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             #_ [sysrev.project.core :as project]
             #_ [sysrev.source.core :as source]
@@ -15,11 +15,12 @@
   (doseq [project-id (q/find :project {} :project-id, :limit 10)]
     (let [query (q/select-project-articles
                  project-id [:%count.*] {:include-disabled? true})
-          total (-> query do-query first :count)
-          flag-enabled (-> query (q/filter-article-by-disable-flag true)
-                           do-query first :count)
-          flag-disabled (-> query (q/filter-article-by-disable-flag false)
-                            do-query first :count)]
+          get-count #(-> % do-query first :count)
+          [total flag-enabled flag-disabled]
+          (db/with-transaction
+            [(get-count query)
+             (get-count (-> query (q/filter-article-by-disable-flag true)))
+             (get-count (-> query (q/filter-article-by-disable-flag false)))])]
       (is (= total (+ flag-enabled flag-disabled))))))
 
 #_

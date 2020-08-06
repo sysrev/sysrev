@@ -163,7 +163,7 @@
         (is (= 2 (-> response :result :project-articles))))
       (let [article-id (q/find-one [:article :a] {:a.project-id project-id
                                                   :ad.external-id (db/to-jsonb "12345")}
-                                   :article-id, :join [:article-data:ad :a.article-data-id])
+                                   :article-id, :join [[:article-data :ad] :a.article-data-id])
             label-id (q/find-one :label {:project-id project-id} :label-id)]
         (is (s/valid? ::sc/article-id article-id))
         (is (s/valid? ::sc/label-id label-id))

@@ -33,6 +33,14 @@
    ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
     "#661100", "#cc6677", "#aa4466", "#882255", "#aa4499"]])
 
+(defn get-color-palette [item-count]
+  (or (first (filter #(>= (count %) item-count)
+                     paul-tol-colors))
+      (last paul-tol-colors)))
+
+(defn palette-lookup [palette i]
+  (nth palette (mod i (count palette))))
+
 (defn- short-labels-vector
   "Given a set of label-counts, get the set of short-labels"
   [processed-label-counts]

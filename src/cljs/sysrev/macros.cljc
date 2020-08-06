@@ -73,20 +73,20 @@
 
 (defn go-route-sync-data [route-fn]
   (if-let [article-id @(subscribe [:review/editing-id])]
-    (let [project-id @(subscribe [:active-project-id])
-          user-id @(subscribe [:self/user-id])
-          article-values (->> @(subscribe [:article/labels article-id user-id])
-                              (map-values :answer))
-          active-values @(subscribe [:review/active-labels article-id])
-          user-status @(subscribe [:article/user-status article-id user-id])
-          unconfirmed? (or (= user-status :unconfirmed)
-                           (= user-status :none))
-          resolving? @(subscribe [:review/resolving?])
-          article-loading? (sysrev.loading/item-loading? [:article project-id article-id])
-          send-labels? (and unconfirmed?
-                            (not resolving?)
-                            (not article-loading?)
-                            (not= active-values article-values))
+    (let [user-id @(subscribe [:self/user-id])
+          ;; project-id @(subscribe [:active-project-id])
+          ;; article-values (->> @(subscribe [:article/labels article-id user-id])
+          ;;                     (map-values :answer))
+          ;; active-values @(subscribe [:review/active-labels article-id])
+          ;; user-status @(subscribe [:article/user-status article-id user-id])
+          ;; unconfirmed? (or (= user-status :unconfirmed)
+          ;;                  (= user-status :none))
+          ;; resolving? @(subscribe [:review/resolving?])
+          ;; article-loading? (sysrev.loading/item-loading? [:article project-id article-id])
+          #_ send-labels? #_ (and unconfirmed?
+                                  (not resolving?)
+                                  (not article-loading?)
+                                  (not= active-values article-values))
           sync-notes? (not @(subscribe [:review/all-notes-synced? article-id]))
           ui-notes @(subscribe [:review/ui-notes article-id])
           article-notes @(subscribe [:article/notes article-id user-id])]
@@ -99,8 +99,8 @@
                                           :confirm? false :resolve? false :change? false}]]))
       (when sync-notes?
         (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
-      (if (or send-labels? sync-notes?)
-        #?(:cljs (js/setTimeout route-fn 50)
+      (if (or #_send-labels? sync-notes?)
+        #?(:cljs (js/setTimeout route-fn 30)
            :clj (route-fn))
         (route-fn))
       (dispatch [:review/reset-saving]))

@@ -6,8 +6,8 @@
             [clj-time.local :as l]
             [clj-time.core :as t]
             [clj-time.format :as f]
-            [honeysql.helpers :as sqlh :refer [select from where join left-join modifiers]]
-            [sysrev.db.core :as db :refer [do-query]]
+            [honeysql.helpers :as sqlh :refer [modifiers]]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :refer [transaction-source-descriptor]]
             [sysrev.util :as util :refer [index-by nilable-coll]]))
@@ -33,15 +33,14 @@
     (let [compensation-id (q/create :compensation {:rate (db/to-jsonb rate)}
                                     :returning :compensation-id)]
       (q/create :compensation-project {:project-id project-id
-                                       :compensation-id compensation-id
-                                       :enabled true})
+                                       :compensation-id compensation-id})
       compensation-id)))
 
 (defn-spec read-project-compensations (nilable-coll ::compensation)
   [project-id int?]
   (q/find [:compensation :c] {:project-id project-id}
           [:c.compensation-id :c.rate :c.created :cp.enabled]
-          :join [:compensation-project:cp :c.compensation-id]))
+          :join [[:compensation-project :cp] :c.compensation-id]))
 
 (defn start-compensation-period-for-user!
   "Make an entry into compensation_user_period for `compensation-id` and
@@ -60,7 +59,7 @@
 
 (defn- project-users [project-id]
   (q/find [:project-member :pm] {:project-id project-id} [:pm.user-id :u.email]
-          :join [:web-user:u :pm.user-id]))
+          :join [[:web-user :u] :pm.user-id]))
 
 (defn ^:unused start-compensation-period-for-all-users!
   "Begin the compensation period for compensation-id for all users in project-id"
@@ -117,20 +116,14 @@
                                    (into []))]
     ;; check that the there is really a compensation with a time period
     (if (> (count time-period-statement) 1)
-      (-> (select :%count.%distinct.al.article-id)
-          (from [:article-label :al])
-          (left-join [:article :a] [:= :al.article-id :a.article-id])
-          (where [:and
-                  [:= :al.user-id user-id]
-                  [:and
-                   [:>= :al.added-time (-> start-date-time tc/to-sql-time)]
-                   [:< :al.added-time (-> end-date-time (t/plus (t/days 1)) tc/to-sql-time)]
-                   [:!= :al.confirm-time nil]]
-                  time-period-statement
-                  [:= :a.project-id project-id]])
-          do-query
-          first
-          :count)
+      (q/find-one [:article-label :al] {:a.project-id project-id :al.user-id user-id}
+                  [[:%count.%distinct.al.article-id :count]]
+                  :left-join [[:article :a] :al.article-id]
+                  :where [:and
+                          [:>= :al.added-time (-> start-date-time tc/to-sql-time)]
+                          [:< :al.added-time (-> end-date-time (t/plus (t/days 1)) tc/to-sql-time)]
+                          [:!= :al.confirm-time nil]
+                          time-period-statement])
       ;; there isn't any time period associated with this compensation for this user
       0)))
 
@@ -200,20 +193,14 @@
   "Return the current compensation-id associated with `user-id` for
   `project-id`, or nil if there is none."
   [project-id user-id]
-  (-> (select :cup.compensation-id :cp.project-id)
-      (modifiers :distinct)
-      (from [:compensation-user-period :cup])
-      (join [:compensation-project :cp]
-            [:= :cup.compensation-id :cp.compensation-id])
-      ;; because if period_begin is not nil
-      ;; period_end is nil, the compensation is currently
-      ;; active
-      (where [:and
-              [:<> :cup.period-begin nil]
-              [:= :cup.period-end nil]
-              [:= :cup.user-id user-id]
-              [:= :cp.project-id project-id]])
-      do-query first :compensation-id))
+  (-> (q/find [:compensation-user-period :cup] {:cp.project-id project-id
+                                                :cup.user-id user-id
+                                                :cup.period-end nil}
+              [:cup.compensation-id :cp.project-id]
+              :join [[:compensation-project :cp] :cup.compensation-id]
+              :where [:<> :cup.period-begin nil]
+              :prepare #(modifiers % :distinct))
+      first :compensation-id))
 
 (defn project-users-current-compensation
   "Return a list of all users of a project and their current
@@ -230,8 +217,8 @@
   [user-id]
   (q/find [:compensation-user-period :cup] {:cup.user-id user-id}
           [:cp.project-id [:p.name :project-name]]
-          :join [[:compensation-project:cp :cup.compensation-id]
-                 [:project:p :cp.project-id]]
+          :join [[[:compensation-project :cp] :cup.compensation-id]
+                 [[:project :p]               :cp.project-id]]
           :prepare #(modifiers % :distinct)))
 
 (defn payments-owed-to-user [user-id]
@@ -242,7 +229,7 @@
        (filter #(pos? (:total-owed %)))))
 
 (defn payments-paid-to-user [user-id]
-  (q/find [:project-fund :pf]
-          {:user-id user-id :transaction-source (:paypal-payout transaction-source-descriptor)}
+  (q/find [:project-fund :pf] {:user-id user-id
+                               :transaction-source (:paypal-payout transaction-source-descriptor)}
           [:pf.project-id [:p.name :project-name] [:pf.amount :total-paid] :pf.created]
-          :join [:project:p :pf.project-id] :where [:< :pf.amount 0]))
+          :join [[:project :p] :pf.project-id] :where [:< :pf.amount 0]))

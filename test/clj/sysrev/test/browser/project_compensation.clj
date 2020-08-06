@@ -132,7 +132,7 @@
 
 (defn articles-reviewed-by-user [project-id user-id]
   (q/find [:article-label :al] {:a.project-id project-id, :al.user-id user-id}
-          :al.article-id, :join [:article:a :al.article-id]))
+          :al.article-id, :join [[:article :a] :al.article-id]))
 
 (defn articles-unreviewed-by-user [project-id user-id]
   (let [review-articles (articles-reviewed-by-user project-id user-id)]

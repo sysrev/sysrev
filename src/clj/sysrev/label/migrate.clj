@@ -17,7 +17,7 @@
   [project-id]
   (q/find [:article :a] {:a.project-id project-id :resolve true}
           [[:%distinct.a.article-id :article-id]]
-          :join [:article-label:al :a.article-id]))
+          :join [[:article-label :al] :a.article-id]))
 
 (defn article-resolve-info
   "(DB format migration) Get map of resolved answer status for
@@ -33,7 +33,7 @@
   [project-id]
   (pos-int? (q/find-one [:article-resolve :aresolve] {:a.project-id project-id}
                         [[:%count.%distinct.aresolve.article-id :count]]
-                        :join [:article:a :aresolve.article-id])))
+                        :join [[:article :a] :aresolve.article-id])))
 
 (defn migrate-project-article-resolve
   "Create article_resolve entries in project-id using old-format values
@@ -54,7 +54,7 @@
   []
   (vec (sort (q/find [:article-label :al] {:al.resolve true}
                      [[:%distinct.a.project-id :project-id]]
-                     :join [:article:a :al.article-id]))))
+                     :join [[:article :a] :al.article-id]))))
 
 (defn migrate-all-project-article-resolve
   "Create article_resolve entries for all projects."

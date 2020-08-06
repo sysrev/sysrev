@@ -73,7 +73,7 @@
 
 (defn read-groups [user-id]
   (q/find [:user-group :ug] {:ug.user-id user-id :ug.enabled true}
-          [:g.* :ug.permissions], :join [:groups:g :ug.group-id]
+          [:g.* :ug.permissions], :join [[:groups :g] :ug.group-id]
           :prepare #(sqlh/modifiers % :distinct)))
 
 (defn create-group! [group-name]
@@ -107,7 +107,7 @@
   "Return all projects group-id owns"
   [group-id & {:keys [private-projects?]}]
   (-> (q/find [:project :p] {:pg.group-id group-id} [:p.project-id :p.name :p.settings]
-              :join [:project-group:pg :p.project-id])
+              :join [[:project-group :pg] :p.project-id])
       (cond->> (not private-projects?) (filter #(-> % :settings :public-access true?)))))
 
 (defn create-group-stripe-customer!

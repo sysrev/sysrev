@@ -23,14 +23,14 @@
 
 (defn ann-project-id [annotation-id]
   (q/find-one [:annotation :ann] {:ann.annotation-id annotation-id}
-              :a.project-id, :left-join [:article:a :ann.article-id]))
+              :a.project-id, :left-join [[:article :a] :ann.article-id]))
 
 (defn- get-annotations-by [match-by]
   (vec (q/find [:annotation :ann] match-by
                [:ann.* :ann-u.user-id :ann-s3.s3-id [:ann-sc.definition :semantic-class]]
-               :left-join [[:ann-user:ann-u :ann.annotation-id]
-                           [:ann-s3store:ann-s3 :ann.annotation-id]
-                           [:semantic-class:ann-sc :ann.semantic-class-id]])))
+               :left-join [[[:ann-user :ann-u]        :ann.annotation-id]
+                           [[:ann-s3store :ann-s3]    :ann.annotation-id]
+                           [[:semantic-class :ann-sc] :ann.semantic-class-id]])))
 
 ;; extremely useful graph:
 ;; https://stackoverflow.com/questions/20602826/sql-server-need-join-but-where-not-equal-to
@@ -64,12 +64,12 @@
 (defn find-annotation [match-by fields & {:keys [] :as opts}]
   (vec (util/apply-keyargs
         q/find [:annotation :ann] match-by fields
-        (merge opts {:left-join (concat [[:semantic-class:ann-sc :ann.semantic-class-id]
-                                         [:ann-user:ann-u :ann.annotation-id]
-                                         [:ann-s3store:ann-s3 :ann.annotation-id]
-                                         [:s3store:s3 :ann-s3.s3-id]
-                                         [:article:a :ann.article-id]
-                                         [:article-data:ad :a.article-data-id]]
+        (merge opts {:left-join (concat [[[:semantic-class :ann-sc] :ann.semantic-class-id]
+                                         [[:ann-user :ann-u]        :ann.annotation-id]
+                                         [[:ann-s3store :ann-s3]    :ann.annotation-id]
+                                         [[:s3store :s3]            :ann-s3.s3-id]
+                                         [[:article :a]             :ann.article-id]
+                                         [[:article-data :ad]       :a.article-data-id]]
                                         (:left-join opts))}))))
 
 (defn project-annotations

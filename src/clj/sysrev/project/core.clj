@@ -1,7 +1,7 @@
 (ns sysrev.project.core
   (:require [clojure.string :as str]
             [clojure.spec.alpha :as s]
-            [honeysql.helpers :as sqlh :refer [select from where join merge-join sset limit order-by]]
+            [honeysql.helpers :as sqlh :refer [select from where join merge-join sset]]
             [orchestra.core :refer [defn-spec]]
             [medley.core :as medley]
             [sysrev.shared.spec.core :as sc]
@@ -34,7 +34,7 @@
   []
   (q/find [:project :p] {}
           [:p.project-id :p.name [:%count.a.article-id :n-articles]]
-          :left-join [:article:a :p.project-id]
+          :left-join [[:article :a] :p.project-id]
           :group :p.project-id
           :order-by :p.project-id))
 
@@ -221,7 +221,7 @@
   [project-id int?]
   (with-project-cache project-id [:notes :all]
     (->> (q/find [:project :p] {:p.project-id project-id} :pn.*
-                 :join [:project-note:pn :p.project-id])
+                 :join [[:project-note :pn] :p.project-id])
          (index-by :name))))
 
 (defn-spec project-settings ::sp/settings
@@ -229,10 +229,12 @@
   [project-id int?]
   (q/find-one :project {:project-id project-id} :settings))
 
-(defn-spec project-user-ids (s/nilable (s/coll-of int?))
+(defn-spec project-user-ids (s/or :ids (s/nilable (s/coll-of int?))
+                                  :query map?)
   "Returns sequence of user-id for all members of project."
-  [project-id int?]
-  (q/find :project-member {:project-id project-id} :user-id))
+  [project-id int? &
+   {:keys [return] :or {return :execute}} (opt-keys ::q/return)]
+  (q/find :project-member {:project-id project-id} :user-id :return return))
 
 (defn project-id-from-register-hash [register-hash]
   (-> (q/select-project-where true [:project-id :project-uuid])
@@ -272,7 +274,7 @@
                               :ad.datasource-name "pubmed"
                               :a.enabled true}
                :ad.external-id
-               :join [:article-data:ad :a.article-data-id]
+               :join [[:article-data :ad] :a.article-data-id]
                :where [:!= :ad.external-id nil])
        (map util/parse-number)
        (remove nil?) distinct vec))
@@ -354,27 +356,22 @@
     (if-let [{:keys [group-id group-name] :as _owner}
              (q/find-one [:project-group :pg] {:project-id project-id}
                          [:g.group-id :g.group-name]
-                         :join [:groups:g :pg.group-id])]
+                         :join [[:groups :g] :pg.group-id])]
       {:group-id group-id, :name group-name}
       (when-let [{:keys [user-id email] :as _owner}
                  (q/find-one [:project-member :pm] {:pm.project-id project-id
                                                     "owner" :%any.pm.permissions}
                              [:u.user-id :u.email]
-                             :join [:web-user:u :pm.user-id])]
+                             :join [[:web-user :u] :pm.user-id])]
         {:user-id user-id, :name (-> email (str/split #"@") first)}))))
 
 (defn last-active
   "When was the last time an article-label was updated for project-id?"
   [project-id]
-  (-> (select :al.updated-time)
-      (from [:article-label :al])
-      (join :article [:= :article.article-id :al.article-id])
-      (where [:= :article.project-id project-id])
-      (order-by [:al.updated-time :desc] [:al.article-id :desc])
-      (limit 1)
-      db/do-query
-      first
-      :updated-time))
+  (first (q/find [:article :a] {:a.project-id project-id} :al.updated-time
+                 :join [[:article-label :al] :a.article-id]
+                 :order-by [[:al.updated-time :desc] [:al.article-id :desc]]
+                 :limit 1)))
 
 (defn cleanup-browser-test-projects []
   (delete-all-projects-with-name "Sysrev Browser Test")

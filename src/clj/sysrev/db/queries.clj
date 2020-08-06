@@ -9,11 +9,12 @@
             [honeysql-postgres.helpers :as sqlh-pg]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
             [sysrev.util :as util :refer
-             [in? map-values apply-keyargs ensure-pred assert-pred]])
+             [in? map-values apply-keyargs ensure-pred assert-pred opt-keys]])
   (:import java.util.UUID))
 
 ;; for clj-kondo
-(declare merge-join-args filter-user-permission filter-admin-user)
+(declare merge-join-args filter-user-permission filter-admin-user
+         find find-one find-count exists not-exists create modify delete)
 
 ;;;
 ;;; * Query DSL
@@ -46,44 +47,80 @@
                               (apply vector :and))
                      true)))
 
-(s/def ::join-specifier-1
-  (s/and keyword?
-         #(nil? (namespace %))
-         #(string? (name %))
-         #(let [[join-table join-alias] (-> (name %) (str/split #"\:")) ]
-            (and (string? join-table) (string? join-alias)))))
+(defn no-spaces? [s]
+  (when (or (string? s) (keyword? s))
+    (let [s (name s)]
+      (not (str/includes? s " ")))))
 
-(s/def ::join-specifier-2
-  (s/and keyword?
-         #(nil? (namespace %))
-         #(string? (name %))
-         #(let [[with-table on-field] (-> (name %) (str/split #"\.")) ]
-            (and (string? with-table) (string? on-field)))))
+(defn dotted-column? [s]
+  (when (or (string? s) (keyword? s))
+    (let [s (name s)]
+      (= 2 (count (str/split s #"\."))))))
 
-(s/def ::join-arg-single
-  (s/cat :join-table-colon-alias ::join-specifier-1
-         :with-table-dot-field ::join-specifier-2))
+;;; query dsl values
+(s/def ::keyword-id (s/and keyword? no-spaces?))
+(s/def ::string-id (s/and string? no-spaces?))
+(s/def ::simple-id (s/or :keyword ::keyword-id, :string ::string-id))
+(s/def ::aliased-id (s/coll-of ::simple-id, :kind vector?, :count 2))
+(s/def ::named-id (s/or :simple ::simple-id, :aliased ::aliased-id))
+(s/def ::table-column (s/or :keyword (s/and ::keyword-id dotted-column?)
+                            :string  (s/and ::string-id  dotted-column?)))
 
-(s/def ::join-args
-  (s/or :single-arg ::join-arg-single
-        :multi-args (s/coll-of ::join-arg-single, :distinct true)))
+;;; join syntax
+(s/def ::join-single (s/or :simple (s/cat :table ::named-id, :on-field ::table-column)
+                           :full   (s/cat :table ::named-id, :cond ::db/cond)))
+(s/def ::join-spec (s/or :single ::join-single
+                         :multi  (s/coll-of ::join-single, :distinct true)))
+#_ (s/conform ::join-spec [[:project-member :pm] :u.user-id])
+
+;;; top-level function args
+(s/def ::table ::named-id)
+(s/def ::match-by (s/nilable (s/map-of ::simple-id any?)))
+(s/def ::fields (s/or :single ::named-id
+                      :multi (s/coll-of ::named-id)))
+(s/def ::index-by ifn?)
+(s/def ::group-by ifn?)
+(s/def ::join ::join-spec)
+(s/def ::left-join ::join-spec)
+(s/def ::where any?)
+(s/def ::limit any?)
+(s/def ::order-by any?)
+(s/def ::group any?)
+(s/def ::prepare ifn?)
+(s/def ::return (s/and keyword? (in? #{:execute :query :string})))
+(s/def ::insert-values-single map?)
+(s/def ::insert-values-multi (s/coll-of ::insert-values-single))
+(s/def ::insert-values (s/or :single ::insert-values-single
+                             :multi  ::insert-values-multi))
+(s/def ::returning (s/or :single ::keyword-id
+                         :multi  (s/coll-of ::keyword-id)))
+(s/def ::set-values map?)
+
+(defn read-named-id [id]
+  (->> (cond (s/valid? ::simple-id id)   [id id]
+             (s/valid? ::aliased-id id)  id)
+       (mapv keyword)))
+
+(defn read-table-column [id]
+  (when (s/valid? ::table-column id)
+    (mapv keyword (str/split (name id) #"\."))))
 
 (defn-spec merge-join-args map?
   "Returns updated honeysql map based on `m`, merging a join clause
-  generated from `join-args` using honeysql function
-  `merge-join-fn` (e.g.  merge-join, merge-left-join)."
-  [m map?, merge-join-fn fn?, join-args ::join-args]
-  (let [join-args (if (s/valid? ::join-arg-single join-args)
-                    [join-args] join-args)]
-    (reduce (fn [m [join-table-colon-alias with-table-dot-field]]
-              (let [[join-table join-alias] (map keyword (-> (name join-table-colon-alias)
-                                                             (str/split #"\:")))
-                    [with-table on-field] (map keyword (-> (name with-table-dot-field)
-                                                           (str/split #"\.")))]
-                (-> m (merge-join-fn [join-table join-alias]
-                                     [:= (sql-field join-alias on-field)
-                                      (sql-field with-table on-field)]))))
-            m join-args)))
+  generated from `join-spec` using honeysql function
+  `merge-join-fn` (e.g. merge-join, merge-left-join)."
+  [m map?, merge-join-fn fn?, join-spec ::join-spec]
+  (reduce (fn [m j]
+            (let [[join-table arg1] j
+                  [_ join-alias] (read-named-id join-table)]
+              (case (first (s/conform ::join-single j))
+                :simple (let [[by-table by-field] (read-table-column arg1)]
+                          (merge-join-fn m join-table
+                                         [:= (sql-field join-alias by-field)
+                                          (sql-field by-table by-field)]))
+                :full (merge-join-fn m join-table arg1))))
+          m (if (= :single (first (s/conform ::join-spec join-spec)))
+              [join-spec] join-spec)))
 
 (defn- extract-column-name
   "Extracts an unqualified column name keyword from honeysql keyword `k`
@@ -132,8 +169,9 @@
 ;;       `split-match-by-value-seqs`?
 ;; TODO: splitting queries like this also breaks `find-count`
 
-(defn find
+(defn-spec find any?
   "Runs select query on `table` filtered according to `match-by`.
+
   Returns a sequence of row entries; if `fields` is a keyword the
   entries will be values of the named field, otherwise the entries
   will be a map of field keyword to value.
@@ -155,71 +193,86 @@
   The arguments `join`, `left-join`, `limit`, `order-by`, `group` add
   a clause to the query using the honeysql function of the same name.
 
+  `join` and `left-join` can take the following forms:
+    -  [[:table2 :t2] [:= :t2.join.field :t1.join-field]]
+    -  [[:table2 :t2] :t1.join-field1]
+  Multiple forms can be put together in a sequence:
+    -  [[[:table2 :t2] :t1.join-field1]
+        [[:table3 :t3] :t2.join-field2]]
+
   `return` optionally modifies the behavior and return value.
   - `:execute` (default behavior) runs the query against the connected
     database and returns the processed result.
   - `:query` returns the honeysql query map that would be run against
     the database.
   - `:string` returns an SQL string corresponding to the query."
-  [table match-by &
-   [fields & {:keys [index-by group-by join left-join where limit order-by group prepare return]
-              :or {return :execute}
-              :as opts}]]
-  (assert (every? #{:index-by :group-by :join :left-join :where :limit :order-by :group
-                    :prepare :return}
-                  (keys opts)))
-  (let [single-field (or (some->> fields (ensure-pred literal?) extract-column-name)
-                         (some->> fields
-                                  (ensure-pred #(and (coll? %)
-                                                     (= 1 (count %))
-                                                     (coll? (first %))
-                                                     (= 2 (count (first %)))
-                                                     (every? keyword? (first %))))
-                                  first
-                                  extract-column-name
-                                  (ensure-pred literal?)))
-        specified (some->> (cond (keyword? fields)  [fields]
-                                 (empty? fields)    nil
-                                 :else              fields)
-                           (map extract-column-name)
-                           (ensure-pred (partial every? literal?)))
-        fields (cond (keyword? fields)  [fields]
-                     (empty? fields)    [:*]
-                     :else              (vec fields))
-        select-fields (as-> (concat fields
-                                    (some->> index-by (ensure-pred keyword?) (list))
-                                    (some->> group-by (ensure-pred keyword?) (list)))
-                          select-fields
-                        (if (in? select-fields :*) [:*] select-fields)
-                        (distinct select-fields))
-        map-fields (cond index-by  map-values
-                         group-by  (fn [f coll] (map-values (partial map f) coll))
-                         :else     map)
-        make-query (fn [match-by-1]
-                     (-> (apply select select-fields)
-                         (from table)
-                         (merge-match-by match-by-1)
-                         (cond-> join (merge-join-args merge-join join))
-                         (cond-> left-join (merge-join-args merge-left-join left-join))
-                         (cond-> where (merge-where where))
-                         (cond-> limit (sqlh/limit limit))
-                         (cond-> order-by (sqlh/order-by order-by))
-                         (cond-> group (#(apply sqlh/group % (collify group))))
-                         (cond-> prepare (prepare))))]
-    (assert (in? #{0 1} (count (remove nil? [index-by group-by]))))
-    (case return
-      :execute  (-> (->> (split-match-by-value-seqs match-by)
-                         (map make-query)
-                         (mapv do-query)
-                         (apply concat))
-                    (cond->> limit (take limit))
-                    (cond->> index-by (util/index-by index-by))
-                    (cond->> group-by (clojure.core/group-by group-by))
-                    (cond->> specified (map-fields #(select-keys % specified)))
-                    (cond->> single-field (map-fields single-field))
-                    not-empty)
-      :query    (make-query match-by)
-      :string   (db/to-sql-string (make-query match-by)))))
+  ([table ::table, match-by ::match-by]
+   (find table match-by :*))
+  ([table ::table, match-by ::match-by, fields ::fields
+    & {:keys [index-by group-by join left-join where limit order-by group prepare return]
+       :or {return :execute}
+       :as opts} (opt-keys ::index-by ::group-by ::join ::left-join ::where
+                           ::limit ::order-by ::group ::prepare ::return)]
+   (assert (every? #{:index-by :group-by :join :left-join :where
+                     :limit :order-by :group :prepare :return}
+                   (keys opts)))
+   (let [return (or return :execute)
+         single-field (or (some->> fields (ensure-pred literal?) extract-column-name)
+                          (some->> fields
+                                   (ensure-pred #(and (coll? %)
+                                                      (= 1 (count %))
+                                                      (coll? (first %))
+                                                      (= 2 (count (first %)))
+                                                      (every? keyword? (first %))))
+                                   first
+                                   extract-column-name
+                                   (ensure-pred literal?)))
+         specified (some->> (cond (keyword? fields)  [fields]
+                                  (empty? fields)    nil
+                                  :else              fields)
+                            (map extract-column-name)
+                            (ensure-pred (partial every? literal?)))
+         fields (cond (keyword? fields)  [fields]
+                      (empty? fields)    [:*]
+                      :else              (vec fields))
+         select-fields (as-> (concat fields
+                                     (some->> index-by (ensure-pred keyword?) (list))
+                                     (some->> group-by (ensure-pred keyword?) (list)))
+                           select-fields
+                         (if (in? select-fields :*) [:*] select-fields)
+                         (distinct select-fields))
+         map-fields (cond index-by  map-values
+                          group-by  (fn [f coll] (map-values (partial map f) coll))
+                          :else     map)
+         make-query (fn [match-by-1]
+                      (-> (apply select select-fields)
+                          (from table)
+                          (merge-match-by match-by-1)
+                          (cond-> join (merge-join-args merge-join join))
+                          (cond-> left-join (merge-join-args merge-left-join left-join))
+                          (cond-> where (merge-where where))
+                          (cond-> limit (sqlh/limit limit))
+                          (cond-> order-by (#(apply sqlh/order-by %
+                                                    (if (or ((comp not coll?) order-by)
+                                                            (and (sequential? order-by)
+                                                                 (every? (comp not coll?) order-by)))
+                                                      [order-by] order-by))))
+                          (cond-> group (#(apply sqlh/group % (collify group))))
+                          (cond-> prepare (prepare))))]
+     (util/assert-exclusive index-by group-by)
+     (case return
+       :execute  (-> (->> (split-match-by-value-seqs match-by)
+                          (map make-query)
+                          (mapv do-query)
+                          (apply concat))
+                     (cond->> limit (take limit))
+                     (cond->> index-by (util/index-by index-by))
+                     (cond->> group-by (clojure.core/group-by group-by))
+                     (cond->> specified (map-fields #(select-keys % specified)))
+                     (cond->> single-field (map-fields single-field))
+                     not-empty)
+       :query    (make-query match-by)
+       :string   (db/to-sql-string (make-query match-by))))))
 
 ;;; Examples:
 ;;;
@@ -250,24 +303,35 @@
 ;;;     101 "FACTS: Factors Affecting Combination Trial Success",
 ;;;     102 "MnSOD in Cancer and Antioxidant Therapy"}
 ;;;
-;;; (find [:project :p] {:p.project-id 100} :pm.user-id, :join [:project-member:pm :p.project-id])
-;;; => (26 69 33 85 37 91 50 57 41 53 73 88 89 90 98 62 106 114 100 117 9 83 56 35 139 70)
+#_ (find [:project :p] {:p.project-id 100} :pm.user-id
+         :join [[:project-member :pm] :p.project-id]
+         :order-by :user-id, :limit 5)
+;;; => (9 26 33 35 37)
+#_ (find [:project :p] {:p.project-id 100} :u.user-id
+         :join [[[:project-member :pm] [:= :p.project-id :pm.project-id]]
+                [[:web-user :u] :pm.user-id]]
+         :order-by :user-id, :limit 5)
+;;; => (9 26 33 35 37)
 
-(defn find-one
+(defn-spec find-one any?
   "Runs `find` and returns a single result entry (or nil if none found),
   throwing an exception if the query returns more than one result."
-  [table match-by & [fields & {:keys [where prepare join left-join return] :as opts
-                               :or {return :execute}}]]
-  (assert (every? #{:where :prepare :join :left-join :return} (keys opts)))
-  (let [execute? (= return :execute)
-        result (apply-keyargs find table match-by fields
-                              (assoc opts :prepare #(cond-> %
-                                                      prepare   (prepare)
-                                                      execute?  (sqlh/limit 2))))]
-    (if execute?
-      (first (->> result (assert-pred {:pred #(<= (count %) 1)
-                                       :message "find-one - multiple results from query"})))
-      result)))
+  ([table ::table, match-by ::match-by]
+   (find-one table match-by :*))
+  ([table ::table, match-by ::match-by, fields ::fields
+    & {:keys [where prepare join left-join return]
+       :or {return :execute}
+       :as opts} (opt-keys ::where ::prepare ::join ::left-join ::return)]
+   (assert (every? #{:where :prepare :join :left-join :return} (keys opts)))
+   (let [execute? (= return :execute)
+         result (apply-keyargs find table match-by fields
+                               (assoc opts :prepare #(cond-> %
+                                                       prepare   (prepare)
+                                                       execute?  (sqlh/limit 2))))]
+     (if execute?
+       (first (->> result (assert-pred {:pred #(<= (count %) 1)
+                                        :message "find-one - multiple results from query"})))
+       result))))
 
 ;;; Examples:
 ;;;
@@ -283,33 +347,41 @@
 ;;; (:verified (find-one :web-user {:user-id 70}))
 ;;; => true
 
-(defn find-count
-  "Convenience function to return count of rows matching query."
-  [table match-by & {:as opts}]
+(defn-spec find-count (s/or :count int? :query map?)
+  "Convenience function to return count of rows matching query.
+
+  See `find` for description of all arguments."
+  [table ::table, match-by ::match-by
+   & {:keys [where prepare join left-join return]
+      :as opts} (opt-keys ::where ::prepare ::join ::left-join ::return)]
   (apply-keyargs find-one table match-by [[:%count.* :count]] opts))
 
-(defn exists
-  "Runs (find ... :return :query) and wraps result in [:exists ...]."
-  [table match-by & {:keys [join left-join where prepare] :as opts}]
+(defn-spec exists vector?
+  "Runs (find ... :return :query) and wraps result in [:exists ...].
+
+  See `find` for description of all arguments."
+  [table ::table, match-by ::match-by
+   & {:keys [join left-join where prepare]
+      :as opts} (opt-keys ::join ::left-join ::where ::prepare)]
   (assert (every? #{:join :left-join :where :prepare} (keys opts)))
   [:exists (apply-keyargs find table match-by :*
                           (assoc opts :return :query))])
 
-(defn not-exists
-  "Runs (find ... :return :query) and wraps result in [:not [:exists ...]."
-  [table match-by & {:keys [join left-join where prepare] :as opts}]
-  (assert (every? #{:join :left-join :where :prepare} (keys opts)))
+(defn-spec not-exists vector?
+  "Runs (find ... :return :query) and wraps result in [:not [:exists ...].
+
+  See `find` for description of all arguments."
+  [table ::table, match-by ::match-by, & {:as opts} ::opts-exists]
   [:not (apply-keyargs exists table match-by opts)])
 
-(defn create
-  "Runs insert query on `table` using sequence of value maps `insert-values`.
+(defn-spec create any?
+  "Runs insert query on `table` using sequence of maps `insert-values`.
+
   Returns a count of rows updated.
 
   `insert-values` may also be a map and will be treated as a single
   entry; if a `returning` argument is given, this will give a return
   value of one entry rather than a sequence of entries.
-
-  `table` should match format of honeysql (from ...) function.
 
   `returning` optionally takes a sequence of field keywords to use as
   arguments to a Postgres-specific returning clause. `returning` may
@@ -318,23 +390,16 @@
   value maps. Wildcard keywords (e.g. `:*`, `:table.*`) are also
   allowed.
 
-  `prepare` optionally provides a function to apply to the final
-  honeysql query before running.
-
-  `return` optionally modifies the behavior and return value.
-  - `:execute` (default behavior) runs the query against the connected
-    database and returns the processed result.
-  - `:query` returns the honeysql query map that would be run against
-    the database.
-  - `:string` returns an SQL string corresponding to the query."
-  [table insert-values & {:keys [returning prepare return]
-                          :or {return :execute}
-                          :as opts}]
+  See `find` for description of all arguments."
+  [table ::table, insert-values ::insert-values
+   & {:keys [returning prepare return]
+      :or {return :execute}
+      :as opts} (opt-keys ::returning ::prepare ::return)]
   (assert (every? #{:returning :prepare :return} (keys opts)))
   (let [single-value? (map? insert-values)
-        insert-values (if (map? insert-values) [insert-values] insert-values)
+        insert-values (util/ensure-vector insert-values)
         single-returning? (literal? returning)
-        returning (if (keyword? returning) [returning] returning)]
+        returning (util/ensure-vector returning)]
     (when (seq insert-values)
       (-> (sqlh/insert-into table)
           (values insert-values)
@@ -350,38 +415,22 @@
                             single-value? first)
                           (first (do-execute query))))))))))
 
-(defn modify
-  "Runs update query on `table` filtered according to `match-by`.
+(defn-spec modify any?
+  "Runs update query on `table` filtered according to `match-by`,
+  setting field values according to `set-values`.
+
   Returns a count of rows updated.
 
-  `table` should match format of honeysql (from ...) function.
+  `set-values` should match format of honeysql (sset ...) function.
 
-  `where` optionally provides an additional honeysql where clause.
-
-  `returning` optionally takes a sequence of field keywords to use as
-  arguments to a Postgres-specific returning clause. `returning` may
-  also be a single keyword; in this case the return value will be a
-  sequence of values for this field rather than a sequence of field
-  value maps.
-
-  `prepare` optionally provides a function to apply to the final honeysql
-  query before running.
-
-  The arguments `join`, `left-join` add a clause to the query using
-  the honeysql function of the same name.
-
-  `return` optionally modifies the behavior and return value.
-  - `:execute` (default behavior) runs the query against the connected
-    database and returns the processed result.
-  - `:query` returns the honeysql query map that would be run against
-    the database.
-  - `:string` returns an SQL string corresponding to the query."
-  [table match-by set-values & {:keys [where returning prepare join left-join return]
-                                :or {return :execute}
-                                :as opts}]
+  See `find` and `create` for description of all arguments."
+  [table ::table, match-by ::match-by, set-values ::set-values
+   & {:keys [where returning prepare join left-join return]
+      :or {return :execute}
+      :as opts} (opt-keys ::where ::returning ::prepare ::join ::left-join ::return)]
   (assert (every? #{:where :returning :prepare :join :left-join :return} (keys opts)))
   (let [single-returning? (and (keyword? returning) (not= returning :*))
-        returning (if (keyword? returning) [returning] returning)]
+        returning (util/ensure-vector returning)]
     (-> (sqlh/update table)
         (merge-match-by match-by)
         (sset set-values)
@@ -399,29 +448,16 @@
                           single-returning? (map (first returning)))
                         (first (do-execute query)))))))))
 
-(defn delete
+(defn-spec delete any?
   "Runs delete query on `table` filtered according to `match-by`.
+
   Returns a count of rows deleted.
 
-  `table` should match format of honeysql (from ...) function.
-
-  `where` optionally provides an additional honeysql where clause.
-
-  `prepare` optionally provides a function to apply to the final honeysql
-  query before running.
-
-  The arguments `join`, `left-join` add a clause to the query
-  using the honeysql function of the same name.
-
-  `return` optionally modifies the behavior and return value.
-  - `:execute` (default behavior) runs the query against the connected
-    database and returns the processed result.
-  - `:query` returns the honeysql query map that would be run against
-    the database.
-  - `:string` returns an SQL string corresponding to the query."
-  [table match-by & {:keys [where prepare join left-join return]
-                     :or {return :execute}
-                     :as opts}]
+  See `find` for description of all arguments."
+  [table ::table, match-by ::match-by
+   & {:keys [where prepare join left-join return]
+      :or {return :execute}
+      :as opts} (opt-keys ::where ::prepare ::join ::left-join ::return)]
   (assert (every? #{:where :prepare :join :left-join :return} (keys opts)))
   (-> (sqlh/delete-from table)
       (merge-match-by match-by)

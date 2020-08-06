@@ -113,14 +113,14 @@
 (defn article-ids-from-title-search-local [project-id text]
   (with-project-cache project-id [:text-search-ids :local-title text]
     (q/find [:article :a] {:a.project-id project-id :a.enabled true}
-            :article-id, :join [:article-data:ad :a.article-data-id]
+            :article-id, :join [[:article-data :ad] :a.article-data-id]
             :where [:textmatch :ad.title-search
                     (sql/call :plainto_tsquery (str/lower-case text))])))
 
 (defn article-ids-from-content-search-local [project-id text]
   (with-project-cache project-id [:text-search-ids :local-content text]
     (q/find [:article :a] {:a.project-id project-id :a.enabled true}
-            :article-id, :join [:article-data:ad :a.article-data-id]
+            :article-id, :join [[:article-data :ad] :a.article-data-id]
             :where [:textmatch :ad.content-search
                     (sql/call :plainto_tsquery (str/lower-case text))])))
 

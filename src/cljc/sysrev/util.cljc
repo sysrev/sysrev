@@ -252,10 +252,10 @@
   (->> class-forms
        (map (fn [x]
               (if (vector? x)
-                (->> (partition 2 x) ;; group elements into (condition value) pairs
-                     (filter first)  ;; filter by condition
-                     (map second)    ;; extract class string value
-                     first           ;; use first matching value (if any)
+                (->> (partition 2 x) ; group elements into (condition value) pairs
+                     (filter first)  ; filter by condition
+                     (map second)    ; extract class string value
+                     first         ; use first matching value (if any)
                      )
                 x)))
        (remove #(contains? #{nil ""} %))
@@ -357,13 +357,18 @@
   `(s/keys :req-un ~(into [] keys)))
 
 (defmacro opt-keys [& keys]
-  `(s/? (s/keys* :opt-un ~(into [] keys))))
+  `(s/cat :keys (s/? (s/keys* :opt-un ~(into [] keys)))))
+
+(defmacro assert-single [& syms]
+  (let [show-syms (pr-str (seq syms))]
+    `(let [count# (count (remove nil? [~@syms]))]
+       (assert (> count# 0) (str "no value provided from " ~show-syms))
+       (assert (< count# 2) (str "only one value allowed: " ~show-syms)))))
 
 (defmacro assert-exclusive [& syms]
   (let [show-syms (pr-str (seq syms))]
     `(let [count# (count (remove nil? [~@syms]))]
-       (assert (> count# 0) (str "no value provided from " ~show-syms))
-       (assert (< count# 2) (str "multiple values provided from " ~show-syms)))))
+       (assert (< count# 2) (str "multiple values not allowed: " ~show-syms)))))
 
 (defmacro nilable-coll [pred & opts]
   `(s/nilable (s/coll-of ~pred ~@opts)))
@@ -465,6 +470,15 @@
 
 (defn url-join [& sections]
   (str/join "/" sections))
+
+(defn email->name [s]
+  (first (str/split s #"@")))
+
+(defn ensure-vector [x]
+  (cond (or (nil? x)
+            (and (coll? x) (empty? x)))  nil
+        (sequential? x)                  (vec x)
+        :else                            [x]))
 
 ;;;
 ;;; CLJ code

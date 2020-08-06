@@ -13,15 +13,15 @@
   "Get the plan for which user is currently subscribed"
   [user-id]
   (first (q/find [:plan-user :pu] {:user-id user-id} [:pu.* :sp.name]
-                 :order-by [:pu.created :desc], :limit 1
-                 :prepare #(join % [:stripe-plan :sp] [:= :pu.plan :sp.id]))))
+                 :join [[:stripe-plan :sp] [:= :pu.plan :sp.id]]
+                 :order-by [:pu.created :desc], :limit 1)))
 
 (defn group-current-plan
   "Get the plan for which group is currently subscribed"
   [group-id]
   (first (q/find [:plan-group :pg] {:group-id group-id} [:pg.* :sp.name]
-                 :order-by [:pg.created :desc], :limit 1
-                 :prepare #(join % [:stripe-plan :sp] [:= :pg.plan :sp.id]))))
+                 :join [[:stripe-plan :sp] [:= :pg.plan :sp.id]]
+                 :order-by [:pg.created :desc], :limit 1)))
 
 (defn stripe-support-project-plan
   "Returns information for the stripe plan used to subscribe users to
@@ -33,7 +33,7 @@
   "Returns all active support subscriptions for user."
   [{:keys [user-id] :as _user}]
   (q/find [:project-support-subscriptions :pss] {:user-id user-id :pss.status "active"}
-          :pss.*, :join [:project:p :pss.project-id]))
+          :pss.*, :join [[:project :p] :pss.project-id]))
 
 (defn lookup-support-subscription [id]
   (q/find-one :project-support-subscriptions {:id id}))

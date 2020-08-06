@@ -29,7 +29,7 @@
    :where (q/exists [:article-label :al] {:a.project-id project-id
                                           :al.article-id :a.article-id
                                           :l.enabled true}
-                    :join [:label:l :al.label-id]
+                    :join [[:label :l] :al.label-id]
                     :prepare #(q/filter-valid-article-label % true))))
 
 (defn export-user-answers-csv

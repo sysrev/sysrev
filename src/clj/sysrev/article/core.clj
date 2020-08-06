@@ -49,13 +49,13 @@
   [article-id int?, user-id int?, note-name string?, content (s/nilable string?)]
   (let [{:keys [project-id project-note-id] :as pnote}
         (q/find-one [:article :a] {:a.article-id article-id :pn.name note-name}
-                    :pn.*, :join [[:project:p :a.project-id]
-                                  [:project-note:pn :p.project-id]])
+                    :pn.*, :join [[[:project :p]       :a.project-id]
+                                  [[:project-note :pn] :p.project-id]])
         anote (q/find-one [:article :a] {:a.article-id article-id
                                          :an.user-id user-id
                                          :pn.name note-name}
-                          :an.*, :join [[:article-note:an :a.article-id]
-                                        [:project-note:pn :an.project-note-id]])]
+                          :an.*, :join [[[:article-note :an] :a.article-id]
+                                        [[:project-note :pn] :an.project-note-id]])]
     (assert pnote "note type not defined in project")
     (assert project-id "project-id not found")
     (db/with-clear-project-cache project-id
@@ -75,8 +75,8 @@
   [project-id int?, article-id int?]
   (db/with-project-cache project-id [:article article-id :notes :user-notes-map]
     (->> (q/find [:article :a] {:a.article-id article-id} [:an.* :pn.name]
-                 :join [[:article-note:an :a.article-id]
-                        [:project-note:pn :an.project-note-id]])
+                 :join [[[:article-note :an] :a.article-id]
+                        [[:project-note :pn] :an.project-note-id]])
          (group-by :user-id)
          (map-values #(->> % (index-by :name) (map-values :content))))))
 
@@ -102,12 +102,12 @@
 (defn article-flags-map [article-id]
   (q/find [:article :a] {:a.article-id article-id}
           (db/table-fields :aflag [:disable :date-created :meta])
-          :join [:article-flag:aflag :a.article-id]
+          :join [[:article-flag :aflag] :a.article-id]
           :index-by :flag-name))
 
 (defn article-sources-list [article-id]
   (q/find [:article :a] {:a.article-id article-id} :as.source-id
-          :join [:article-source:as :a.article-id]))
+          :join [[:article-source :as] :a.article-id]))
 
 (defn article-score [article-id & {:keys [predict-run-id]}]
   (db/with-transaction
@@ -169,7 +169,7 @@
                                          :lp.predict-run-id predict-run-id}
                                   (not include-disabled?) (merge {:a.enabled true}))
           [:a.article-id :lp.val]
-          :join [:article:a :lp.article-id]))
+          :join [[:article :a] :lp.article-id]))
 
 (defn article-ids-to-uuids [article-ids]
   (->> (partition-all 500 article-ids)

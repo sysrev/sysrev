@@ -32,7 +32,7 @@
          (not include-disabled-source)) (merge {:a.enabled true}))
   fields
   (-> (dissoc opts :include-disabled :include-disabled-source)
-      (update :join #(vec (conj (seq %) [:article-data:ad :a.article-data-id])))
+      (update :join #(vec (conj (seq %) [[:article-data :ad] :a.article-data-id])))
       (cond-> include-disabled-source
         (update :prepare (fn [prepare]
                            #((or prepare identity)

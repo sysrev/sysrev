@@ -7,7 +7,7 @@
             crypto.random
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [select from join merge-join where order-by group]]
+            [honeysql.helpers :as sqlh :refer [select from join merge-join where order-by]]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db :refer
              [do-query with-transaction sql-now]]
@@ -39,7 +39,7 @@
   [user-id & [fields]]
   (q/find [:project :p] {:p.enabled true, :pm.user-id user-id}
           (concat [:p.project-id] fields)
-          :join [:project-member:pm :p.project-id]))
+          :join [[:project-member :pm] :p.project-id]))
 
 (defn user-public-projects
   "Returns sequence of public projects for which user-id is a member.
@@ -306,25 +306,19 @@
 (defn projects-labeled-summary
   "Return the count of articles and labels done by user-id grouped by projects"
   [user-id]
-  (-> (select [:%count.%distinct.al.article-id :articles]
-              [:%count.al.article-label-id :labels]
-              [:a.project-id :project-id])
-      (from [:article-label :al])
-      (join [:article :a] [:= :a.article-id :al.article-id])
-      (where [:and [:= :al.user-id user-id] [:= :a.enabled true]])
-      (group :a.project-id)
-      do-query))
+  (q/find [:article-label :al] {:al.user-id user-id :a.enabled true}
+          [:a.project-id
+           [:%count.%distinct.al.article-id :articles]
+           [:%count.al.article-label-id :labels]]
+          :join [[:article :a] :al.article-id], :group :a.project-id))
 
 (defn projects-annotated-summary
   "Return the count of annotations done by user-id grouped by projects"
   [user-id]
-  (-> (select [:%count.an.annotation-id :annotations] :a.project-id)
-      (from [:annotation :an])
-      (join [:article :a]    [:= :a.article-id :an.article-id]
-            [:ann-user :au]  [:= :au.annotation-id :an.annotation-id])
-      (group :a.project-id)
-      (where [:= :au.user-id user-id])
-      do-query))
+  (q/find [:annotation :an] {:au.user-id user-id}
+          [:a.project-id [:%count.an.annotation-id :annotations]]
+          :join [[[:article :a]   :an.article-id]
+                 [[:ann-user :au] :an.annotation-id]], :group :a.project-id))
 
 (defn update-user-introduction! [user-id introduction]
   (q/modify :web-user {:user-id user-id} {:introduction introduction}))

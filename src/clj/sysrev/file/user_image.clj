@@ -27,7 +27,7 @@
 (defn user-active-profile-image [user-id]
   (q/find-one [:user-profile-image :upi] {:user-id user-id :enabled true}
               [:s3.s3-id :s3.key :s3.filename :user-id :enabled :meta]
-              :join [:s3store:s3 :upi.s3-id]))
+              :join [[:s3store :s3] :upi.s3-id]))
 
 (defn- set-profile-image-meta [s3-id meta]
   (q/modify :user-profile-image {:s3-id s3-id} {:meta (db/to-jsonb meta)}))
@@ -47,7 +47,7 @@
 (defn user-active-avatar-image [user-id]
   (q/find-one [:user-avatar-image :ua] {:ua.user-id user-id :ua.enabled true}
               [:ua.user-id :ua.enabled :s3.s3-id :s3.key :s3.filename]
-              :join [:s3store:s3 :ua.s3-id]))
+              :join [[:s3store :s3] :ua.s3-id]))
 
 (defn- associate-user-avatar-image
   "Associate a s3store id with user's avatar image"

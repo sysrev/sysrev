@@ -48,7 +48,7 @@
           entries (q/find [:article :a] {:a.article-id article-ids}
                           [:a.article-id :ad.external-id
                            :ad.title :ad.article-type :ad.article-subtype]
-                          :join [:article-data:ad :a.article-data-id])
+                          :join [[:article-data :ad] :a.article-data-id])
           types (distinct (map #(select-keys % [:datasource-name :article-type :article-subtype])
                                entries))
           articles (mapv (fn [{:keys [external-id title]}]

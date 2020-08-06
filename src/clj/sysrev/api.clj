@@ -181,12 +181,12 @@
         (member/add-project-member project-id user-id :permissions ["member" "admin" "owner"])))))
 
 (defn change-project-owner [project-id & {:keys [user-id group-id]}]
-  (util/assert-exclusive user-id group-id)
+  (util/assert-single user-id group-id)
   (cond user-id   (change-project-owner-to-user project-id user-id)
         group-id  (change-project-owner-to-group project-id group-id)))
 
 (defn transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
-  (util/assert-exclusive user-id group-id)
+  (util/assert-single user-id group-id)
   (with-transaction
     (let [users-projects (->> (user/user-projects owner-user-id [:permissions])
                               (filter #(contains? (set (:permissions %)) "owner"))

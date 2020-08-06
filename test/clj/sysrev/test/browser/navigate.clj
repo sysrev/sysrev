@@ -29,11 +29,13 @@
         current (b/url->path (taxi/current-url))
         ;; TODO: use server-side lookup to get project base url
         match-uri (second (re-matches #"(.*/p/[\d]+)(.*)" current))
-        base-uri (or match-uri (str "/p/" project-id))]
+        base-uri (or match-uri (str "/p/" project-id))
+        review? (= suburi "/review")]
     (assert (integer? project-id))
-    (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent
-              :pre-wait-ms (or pre-wait-ms
-                               (when (= suburi "/review") 200)))
+    (go-route (str base-uri suburi)
+              :wait-ms (or wait-ms (cond review? 200))
+              :pre-wait-ms (or pre-wait-ms (cond review? 200))
+              :silent silent)
     ;; this is a hack for the occasional times that /articles
     ;; doesn't load the first time it is clicked
     (when (and (= suburi "/articles")
@@ -59,9 +61,9 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-loading-completes :pre-wait 50 :loop 2)
+    (b/wait-until-loading-completes :pre-wait 40 :loop 2)
     (go-route "/" :silent true)
-    (b/wait-until-loading-completes :pre-wait 50 :loop 2)
+    (b/wait-until-loading-completes :pre-wait 40 :loop 2)
     #_ (log/info "login successful")))
 
 (defn register-user [email & [password]]
@@ -105,7 +107,6 @@
     (go-project-route "/settings" :silent true :wait-ms 50)
     (b/click (xpath "//button[contains(text(),'Project...')]"))
     (b/click (xpath "//button[text()='Confirm']"))
-    (b/wait-until-exists "form.create-project")
     (b/wait-until-loading-completes :pre-wait true)))
 
 (defn panel-name [panel-keys]

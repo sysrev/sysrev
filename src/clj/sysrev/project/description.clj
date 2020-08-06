@@ -34,4 +34,4 @@
   "Returns the markdown string for description of `project-id`."
   [project-id]
   (first (q/find [:project-description :pd] {:pd.project-id project-id}
-                 :md.string, :join [:markdown:md :pd.markdown-id])))
+                 :md.string, :join [[:markdown :md] :pd.markdown-id])))

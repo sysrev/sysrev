@@ -32,7 +32,7 @@
   "Returns a sequence of all invitations for `user-id`."
   [user-id]
   (q/find [:invitation :i] {:user-id user-id} [:i.* [:p.name :project-name]]
-          :join [:project:p :i.project-id]))
+          :join [[:project :p] :i.project-id]))
 
 (defn update-invitation-accepted! [invitation-id accepted?]
   (q/modify :invitation {:id invitation-id}

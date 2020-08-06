@@ -5,10 +5,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.file.core :as file]
-            [sysrev.db.core :refer [do-execute with-transaction]]
-            [honeysql.helpers :as sqlh :refer [sset where]]
-            [sysrev.file.s3 :as s3]
-            [honeysql.core :as sql]))
+            [sysrev.file.s3 :as s3]))
 
 ;; for clj-kondo
 (declare lookup-document-file list-project-documents save-document-file)
@@ -23,20 +20,20 @@
   [project-id int?, file-key string?]
   (q/find-one [:project-document :pd] {:pd.project-id project-id :s3.key file-key :delete-time nil}
               [:pd.* :s3.key :s3.filename :s3.created]
-              :join [:s3store:s3 :pd.s3-id]))
+              :join [[:s3store :s3] :pd.s3-id]))
 
 (defn-spec list-project-documents (s/nilable (s/coll-of ::document))
   [project-id int?]
   (q/find [:project-document :pd] {:project-id project-id :delete-time nil}
           [:pd.* :s3.key :s3.filename :s3.created]
-          :join [:s3store:s3 :pd.s3-id]
+          :join [[:s3store :s3] :pd.s3-id]
           :order-by :s3.created))
 
 (defn-spec lookup-deleted-document (s/nilable ::document)
-           [project-id int?, file-key string?]
-           (q/find-one [:project-document :pd] {:pd.project-id project-id :s3.key file-key :delete-time nil}
-                       [:pd.* :s3.key :s3.filename :s3.created]
-                       :join [:s3store:s3 :pd.s3-id]))
+  [project-id int?, file-key string?]
+  (q/find-one [:project-document :pd] {:pd.project-id project-id :s3.key file-key :delete-time nil}
+              [:pd.* :s3.key :s3.filename :s3.created]
+              :join [[:s3store :s3] :pd.s3-id]))
 
 (defn mark-document-file-deleted
   "Sets `delete-time` to make the file invisible to users while keeping
@@ -52,12 +49,10 @@
     (let [{:keys [s3-id]} (file/save-s3-file :document filename {:file file})
           previously-existed? (q/find-one [:project-document :pd] {:pd.project-id project-id :s3-id s3-id})]
       (if previously-existed?
-        (-> (sqlh/update :project-document)(sset {:delete-time nil})
-            (where [:and [:= :project-id project-id][:= :s3-id s3-id]])
-            do-execute)
+        (q/modify :project-document {:s3-id s3-id :project-id project-id}
+                  {:delete-time nil})
         (q/create :project-document {:s3-id s3-id :project-id project-id :user-id user-id}
                   :returning :*)))))
-
 
 ;;;
 ;;; migration

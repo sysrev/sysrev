@@ -13,7 +13,7 @@
 (defn-spec s3-id-from-article-key (s/nilable ::file/s3-id)
   [article-id int?, file-key string?]
   (q/find-one [:s3store :s3] {:s3.key file-key :apdf.article-id article-id}
-              :s3.s3-id, :join [:article-pdf:apdf :s3.s3-id]))
+              :s3.s3-id, :join [[:article-pdf :apdf] :s3.s3-id]))
 
 (defn-spec article-pdf-associated? boolean?
   "Check if article-pdf association exists between s3-id, article-id."
@@ -41,7 +41,7 @@
           [:s3.s3-id :s3.key :s3.filename]))
 
 (defn save-article-pdf [{:keys [article-id filename file file-bytes]}]
-  (util/assert-exclusive file file-bytes)
+  (util/assert-single file file-bytes)
   (db/with-transaction
     (let [{:keys [key s3-id]}
           (file/save-s3-file :pdf filename (or (some->> file (hash-map :file))

@@ -16,11 +16,11 @@
             [sysrev.group.core :as group]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
             [sysrev.util :as util :refer [parse-integer string-ellipsis ignore-exceptions]])
-  (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)
-           (org.openqa.selenium.remote DesiredCapabilities)))
+  (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)))
 
 (defonce ^:dynamic *wd* (atom nil))
 (defonce ^:dynamic *wd-config* (atom nil))
@@ -154,7 +154,7 @@
 (def test-password "1234567890")
 
 (defn delete-test-user [& {:keys [email user-id]}]
-  (util/assert-exclusive email user-id)
+  (util/assert-single email user-id)
   (db/with-transaction
     (when-let [{:keys [user-id stripe-id]
                 :as user} (if email
@@ -343,7 +343,7 @@
     result))
 
 (defn click [q & {:keys [if-not-exists delay displayed? external? timeout]
-                  :or {if-not-exists :wait, delay 50}}]
+                  :or {if-not-exists :wait, delay 40}}]
   (letfn [(wait [ms]
             (if external?
               (Thread/sleep (+ ms 25))
@@ -428,7 +428,8 @@
                       (when-not ~repl?
                         (try ~cleanup
                              (catch Throwable e#
-                               (log/warn "exception in test cleanup:" (str e#))))
+                               (log/warnf "exception in test cleanup:\n%s"
+                                          (with-out-str (print-cause-trace-custom e#)))))
                         #_ (ensure-logged-out)
                         (when (test/db-connected?)
                           (cleanup-test-user! :email (:email ~test-user)))))))))))))
@@ -462,7 +463,7 @@
   "Deletes a test user by user-id or email, along with other entities the user is associated with."
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
-  (util/assert-exclusive user-id email)
+  (util/assert-single user-id email)
   (let [email (or email (user/get-user user-id :email))
         user-id (or user-id (user/user-by-email email :user-id))]
     (when (and email user-id)
@@ -501,7 +502,7 @@
     (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
       (if (pos-int? fn-count)
         nil #_ (log/info "instrumented" fn-count "cljs functions")
-        (log/warn "no cljs functions were instrumented"))))
+        (log/error "no cljs functions were instrumented"))))
   nil)
 
 ;; if this doesn't do anything, why not take it out? - James

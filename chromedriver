@@ -1,5 +1,4 @@
 #!/bin/bash
 set -eu
 
-# chromedriver $@ > /dev/null
 chromedriver $@ 2>&1 | grep -v -Ee '(Starting ChromeDriver|Only local connections|Please protect ports|Timed out receiving message|for suggestions on|was started successfully)'

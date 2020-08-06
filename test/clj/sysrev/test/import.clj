@@ -136,7 +136,7 @@
           (is (= 4 (project/project-article-pdf-count project-id)))
           (let [title-count #(q/find-count [:article :a] {:a.project-id project-id
                                                           :ad.title %}
-                                           :join [:article-data:ad :a.article-data-id])]
+                                           :join [[:article-data :ad] :a.article-data-id])]
             (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
             (is (= 1 (title-count "Plosker Troglitazone.pdf"))))
           (finally (project/delete-project project-id)))))))
@@ -150,7 +150,7 @@
               project-id {:search-term search-term}
               {:use-future? false :threads 4})
              (let [adata (q/find [:article :a] {:a.project-id project-id}
-                                 :ad.*, :join [:article-data:ad :a.article-data-id])
+                                 :ad.*, :join [[:article-data :ad] :a.article-data-id])
                    db-titles (->> adata
                                   (util/index-by #(-> % :external-id util/parse-integer))
                                   (util/map-values :title))

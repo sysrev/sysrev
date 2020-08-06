@@ -1,15 +1,12 @@
 (ns sysrev.project.graphql
   (:require [clojure.set :refer [rename-keys]]
             [clojure.data.json :as json]
-            [clojure.string :as str]
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [com.walmartlabs.lacinia.executor :as executor]
-            [honeysql.helpers :as sqlh :refer [select from where join left-join]]
-            [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.project.core :refer [project-labels]]
+            [sysrev.project.core :refer [project-labels project-user-ids]]
             [sysrev.graphql.core :refer [with-graphql-auth]]
             [sysrev.util :as util :refer [index-by gquery sanitize-uuids]]))
 
@@ -22,83 +19,50 @@
                                                              :label-id :id
                                                              :project-ordering :ordering})
                                              x)))
-                    (walk/postwalk (fn [x] (if (and (map? x)
-                                                    (contains? x :definition))
-                                             (assoc x :definition
-                                                    (-> x :definition json/write-str))
-                                             x))))
-        label-definitions (filter #(not= (:type %) "group") labels)
-        group-label-definitions (->> (filter #(= (:type %) "group") labels)
-                                     (map #(assoc % :labels (-> (:labels %) vals))))]
-    (assoc m
-           :labelDefinitions label-definitions
-           :groupLabelDefinitions group-label-definitions)))
+                    (walk/postwalk #(cond-> %
+                                      (and (map? %) (contains? % :definition))
+                                      (update :definition json/write-str))))
+        group? #(= (:type %) "group")]
+    (merge m {:labelDefinitions (remove group? labels)
+              :groupLabelDefinitions (->> (filter group? labels)
+                                          (map #(update % :labels vals)))})))
 
 (defn- merge-articles [m project-id]
   (assoc m :articles
-         (-> (select :a.enabled
-                     [:a.article_id :id]
-                     [:a.article_uuid :uuid]
-                     [:ad.external_id :datasource_id]
-                     [:ad.datasource-name :datasource-name])
-             (from [:article :a])
-             (join [:article_data :ad] [:= :ad.article_data_id :a.article_data_id])
-             (where [:= :project_id project-id])
-             do-query)))
+         (q/find [:article :a] {:project-id project-id}
+                 [:a.enabled [:a.article-id :id] [:a.article-uuid :uuid]
+                  :ad.datasource-name [:ad.external-id :datasource-id]]
+                 :join [[:article-data :ad] :a.article-data-id])))
 
 (defn process-group-labels
   "Given a project-id, convert :answer keys to the format required by "
   [project-id m]
-  (let [group-labels (-> m
-                         sanitize-uuids)
-        group-label-definitions  (-> (select [:label-id :id] [:value_type :type] [:short_label :name]
-                                             :question :required :consensus)
-                                     (from :label)
-                                     (where [:and
-                                             [:= :project-id project-id]
-                                             [:not= :root-label-id-local nil]])
-                                     do-query
-                                     (->> (index-by :id)))
-        process-group-answers (fn [group-label]
-                                (assoc group-label :answer
-                                       (->> group-label :answer :labels vals
-                                            (map
-                                             (fn [answers]
-                                               (map (fn [answer]
-                                                      (merge
-                                                       {:answer
-                                                        ;; this is similar to below
-                                                        ;; where all labels are put
-                                                        ;; into a vector
-                                                        (let [this-answer (second answer)]
-                                                          (if-not (vector? this-answer)
-                                                            (vector (str this-answer))
-                                                            this-answer))}
-                                                       (get group-label-definitions
-                                                            (first answer)))) answers))))))]
-    (map process-group-answers group-labels)))
+  (let [definitions (q/find :label {:project-id project-id}
+                            [[:label-id :id] [:value-type :type] [:short-label :name]
+                             :question :required :consensus]
+                            :where [:!= :root-label-id-local nil]
+                            :index-by :label-id)]
+    (doall (for [group-label (sanitize-uuids m)]
+             (assoc group-label :answer
+                    (doall (for [answers (-> group-label :answer :labels vals)]
+                             (doall (for [answer answers]
+                                      (merge {:answer (let [this-answer (second answer)]
+                                                        (if-not (vector? this-answer)
+                                                          (vector (str this-answer))
+                                                          this-answer))}
+                                             (get definitions (first answer))))))))))))
 
 (defn- merge-article-labels [m project-id]
-  (let [labels (-> (select [:l.label_id :id]
-                           [:l.value_type :type]
-                           [:l.short_label :name]
-                           :l.question
-                           :l.required
-                           :l.consensus ;TODO - this is the label definition requiring consensus, not consensus check for answers
-                           :l.required
-                           :al.answer
-                           [:al.added-time :created]
-                           [:al.updated-time :updated]
-                           [:al.confirm_time :confirmed]
-                           [:al.article_id :article_id]
-                           [:ar.resolve-time :resolve]
-                           :al.user_id)
-                   (from [:article :a])
-                   (join [:article_label :al] [:= :al.article_id :a.article_id]
-                         [:label :l] [:= :al.label_id :l.label_id])
-                   (left-join [:article-resolve :ar] [:and [:= :al.user-id :ar.user-id] [:= :a.article-id :ar.article-id]])
-                   (where  [:= :a.project-id project-id])
-                   do-query)
+  (let [labels (q/find [:article :a] {:a.project-id project-id}
+                       ;; TODO - `consensus` is label definition, not answer status
+                       [[:l.label-id :id] [:l.value-type :type] [:l.short-label :name]
+                        :l.question :l.required :l.consensus :al.article-id :al.user-id
+                        :al.answer [:al.added-time :created] [:al.updated-time :updated]
+                        [:al.confirm-time :confirmed] [:ar.resolve-time :resolve]]
+                       :join [[[:article-label :al] :a.article-id]
+                              [[:label :l] :al.label-id]]
+                       :left-join [[:article-resolve :ar] [:and [:= :al.user-id :ar.user-id]
+                                                           [:= :a.article-id :ar.article-id]]])
         non-group-labels (->> (filter #(not= (:type %) "group") labels)
                               ;; this could cause problems if we ever have
                               ;; non-vector or single value answers
@@ -109,34 +73,28 @@
                               (group-by :article-id))
         group-labels (->> (filter #(= (:type %) "group") labels)
                           (process-group-labels project-id)
-                          (group-by :article-id))
-        articles (:articles m)]
+                          (group-by :article-id))]
     (assoc m :articles
-           (map #(assoc % :labels
-                        (get non-group-labels (:id %))
-                        :groupLabels
-                        (get group-labels (:id %))) articles))))
+           (doall (for [{:keys [id] :as article} (:articles m)]
+                    (merge article {:labels (get non-group-labels id)
+                                    :groupLabels (get group-labels id)}))))))
 
-(defn- merge-article-reviewers [m project-id]
-  (let [{:keys [articles]} m
-        all-user-ids (-> (select [:wu.user-id :id] [:wu.email :email] [:wu.name :name])
-                         (from [:web_user :wu])
-                         (join [:project_member :pm] [:= :pm.user_id :wu.user_id])
-                         (where [:= :pm.project-id project-id])
-                         do-query)
-        reviewers (->> all-user-ids
-                       (map #(assoc % :name (first (str/split (:email %) #"@"))))
-                       (group-by :id))]
+(defn- merge-article-reviewers [{:keys [articles] :as m} project-id]
+  (let [users (->> (q/find :web-user {:user-id (project-user-ids
+                                                project-id :return :query)}
+                           [[:user-id :id] :email]
+                           :index-by :user-id)
+                   (util/map-values #(assoc % :name (-> % :email util/email->name))))]
     (assoc m :articles
            (let [f (fn [[k v]] (if (= :user-id k)
-                                 [:reviewer (first (get reviewers v))]
+                                 [:reviewer (get users v)]
                                  [k v]))]
              ;; only apply to maps
              (walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) articles)))))
 
 (defn- merge-article-content [{:keys [articles] :as m} ds-api-token]
   (let [id->external (q/find [:article :a] {:a.article-id (distinct (map :id articles))}
-                             :ad.external-id, :join [:article-data:ad :a.article-data-id]
+                             :ad.external-id, :join [[:article-data :ad] :a.article-data-id]
                              :index-by :article-id)
         entities (-> (gquery [[:entities {:ids (vals id->external)}
                                [:id :content]]])

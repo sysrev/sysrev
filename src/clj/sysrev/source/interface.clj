@@ -7,7 +7,6 @@
             [sysrev.datasource.core :as ds]
             [sysrev.source.core :as s]
             [sysrev.biosource.predict :as predict-api]
-            [sysrev.biosource.importance :as importance]
             [sysrev.slack :refer [log-slack-custom]]
             [sysrev.stacktrace :as strace]
             [sysrev.util :as util :refer [in? parse-integer pp-str]])
@@ -69,7 +68,7 @@
                                           :ad.external-id (map db/to-jsonb external-ids)
                                           :ad.datasource-name datasource-name}
                            [:a.article-id :ad.external-id]
-                           :join [:article-data:ad :a.article-data-id]))
+                           :join [[:article-data :ad] :a.article-data-id]))
         existing-article-ids (map :article-id existing)
         existing-external-ids (map :external-id existing)
         have-article? #(some->> % :external-id str (in? existing-external-ids))]
