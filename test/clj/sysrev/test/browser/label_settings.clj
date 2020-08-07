@@ -148,6 +148,7 @@
       (switch-user (:email user2) @project-id)
       ;; check article list interface (Conflict filter)
       (check-status 0 1 0)
+      (b/wait-until-loading-completes)
       (b/click conflicts :displayed? true :delay 100)
       (b/click "div.article-list-article")
       ;; check for conflict label in article component
@@ -159,7 +160,8 @@
       ;; only if label was required should it still shows as a conflict
       (check-status 1 0 0)
       ;; now go back and change value to one that conflicts, it should conflict
-      (b/click include-full :displayed? true :delay 100)
+      (b/click include-full :displayed? true :delay 200)
+      (b/wait-until-loading-completes)
       (b/click "div.article-list-article")
       (b/click ".button.change-labels")
       ;;(review/set-article-answers lvalues-2 :save? false)
@@ -174,6 +176,7 @@
       (check-status 1 0 0)
       ;; check article list interface (Include Full filter)
       (b/click include-full :delay 100)
+      (b/wait-until-loading-completes)
       (is (b/exists? "div.article-list-article"))
       ;; re-enable label consensus setting
       (define/edit-label @label-id-1 (merge label1 {:consensus true}))
@@ -181,6 +184,7 @@
       (check-status 0 1 0)
       ;; resolve article conflict
       (b/click conflicts :delay 100)
+      (b/wait-until-loading-completes)
       (b/click "div.article-list-article")
       (is (b/exists? ".button.change-labels"))
       (is (= "Resolve Labels" (taxi/text ".button.change-labels")))
@@ -204,6 +208,7 @@
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; check article list interface (Resolved filter)
       (b/click resolved :delay 100)
+      (b/wait-until-loading-completes)
       (is (b/exists? "div.article-list-article"))
       (b/click "div.article-list-article")
       ;; check for resolved labels in article component

@@ -1,5 +1,6 @@
 (ns sysrev.test.browser.group-labels
-  (:require [clojure.test :refer [is use-fixtures]]
+  (:require [clojure.string :as string]
+            [clojure.test :refer [is use-fixtures]]
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [clj-webdriver.taxi :as taxi]
@@ -29,7 +30,45 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (defn group-label-div-with-name [short-label]
-  (xpath "//div[contains(@class,'group-label-instance')]//div[contains(@class,'title') and contains(text(),'" short-label "')]"))
+  (xpath "//div[contains(@id,'group-label-input-') and contains(text(),'" short-label "')]"))
+
+(defn sub-label-col-xpath
+  "Given a short-label, return the nth col underneath it"
+  [short-label nth]
+  (xpath "(//div[@id='group-label-editor']//table/tbody/tr/td[count(//div[@id='group-label-editor']//table/thead/tr/th[.='" short-label "']/preceding-sibling::th)+1])[" nth "]"))
+
+(def add-blank-row-button (xpath "//div[@id='add-group-label-instance']"))
+
+(defn delete-row-icon [nth]
+  (xpath "//table/tbody/tr[" nth "]/td//i[contains(@class,'delete')]"))
+
+(defn set-sub-group-label [nth {:keys [value-type short-label value]}]
+  (let [col (sub-label-col-xpath short-label nth)]
+    (cond (or (= value-type "boolean")
+              (= value-type "string"))
+          (do (b/click col)
+              (b/set-input-text-per-char (xpath col "//input") (str value))
+              (taxi/send-keys (xpath col "//input") org.openqa.selenium.Keys/ENTER)
+              ;; hack - the search bar is still available for input, if 'input' defined in the let is used then it causes an error because taxi/send-keys returns the element passed to it and it won't exist anymore.
+              (taxi/send-keys (xpath "//input[@id='search-sysrev-bar']")  org.openqa.selenium.Keys/TAB))
+          (= value-type "categorical")
+          (do (b/click col)
+              (taxi/clear (xpath col "//input"))
+              (doall (map (fn [v]
+                            (b/set-input-text-per-char (xpath col "//input") (str v))
+                            (taxi/send-keys (xpath col "//input")
+                                            org.openqa.selenium.Keys/ENTER)) value))
+              (taxi/send-keys (xpath "//input[@id='search-sysrev-bar']")  org.openqa.selenium.Keys/TAB)))))
+
+(defn set-group-label-row [nth {:keys [short-label definition]}]
+  (let [{:keys [labels]} definition
+        group-label-editor (xpath "//div[@id='group-label-editor']/descendant::th[contains(text(),'" short-label "')]")]
+    (when-not (taxi/exists? group-label-editor)
+      (b/click (group-label-div-with-name short-label)))
+    (b/wait-until-exists group-label-editor)
+    (b/click add-blank-row-button)
+    (doall (map (partial set-sub-group-label nth) labels))
+    nil))
 
 ;; https://stackoverflow.com/questions/14745478/how-to-select-table-column-by-column-header-name-with-xpath
 ;; note: this is fairly hacky, won't work with multiple values
@@ -57,12 +96,12 @@
 
 (defn group-sub-short-labels-review
   "In the review interface, return the sub short-labels"
-  [root-short-label]
-  (->> (x/xpath "(//div[contains(@class,'title') and contains(text(),'" root-short-label "')]//ancestor::div[contains(@id,'group-label-input-')])[1]"
-                "//span[contains(@class,'short-label')]")
+  []
+  (->> (xpath "//table/thead/tr[@id='sub-labels']/th")
        taxi/find-elements
        (map taxi/text)
-       (into [])))
+       (into [])
+       (filterv (comp not string/blank?))))
 
 (defn edit-group-label-button
   [root-short-label]
@@ -127,9 +166,12 @@
 (defn group-label-value
   "In a group label answer, get the short-label values"
   [short-label group-label-definition]
-  (->>
-   (get-in group-label-definition [:definition :labels])
-   (medley/find-first #(= (:short-label %) short-label)) :value))
+  (let [value (->>
+               (get-in group-label-definition [:definition :labels])
+               (medley/find-first #(= (:short-label %) short-label)) :value)]
+    (if (vector? value)
+      (string/join ", " value)
+      value)))
 
 (deftest-browser group-labels-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
@@ -163,7 +205,7 @@
                                        :inclusion-values ["Foo" "Bar"]
                                        :multi? false}
                                       :required true
-                                      :value "Qux"}]}}]
+                                      :value ["Foo" "Qux"]}]}}]
   (do
     (nav/log-in (:email test-user))
     (nav/new-project project-name)
@@ -190,11 +232,11 @@
      (group-label-div-with-name (:short-label group-label-definition)))
     ;; we shouldn't have any labels for this project
     (is (empty? (labels/query-public-article-labels @project-id)))
+    ;; set the include label
+    (ra/set-label-answer (merge ra/include-label-definition
+                                {:value include-label-value}))
     ;; set the labels
-    (ra/set-article-answers (conj (-> group-label-definition :definition :labels)
-                                  (merge ra/include-label-definition
-                                         {:value include-label-value}))
-                            :save? false)
+    (set-group-label-row 1 group-label-definition)
     (is (b/exists? (xpath "//th[contains(text(),'"
                           (:short-label group-label-definition) "')]")))
     (b/click ".button.save-labels" :delay 30 :displayed? true)
@@ -218,7 +260,7 @@
                                                   (get uuid->short-label-map)
                                                   (get group-label-settings))]
                                   (if (vector? answer)
-                                    (first answer)
+                                    (string/join ", " answer)
                                     answer)))
           test-short-label-answer (fn [short-label]
                                     (is (= (group-label-value short-label group-label-definition)
@@ -250,6 +292,7 @@
       (is (= (group-label-value "Categorical Label" group-label-definition)
              (group-label-button-value "Categorical Label" "1")))))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
+
 
 (deftest-browser group-labels-error-handling-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
@@ -363,10 +406,11 @@
     ;; check to make sure the review editor has them in the correct order
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (group-label-div-with-name "Group Label 2"))
     (b/wait-until #(= ["String Label" "Boolean Label" "Categorical Label"]
-                      (group-sub-short-labels-review "Group Label 2")))
+                      (group-sub-short-labels-review)))
     (is (= ["String Label" "Boolean Label" "Categorical Label"]
-           (group-sub-short-labels-review "Group Label 2")))
+           (group-sub-short-labels-review)))
     ;; test label disabling String Label
     (log/info "Testing disabling / enabling labels")
     (nav/go-project-route "/labels/edit")
@@ -378,10 +422,11 @@
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (group-label-div-with-name "Group Label 2"))
     (b/wait-until #(= ["Boolean Label" "Categorical Label"]
-                      (group-sub-short-labels-review "Group Label 2")))
+                      (group-sub-short-labels-review)))
     (is (= ["Boolean Label" "Categorical Label"]
-           (group-sub-short-labels-review "Group Label 2")))
+           (group-sub-short-labels-review)))
     ;; test disabling the Boolean Label
     (nav/go-project-route "/labels/edit")
     (toggle-enable-disable-sub-label-button "Group Label 2" "Categorical Label" :disable)
@@ -392,10 +437,11 @@
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (group-label-div-with-name "Group Label 2"))
     (b/wait-until #(= ["Boolean Label"]
-                      (group-sub-short-labels-review "Group Label 2")))
+                      (group-sub-short-labels-review)))
     (is (= ["Boolean Label"]
-           (group-sub-short-labels-review "Group Label 2")))
+           (group-sub-short-labels-review)))
     ;; completely disable the label by disabling all other buttons
     (nav/go-project-route "/labels/edit")
     (toggle-enable-disable-sub-label-button "Group Label 2" "Boolean Label" :disable)
@@ -404,10 +450,7 @@
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
-    (b/wait-until #(= []
-                      (group-sub-short-labels-review "Group Label 2")))
-    (is (= []
-           (group-sub-short-labels-review "Group Label 2")))
+    (is (not (taxi/exists? (group-label-div-with-name "Group Label 2"))))
     ;; now re-enable this label
     (nav/go-project-route "/labels/edit")
     (toggle-enable-disable-sub-label-button "Group Label 2" "Boolean Label" :enable)
@@ -424,19 +467,19 @@
     ;; check that this appears now in the review
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (group-label-div-with-name "Group Label 2"))
     (b/wait-until #(= ["Boolean Label" "String Label"]
-                      (group-sub-short-labels-review "Group Label 2")))
+                      (group-sub-short-labels-review)))
     (is (= ["Boolean Label" "String Label"]
-           (group-sub-short-labels-review "Group Label 2"))))
+           (group-sub-short-labels-review))))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (deftest-browser group-labels-in-depth
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (group-labels-in-depth)"
    project-id (atom nil)
-   {:keys [user-id email]} test-user
    include-label-value true
-   invalid-value "Invalid Value"
+   invalid-value "Invalid"
    group-label-definition {:value-type "group"
                            :short-label "Group Label"
                            :definition
@@ -465,7 +508,7 @@
                                        :inclusion-values ["Foo" "Bar"]
                                        :multi? false}
                                       :required true
-                                      :value "Qux"}]}}]
+                                      :value ["Qux"]}]}}]
   (do
     (nav/log-in (:email test-user))
     (nav/new-project project-name)
@@ -495,58 +538,50 @@
     (log/info "Testing required and regex match")
     ;; can't save
     (b/exists? ".ui.button.save-labels.disabled")
-    ;; the Group Label allows for multiple labels to be created
-    (b/exists? (add-group-label-review "Group Label"))
     ;; set the labels, but skip String Label, make sure we can't save
-    (ra/set-article-answers (conj (->> group-label-definition :definition :labels
-                                       (filterv #(not= "String Label" (:short-label %))))
-                                  (merge ra/include-label-definition
-                                         {:value include-label-value}))
-                            :save? false)
+    (ra/set-label-answer (merge ra/include-label-definition
+                                {:value include-label-value}))
+    (set-group-label-row 1 (assoc-in
+                            group-label-definition [:definition :labels]
+                            (->> group-label-definition :definition :labels
+                                 (filterv #(not= "String Label" (:short-label %))))))
     (b/exists? ".ui.button.save-labels.disabled")
-    (b/set-input-text (ra/string-input-xpath "String Label") "foo")
-    (ra/have-errors? [invalid-value])
+    (set-sub-group-label 1 {:value-type "string" :short-label "String Label" :value "foo"})
+    (=  (taxi/text (sub-label-col-xpath "String Label" 1)) invalid-value)
     (b/exists? ".ui.button.save-labels.disabled")
-    (b/set-input-text (ra/string-input-xpath "String Label") "foo12")
-    (ra/have-errors? [])
+    (set-sub-group-label 1 {:value-type "string" :short-label "String Label" :value "foo12"})
+    (=  (taxi/text (sub-label-col-xpath "String Label" 1)) "foo12")
     ;; Add another Group Label
-    (b/click (add-group-label-review "Group Label"))
-    ;; we need to:
-    ;; Allow for multiple-valued string labels
-    ;; set-article-answers should allow a sub label
-    ;; e.g. 'Group Label 1', Group Label 2'
-    (ra/set-article-answers [{:short-label "Boolean Label"
-                              :value false
-                              :value-type "boolean"}
-                             {:short-label "String Label"
-                              :value "bar34"
-                              :value-type "string"}
-                             {:short-label "Categorical Label"
-                              :value "Foo"
-                              :value-type "categorical"}]
-                            :save? false
-                            :xpath (group-label-instance "Group Label 2"))
-    ;; add a second value to the string label
-    (b/set-input-text (x/xpath (group-label-instance-sub-label "Group Label 2" "String Label")
-                               "/descendant::input[@type='text'][2]")
-                      "baz56")
+    (set-group-label-row 2 (assoc-in group-label-definition [:definition :labels]
+                                     [{:short-label "Boolean Label"
+                                       :value false
+                                       :value-type "boolean"}
+                                      {:short-label "String Label"
+                                       :value "bar34"
+                                       :value-type "string"}
+                                      {:short-label "Categorical Label"
+                                       :value "Foo"
+                                       :value-type "categorical"}]))
     ;; check that the inclusion is working correctly for the boolean label is correct
-    (b/exists? (x/xpath (group-label-instance-sub-label "Group Label 1" "Boolean Label")
-                        "//i[contains(@class,'plus') and contains(@class,'green')]"))
-    (b/exists? (x/xpath (group-label-instance-sub-label "Group Label 2" "Boolean Label")
-                        "//i[contains(@class,'minus') and contains(@class,'orange')]"))
+    (b/exists? (xpath (sub-label-col-xpath "Boolean Label" 1)
+                      "//div[contains(@class,'green')]"))
+    (b/exists? (xpath (sub-label-col-xpath "Boolean Label" 2)
+                      "//div[contains(@class,'orange')]"))
     ;; check that the inclusion is working correctly for categorical label
-    (b/exists? (x/xpath (group-label-instance-sub-label "Group Label 1" "Categorical Label")
-                        "//i[contains(@class,'minus') and contains(@class,'orange')]"))
-    (b/exists? (x/xpath (group-label-instance-sub-label "Group Label 2" "Categorical Label")
-                        "//i[contains(@class,'plus') and contains(@class,'green')]"))
+    (b/exists? (xpath (sub-label-col-xpath "Categorical Label" 1)
+                      "//div[contains(@class,'orange')]"))
+    (b/exists? (xpath (sub-label-col-xpath "Categorical Label" 2)
+                      "//div[contains(@class,'green')]"))
     ;; add a group label instance, then just delete it
-    (b/click (add-group-label-review "Group Label"))
-    (b/exists? (x/xpath (group-label-instance "Group Label 3")))
-    (b/click (x/xpath (group-label-instance "Group Label 3") "//i[contains(@class,'delete')]"))
-    (b/wait-until #(not (taxi/exists? (x/xpath (group-label-instance "Group Label 3")))))
-    (is (not (taxi/exists? (x/xpath (group-label-instance "Group Label 3")))))
-    ;; 
+    (b/click add-blank-row-button)
+    (b/wait-until-exists (sub-label-col-xpath "Categorical Label" 3))
+    (=  (taxi/text (sub-label-col-xpath "Categorical Label" 3)) "Required")
+    (b/wait-until-exists (delete-row-icon 3))
+    ;; has to be done twice in order to actually register
+    (b/click (delete-row-icon 3))
+    (b/click (delete-row-icon 3))
+    (b/wait-until #(not (taxi/exists? (delete-row-icon 3))))
+    (is (not (taxi/exists? (x/xpath (delete-row-icon 3)))))
     (b/click ".button.save-labels" :delay 30 :displayed? true)
     (b/wait-until-loading-completes :pre-wait (if (test/remote-test?) 150 30) :loop 2)
     (some-> (b/current-project-id)
@@ -565,13 +600,13 @@
            (group-label-button-value "Boolean Label" "2")))
     (is (= "foo12"
            (group-label-button-value "String Label" "1")))
-    (is (= "bar34, baz56"
+    (is (= "bar34"
            (group-label-button-value "String Label" "2")))
     (is (= "Qux"
            (group-label-button-value "Categorical Label" "1")))
     (is (= "Foo"
            (group-label-button-value "Categorical Label" "2")))
-    (log/info "Testing multiple Group Labels"))
+    (log/info "Done testing group-labels-in-depth"))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (deftest-browser consistent-label-ordering
@@ -644,6 +679,7 @@
    test-users (mapv #(b/create-test-user :email %)
                     (mapv #(str "user" % "@foo.bar") [1 2]))
    [user1 user2] test-users
+   include-label-value true
    project-name "Label Consensus Test (Group Labels)"
    group-label-definition {:value-type "group"
                            :short-label "Group Label"
@@ -691,30 +727,36 @@
       ;; review article from user1
       (switch-user (:email user1) @project-id)
       (nav/go-project-route "/review")
-      (ra/set-article-answers (conj [{:short-label "Boolean Label"
-                                      :value false
-                                      :value-type "boolean"}
-                                     {:short-label "String Label"
-                                      :value "bar34"
-                                      :value-type "string"}
-                                     {:short-label "Categorical Label"
-                                      :value "Foo"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition [:definition :labels]
+                                       [{:short-label "Boolean Label"
+                                         :value false
+                                         :value-type "boolean"}
+                                        {:short-label "String Label"
+                                         :value "bar34"
+                                         :value-type "string"}
+                                        {:short-label "Categorical Label"
+                                         :value ["Foo"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
       (is (b/exists? ".no-review-articles"))
       ;; review article from user2 (different categorical answer)
       (switch-user (:email user2) @project-id)
       (nav/go-project-route "/review")
-      (ra/set-article-answers (conj [{:short-label "Boolean Label"
-                                      :value true
-                                      :value-type "boolean"}
-                                     {:short-label "String Label"
-                                      :value "bar34"
-                                      :value-type "string"}
-                                     {:short-label "Categorical Label"
-                                      :value "Bar"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition [:definition :labels]
+                                       [{:short-label "Boolean Label"
+                                         :value true
+                                         :value-type "boolean"}
+                                        {:short-label "String Label"
+                                         :value "bar34"
+                                         :value-type "string"}
+                                        {:short-label "Categorical Label"
+                                         :value ["Bar"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
       (is (b/exists? ".no-review-articles"))
       ;; check for conflict
       (check-status 0 1 0)
@@ -726,18 +768,18 @@
       (is (b/exists? (xpath "//div[contains(@class, 'review-status') and contains(text(),'Conflicting labels')]")))
       (b/click "div.resolve-labels")
       ;; set the user1 labels as correct
-      (ra/set-article-answers (conj [{:short-label "Boolean Label"
-                                      :value false
-                                      :value-type "boolean"}
-                                     {:short-label "String Label"
-                                      :value "bar34"
-                                      :value-type "string"}
-                                     {:short-label "Categorical Label"
-                                      :value "Foo"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true}))
-                              :save? false
-                              :only-set-labels? true)
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition [:definition :labels]
+                                       [{:short-label "Boolean Label"
+                                         :value false
+                                         :value-type "boolean"}
+                                        {:short-label "String Label"
+                                         :value "bar34"
+                                         :value-type "string"}
+                                        {:short-label "Categorical Label"
+                                         :value ["Foo"]
+                                         :value-type "categorical"}]))
       (b/click ".save-labels")
       ;; article is shown as resolved
       (is (b/exists? (xpath "//div[contains(@class, 'review-status') and contains(text(),'Resolved')]")))
@@ -797,6 +839,7 @@
    test-users (mapv #(b/create-test-user :email %)
                     (mapv #(str "user" % "@foo.bar") [1 2]))
    [user1 user2] test-users
+   include-label-value true
    group-label-definition {:value-type "group"
                            :short-label "Alpha"
                            :definition
@@ -838,68 +881,93 @@
       ;; user1 reviews some article
       (switch-user (:email user1) @project-id)
       (nav/go-project-route "/review")
-      (ra/set-article-answers (conj [{:short-label "Bravo"
-                                      :value false
-                                      :value-type "boolean"}
-                                     {:short-label "Charlie"
-                                      :value "X-ray"
-                                      :value-type "string"}
-                                     {:short-label "Delta"
-                                      :value "four"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
-      (ra/set-article-answers (conj [{:short-label "Bravo"
-                                      :value true
-                                      :value-type "boolean"}
-                                     {:short-label "Charlie"
-                                      :value "Yankee"
-                                      :value-type "string"}
-                                     {:short-label "Delta"
-                                      :value "five"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
-      (ra/set-article-answers (conj [{:short-label "Bravo"
-                                      :value false
-                                      :value-type "boolean"}
-                                     {:short-label "Charlie"
-                                      :value "Zulu"
-                                      :value-type "string"}
-                                     {:short-label "Delta"
-                                      :value "six"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition
+                                       [:definition :labels]
+                                       [{:short-label "Bravo"
+                                         :value false
+                                         :value-type "boolean"}
+                                        {:short-label "Charlie"
+                                         :value "X-ray"
+                                         :value-type "string"}
+                                        {:short-label "Delta"
+                                         :value ["four"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition
+                                       [:definition :labels]
+                                       [{:short-label "Bravo"
+                                         :value true
+                                         :value-type "boolean"}
+                                        {:short-label "Charlie"
+                                         :value "Yankee"
+                                         :value-type "string"}
+                                        {:short-label "Delta"
+                                         :value ["five"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition
+                                       [:definition :labels]
+                                       [{:short-label "Bravo"
+                                         :value false
+                                         :value-type "boolean"}
+                                        {:short-label "Charlie"
+                                         :value "Zulu"
+                                         :value-type "string"}
+                                        {:short-label "Delta"
+                                         :value ["six"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
       ;; switch users
       (switch-user (:email user2) @project-id)
-      (ra/set-article-answers (conj [{:short-label "Bravo"
-                                      :value false
-                                      :value-type "boolean"}
-                                     {:short-label "Charlie"
-                                      :value "X-ray"
-                                      :value-type "string"}
-                                     {:short-label "Delta"
-                                      :value "four"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
-      (ra/set-article-answers (conj [{:short-label "Bravo"
-                                      :value true
-                                      :value-type "boolean"}
-                                     {:short-label "Charlie"
-                                      :value "Yankee"
-                                      :value-type "string"}
-                                     {:short-label "Delta"
-                                      :value "five"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
-      (ra/set-article-answers (conj [{:short-label "Bravo"
-                                      :value false
-                                      :value-type "boolean"}
-                                     {:short-label "Charlie"
-                                      :value "Zulu"
-                                      :value-type "string"}
-                                     {:short-label "Delta"
-                                      :value "six"
-                                      :value-type "categorical"}]
-                                    (merge ra/include-label-definition {:value true})))
+      (nav/go-project-route "/review")
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition
+                                       [:definition :labels]
+                                       [{:short-label "Bravo"
+                                         :value false
+                                         :value-type "boolean"}
+                                        {:short-label "Charlie"
+                                         :value "X-ray"
+                                         :value-type "string"}
+                                        {:short-label "Delta"
+                                         :value ["four"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition
+                                       [:definition :labels]
+                                       [{:short-label "Bravo"
+                                         :value true
+                                         :value-type "boolean"}
+                                        {:short-label "Charlie"
+                                         :value "Yankee"
+                                         :value-type "string"}
+                                        {:short-label "Delta"
+                                         :value ["five"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
+      (ra/set-label-answer (merge ra/include-label-definition
+                                  {:value include-label-value}))
+      (set-group-label-row 1 (assoc-in group-label-definition
+                                       [:definition :labels]
+                                       [{:short-label "Bravo"
+                                         :value false
+                                         :value-type "boolean"}
+                                        {:short-label "Charlie"
+                                         :value "Zulu"
+                                         :value-type "string"}
+                                        {:short-label "Delta"
+                                         :value ["six"]
+                                         :value-type "categorical"}]))
+      (b/click ".button.save-labels" :delay 30 :displayed? true)
       ;; let's login to our project and download the json
       (switch-user (:email test-user) @project-id)
       (nav/go-project-route "/export")
