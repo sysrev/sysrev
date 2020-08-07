@@ -147,6 +147,12 @@
                     label-id)
                (get-in merged-vals [root-label-id :labels ith label-id])))))
 
+(reg-sub :review/sub-group-label-answer
+         (fn [[_ article-id root-label-id _ _]]
+           [(subscribe [:review/active-labels article-id "na" root-label-id])])
+         (fn [[answers] [_ _article-id _root-label-id sub-label-id ith]]
+           (get-in answers [:labels ith sub-label-id])))
+
 (reg-sub-raw :review/inconsistent-labels
              (fn [_ [_ article-id label-id]]
                (reaction

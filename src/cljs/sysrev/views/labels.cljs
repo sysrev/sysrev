@@ -24,9 +24,7 @@
                        :else                [answer]))]
     [:span {:class (when color (str color "-text"))}
      (if (empty? values)
-       [:i.grey.question.circle.icon
-        {:style {:margin-right "0"}
-         :aria-hidden true}]
+       "—"
        (str/join ", " values))]))
 
 (defn LabelAnswerTag [root-label-id label-id answer]
@@ -46,10 +44,7 @@
   (let [labels (->> (vals @(subscribe [:label/labels "na" group-label-id "na"]))
                     (sort-by :project-ordering <)
                     (filter :enabled))
-        display @(subscribe [:label/display "na" group-label-id])
-        display-label (if (= "boolean" @(subscribe [:label/value-type "na" group-label-id]))
-                        (str display "?")
-                        display)]
+        label-name @(subscribe [:label/display "na" group-label-id])]
     (when (seq answers)
       [:div.ui.tiny.labeled.label-answer-tag
        [Table {:striped true}
@@ -57,7 +52,7 @@
          [TableRow {:textAlign "center"}
           [TableHeaderCell {:colSpan (if indexed?
                                        (+ (count labels) 1)
-                                       (count labels))} display-label]]]
+                                       (count labels))} label-name]]]
         [TableHeader
          [TableRow
           (when indexed?

@@ -7,7 +7,8 @@
                 :output-dir "resources/public/out-dev"
                 :asset-path "/out"
                 :modules {:sysrev {:entries [sysrev.user]
-                                   :init-fn sysrev.core/on-jsload}}}
+                                   :init-fn sysrev.core/on-jsload}}
+                :devtools {:loader-mode :eval}}
           :prod {:target :browser
                  :output-dir "resources/public/out-production"
                  :asset-path "/out"
