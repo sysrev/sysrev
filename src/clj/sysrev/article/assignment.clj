@@ -43,9 +43,7 @@
       do-query
       (first)))
 
-(defn query-ideal-unlimited-article [project-id user-id]
-  "unlimited setting means each reviewer should review every article.
-  Just pick an article the given user hasn't been reviewed by the given user yet."
+(defn- query-ideal-unlimited-single [project-id user-id]
   (->
     (select :article-id)
     (from
@@ -64,6 +62,36 @@
     (limit 1)
     do-query
     (first)))
+
+(defn- query-ideal-unlimited-double [project-id user-id]
+  (->
+    (select :article-id)
+    (from
+      [(->
+         (select :ar.article-id)
+         (from [:article :ar])
+         (where [:and
+                 [:= :project-id project-id]
+                 [:= :ar.enabled true]
+                 [:exists (-> (select 1)(from [:article-label :al])(where [:= :al.article-id :ar.article-id]))]
+                 [:not [:exists (-> (select 1)(from [:article-label :al])
+                                    (where [:and [:= :al.article-id :ar.article-id][:= :user-id user-id]]))]]])
+         (limit 10)) :ul])
+    (order-by :%random)
+    (limit 1)
+    do-query
+    (first)))
+
+(defn query-ideal-unlimited-article [project-id user-id & {:keys [second-prob] :or {second-prob 0.5}}]
+  "unlimited setting means each reviewer should review every article.
+  Just pick an article the given user hasn't been reviewed by the given user yet."
+  (let [single-unlimited (query-ideal-unlimited-single project-id user-id)
+        double-unlimited (query-ideal-unlimited-double project-id user-id)]
+    (cond (and single-unlimited double-unlimited) (if (<= (util/crypto-rand) second-prob)
+                                                    double-unlimited single-unlimited)
+          single-unlimited single-unlimited
+          double-unlimited double-unlimited
+          :else nil)))
 
 (defn query-ideal-single-article [project-id user-id]
   (-> (select :article-id)
@@ -135,7 +163,7 @@
          :or   {second-review-prob 0.5
                 unlimited-reviews  false}} (project/project-settings project-id)
         [unlimited single-label unlabeled today-count]
-        (pvalues (when unlimited-reviews      (query-ideal-unlimited-article project-id user-id))
+        (pvalues (when unlimited-reviews      (query-ideal-unlimited-article project-id user-id :second-prob second-review-prob))
                  (when-not unlimited-reviews  (query-ideal-single-article project-id user-id))
                  (when-not unlimited-reviews  (query-ideal-unlabeled-article project-id))
                  (user-confirmed-today-count project-id user-id))
