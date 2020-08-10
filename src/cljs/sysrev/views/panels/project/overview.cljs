@@ -308,16 +308,12 @@
              {:db (assoc-in db [:data :project project-id :label-counts]
                             data)}))
 
+
 (defn LabelCountChart [_label-ids _processed-label-counts]
   (let [color-filter (r/atom #{})]
     (fn [label-ids processed-label-counts]
       (when (seq processed-label-counts)
         (let [font (charts/graph-font-settings)
-              processed-label-counts
-              (sort-by
-               #((into {} (map-indexed (fn [i e] [e i]) label-ids))
-                 (:label-id %))
-               processed-label-counts)
               filtered-color? #(contains? @color-filter %)
               color-filter-fn
               (fn [items]

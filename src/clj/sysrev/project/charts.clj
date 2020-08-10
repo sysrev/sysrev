@@ -16,7 +16,7 @@
                                  (merge-where :confirmed))])
              (sqlh/group :article-label.label-id :value) ) :o1]
         [:= :la.label-id :o1.label-id])
-      (sqlh/order-by [:count :desc])
+      (sqlh/order-by [:count :asc])
       do-query))
 
 (defn count-boolean [project-id]
@@ -26,18 +26,23 @@
       (where [:and [:= :la.value_type "boolean"][:= :la.project-id project-id]])
       (merge-where :confirmed)
       (sqlh/group :la.label-id :la.short-label :la.value_type :al.answer)
-      (sqlh/order-by [:count :desc])
+      (sqlh/order-by [:count :asc])
       do-query))
 
 (defn process-label-counts [project-id]
   (let [catcounts  (count-categorical project-id)
         boolcounts (count-boolean project-id)
         counts     (filter #(not= (:value %) nil) (concat catcounts boolcounts))
-        lbls    (distinct (map :label-id counts))
+        orderedCounts               (->>
+                                      (group-by :label-id counts)
+                                      (sort-by (fn [[_ v]] (reduce (fn [a b] (+ a (:count b))) 0 v)))
+                                      (mapcat (fn [[_ v]] v))
+                                      (reverse))
+        lbls    (distinct (map :label-id orderedCounts))
         palette (if (> (count lbls) 12)
                   (last sysrev.shared.charts/paul-tol-colors)
                   (first (filter #(>= (count %) (count lbls)) sysrev.shared.charts/paul-tol-colors)))]
     (map (fn [lblcount]
            (let [lbl-zip-index (.indexOf lbls (:label-id lblcount))]
              (merge lblcount {:color (nth palette (mod lbl-zip-index (count palette)))})))
-         counts)))
+         orderedCounts)))

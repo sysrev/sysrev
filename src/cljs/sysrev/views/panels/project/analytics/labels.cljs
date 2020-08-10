@@ -241,7 +241,6 @@
 
 (defn LabelCountChart [label-ids entries count-type]
   (let [font (charts/graph-font-settings)
-        entries (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %)) entries)
         max-length (if (util/mobile?) 16 22)
         labels (->> entries (mapv :value) (mapv str)
                     (mapv #(if (<= (count %) max-length) % (str (subs % 0 (- max-length 2)) "..."))))
