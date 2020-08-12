@@ -29,16 +29,15 @@
           :order-by [:count :asc]))
 
 (defn process-label-counts [project-id]
-  (let [value-counts   (->> (concat (count-categorical-vals project-id)
+  (let [ordered-counts (->> (concat (count-categorical-vals project-id)
                                     (count-boolean-vals project-id))
-                            (remove #(nil? (:value %))))
-        ordered-counts (->> (group-by :label-id value-counts)
-                            (sort-by (fn [[_ v]] (reduce (fn [a b] (+ a (:count b))) 0 v)))
-                            #_ (sort-by (fn [[_ v]] (apply + (map :count v))))
+                            (remove #(nil? (:value %)))
+                            (group-by :label-id)
+                            (sort-by (fn [[_ v]] (apply + (map :count v))))
                             (mapcat (fn [[_ v]] v))
                             (reverse))
         all-label-ids  (distinct (map :label-id ordered-counts))
         palette        (get-color-palette (count all-label-ids))]
-    (for [{:keys [label-id] :as x} value-counts]
+    (for [{:keys [label-id] :as x} ordered-counts]
       (let [label-index (.indexOf all-label-ids label-id)]
         (merge x {:color (palette-lookup palette label-index)})))))
