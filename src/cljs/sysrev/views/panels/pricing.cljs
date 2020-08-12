@@ -16,7 +16,7 @@
 (defn PricingItem [{:keys [icon icon-color content]
                     :or {icon "check", icon-color "green"}}]
   [ListItem
-   [Icon {:name icon :color icon-color}]
+   [Icon {:name icon :color icon-color :style {:line-height "1.142em"}}]
    [ListContent content]])
 
 (defn PublicProjects []

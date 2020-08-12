@@ -153,12 +153,11 @@
         site-terms [:a#terms-link {:href "/terms-of-use"} "Terms of Use"]]
     [:div#footer
      (if (util/mobile?)
-       [:div.ui.container
-        [:div.ui.middle.aligned.grid
-         [:div.left.aligned.six.wide.column contact-email]
-         [:div.right.aligned.ten.wide.column
-          [:div.wrapper sysrev-links " | " site-terms]]]]
-       [:div.ui.container.middle.aligned.stackable.grid
+       [:div.ui.container>div.ui.middle.aligned.grid
+        [:div.left.aligned.six.wide.column contact-email]
+        [:div.right.aligned.ten.wide.column
+         [:div.wrapper sysrev-links " | " site-terms]]]
+       [:div.ui.container>div.ui.middle.aligned.stackable.grid
         [:div.left.aligned.six.wide.column copyright-notice]
         [:div.right.aligned.ten.wide.column
          [:div.wrapper contact-email sysrev-links "|" site-terms]]])]))

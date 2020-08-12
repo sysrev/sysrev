@@ -51,7 +51,7 @@
         wrap-nav #(wrap-user-event % :prevent-default true)]
     [:div.label-status-help
      [:div.ui.segments
-      [:div.ui.attached.small.segment.status-header.green
+      [:div.ui.attached.segment.status-header.green
        "Include"]
       [:div.ui.attached.segment.status-buttons.with-header
        [:div.ui.small.basic.fluid.buttons
@@ -63,7 +63,7 @@
          {:on-click (wrap-nav #(nav-article-status [true :single]))}
          (str "Partial (" (scount [:single true]) ")")]]]]
      [:div.ui.segments
-      [:div.ui.attached.small.segment.status-header.orange
+      [:div.ui.attached.segment.status-header.orange
        "Exclude"]
       [:div.ui.attached.segment.status-buttons.with-header
        [:div.ui.small.basic.fluid.buttons
