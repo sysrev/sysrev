@@ -604,13 +604,15 @@
     false [:= :confirm-time nil]
     true))
 
+(defn where-valid-article-label [confirmed?]
+  [:and (label-confirmed-test confirmed?)
+   [:!= :al.answer nil]
+   [:!= :al.answer (db/to-jsonb nil)]
+   [:!= :al.answer (db/to-jsonb [])]
+   #_ [:!= :al.answer (db/to-jsonb {})]])
+
 (defn filter-valid-article-label [m confirmed?]
-  (-> m (merge-where [:and
-                      (label-confirmed-test confirmed?)
-                      [:!= :al.answer nil]
-                      [:!= :al.answer (db/to-jsonb nil)]
-                      [:!= :al.answer (db/to-jsonb [])]
-                      #_ [:!= :al.answer (db/to-jsonb {})]])))
+  (merge-where m (where-valid-article-label confirmed?)))
 
 (defn filter-label-user [m user-id]
   (-> m (merge-where [:= :al.user-id user-id])))

@@ -230,7 +230,7 @@
                                                              :confirmed :consensus :created :id :name :question :required :updated :type
                                                              [:reviewer [:id :name]]]]]]]]]}))
                             :data :project
-                            util/convert-uuids)
+                            util/sanitize-uuids)
           group-label-defs (->> (get-in graphql-resp [:groupLabelDefinitions])
                                 (medley/find-first #(= (:id %) label-id))
                                 :labels

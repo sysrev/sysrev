@@ -20,7 +20,7 @@
             (walk/keywordize-keys)
             (select-keys [:filters :text-search])
             (update-in [:filters] #(json/read-str % :key-fn keyword))
-            (util/convert-uuids))
+            (util/sanitize-uuids))
         ;; keywords are used as values, but converted to strings in url
         filters (walk/postwalk (fn [x] (if (string? x)
                                          (keyword x)

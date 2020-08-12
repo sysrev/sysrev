@@ -7,8 +7,7 @@
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [select from join where merge-where
-                                               order-by limit insert-into values]]
+            [honeysql.helpers :as sqlh :refer [select from where merge-where insert-into values]]
             [honeysql-postgres.helpers :as psqlh]
             [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-query with-project-cache]]
@@ -16,6 +15,9 @@
             [sysrev.project.core :as project]
             [sysrev.shared.spec.labels :as sl]
             [sysrev.util :as util :refer [in? map-values index-by or-default sanitize-uuids]]))
+
+;; for clj-kondo
+(declare user-article-confirmed?)
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
 (def valid-label-value-types  ["boolean" "categorical" "string" "group"])
@@ -238,14 +240,12 @@
       ;; existing sort order
       (ensure-correct-project-ordering-sequence project-id))))
 
-(defn sanitize-labels
-  [m]
-  (->> m
-       sanitize-uuids
-       ;; convert all integer keywords back into string keywords
-       (walk/postwalk (fn [x] (if (and (keyword? x) (integer? (read-string (str (symbol x)))))
-                                (str (symbol x))
-                                x)))))
+(defn sanitize-labels [m]
+  (->> (sanitize-uuids m)
+       ;; convert all integer keywords back to strings
+       (walk/postwalk #(cond-> %
+                         (and (keyword? %) (util/parse-integer (name %)))
+                         (name)))))
 
 ;; TODO: move into article entity
 (defn article-user-labels-map [article-id]
@@ -266,13 +266,10 @@
                                                      (tc/to-epoch updated-time)))})))))
            sanitize-labels)))
 
-(defn user-article-confirmed? [user-id article-id]
-  (assert (and (integer? user-id) (integer? article-id)))
-  (-> (q/select-article-by-id article-id [:%count.*])
-      (q/join-article-labels)
-      (q/filter-label-user user-id)
-      (merge-where [:!= :al.confirm-time nil])
-      do-query first :count pos?))
+(defn-spec user-article-confirmed? boolean?
+  [user-id int?, article-id int?]
+  (pos? (q/find-count :article-label {:article-id article-id :user-id user-id}
+                      :where [:!= :confirm-time nil])))
 
 (defn query-public-article-labels [project-id]
   (with-project-cache project-id [:public-labels :values]
@@ -292,15 +289,11 @@
                     (map-values (fn [xs] (map #(dissoc % :article-id) xs)))
                     (map-values (fn [xs] {:labels xs
                                           :updated-time (apply max 0 (map :confirm-epoch xs))}))))
-           (-> (select :ar.*)
-               (from [:article-resolve :ar])
-               (join [:article :a] [:= :a.article-id :ar.article-id])
-               (where [:and
-                       [:= :a.project-id project-id]
-                       [:= :a.enabled true]])
-               (->> do-query (group-by :article-id)
-                    (map-values (fn [xs] (first (->> xs (sort-by #(-> % :resolve-time tc/to-epoch) >)))))
-                    (map-values (fn [x] (some-> x (update :label-ids #(mapv util/to-uuid %))))))))]
+           (->> (q/find [:article-resolve :ar] {:a.project-id project-id, :a.enabled true}
+                        :ar.*, :join [[:article :a] :ar.article-id])
+                (group-by :article-id)
+                (map-values (fn [xs] (first (->> xs (sort-by #(-> % :resolve-time tc/to-epoch) >)))))
+                (map-values (fn [x] (some-> x (update :label-ids #(mapv util/to-uuid %)))))))]
       (apply merge (for [article-id (keys all-labels)]
                      {article-id
                       {:updated-time (get-in all-labels [article-id :updated-time])
@@ -332,14 +325,9 @@
   database directly."
   [project-id article-id & {:keys [direct?]}]
   (if direct?
-    (-> (select :*)
-        (from :article-resolve)
-        (where [:= :article-id article-id])
-        (order-by [:resolve-time :desc])
-        (limit 1)
-        (some-> do-query
-                first
-                (update :label-ids #(mapv util/to-uuid %))))
+    (some-> (first (q/find :article-resolve {:article-id article-id} :*
+                           :order-by [:resolve-time :desc], :limit 1))
+            (update :label-ids #(mapv util/to-uuid %)))
     (-> (query-public-article-labels project-id)
         (get-in [article-id :resolve]))))
 
@@ -394,48 +382,26 @@
 (defn article-conflict-label-ids
   "Returns list of consensus labels in project for which article has
   conflicting answers."
-  [project-id article-id]
-  (let [label-defs (->> (-> (select :label-id :value-type :consensus)
-                            (from :label)
-                            (where [:and
-                                    [:= :project_id project-id]
-                                    [:= :root-label-id-local nil]])
-                            do-query)
-                        ;; filter to either group labels (consensus is filtered by individual label)
-                        ;; or consensus labels
-                        (filter #(or (and (not= (:value-type %) "group") (:consensus %)) (= (:value-type %) "group"))))
-        label-ids (map :label-id label-defs)
-        label-answers (-> (select :label-id :answer :user-id
-                                  :added-time :updated-time :confirm_time)
-                          (from [:article-label :al])
-                          (where [:= :article_id article-id])
-                          ;; why are there nil answers for the inclusion label
-                          ;; set by the project admin?
-                          ;; e.g. https://sysrev.com/u/371/p/16612/article/5799788
-                          ;; this filter removes them
-                          (q/filter-valid-article-label true)
-                          do-query)
-        label-def-map (sysrev.util/index-by :label-id label-defs)
-        get-label-answers (fn [label-id]
-                            (->> label-answers
-                                 (filter #(= (:label-id %) label-id))
-                                 (map :answer)
-                                 (into [])))
-        label-answers (map #(hash-map
-                             :label-id %
-                             :answers (get-label-answers %))
-                           label-ids)
-        label-def-answers (map #(assoc %
-                                       :value-type
-                                       (get-in label-def-map [(:label-id %) :value-type])) label-answers)
-        concordant-result (->> label-def-answers
-                               (filter (comp not concordant?))
-                               (map :label-id))]
-    concordant-result))
+  [project-id article-id & {:keys [articles]}]
+  (let [alabels (-> (or articles (query-public-article-labels project-id))
+                    (get article-id))
+        label-defs (->> (project/project-labels project-id)
+                        ;; filter to either group label (consensus is
+                        ;; filtered by individual label) or consensus
+                        (util/filter-values #(or (= (:value-type %) "group")
+                                                 (:consensus %))))
+        label-answers (for [{:keys [label-id value-type]} (vals label-defs)]
+                        {:label-id label-id
+                         :value-type value-type
+                         :answers (->> (get-in alabels [:labels label-id])
+                                       (mapv :answer))})]
+    (->> label-answers
+         (filter (comp not concordant?))
+         (map :label-id))))
 
-;; this should check to see if there is still a conflict
-;; e.g. handle the case where labels are resolved but further
-;; changes are made to the article, creating new conflicts
+;;; this should check to see if there is still a conflict
+;;; e.g. handle the case where labels are resolved but further
+;;; changes are made to the article, creating new conflicts
 (defn article-resolved-status
   "If article consensus status is resolved, returns a map of the
   corresponding article_resolve entry; otherwise returns nil.
@@ -445,30 +411,27 @@
   project consensus labels."
   [project-id article-id]
   (when-let [resolve (article-current-resolve-entry project-id article-id)]
-    (let [group-label-ids (-> (select :label-id)
-                              (from :label)
-                              (where [:and
-                                      [:= :value-type "group"]
-                                      [:= :project-id project-id]])
-                              do-query
-                              (->> (map :label-id)))
+    (let [group-label-ids (->> (project/project-labels project-id)
+                               (util/filter-values #(= (:value-type %) "group"))
+                               keys set)
           conflict-ids (->> (article-conflict-label-ids project-id article-id)
-                            ;; filtering out group labels, for now
-                            ;; the method below gets hairy for multiple group labels
-                            ;; we're just going to assume if a group label has a
-                            ;; resolve entry, that is the article label final value
-                            (remove #(contains? (set group-label-ids) %)))]
-      (when (empty? (set/difference (set conflict-ids) (set (:label-ids resolve))))
+;;; filtering out group labels, for now the method below gets hairy
+;;; for multiple group labels we're just going to assume if a group
+;;; label has a resolve entry, that is the article label final value
+                            (remove #(contains? group-label-ids %))
+                            set)
+          resolve-ids (set (:label-ids resolve))]
+      (when (empty? (set/difference conflict-ids resolve-ids))
         (dissoc resolve :article-id)))))
 
 (defn article-consensus-status
   "Returns keyword representing consensus status of confirmed answers
   for article, or nil if article has no confirmed answers."
-  [project-id article-id]
-  (let [overall-id (project/project-overall-label-id project-id)
-        overall-labels (-> (query-public-article-labels project-id)
-                           (get-in [article-id :labels overall-id]))
-        conflict-ids (article-conflict-label-ids project-id article-id)
+  [project-id article-id & {:keys [articles overall-id]}]
+  (let [articles (or articles (query-public-article-labels project-id))
+        overall-id (or overall-id (project/project-overall-label-id project-id))
+        overall-labels (get-in articles [article-id :labels overall-id])
+        conflict-ids (article-conflict-label-ids project-id article-id :articles articles)
         resolve (article-resolved-status project-id article-id)]
     (cond (empty? overall-labels)       nil
           (= 1 (count overall-labels))  :single
@@ -491,21 +454,20 @@
   (let [articles (query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)]
     (when overall-id
-      (->> (vec articles)
-           (filter
-            (fn [[article-id article]]
-              (let [labels (get-in article [:labels overall-id])
-                    group-status (article-consensus-status project-id article-id)
-                    inclusion-status
-                    (case group-status
-                      :conflict nil
-                      :resolved (-> (article-resolved-labels project-id article-id)
-                                    (get overall-id))
-                      (->> labels (map :inclusion) first))]
-                (and (in? [:consistent :resolved] group-status)
-                     (true? inclusion-status)))))
-           (apply concat)
-           (apply hash-map)))))
+      (util/filter-values (fn [{:keys [article-id] :as article}]
+                            (let [labels (get-in article [:labels overall-id])
+                                  group-status (article-consensus-status
+                                                project-id article-id
+                                                :articles articles :overall-id overall-id)
+                                  inclusion-status
+                                  (case group-status
+                                    :conflict nil
+                                    :resolved (-> (article-resolved-labels project-id article-id)
+                                                  (get overall-id))
+                                    (->> labels (map :inclusion) first))]
+                              (and (in? [:consistent :resolved] group-status)
+                                   (true? inclusion-status))))
+                          articles))))
 
 (defn project-user-inclusions [project-id]
   (with-project-cache project-id [:label-values :confirmed :user-inclusions]
@@ -523,12 +485,14 @@
 
 (defn project-article-status-entries [project-id]
   (with-project-cache project-id [:public-labels :status-entries]
-    (let [overall-id (project/project-overall-label-id project-id)]
-      (->> (query-public-article-labels project-id)
+    (let [articles (query-public-article-labels project-id)
+          overall-id (project/project-overall-label-id project-id)]
+      (->> articles
            ((if (nil? db/*conn*) pmap map) ;; use pmap unless running inside db transaction
             (fn [[article-id entry]]
               (let [labels (get-in entry [:labels overall-id])
-                    group-status (article-consensus-status project-id article-id)
+                    group-status (article-consensus-status project-id article-id
+                                                           :articles articles :overall-id overall-id)
                     inclusion (case group-status
                                 :conflict nil
                                 :resolved (-> (article-resolved-labels project-id article-id)
@@ -543,18 +507,15 @@
           articles (query-public-article-labels project-id)]
       (merge {:reviewed (count articles)}
              (->> (distinct (vals entries))
-                  (map (fn [status] {status (->> (vals entries) (filter (partial = status)) count)}))
+                  (map (fn [status] {status (count (->> (vals entries) (filter #(= % status))))}))
                   (apply merge))))))
 
-;TODO this might get slow for large projects. Should create a table that tracks this. Could also use the article-status table
+;;; TODO: this might get slow for large projects. Should create a table
+;;; that tracks this. Could also use the article-status table
 (defn count-reviewed-articles [project-id]
-  (-> (select :%count.%distinct.al.article-id)
-      (from [:article-label :al])
-      (where [:exists (-> (select 1)(from [:article :ar])
-                          (where [:and
-                                  [:= :ar.article-id :al.article-id]
-                                  [:= :ar.project-id project-id]]))])
-  do-query first :count))
+  (q/find-count [:article :a] {:a.project-id project-id :a.enabled true}
+                :where (q/exists [:article-label :al]
+                                 {:al.article-id :a.article-id})))
 
 (defn project-article-statuses [project-id]
   (let [articles (query-public-article-labels project-id)
@@ -562,7 +523,8 @@
     (when overall-id
       (vec (for [[article-id article-labels] articles]
              (let [labels (get-in article-labels [:labels overall-id])
-                   group-status (article-consensus-status project-id article-id)
+                   group-status (article-consensus-status project-id article-id
+                                                          :articles articles :overall-id overall-id)
                    #_ inclusion-status #_ (case group-status
                                             :conflict nil
                                             :resolved (-> (article-resolved-labels project-id article-id)

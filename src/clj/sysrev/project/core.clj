@@ -113,42 +113,23 @@
     (q/delete :article {:project-id project-id})))
 
 (defn-spec project-labels (s/map-of ::sc/label-id ::sl/label)
-  [project-id int? &
-   [include-disabled] (s/cat :include-disabled (s/? (s/nilable boolean?)))]
+  [project-id int? & [include-disabled] (s/? any?)]
   (with-project-cache project-id [:labels :all include-disabled]
-    (let [labels (-> (select :*)
-                     (from :label)
-                     (where (cond-> [:and
-                                     [:= :root-label-id-local nil]
-                                     [:= :project-id project-id]
-                                     [:not= :value-type "group"]]
-                              (not include-disabled)
-                              (merge [:= :enabled true])))
-                     do-query)
-          group-labels (-> (select :*)
-                           (from :label)
-                           (where (cond-> [:and
-                                           [:= :value-type "group"]
-                                           [:= :project-id project-id]]
-                                    (not include-disabled)
-                                    (merge [:= :enabled true])))
-                           do-query)
-          assoc-group-labels (map
-                              (fn [label]
-                                (let [root-label-id-local (:label-id-local label)
-                                      group-sub-labels (-> (select :*)
-                                                           (from :label)
-                                                           (where (cond-> [:and
-                                                                           [:= :root-label-id-local root-label-id-local]
-                                                                           [:= :project-id project-id]]
-                                                                    (not include-disabled)
-                                                                    (merge [:= :enabled true])))
-                                                           do-query)]
-                                  (assoc label :labels (index-by :label-id group-sub-labels))))
-                              group-labels)]
-      ;;labels
-      (->> (apply merge assoc-group-labels labels)
-           (index-by :label-id)))))
+    (let [check-enabled #(if include-disabled % (merge % {:enabled true}))
+          labels (q/find :label (check-enabled {:project-id project-id
+                                                :root-label-id-local nil})
+                         :*, :index-by :label-id, :where [:!= :value-type "group"])
+          group-labels (->> (q/find :label (check-enabled {:project-id project-id
+                                                           :value-type "group"})
+                                    :*, :index-by :label-id)
+                            (map-values
+                             (fn [{:keys [label-id-local] :as g-label}]
+                               (assoc g-label :labels
+                                      (q/find :label (check-enabled
+                                                      {:project-id project-id
+                                                       :root-label-id-local label-id-local})
+                                              :*, :index-by :label-id)))))]
+      (merge labels group-labels))))
 
 (defn-spec project-consensus-label-ids (s/nilable (s/coll-of ::sc/label-id))
   [project-id int? &

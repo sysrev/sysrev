@@ -101,18 +101,17 @@
   (with-project-cache project-id [:project-info]
     (let [[[fields users labels keywords notes members predict
             url-ids files owner plan subscription-lapsed?]
-           [_ [progress]]
+           [_ [_status-counts progress]]
            [articles sources]
            parent-project-info]
-          (pvalues [
-                    (q/query-project-by-id project-id [:*])
+          (pvalues [(q/query-project-by-id project-id [:*])
                     (project/project-users-info project-id)
                     (project/project-labels project-id true)
                     (project/project-keywords project-id)
                     (project/project-notes project-id)
                     (labels/project-members-info project-id)
                     (predict-report/predict-summary
-                      (q/project-latest-predict-run-id project-id))
+                     (q/project-latest-predict-run-id project-id))
                     (try (project/project-url-ids project-id)
                          (catch Throwable _
                            (log/info "exception in project-url-ids")
@@ -122,7 +121,8 @@
                     (api/project-owner-plan project-id)
                     (api/subscription-lapsed? project-id)]
                    [(labels/query-public-article-labels project-id)
-                    (pvalues (labels/query-progress-over-time project-id 30))]
+                    (pvalues nil #_ (labels/project-article-status-counts project-id)
+                             (labels/query-progress-over-time project-id 30))]
                    [(project/project-article-count project-id)
                     (source/project-sources project-id)]
                    (parent-project-info project-id))]
@@ -131,6 +131,7 @@
                  :project-uuid (:project-uuid fields)
                  :members members
                  :stats {:articles articles
+                         #_ :status-counts #_ status-counts
                          :predict predict
                          :progress progress}
                  :labels labels
@@ -325,14 +326,14 @@
 ;;;
 
 (dr (GET "/api/concordance" request
-      (with-authorize request {:allow-public true}
-        (let [{:keys [n]} (-> request :params)]
-          (api/project-concordance (active-project request))))))
+         (with-authorize request {:allow-public true}
+           (let [{:keys [#_ n]} (-> request :params)]
+             (api/project-concordance (active-project request))))))
 
 (dr (GET "/api/countgroup" request
-      (with-authorize request {:allow-public true}
-        (let [{:keys [n]} (-> request :params)]
-          (api/project-label-count-groups (active-project request))))))
+         (with-authorize request {:allow-public true}
+           (let [{:keys [#_ n]} (-> request :params)]
+             (api/project-label-count-groups (active-project request))))))
 
 ;;;
 ;;; Article import

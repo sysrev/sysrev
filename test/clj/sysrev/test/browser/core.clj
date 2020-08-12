@@ -197,7 +197,7 @@
 
 (def web-default-interval
   (or (some-> (:sr-interval env) util/parse-integer)
-      15))
+      20))
 
 (defn wait-until
   "Wrapper for taxi/wait-until with default values for timeout and

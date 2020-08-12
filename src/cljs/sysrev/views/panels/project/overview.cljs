@@ -92,14 +92,16 @@
                               (scount [:resolved false])) ")")]]]]]))
 
 (def-data :project/review-status
-          :loaded? (fn [db project-id] (-> (get-in db [:data :project project-id :stats]) (contains? :status-counts)))
-          :uri (fn [_] "/api/review-status")
-          :content (fn [project-id] {:project-id project-id})
-          :prereqs (fn [project-id] [[:project project-id]])
-          :process (fn [{:keys [db]} [project-id] result]
-                     {:db (assoc-in db [:data :project project-id :stats :status-counts] result)})
-          :on-error (fn [{:keys [db error]} [project-id] _]
-                      {:db (assoc-in db [:data :project project-id :stats :status-counts] {:error error})}))
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id :stats])
+                 (contains? :status-counts)))
+  :uri (fn [_] "/api/review-status")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:project project-id]])
+  :process (fn [{:keys [db]} [project-id] result]
+             {:db (assoc-in db [:data :project project-id :stats :status-counts] result)})
+  :on-error (fn [{:keys [db error]} [project-id] _]
+              {:db (assoc-in db [:data :project project-id :stats :status-counts] {:error error})}))
 
 (defn- ReviewStatusBox []
   (let [project-id @(subscribe [:active-project-id])
@@ -120,7 +122,8 @@
        [:div.ui.segment
         [:h4.ui.dividing.header
          "Review Status"]
-        (with-loader [[:project/review-status project-id]]
+        (with-loader [#_ [:project project-id]
+                      [:project/review-status project-id]]
           {:dimmer :fixed}
           [:div
            [:h4.ui.center.aligned.header

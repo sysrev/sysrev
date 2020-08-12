@@ -703,7 +703,7 @@
        :labels (ldefine/validated-labels labels-map)})))
 
 (defn project-important-terms-text [project-id & [max-terms]]
-  (importance/get-importance project-id (or max-terms 20)))
+  (importance/project-important-terms project-id (or max-terms 20)))
 
 (defn project-concordance [project-id] (concordance-api/get-concordance project-id))
 

@@ -171,15 +171,24 @@
         (re-matches
          #"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" s))))
 
-(s/def ::uuid uuid?)
+(defn uuid-from-string [x]
+  #?(:clj (UUID/fromString x)
+     :cljs (uuid x)))
 
-(s/def ::uuid-or-str (s/or :uuid ::uuid :str uuid-str?))
+(defn to-uuid
+  "Converts a value of types [uuid, string, keyword, symbol] to a uuid if possible,
+  or returns nil if value cannot be converted to uuid."
+  [x]
+  (if (uuid? x) x
+      (when (or (string? x) (symbol? x) (keyword? x))
+        (let [n (name x)]
+          (when (uuid-str? n)
+            (uuid-from-string n))))))
 
-(defn to-uuid [uuid-or-str]
-  (let [in (conform-map ::uuid-or-str uuid-or-str)]
-    (cond (contains? in :uuid)  (:uuid in)
-          (contains? in :str)   #?(:clj (UUID/fromString (:str in))
-                                   :cljs (uuid (:str in))))))
+(defn sanitize-uuids
+  "Traverse `coll` and convert all uuid-like strings and keywords to uuid (java.util.UUID)."
+  [coll]
+  (walk/postwalk #(or (to-uuid %) %) coll))
 
 (defn num-to-english [n]
   (-> ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"
@@ -462,11 +471,6 @@
                         3         (map f [18 12 6 0]))]
                 (concat r (lazy-seq (encode (drop 3 bytes)))))))]
     (apply str (encode bytes))))
-
-(defn convert-uuids
-  "Recursively transforms all strings that look like uuids into actual uuids"
-  [coll]
-  (walk/postwalk #(cond-> % (uuid-str? %) (to-uuid)) coll))
 
 (defn url-join [& sections]
   (str/join "/" sections))
@@ -1186,16 +1190,3 @@
                                         %))))))))
 #?(:cljs (defn base64->uint8 [base64]
            (-> base64 js/atob (js/Uint8Array.from #(.charCodeAt % 0)))))
-
-#?(:clj (defn sanitize-uuids
-          "Given a coll, convert all uuid-like strings and keywords to java.util.UUIDs"
-          [coll]
-          ;; convert all string representations of uuids into uuids
-          (walk/postwalk (fn [x] (try
-                                   ;; the try short-circuits to just x unless
-                                   ;; x can be transformed to a uuid
-                                   (let [uuid (-> x symbol str UUID/fromString)]
-                                     (when (uuid? uuid)
-                                       uuid))
-                                   (catch Exception _
-                                     x))) coll)))
