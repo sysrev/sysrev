@@ -4,7 +4,9 @@
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [com.walmartlabs.lacinia.executor :as executor]
+            [honeysql.helpers :refer [select from join where]]
             [sysrev.db.queries :as q]
+            [sysrev.db.core :refer [do-query]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :refer [project-labels project-user-ids]]
             [sysrev.graphql.core :refer [with-graphql-auth]]
@@ -29,10 +31,17 @@
 
 (defn- merge-articles [m project-id]
   (assoc m :articles
-         (q/find [:article :a] {:project-id project-id}
-                 [:a.enabled [:a.article-id :id] [:a.article-uuid :uuid]
-                  :ad.datasource-name [:ad.external-id :datasource-id]]
-                 :join [[:article-data :ad] :a.article-data-id])))
+         (-> (select :a.enabled
+                     [:a.article_id :id]
+                     [:a.article_uuid :uuid]
+                     [:ad.external_id :datasource_id]
+                     [:ad.datasource-name :datasource-name]
+                     [:ad.title :title])
+             (from [:article :a])
+             (join [:article_data :ad] [:= :ad.article_data_id :a.article_data_id])
+             (where [:= :project_id project-id])
+             do-query)))
+
 
 (defn process-group-labels
   "Given a project-id, convert :answer keys to the format required by "

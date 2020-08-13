@@ -434,7 +434,7 @@
                    :overflow-y "visible"
                    :min-height "8rem"
                    :margin-bottom "1rem"
-                   :resize "vertical"
+                   :resize "both"
                    :overflow "auto"
                    :height "auto"}}
      [SpreadSheetAnswers {:article-id article-id

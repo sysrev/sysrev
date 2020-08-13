@@ -157,7 +157,7 @@
                          [:b "Note: Make sure to include abstracts when exporting files!"]])}]
       [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw"
            :target "_blank"} [Icon {:name "video camera"}]]]
-     [:p "Having difficulties importing your RIS file? We recommend using the free, cross-platform tool " [:a {:href "https://zotero.org" :target "_blank"} "zotero"] " to convert your RIS file to a sysrev compatible version. "
+     [:p "Having difficulties importing your RIS file? We recommend using the free, cross-platform tool " [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] " to convert your RIS file to a sysrev compatible version. "
       "We've made a "
       [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw" :target "_blank"} "quick video tutorial"]
       " describing the process. Please make sure your RIS file is under 7mb. You can upload multiple files."]
@@ -168,7 +168,7 @@
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
       {}
-      :post-error-text "Try editing your file to fit the upload instructions above or contact us at info@insilica.co with a copy of your RIS file."]]))
+      :post-error-text "Try processing your file with Zotero using the 'Having difficulties importing your RIS file?' instructions above."]]))
 
 (defn DeleteArticleSource
   [source-id]

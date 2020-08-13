@@ -105,7 +105,9 @@
                      :groupLabels {:type (list :GroupLabelAnswer)
                                    :description "A list of group label answers associated with this article"}
                      :content {:type String
-                               :description "A string representation of the content"}}}
+                               :description "A string representation of the content"}
+                     :title {:type String
+                             :description "Title associated with the article"}}}
   :Project {:fields {:id {:type (non-null Int)
                           :description "The sysrev id of the project"}
                      :name {:type (non-null String)

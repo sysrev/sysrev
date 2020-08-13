@@ -94,7 +94,7 @@
                                                        :file (str file)
                                                        :response body}))]
                                 "RIS file import failed")
-              {:error {:message (format "%s\nReason: %s" error reason)}})
+              {:error {:message error}})
           (let [source-meta (source/make-source-meta :ris {:filename filename :hash hash})]
             (import-source-impl
              project-id source-meta
