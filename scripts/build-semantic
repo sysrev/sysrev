@@ -11,22 +11,44 @@ set -eu
 
 echo "building semantic (\"$theme\")"
 
-cd semantic/src
-rm -f site
-ln -s "site.$theme" site
-cd ..
-rm -rf ./target
-# npx gulp clean > /dev/null
-npx gulp build-css build-assets > /dev/null
-cd ..
 out_dir="resources/public/semantic/$theme"
-mkdir -p "$out_dir"
-rm -rf "$out_dir"
+cache="$HOME/.sysrev-cache/semantic/$theme"
+mkdir -p "$cache"
 
-# test that the final output files were created
-ls semantic/target/semantic.css > /dev/null
-ls semantic/target/semantic.min.css > /dev/null
+hash=$(./scripts/semantic-hash $theme)
 
-cp -r semantic/target "$out_dir"
+if [ -e "$cache/$hash" ] ; then
+  ls "$cache/$hash/semantic.css" > /dev/null
+  ls "$cache/$hash/semantic.min.css" > /dev/null
+  echo "found cache at $cache/$hash"
+  cd semantic/src
+  rm -f site
+  ln -s "site.$theme" site
+  cd .. ; cd ..
+  mkdir -p "$out_dir"
+  rm -rf "$out_dir"
+  cp -r "$cache/$hash" "$out_dir"
+  echo "copied to $out_dir"
+else
+  echo "no cache found, building..."
+  cd semantic/src
+  rm -f site
+  ln -s "site.$theme" site
+  cd ..
+  rm -rf ./target
+  npx gulp build-css build-assets > /dev/null
+  cd ..
 
-echo "wrote $out_dir"
+  mkdir -p "$out_dir"
+  rm -rf "$out_dir"
+
+  # test that the final output files were created
+  ls semantic/target/semantic.css > /dev/null
+  ls semantic/target/semantic.min.css > /dev/null
+
+  cp -r semantic/target "$cache/$hash"
+  cp -r semantic/target "$out_dir"
+
+  echo "copied to $cache/$hash"
+  echo "wrote $out_dir"
+fi

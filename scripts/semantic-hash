@@ -1,0 +1,14 @@
+#!/bin/bash
+set -eu
+site_theme_name="$1"
+default=$(find semantic/src/themes/default -type f)
+definitions=$(find semantic/src/definitions -type f)
+site_theme=$(find semantic/src/site."$site_theme_name" -type f)
+root=$(ls semantic/src/{semantic.less,theme.config,theme.less})
+function all () {
+  echo "$default"
+  echo "$definitions"
+  echo "$site_theme"
+  echo "$root"
+}
+cat $(all) | md5sum | sed -Ee 's/([0-9A-Fa-f]+)(.*)/\1/'

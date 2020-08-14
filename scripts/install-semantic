@@ -1,0 +1,41 @@
+#!/bin/bash
+
+arg="$1"
+if [ "$arg" == "reinstall" ] ; then
+  reinstall=1
+else
+  reinstall=0
+fi
+
+set -eu
+
+pwd="$(pwd)"
+
+if [ "$reinstall" == "1" ] ; then
+  echo "deleting installed semantic files"
+  rm -rf node_modules
+  rm -rf semantic
+  git checkout -- semantic
+fi
+
+echo "running: npm i fomantic-ui --ignore-scripts"
+npm i fomantic-ui --ignore-scripts > /dev/null
+echo "running: npm i"
+npm i > /dev/null
+
+f="node_modules/fomantic-ui/tasks/install.js"
+echo "disable auto-build: modifying file $f"
+mv -f "$f" "$f.backup"
+sed -Ee s/'(.* )(gulp\.series.*build.*callback\).*)'/'\1\/\/\2'/ "$f.backup" > "$f"
+cat "$f" | grep "//gulp.series('build')(callback);" > /dev/null
+
+echo "running: gulp install"
+cd "$pwd"/node_modules/fomantic-ui
+gulp install > /dev/null || true
+echo "running: gulp build-javascript"
+cd "$pwd"/semantic
+gulp build-javascript > /dev/null
+cd "$pwd"
+
+echo "running: ./scripts/build-all-css"
+./scripts/build-all-css
