@@ -5,6 +5,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav :refer [nav-scroll-top]]
+            [sysrev.stripe :as stripe]
             [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer [Divider Dropdown Form FormRadio FormGroup Grid Input Row Column Button Icon Radio]]))
@@ -79,12 +80,12 @@
      {:reagent-render
       (fn [_]
         (let [owner-has-pro? (if (= @project-owner "current-user")
-                               (boolean (= "Unlimited_User" (:name @current-plan)))
-                               (boolean (= (->> @orgs
-                                                (medley.core/find-first #(= (:group-id %)
-                                                                            @project-owner))
-                                                :plan-name)
-                                           "Unlimited_Org")))]
+                               (boolean (contains? stripe/pro-plans (:nickname @current-plan)))
+                               (boolean (contains? stripe/pro-plans (->> @orgs
+                                                                         (medley.core/find-first #(= (:group-id %)
+                                                                                                     @project-owner))
+                                                                         :plan
+                                                                         :nickname))))]
           [Form {:id "create-project-form"
                  :on-submit  #(if-not (nil? @project-name)
                                 (if (= @project-owner "current-user")
@@ -148,7 +149,8 @@
                         :checked (not @public-access?)
                         :disabled (not owner-has-pro?)
                         :on-click (fn [_]
-                                    (reset! public-access? false))}]
+                                    (when owner-has-pro?
+                                      (reset! public-access? false)))}]
                 [:div {:style (cond-> {:float "left"
                                        :margin-left "0.5rem"}
                                 (not owner-has-pro?)

@@ -49,7 +49,7 @@
 (defn get-customer
   "Get customer associated with stripe customer id"
   [stripe-id]
-  (if-not (nil? stripe-id)
+  (when-not (nil? stripe-id)
     (stripe-get (str "/customers/" stripe-id))))
 
 (defn get-payment-method
@@ -59,8 +59,8 @@
 
 (defn get-customer-invoice-default-payment-method
   [stripe-id]
-  (if-let [id (get-in (get-customer stripe-id)
-                      [:invoice_settings :default_payment_method])]
+  (when-let [id (get-in (get-customer stripe-id)
+                        [:invoice_settings :default_payment_method])]
     (get-payment-method id)))
 
 (defn update-customer-payment-method!
@@ -131,7 +131,6 @@
   "Get all site plans"
   []
   (stripe-get "/plans"))
-
 
 (defn get-plan-id [nickname]
   (:id (first (->> (:data (get-plans))
@@ -211,11 +210,11 @@
 (defn update-subscription-item!
   "Update subscription item with id with optional quantity and optional
   plan (plan-id)"
-  [{:keys [id plan quantity] :or {quantity 1}}]
+  [{:keys [id plan-id quantity] :or {quantity 1}}]
   (stripe-post (str "/subscription_items/" id)
                (cond-> {}
                  quantity (assoc "quantity" quantity)
-                 plan (assoc "plan" plan))))
+                 plan-id (assoc "plan" plan-id))))
 
 (defn ^:unused cancel-subscription! [sub-id]
   (let [{:keys [project-id user-id]} (db-plans/lookup-support-subscription sub-id)

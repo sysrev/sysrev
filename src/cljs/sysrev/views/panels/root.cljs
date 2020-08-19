@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.root
-  (:require [re-frame.core :refer [subscribe reg-sub]]
+  (:require [cljs-time.core :as time]
+            [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
@@ -31,10 +32,16 @@
    [:div.description.wrapper.open-sans
     [:p [:span.site-name "sysrev"]
      (first text/site-intro-text)]
-    [:p "Easily review "[:ul [:li "PDFs"] [:li "RIS citations"] [:li "Endnote exports"] [:li "Pubmed exports"][:li "Custom documents"]]]
+    [:p "Easily review "] [:div {:style {:font-size "1.25rem"}} [:ul [:li "PDFs"]
+                                                                 [:li {:style {:padding-top "0.25rem"}} "RIS citations"]
+                                                                 [:li {:style {:padding-top "0.25rem"}} "EndNote" [:sup "®"] " exports"]
+                                                                 [:li {:style {:padding-top "0.25rem"}} "PubMed" [:sup "®"] " exports"]
+                                                                 [:li {:style {:padding-top "0.25rem"}} "Custom documents"]]]
     [:p "Sign up for free to get started."]
-    (if (< (cljs-time.core/now) (cljs-time.core/date-time 2020 9 1))
-    [:p "Sign up for a "[:b "Team Pro"] " account before Aug 31, 2020 to apply for " [:a {:href "/promotion"} "$500 in reviewer payments."]])
+    (when (< (time/now) (time/date-time 2020 9 1))
+      [:h3 {:style {:margin-top "0px" :margin-bottom "10px"}}
+       "Sign up for Team Pro before August 31" [:sup "th"]
+       " 2020 and " [:a {:href "/promotion"} " apply here"] " to be eligible for a  $500 project award."])
     [:p "Learn more about different account types at " [:a {:href "/pricing"} "pricing"] " or the "
      [:a {:href "https://blog.sysrev.com/account-types/"} "account-types"] " blog."]]])
 

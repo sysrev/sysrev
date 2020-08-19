@@ -1190,3 +1190,8 @@
                                         %))))))))
 #?(:cljs (defn base64->uint8 [base64]
            (-> base64 js/atob (js/Uint8Array.from #(.charCodeAt % 0)))))
+
+#?(:cljs (defn cents->dollars
+           "Converts an integer value of cents to dollars"
+           [cents]
+           (str (-> cents (/ 100) (.toFixed 2)))))

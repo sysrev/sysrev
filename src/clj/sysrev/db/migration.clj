@@ -1,13 +1,12 @@
 (ns sysrev.db.migration
   (:require [clojure.string :as str]
-            [clojure.set :as set]
             [clojure.tools.logging :as log]
             [clojure.data.xml :as dxml]
             [honeysql.helpers :as sqlh :refer [select from where order-by
                                                insert-into values sset]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.api :as api]
-            [sysrev.db.core :as db :refer [do-query do-execute]]
+            [sysrev.db.core :as db :refer [do-query do-execute to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.group.core :as group]
@@ -26,16 +25,16 @@
   on the stripe, it is updated here."
   []
   (let [plans (->> (:data (stripe/get-plans))
-                   (mapv #(select-keys % [:nickname :created :id]))
-                   (mapv #(set/rename-keys % {:nickname :name}))
-                   (mapv #(update % :created (partial util/to-clj-time))))]
-    (when-let [invalid-plans (seq (->> plans (filter #(nil? (:name %)))))]
+                   (mapv #(select-keys % [:nickname :created :id :interval :amount :tiers]))
+                   (mapv #(update % :created (partial util/to-clj-time)))
+                   (mapv #(update % :tiers to-jsonb)))]
+    (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
       (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
-    (let [valid-plans (->> plans (remove #(nil? (:name %))))]
+    (let [valid-plans (->> plans (remove #(nil? (:nickname %))))]
       (-> (insert-into :stripe-plan)
           (values valid-plans)
-          (upsert (-> (on-conflict :name)
-                      (do-update-set :id :created)))
+          (upsert (-> (on-conflict :nickname)
+                      (do-update-set :id :created :interval :amount :tiers)))
           do-execute))))
 
 ;; TODO: has this been run? should it be?

@@ -14,8 +14,11 @@
      (apply goog.object/getValueByKeys sui-class ks)
      sui-class)))
 
-;; general
+;; segment
 (def Segment (component S/Segment))
+(def SegmentGroup (component S/Segment "Group"))
+;; general
+
 (def Header (component S/Header))
 (def Icon (component S/Icon))
 (def Loader (component S/Loader))

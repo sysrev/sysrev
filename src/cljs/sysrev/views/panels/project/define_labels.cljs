@@ -11,13 +11,14 @@
             [sysrev.loading :as loading]
             [sysrev.state.label :refer [sort-client-project-labels]]
             [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.stripe :as stripe]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.semantic :refer [Divider Button Message Segment]]
             [sysrev.dnd :as dnd]
-            [sysrev.util :as util :refer [in? parse-integer map-values map-kv css index-by]]
+            [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; Convention -
@@ -940,7 +941,7 @@
           project-id    @(subscribe [:active-project-id])
           project-plan  @(subscribe [:project/plan project-id])
           group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
-                                    (contains? #{"Unlimited_User" "Unlimited_Org"} project-plan))]
+                                    (contains? stripe/pro-plans project-plan))]
       (ensure-state)
       [:div.define-labels
        [ReadOnlyMessage

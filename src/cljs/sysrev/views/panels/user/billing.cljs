@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.billing
   (:require [re-frame.core :refer [subscribe dispatch]]
+            [sysrev.stripe :refer [pro-plans]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
              [Segment Grid Row Column Button Icon Loader Header ListUI ListItem]]
@@ -25,10 +26,10 @@
    (if (nil? default-source)
      [Row
       [Column {:width 2} "Payment"]
-      [Column {:width 14} [Loader {:active true
-                                   :inline "centered"}]]]
+      [Column {:width 8} [Loader {:active true
+                                  :inline "centered"}]]]
      [Row
-      [Column {:width 2} "Payment"]
+      (when-not (util/mobile?) [Column {:width 2} "Payment"])
       [Column {:width 8} [DefaultSource {:default-source default-source}]]
       [Column {:width 6 :align "right"}
        [Button {:on-click on-add-payment-method}
@@ -38,47 +39,35 @@
 
 ;; TODO: shows Loader forever on actual null plan value (show error message?)
 (defn Plan [{:keys [plans-url current-plan]}]
-  (let [basic? (= (:name current-plan) "Basic")
-        unlimited? (in? #{"Unlimited_User" "Unlimited_Org"} (:name current-plan))
+  (let [basic? (= (:nickname current-plan) "Basic")
+        {:keys [nickname interval]} current-plan
+        unlimited? (in? pro-plans nickname)
         mobile? (util/mobile?)]
-    (if mobile?
-      (if (nil? (:name current-plan))
-        [Grid
-         [Column {:width 8} "Plan"]
-         [Column {:width 8} [Loader {:active true :inline "centered"}]]]
-        [Grid {:vertical-align "middle"}
-         [Column {:width 10}
-          (cond basic?      [:ul {:style {:padding-left "1.5em" :margin 0}}
-                             [:li "Free Plan"]
-                             [:li "Unlimited public projects"]]
-                unlimited?  [:ul {:style {:padding-left "1.5em" :margin 0}}
-                             [:li "Pro Plan"]
-                             [:li "Unlimited public and private projects"]])]
-         [Column {:width 6 :align "right"}
-          [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
-                   :color (when basic? "green")
-                   :href plans-url}
-           (cond basic?      "Upgrade"
-                 unlimited?  "Unsubscribe")]]])
-      (if (nil? (:name current-plan))
-        [Grid
-         [Column {:width 2} "Plan"]
-         [Column {:width 12} [Loader {:active true :inline "centered"}]]]
-        [Grid
-         [Column {:width 2} "Plan"]
-         [Column {:width 8}
-          (cond basic?      [:ul {:style {:padding-left "1.5em" :margin 0}}
-                             [:li "Free Plan"]
-                             [:li "Unlimited public projects"]]
-                unlimited?  [:ul {:style {:padding-left "1.5em" :margin 0}}
-                             [:li "Pro Plan"]
-                             [:li "Unlimited public and private projects"]])]
-         [Column {:width 6 :align "right"}
-          [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
-                   :color (when basic? "green")
-                   :href plans-url}
-           (cond basic?      "Upgrade Your Plan"
-                 unlimited?  "Unsubscribe")]]]))))
+    (if (nil? nickname)
+      [Grid
+       [Column {:width 2} "Plan"]
+       [Column {:width 8} [Loader {:active true :inline "centered"}]]]
+      [Grid (when mobile? {:vertical-align "middle"})
+       [Column {:width 2} "Plan"]
+       [Column {:width 8}
+        (cond basic?      [:ul {:style {:padding-left "1.5em" :margin 0}}
+                           [:li "Free Plan"]
+                           [:li "Unlimited public projects"]]
+              unlimited?  [:ul {:style {:padding-left "1.5em" :margin 0}}
+                           [:li (str
+                                 (if (re-matches #".*Org.*" nickname)
+                                   "Team Pro "
+                                   "Pro ")
+                                 (if (= interval "month")
+                                   "(paid monthly)"
+                                   "(paid annually)"))]
+                           [:li "Unlimited public and private projects"]])]
+       [Column {:width 6 :align "right"}
+        [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
+                 :color (when basic? "green")
+                 :href plans-url}
+         (cond basic?      (if mobile? "Upgrade" "Upgrade Your Plan")
+               unlimited?  "Unsubscribe")]]])))
 
 (defn UserBilling []
   (when-let [self-id @(subscribe [:self/user-id])]

@@ -62,7 +62,7 @@
   (some-> (get-user-customer email) (customer-plan) :nickname))
 
 (defn user-db-plan [email]
-  (some-> email (user-by-email) :user-id (plans/user-current-plan) :name))
+  (some-> email (user-by-email) :user-id (plans/user-current-plan) :nickname))
 
 (defn wait-until-stripe-id
   "Wait until stripe has customer entry for email."

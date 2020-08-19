@@ -1,17 +1,17 @@
 (ns sysrev.views.panels.user.plans
   (:require [goog.uri.utils :as uri-utils]
+            [medley.core :as medley]
             [reagent.core :as r]
-            [reagent.ratom :refer [track!]]
             [re-frame.core :refer [dispatch subscribe reg-sub]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
             [sysrev.stripe :as stripe]
             [sysrev.views.semantic :as s :refer
-             [Segment Grid Column Row ListUI ListItem Button Loader]]
+             [Segment SegmentGroup Grid  Column Row ListUI ListItem Button Loader Radio]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
+            [sysrev.views.panels.pricing :refer [FreeBenefits ProBenefits]]
             [sysrev.nav :as nav :refer [nav-scroll-top]]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
@@ -24,6 +24,15 @@
                                    :set-fn panel-set
                                    :get-sub ::get
                                    :set-event ::set})
+
+(def-data :user/available-plans
+  :loaded? (fn [db _user-id] (-> (get-in db [:data :plans :available-plans])))
+  :uri (fn [user-id] (str "/api/user/" user-id "/stripe/available-plans"))
+  :process (fn [{:keys [db]} _ {:keys [plans]}]
+             {:db (assoc-in db [:data :plans :available-plans]
+                            plans)}))
+
+(reg-sub :user/available-plans #(get-in % [:data :plans :available-plans]))
 
 (defn- load-user-current-plan [db plan]
   (assoc-in db [:data :plans :current-plan] plan))
@@ -39,14 +48,14 @@
 
 (def-action :user/subscribe-plan
   :uri (fn [user-id _] (str "/api/user/" user-id "/stripe/subscribe-plan"))
-  :content (fn [_ plan-name] {:plan-name plan-name})
+  :content (fn [_ new-plan] {:plan new-plan})
   :process (fn [{:keys [db]} [user-id _] {:keys [stripe-body plan]}]
              (when (:created stripe-body)
-               (let [nav-url ;;(panel-get db :on-subscribe-nav-to-url)
-                     (-> (or (:on_subscribe_uri (nav/get-url-params))
-                             (str "/user/" user-id "/billing")))]
+               (let [nav-url (-> (or (:on_subscribe_uri (nav/get-url-params))
+                                     (str "/user/" user-id "/billing")))]
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
+                          (panel-set :redirecting? true)
                           (load-user-current-plan plan))
                   :dispatch [:nav-reload nav-url]})))
   :on-error (fn [{:keys [db error]} _ _]
@@ -57,69 +66,83 @@
                          (panel-set :error-message msg)
                          (stripe/panel-set :need-card? true))})))
 
-(defn cents->dollars
-  "Converts an integer value of cents to dollars"
-  [cents]
-  (str (-> cents (/ 100) (.toFixed 2))))
-
-(defn price-summary
-  [{:keys [tiers member-count]}]
-  (let [base (->> tiers (map :flat_amount) (filter int?) (apply +))
-        per-user (->> tiers (map :unit_amount) (filter int?) (apply +))
-        up-to (->> tiers (map :up_to) (filter int?) first)
-        monthly-bill (+ base (* (max 0 (- member-count 5)) per-user))]
-    {:base base
-     :per-user per-user
-     :up-to up-to
-     :monthly-bill monthly-bill}))
-
+(defn ToggleInterval
+  []
+  (let [new-plan (r/cursor state [:new-plan])
+        available-plans (subscribe [:user/available-plans])]
+    (r/create-class
+     {:render (fn [_]
+                [SegmentGroup {:horizontal true
+                               :compact true
+                               :style {:width "46%"}}
+                 [Segment (cond-> {}
+                            (= (:interval @new-plan) "month")
+                            (merge
+                             {:tertiary true}))
+                  [Radio {:label "Pay Monthly"
+                          :value "monthly"
+                          :checked (= (:interval @new-plan) "month")
+                          :on-change
+                          (fn [_]
+                            (reset! new-plan
+                                    (medley/find-first #(= (:interval %) "month")
+                                                       @available-plans)))}]]
+                 [Segment (cond-> {}
+                            (= (:interval @new-plan) "year")
+                            (merge
+                             {:tertiary true}))
+                  [Radio {:label "Pay Yearly"
+                          :checked (= (:interval @new-plan) "year")
+                          :on-change (fn [_]
+                                       (reset! new-plan
+                                               (medley/find-first #(= (:interval %) "year")
+                                                                  @available-plans)))}]]])})))
 (defn Unlimited
-  [{:keys [unlimited-plan-price
-           unlimited-plan-name]}]
+  [{:keys [amount
+           interval]}]
   [Segment
-   [Grid {:stackable true}
-    [Row
-     [Column {:width 6}
-      [:b unlimited-plan-name]
-      [ListUI
-       [ListItem "Unlimited public projects"]
-       [ListItem "Unlimited private projects"]]]
-     [Column {:width 10 :align "right"}
-      (if (map? unlimited-plan-price)
-        (let [{:keys [base per-user]} (price-summary unlimited-plan-price)]
-          [:div
-           [Row [:h3 "$" (cents->dollars base) " / month"]]
-           [Row [:h3 "up to 5 org members"]]
-           [:br]
-           [Row [:h3 "$ " (cents->dollars per-user) " / month"]]
-           [Row [:h3 "per additional member"]]])
-        [Row [:h3 (str "$" (cents->dollars unlimited-plan-price) " / month")] ])]]]])
+   (if-not amount
+     [Loader {:active true
+              :inline "centered"}]
+     [Grid {:stackable true}
+      [Row
+       [Column {:width 10}
+        [:b "Pro Plan"]
+        [ProBenefits]]
+       [Column {:width 6 :align "right"}
+        [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
 
-(defn BasicPlan []
+(defn BasicPlan [{:keys [amount interval]}]
   [Segment
-   [Grid {:stackable true}
-    [Row
-     [Column {:width 8}
-      [:b "Basic"]
-      [ListUI
-       [ListItem "Unlimited public projects"]]]
-     [Column {:width 8 :align "right"}
-      [:h2 "$0 / month"]]]]])
+   (if-not amount
+     [Loader {:active true
+              :inline "centered"}]
+     [Grid {:stackable true}
+      [Row
+       [Column {:width 8}
+        [:b "Basic"]
+        [ListUI
+         [FreeBenefits]]]
+       [Column {:width 8 :align "right"}
+        [Row
+         [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
 
 (defn TogglePlanButton [{:keys [on-click class loading disabled] :as attrs} text]
   [Button (merge {:color "green"} attrs) text])
 
-(defn DowngradePlan [{:keys [state
-                             billing-settings-uri
-                             on-downgrade
-                             unlimited-plan-price
-                             unlimited-plan-name]}]
-  (let [error-message (r/cursor state [:error-message])
+(defn DowngradePlan []
+  (let [self-id @(subscribe [:self/user-id])
+        error-message (r/cursor state [:error-message])
+        available-plans (subscribe [:user/available-plans])
         changing-plan? (r/cursor state [:changing-plan?])
-        current-path (uri-utils/getPath @active-route)]
+        current-path (uri-utils/getPath @active-route)
+        current-plan (subscribe [:user/current-plan self-id])
+        new-plan (r/cursor state [:new-plan])]
     (r/create-class
      {:reagent-render
       (fn [_]
+        (when (empty? @new-plan)
+          (reset! new-plan (medley/find-first #(= (:nickname %) "Basic") @available-plans)))
         [:div
          [:h1 "Unsubscribe from your plan"]
          [Grid
@@ -127,12 +150,11 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe from"]
-                        [Unlimited {:unlimited-plan-price unlimited-plan-price
-                                    :unlimited-plan-name unlimited-plan-name}]]]]
+                        [Unlimited @current-plan]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
-                        [BasicPlan]
-                        [:a {:href billing-settings-uri}
+                        [BasicPlan @new-plan]
+                        [:a {:href (str "/user/" self-id "/billing")}
                          (if (= current-path "/user/plans")
                            "<< Back to user settings"
                            "<< Back to org settings")]]]]]
@@ -145,7 +167,7 @@
                          [:div {:style {:margin-top "1em" :width "100%"}}
                           [TogglePlanButton {:disabled @changing-plan?
                                              :on-click #(do (reset! changing-plan? true)
-                                                            (on-downgrade))
+                                                            (dispatch [:action [:user/subscribe-plan self-id @new-plan]]))
                                              :class "unsubscribe-plan"
                                              :loading @changing-plan?}
                            "Unsubscribe"]]
@@ -157,118 +179,106 @@
                            (reset! changing-plan? false)
                            (reset! error-message nil))})))
 
-(defn UpgradePlan [{:keys [state
-                           billing-settings-uri
-                           on-upgrade
-                           default-source
-                           on-add-payment-method
-                           unlimited-plan-price
-                           unlimited-plan-name]}]
+(defn UpgradePlan []
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])
         mobile? (util/mobile?)
-        current-path (uri-utils/getPath @active-route)]
-    [:div
-     (when-not mobile? [:h1 "Upgrade your plan"])
-     [Grid {:stackable true :columns 2 :class "upgrade-plan"}
-      [Column
-       [Grid [Row [Column
-                   [:h3 "UPGRADING TO"]
-                   [Unlimited {:unlimited-plan-price unlimited-plan-price
-                               :unlimited-plan-name unlimited-plan-name}]
-                   (when-not mobile?
-                     [:a {:href billing-settings-uri}
-                      (if (= current-path "/user/plans")
-                        "<< Back to user settings"
-                        "<< Back to org settings")])]]]]
-      [Column
-       (let [no-default? (empty? default-source)]
-         [Grid
-          [Row
-           [Column
-            [:h3 "Upgrade Summary"]
-            [ListUI {:divided true}
-             [:h4 "New Monthly Bill"]
-             [ListItem [:p (str "Unlimited plan ("
-                                (if (map? unlimited-plan-price)
-                                  (str "$" (-> unlimited-plan-price
-                                               price-summary
-                                               :monthly-bill
-                                               cents->dollars)
-                                       " / month")
-                                  (str "$" (cents->dollars unlimited-plan-price) " / month"))
-                                ")")]]
-             [:h4 "Billing Information"]
-             [ListItem [DefaultSource {:default-source default-source}]]
-             (when (empty? @error-message)
-               [:a.payment-method
-                {:class (if no-default? "add-method" "change-method")
-                 :style {:cursor "pointer"}
-                 :on-click (util/wrap-prevent-default
-                            #(do (reset! error-message nil)
-                                 (on-add-payment-method)))}
-                (if no-default?
-                  "Add a payment method"
-                  "Change payment method")])
-             [:div {:style {:margin-top "1em" :width "100%"}}
-              [TogglePlanButton {:disabled (or no-default? @changing-plan?)
-                                 :on-click #(do (reset! changing-plan? true)
-                                                (on-upgrade))
-                                 :class "upgrade-plan"
-                                 :loading @changing-plan?}
-               "Upgrade Plan"]
-              ;; https://stripe.com/docs/payments/cards/reusing-cards#mandates
-              [:p {:style {:margin-top "1em"}}
-               "By clicking 'Upgrade Plan' you authorize Insilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]]
-             (when @error-message
-               [s/Message {:negative true}
-                [s/MessageHeader "Change Plan Error"]
-                [:p @error-message]])]]]])]]]))
+        current-path (uri-utils/getPath @active-route)
+        new-plan (r/cursor state [:new-plan])
+        available-plans (subscribe [:user/available-plans])
+        self-id @(subscribe [:self/user-id])
+        default-source (subscribe [:user/default-source])
+        on-add-payment-method (fn [] (nav-scroll-top
+                                      "/user/payment"
+                                      :params
+                                      (assoc (nav/get-url-params)
+                                             :redirect_uri
+                                             (if-let [current-redirect-uri (:redirect_uri (nav/get-url-params))]
+                                               current-redirect-uri
+                                               "/user/plans"))))]
+    (if (empty? @new-plan)
+      (do
+        (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_User") @available-plans))
+        [Loader {:active true
+                 :inline "centered"}])
+      [:div
+       (when-not mobile? [:h1 "Upgrade your plan"])
+       [Grid {:stackable true :columns 2 :class "upgrade-plan"}
+        [Column
+         [Grid [Row [Column
+                     [:h3 "UPGRADING TO"]
+                     [Unlimited @new-plan]
+                     (when-not mobile?
+                       [:a {:href (str "/user/" self-id "/billing")}
+                        (if (= current-path "/user/plans")
+                          "<< Back to user settings"
+                          "<< Back to org settings")])]]]]
+        [Column
+         (let [no-default? (empty? @default-source)]
+           [Grid
+            [Row
+             [Column
+              [:h3 "Upgrade Summary"]
+              [ToggleInterval]
+              [ListUI {:divided true}
+               [:h4 "New Monthly Bill"]
+               [ListItem [:p (str "Pro Plan ("
+                                  (str "$" (util/cents->dollars
+                                            (:amount @new-plan)) " / " (:interval @new-plan))
+                                  ")")]]
+               [:h4 "Billing Information"]
+               [ListItem [DefaultSource {:default-source @default-source}]]
+               (when (empty? @error-message)
+                 [:a.payment-method
+                  {:class (if no-default? "add-method" "change-method")
+                   :style {:cursor "pointer"}
+                   :on-click (util/wrap-prevent-default
+                              #(do (reset! error-message nil)
+                                   (on-add-payment-method)))}
+                  (if no-default?
+                    "Add a payment method"
+                    "Change payment method")])
+               [:div {:style {:margin-top "1em" :width "100%"}}
+                [TogglePlanButton {:disabled (or no-default? @changing-plan?)
+                                   :on-click #(do (reset! changing-plan? true)
+                                                  (dispatch [:action [:user/subscribe-plan self-id @new-plan]]))
+                                   :class "upgrade-plan"
+                                   :loading @changing-plan?}
+                 "Upgrade Plan"]
+                ;; https://stripe.com/docs/payments/cards/reusing-cards#mandates
+                [:p {:style {:margin-top "1em"}}
+                 "By clicking 'Upgrade Plan' you authorize Insilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]]
+               (when @error-message
+                 [s/Message {:negative true}
+                  [s/MessageHeader "Change Plan Error"]
+                  [:p @error-message]])]]]])]]])))
+
 
 (defn on-mount-user-plans []
   (let [self-id @(subscribe [:self/user-id])]
     (dispatch [::set :changing-plan? nil])
     (dispatch [::set :error-message nil])
     (dispatch [:set-active-panel [:plans]])
+    (dispatch [::set :redirecting? false])
     (when self-id
       (dispatch [:data/load [:user/current-plan self-id]])
-      (dispatch [:data/load [:user/default-source self-id]]))))
+      (dispatch [:data/load [:user/default-source self-id]])
+      (dispatch [:data/load [:user/available-plans self-id]]))))
 
 (defn- UserPlansContent []
-  (when-let [self-id @(subscribe [:self/user-id])]
+  (when @(subscribe [:self/user-id])
     (let [current-plan @(subscribe [:user/current-plan])
-          default-source @(subscribe [:user/default-source])
-          plan-args {:state state
-                     :billing-settings-uri (str "/user/" self-id "/billing")
-                     :unlimited-plan-price 1000
-                     :unlimited-plan-name "Pro Plan"}
-          loading? (track! loading/any-loading?)]
-      (condp = (:name current-plan)
-        "Basic"
-        [UpgradePlan
-         (merge plan-args
-                {:default-source default-source
-                 :on-upgrade #(dispatch [:action [:user/subscribe-plan self-id "Unlimited_User"]])
-                 :on-add-payment-method
-                 (fn [] (nav-scroll-top
-                         "/user/payment"
-                         :params
-                         (assoc (nav/get-url-params)
-                                :redirect_uri
-                                (if-let [current-redirect-uri (:redirect_uri (nav/get-url-params))]
-                                  current-redirect-uri
-                                  "/user/plans"))))})]
-        "Unlimited_User"
-        [DowngradePlan
-         (merge plan-args
-                {:on-downgrade #(dispatch [:action [:user/subscribe-plan self-id "Basic"]])})]
-        (not @loading?)
-        [s/Message {:negative true}
-         [s/MessageHeader "User Plans Error"]
-         [:div.content
-          [:p (str "Plan (" (:name current-plan) ") is not recognized for self-id: " self-id)]
-          [:p (str "Active route: " @active-route)]]]
-        ;; default
+          redirecting? (r/cursor state [:redirecting?])]
+      (cond
+        @redirecting?
+        [:div [:h3 "Redirecting"]
+         [Loader {:active true
+                  :inline "centered"}]]
+        (= (:nickname current-plan) "Basic")
+        [UpgradePlan]
+        (contains? #{"Unlimited_User" "Unlimited_User_Annual"} (:nickname current-plan))
+        [DowngradePlan]
+        :else
         [Loader {:active true
                  :inline "centered"}]))))
 

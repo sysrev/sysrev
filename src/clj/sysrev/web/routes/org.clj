@@ -81,6 +81,9 @@
                      (POST "/subscribe-plan" request
                            (with-authorize request
                              {:authorize-fn (org-role? org-id ["owner" "admin"])}
-                             (let [{:keys [plan-name]} (:body request)]
-                               (api/subscribe-org-to-plan org-id plan-name))))))))
+                             (let [{:keys [plan]} (:body request)]
+                               (api/subscribe-org-to-plan org-id plan))))
+                     (GET "/available-plans" request
+                          (with-authorize request {:authorize-fn (org-role? org-id ["owner" "admin" "member"])}
+                            (api/org-available-plans)))))))
 

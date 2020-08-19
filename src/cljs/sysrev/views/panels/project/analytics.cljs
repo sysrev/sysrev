@@ -1,14 +1,8 @@
 (ns sysrev.views.panels.project.analytics
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.views.panels.project.description :refer [ProjectDescription]]
-            [sysrev.state.nav :refer [project-uri]]
+  (:require [re-frame.core :refer [subscribe]]
+            [sysrev.stripe :as stripe]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
-            [sysrev.shared.charts :refer [processed-label-color-map]]
-            [sysrev.views.components.core :refer
-             [primary-tabbed-menu secondary-tabbed-menu]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -66,6 +60,5 @@
          superuser? child ;superusers like the insilica team can always see analytics
          (= project-id 21696)                             [:div [demo-message] child]
          (not (admin?))                                   [not-admin-description]
-         (and (= project-plan "Unlimited_User") (admin?)) child ;project admins of paid plan projects can see analytics
-         (and (= project-plan "Unlimited_Org")  (admin?)) child ;project admins of paid plan projects can see analytics
+         (and (contains? stripe/pro-plans project-plan) (admin?)) child ;project admins of paid plan projects can see analytics
          :else                                            [paywall])])))

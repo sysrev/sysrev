@@ -221,7 +221,7 @@
       (user/create-user-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
-    (b/is-soon (= stripe/default-plan (:name (user-current-plan user-id))) 5000 250)
+    (b/is-soon (= stripe/default-plan (:nickname (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
     (nav/log-in (:email test-user))
 ;;; user pay wall
@@ -307,7 +307,7 @@
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
     ;; current plan
-    (b/is-soon (= stripe/default-plan (:name (user-current-plan user-id))) 5000 250)
+    (b/is-soon (= stripe/default-plan (:nickname (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
     ;; start tests
     (nav/log-in (:email test-user))
@@ -406,7 +406,7 @@
                        first
                        :group-id
                        group-current-plan
-                       :name)))
+                       :nickname)))
     ;; refresh to make sure state isn't an issue
     (taxi/refresh)
     (b/wait-until-displayed plans/upgrade-plan-h2)
@@ -423,7 +423,7 @@
                                first
                                :group-id
                                group-current-plan
-                               :name))))
+                               :nickname))))
   :cleanup (b/cleanup-test-user! :email email :groups true))
 
 ;; test that pricing works from any point in the workflow
@@ -470,7 +470,7 @@
                        first
                        :group-id
                        group-current-plan
-                       :name)))
+                       :nickname)))
     ;; refresh to make sure state isn't an issue
     (taxi/refresh)
     (b/wait-until-displayed plans/upgrade-plan-h2)
@@ -488,5 +488,5 @@
                                first
                                :group-id
                                group-current-plan
-                               :name))))
+                               :nickname))))
   :cleanup (b/cleanup-test-user! :email email :groups true))

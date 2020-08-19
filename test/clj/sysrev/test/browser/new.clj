@@ -89,7 +89,7 @@
                                  first
                                  :group-id
                                  group-current-plan
-                                 :name)))
+                                 :nickname)))
       ;; now try to create private project
       (b/click "a#org-projects")
       (b/click "button#new-project")

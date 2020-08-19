@@ -103,8 +103,11 @@
                     (api/user-current-plan user-id)))
              (POST "/subscribe-plan" request
                    (with-authorize request {:authorize-fn (user-authd? user-id)}
-                     (let [{:keys [plan-name]} (:body request)]
-                       (api/subscribe-user-to-plan user-id plan-name)))))
+                     (let [{:keys [plan]} (:body request)]
+                       (api/subscribe-user-to-plan user-id plan))))
+             (GET "/available-plans" request
+                  (with-authorize request {:authorize-fn (user-authd? user-id)}
+                    (api/user-available-plans))))
     (GET "/invitations" request
          (with-authorize request {:authorize-fn (user-authd? user-id)}
            (api/read-user-invitations user-id)))

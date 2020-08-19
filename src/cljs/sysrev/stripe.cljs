@@ -15,6 +15,11 @@
 ;; for clj-kondo
 (declare panel state)
 
+(def pro-plans #{"Unlimited_User"
+                 "Unlimited_User_Annual"
+                 "Unlimited_Org"
+                 "Unlimited_Org_Annual"})
+
 (setup-panel-state panel [:stripe] {:state-var state
                                     :get-fn panel-get
                                     :set-fn panel-set})

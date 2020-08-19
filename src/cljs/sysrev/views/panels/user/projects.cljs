@@ -5,6 +5,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :refer [ConfirmationDialog]]
+            [sysrev.views.panels.project.new :refer [NewProjectButton]]
             [sysrev.views.project :refer [ProjectName]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Divider Button]]
@@ -141,6 +142,8 @@
   (with-loader [[:user/projects user-id]] {}
     (let [projects @(subscribe [:user/projects user-id])]
       [:div
+       [:div {:style {:margin-bottom "1em"}}
+        [NewProjectButton]]
        [UserActivitySummary projects]
        [UserProjectsList {:user-id user-id}]])))
 

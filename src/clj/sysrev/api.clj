@@ -83,8 +83,8 @@
   [project-id]
   (with-transaction
     (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
-      (cond user-id   (:name (plans/user-current-plan user-id))
-            group-id  (:name (plans/group-current-plan group-id))
+      (cond user-id   (:nickname (plans/user-current-plan user-id))
+            group-id  (:nickname (plans/group-current-plan group-id))
             :else     "Basic"))))
 
 (defn- project-grandfathered? [project-id]
@@ -387,31 +387,31 @@
 ;; 4. subscribe the user
 ;; (subscribe-user-to-plan <user-id> "Unlimited_User") or
 ;; (subscribe-user-to-plan <user-id> "Unlimited_Org")
-(defn subscribe-user-to-plan [user-id plan-name]
+(defn subscribe-user-to-plan [user-id plan]
   (with-transaction
     (let [{:keys [sub-id]} (plans/user-current-plan user-id)
+          plan-id (:id plan)
           sub-item-id (stripe/get-subscription-item sub-id)
-          plan (stripe/get-plan-id plan-name)
-          sub-resp (stripe/update-subscription-item! {:id sub-item-id :plan plan})]
+          sub-resp (stripe/update-subscription-item! {:id sub-item-id :plan-id plan-id })]
       (if (:error sub-resp)
         (update sub-resp :error #(merge % {:status not-found}))
-        (do (plans/add-user-to-plan! user-id plan sub-id)
+        (do (plans/add-user-to-plan! user-id plan-id sub-id)
             (doseq [{:keys [project-id]} (user/user-owned-projects user-id)]
               (db/clear-project-cache project-id))
             {:stripe-body sub-resp :plan (plans/user-current-plan user-id)})))))
 
-(defn subscribe-org-to-plan [group-id plan-name]
+(defn subscribe-org-to-plan [group-id plan]
   (with-transaction
     (let [{:keys [sub-id]} (plans/group-current-plan group-id)
+          plan-id (:id plan)
           sub-item-id (stripe/get-subscription-item sub-id)
-          plan (stripe/get-plan-id plan-name)
           sub-resp (stripe/update-subscription-item!
-                    {:id sub-item-id :plan plan
+                    {:id sub-item-id :plan plan-id
                      :quantity (count (group/read-users-in-group
                                        (group/group-id->name group-id)))})]
       (if (:error sub-resp)
         (update sub-resp :error #(merge % {:status not-found}))
-        (do (plans/add-group-to-plan! group-id plan sub-id)
+        (do (plans/add-group-to-plan! group-id plan-id sub-id)
             (doseq [{:keys [project-id]} (group/group-projects group-id :private-projects? true)]
               (db/clear-project-cache project-id))
             {:stripe-body sub-resp :plan (plans/group-current-plan group-id)})))))
@@ -495,6 +495,30 @@
   (let [{:keys [id]} (plans/user-current-project-support user project-id)]
     (stripe/cancel-subscription! id)
     {:success true}))
+
+(defn user-available-plans
+  []
+  {:success true
+   :plans
+   (->> (stripe/get-plans)
+        :data
+        (map #(select-keys % [:amount :nickname :id :interval]))
+        (filter #(let [nickname (:nickname %)]
+                   (or (re-matches #"Unlimited_User.*" nickname)
+                       (= "Basic" nickname))))
+        (into []))})
+
+(defn org-available-plans
+  []
+  {:success true
+   :plans
+   (->> (stripe/get-plans)
+        :data
+        (map #(select-keys % [:tiers :nickname :id :interval :amount]))
+        (filter #(let [nickname (:nickname %)]
+                   (or (re-matches #"Unlimited_Org.*" nickname)
+                       (= "Basic" nickname))))
+        (into []))})
 
 (defn ^:unused finalize-stripe-user!
   "Save a stripe user in our database for payouts"
@@ -1185,8 +1209,7 @@
                 (mapv #(assoc % :member-count (-> (group/group-id->name (:group-id %))
                                                   (group/read-users-in-group)
                                                   count)))
-                (mapv #(assoc % :plan-name (-> (plans/group-current-plan (:group-id %))
-                                               :name))))}))
+                (mapv #(assoc % :plan (-> (plans/group-current-plan (:group-id %))))))}))
 
 (defn create-org! [user-id org-name]
   (with-transaction

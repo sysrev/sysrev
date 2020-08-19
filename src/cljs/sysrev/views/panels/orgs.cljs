@@ -102,7 +102,7 @@
           [CreateOrgForm]]
          (when (seq (user-owned-orgs @orgs))
            [:div [:h4 {:style {:text-align "center"}}
-                  "...or select an existing Sysrev organzation"]
+                  "...or Upgrade an existing Sysrev organzation"]
             [Segment {:secondary true
                       :class "ui segment auto-margin auth-segment"}
              [:div {:id "user-pricing-organizations"}
