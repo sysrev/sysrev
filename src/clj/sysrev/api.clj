@@ -504,8 +504,9 @@
         :data
         (map #(select-keys % [:amount :nickname :id :interval]))
         (filter #(let [nickname (:nickname %)]
-                   (or (re-matches #"Unlimited_User.*" nickname)
-                       (= "Basic" nickname))))
+                   (when-not (nil? nickname)
+                     (or (re-matches #"Unlimited_User.*" nickname)
+                         (= "Basic" nickname)))))
         (into []))})
 
 (defn org-available-plans
@@ -516,8 +517,9 @@
         :data
         (map #(select-keys % [:tiers :nickname :id :interval :amount]))
         (filter #(let [nickname (:nickname %)]
-                   (or (re-matches #"Unlimited_Org.*" nickname)
-                       (= "Basic" nickname))))
+                   (when-not (nil? nickname)
+                     (or (re-matches #"Unlimited_Org.*" nickname)
+                         (= "Basic" nickname)))))
         (into []))})
 
 (defn ^:unused finalize-stripe-user!

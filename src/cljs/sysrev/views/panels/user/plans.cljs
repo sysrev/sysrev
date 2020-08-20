@@ -220,6 +220,7 @@
              [Column
               [:h3 "Upgrade Summary"]
               [ToggleInterval]
+              [:p {:style {:color "red"}} "Pay yearly and get the first month free!"]
               [ListUI {:divided true}
                [:h4 "New Monthly Bill"]
                [ListItem [:p (str "Pro Plan ("
