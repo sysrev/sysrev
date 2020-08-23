@@ -249,7 +249,7 @@
     (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
           source-type @(subscribe [:source/display-type source-id])
           description (or (some-> @(subscribe [:source/display-info source-id])
-                                  (util/string-ellipsis 70 "[.....]"))
+                                  (util/ellipsis-middle 70 "[.....]"))
                           (str source-id))]
       (space-join [(wrap-parens article-count :parens "[]")
                    (wrap-parens source-type :parens "[]")

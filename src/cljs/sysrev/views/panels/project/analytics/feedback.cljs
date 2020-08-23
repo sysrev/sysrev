@@ -1,29 +1,13 @@
 (ns sysrev.views.panels.project.analytics.feedback
-  (:require
-    [reagent.core :as r]
-    [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
-    [sysrev.views.panels.project.description :refer [ProjectDescription]]
-    [sysrev.nav :as nav]
-    [sysrev.state.nav :refer [project-uri]]
-    [sysrev.views.base :refer [panel-content]]
-    [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
-    [sysrev.shared.charts :refer [processed-label-color-map]]
-    [sysrev.views.charts :as charts]
-    [sysrev.views.components.core :refer
-     [primary-tabbed-menu secondary-tabbed-menu]]
-    [sysrev.views.semantic :refer [Segment Grid Row Column Checkbox Dropdown Select Button Modal]]
-    [sysrev.macros :refer-macros [with-loader setup-panel-state]]
-    [sysrev.charts.chartjs :as chartjs]
-    [sysrev.data.core :refer [def-data]]
-    [sysrev.views.components.core :refer [selection-dropdown]]
-    [sysrev.util :as util]
-    [goog.string :as gstring]))
+  (:require [sysrev.views.base :refer [panel-content]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
+;; for clj-kondo
 (declare panel)
 
 (setup-panel-state panel [:project :project :analytics :feedback])
 
-(defmethod panel-content [:project :project :analytics :feedback] []
+(defmethod panel-content panel []
   (fn [_child]
     [:div.ui.segment
      [:h2 "Analytics Feedback"]
@@ -38,6 +22,6 @@
       [:iframe {:src (str "https://docs.google.com/forms/d/e"
                           "/1FAIpQLSebmFD_5X-Dzj8SmEwT_t6T5UkNlM5Cj2n5aLseIl3bNpdO6A"
                           "/viewform?embedded=true")
-                :width "640" :height "1100" :frame-border "0"
+                :width "800" :height "1200" :frame-border "0"
                 :margin-height "0" :margin-width "0"}
        "Loading…"]]]))

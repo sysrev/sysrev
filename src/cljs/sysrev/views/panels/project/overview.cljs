@@ -2,9 +2,8 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [sysrev.charts.chartjs :as chartjs]
-            [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.loading :as loading]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
@@ -13,7 +12,6 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
-            [sysrev.shared.charts :refer [processed-label-color-map]]
             [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
@@ -31,7 +29,7 @@
              :blue "rgba(30,100,230,0.5)"
              :purple "rgba(146,29,252,0.5)"})
 
-(defn unpad-chart [unpad-em content]
+(defn- unpad-chart [unpad-em content]
   (let [margin-top (if (sequential? unpad-em) (first unpad-em) unpad-em)
         margin-bottom (if (sequential? unpad-em) (second unpad-em) unpad-em)
         to-css #(str "-" % "em")]
@@ -39,12 +37,12 @@
                    :margin-bottom (to-css margin-bottom)}}
      content]))
 
-(defn nav-article-status [[inclusion group-status]]
+(defn- nav-article-status [[inclusion group-status]]
   (when @(subscribe [:active-project-id])
     (articles/load-consensus-settings :status group-status
                                       :inclusion inclusion)))
 
-(defn- label-status-help-column [colors]
+(defn- LabelStatusHelpColumn [colors]
   (let [scounts @(subscribe [:project/status-counts])
         scount #(get scounts % 0)
         color-border #(str "1px solid " (get colors %))
@@ -156,9 +154,9 @@
                        [false :single]
                        [nil :conflict]] %))]]
              [:div.column.pie-chart-help
-              [label-status-help-column colors]]]]])]])))
+              [LabelStatusHelpColumn colors]]]]])]])))
 
-(defn MemberActivityChart []
+(defn- MemberActivityChart []
   (let [project-id @(subscribe [:active-project-id])
         visible-user-ids (->> @(subscribe [:project/member-user-ids])
                               (sort-by #(deref (subscribe [:member/article-count %])) >))
@@ -193,7 +191,7 @@
                                       :value invite-url}]
          [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])]]))
 
-(defn RecentProgressChart []
+(defn- RecentProgressChart []
   (let [project-id @(subscribe [:active-project-id])
         font (charts/graph-font-settings)
         progress (reverse @(subscribe [:project/progress-counts]))
@@ -212,29 +210,26 @@
             options
             (charts/wrap-default-options
              {:legend {:display false}
-              :scales
-              {:xAxes [{:ticks
-                        (->> {:autoSkip true
-                              :callback (fn [value idx values]
-                                          (if (or (= 0 (mod idx 5))
-                                                  (= idx (dec (count values))))
-                                            value ""))}
-                             (merge font))
-                        :gridLines {:color (charts/graph-border-color)}
-                        :scaleLabel font}]
-               :yAxes [{:ticks
-                        (->> {:suggestedMin (max 0
-                                                 (int (- (first xvals)
-                                                         (* xdiff 0.15))))
-                              :suggestedMax (min n-total
-                                                 (int (+ (last xvals)
-                                                         (* xdiff 0.15))))}
-                             (merge font))
-                        :gridLines {:color (charts/graph-border-color)}
-                        :scaleLabel (->> {:display true
-                                          :labelString "User Articles Labeled"
-                                          :fontSize 14}
-                                         (merge font))}]}})]
+              :scales {:x {:ticks (->> {:autoSkip true
+                                        :callback (fn [value idx values]
+                                                    (if (or (= 0 (mod idx 5))
+                                                            (= idx (dec (count values))))
+                                                      value ""))}
+                                       (merge font))
+                           :gridLines {:color (charts/graph-border-color)}
+                           :scaleLabel font}
+                       :y {:ticks font
+                           :suggestedMin (max 0
+                                              (int (- (first xvals)
+                                                      (* xdiff 0.15))))
+                           :suggestedMax (min n-total
+                                              (int (+ (last xvals)
+                                                      (* xdiff 0.15))))
+                           :gridLines {:color (charts/graph-border-color)}
+                           :scaleLabel (->> {:display true
+                                             :labelString "User Articles Labeled"
+                                             :fontSize 14}
+                                            (merge font))}}})]
         [:div.ui.segment
          [:h4.ui.dividing.header "Recent Progress"]
          (with-loader [[:project project-id]] {:dimmer :fixed}
@@ -242,7 +237,7 @@
                           :margin-bottom "-0.6em"}}
             [chartjs/line {:data data :options options :height 275}]])]))))
 
-(defn LabelPredictionsInfo []
+(defn- LabelPredictionsInfo []
   (when (not-empty @(subscribe [:project/predict]))
     (let [updated @(subscribe [:predict/update-time])
           labeled @(subscribe [:predict/labeled-count])
@@ -256,22 +251,22 @@
         " article predictions loaded"]])))
 
 (def-data :project/important-terms-text
-          :loaded? (fn [db project-id]
-                     (-> (get-in db [:data :project project-id])
-                         (contains? :important-terms-text)))
-          :uri (fn [_] "/api/important-terms-text")
-          :content (fn [project-id] {:project-id project-id})
-          :prereqs (fn [project-id] [[:project project-id]])
-          :process (fn [{:keys [db]} [project-id] result]
-                     {:db (assoc-in db [:data :project project-id :important-terms-text] result)})
-          :on-error (fn [{:keys [db error]} [project-id] _]
-                      {:db (assoc-in db [:data :project project-id :important-terms-text] {:error error})}))
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :important-terms-text)))
+  :uri (fn [_] "/api/important-terms-text")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:project project-id]])
+  :process (fn [{:keys [db]} [project-id] result]
+             {:db (assoc-in db [:data :project project-id :important-terms-text] result)})
+  :on-error (fn [{:keys [db error]} [project-id] _]
+              {:db (assoc-in db [:data :project project-id :important-terms-text] {:error error})}))
 
 (reg-sub :project/important-terms-text
          (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
          (fn [project] (:important-terms-text project)))
 
-(defn ImportantTermsChart [{:keys [data]}]
+(defn- ImportantTermsChart [{:keys [data]}]
   (when (not-empty data)
     (let [height (* 2 (+ 8 (* 10 (count data))))
           entries (->> data (sort-by :tfidf >))
@@ -283,7 +278,7 @@
              :display-ticks false
              :log-scale true]])))
 
-(defn KeyTerms []
+(defn- KeyTerms []
   (let [project-id @(subscribe [:active-project-id])]
     (with-loader
       [[:project/important-terms-text project-id]] {}
@@ -296,7 +291,7 @@
             [unpad-chart [0.25 0.35]
              [ImportantTermsChart {:data terms}]]]])))))
 
-(reg-sub ::label-counts
+(reg-sub :project/label-counts
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          (fn [project] (:label-counts project)))
 
@@ -311,8 +306,7 @@
              {:db (assoc-in db [:data :project project-id :label-counts]
                             data)}))
 
-
-(defn LabelCountChart [_label-ids _processed-label-counts]
+(defn- LabelCountChart [_label-ids _processed-label-counts]
   (let [color-filter (r/atom #{})]
     (fn [label-ids processed-label-counts]
       (when (seq processed-label-counts)
@@ -353,33 +347,30 @@
                                         counts)
                                 :backgroundColor (if (empty? counts)
                                                    ["#000000"]
-                                                   background-colors)}]}
+                                                   background-colors)
+                                :maxBarThickness 12}]}
               options (charts/wrap-default-options
                        {:scales
-                        {:xAxes
-                         [{:scaleLabel (->> {:display true
-                                             :labelString "User Answers"}
-                                            (merge font))
-                           ;; :type "logarithmic"
-                           :stacked false
-                           :ticks (->> {:suggestedMin 0
-                                        :callback (fn [value idx values]
-                                                    (if (or (= 0 (mod idx 5))
-                                                            (= idx (dec (count values))))
-                                                      value ""))}
-                                       (merge font))
-                           :gridLines {:color (charts/graph-border-color)}}]
+                        {:x {:scaleLabel (->> {:display true
+                                               :labelString "User Answers"}
+                                              (merge font))
+                             ;; :type "logarithmic"
+                             :stacked false
+                             :suggestedMin 0
+                             :ticks (->> {:callback (fn [value idx values]
+                                                      (if (or (= 0 (mod idx 5))
+                                                              (= idx (dec (count values))))
+                                                        value ""))}
+                                         (merge font))
+                             :gridLines {:color (charts/graph-border-color)}}
                          ;; this is actually controlling the labels
-                         :yAxes
-                         [{:maxBarThickness 12
-                           :scaleLabel font
-                           :ticks (->> {:padding 7} (merge font))
-                           :gridLines {:drawTicks false
-                                       :color (charts/graph-border-color)}}]}
+                         :y {:scaleLabel font
+                             :ticks (->> {:padding 7} (merge font))
+                             :gridLines {:drawTicks false
+                                         :color (charts/graph-border-color)}}}
                         :legend
-                        {:labels
-                         (->> {:generateLabels (fn [_] (clj->js legend-labels))}
-                              (merge font))
+                        {:labels (->> {:generateLabels (fn [_] (clj->js legend-labels))}
+                                      (merge font))
                          :onClick
                          (fn [_e legend-item]
                            (let [current-legend-color
@@ -393,11 +384,10 @@
                                (swap! color-filter #(disj % current-legend-color)))))}
                         :onClick
                         (fn [_e elts]
-                          (let [elts (-> elts js->clj)]
-                            (when (and (coll? elts) (not-empty elts))
-                              (when-let [idx (-> elts first (aget "_index"))]
-                                (let [{:keys [label-id value]} (nth entries idx)]
-                                  (articles/load-label-value-settings label-id value))))))}
+                          (when-let [idx (and (pos-int? (.-length elts))
+                                              (-> elts (aget 0) .-index))]
+                            (let [{:keys [label-id value]} (nth entries idx)]
+                              (articles/load-label-value-settings label-id value))))}
                        :animate? false
                        :items-clickable? true)
               height (* 2 (+ 40
@@ -412,11 +402,11 @@
             [chartjs/horizontal-bar
              {:data data :height height :options options}]]])))))
 
-(defn LabelCounts []
+(defn- LabelCounts []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project/label-counts project-id]] {}
       (let [label-ids @(subscribe [:project/label-ids])
-            processed-label-counts @(subscribe [::label-counts])]
+            processed-label-counts @(subscribe [:project/label-counts project-id])]
         [LabelCountChart label-ids processed-label-counts]))))
 
 (reg-sub ::prediction-histograms
@@ -434,50 +424,39 @@
              {:db (assoc-in db [:data :project project-id :histograms]
                             prediction-histograms)}))
 
-(defn PredictionHistogramChart []
+(defn- PredictionHistogramChart []
   (let [font (charts/graph-font-settings)
         prediction-histograms @(subscribe [::prediction-histograms])
-        labels (-> prediction-histograms
-                   vals
-                   merge
-                   flatten
-                   (->> (sort-by :score)
-                        (mapv :score))
-                   set
-                   (->> (into [])))
-        process-histogram-fn
-        (fn [histogram]
-          (let [score-count-map (zipmap (mapv :score histogram)
-                                        (mapv :count histogram))]
-            (mapv #(if-let [label-count (get score-count-map %)]
-                     label-count
-                     0) labels)))
-        processed-reviewed-include-histogram
-        (process-histogram-fn
-         (:reviewed-include-histogram prediction-histograms))
-        processed-reviewed-exclude-histogram
-        (process-histogram-fn
-         (:reviewed-exclude-histogram prediction-histograms))
-        processed-unreviewed-histogram
-        (process-histogram-fn
-         (:unreviewed-histogram prediction-histograms))
-        datasets
-        (cond-> []
-          (not (every? #(= 0 %) processed-reviewed-include-histogram))
-          (merge {:label "Reviewed - Include"
-                  :data ;;(mapv (partial * 2) (into [] (range 1 (+ (count labels) 1))))
-                  processed-reviewed-include-histogram
-                  :backgroundColor (:green colors)})
-          (not (every? #(= 0 %) processed-reviewed-exclude-histogram))
-          (merge {:label "Reviewed - Exclude"
-                  :data processed-reviewed-exclude-histogram
-                  ;;(mapv (partial * 1) (into [] (range 1 (+ (count labels) 1))))
-                  :backgroundColor (:red colors)})
-          (not (every? #(= 0 %) processed-unreviewed-histogram))
-          (merge {:label "Unreviewed"
-                  :data processed-unreviewed-histogram
-                  ;;(mapv (partial * 3) (into [] (range 1 (+ (count labels) 1))))
-                  :backgroundColor (:orange colors)}))]
+        labels (into [] (->> (vals prediction-histograms)
+                             (map :score) (distinct) (sort)))
+        histograms-data (fn [k]
+                          (let [histogram (get prediction-histograms k)]
+                            {k (let [score->count (zipmap (mapv :score histogram)
+                                                          (mapv :count histogram))]
+                                 (mapv #(or (get score->count %) 0)
+                                       labels))}))
+        include-data    (histograms-data :reviewed-include-histogram)
+        exclude-data    (histograms-data :reviewed-exclude-histogram)
+        unreviewed-data (histograms-data :unreviewed-histogram)
+        datasets        (cond-> []
+                          (some pos? include-data)
+                          (conj {:label "Reviewed - Include"
+                                 :data include-data
+                                 #_ (mapv (partial * 2)
+                                          (into [] (range 1 (inc (count labels)))))
+                                 :backgroundColor (:green colors)})
+                          (some pos? exclude-data)
+                          (conj {:label "Reviewed - Exclude"
+                                 :data exclude-data
+                                 #_ (mapv (partial * 1)
+                                          (into [] (range 1 (inc (count labels)))))
+                                 :backgroundColor (:red colors)})
+                          (some pos? unreviewed-data)
+                          (conj {:label "Unreviewed"
+                                 :data unreviewed-data
+                                 #_ (mapv (partial * 3)
+                                          (into [] (range 1 (inc (count labels)))))
+                                 :backgroundColor (:orange colors)}))]
     (when (seq datasets)
       [:div.ui.segment
        [:h4.ui.dividing.header "Prediction Histograms"]
@@ -486,20 +465,21 @@
          {:data {:labels labels
                  :datasets (->> datasets (mapv #(merge % {:borderWidth 0})))}
           :options (charts/wrap-default-options
-                    {:scales
-                     {:xAxes [{:stacked true, :ticks font, :scaleLabel font
-                               :gridLines {:color (charts/graph-border-color)}}]
-                      :yAxes [{:ticks font, :scaleLabel font
-                               :gridLines {:color (charts/graph-border-color)}}]}
+                    {:scales (util/map-values
+                              #(merge % {:ticks font
+                                         :scaleLabel font
+                                         :gridLines {:color (charts/graph-border-color)}})
+                              {:x {:stacked true}
+                               :y {}})
                      :legend {:labels font}})
           :height (* 2 150)}]]])))
 
-(defn PredictionHistogram []
+(defn- PredictionHistogram []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project/prediction-histograms project-id]] {}
       [PredictionHistogramChart])))
 
-(defn ProjectOverviewContent []
+(defn- ProjectOverviewContent []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]
                   [:project/markdown-description project-id {:panel panel}]] {}
@@ -515,8 +495,7 @@
         [:div.column
          [MemberActivityChart]
          [ProjectFilesBox]
-         [LabelCounts]
-         ]]])))
+         [LabelCounts]]]])))
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

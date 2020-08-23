@@ -3,12 +3,9 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [sysrev.accounting :as acct]
-            [sysrev.charts.chartjs :as chartjs]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.charts :as charts]
             [sysrev.paypal :as paypal]
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
-            [sysrev.shared.charts :refer [paul-tol-colors]]
             [sysrev.util :as util :refer [index-by ensure-pred]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
@@ -21,22 +18,22 @@
 
 (def check-pending-interval 600000)
 
-(defn amount->cents [amount-string]
+(defn- amount->cents [amount-string]
   (some->> (not-empty amount-string)
            (acct/string->cents)
            (ensure-pred integer?)))
 
-(defn rate->string [rate]
+(defn- rate->string [rate]
   (str (acct/cents->string (:amount rate)) " / " (:item rate)))
 
-(defn admin-fee-text [amount admin-fee]
+(defn- admin-fee-text [amount admin-fee]
   (str (acct/cents->string (* amount admin-fee)) " admin fee"))
 
-(defn AdminFee [amount admin-fee]
+(defn- AdminFee [amount admin-fee]
   [:span.medium-weight.orange-text {:style {:font-size "0.9rem"}}
    (str "(+" (admin-fee-text amount admin-fee) ")")])
 
-(defn CompensationAmount
+(defn- CompensationAmount
   "Show the compensation text related to a compensation"
   [compensation admin-fee]
   (let [{:keys [rate]} compensation
@@ -45,7 +42,7 @@
      (acct/cents->string amount) " " [AdminFee amount admin-fee]
      " / " (str item)]))
 
-(defn get-compensations! [state]
+(defn- get-compensations! [state]
   (let [project-id @(subscribe [:active-project-id])
         loading? (r/cursor state [:loading :project-compensations])
         project-compensations (r/cursor state [:project-compensations])]
@@ -61,7 +58,7 @@
                            (reset! loading? false)
                            (util/log-err "get-compensations! - project-id = %s" project-id))})))
 
-(defn get-project-users-current-compensation! [state]
+(defn- get-project-users-current-compensation! [state]
   (let [project-id @(subscribe [:active-project-id])
         loading? (r/cursor state [:loading :project-users-current-compensation])
         users-current-comp (r/cursor state [:project-users-current-compensation])]
@@ -81,7 +78,7 @@
                        (util/log-err "project-users-current-compensation - project-id = %s"
                                      project-id))})))
 
-(defn compensation-owed! [state]
+(defn- compensation-owed! [state]
   (let [project-id @(subscribe [:active-project-id])
         loading? (r/cursor state [:loading :compensation-owed])
         compensation-owed (r/cursor state [:compensation-owed])]
@@ -97,7 +94,7 @@
                            (reset! loading? false)
                            (util/log-err "compensation-owed - project-id = %s" project-id))})))
 
-(defn pay-user!
+(defn- pay-user!
   "Pay the user the amount owed to them"
   [state user-id compensation admin-fee]
   (let [project-id @(subscribe [:active-project-id])
@@ -123,7 +120,7 @@
                             (reset! pay-error (get-in error-response
                                                       [:response :error :message])))})))
 
-(defn get-default-compensation!
+(defn- get-default-compensation!
   "Load the current default compensation from server"
   [state]
   (let [project-id @(subscribe [:active-project-id])
@@ -154,14 +151,14 @@
                                                       project-id)}))
                 {}))
 
-(defn check-pending-transactions []
+(defn- check-pending-transactions []
   (PUT "/api/check-pending-transaction"
        {:params {:project-id @(subscribe [:active-project-id])}
         :headers {"x-csrf-token" @(subscribe [:csrf-token])}
         :handler #(dispatch [:project/get-funds])
         :error-handler #(js/console.error "[[check-pending-transaction]]: error " %)}))
 
-(defn ProjectFunds []
+(defn- ProjectFunds []
   (let [{:keys [project-funds]} @state
         {:keys [current-balance compensation-outstanding available-funds
                 admin-fees pending-funds]} project-funds]
@@ -185,7 +182,7 @@
        [:div.column "Current Balance:"]
        [:div.right.aligned.column (acct/cents->string current-balance)]]]]))
 
-(defn ToggleCompensationEnabled [{:keys [compensation-id] :as _compensation}]
+(defn- ToggleCompensationEnabled [{:keys [compensation-id] :as _compensation}]
   (let [project-id @(subscribe [:active-project-id])
         compensation-atom (r/cursor state [:project-compensations compensation-id])
         enabled (r/cursor compensation-atom [:enabled])
@@ -208,7 +205,7 @@
                                                 (reset! updating? false))}))}
      (if @enabled "Active" "Disabled")]))
 
-(defn CreateCompensationForm []
+(defn- CreateCompensationForm []
   (let [project-id @(subscribe [:active-project-id])
         compensation-amount (r/cursor state [:compensation-amount])
         creating? (r/cursor state [:creating-new-compensation?])
@@ -265,7 +262,7 @@
      (when @error-message
        [s/Message {:negative true} @error-message])]))
 
-(defn ProjectRates []
+(defn- ProjectRates []
   (let [project-compensations (->> (vals (:project-compensations @state))
                                    (sort-by #(get-in % [:rate :amount])))]
     [:div#project-rates
@@ -282,46 +279,42 @@
        [:div.ui.divider])
      [CreateCompensationForm]]))
 
-(defn CompensationGraph
+#_
+(defn- CompensationGraph
   "Labels is a list of names, amount-owed is a vector of amounts owed."
   [labels amount-owed]
-  (let [font-color (charts/graph-text-color)
-        data {:labels labels
-              :datasets [{:data amount-owed
-                          :backgroundColor (nth paul-tol-colors (count labels))}]}
-        options {:scales
-                 {:yAxes
-                  [{:display true
-                    :scaleLabel {:fontColor font-color
-                                 :display false
-                                 :padding {:top 200
-                                           :bottom 200}}
-                    :stacked false
-                    :ticks {:fontColor font-color
-                            :suggestedMin 0
-                            :callback (fn [value index values]
-                                        (if (or (= index 0)
-                                                (= (/ (apply max values) 2)
-                                                   value)
-                                                (= (apply max values)
-                                                   value)
-                                                (= value 0))
-                                          (acct/cents->string value)
-                                          ""))}}]
-                  :xAxes
-                  [{:maxBarThickness 10
-                    :scaleLabel {:fontColor font-color}
-                    :ticks {:fontColor font-color}
-                    :gridLines {:color (charts/graph-border-color)}}]}
-                 :legend {:display false}
-                 :tooltips {:callbacks {:label #(acct/cents->string (.-yLabel %))}}}]
+  (let [font-color (charts/graph-text-color)]
     [chartjs/bar
-     {:data data
+     {:data {:labels labels
+             :datasets [{:data amount-owed
+                         :backgroundColor (nth paul-tol-colors (count labels))}]}
       :height (+ 50 (* 12 (count labels)))
       :width (* (count labels) 200)
-      :options options}]))
+      :options {:datasets {:bar {:maxBarThickness 10}}
+                :legend {:display false}
+                :tooltips {:callbacks {:label #(acct/cents->string ^js (.-formattedValue %))}}
+                :scales
+                {:x {:scaleLabel {:fontColor font-color}
+                     :ticks {:fontColor font-color}
+                     :gridLines {:color (charts/graph-border-color)}}
+                 :y {:display true
+                     :scaleLabel {:fontColor font-color
+                                  :display false
+                                  :padding {:top 200 :bottom 200}}
+                     :stacked false
+                     :suggestedMin 0
+                     :ticks {:fontColor font-color
+                             :callback (fn [value index values]
+                                         (if (or (= index 0)
+                                                 (= (/ (apply max values) 2)
+                                                    value)
+                                                 (= (apply max values)
+                                                    value)
+                                                 (= value 0))
+                                           (acct/cents->string value)
+                                           ""))}}}}}]))
 
-(defn CompensationSummary []
+(defn- CompensationSummary []
   (when-let [entries (seq (->> (:compensation-owed @state)
                                (filter #(or (some-> (:compensation-owed %) pos?)
                                             (:last-payment %)))))]
@@ -376,7 +369,7 @@
                     "Cancel"]]]]]
                (when @error-message [:div.ui.error.message @error-message])])])))]]))
 
-(defn compensation-options
+(defn- compensation-options
   [project-compensations]
   (conj (->> (vals project-compensations)
              (sort-by #(get-in % [:rate :amount]))
@@ -386,7 +379,7 @@
                      :value (:compensation-id compensation)})))
         {:text "None" :value "none"}))
 
-(defn UserCompensationDropdown [user-id]
+(defn- UserCompensationDropdown [user-id]
   (let [project-id @(subscribe [:active-project-id])
         project-compensations (r/cursor state [:project-compensations])
         user-atom (r/cursor state [:project-users-current-compensation user-id])
@@ -442,12 +435,12 @@
                                       :error-handler (fn [_response]
                                                        (reset! updating? false))}))))}]))
 
-(defn UserRateEntry [name-content control-content]
+(defn- UserRateEntry [name-content control-content]
   [:div.item>div.ui.stackable.middle.aligned.grid.user-compensation-entry
    [:div.ten.wide.left.aligned.column name-content]
    [:div.six.wide.right.aligned.column control-content]])
 
-(defn UserRates []
+(defn- UserRates []
   (let [project-compensations (r/cursor state [:project-compensations])
         current-compensation (r/cursor state [:project-users-current-compensation])
         member-ids @(subscribe [:project/member-user-ids nil true])
@@ -467,7 +460,7 @@
                     [:span [:i.user.icon] @(subscribe [:user/display user-id])]
                     [UserCompensationDropdown user-id]])))]])))
 
-(defn ProjectCompensationPanel []
+(defn- ProjectCompensationPanel []
   (r/create-class
    {:reagent-render
     (fn []

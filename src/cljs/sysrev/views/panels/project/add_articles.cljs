@@ -379,15 +379,14 @@
                      [:span.unique-count {:data-count (str unique-articles-count)}
                       (.toLocaleString unique-articles-count)]
                      " unique " (article-or-articles unique-articles-count)])
-                  (doall
-                   (for [{shared-count :count, overlap-source-id :overlap-source-id}
-                         (filter #(pos? (:count %)) (:overlap source))]
-                     (let [src-type @(subscribe [:source/display-type overlap-source-id])
-                           src-info (some-> @(subscribe [:source/display-info overlap-source-id])
-                                            (util/string-ellipsis 40))]
-                       ^{:key [:shared source-id overlap-source-id]}
-                       [:div.column (.toLocaleString shared-count) " shared: "
-                        [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
+                  (for [{shared-count :count, overlap-source-id :overlap-source-id}
+                        (filter #(pos? (:count %)) (:overlap source))]
+                    (let [src-type @(subscribe [:source/display-type overlap-source-id])
+                          src-info (some-> @(subscribe [:source/display-info overlap-source-id])
+                                           (util/ellipsis-middle 40))]
+                      ^{:key [:shared source-id overlap-source-id]}
+                      [:div.column (.toLocaleString shared-count) " shared: "
+                       [:div.ui.label.source-shared src-type [:div.detail src-info]]]))]]
                 (when (admin?)
                   [:div.column.right.aligned.source-actions
                    {:key :buttons

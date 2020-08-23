@@ -29,7 +29,8 @@
                        ["dropzone" :as Dropzone]
                        ["decamelize" :as decamelize]
                        [goog.string :as gstring :refer [unescapeEntities]]
-                       [goog.string.format]]))
+                       [goog.string.format]
+                       [re-frame.core :refer [subscribe]]]))
   #?(:clj (:import [java.util UUID]
                    [java.util.zip GZIPInputStream]
                    [java.math BigInteger]
@@ -214,8 +215,8 @@
   [item-count string]
   (when string (cond-> string (not= item-count 1) (str "s"))))
 
-(defn string-ellipsis
-  "Shorten s using ellipsis in the middle when length is >= max-length."
+(defn ellipsis-middle
+  "Shorten string `s` using `ellipsis` in the middle when >= `max-length`."
   [s max-length & [ellipsis]]
   (let [ellipsis (or ellipsis "[...]")]
     (if (< (count s) max-length)
@@ -223,6 +224,15 @@
       (str (subs s 0 (quot max-length 2))
            " " ellipsis " "
            (subs s (- (count s) (quot max-length 2)))))))
+
+(defn ellipsize
+  "Shorten string `s` by ending with `ellipsis` when > `max-length`."
+  [s max-length & [ellipsis]]
+  (let [ellipsis (or ellipsis "...")]
+    (cond-> s
+      (> (count s) max-length)
+      (-> (subs 0 (- max-length (count ellipsis)))
+          (str ellipsis)))))
 
 (defn ensure-prefix
   "Adds prefix at front of string s if not already present."
@@ -483,6 +493,9 @@
             (and (coll? x) (empty? x)))  nil
         (sequential? x)                  (vec x)
         :else                            [x]))
+
+(defn sum [xs]
+  (reduce + xs))
 
 ;;;
 ;;; CLJ code
@@ -1195,3 +1208,16 @@
            "Converts an integer value of cents to dollars"
            [cents]
            (str (-> cents (/ 100) (.toFixed 2)))))
+
+#?(:cljs (defn round [x]
+           (js/Math.round x)))
+
+#?(:cljs (defn read-sub
+           "Creates a variable-argument function that will dereference
+  re-frame subscription `query-id` with the supplied arguments.
+
+  If an optional `args` sequence is passed, applies the function
+  to those arguments."
+           ([query-id]       (fn [& args]
+                               @(subscribe (vec (concat [query-id] args)))))
+           ([query-id args]  (apply (read-sub query-id) args))))

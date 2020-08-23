@@ -212,7 +212,7 @@
        [:div.ui.small.basic.label.selection-label
         {:class (css [new? "new-annotation"])}
         (pr-str (str (when (string? selection)
-                       (util/string-ellipsis
+                       (util/ellipsis-middle
                         selection 400 (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))))]]
       [:div.field.semantic-class
        [:label "Semantic Class"]

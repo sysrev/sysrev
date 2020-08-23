@@ -113,7 +113,7 @@
 (defn- WithProjectSourceTooltip [source-id element]
   (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
         source-info (some-> @(subscribe [:source/display-info source-id])
-                            (util/string-ellipsis 150 "[.....]"))]
+                            (util/ellipsis-middle 150 "[.....]"))]
     [ui/FixedTooltipElement element
      [:div
       [:h5.ui.header {:class (css [(seq source-info) "dividing"])}

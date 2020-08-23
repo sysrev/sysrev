@@ -730,9 +730,10 @@
   (importance/project-important-terms project-id (or max-terms 20)))
 
 (defn project-concordance [project-id & {:keys [keep-resolved] :or {keep-resolved true}}]
-  (concordance-api/get-concordance project-id :keep-resolved keep-resolved))
+  (concordance-api/project-concordance project-id :keep-resolved keep-resolved))
 
-(defn project-label-count-groups [project-id] (biosource-contgroup/get-label-countgroup project-id))
+(defn project-label-count-groups [project-id]
+  (biosource-contgroup/get-label-countgroup project-id))
 
 (defn project-prediction-histogram [project-id]
   (db/with-project-cache project-id [:prediction-histogram]

@@ -63,6 +63,7 @@
         sysrev.test.core
         sysrev.test.browser.navigate)
   (:require [clojure.spec.alpha :as s]
+            [clojure.edn :as edn]
             [orchestra.spec.test :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]

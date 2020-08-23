@@ -75,7 +75,7 @@
                 {:dispatch [:article-list/set-active-article
                             (get-context-from-db db) nil]}))
 
-(defn- load-settings-and-navigate
+(defn load-settings-and-navigate
   "Loads article list settings and navigates to the page from another panel,
   while maintaining clean browser navigation history for Back/Forward."
   [{:keys [filters display sort-by sort-dir] :as settings}]

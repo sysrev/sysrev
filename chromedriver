@@ -1,4 +1,41 @@
 #!/bin/bash
 set -eu
 
-chromedriver $@ 2>&1 | grep -v -Ee '(Starting ChromeDriver|Only local connections|Please protect ports|Timed out receiving message|for suggestions on|was started successfully)'
+ignore_pattern=""
+
+function set_ignore_pattern() {
+  local ignore_strings=('Starting ChromeDriver'
+                        'Only local connections'
+                        'Please protect ports'
+                        'Timed out receiving message'
+                        'for suggestions on'
+                        'was started successfully')
+
+  ignore_pattern=
+  for x in "${ignore_strings[@]}" ; do
+    if [ -z "$ignore_pattern" ] ; then
+      ignore_pattern="(${x}"
+    else
+      ignore_pattern="${ignore_pattern}|${x}"
+    fi
+  done
+  ignore_pattern="${ignore_pattern})"
+}
+
+function filter_ignored () {
+  grep -v -Ee "$ignore_pattern"
+}
+
+opts=()
+#opts+=("--readable-timestamp")
+#opts+=("--log-level=INFO")
+#opts+=("--no-sandbox")
+#opts+=("--disable-dev-shm-usage")
+#opts+=("--disable-gpu")
+
+#export DISPLAY=
+#export WAYLAND_DISPLAY=
+
+set_ignore_pattern
+
+chromedriver "${opts[@]}" "$@" 2>&1 | filter_ignored

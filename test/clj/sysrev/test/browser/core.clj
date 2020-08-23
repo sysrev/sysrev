@@ -19,7 +19,7 @@
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as xpath :refer [xpath]]
-            [sysrev.util :as util :refer [parse-integer string-ellipsis ignore-exceptions]])
+            [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
   (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)))
 
 (defonce ^:dynamic *wd* (atom nil))
@@ -55,8 +55,8 @@
      (do (log/info "current windows:")
          (doseq [w# windows#]
            (log/info (str (if (:active w#) "[*]" "[ ]") " "
-                          "(" (string-ellipsis (:url w#) 50 "...") ") "
-                          "\"" (string-ellipsis (:title w#) 40 "...") "\""))))
+                          "(" (ellipsis-middle (:url w#) 50 "...") ") "
+                          "\"" (ellipsis-middle (:title w#) 40 "...") "\""))))
      (log/info "current windows: (none found)")))
 
 (defn visual-webdriver? []
@@ -90,11 +90,15 @@
     (do (when @*wd* (-> (taxi/quit @*wd*) (ignore-exceptions)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments
-                             (concat ["headless"
-                                      "no-sandbox"
-                                      (format "window-size=%d,%d"
-                                              (:width browser-test-window-size)
-                                              (:height browser-test-window-size))])))
+                             (seq ["headless"
+                                   "no-sandbox"
+                                   #_ "disable-gpu"
+                                   #_ "disable-dev-shm-usage"
+                                   #_ "log-level=INFO"
+                                   #_ "readable-timestamp"
+                                   (format "window-size=%d,%d"
+                                           (:width browser-test-window-size)
+                                           (:height browser-test-window-size))])))
                           (ChromeDriver.)
                           (assoc {} :webdriver)
                           (driver/init-driver)
