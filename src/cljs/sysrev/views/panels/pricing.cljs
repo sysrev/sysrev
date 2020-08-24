@@ -65,7 +65,7 @@
 
 (defn Pricing []
   (let [logged-in? (subscribe [:self/logged-in?])
-        current-plan (:name @(subscribe [:user/current-plan]))]
+        current-plan (:nickname @(subscribe [:user/current-plan]))]
     (when (and @logged-in? (nil? current-plan))
       (dispatch [:data/load [:user/current-plan @(subscribe [:self/user-id])]]))
     [:div
@@ -87,11 +87,12 @@
                  [:h4 "Per month"]
                  [:p "The basics of Sysrev for every researcher"]]
                 [FreeBenefits]
-                [Button {:on-click #(nav "/register")
+                [Button {:on-click (if @logged-in?
+                                     #(nav "/create/org")
+                                     #(nav "/register"))
                          :primary true
-                         :disabled @logged-in?
                          :fluid true}
-                 (if @logged-in? "Already signed up!" "Choose Free")]]]
+                 (if @logged-in? "Create a Free Team" "Choose Free")]]]
        [Column [Segment (when (util/mobile?)
                           {:style {:margin-bottom "1em"}})
                 [:div {:class "pricing-list-header"}
@@ -107,8 +108,10 @@
                                                                  :redirect_message "Create a free account to upgrade to Pro Plan"})))
                          :primary true
                          :fluid true
-                         :disabled (= current-plan "Unlimited_User")}
-                 (if (= current-plan "Unlimited_User")
+                         :disabled (contains? #{"Unlimited_User"
+                                                "Unlimited_User_Annual"} current-plan)}
+                 (if (contains? #{"Unlimited_User"
+                                  "Unlimited_User_Annual"} current-plan)
                    "Already signed up!"
                    "Choose Pro")]]]
        [Column [Segment (when (util/mobile?)

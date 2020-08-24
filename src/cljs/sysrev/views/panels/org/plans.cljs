@@ -1,16 +1,14 @@
 (ns sysrev.views.panels.org.plans
   (:require [medley.core :as medley]
             [reagent.core :as r]
-            [reagent.ratom :refer [track!]]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
             [sysrev.macros :refer-macros [setup-panel-state]]
-            [sysrev.nav :as nav :refer [nav-scroll-top]]
-            [sysrev.stripe :as stripe]
+            [sysrev.nav :as nav]
+            [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util]
-            [sysrev.views.semantic :refer [SegmentGroup Segment Radio Loader Grid Column Row ListUI ListItem Message MessageHeader]]
+            [sysrev.views.semantic :refer [SegmentGroup Segment Radio Loader Grid Column Row ListUI ListItem Message MessageHeader Button]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.views.panels.user.plans :refer [TogglePlanButton BasicPlan]]
             [sysrev.views.panels.pricing :refer [TeamProBenefits]]))
@@ -156,7 +154,7 @@
                         [:h3 "New Plan"]
                         [BasicPlan @new-plan]
                         [:a {:href (str "/org/" org-id "/billing")}
-                         "<< Back to org settings"]]]]]
+                         "Back to org settings"]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]
@@ -183,78 +181,85 @@
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])
         mobile? (util/mobile?)
-        default-source (subscribe [:org/default-source org-id])
         new-plan (r/cursor state [:new-plan])
         available-plans (subscribe [:org/available-plans org-id])
-        on-add-payment-method (fn [] (nav-scroll-top
-                                      (str "/org/" org-id "/payment")
-                                      :params
-                                      (assoc (nav/get-url-params)
-                                             :redirect_uri
-                                             (if-let [current-redirect-uri (:redirect_uri (nav/get-url-params))]
-                                               current-redirect-uri
-                                               (str "/org/" org-id "/plans")))))]
-    (if (empty? @new-plan)
-      (do
-        (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_Org") @available-plans))
-        [Loader {:active true
-                 :inline "centered"}])
-      [:div
-       (when-not mobile? [:h1 "Upgrade your plan"])
-       [Grid {:stackable true :columns 2 :class "upgrade-plan"}
-        [Column
-         [Grid [Row [Column
-                     [:h3 "UPGRADING TO"]
-                     [Unlimited @new-plan]
-                     (when-not mobile?
-                       [:a {:href (str "/org/" org-id "/billing")}
-                        "<< Back to org settings"])]]]]
-        [Column
-         (let [no-default? (empty? @default-source)]
-           [Grid
-            [Row
-             [Column
-              [:h3 "Upgrade Summary"]
-              [ToggleInterval]
-              [:p {:style {:color "red"}} "Pay yearly and get the first month free!"]
-              [ListUI {:divided true}
-               [:h4 "New Monthly Bill"]
-               [ListItem [:p (str "Team Pro Plan ("
-                                  (str "$" (-> @new-plan
-                                               :tiers
-                                               ;; this needs to be changed to actually
-                                               ;; include member count of group
-                                               ((partial price-summary 0))
-                                               :monthly-bill
-                                               util/cents->dollars)
-                                       " / " (:interval @new-plan))
-                                  ")")]]
-               [:h4 "Billing Information"]
-               [ListItem [DefaultSource {:default-source @default-source}]]
-               (when (empty? @error-message)
-                 [:a.payment-method
-                  {:class (if no-default? "add-method" "change-method")
-                   :style {:cursor "pointer"}
-                   :on-click (util/wrap-prevent-default
-                              #(do (reset! error-message nil)
-                                   (on-add-payment-method)))}
-                  (if no-default?
-                    "Add a payment method"
-                    "Change payment method")])
-               [:div {:style {:margin-top "1em" :width "100%"}}
-                [TogglePlanButton {:disabled (or no-default? @changing-plan?)
-                                   :on-click #(do (reset! changing-plan? true)
-                                                  (dispatch [:action [:org/subscribe-plan org-id @new-plan]]))
-                                   :class "upgrade-plan"
-                                   :loading @changing-plan?}
-                 "Upgrade Plan"]
-                ;; https://stripe.com/docs/payments/cards/reusing-cards#mandates
-                [:p {:style {:margin-top "1em"}}
-                 "By clicking 'Upgrade Plan' you authorize InSilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]]
-               (when @error-message
-                 [Message {:negative true}
-                  [MessageHeader "Change Plan Error"]
-                  [:p @error-message]])]]]])]]])))
+        default-source (subscribe [:org/default-source org-id])
+        show-payment-form? (r/atom false)]
+    (fn [org-id]
+      (if (empty? @new-plan)
+        (do
+          (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_Org") @available-plans))
+          [Loader {:active true
+                   :inline "centered"}])
+        [:div
+         (when-not mobile? [:h1 "Upgrade your plan Basic to Team Pro"])
+         [Grid {:stackable true :columns 2 :class "upgrade-plan"}
+          [Column
+           [Grid [Row [Column
+                       [:h3 "UPGRADING TO"]
+                       [Unlimited @new-plan]
+                       (when-not mobile?
+                         [:a {:href (str "/org/" org-id "/billing")}
+                          "Back to org settings"])]]]]
+          [Column
+           (let [no-default? (empty? @default-source)]
+             [Grid
+              [Row
+               [Column
+                [:h3 "Upgrade Summary"]
+                [ToggleInterval]
+                [:p {:style {:color "red"}} "Pay yearly and get the first month free!"]
+                [ListUI {:divided true}
+                 [:h4 "New Monthly Bill"]
+                 [ListItem [:p (str "Team Pro Plan ("
+                                    (str "$" (-> @new-plan
+                                                 :tiers
+                                                 ;; this needs to be changed to actually
+                                                 ;; include member count of group
+                                                 ((partial price-summary 0))
+                                                 :monthly-bill
+                                                 util/cents->dollars)
+                                         " / " (:interval @new-plan))
+                                    ")")]]
+                 [:h4 "Billing Information"]
+                 [ListItem
+                  (when (not no-default?)
+                    [DefaultSource {:default-source @default-source}])]
+                 (when (and @show-payment-form?
+                            (not no-default?))
+                   [Button {:on-click #(swap! show-payment-form? not)
+                            :positive true
+                            :style {:margin-bottom "1em"
+                                    :margin-top "1em"}}
+                    "Use current payment source"])
+                 (when (empty? @error-message)
+                   (if (or no-default? @show-payment-form?)
+                     [StripeCardInfo {:add-payment-fn
+                                      (fn [payload]
+                                        (reset! show-payment-form? false)
+                                        (dispatch [:action [:stripe/add-payment-org org-id payload ]]))}]
+                     [:a.payment-method
+                      {:class (if no-default? "add-method" "change-method")
+                       :style {:cursor "pointer"}
+                       :on-click (util/wrap-prevent-default
+                                  #(reset! show-payment-form? true))}
+                      "Change payment method"]))
+                 (when-not (or no-default?
+                               @show-payment-form?)
+                   [:div {:style {:margin-top "1em" :width "100%"}}
+                    [TogglePlanButton {:disabled (or no-default? @changing-plan?)
+                                       :on-click #(do (reset! changing-plan? true)
+                                                      (dispatch [:action [:org/subscribe-plan org-id @new-plan]]))
+                                       :class "upgrade-plan"
+                                       :loading @changing-plan?}
+                     "Upgrade Plan"]
+                    ;; https://stripe.com/docs/payments/cards/reusing-cards#mandates
+                    [:p {:style {:margin-top "1em"}}
+                     "By clicking 'Upgrade Plan' you authorize Insilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]])
+                 (when @error-message
+                   [Message {:negative true}
+                    [MessageHeader "Change Plan Error"]
+                    [:p @error-message]])]]]])]]]))))
 
 (defn- OrgPlansContent [org-id]
   (when org-id

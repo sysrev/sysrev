@@ -800,7 +800,6 @@
       (b/click (xpath "//a[contains(text(),'" org-name "')]"))
       (b/click "#org-billing")
       (b/click ".subscribe")
-      (b/click "a.payment-method.add-method")
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
       (plans/click-use-card :delay 50)
       (plans/click-upgrade-plan)

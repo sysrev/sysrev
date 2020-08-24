@@ -97,7 +97,6 @@
   (b/click "#user-name-link" :delay 50)
   (b/click "#user-billing" :delay 50)
   (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
-  (b/click "a.payment-method.add-method" :delay 50)
   ;; enter payment information
   (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
   (click-use-card :delay 50)
@@ -151,7 +150,7 @@
       (b/click "#user-name-link")
       (b/click "#user-billing")
       (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
-      (b/click "a.payment-method.add-method" :delay 50)
+      #_(b/click "a.payment-method.add-method" :delay 50)
 ;;; payment method
       ;; wait until a card number is available for input
       (b/wait-until-exists (label-input "Card Number"))
@@ -266,9 +265,6 @@
     (taxi/refresh)
     (b/wait-until-displayed upgrade-plan-h2)
     ;; update payment method
-    (b/click "a.payment-method.add-method" :delay 50)
-    ;; refresh to test redirect uri
-    (taxi/refresh)
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (click-use-card :delay 50)
     (click-upgrade-plan)
@@ -312,9 +308,6 @@
     (b/wait-until-displayed choose-pro-button)
     (b/click choose-pro-button)
     ;; update payment method
-    (b/click "a.payment-method.add-method" :delay 50)
-    ;; refresh to test redirect uri
-    (taxi/refresh)
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (click-use-card :delay 50)
     (click-upgrade-plan)

@@ -230,10 +230,7 @@
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
     (b/is-current-path "/user/plans")
-    (is (b/exists? no-payment-on-file))
     ;; get a plan for user
-    (b/click "a.payment-method.add-method")
-    (b/is-current-path "/user/payment")
     (bstripe/enter-cc-information user-cc)
     (plans/click-use-card :delay 50)
     (plans/click-upgrade-plan)
@@ -320,7 +317,6 @@
     (b/click plans/upgrade-link)
     ;; subscribe to plans
     (log/info "attempting plan subscription")
-    (b/click "a.payment-method.add-method")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
     (plans/click-use-card :delay 50)
@@ -411,9 +407,6 @@
     (taxi/refresh)
     (b/wait-until-displayed plans/upgrade-plan-h2)
     ;; update payment method
-    (b/click "a.payment-method.add-method" :delay 50)
-    ;; refresh to test redirect uri
-    (taxi/refresh)
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card :delay 50)
     (plans/click-upgrade-plan)
@@ -475,9 +468,6 @@
     (taxi/refresh)
     (b/wait-until-displayed plans/upgrade-plan-h2)
     ;; update payment method
-    (b/click "a.payment-method.add-method" :delay 50)
-    ;; refresh to test redirect uri
-    (taxi/refresh)
     (bstripe/enter-cc-information
      {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card :delay 50)

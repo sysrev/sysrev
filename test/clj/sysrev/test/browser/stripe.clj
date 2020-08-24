@@ -47,7 +47,7 @@
   [cc-number]
   (b/wait-until-loading-completes :timeout 15000 :interval 100)
   (taxi/switch-to-default)
-  (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
+  (b/wait-until-displayed {:xpath "//form[contains(@class,'StripeForm')]"})
   ;; switch the the proper iframe. note that the name could change if stripe updates their library
   (taxi/switch-to-frame
    (taxi/element {:xpath (format "//iframe[@name='%s']"
@@ -65,7 +65,7 @@
                              :or {exp-date "0130" cvc "123"}}]
   (log/info "entering stripe card information")
   (taxi/switch-to-default)
-  (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
+  (b/wait-until-displayed {:xpath "//form[contains(@class,'StripeForm')]"})
   (let [ ;; note: stripe could change the frame names
         _ (b/wait-until #(>= (count (get-stripe-frame-names)) 3))
         frame-names (get-stripe-frame-names)

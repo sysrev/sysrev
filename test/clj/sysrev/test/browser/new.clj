@@ -33,7 +33,6 @@
       (b/wait-until-displayed plans/choose-pro-button)
       (b/click plans/choose-pro-button)
       ;; update payment method
-      (b/click "a.payment-method.add-method" :delay 50)
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
       (plans/click-use-card :delay 50)
       (plans/click-upgrade-plan)
@@ -80,7 +79,6 @@
       ;; where going to use an existing plan
       (b/click (xpath "//a[contains(text(),'" org-name "')]"))
       ;; update payment method
-      (b/click "a.payment-method.add-method" :delay 50)
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
       (plans/click-use-card :delay 50)
       (plans/click-upgrade-plan)

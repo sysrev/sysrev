@@ -8,7 +8,6 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.semantic :refer [Button Form]]
-            [sysrev.nav :as nav]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
@@ -60,21 +59,15 @@
   :uri (fn [user-id _] (str "/api/user/" user-id "/stripe/payment-method"))
   :content (fn [_ payment_method] {:payment_method payment_method})
   :process (fn [{:keys [db]} [user-id _] _]
-             (let [calling-route
-                   (nav/make-url (or (:redirect_uri (nav/get-url-params))
-                                     (str "/user/" user-id "/billing"))
-                                 (dissoc (nav/get-url-params)
-                                         :redirect_uri))]
-               ;; clear any error message that was present in plans
-               ;;(dispatch [:plans/clear-error-message!])
-               { ;; don't need to ask for a card anymore
-                :db (-> (panel-set db :need-card? false)
-                        ;; clear any error message
-                        (panel-set :error-message nil)
-                        ;; enable the form again
-                        (assoc-in [:state :stripe :disabled-form] false))
-                ;; go back to where this panel was called from
-                :nav-scroll-top calling-route}))
+             ;; clear any error message that was present in plans
+             (dispatch [:plans/clear-error-message!])
+             { ;; don't need to ask for a card anymore
+              :db (-> (panel-set db :need-card? false)
+                      ;; clear any error message
+                      (panel-set :error-message nil)
+                      ;; enable the form again
+                      (assoc-in [:state :stripe :disabled-form] false))
+              :dispatch [:data/load [:user/default-source user-id]]})
   :on-error (fn [{:keys [db error]} _ _]
               ;; we have an error message, set it so that it can be display to the user
               {:db (panel-set db :error-message (:message error))}))
@@ -83,16 +76,11 @@
   :uri (fn [org-id _] (str "/api/org/" org-id "/stripe/payment-method"))
   :content (fn [_ payment_method] {:payment_method payment_method})
   :process (fn [{:keys [db]} [org-id _] _]
-             (let [calling-route
-                   (nav/make-url (or (:redirect_uri (nav/get-url-params))
-                                     (str "/org/" org-id "/billing"))
-                                 (dissoc (nav/get-url-params)
-                                         :redirect_uri))]
-               {:db (-> (panel-set db :need-card? false)
-                        (panel-set :error-message nil)
-                        ;; enable the form again
-                        (assoc-in [:state :stripe :disabled-form] false))
-                :nav-scroll-top calling-route}))
+             {:db (-> (panel-set db :need-card? false)
+                      (panel-set :error-message nil)
+                      ;; enable the form again
+                      (assoc-in [:state :stripe :disabled-form] false))
+              :dispatch [:data/load [:org/default-source org-id]]})
   :on-error (fn [{:keys [db error]} _]
               {:db (panel-set db :error-message (:message error))}))
 
@@ -208,7 +196,7 @@
           [Button {:disabled (or disabled? (errors?))
                    :class "use-card"
                    :primary true}
-           "Use Card"]
+           "Save Payment Information"]
           ;; shows the errors returned from the server (our own, or stripe.com)
           (when @error-message
             [:div.ui.red.header @error-message])]))
