@@ -137,33 +137,10 @@
                                  (Math/abs (- (or (:val b) 0.0) 0.5))) b a)) res))))
       (query-any-unlabeled-article project-id))))
 
-(defn query-ideal-fallback-article [project-id user-id]
+(defn query-ideal-fallback-article [project-id]
   "this is an emergency case where other ideal article methods fail.
   Picks a random unlabeled article, or single labeled article"
-  (let [unlabeled-article (query-any-unlabeled-article project-id)]
-    (if unlabeled-article
-      unlabeled-article
-      (-> (select :article-id)
-          (from
-            [(->
-               (select :ar.article-id)(from [:article :ar])
-               (where [:and
-                       [:= :project-id project-id]
-                       [:= :ar.enabled true]
-                       [:exists
-                        (-> (select 1)
-                            (from [:article_label :al])
-                            (where [:= :al.article-id :ar.article-id])
-                            (sqlh/group :ar.article-id)
-                            (having [:and
-                                     [:<= :%count.%distinct.user-id 1]
-                                     [:= (sql/call :max (sql/raw ["CASE WHEN user_id = " user-id "THEN 1 ELSE 0 END"])) 0]]))]])
-
-               (limit 30)) :sa])
-          (order-by :%random)
-          (limit 1)
-          do-query
-          (first)))))
+  (query-any-unlabeled-article project-id))
 
 (defn get-user-label-task [project-id user-id]
   (let [{:keys [second-review-prob unlimited-reviews]
@@ -176,12 +153,10 @@
                  (user-confirmed-today-count project-id user-id))
         [article status]
         (cond unlimited-reviews             [unlimited :unlimited]
-              (and single-label unlabeled)  (if (<= (util/crypto-rand) second-review-prob)
-                                              [single-label :single] [unlabeled :unreviewed])
+              (and single-label unlabeled)  (if (<= (util/crypto-rand) second-review-prob) [single-label :single] [unlabeled :unreviewed])
               single-label                  [single-label :single]
               unlabeled                     [unlabeled :unreviewed]
-              :else                         (when-let [fallback (query-ideal-fallback-article project-id user-id)]
-                                              [fallback :single]))]
+              :else                         (when-let [fallback (query-ideal-fallback-article project-id)] [fallback :unreviewed]))]
     (when (and article status)
       {:article-id (:article-id article)
        :today-count today-count})))
