@@ -18,31 +18,6 @@
                     (sql/call "date_trunc" "day" :%now)])
       (->> do-query (map :article-id) distinct count)))
 
-(defn query-ideal-fallback-article [project-id user-id]
-  "this is an emergency case where other ideal article methods fail.
-  Picks a random unlabeled article, or single labeled article"
-  (-> (select :article-id)
-      (from
-        [(->
-           (select :ar.article-id)(from [:article :ar])
-           (where [:and
-                   [:= :project-id project-id]
-                   [:= :ar.enabled true]
-                   [:exists
-                    (-> (select 1)
-                        (from [:article_label :al])
-                        (where [:= :al.article-id :ar.article-id])
-                        (sqlh/group :ar.article-id)
-                        (having [:and
-                                 [:<= :%count.%distinct.user-id 1]
-                                 [:= (sql/call :max (sql/raw ["CASE WHEN user_id = " user-id "THEN 1 ELSE 0 END"])) 0]]))]])
-
-           (limit 30)) :sa])
-      (order-by :%random)
-      (limit 1)
-      do-query
-      (first)))
-
 (defn- query-ideal-unlimited-single [project-id user-id]
   (->
     (select :article-id)
@@ -93,6 +68,7 @@
           double-unlimited double-unlimited
           :else nil)))
 
+;TODO should this have some smart prioritization?  Would need to update the fallback-article if so.
 (defn query-ideal-single-article [project-id user-id]
   (-> (select :article-id)
       (from
@@ -111,6 +87,23 @@
                                  [:= (sql/call :max (sql/raw ["CASE WHEN user_id = " user-id "THEN 1 ELSE 0 END"])) 0]]))]])
 
            (limit 30)) :sa])
+      (order-by :%random)
+      (limit 1)
+      do-query
+      (first)))
+
+(defn- query-any-unlabeled-article [project-id]
+  (-> (select :article-id)
+      (from
+        [(-> (select :ar.article-id) (from [:article :ar])
+             (where [:and
+                     [:= :project-id project-id]
+                     [:= :ar.enabled true]
+                     [:not [:exists (->
+                                      (select 1)
+                                      (from [:article-label :al])
+                                      (where [:= :al.article-id :ar.article-id]))]]])
+             (limit 30)) :sq])
       (order-by :%random)
       (limit 1)
       do-query
@@ -142,17 +135,31 @@
           (do
             (reduce (fn [a b] (if (> (Math/abs (- (or (:val a) 0.0) 0.5))
                                  (Math/abs (- (or (:val b) 0.0) 0.5))) b a)) res))))
+      (query-any-unlabeled-article project-id))))
+
+(defn query-ideal-fallback-article [project-id user-id]
+  "this is an emergency case where other ideal article methods fail.
+  Picks a random unlabeled article, or single labeled article"
+  (let [unlabeled-article (query-any-unlabeled-article project-id)]
+    (if unlabeled-article
+      unlabeled-article
       (-> (select :article-id)
           (from
-            [(-> (select :ar.article-id) (from [:article :ar])
-                 (where [:and
-                         [:= :project-id project-id]
-                         [:= :ar.enabled true]
-                         [:not [:exists (->
-                                          (select 1)
-                                          (from [:article-label :al])
-                                          (where [:= :al.article-id :ar.article-id]))]]])
-                 (limit 30)) :sq])
+            [(->
+               (select :ar.article-id)(from [:article :ar])
+               (where [:and
+                       [:= :project-id project-id]
+                       [:= :ar.enabled true]
+                       [:exists
+                        (-> (select 1)
+                            (from [:article_label :al])
+                            (where [:= :al.article-id :ar.article-id])
+                            (sqlh/group :ar.article-id)
+                            (having [:and
+                                     [:<= :%count.%distinct.user-id 1]
+                                     [:= (sql/call :max (sql/raw ["CASE WHEN user_id = " user-id "THEN 1 ELSE 0 END"])) 0]]))]])
+
+               (limit 30)) :sa])
           (order-by :%random)
           (limit 1)
           do-query
