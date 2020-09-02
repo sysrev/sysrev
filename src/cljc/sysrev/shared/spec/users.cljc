@@ -17,7 +17,6 @@
 (s/def ::admin boolean?)
 (s/def ::permissions (s/nilable (s/coll-of string?)))
 (s/def ::user-uuid ::sc/uuid)
-(s/def ::default-project-id (s/nilable ::sc/project-id))
 (s/def ::reset-code (s/nilable string?))
 (s/def ::setting (s/and keyword? (in? all-user-settings)))
 (s/def ::settings (s/nilable (s/map-of ::setting any?)))

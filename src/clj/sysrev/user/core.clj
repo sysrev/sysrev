@@ -105,7 +105,6 @@
                        :pw-encrypted-buddy (encrypt-password password)
                        :verify-code nil ;; (crypto.random/hex 16)
                        :permissions (db/to-sql-array "text" permissions)
-                       :default-project-id project-id
                        :date-created (sql-now)
                        :user-uuid (UUID/randomUUID)
                        :api-token (generate-api-token)}
@@ -169,8 +168,7 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [_self?]]
-  (get-user user-id [:user-id :user-uuid :email :verified :permissions :settings
-                     :default-project-id]))
+  (get-user user-id [:user-id :user-uuid :email :verified :permissions :settings]))
 
 (defn user-self-info
   "Returns a map of values with various user account information.
@@ -240,9 +238,6 @@
                             :user-id user-id})
   (with-transaction
     (q/modify :web-user {:user-id user-id} {:stripe-id nil})))
-
-(defn set-user-default-project [user-id project-id]
-  (q/modify :web-user {:user-id user-id} {:default-project-id project-id}))
 
 (defn update-member-access-time [user-id project-id]
   (q/modify :project-member {:user-id user-id :project-id project-id}

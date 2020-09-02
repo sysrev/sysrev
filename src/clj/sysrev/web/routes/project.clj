@@ -46,15 +46,14 @@
 ;;; Functions for project routes
 ;;;
 
-(defn update-user-default-project [request]
+(defn record-user-project-interaction [request]
   (let [user-id (current-user-id request)
         project-id (active-project request)]
     (when (and user-id project-id)
       (future
-        (try (user/set-user-default-project user-id project-id)
-             (user/update-member-access-time user-id project-id)
+        (try (user/update-member-access-time user-id project-id)
              (catch Throwable _
-               (log/info "error updating default project")))))))
+               (log/info "error updating project access time")))))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]
@@ -197,20 +196,17 @@
                {:error {:status 404
                         :type :not-found
                         :message (format "Project (%s) not found" project-id)}}
-               (do (update-user-default-project request)
+               (do (record-user-project-interaction request)
                    (project-info project-id)))))))
 
 (dr (POST "/api/join-project" request
           (with-authorize request {:logged-in true}
             (let [project-id (active-project request)
                   user-id (current-user-id request)
-                  session (assoc-in (:session request)
-                                    [:identity :default-project-id]
-                                    project-id)]
+                  session (:session request)]
               (assert (nil? (member/project-member project-id user-id))
                       "join-project: User is already a member of this project")
               (member/add-project-member project-id user-id)
-              (user/set-user-default-project user-id project-id)
               (with-meta
                 {:result {:project-id project-id}}
                 {:session session})))))
@@ -276,7 +272,7 @@
                  article-id (-> request :params :article-id parse-integer)
                  {:keys [article] :as result} (article-info-full project-id article-id)]
              (when (= (:project-id article) project-id)
-               (update-user-default-project request)
+               (record-user-project-interaction request)
                result)))))
 
 (dr (POST "/api/project-articles" request
@@ -298,7 +294,7 @@
                                              (not-empty filters) (merge {:filters filters})
                                              sort-by (merge {:sort-by sort-by})
                                              sort-dir (merge {:sort-dir sort-dir})))]
-              (update-user-default-project request)
+              (record-user-project-interaction request)
               {:result (if lookup-count
                          (:total-count query-result)
                          (:entries query-result))}))))
@@ -381,7 +377,7 @@
 
 (dr (GET "/api/label-task" request
          (with-authorize request {:roles ["member"]}
-           (update-user-default-project request)
+           (record-user-project-interaction request)
            (if-let [{:keys [article-id today-count]}
                     (assign/get-user-label-task (active-project request) (current-user-id request))]
              {:result (merge (article-info-full (active-project request) article-id)
@@ -399,7 +395,7 @@
                   duplicate-save? (and (labels/user-article-confirmed? user-id article-id)
                                        (not change?)
                                        (not resolve?))]
-              (update-user-default-project request)
+              (record-user-project-interaction request)
               (if duplicate-save?
                 (do (log/warnf "api/set-labels: answer already confirmed ; %s" (pr-str body))
                     (slack/try-log-slack

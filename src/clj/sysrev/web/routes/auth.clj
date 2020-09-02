@@ -85,7 +85,7 @@
                user (when user-info (user-by-email email))
                {_verified :verified :or {_verified false}} user
                _success (not-empty user)
-               session-identity (select-keys user [:user-id :user-uuid :email :default-project-id])]
+               session-identity (select-keys user [:user-id :user-uuid :email])]
            (with-meta (response/redirect base-url)
              {:session (assoc session :identity session-identity)}))))
 
@@ -97,7 +97,7 @@
                           (user/valid-password? email password))
                 user (when valid (user-by-email email))
                 success (boolean valid)
-                session-identity (select-keys user [:user-id :user-uuid :email :default-project-id])
+                session-identity (select-keys user [:user-id :user-uuid :email])
                 verified (user/primary-email-verified? (:user-id session-identity))]
             (cond-> {:success success, :valid valid, :verified verified}
               (not valid) (assoc :message "Invalid username or password")
