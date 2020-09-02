@@ -470,7 +470,7 @@
            (loading/any-loading? :only :review/task))))
 
 (defn- review-task-ready-for-action? []
-  (and (loading/ajax-status-inactive?)
+  (and (loading/ajax-status-inactive? 50)
        (zero? (-> ($ "div.view-pdf.rendering") .-length))
        (zero? (-> ($ "div.view-pdf.updating") .-length))))
 
@@ -510,7 +510,7 @@
                                            [:project-articles/hide-article]
                                            [:scroll-top]]))}]))))))
         button (fn [] [:button.ui.right.labeled.icon.button.save-labels
-                       {:class (css [disabled? "disabled"]
+                       {:class (css [(or disabled? saving?) "disabled"]
                                     [saving? "loading"]
                                     [small? "tiny"]
                                     [fluid? "fluid"]
@@ -557,7 +557,7 @@
            {:class (css [loading-task? "loading"]
                         [small? "tiny"]
                         [fluid? "fluid"])
-            :on-click (when-not (or saving? loading-task?) on-click)}
+            :on-click on-click}
            (if (and (util/full-size?) (not small?))
              "Skip Article" "Skip")
            [:i.right.circle.arrow.icon]])))
