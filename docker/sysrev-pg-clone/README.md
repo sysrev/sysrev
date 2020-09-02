@@ -13,6 +13,7 @@
 2. run a postgres container - name it sysrev-pg-clone
 ```
 docker run -it --rm --name sysrev-pg-clone \
+ --shm-size 6g \
  -e POSTGRES_HOST_AUTH_METHOD=trust \
  -e POSTGRES_PASSWORD=postgress \
  -e POSTGRES_HOST_AUTH_METHOD=trust \
