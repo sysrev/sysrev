@@ -4,7 +4,6 @@
             [sysrev.base :as base]
             [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]
-            [sysrev.blog :as blog]
             [sysrev.dnd :as dnd]
             [sysrev.views.article]
             [sysrev.views.annotator :as annotator]
@@ -166,31 +165,23 @@
   (let [landing? @(subscribe [:landing-page?])]
     (if-not @(subscribe [:initialized?])
       (loading-content)
-      (case @(subscribe [:app-id])
-        :blog
-        [:div#toplevel
-         [:div#main-content
-          [blog/blog-header-menu]
-          [:div.ui.container.blog-content
-           [active-panel-content]]]
-         [GlobalFooter]]
-        [dnd/wrap-dnd-app
-         [:div#toplevel {:class (css [landing? "landing"])}
-          [:div#main-content {:class (css [(review/display-sidebar?) "annotator"]
-                                          [landing? "landing"]
-                                          [(or (not @(subscribe [:data/ready?]))
-                                               (loading/any-loading?
-                                                :ignore (into loading/ignore-data-names
-                                                              [:pdf/open-access-available?
-                                                               :pdf/article-pdfs])))
-                                           "loading"])}
-           [header-menu]
-           [:div.panel-content {:class (css [(not landing?) "ui container"])}
-            (if (review/display-sidebar?)
-              [:div.ui.grid
-               [SidebarColumn]
-               [:div.column
-                {:class (css "twelve" "wide")}
-                [active-panel-content]]]
-              [active-panel-content])]]
-          [GlobalFooter]]]))))
+      [dnd/wrap-dnd-app
+       [:div#toplevel {:class (css [landing? "landing"])}
+        [:div#main-content {:class (css [(review/display-sidebar?) "annotator"]
+                                        [landing? "landing"]
+                                        [(or (not @(subscribe [:data/ready?]))
+                                             (loading/any-loading?
+                                              :ignore (into loading/ignore-data-names
+                                                            [:pdf/open-access-available?
+                                                             :pdf/article-pdfs])))
+                                         "loading"])}
+         [header-menu]
+         [:div.panel-content {:class (css [(not landing?) "ui container"])}
+          (if (review/display-sidebar?)
+            [:div.ui.grid
+             [SidebarColumn]
+             [:div.column
+              {:class (css "twelve" "wide")}
+              [active-panel-content]]]
+            [active-panel-content])]]
+        [GlobalFooter]]])))

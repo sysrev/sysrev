@@ -109,15 +109,6 @@
                     (GET "*" [] (c/wrap-routes html-routes wrap-sysrev-html)))
     (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
 
-#_
-(defn blog-handler
-  "Root handler for blog web server"
-  []
-  (cond-> (routes (ANY "/api/*" [] (c/wrap-routes blog/blog-routes wrap-sysrev-app))
-                  (compojure.route/resources "/")
-                  (GET "*" [] (c/wrap-routes blog/blog-html-routes wrap-sysrev-html)))
-    (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
-
 (defonce web-servers (atom {}))
 (defonce web-port (atom nil))
 (defonce web-server-config (atom nil))
@@ -139,8 +130,6 @@
       (reset! web-server-config config)
       (stop-web-server)
       (reset! web-servers
-              {:main (aleph/start-server (sysrev-handler) {:port port})
-               #_ :blog #_ (aleph/start-server (blog-handler) {:port (inc port)})})
+              {:main (aleph/start-server (sysrev-handler) {:port port})})
       (log/info (format "web server started (port %d)" port))
-      #_ (log/info (format "web server started (port %d) (blog)" (inc port)))
       @web-servers)))

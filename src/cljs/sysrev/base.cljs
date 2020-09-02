@@ -8,7 +8,6 @@
             [secretary.core :as secretary]))
 
 (defonce sysrev-hostname "sysrev.com")
-(defonce sysrev-blog-hostname "blog.sysrev.com")
 
 (def debug? ^boolean js/goog.DEBUG)
 
@@ -67,25 +66,20 @@
       (println (log-entry-string entry)))))
 
 (defn app-id []
-  (cond (-> js/document
-            (.getElementById "blog-app"))  :blog
-        :else                              :main))
+  :main)
 
 (reg-sub :app-id (fn [_] (app-id)))
 
-(reg-event-db
- :toggle-analytics
- [trim-v]
- (fn [db [enable?]]
-   (assoc db :disable-analytics (not enable?))))
+(reg-event-db :toggle-analytics [trim-v]
+              (fn [db [enable?]]
+                (assoc db :disable-analytics (not enable?))))
 
 (defn ^:export toggle-analytics [enable?]
   (dispatch [:toggle-analytics enable?]))
 
 (defn run-analytics? []
   (and (aget js/window "ga")
-       (or (= js/window.location.host sysrev-hostname)
-           (= js/window.location.host sysrev-blog-hostname))
+       (= js/window.location.host sysrev-hostname)
        (not (:disable-analytics @app-db))))
 
 (defn ga

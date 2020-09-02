@@ -46,23 +46,15 @@
 (reg-fx :reset-needed
         (fn [reset?] (when reset? (dispatch [:reset-needed]))))
 
-(reg-sub
- :initialized?
- :<- [:app-id]
- :<- [:have-identity?]
- :<- [:have? [:blog/entries]]
- :<- [:active-panel]
- (fn [[app-id have-identity? have-blog-entries? active-panel]]
-   (case app-id
-     :blog (boolean (and have-blog-entries? active-panel))
-     (boolean (and have-identity? active-panel)))))
+(reg-sub :initialized?
+         :<- [:have-identity?] :<- [:active-panel]
+         (fn [[have-identity? active-panel]]
+           (boolean (and have-identity? active-panel))))
 
-(reg-event-db
- :ga-event
- [trim-v]
- (fn [db [category action & [label value]]]
-   (ga-event category action label value)
-   db))
+(reg-event-db :ga-event [trim-v]
+              (fn [db [category action & [label value]]]
+                (ga-event category action label value)
+                db))
 
 (defn store-user-map [db umap]
   (let [{:keys [user-id]} umap]

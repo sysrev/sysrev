@@ -13,7 +13,6 @@
             [sysrev.action.core]
             [sysrev.loading]
             [sysrev.routes]
-            [sysrev.blog :as blog]
             [sysrev.views.article]
             [sysrev.views.main :refer [main-content]]
             [sysrev.shared.spec.core]
@@ -55,8 +54,7 @@
 
 (defn mount-root []
   (clear-subscription-cache!)
-  (let [el (or (.getElementById js/document "blog-app")
-               (.getElementById js/document "app"))]
+  (let [el (.getElementById js/document "app")]
     (rdom/render [main-content] el))
   (js/window.addEventListener "resize" on-window-resize))
 
@@ -120,12 +118,6 @@
               (pushy/start! base/history)
               (dispatch-sync [:initialize-db])
               (data/init-data)
-              (mount-root))
-    :blog (do (when base/debug? (enable-console-print!))
-              (pushy/start! base/history)
-              (dispatch-sync [:initialize-db])
-              (blog/init-blog)
-              #_ (data/init-data)
               (mount-root))))
 
 (defonce started
