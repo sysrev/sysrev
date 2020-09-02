@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eux
+
+rm -rf node_modules client/node_modules semantic client/semantic client/.shadow-cljs
+
+git checkout -- semantic
+
+./setup.sh

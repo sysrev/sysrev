@@ -1,0 +1,32 @@
+#!/bin/bash
+
+echoerr() { printf "%b\n" "$*" >&2; }
+
+cmd="$1"
+prefix="$2"
+default="  >> "
+
+set -eu
+
+show_usage() {
+  echoerr "Usage: prefix-lines COMMAND [PREFIX]"
+  echoerr "Pipes output from COMMAND to add a PREFIX string to each line."
+  echoerr "stdout and stderr from COMMAND are merged to stdout."
+  echoerr "Default PREFIX string is \"$default\"."
+  false
+}
+
+[ -z "$prefix" ] && prefix="$default"
+[ -z "$cmd" ] && show_usage
+
+check_cmd() {
+  if [[ ! $(/usr/bin/which "$1" 2> /dev/null) ]] ; then
+    show_usage || true
+    echoerr "\ncommand not found: $1 (\"$*\")"
+    false
+  fi
+}
+check_cmd $cmd
+
+set -o pipefail
+bash -c "$cmd" 2>&1 | sed -Ee "s/(^.*$)/${prefix}\1/g" || show_usage
