@@ -21,16 +21,3 @@
 (s/def ::reset-code (s/nilable string?))
 (s/def ::setting (s/and keyword? (in? all-user-settings)))
 (s/def ::settings (s/nilable (s/map-of ::setting any?)))
-
-(s/def ::web-user
-  (s/keys :req-un
-          [::user-id ::email ::pw-encrypted-buddy ::verify-code
-           ::verified ::date-created ::name ::username ::admin
-           ::permissions ::user-uuid ::default-project-id ::reset-code
-           ::settings]))
-(s/def ::web-user-partial
-  (s/keys :opt-un
-          [::user-id ::email ::pw-encrypted-buddy ::verify-code
-           ::verified ::date-created ::name ::username ::admin
-           ::permissions ::user-uuid ::default-project-id ::reset-code
-           ::settings]))

@@ -26,6 +26,12 @@
                  {:body (json/write-str msg)
                   :content-type :application/json}))))
 
+(defn try-log-slack [blocks-text notify-text]
+  (try (log-slack blocks-text notify-text)
+       (catch Throwable e
+         (log/warnf "log-slack exception: %s"
+                    (with-out-str (print-cause-trace-custom e 12))))))
+
 (defn log-slack-custom [blocks-text notify-text & {:keys [force]}]
   (when (or force (= :prod (:profile env)))
     (log/infof "Logging to Slack:\n* %s *\n%s"

@@ -35,6 +35,7 @@
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.formats.ctgov :as ctgov]
+            [sysrev.slack :as slack]
             [sysrev.util :as util :refer [parse-integer]])
   (:import (java.io File)))
 
@@ -394,15 +395,22 @@
                   project-id (active-project request)
                   before-count (labels/count-reviewed-articles project-id)
                   {:keys [article-id label-values confirm? change? resolve?]
-                   :as body} (-> request :body)]
-              (assert (or change? resolve?
-                          (not (labels/user-article-confirmed? user-id article-id))))
+                   :as body} (-> request :body)
+                  duplicate-save? (and (labels/user-article-confirmed? user-id article-id)
+                                       (not change?)
+                                       (not resolve?))]
               (update-user-default-project request)
-              (answer/set-user-article-labels user-id article-id label-values
-                                              :imported? false
-                                              :confirm? confirm?
-                                              :change? change?
-                                              :resolve? resolve?)
+              (if duplicate-save?
+                (do (log/warnf "api/set-labels: answer already confirmed ; %s" (pr-str body))
+                    (slack/try-log-slack
+                     [(format "*Request*:\n```%s```"
+                              (util/pp-str (slack/request-info request)))]
+                     "Duplicate /api/set-labels request"))
+                (answer/set-user-article-labels user-id article-id label-values
+                                                :imported? false
+                                                :confirm? confirm?
+                                                :change? change?
+                                                :resolve? resolve?))
               (let [after-count (labels/count-reviewed-articles project-id)]
                 (when (and (> after-count before-count)
                            (not= 0 after-count)

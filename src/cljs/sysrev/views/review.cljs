@@ -463,54 +463,64 @@
        [:span.ui.tiny.green.circular.label today-count]
        [:span.text nbsp nbsp "today"]])))
 
+(defn- review-task-saving? [article-id]
+  (and @(subscribe [:review/saving? article-id])
+       (or (loading/any-action-running? :only :review/send-labels)
+           (loading/any-loading? :only :article)
+           (loading/any-loading? :only :review/task))))
+
+(defn- review-task-ready-for-action? []
+  (and (loading/ajax-status-inactive?)
+       (zero? (-> ($ "div.view-pdf.rendering") .-length))
+       (zero? (-> ($ "div.view-pdf.updating") .-length))))
+
 (defn SaveButton [article-id & [small? fluid?]]
   (let [project-id @(subscribe [:active-project-id])
         resolving? @(subscribe [:review/resolving?])
-        on-review-task? @(subscribe [:review/on-review-task?])
+        on-review-task? (subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
         missing @(subscribe [:review/missing-labels article-id])
         invalid @(subscribe [:review/invalid-labels article-id])
-        disabled? (or (seq missing) (not-empty invalid))
-        saving? (and @(subscribe [:review/saving? article-id])
-                     (or (loading/any-action-running? :only :review/send-labels)
-                         (loading/any-loading? :only :article)
-                         (loading/any-loading? :only :review/task)))
-        save-class (css [disabled? "disabled"] [saving? "loading"] [small? "tiny"] [fluid? "fluid"]
-                        [resolving? "purple" :else "primary"])
+        saving? (review-task-saving? article-id)
+        disabled? (or (seq missing) (seq invalid))
+        project-articles-id @(subscribe [:project-articles/article-id])
         on-save (util/wrap-user-event
                  (fn []
                    (util/run-after-condition
                     [:review-save article-id]
-                    #(and (loading/ajax-status-inactive? 50)
-                          (nil? (aget ($ "div.view-pdf.rendering") 0))
-                          (nil? (aget ($ "div.view-pdf.updating") 0)))
+                    review-task-ready-for-action?
                     (fn []
-                      (sync-article-notes article-id)
-                      (dispatch
-                       [:review/send-labels
-                        {:project-id project-id
-                         :article-id article-id
-                         :confirm? true
-                         :resolve? (boolean resolving?)
-                         :on-success (->> [(when (or on-review-task? (= article-id review-task-id))
-                                             [:fetch [:review/task project-id]])
-                                           (when (not on-review-task?)
-                                             [:fetch [:article project-id article-id]])
-                                           (when (not on-review-task?)
-                                             [:review/disable-change-labels article-id])
-                                           (when @(subscribe [:project-articles/article-id])
-                                             (dispatch [:project-articles/reload-list])
-                                             (dispatch [:project-articles/hide-article])
-                                             (util/scroll-top))]
-                                          (remove nil?))}])))))
+                      (when-not (loading/any-action-running? :only :review/send-labels)
+                        (dispatch-sync [:review/mark-saving article-id])
+                        (sync-article-notes article-id)
+                        (dispatch
+                         [:review/send-labels
+                          {:project-id project-id
+                           :article-id article-id
+                           :confirm? true
+                           :resolve? (boolean resolving?)
+                           :on-success (concat
+                                        (when (or @on-review-task? (= article-id review-task-id))
+                                          [[:fetch [:review/task project-id]]])
+                                        (when (not @on-review-task?)
+                                          [[:fetch [:article project-id article-id]]
+                                           [:review/disable-change-labels article-id]])
+                                        (when project-articles-id
+                                          [[:project-articles/reload-list]
+                                           [:project-articles/hide-article]
+                                           [:scroll-top]]))}]))))))
         button (fn [] [:button.ui.right.labeled.icon.button.save-labels
-                       {:class save-class
-                        :on-click (when-not disabled? on-save)}
+                       {:class (css [disabled? "disabled"]
+                                    [saving? "loading"]
+                                    [small? "tiny"]
+                                    [fluid? "fluid"]
+                                    [resolving? "purple" :else "primary"])
+                        :on-click (when-not (or disabled? saving?) on-save)}
                        (str (if resolving? "Resolve" "Save") (when-not small? "Labels"))
                        [:i.check.circle.outline.icon]])]
     (list (if disabled?
-            ^{:key :save-button} [ui/with-tooltip [:div [button article-id]]]
-            ^{:key :save-button} [button article-id])
+            ^{:key :save-button} [ui/with-tooltip [:div [button]]]
+            ^{:key :save-button} [button])
           ^{:key :save-button-popup}
           [:div.ui.inverted.popup.top.left.transition.hidden
            {:style {:min-width "20em"}}
@@ -521,36 +531,35 @@
               [:li "Invalid label answer(s)"])]])))
 
 (defn SkipArticle [article-id & [small? fluid?]]
-  (let [saving? (and @(subscribe [:review/saving? article-id])
-                     (or (loading/any-action-running? :only :review/send-labels)
-                         (loading/any-loading? :only :article)
-                         (loading/any-loading? :only :review/task)))
-
-        project-id @(subscribe [:active-project-id])
+  (let [project-id @(subscribe [:active-project-id])
+        saving? (review-task-saving? article-id)
+        on-review-task? (subscribe [:review/on-review-task?])
         loading-task? (and (not saving?)
-                           @(subscribe [:review/on-review-task?])
+                           @on-review-task?
                            (loading/item-loading? [:review/task project-id]))
-        on-review-task? @(subscribe [:review/on-review-task?])
-        on-next (util/wrap-user-event
-                 (fn []
-                   (util/run-after-condition
-                    [:review-skip article-id]
-                    #(and (loading/ajax-status-inactive? 50)
-                          (nil? (aget ($ "div.view-pdf.rendering") 0))
-                          (nil? (aget ($ "div.view-pdf.updating") 0)))
-                    #(when on-review-task?
-                       (sync-article-notes article-id)
-                       ;; skip article should not SAVE labels!
-                       #_(dispatch [:review/send-labels {:project-id project-id
-                                                         :article-id article-id
-                                                         :confirm? false
-                                                         :resolve? false}])
-                       (dispatch [:fetch [:review/task project-id]])))))]
+        on-click (util/wrap-user-event
+                  (fn []
+                    (util/run-after-condition
+                     [:review-skip article-id]
+                     review-task-ready-for-action?
+                     (fn []
+                       (when @on-review-task?
+                         (sync-article-notes article-id)
+                         ;; skip article should not SAVE labels!
+                         #_ (dispatch [:review/send-labels {:project-id project-id
+                                                            :article-id article-id
+                                                            :confirm? false
+                                                            :resolve? false}])
+                         (dispatch [:fetch [:review/task project-id]])
+                         (dispatch [:review/reset-ui-labels]))))))]
     (list ^{:key :skip-article}
           [:button.ui.right.labeled.icon.button.skip-article
-           {:class (css [loading-task? "loading"] [small? "tiny"] [fluid? "fluid"])
-            :on-click on-next}
-           (if (and (util/full-size?) (not small?)) "Skip Article" "Skip")
+           {:class (css [loading-task? "loading"]
+                        [small? "tiny"]
+                        [fluid? "fluid"])
+            :on-click (when-not (or saving? loading-task?) on-click)}
+           (if (and (util/full-size?) (not small?))
+             "Skip Article" "Skip")
            [:i.right.circle.arrow.icon]])))
 
 ;; Component for row of action buttons below label inputs grid

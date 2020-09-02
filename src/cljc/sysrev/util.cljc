@@ -916,7 +916,7 @@
   `is-ready`, and if returns true this will be aborted without running
   `on-ready`."
            [id is-ready on-ready & {:keys [interval is-abort]
-                                    :or {interval 25
+                                    :or {interval 10
                                          is-abort (constantly false)}}]
            ;; Check if a `run-after-condition` instance is already active
            ;; for this `id` value; if so, don't start a new one.

@@ -1,6 +1,6 @@
 (ns sysrev.state.review
   (:require [clojure.walk :as walk]
-            [clojure.string :as string]
+            [clojure.string :as str]
             [re-frame.core :refer
              [subscribe reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
@@ -8,7 +8,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel active-project-id]]
             [sysrev.state.article :as article]
-            [sysrev.util :refer [in? map-values]]))
+            [sysrev.util :as util :refer [in? map-values]]))
 
 (defn- review-task-state [db & [project-id]]
   (get-in db [:data :review (or project-id (active-project-id db))]))
@@ -52,10 +52,16 @@
   :process
   (fn [_ [_ {:keys [on-success]}] _]
     (when on-success
-      (let [success-fns (filter fn? on-success)
-            success-events (remove fn? on-success)]
+      (let [success-fns    (->> on-success (remove nil?) (filter fn?))
+            success-events (->> on-success (remove nil?) (remove fn?))]
         (doseq [f success-fns] (f))
-        {:dispatch-n success-events}))))
+        {:dispatch-n (concat success-events [[:review/reset-saving]
+                                             [:review/reset-ui-labels]])})))
+  :on-error
+  (fn [{:keys [db error]} [_ _] _]
+    (util/log-err ":review/send-labels ; error = %s" (pr-str error))
+    #_ {:reload-page [true 500]}
+    {}))
 
 (reg-sub :review/today-count
          (fn [db [_ & [project-id]]]
@@ -100,14 +106,7 @@
 
 (reg-sub ::labels #(get-in % [:state :review :labels]))
 
-(reg-sub :review/saving?
-         (fn [[_ article-id]] (subscribe [:panel-field [:saving-labels article-id]]))
-         (fn [saving?] saving?))
 
-(reg-sub :review/change-labels?
-         (fn [[_ article-id panel]]
-           [(subscribe [:panel-field [:transient :change-labels? article-id] panel])])
-         (fn [[change-labels?]] change-labels?))
 
 (defn review-ui-labels [db article-id]
   (get-in db [:state :review :labels article-id]))
@@ -174,6 +173,10 @@
                     (boolean (in? inconsistent label-id))
                     (vec inconsistent))))))
 
+(reg-sub :review/saving?
+         (fn [[_ article-id]] (subscribe [:panel-field [:saving-labels article-id]]))
+         (fn [saving?] saving?))
+
 ;; Record POST action to send labels having been initiated,
 ;; to show loading indicator on the button that was clicked.
 (reg-event-fx :review/mark-saving [trim-v]
@@ -185,6 +188,11 @@
               (fn [_ [article-id panel]]
                 (let [field (if article-id [:saving-labels article-id] [:saving-labels])]
                   {:dispatch [:set-panel-field field nil panel]})))
+
+(reg-sub :review/change-labels?
+         (fn [[_ article-id panel]]
+           (subscribe [:panel-field [:transient :change-labels? article-id] panel]))
+         (fn [change-labels?] change-labels?))
 
 ;; Change interface state to enable label editor for an article where
 ;; user has confirmed answers.
@@ -201,9 +209,8 @@
                        [:review/reset-ui-notes])}))
 
 ;; this is needed for group string labels that allow multiple values
-(defn filter-blank-string-labels
-  [m]
-  (let [f (fn [[k v]] (if (vector? v) [k (filterv (comp not string/blank?) v)] [k v]))]
+(defn filter-blank-string-labels [m]
+  (let [f (fn [[k v]] (if (vector? v) [k (filterv (comp not str/blank?) v)] [k v]))]
     ;; only apply to maps
     (walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) m)))
 
@@ -211,21 +218,20 @@
 ;; taken from active review interface.
 (reg-event-fx :review/send-labels [trim-v]
               (fn [{:keys [db]} [{:keys [project-id article-id confirm? resolve? on-success]}]]
-                (let [label-values @(subscribe [:review/active-labels article-id])
-                      change? (= :confirmed (article/article-user-status db article-id))
-                      panel (active-panel db)]
+                (let [label-values (-> @(subscribe [:review/active-labels article-id])
+                                       (filter-blank-string-labels))
+                      change? (= :confirmed (article/article-user-status db article-id))]
                   {:dispatch-n
-                   (doall
-                    (->> (list (when confirm? [:review/mark-saving article-id panel])
-                               [:action [:review/send-labels
-                                         project-id
-                                         {:article-id article-id
-                                          :label-values (filter-blank-string-labels label-values)
-                                          :confirm? confirm?
-                                          :resolve? resolve?
-                                          :change? change?
-                                          :on-success on-success}]])
-                         (remove nil?)))})))
+                   (->> [(when confirm?
+                           [:review/mark-saving article-id (active-panel db)])
+                         [:action [:review/send-labels
+                                   project-id {:article-id article-id
+                                               :label-values label-values
+                                               :confirm? confirm?
+                                               :resolve? resolve?
+                                               :change? change?
+                                               :on-success on-success}]]]
+                        (remove nil?))})))
 
 ;; Reset state of locally changed label values in review interface
 (reg-event-db :review/reset-ui-labels
