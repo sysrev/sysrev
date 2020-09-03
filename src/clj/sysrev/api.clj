@@ -52,7 +52,8 @@
             [sysrev.shared.spec.project :as sp]
             [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer]]
             [venia.core :as venia])
-  (:import (java.util UUID)))
+  (:import (java.util UUID)
+           (java.util.zip ZipOutputStream ZipEntry)))
 
 ;; HTTP error codes
 (def payment-required 402)
@@ -864,6 +865,27 @@
     {:success true, :files (->> (article-file/get-article-file-maps article-id)
                                 (mapv #(assoc % :open-access?
                                               (= (:s3-id %) pmcid-s3-id))))}))
+
+
+(defn project-article-pdfs-zip
+  "download all article pdfs associated with a project. name pdf by article-id"
+  [project-id]
+  (let [articles (project/project-article-ids project-id)
+        pdfs (mapcat (fn [aid]
+                       (->> (:files (article-pdfs aid))
+                            (map-indexed (fn [i art]
+                                           (if (= i 0)
+                                                 {:key (:key art) :name (format "%s.pdf" aid)}
+                                                 {:key (:key art) :name (format "%s-%d.pdf" aid i)})))))
+                     articles)
+        tmpzip (util/create-tempfile :suffix (format "%d.zip" project-id))]
+    (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
+      (doseq [f pdfs]
+        (let [is (s3-file/get-file-stream (:key f) :pdf)]
+          (.putNextEntry zip (ZipEntry. (str (:name f))))
+          (io/copy is zip)
+          (.close is))))
+    tmpzip))
 
 (defn dissociate-article-pdf
   "Remove the association between an article and PDF file."

@@ -36,8 +36,10 @@
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.formats.ctgov :as ctgov]
             [sysrev.slack :as slack]
-            [sysrev.util :as util :refer [parse-integer]])
-  (:import (java.io File)))
+            [sysrev.util :as util :refer [parse-integer]]
+            [ring.util.io :as ring-io])
+  (:import (java.io File)
+           (java.util.zip ZipOutputStream ZipEntry ZipInputStream)))
 
 ;; for clj-kondo
 (declare project-routes dr finalize-routes)
@@ -632,7 +634,9 @@
                              :json
                              (-> (api/project-json project-id)
                                  (clojure.data.json/write-str)
-                                 (create-export-tempfile)))
+                                 (create-export-tempfile))
+                             :uploaded-article-pdfs-zip
+                             (api/project-article-pdfs-zip project-id))
                   {:keys [download-id]
                    :as entry} (add-project-export
                                project-id export-type tempfile
@@ -644,7 +648,9 @@
                                   :articles-csv     "Articles"
                                   :annotations-csv  "Annotations"
                                   :group-label-csv  "GroupLabel"
-                                  :json             "JSON")
+                                  :uploaded-article-pdfs-zip "UPLOADED_PDFS"
+                                  :json             "JSON"
+                                  )
                   filename-ext (case export-type
                                  (:user-answers
                                   :group-answers
@@ -652,7 +658,8 @@
                                   :annotations-csv
                                   :group-label-csv)  "csv"
                                  :endnote-xml        "xml"
-                                 :json               "json")
+                                 :json               "json"
+                                 :uploaded-article-pdfs-zip "zip")
                   filename-project (str "P" project-id)
                   filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
                   filename-date (util/today-string "MMdd")
@@ -665,7 +672,7 @@
                                                      (name export-type) download-id filename])))}))))
 
 (dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
-         (with-authorize request {:allow-public true}
+      (with-authorize request {:allow-public true}
            (let [project-id (active-project request)
                  export-type (-> request :params :export-type keyword)
                  {:keys [download-id filename]} (-> request :params)
@@ -683,7 +690,8 @@
                            (-> (io/reader file) (web/csv-file-response filename))
                            :endnote-xml
                            (-> (io/reader file) (web/xml-file-response filename))
-                           :json (-> (io/reader file) (web/text-file-response filename))))))))
+                           :json (-> (io/reader file) (web/text-file-response filename))
+                           :uploaded-article-pdfs-zip (ring-io/piped-input-stream (fn [os] (io/copy file os)))))))))
 
 ;; Legacy route for existing API code
 (dr (GET "/api/export-user-answers-csv/:project-id/:filename" request

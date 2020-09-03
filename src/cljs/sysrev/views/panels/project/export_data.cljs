@@ -115,6 +115,36 @@
           (or (-> error :message)
               "Sorry, an error occurred while generating the file.")])])))
 
+(defn ExportUploadedArticlePDFs []
+  (let [project-id @(subscribe [:active-project-id])
+        export-type :uploaded-article-pdfs-zip
+        options {}
+        action [:project/generate-export project-id export-type options]
+        running? (loading/action-running? action)
+        entry @(subscribe [:project/export-file project-id export-type options])
+        {:keys [filename url error]} entry
+        file? (and entry (not error))]
+    [:div.ui.segment
+     [:h4.ui.dividing.header "Uploaded Article PDFS (ZIP)"]
+     [:p "Generate a zip file with all pdfs uploaded to articles in this project. PDFs are named by the sysrev article-id of their corresponding article."]
+     [:div.eight.wide.field
+      [:button.ui.tiny.fluid.primary.labeled.icon.button
+       {:on-click (when-not running? (util/wrap-user-event #(dispatch [:action action])))
+        :class (util/css [running? "loading"])}
+       [:i.hdd.icon] "Generate"]]
+     (when-not error
+       [:div.field>div.ui.center.aligned.segment.file-download
+        {:style {:margin-top "1rem"}}
+        (cond running?  [:span "Generating file..."]
+              file?     [:a {:href url :target "_blank" :download filename}
+                         [:i.outline.file.icon] " " filename]
+              :else     [:span "<Generate file to download>"])])
+     (when error
+       [:div.field>div.ui.negative.message
+        {:style {:margin-top "1rem"}}
+        (or (-> error :message)
+            "Sorry, an error occurred while generating the file.")])]))
+
 (defmethod panel-content [:project :project :export-data] []
   (fn [child]
     (when @(subscribe [:active-project-id])
@@ -153,6 +183,7 @@
           [:p "This file also includes any label prediction scores for each article."]
           [:p "By default, includes all articles; this can be customized from the Articles page."]
           [ProjectExportNavigateForm :articles-csv]]
+         [ExportUploadedArticlePDFs]
          [ExportJSON]
          [ExportGroupLabelCSV]]]
        child])))
