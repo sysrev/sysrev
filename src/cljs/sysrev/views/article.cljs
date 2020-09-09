@@ -338,7 +338,7 @@
                            (str "#" article-id)]]))]]))
 
 (defn ArticleInfo
-  [article-id & {:keys [show-labels? private-view? show-score? context change-labels-button]
+  [article-id & {:keys [show-labels? private-view? show-score? context change-labels-button resolving?]
                  :or {show-score? true}}]
   (let [full-size? (util/full-size?)
         project-id @(subscribe [:active-project-id])
@@ -381,4 +381,4 @@
              (when-not (= datasource-name "entity")
                ^{:key :article-pdfs} [pdf/PDFs article-id])))
      (when change-labels-button [change-labels-button])
-     (when show-labels? [ArticleLabelsView article-id :self-only? private-view?])]))
+     (when show-labels? [ArticleLabelsView article-id :self-only? private-view? :resolving? resolving?])]))

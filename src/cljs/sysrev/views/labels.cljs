@@ -1,11 +1,12 @@
 (ns sysrev.views.labels
   (:require [clojure.string :as str]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [cljs-time.core :as t]
+            [reagent.core :as r]
             [sysrev.views.components.core :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
-            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
+            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell Icon Button]]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch nbsp parse-integer]]
             [sysrev.macros :refer-macros [with-loader]]))
@@ -104,7 +105,38 @@
         resolved? (= user-id @(subscribe [:article/resolve-user-id article-id]))]
     [LabelValuesView labels :resolved? resolved?]))
 
-(defn ArticleLabelsView [article-id & {:keys [self-only?]}]
+(defn- copy-user-answers [project-id article-id user-id]
+  (let [label-ids (set @(subscribe [:project/label-ids project-id]))
+        labels @(subscribe [:article/labels article-id user-id])
+
+        nil-events (mapv (fn [lid] [:review/set-label-value article-id "na" lid "na" nil]) label-ids)
+
+        group-label-ids (mapv (fn [[uuid _]] uuid) (filter (fn [[_ {:keys [answer]}]] (:labels answer)) labels))
+        group-munge-labels (mapcat (fn [lbl-id]
+                             (let [lbl (get labels lbl-id)
+                                   answers (:labels (:answer lbl))]
+                               (mapcat (fn [[ith ithanswers]]
+                                         (mapv (fn [[uid answer]] {:uid uid :ith ith :answer answer :lid lbl-id :aid article-id})
+                                               ithanswers))
+                                       answers)))
+                           group-label-ids)
+
+        group-events (map (fn [{:keys [uid ith answer lid aid]}]
+                            (if (and (vector? answer) (= 1 (count answer)))
+                              [:review/set-label-value aid lid uid ith (first answer)]
+                              [:review/set-label-value aid lid uid ith answer])
+                            ) group-munge-labels)
+
+        non-group-label-ids (mapv (fn [[uuid _]] uuid) (filter (fn [[_ {:keys [answer]}]] (nil? (:labels answer))) labels))
+        ng-munge-labels (mapv (fn [lbl-id] {:uuid lbl-id :answer (:answer (get labels lbl-id))}) non-group-label-ids)
+        ng-events (mapv (fn [{:keys [uuid answer]}] [:review/set-label-value article-id "na" uuid "na" answer]) ng-munge-labels)]
+
+    (doall (map (fn [event] (dispatch event)) nil-events))
+    (doall (map (fn [event] (dispatch event)) ng-events))
+    (doall (map (fn [event] (dispatch event)) group-events))
+  label-ids))
+
+(defn ArticleLabelsView [article-id & {:keys [self-only? resolving?]}]
   (let [project-id @(subscribe [:active-project-id])
         self-id @(subscribe [:self/user-id])
         user-labels @(subscribe [:article/labels article-id])
@@ -164,7 +196,15 @@
                         [:div
                          [Avatar {:user-id user-id}]
                          [UserPublicProfileLink {:user-id user-id
-                                                 :display-name user-name}]])]
+                                                 :display-name user-name}]
+                         (when resolving?
+                           (r/as-element
+                             [Button {:size "tiny"
+                                      :class "project-access"
+                                      :id "copy-label-button"
+                                      :style {:margin-left "0.25rem"}
+                                      :on-click #(copy-user-answers project-id article-id user-id)}
+                              [Icon {:name "copy"}] "copy"]))])]
                    [:div.right.aligned.column
                     [updated-time-label updated-time]]]]
                  [:div.labels

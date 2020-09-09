@@ -114,13 +114,15 @@
 
 (defn ArticleContent [context article-id]
   (let [editing? @(subscribe [:article-list/editing? context article-id])
-        {:keys [self-only]} @(subscribe [::al/display-options (al/cached context)])]
+        {:keys [self-only]} @(subscribe [::al/display-options (al/cached context)])
+        resolving? @(subscribe [:review/resolving?])]
     [:div {:style {:width "100%"}}
      [ArticleInfo article-id
       :show-labels? true
       :private-view? self-only
       :context :article-list
-      :change-labels-button (fn [] [ChangeLabelsButton context article-id])]
+      :change-labels-button (fn [] [ChangeLabelsButton context article-id])
+      :resolving? resolving?]
      (when editing? [review/LabelAnswerEditor article-id])]))
 
 (defn ArticleLabelsNotes [context article _full-size?]
