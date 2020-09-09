@@ -19,7 +19,7 @@ if [ "$reinstall" == "1" ] ; then
 fi
 
 echo "running: npm i fomantic-ui --ignore-scripts"
-npm i fomantic-ui --ignore-scripts > /dev/null
+npm i fomantic-ui --ignore-scripts --no-save > /dev/null
 echo "running: npm i"
 npm i > /dev/null
 

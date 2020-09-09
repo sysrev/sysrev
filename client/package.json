@@ -15,7 +15,7 @@
     "dnd-core": "9.4.0",
     "dompurify": "1.0.11",
     "dropzone": "5.5.1",
-    "fomantic-ui": "^2.8.6",
+    "fomantic-ui": "2.8.7",
     "form-data": "2.5.1",
     "jquery": "3.4.1",
     "moment": "2.22.2",
