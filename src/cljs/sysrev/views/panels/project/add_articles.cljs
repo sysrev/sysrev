@@ -416,7 +416,8 @@
                   ;; unique count
                   (when-let [unique-articles-count (:unique-articles-count source)]
                     [:div.column
-                     [:span.unique-count (.toLocaleString unique-articles-count)]
+                     [:span.unique-count {:data-count (str unique-articles-count)}
+                      (.toLocaleString unique-articles-count)]
                      " unique " (article-or-articles unique-articles-count)])
                   (doall (for [{shared-count :count, overlap-source-id :overlap-source-id}
                                (filter #(pos? (:count %)) (:overlap source))]

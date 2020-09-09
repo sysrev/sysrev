@@ -343,6 +343,7 @@
         active-group-label (subscribe [:group-label/active-group-label])
         answers (subscribe [:review/active-labels article-id "na" label-id])]
     [:div {:id (str "group-label-input-" label-id)
+           :class "group-label-input"
            :style (cond-> {:width "100%"
                            :padding-top "1em"
                            :padding-bottom "1em"

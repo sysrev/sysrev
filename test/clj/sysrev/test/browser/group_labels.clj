@@ -29,6 +29,9 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(defn- unique-count-span [n]
+  (format "span.unique-count[data-count='%d']" n))
+
 (defn group-label-div-with-name [short-label]
   (xpath "//div[contains(@id,'group-label-input-') and contains(text(),'" short-label "')]"))
 
@@ -37,7 +40,7 @@
   [short-label nth]
   (xpath "(//div[@id='group-label-editor']//table/tbody/tr/td[count(//div[@id='group-label-editor']//table/thead/tr/th[.='" short-label "']/preceding-sibling::th)+1])[" nth "]"))
 
-(def add-blank-row-button (xpath "//div[@id='add-group-label-instance']"))
+(def add-blank-row-button "div#add-group-label-instance")
 
 (defn delete-row-icon [nth]
   (xpath "//table/tbody/tr[" nth "]/td//i[contains(@class,'delete')]"))
@@ -50,7 +53,7 @@
               (b/set-input-text-per-char (xpath col "//input") (str value))
               (taxi/send-keys (xpath col "//input") org.openqa.selenium.Keys/ENTER)
               ;; hack - the search bar is still available for input, if 'input' defined in the let is used then it causes an error because taxi/send-keys returns the element passed to it and it won't exist anymore.
-              (taxi/send-keys (xpath "//input[@id='search-sysrev-bar']")  org.openqa.selenium.Keys/TAB))
+              (taxi/send-keys "input#search-sysrev-bar" org.openqa.selenium.Keys/TAB))
           (= value-type "categorical")
           (do (b/click col)
               (taxi/clear (xpath col "//input"))
@@ -58,16 +61,17 @@
                             (b/set-input-text-per-char (xpath col "//input") (str v))
                             (taxi/send-keys (xpath col "//input")
                                             org.openqa.selenium.Keys/ENTER)) value))
-              (taxi/send-keys (xpath "//input[@id='search-sysrev-bar']")  org.openqa.selenium.Keys/TAB)))))
+              (taxi/send-keys "input#search-sysrev-bar" org.openqa.selenium.Keys/TAB)))))
 
 (defn set-group-label-row [nth {:keys [short-label definition]}]
   (let [{:keys [labels]} definition
-        group-label-editor (xpath "//div[@id='group-label-editor']/descendant::th[contains(text(),'" short-label "')]")]
+        group-label-editor (xpath "//div[@id='group-label-editor']"
+                                  "/descendant::th[contains(text(),'" short-label "')]")]
     (when-not (taxi/exists? group-label-editor)
       (b/click (group-label-div-with-name short-label)))
     (b/wait-until-exists group-label-editor)
     (b/click add-blank-row-button)
-    (doall (map (partial set-sub-group-label nth) labels))
+    (mapv (partial set-sub-group-label nth) labels)
     nil))
 
 ;; https://stackoverflow.com/questions/14745478/how-to-select-table-column-by-column-header-name-with-xpath
@@ -79,17 +83,17 @@
 (defn group-label-div
   "Given a short-label name for group, return its root xpath"
   [short-label]
-  (x/xpath "//span[contains(text(),'" short-label "')]/ancestor::div[contains(@class,'define-label-item')][1]"))
+  (xpath "//span[contains(text(),'" short-label "')]/ancestor::div[contains(@class,'define-label-item')][1]"))
 
 (defn sub-group-label-div
   "Given a root short-label for a group and its sublabel short-label, return its root xpath"
   [root-short-label sub-short-label]
-  (x/xpath (group-label-div root-short-label) "//span[contains(text(),'" sub-short-label "')]/ancestor::div[contains(@id,'sub-label-')]"))
+  (xpath (group-label-div root-short-label) "//span[contains(text(),'" sub-short-label "')]/ancestor::div[contains(@id,'sub-label-')]"))
 
 (defn group-sub-short-labels
   "Given a group label short-label, return the sub short-labels"
   [root-short-label]
-  (->> (x/xpath (group-label-div root-short-label) "//span[contains(@class,'short-label')]")
+  (->> (xpath (group-label-div root-short-label) "//span[contains(@class,'short-label')]")
        taxi/find-elements
        (map taxi/text)
        (into [])))
@@ -105,27 +109,27 @@
 
 (defn edit-group-label-button
   [root-short-label]
-  (->> (x/xpath "//span[contains(text(),'" root-short-label "')]"
+  (->> (xpath "//span[contains(text(),'" root-short-label "')]"
                 "/ancestor::div[contains(@id,'group-label-')]"
                 "//div[contains(@class,'edit-label-button')]")))
 
 (defn group-label-instance
   [instance-name]
-  (x/xpath (str "//div[contains(text(),'" instance-name "')]/ancestor::div[contains(@class,'group-label-instance')]")))
+  (xpath (str "//div[contains(text(),'" instance-name "')]/ancestor::div[contains(@class,'group-label-instance')]")))
 
 (defn group-label-instance-sub-label
   [instance-name sub-short-label]
-  (x/xpath (group-label-instance instance-name) "//span[contains(@class,'short-label') and contains(text(),'" sub-short-label "')]//ancestor::div[contains(@id,'group-sub-label')]"))
+  (xpath (group-label-instance instance-name) "//span[contains(@class,'short-label') and contains(text(),'" sub-short-label "')]//ancestor::div[contains(@id,'group-sub-label')]"))
 
 (defn group-label-edit-form
   [root-short-label]
-  (x/xpath "(//input[@value='" root-short-label "']"
+  (xpath "(//input[@value='" root-short-label "']"
            "/ancestor::div[contains(@id,'group-label-')])[1]"))
 
 (defn group-label-edit-form-sub-labels
   "Given a group label short-label, return the sub short-label values of the input forms in an edit group label form"
   [root-short-label]
-  (->> (x/xpath (group-label-edit-form root-short-label)
+  (->> (xpath (group-label-edit-form root-short-label)
                 "//div[contains(@class,'sub-labels-edit-form')]"
                 "//div[contains(@class,'field-short-label')]/input")
        taxi/find-elements
@@ -136,7 +140,7 @@
   "If enabled is :enable, enable the button, if :disable, disable it"
   [root-short-label sub-short-label enabled]
   (b/click (edit-group-label-button root-short-label))
-  (b/click (x/xpath (group-label-edit-form root-short-label)
+  (b/click (xpath (group-label-edit-form root-short-label)
                     "//input[@value='" sub-short-label "']"
                     "/ancestor::form"
                     "//button[contains(text(),'" (condp = enabled
@@ -147,7 +151,7 @@
 (defn move-short-label
   "Move the short-label in the direction, which is :up or :down"
   [root-short-label sub-short-label direction]
-  (b/click (x/xpath
+  (b/click (xpath
             (sub-group-label-div root-short-label sub-short-label)
             "//div[contains(text(),'Move " (condp = direction
                                              :up "Up"
@@ -155,13 +159,8 @@
 
 (defn group-label-disabled?
   [root-short-label]
-  (and (b/exists? (x/xpath "//h4[contains(text(),'Disabled Labels')]"))
-       (b/exists? (x/xpath (group-label-div root-short-label) "//div[text()='There are disabled labels, edit label to view them']"))))
-
-(defn add-group-label-review
-  "Add an additional group label when reviewing"
-  [root-short-label]
-  (x/xpath "//div[contains(@class,'button') and contains(text(),'" root-short-label "')]"))
+  (and (b/exists? (xpath "//h4[contains(text(),'Disabled Labels')]"))
+       (b/exists? (xpath (group-label-div root-short-label) "//div[text()='There are disabled labels, edit label to view them']"))))
 
 (defn group-label-value
   "In a group label answer, get the short-label values"
@@ -216,7 +215,7 @@
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'6')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")
     (nav/go-project-route "/labels/edit")
@@ -350,7 +349,7 @@
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'6')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; label editing
     (nav/go-project-route "/labels/edit")
     (b/click dlabels/add-group-label-button)
@@ -358,90 +357,79 @@
     (b/click dlabels/save-button)
     (is (ra/have-errors? [no-display sub-label-required]))
     ;; give the label a name, does the no-display message disappear?
-    (b/set-input-text (x/xpath "//div[contains(@class,'field-short-label')]//input") "Group Label")
+    (b/set-input-text "div.field-short-label input" "Group Label")
     (b/click dlabels/save-button)
     (is (ra/have-errors? [sub-label-required]))
     ;; add a simple boolean label, do all of the error messages go away?
-    (b/click (x/xpath (dlabels/add-label-button "boolean") "/ancestor::div[contains(@class,'group')]/button"))
-    (dlabels/set-label-definition (x/xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" 1 "]")
+    (b/click (xpath (dlabels/add-label-button "boolean") "/ancestor::div[contains(@class,'group')]/button"))
+    (dlabels/set-label-definition (xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" 1 "]")
                                   (first (get-in group-label-defintion-1 [:definition :labels])))
     (b/click dlabels/save-button)
     ;; make sure that we can't move this label
     ;; this test is a little iffy in that it expects something NOT to exist
-    (is (not (taxi/exists? (x/xpath (sub-group-label-div "Group Label" "Boolean Label") "//div[contains(text(),'Move')]")))) 
+    (is (not (taxi/exists? (xpath (sub-group-label-div "Group Label" "Boolean Label") "//div[contains(text(),'Move')]"))))
     (is (ra/have-errors? []))
     ;; Make sure that an invalid sub label can't be saved
     (b/click (edit-group-label-button "Group Label"))
-    (b/click (x/xpath (dlabels/add-label-button "categorical") "/ancestor::div[contains(@class,'group')]/button"))
+    (b/click (xpath (dlabels/add-label-button "categorical") "/ancestor::div[contains(@class,'group')]/button"))
     (b/click dlabels/save-button)
     (is (ra/have-errors? [no-display question-required options-required]))
     ;; just discard this
-    (b/click (x/xpath "//button[contains(text(),'Discard')]"))
-    (b/click (x/xpath "(//button[contains(text(),'Cancel')])[2]"))
+    (b/click (xpath "//button[contains(text(),'Discard')]"))
+    (b/click (xpath "(//button[contains(text(),'Cancel')])[2]"))
     ;; all errors are gone
     (is (ra/have-errors? []))
     ;; Let's make a more complicated label and test moving labels up/down and disabling/enabling
     ;; a group label
     (log/info "Testing moving group labels")
     (dlabels/define-group-label group-label-definition-2)
-    (b/wait-until #(= ["Boolean Label" "String Label" "Categorical Label"]
-                      (group-sub-short-labels "Group Label 2")))
-    (is (= ["Boolean Label" "String Label" "Categorical Label"]
-           (group-sub-short-labels "Group Label 2")))
+    (b/is-soon (= ["Boolean Label" "String Label" "Categorical Label"]
+                  (group-sub-short-labels "Group Label 2")))
     ;; check that the buttons have the correct "Move Down/Move Up" Buttons
-    (is (b/exists? (x/xpath (sub-group-label-div "Group Label 2" "Boolean Label") "//div[contains(text(),'Move Down')]")))
+    (is (b/exists? (xpath (sub-group-label-div "Group Label 2" "Boolean Label")
+                          "//div[contains(text(),'Move Down')]")))
     ;; Move Down doesn't exist
-    (is (not (taxi/exists? (x/xpath (sub-group-label-div "Group Label 2" "Boolean Label") "//div[contains(text(),'Move Up')]")))) 
-    (is (b/exists? (x/xpath (sub-group-label-div "Group Label 2" "String Label") "//div[contains(text(),'Move Up')]")))
-    (is (b/exists? (x/xpath (sub-group-label-div "Group Label 2" "String Label") "//div[contains(text(),'Move Down')]")))
-    (is (b/exists? (x/xpath (sub-group-label-div "Group Label 2" "Categorical Label") "//div[contains(text(),'Move Up')]")))
-    (is (not (taxi/exists? (x/xpath (sub-group-label-div "Group Label 2" "Categorical Label") "//div[contains(text(),'Move Down')]"))))
+    (is (not (taxi/exists? (xpath (sub-group-label-div "Group Label 2" "Boolean Label")
+                                  "//div[contains(text(),'Move Up')]"))))
+    (is (b/exists? (xpath (sub-group-label-div "Group Label 2" "String Label")
+                          "//div[contains(text(),'Move Up')]")))
+    (is (b/exists? (xpath (sub-group-label-div "Group Label 2" "String Label")
+                          "//div[contains(text(),'Move Down')]")))
+    (is (b/exists? (xpath (sub-group-label-div "Group Label 2" "Categorical Label")
+                          "//div[contains(text(),'Move Up')]")))
+    (is (not (taxi/exists? (xpath (sub-group-label-div "Group Label 2" "Categorical Label")
+                                  "//div[contains(text(),'Move Down')]"))))
     ;; move boolean down, is the order correct?
     (move-short-label "Group Label 2" "Boolean Label" :down)
     ;; are the orders correct?
-    (b/wait-until #(= ["String Label" "Boolean Label" "Categorical Label"]
-                      (group-sub-short-labels "Group Label 2")))
-    (is (= ["String Label" "Boolean Label" "Categorical Label"]
-           (group-sub-short-labels "Group Label 2")))
+    (b/is-soon (= ["String Label" "Boolean Label" "Categorical Label"]
+                  (group-sub-short-labels "Group Label 2")))
     ;; check to make sure the review editor has them in the correct order
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
     (b/click (group-label-div-with-name "Group Label 2"))
-    (b/wait-until #(= ["String Label" "Boolean Label" "Categorical Label"]
-                      (group-sub-short-labels-review)))
-    (is (= ["String Label" "Boolean Label" "Categorical Label"]
-           (group-sub-short-labels-review)))
+    (b/is-soon (= ["String Label" "Boolean Label" "Categorical Label"]
+                  (group-sub-short-labels-review)))
     ;; test label disabling String Label
     (log/info "Testing disabling / enabling labels")
     (nav/go-project-route "/labels/edit")
     (toggle-enable-disable-sub-label-button "Group Label 2" "String Label" :disable)
-    (b/wait-until #(= ["Boolean Label" "Categorical Label"]
-                      (group-sub-short-labels "Group Label 2")))
-    (is (= ["Boolean Label" "Categorical Label"]
-           (group-sub-short-labels "Group Label 2")))
+    (b/is-soon (= ["Boolean Label" "Categorical Label"]
+                  (group-sub-short-labels "Group Label 2")))
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
     (b/click (group-label-div-with-name "Group Label 2"))
-    (b/wait-until #(= ["Boolean Label" "Categorical Label"]
-                      (group-sub-short-labels-review)))
-    (is (= ["Boolean Label" "Categorical Label"]
-           (group-sub-short-labels-review)))
+    (b/is-soon (= ["Boolean Label" "Categorical Label"] (group-sub-short-labels-review)))
     ;; test disabling the Boolean Label
     (nav/go-project-route "/labels/edit")
     (toggle-enable-disable-sub-label-button "Group Label 2" "Categorical Label" :disable)
-    (b/wait-until #(= ["Boolean Label"]
-                      (group-sub-short-labels "Group Label 2")))
-    (is (= ["Boolean Label"]
-           (group-sub-short-labels "Group Label 2")))
+    (b/is-soon (= ["Boolean Label"] (group-sub-short-labels "Group Label 2")))
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
     (b/click (group-label-div-with-name "Group Label 2"))
-    (b/wait-until #(= ["Boolean Label"]
-                      (group-sub-short-labels-review)))
-    (is (= ["Boolean Label"]
-           (group-sub-short-labels-review)))
+    (b/is-soon (= ["Boolean Label"] (group-sub-short-labels-review)))
     ;; completely disable the label by disabling all other buttons
     (nav/go-project-route "/labels/edit")
     (toggle-enable-disable-sub-label-button "Group Label 2" "Boolean Label" :disable)
@@ -454,24 +442,15 @@
     ;; now re-enable this label
     (nav/go-project-route "/labels/edit")
     (toggle-enable-disable-sub-label-button "Group Label 2" "Boolean Label" :enable)
-    (b/wait-until #(= ["Boolean Label"]
-                      (group-sub-short-labels "Group Label 2")))
-    (is (= ["Boolean Label"]
-           (group-sub-short-labels "Group Label 2")))
+    (b/is-soon (= ["Boolean Label"] (group-sub-short-labels "Group Label 2")))
     ;; re-enable string label
     (toggle-enable-disable-sub-label-button "Group Label 2" "String Label" :enable)
-    (b/wait-until #(= ["Boolean Label" "String Label"]
-                      (group-sub-short-labels "Group Label 2")))
-    (is (= ["Boolean Label" "String Label"]
-           (group-sub-short-labels "Group Label 2")))
+    (b/is-soon (= ["Boolean Label" "String Label"] (group-sub-short-labels "Group Label 2")))
     ;; check that this appears now in the review
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review) :delay 50)
     (b/click (group-label-div-with-name "Group Label 2"))
-    (b/wait-until #(= ["Boolean Label" "String Label"]
-                      (group-sub-short-labels-review)))
-    (is (= ["Boolean Label" "String Label"]
-           (group-sub-short-labels-review))))
+    (b/is-soon (= ["Boolean Label" "String Label"] (group-sub-short-labels-review))))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (deftest-browser group-labels-in-depth
@@ -519,7 +498,7 @@
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'6')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")
     (nav/go-project-route "/labels/edit")
@@ -581,7 +560,7 @@
     (b/click (delete-row-icon 3))
     (b/click (delete-row-icon 3))
     (b/wait-until #(not (taxi/exists? (delete-row-icon 3))))
-    (is (not (taxi/exists? (x/xpath (delete-row-icon 3)))))
+    (is (not (taxi/exists? (xpath (delete-row-icon 3)))))
     (b/click ".button.save-labels" :delay 30 :displayed? true)
     (b/wait-until-loading-completes :pre-wait (if (test/remote-test?) 150 30) :loop 2)
     (some-> (b/current-project-id)
@@ -638,8 +617,8 @@
            (group-sub-short-labels "Foo")))
     ;; add another label
     (b/click (edit-group-label-button "Foo"))
-    (b/click (x/xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add String Label')]"))
-    (dlabels/set-label-definition (x/xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" 4 "]")
+    (b/click (xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add String Label')]"))
+    (dlabels/set-label-definition (xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" 4 "]")
                                   {:value-type "string"
                                    :short-label "Delta"
                                    :question "Is this a Delta?"
@@ -649,7 +628,7 @@
            (group-sub-short-labels "Foo")))
     ;; add another label
     (b/click (edit-group-label-button "Foo"))
-    (b/click (x/xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add Boolean Label')]"))
+    (b/click (xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add Boolean Label')]"))
     (is (= ["Alpha" "Bravo" "Charlie" "Delta" ""]
            (group-label-edit-form-sub-labels "Foo"))))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
@@ -818,7 +797,7 @@
       (nav/go-project-route "/labels/edit")
       (b/exists? "#group-label-paywall")
       ;; let's sign up for org Pro account
-      (b/click (xpath "//a[contains(text(),'" org-name  "')]"))
+      (b/click (xpath "//a[contains(text(),'" org-name "')]"))
       (b/click "#org-billing")
       (b/click ".subscribe")
       (b/click "a.payment-method.add-method")

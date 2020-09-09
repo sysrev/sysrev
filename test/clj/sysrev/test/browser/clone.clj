@@ -25,6 +25,9 @@
 (def clone-to-user (xpath "//div[@id='clone-to-user']"))
 (def cloned-from (xpath "//span[contains(text(),'cloned from')]"))
 
+(defn- unique-count-span [n]
+  (format "span.unique-count[data-count='%d']" n))
+
 (deftest-browser clone-project-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-source-name "Sysrev Browser Test (clone-project-happy-path)"
@@ -44,29 +47,29 @@
     (b/click (xpath "//a[contains(text(),'RIS / RefMan')]"))
     (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
     (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'10')]")))
+    (is (b/exists? (unique-count-span 10)))
     ;; PubMed search input
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
     (pubmed/search-pubmed "foo bar")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'6')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; Import Clinical Trials
     (b/click "a.tab-ctgov")
     (ctgov/search-ctgov "foo olive")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'2')]")))
+    (is (b/exists? (unique-count-span 2)))
     ;; Import from PMIDs file
     (b/click "a.tab-pmid")
     (b/dropzone-upload "test-files/pubmed_result.txt")
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'7')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; import Endnote file
     (b/click "a.tab-endnote")
     (b/dropzone-upload "test-files/Endnote_3_citations.xml")
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'3')]")))
+    (is (b/exists? (unique-count-span 3)))
     ;; When this project is cloned, everything is copied over correctly
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
@@ -84,15 +87,15 @@
     ;; pdfs
     (is (= 4 (project/project-article-pdf-count (b/current-project-id))))
     ;; RIS
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'10')]")))
+    (is (b/exists? (unique-count-span 10)))
     ;; PubMed search
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'6')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; ctgov
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'2')]")))
+    (is (b/exists? (unique-count-span 2)))
     ;; pmid file
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'7')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; endnote
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'3')]")))
+    (is (b/exists? (unique-count-span 3)))
     :cleanup (b/cleanup-test-user! :email (:email test-user))))
 
 (deftest-browser clone-permissions-test
@@ -108,13 +111,13 @@
     (plans/user-subscribe-to-unlimited (:email test-user))
     (nav/new-project project-source-name)
     (reset! src-project-id (b/current-project-id))
-     ;; PubMed search input
+    ;; PubMed search input
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
     (pubmed/search-pubmed "foo bar")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'6')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; user can clone their project
     (b/exists? clone-button)
     ;; another user can also clone the project
@@ -152,7 +155,6 @@
     (nav/log-out)
     ;; search for the project
     (search/search-for project-source-name)
-    (b/wait-until-exists (xpath (str "//h3[contains(text(),'" project-source-name "')]")))
     (b/click (xpath (str "//h3[contains(text(),'" project-source-name "')]")))
     ;;
     (b/exists? clone-button)

@@ -51,10 +51,10 @@
       ;; add articles from fourth search term
       (pm/add-articles-from-search-term query4)
       (nav/go-project-route "/add-articles")
-      ;; query1 has 4 unique articles, 0 reviewed articles, 6 total
+      ;; query1 has 5 unique articles, 0 reviewed articles, 7 total
       ;; articles, and have two overalaps
       (is (= (pm/search-term-articles-summary query1)
-             {:unique-articles 4, :reviewed-articles 0, :total-articles 6,
+             {:unique-articles 5, :reviewed-articles 0, :total-articles 7,
               #_ :overlap-maps
               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}
                        {:overlap 1, :source "PubMed Search \"foo bar Jones\""}])}))
@@ -64,7 +64,7 @@
       (pm/check-source-count 2)
       ;; article summaries are correct
       (is (= (pm/search-term-articles-summary query1)
-             {:unique-articles 5, :reviewed-articles 0, :total-articles 6,
+             {:unique-articles 6, :reviewed-articles 0, :total-articles 7,
               #_ :overlap-maps
               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}))
       (is (= (pm/search-term-articles-summary query3)
@@ -76,7 +76,7 @@
         (pm/check-source-count 2)
         ;; article summaries are correct
         (is (= (pm/search-term-articles-summary query1)
-               {:unique-articles 5, :reviewed-articles 0, :total-articles 6,
+               {:unique-articles 6, :reviewed-articles 0, :total-articles 7,
                 #_ :overlap-maps
                 #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}))
         (is (= (pm/search-term-articles-summary query3)
@@ -88,7 +88,7 @@
       ;; article summaries are correct
       (is (empty? (:overlap-maps (pm/search-term-articles-summary query1))))
       (is (= (pm/search-term-articles-summary query1)
-             {:unique-articles 6, :reviewed-articles 0, :total-articles 6}))
+             {:unique-articles 7, :reviewed-articles 0, :total-articles 7}))
       (pm/delete-search-term-source query1)
       (pm/check-source-count 0))
   :cleanup (do (nav/delete-current-project)
