@@ -2,13 +2,17 @@
   (:require [clojure.math.numeric-tower :as math]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer [merge-where]]
-            [sysrev.db.core :as db :refer [do-query with-project-cache]]
+            [sysrev.db.core :as db :refer [do-query do-execute with-project-cache]]
             [honeysql.helpers :as sqlh :refer [select limit from join insert-into values where order-by
-                                               having left-join offset]]
+                                               having left-join offset sset]]
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
             [sysrev.project.core :as project]
             [sysrev.util :as util :refer [in? map-values index-by]]))
+
+(defn record-last-assigned [article-id]
+  "record that the given article has been assigned right now"
+  (-> (sqlh/update :article) (sset {:last_assigned (sql/call :now)}) (where [:= :article-id article-id]) do-execute))
 
 (defn user-confirmed-today-count [project-id user-id]
   (-> (q/select-project-article-labels project-id true [:al.article-id])
@@ -57,7 +61,7 @@
     do-query
     (first)))
 
-(defn query-ideal-unlimited-article [project-id user-id & {:keys [second-prob] :or {second-prob 0.5}}]
+(defn- query-ideal-unlimited-article [project-id user-id & {:keys [second-prob] :or {second-prob 0.5}}]
   "unlimited setting means each reviewer should review every article.
   Just pick an article the given user hasn't been reviewed by the given user yet."
   (let [single-unlimited (query-ideal-unlimited-single project-id user-id)
@@ -69,7 +73,7 @@
           :else nil)))
 
 ;TODO should this have some smart prioritization?  Would need to update the fallback-article if so.
-(defn query-ideal-single-article [project-id user-id]
+(defn- query-ideal-single-article [project-id user-id]
   (-> (select :article-id)
       (from
         [(->
@@ -109,7 +113,7 @@
       do-query
       (first)))
 
-(defn query-ideal-unlabeled-article [project-id]
+(defn- query-ideal-unlabeled-article [project-id]
   (let
     [pred-run (q/project-latest-predict-run-id project-id)]
     (if pred-run
@@ -137,7 +141,7 @@
                                  (Math/abs (- (or (:val b) 0.0) 0.5))) b a)) res))))
       (query-any-unlabeled-article project-id))))
 
-(defn query-ideal-fallback-article [project-id]
+(defn- query-ideal-fallback-article [project-id]
   "this is an emergency case where other ideal article methods fail.
   Picks a random unlabeled article, or single labeled article"
   (query-any-unlabeled-article project-id))
@@ -160,3 +164,4 @@
     (when (and article status)
       {:article-id (:article-id article)
        :today-count today-count})))
+

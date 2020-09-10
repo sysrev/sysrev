@@ -1,0 +1,1 @@
+ALTER TABLE article add column last_assigned timestamptz;

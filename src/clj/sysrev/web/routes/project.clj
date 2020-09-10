@@ -382,8 +382,10 @@
            (record-user-project-interaction request)
            (if-let [{:keys [article-id today-count]}
                     (assign/get-user-label-task (active-project request) (current-user-id request))]
-             {:result (merge (article-info-full (active-project request) article-id)
-                             {:today-count today-count})}
+             (do
+               (assign/record-last-assigned article-id)
+               {:result (merge (article-info-full (active-project request) article-id)
+                             {:today-count today-count})})
              {:result :none}))))
 
 ;; Sets and optionally confirms label values for an article
