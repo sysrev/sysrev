@@ -878,10 +878,13 @@
         tmpzip (util/create-tempfile :suffix (format "%d.zip" project-id))]
     (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
       (doseq [f pdfs]
-        (let [is (s3-file/get-file-stream (:key f) :pdf)]
-          (.putNextEntry zip (ZipEntry. (str (:name f))))
-          (io/copy is zip)
-          (.close is))))
+        (try
+          (let [is (s3-file/get-file-stream (:key f) :pdf)]
+            (.putNextEntry zip (ZipEntry. (str (:name f))))
+            (io/copy is zip)
+            (.close is))
+          (catch Exception _)
+          )))
     tmpzip))
 
 (defn dissociate-article-pdf
