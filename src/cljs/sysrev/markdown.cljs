@@ -73,6 +73,9 @@
           [:div.markdown-component
            [:div.ui.segments.markdown-editor
             [:div.ui.form.secondary.segment
+             ;; TODO: :autoHeight option is no longer supported -
+             ;;       semantic-ui-react suggests replacement:
+             ;;       https://www.npmjs.com/package/react-textarea-autosize
              [TextArea {:fluid "true"
                         :autoHeight true
                         :disabled (boolean loading?)

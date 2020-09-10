@@ -191,34 +191,25 @@
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class _mobile?]]
   (let [menu-class (or menu-class "")
-        entries (filterv (comp not nil?) entries)
-        render-entry
-        (fn [{:keys [tab-id action content class disabled] :as entry}]
-          (let [active? (= tab-id active-tab-id)]
-            (when entry
-              [:a {:key tab-id
-                   :class (css [active? "active"] "item" [class class] [disabled "disabled"]
-                               (str "tab-" (name tab-id)))
-                   :href (when (string? action) action)
-                   :on-click
-                   (wrap-user-event
-                    (cond (and (seq? action)
-                               (= (count action) 2))
-                          #(dispatch [:navigate
-                                      (first action) (second action)])
-
-                          (vector? action)
-                          #(dispatch [:navigate action])
-
-                          (string? action) nil
-
-                          :else action))}
-               content])))]
+        entries (remove nil? entries)]
     [:div.tabbed-panel
      [:div {:class (css "ui" (util/num-to-english (count entries))
                         "item tabbed menu tabbed-panel" menu-class)}
-      (doall (for [entry entries]
-               (render-entry entry)))]]))
+      (doall (for [{:keys [tab-id action content class disabled]} entries]
+               [:a {:key tab-id
+                    :class (css [(= tab-id active-tab-id) "active"] "item"
+                                [class class] [disabled "disabled"]
+                                (str "tab-" (name tab-id)))
+                    :href (when (string? action) action)
+                    :on-click
+                    (let [[a1 a2] (when (and (seq? action) (= 2 (count action)))
+                                    action)]
+                      (wrap-user-event
+                       (cond a1                #(dispatch [:navigate a1 a2])
+                             (vector? action)  #(dispatch [:navigate action])
+                             (string? action)  nil
+                             :else             action)))}
+                content]))]]))
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}

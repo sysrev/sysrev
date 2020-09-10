@@ -278,14 +278,12 @@
   "Return a sample article from source"
   [source-id]
   (if (source/source-exists? source-id)
-    (if-let [article (some-> (first (q/find :article-source {:source-id source-id} :article-id
-                                            :limit 1))
-                             (article/get-article))]
-      {:article article}
-      {:error {:status not-found
-               :message (str "source-id " source-id " has no articles")}})
+    {:article (some-> (q/find :article-source {:source-id source-id}
+                              :article-id, :limit 1)
+                      first
+                      article/get-article)}
     {:error {:status not-found
-             :message (str "source-id " source-id " does not exist")}}))
+             :message (format "source-id %d does not exist" source-id)}}))
 
 (defn update-source-cursors!
   "Update the meta of a source with new cursor information"

@@ -75,8 +75,7 @@
               :source source})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
-               {:dispatch-n (list [:reload [:project/sources project-id]]
-                                  [:add-articles/reset-state!])}))
+               {:dispatch [:reload [:project/sources project-id]]}))
   :on-error (fn [{:keys [db error]} _]
               (let [{:keys [message]} error]
                 (when (string? message)
@@ -84,7 +83,7 @@
 
 (reg-sub :pubmed/search-term-result
          (fn [db [_ search-term]]
-           (-> db :data :pubmed-search (get-in [search-term]))))
+           (get-in db [:data :pubmed-search search-term])))
 
 ;; A DB map representing a search term in :data :search-term <term>
 ;;
@@ -97,38 +96,15 @@
 ;;         }
 ;;}
 
-(reg-event-fx
- :pubmed/save-search-term-results
- [trim-v]
- ;; WARNING: This fn must return something (preferable the db map),
- ;;          otherwise the system will hang!!!
- (fn [{:keys [db]} [search-term page-number search-term-response]]
-   (let [pmids (:pmids search-term-response)
-         page-inserter
-         ;; We only want to insert a {page-number [pmids]} map
-         ;; if there are actually pmids for that page-number
-         ;; associated with the search term
-         ;; e.g. if you ask /api/pubmed/search for page-number 30 of the term "foo bar"
-         ;; you will get back an empty vector. This fn discards that response
-         (fn [db] (update-in db [:data :pubmed-search search-term :pages]
-                             #(let [data {page-number {:pmids pmids}}]
-                                ;; on the first request, the :pages keyword
-                                ;; doesn't yet exist so conj will return a list
-                                ;; and not a map. This makes sure only maps
-                                ;; are saved in our DB
-                                (if (nil? %)
-                                  data
-                                  (conj % data)))))]
-     (if-not (empty? pmids)
-       {:db (-> db
-                ;; include the count
-                (assoc-in [:data :pubmed-search search-term :count]
-                          (:count search-term-response))
-                ;; include the page-number and associated pmids
-                page-inserter)
-        :dispatch [:require [:pubmed-summaries search-term page-number pmids]]}
-       {:db (assoc-in db [:data :pubmed-search search-term :count]
-                      (:count search-term-response))}))))
+(reg-event-fx :pubmed/save-search-term-results [trim-v]
+              (fn [{:keys [db]} [search-term page-number search-term-response]]
+                (let [{:keys [pmids count]} search-term-response]
+                  (if (seq pmids)
+                    {:db (-> (assoc-in db [:data :pubmed-search search-term :count] count)
+                             (assoc-in    [:data :pubmed-search search-term :pages page-number]
+                                          {:pmids pmids}))
+                     :dispatch [:require [:pubmed-summaries search-term page-number pmids]]}
+                    {:db (assoc-in db [:data :pubmed-search search-term :count] count)}))))
 
 (reg-event-db :pubmed/save-search-term-summaries [trim-v]
               (fn [db [search-term page-number response]]
@@ -142,57 +118,39 @@
 (defn SearchResultArticlesPager []
   (let [items-per-page (pmids-per-page)
         current-page (subscribe [::page-number])
-        current-search-term (r/cursor state [:current-search-term])
-        search-results
-        @(subscribe [:pubmed/search-term-result @current-search-term])
-        n-results (get-in search-results [:count])
-        on-navigate (fn [_ _offset]
-                      (dispatch [:require [:pubmed-search @current-search-term @current-page]]))
-        offset (* (dec @current-page) items-per-page)]
+        search-term (r/cursor state [:current-search-term])]
     [:div.ui.segment
      [ListPager
       {:panel panel
        :instance-key [:pubmed-search-results]
-       :offset offset
-       :total-count n-results
+       :offset (* (dec @current-page) items-per-page)
+       :total-count (:count @(subscribe [:pubmed/search-term-result @search-term]))
        :items-per-page items-per-page
        :item-name-string "articles"
        :set-offset #(dispatch [::page-number (inc (quot % items-per-page))])
-       :on-nav-action on-navigate
+       :on-nav-action (fn [& _] (dispatch [:require [:pubmed-search @search-term @current-page]]))
        :recent-nav-action nil
        :loading? nil}]]))
 
-(defn ArticleSummary
-  "Display an article summary item"
-  [article global-idx]
+(defn ArticleSummary [article global-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
-    [:div.ui.segment.pubmed-article
-     [:div.content
-      [:span
-       (str (inc global-idx) "." nbsp nbsp)
-       (if (nil? title)
-         [:a (when uid {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
-                        :target "_blank"})
-          "[Error]"]
-         [ui/dangerous
-          :a (when uid
-               {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
-                :target "_blank"})
-          (util/parse-html-str title)])]
-      (when authors
-        [:p.bold (->> authors (mapv :name) (str/join ", "))])
-      [:p (str source ". " pubdate
-               (when-not (empty? volume)
-                 (str "; " volume ":" pages))
-               ". " elocationid ".")]
-      [:p.pmid
-       (str "PMID: " uid)
-       nbsp nbsp nbsp nbsp
-       [:a (when uid
-             {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
-                         "linkname=pubmed_pubmed&from_uid=" uid)
-              :target "_blank"})
-        "Similar articles"]]]]))
+    [:div.ui.segment.pubmed-article>div.content
+     [:span (str (inc global-idx) "." nbsp nbsp)
+      [ui/dangerous
+       :a (when uid {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
+                     :target "_blank"})
+       (-> (some-> title util/parse-html-str)
+           (or "[Error]"))]]
+     (when authors
+       [:p.bold (->> authors (map :name) (str/join ", "))])
+     [:p (str source ". " pubdate
+              (when (seq volume) (str "; " volume ":" pages))
+              ". " elocationid ".")]
+     [:p.pmid (str "PMID: " uid) nbsp nbsp nbsp nbsp
+      [:a (when uid {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
+                                "linkname=pubmed_pubmed&from_uid=" uid)
+                     :target "_blank"})
+       "Similar articles"]]]))
 
 (defn ImportArticlesButton
   "Add articles to a project from a PubMed search"
@@ -292,45 +250,39 @@
                   @page-number)
          (dispatch [:require [:pubmed-search @current-search-term @page-number]]))
        [:div.ui.segments.pubmed-articles
-        {:style (if have-entries? {}
-                    {:min-height "800px"})}
+        {:style (when-not have-entries? {:min-height "800px"})}
         [SearchResultArticlesPager]
         (if have-entries?
-          (doall
-           (map-indexed
-            (fn [idx pmid]
-              ^{:key pmid}
-              [ArticleSummary
-               (get-in search-results [:pages @page-number :summaries pmid])
-               (+ page-offset idx)])
-            (get-in search-results [:pages @page-number :pmids])))
-          [:div.ui.active.inverted.dimmer
-           [:div.ui.loader]])
+          (doall (map-indexed (fn [idx pmid] ^{:key pmid}
+                                [ArticleSummary
+                                 (get-in search-results [:pages @page-number :summaries pmid])
+                                 (+ page-offset idx)])
+                              (get-in search-results [:pages @page-number :pmids])))
+          [:div.ui.active.inverted.dimmer>div.ui.loader])
         (when have-entries?
           [SearchResultArticlesPager])]])))
 
 (defn SearchResultsContainer []
-  (let [current-search-term (r/cursor state [:current-search-term])
+  (let [{:keys [current-search-term import-error]} @state
         page-number (subscribe [::page-number])
-        import-error (r/cursor state [:import-error])
-        search-results (subscribe [:pubmed/search-term-result
-                                   @current-search-term])]
-    (cond @import-error
+        search-results @(subscribe [:pubmed/search-term-result current-search-term])]
+    (cond import-error
           [:div.ui.segment.search-results-container.margin
-           [:div.ui.error.message
-            (str @import-error)]
-           [:div "Not getting results when you would expect to see them? Try importing PubMed results with a "
-            [:a {:on-click (fn [e] (.preventDefault e) (dispatch [:add-articles/reset-import-tab! :pmid]))
-                 :style {:cursor "pointer"}} "PMID file"]]]
+           [:div.ui.error.message (str import-error)]
+           [:div
+            "Not getting results when you would expect to see them? "
+            "Try importing PubMed results with a "
+            [:a {:href "#" :on-click (util/wrap-user-event
+                                      #(dispatch [:add-articles/import-tab :pmid])
+                                      :prevent-default true)}
+             "PMID file"]]]
           ;; search input form is empty
-          (or (nil? @current-search-term)
-              (empty? @current-search-term))
+          (empty? current-search-term)
           nil
           ;; valid search is completed with no results
-          (and (not (nil? @current-search-term))
-               (= (get-in @search-results [:count]) 0)
+          (and (= (get-in search-results [:count]) 0)
                (not (loading/item-loading?
-                     [:pubmed-search @current-search-term @page-number])))
+                     [:pubmed-search current-search-term @page-number])))
           [:div.ui.segment.search-results-container.margin
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))

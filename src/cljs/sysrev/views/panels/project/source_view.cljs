@@ -1,182 +1,129 @@
 (ns sysrev.views.panels.project.source-view
-  (:require [ajax.core :refer [POST]]
+  (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.cursors :refer [map-from-cursors prune-cursor]]
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.views.semantic :refer [Button Icon]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
-            [sysrev.util :refer [parse-integer]]))
+            [sysrev.util :as util :refer [parse-integer css]]))
 
-(def state (r/atom {}))
+(def-action :project-source/save-cursors
+  :uri (fn [_ source-id _] (str "/api/sources/" source-id "/cursors"))
+  :content (fn [project-id _ cursors] {:project-id project-id
+                                       :cursors cursors})
+  :process (fn [_ [project-id _ _] _result]
+             {:dispatch [:reload [:project/sources project-id]]}))
 
-(defn save-cursors!
-  [source-id cursors]
-  (let [project-id @(subscribe [:active-project-id])
-        saving? (r/cursor state [source-id :saving?])]
-    (POST (str "/api/sources/" source-id "/cursors")
-          {:params {:project-id project-id
-                    :cursors cursors}
-           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-           :handler (fn [_]
-                      (reset! saving? false)
-                      (dispatch [:reload [:project/sources project-id]]))
-           :error-handler (fn [_]
-                            (reset! saving? false)
-                            (.log js/console "[sysrev.views.panels.project.source-view] error in save-cursors! for " source-id))})))
-
-(defn ns->cursor
+(defn- ns->cursor
   "Convert a name string into a cursor"
   [s]
-  (->> (clojure.string/split s #" ")
-       (mapv #(if (parse-integer %)
-                (parse-integer %)
-                (keyword %)))
+  (->> (str/split s #" ")
+       (mapv #(or (parse-integer %) (keyword %)))
        prune-cursor))
 
-(defn cursor->ns
+(defn- cursor->ns
   "Convert a cursor vector into a namespace string"
   [m]
-  (->> m
-       (map #(-> % symbol str))
-       (clojure.string/join " ")))
+  (str/join " " (for [x m] (-> x symbol str))))
 
-(defn EditView
-  [{:keys [json temp-cursors editing-view?]}]
+(defn- EditCancelButton [editing-view?]
+  [:div {:style {:padding-left "1em"}}
+   [Button {:size "tiny"
+            :style {:margin-top "0.5em" :margin-right "0"}
+            :on-click #(swap! editing-view? not)}
+    "Cancel"]])
+
+(defn- EditView [{:keys [json temp-cursors editing-view?]}]
   [:div
-   [:div {:style {:padding-left "1em"}}
-    [Button {:size "tiny"
-             :style {:margin-top "0.5em"
-                     :margin-right "0"}
-             :onClick #(swap! editing-view? not)}
-     "Cancel"]]
+   [EditCancelButton editing-view?]
    [ReactJSONView json {:on-add (fn [e context]
                                   (.preventDefault e)
                                   (.stopPropagation e)
-                                  (let [ns (:namespace context)
-                                        cursor (ns->cursor ns)]
-                                    (swap! temp-cursors conj cursor)
-                                    ;; remove redundant cursors
-                                    (reset! temp-cursors (distinct @temp-cursors))))}]
-   [:div {:style {:padding-left "1em"}}
-    [Button {:size "tiny"
-             :style {:margin-top "0.5em"
-                     :margin-right "0"}
-             :onClick #(swap! editing-view? not)}
-     "Cancel"]]])
+                                  (let [cursor (-> context :namespace ns->cursor)]
+                                    (swap! temp-cursors #(distinct (conj % cursor)))))}]
+   [EditCancelButton editing-view?]])
 
-(defn PreviewView
-  [{:keys [json temp-cursors source-id editing-view? cursors saving? deleting?]}]
-  (let [on-save! (fn [_]
-                   (reset! saving? true)
-                   (save-cursors! source-id
-                                  @temp-cursors))
-        on-delete! (fn [_]
-                     (reset! temp-cursors []))]
+(defn- PreviewView [{:keys [json temp-cursors source-id editing-view? cursors]}]
+  (let [project-id @(subscribe [:active-project-id])
+        buttons (fn [props]
+                  [:div props
+                   [Button {:size "tiny"
+                            :on-click #(swap! editing-view? not)}
+                    "Cancel"]
+                   (let [save-action [:project-source/save-cursors
+                                      project-id source-id @temp-cursors]]
+                     [Button {:size "tiny"
+                              :disabled (= @temp-cursors @cursors)
+                              :on-click #(dispatch [:action save-action])
+                              :loading (loading/action-running? save-action)}
+                      "Save"])
+                   [Button {:size "tiny"
+                            :disabled (empty? @temp-cursors)
+                            :on-click #(reset! temp-cursors [])}
+                    "Reset View"]])]
     [:div
-     [:div {:style {:padding-left "1em"
-                    :margin-top "0.5em"}}
-      [Button {:size "tiny"
-               :onClick #(swap! editing-view? not)}
-       "Cancel"]
-      [Button {:size "tiny"
-               :onClick on-save!
-               :disabled (boolean (= @temp-cursors @cursors))
-               :loading @saving?} "Save"]
-      [Button {:size "tiny"
-               :onClick on-delete!
-               :disabled (not (seq @temp-cursors))
-               :loading @deleting?} "Reset View"]]
+     [buttons {:style {:padding-left "1em" :margin-top "0.5em"}}]
      (if (seq @temp-cursors)
-       [ReactJSONView (clj->js (map-from-cursors (js->clj json :keywordize-keys true) @temp-cursors))
+       [ReactJSONView (-> json
+                          (js->clj :keywordize-keys true)
+                          (map-from-cursors @temp-cursors)
+                          clj->js)
         {:on-minus (fn [e context]
                      (.preventDefault e)
                      (.stopPropagation e)
-                     (let [ns (:namespace context)
-                           cursor (-> (ns->cursor ns) prune-cursor)]
-                       (swap! temp-cursors (fn [m] (remove #(= % cursor) m)))))}]
-       [:div
-        {:style {:padding-left "1em"
-                 :padding-bottom "1em"}}
-        [:div {:style {:padding-top "1em"}} "Default View - All Fields Included. "]
+                     (let [cursor (-> context :namespace ns->cursor prune-cursor)]
+                       (swap! temp-cursors #(remove (partial = cursor) %))))}]
+       [:div {:style {:padding-left "1em" :padding-bottom "1em"}}
+        [:div {:style {:padding-top "1em"}}
+         "Default View - All Fields Included. "]
         [:div {:style {:padding-top "1em"}}
          "Make selections in Available Fields to refine Review Document"]])
-     [:div {:style {:padding-left "1em"}}
-      [Button {:size "tiny"
-               :onClick #(swap! editing-view? not)}
-       "Cancel"]
-      [Button {:size "tiny"
-               :onClick on-save!
-               :disabled (= @temp-cursors @cursors)
-               :loading @saving?} "Save"]
-      [Button {:size "tiny"
-               :onClick on-delete!
-               :disabled (not (seq @temp-cursors))
-               :loading @deleting?} "Reset View"]]]))
+     [buttons {:style {:padding-left "1em"}}]]))
 
 (defn EditJSONView
   "Edit the JSON view for source. The editing-view? atom is passed as a prop"
   [{:keys [source editing-view?]}]
-  (let [source-id (:source-id @source)
-        source-name (get-in @source [:meta :source])
-        project-id @(subscribe [:active-project-id])
-        cursors (r/cursor source [:meta :cursors])
-        sample-article (subscribe [:project/sample-article project-id source-id])
-        ;; todo: CT.gov results should just be using content and not json
-        json (cond (= source-name "CT.gov search")
-                   (clj->js (:json @sample-article))
-                   (= (:mimetype @sample-article) "application/json")
-                   (.parse js/JSON @(r/cursor @sample-article :content))
-                   :else "error")
-        ;; change to specific temp-cursors
-        temp-cursors (r/cursor state [source-id :temp-cursors])
-        saving? (r/cursor state [source-id :saving?])
-        deleting? (r/cursor state [source-id :deleting?])
-        active-tab (r/cursor state [source-id :active-tab])]
-    (r/create-class
-     {:reagent-render
-      (fn [{:keys [source editing-view?]}]
+  (let [project-id (subscribe [:active-project-id])
+        active-tab (r/atom :edit)
+        temp-cursors (r/atom (-> @source :meta :cursors))]
+    (dispatch [:reload [:project-source/sample-article
+                        @project-id (:source-id @source)]])
+    (fn [{:keys [source editing-view?]}]
+      (let [{:keys [source-id meta]} @source
+            source-name (:source meta)
+            cursors (r/cursor source [:meta :cursors])
+            sample-article @(subscribe [:project-source/sample-article @project-id source-id])
+            ;; todo: CT.gov results should just be using content and not json
+            json (cond (= source-name "CT.gov search")
+                       (clj->js (:json sample-article))
+                       (= (:mimetype sample-article) "application/json")
+                       (.parse js/JSON (:content sample-article))
+                       :else "error")
+            active? (partial = @active-tab)]
         [:div {:style {:width "100%"}}
-         [:div {:class "ui top attached tabular menu"}
-          [:div {:class (clojure.string/join " " [(when (= @active-tab "edit")
-                                                    "active")
-                                                  "item"])
-                 :style {:cursor "pointer"}
-                 :on-click (fn [_]
-                             (reset! active-tab "edit"))} "Available Fields"]
-          [:div {:class (clojure.string/join " " [(when (= @active-tab "preview")
-                                                    "active")
-                                                  "item"])
-                 :style {:cursor "pointer"}
-                 :on-click #(reset! active-tab "preview")} "Selected Fields"] [:a {:href "https://www.youtube.com/watch?v="
-                                                                                   :target "_blank"
-                                                                                   :style {:margin-left "0.25em"}}
-                                                                               [Icon {:name "video camera"}]]]
-         [:div {:class (clojure.string/join " "
-                                            ["ui" "bottom" "attached"
-                                             (when (= @active-tab "edit") "active")
-                                             "tab" ;;"segment"
-                                             ])}
+         [:div.ui.top.attached.tabular.menu
+          [:div.item {:class (css [(active? :edit) "active"])
+                      :style {:cursor "pointer"}
+                      :on-click #(reset! active-tab :edit)}
+           "Available Fields"]
+          [:div.item {:class (css [(active? :preview) "active"])
+                      :style {:cursor "pointer"}
+                      :on-click #(reset! active-tab :preview)}
+           "Selected Fields"]
+          [:a {:href "https://www.youtube.com/watch?v=" :target "_blank"
+               :style {:margin-left "0.25em"}}
+           [Icon {:name "video camera"}]]]
+         [:div.ui.bottom.attached.tab #_ .segment
+          {:class (css [(active? :edit) "active"])}
           [EditView {:json json
                      :temp-cursors temp-cursors
                      :editing-view? editing-view?}]]
-         [:div {:class (clojure.string/join " "
-                                            ["ui" "bottom" "attached"
-                                             (when (= @active-tab "preview") "active")
-                                             "tab" ;;"segment"
-                                             ])}
+         [:div.ui.bottom.attached.tab #_ .segment
+          {:class (css [(active? :preview) "active"])}
           [PreviewView {:json json
                         :temp-cursors temp-cursors
                         :cursors cursors
                         :editing-view? editing-view?
-                        :source-id source-id
-                        :saving? saving?
-                        :deleting? deleting?}]]])
-      :component-will-unmount (fn [_]
-                                (reset! active-tab "edit")
-                                (reset! temp-cursors []))
-      :component-did-mount (fn [_]
-                             (reset! temp-cursors @cursors)
-                             (reset! saving? false)
-                             (reset! deleting? false)
-                             (reset! active-tab "edit")
-                             (dispatch [:reload [:project/get-source-sample-article project-id source-id]]))})))
+                        :source-id source-id}]]]))))
