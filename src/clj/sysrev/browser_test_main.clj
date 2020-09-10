@@ -12,7 +12,7 @@
 (defn -main [& _args]
   (log/info (str "running browser tests with config:\n"
                  (pprint/write (get-selenium-config) :stream nil)))
-  (let [fname "target/junit.xml"
+  (let [fname "target/junit-browser.xml"
         {:keys [fail error] :as result}
         (with-open [w (io/writer fname)]
           (binding [*test-out* w]

@@ -25,10 +25,21 @@
    (GET "/orgs" request
         (with-authorize request {:logged-in true}
           (api/read-orgs (current-user-id request))))
+   (GET "/org/valid-name" request
+        (with-authorize request {:logged-in true}
+          (let [org-name (get-in request [:params :org-name])]
+            (api/validate-org-name org-name))))
    (POST "/org" request
          (with-authorize request {:logged-in true}
            (let [{:keys [org-name]} (:body request)]
              (api/create-org! (current-user-id request) org-name))))
+   (POST "/org/pro" request
+         (with-authorize request {:logged-in true}
+           (let [{:keys [org-name plan payment-method]} (:body request)]
+             (api/create-org-pro! (current-user-id request) org-name plan payment-method))))
+   (GET "/org/available-plans" request
+        (with-authorize request {:logged-in true}
+          (api/org-available-plans)))
    (context "/org/:org-id" [org-id :<< as-int :as _request]
             (GET "/users" request
                  (with-authorize request {}

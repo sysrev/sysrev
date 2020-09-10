@@ -216,7 +216,8 @@
           :name "email"
           :placeholder "E-mail address"
           :value email
-          :on-change on-email-change}]]]
+          :on-change on-email-change
+          :auto-focus true}]]]
       [error-msg :email]
       [:div.field
        [:button.ui.fluid.primary.button

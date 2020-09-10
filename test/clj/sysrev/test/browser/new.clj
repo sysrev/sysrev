@@ -75,9 +75,8 @@
       ;; signup through 'Pro Accounts' button
       (b/click (xpath "//a[contains(text(),'Pro Accounts')]"))
       (b/wait-until-displayed plans/choose-pro-button)
-      (b/click orgs/choose-team-pro-button)
-      ;; where going to use an existing plan
-      (b/click (xpath "//a[contains(text(),'" org-name "')]"))
+      (b/click orgs/continue-with-team-pro)
+      (b/click (xpath "//span[contains(text(),'" org-name "')]"))
       ;; update payment method
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
       (plans/click-use-card :delay 50)

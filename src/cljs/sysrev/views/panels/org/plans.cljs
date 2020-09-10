@@ -1,7 +1,9 @@
 (ns sysrev.views.panels.org.plans
-  (:require [medley.core :as medley]
+  (:require [goog.uri.utils :as uri-utils]
+            [medley.core :as medley]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.macros :refer-macros [setup-panel-state]]
@@ -23,8 +25,8 @@
                                        :set-event ::set})
 
 (def-data :org/available-plans
-  :loaded? (fn [db _org-id] (-> (get-in db [:data :plans :available-plans])))
-  :uri (fn [org-id] (str "/api/org/" org-id "/stripe/available-plans"))
+  :loaded? (fn [db] (-> (get-in db [:data :plans :available-plans])))
+  :uri (fn [] (str "/api/org/available-plans"))
   :process (fn [{:keys [db]} _ {:keys [plans]}]
              {:db (assoc-in db [:data :plans :available-plans]
                             plans)}))
@@ -80,60 +82,63 @@
      :monthly-bill monthly-bill}))
 
 (defn ToggleInterval
-  []
-  (let [new-plan (r/cursor state [:new-plan])
-        available-plans (subscribe [:org/available-plans])]
-    (r/create-class
-     {:render (fn [_]
-                [SegmentGroup {:horizontal true
-                               :compact true
-                               :style {:width "46%"}}
-                 [Segment (cond-> {}
-                            (= (:interval @new-plan) "month")
-                            (merge
-                             {:tertiary true}))
-                  [Radio {:label "Pay Monthly"
-                          :value "monthly"
-                          :checked (= (:interval @new-plan) "month")
-                          :on-change
-                          (fn [_]
-                            (reset! new-plan
-                                    (medley/find-first #(= (:interval %) "month")
-                                                       @available-plans)))}]]
-                 [Segment (cond-> {}
-                            (= (:interval @new-plan) "year")
-                            (merge
-                             {:tertiary true}))
-                  [Radio {:label "Pay Yearly"
-                          :checked (= (:interval @new-plan) "year")
-                          :on-change (fn [_]
-                                       (reset! new-plan
-                                               (medley/find-first #(= (:interval %) "year")
-                                                                  @available-plans)))}]]])})))
+  "new-plan is an atom, not a value"
+  [{:keys [style new-plan available-plans]}]
+  (r/create-class
+   {:render (fn [_]
+              [SegmentGroup {:horizontal true
+                             :compact true
+                             :style (merge {:width "46%"}
+                                           style)}
+               [Segment (cond-> {}
+                          (= (:interval @new-plan) "month")
+                          (merge
+                           {:tertiary true}))
+                [Radio {:label "Pay Monthly"
+                        :value "monthly"
+                        :checked (= (:interval @new-plan) "month")
+                        :on-change
+                        (fn [_]
+                          (reset! new-plan
+                                  (medley/find-first #(= (:interval %) "month")
+                                                     ;;@available-plans
+                                                     available-plans
+                                                     )))}]]
+               [Segment (cond-> {}
+                          (= (:interval @new-plan) "year")
+                          (merge
+                           {:tertiary true}))
+                [Radio {:label "Pay Yearly"
+                        :checked (= (:interval @new-plan) "year")
+                        :on-change (fn [_]
+                                     (reset! new-plan
+                                             (medley/find-first #(= (:interval %) "year")
+                                                                ;; @available-plans
+                                                                available-plans)))}]]])}))
 (defn Unlimited
-  [{:keys [tiers
-           interval]}]
-  [Segment
-   (if-not tiers
-     [Loader {:active true
-              :inline "centered"}]
-     [Grid {:stackable true}
-      [Row
-       [Column {:width 10}
-        [:b "Team Pro Plan"]
-        [TeamProBenefits]]
-       [Column {:width 6 :align "right"}
-        (let [{:keys [base per-user up-to]} (price-summary 0 tiers)]
-          [:div
-           [Row [:h3 (str "$" (util/cents->dollars base) " / " interval)]]
-           [Row [:h3 (str "up to " up-to " members")]]
-           [:br]
-           [Row [:h3 "$ " (util/cents->dollars per-user) " / " interval]]
-           [Row [:h3 "per additional member"]]])]]])])
+  [plan]
+  (let [{:keys [tiers interval]} @plan]
+    [Segment
+     (if-not tiers
+       [Loader {:active true
+                :inline "centered"}]
+       [Grid {:stackable true}
+        [Row
+         [Column {:width 10}
+          [:b "Team Pro Plan"]
+          [TeamProBenefits]]
+         [Column {:width 6 :align "right"}
+          (let [{:keys [base per-user up-to]} (price-summary 0 tiers)]
+            [:div
+             [Row [:h3 (str "$" (util/cents->dollars base) " / " interval)]]
+             [Row [:h3 (str "up to " up-to " members")]]
+             [:br]
+             [Row [:h3 "$ " (util/cents->dollars per-user) " / " interval]]
+             [Row [:h3 "per additional member"]]])]]])]))
 
 (defn DowngradePlan [org-id]
   (let [error-message (r/cursor state [:error-message])
-        available-plans (subscribe [:org/available-plans org-id])
+        available-plans (subscribe [:org/available-plans])
         changing-plan? (r/cursor state [:changing-plan?])
         current-plan (subscribe [:org/current-plan org-id])
         new-plan (r/cursor state [:new-plan])]
@@ -144,12 +149,13 @@
           (reset! new-plan (medley/find-first #(= (:nickname %) "Basic") @available-plans)))
         [:div
          [:h1 "Unsubscribe your Team"]
+         [:h2 "Team: " @(subscribe [:org/name org-id])]
          [Grid
           [Row
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe from"]
-                        [Unlimited @current-plan]]]]
+                        [Unlimited current-plan]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [BasicPlan @new-plan]
@@ -176,28 +182,42 @@
                            (reset! changing-plan? false)
                            (reset! error-message nil))})))
 
+(defn TeamProPlanPrice [plan]
+  [:p (str "Team Pro Plan ("
+           (str "$" (-> @plan
+                        :tiers
+                        ;; this needs to be changed to actually
+                        ;; include member count of group
+                        ((partial price-summary 0))
+                        :monthly-bill
+                        util/cents->dollars)
+                " / " (:interval @plan))
+           ")")])
 
 (defn UpgradePlan [org-id]
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])
         mobile? (util/mobile?)
         new-plan (r/cursor state [:new-plan])
-        available-plans (subscribe [:org/available-plans org-id])
         default-source (subscribe [:org/default-source org-id])
-        show-payment-form? (r/atom false)]
-    (fn [org-id]
-      (if (empty? @new-plan)
-        (do
-          (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_Org") @available-plans))
-          [Loader {:active true
-                   :inline "centered"}])
+        show-payment-form? (r/atom false)
+        changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
+    (fn [org-id available-plans]
+      (when-not (nil? @available-plans)
+        (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_Org") @available-plans)))
+      (if (empty? @available-plans)
+        [Loader {:active true
+                 :inline "centered"}]
         [:div
-         (when-not mobile? [:h1 "Upgrade your plan Basic to Team Pro"])
+         (when-not (and (not mobile?)
+                        changing-interval?) [:h1 "Upgrade from Basic to Team Pro"])
+         [:h2 "Team: " @(subscribe [:org/name org-id])]
          [Grid {:stackable true :columns 2 :class "upgrade-plan"}
           [Column
            [Grid [Row [Column
-                       [:h3 "UPGRADING TO"]
-                       [Unlimited @new-plan]
+                       (when-not changing-interval?
+                         [:h3 "UPGRADING TO"])
+                       [Unlimited new-plan]
                        (when-not mobile?
                          [:a {:href (str "/org/" org-id "/billing")}
                           "Back to org settings"])]]]]
@@ -206,21 +226,12 @@
              [Grid
               [Row
                [Column
-                [:h3 "Upgrade Summary"]
-                [ToggleInterval]
-                [:p {:style {:color "red"}} "Pay yearly and get the first month free!"]
+                (if-not changing-interval? [:h3 "Billing Summary"] [:h3 "Upgrade Summary"])
+                [ToggleInterval {:new-plan new-plan :available-plans @available-plans}]
+                [:p {:style {:color "green"}} "Pay yearly and get the first month free!"]
                 [ListUI {:divided true}
                  [:h4 "New Monthly Bill"]
-                 [ListItem [:p (str "Team Pro Plan ("
-                                    (str "$" (-> @new-plan
-                                                 :tiers
-                                                 ;; this needs to be changed to actually
-                                                 ;; include member count of group
-                                                 ((partial price-summary 0))
-                                                 :monthly-bill
-                                                 util/cents->dollars)
-                                         " / " (:interval @new-plan))
-                                    ")")]]
+                 [ListItem [TeamProPlanPrice new-plan]]
                  [:h4 "Billing Information"]
                  [ListItem
                   (when (not no-default?)
@@ -237,7 +248,7 @@
                      [StripeCardInfo {:add-payment-fn
                                       (fn [payload]
                                         (reset! show-payment-form? false)
-                                        (dispatch [:action [:stripe/add-payment-org org-id payload ]]))}]
+                                        (dispatch [:action [:stripe/add-payment-org org-id payload]]))}]
                      [:a.payment-method
                       {:class (if no-default? "add-method" "change-method")
                        :style {:cursor "pointer"}
@@ -264,14 +275,17 @@
 (defn- OrgPlansContent [org-id]
   (when org-id
     (let [current-plan @(subscribe [:org/current-plan org-id])
-          redirecting? (r/cursor state [:redirecting?])]
+          redirecting? (r/cursor state [:redirecting?])
+          changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
       (cond
         @redirecting?
         [:div [:h3 "Redirecting"]
          [Loader {:active true
                   :inline "centered"}]]
+        changing-interval?
+        [UpgradePlan org-id (subscribe [:org/available-plans])]
         (= (:nickname current-plan) "Basic")
-        [UpgradePlan org-id]
+        [UpgradePlan org-id (subscribe [:org/available-plans])]
         (contains? #{"Unlimited_Org" "Unlimited_Org_Annual"} (:nickname current-plan))
         [DowngradePlan org-id]
         :else
@@ -289,7 +303,7 @@
       (dispatch [:data/load [:self-orgs]])
       (dispatch [:data/load [:org/default-source org-id]])
       (dispatch [:data/load [:org/current-plan org-id]])
-      (dispatch [:data/load [:org/available-plans org-id]]))
+      (dispatch [:data/load [:org/available-plans]]))
     :should-component-update
     (fn [_this _old-argv [{:keys [org-id]}]]
       (dispatch [:data/load [:org/default-source org-id]])

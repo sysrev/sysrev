@@ -271,7 +271,7 @@
                    [[:register-project register-hash]]
                    []) {}
       [:div
-       [:h4 {:style {:text-align "center"}}
+       [:h3 {:style {:text-align "center"}}
         redirect-message]
        [:div.ui.segment.auto-margin.auth-segment
         {:id "login-register-panel"}
@@ -297,7 +297,8 @@
          [:div.field.email {:class (field-class :email)}
           [:div.ui.left.icon.input
            [:i.user.icon]
-           [:input {:type "email" :name "email"
+           [:input {:auto-focus true
+                    :type "email" :name "email"
                     :id "login-email-input"
                     :placeholder "E-mail address"
                     :on-change (on-event-value #(dispatch-sync [::set-email %]))}]]]

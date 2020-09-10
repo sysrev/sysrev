@@ -355,7 +355,6 @@
       stripe-response
       {:success true})))
 
-
 (defn update-org-stripe-payment-method!
   "Using a stripe token, update the payment method for org-id"
   [org-id payment-method]
@@ -1233,28 +1232,51 @@
                                                   count)))
                 (mapv #(assoc % :plan (-> (plans/group-current-plan (:group-id %))))))}))
 
+(defn validate-org-name [org-name]
+  (cond (group/group-name->id org-name)
+        ;; alredy exists
+        {:error {:status conflict
+                 :message (str "An organization with the name '" org-name "' already exists."
+                               " Please try using another name.")}}
+        (string/blank? org-name)
+        {:error {:status bad-request
+                 :message (str "Organization names can't be blank!")}}
+        :else {:valid true}))
+
 (defn create-org! [user-id org-name]
-  (with-transaction
-    ;; check to see if group already exists
-    (cond (group/group-name->id org-name)
-          ;; alredy exists
-          {:error {:status conflict
-                   :message (str "An organization with the name '" org-name "' already exists."
-                                 " Please try using another name.")}}
-          (string/blank? org-name)
-          {:error {:status bad-request
-                   :message (str "Organization names can't be blank!")}}
-          :else
-          (with-transaction
-            ;; create the group
-            (let [new-org-id (group/create-group! org-name)
-                  user (get-user user-id)
-                  _ (group/create-group-stripe-customer! new-org-id user)
-                  stripe-id (group/group-stripe-id new-org-id)]
-              ;; set the user as group admin
-              (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
-              (stripe/create-subscription-org! new-org-id stripe-id)
-              {:success true, :id new-org-id})))))
+  (let [validation-result (validate-org-name org-name)]
+    (if (:error validation-result)
+      validation-result
+      (with-transaction
+        ;; create the group
+        (let [new-org-id (group/create-group! org-name)
+              user (get-user user-id)
+              _ (group/create-group-stripe-customer! new-org-id user)
+              stripe-id (group/group-stripe-id new-org-id)]
+          ;; set the user as group admin
+          (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
+          (stripe/create-subscription-org! new-org-id stripe-id)
+          {:success true, :id new-org-id})))))
+
+(defn create-org-pro!
+  "Create a org for user-id using plan and payment method, all in one shot"
+  [user-id org-name plan payment-method]
+  ;; make sure we can create this org
+  (if-let [{:keys [status message]} (:error (validate-org-name org-name))]
+    {:error {:status status
+             :org-error {:message message}}}
+    ;; create the org..
+    (let [{:keys [id]} (create-org! user-id org-name)]
+      ;; try to update the payment info
+      (if-let [{:keys [message status]} (:error (update-org-stripe-payment-method! id payment-method))]
+        {:error {:status status
+                 :stripe-error {:message message}}}
+        ;; try to register the org
+        (if-let [{:keys [status message]} (:error (subscribe-org-to-plan id plan))]
+          {:error {:status status
+                   :plan-error {:message message}}}
+          ;; finally, if everything went through ok, return the org-id
+          {:success true :id id})))))
 
 (defn search-users [term]
   {:success true, :users (user/search-users term)})

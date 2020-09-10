@@ -1,5 +1,7 @@
 (ns sysrev.group.core
-  (:require [clojure.spec.alpha :as s]
+  (:require [bouncer.core :as b]
+            [bouncer.validators :as v :refer [defvalidator]]
+            [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [honeysql.helpers :as sqlh]
             [sysrev.db.core :as db :refer [with-transaction]]

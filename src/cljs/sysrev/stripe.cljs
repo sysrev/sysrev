@@ -137,7 +137,7 @@
 ;; https://stripe.com/docs/payments/cards/charging-saved-cards#notify
 ;; https://stripe.com/docs/billing/subscriptions/payment#handling-action-required - for subscriptions
 
-(defn StripeForm [{:keys [add-payment-fn]}]
+(defn StripeForm [{:keys [add-payment-fn submit-button-text]}]
   (inject-stripe
    (r/create-class
     {:display-name "stripe-reagent-form"
@@ -196,7 +196,7 @@
           [Button {:disabled (or disabled? (errors?))
                    :class "use-card"
                    :primary true}
-           "Save Payment Information"]
+           submit-button-text]
           ;; shows the errors returned from the server (our own, or stripe.com)
           (when @error-message
             [:div.ui.red.header @error-message])]))
@@ -208,9 +208,11 @@
 
 (defn StripeCardInfo
   "add-payment-fn is a fn of payload returned by Stripe"
-  [{:keys [add-payment-fn]}]
+  [{:keys [add-payment-fn submit-button-text]
+    :or {submit-button-text "Save Payment Information"}}]
   [StripeProvider {:apiKey stripe-public-key}
-   [Elements [(StripeForm {:add-payment-fn add-payment-fn})]]])
+   [Elements [(StripeForm {:add-payment-fn add-payment-fn
+                           :submit-button-text submit-button-text})]]])
 
 ;; https://stripe.com/docs/connect/quickstart
 ;; use: phone number: 000-000-0000

@@ -32,8 +32,8 @@
 
 ;; pricing workflow elements
 (def choose-pro-button (xpath "//button[contains(text(),'Choose Pro')]"))
-(def create-account-h4 (xpath "//h4[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
-(def upgrade-plan-h2 (xpath "//h1[contains(text(),'Upgrade your plan')]"))
+(def create-account (xpath "//h3[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
+(def upgrade-plan (xpath "//h1[contains(text(),'Upgrade from Basic to Pro')]"))
 (def pricing-link (xpath "//a[@id='pricing-link']"))
 
 (defn click-use-card [& {:keys [wait delay error?]
@@ -254,16 +254,13 @@
     (b/wait-until-displayed choose-pro-button)
     (b/click choose-pro-button)
     ;; register
-    (b/wait-until-displayed create-account-h4)
+    (b/wait-until-displayed create-account)
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
     ;; upgrade plan
-    (b/wait-until-displayed upgrade-plan-h2)
+    (b/wait-until-displayed upgrade-plan)
     (is (= "Basic" (get-db-plan)))
-    ;; refresh to make sure state isn't an issue
-    (taxi/refresh)
-    (b/wait-until-displayed upgrade-plan-h2)
     ;; update payment method
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (click-use-card :delay 50)
@@ -289,15 +286,15 @@
     (b/wait-until-displayed choose-pro-button)
     (b/click choose-pro-button)
     ;; register
-    (b/wait-until-displayed create-account-h4)
+    (b/wait-until-displayed create-account)
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
     ;; go to upgrade plan
-    (b/wait-until-displayed upgrade-plan-h2)
+    (b/wait-until-displayed upgrade-plan)
     ;; refresh to make sure state isn't an issue
     (taxi/refresh)
-    (b/wait-until-displayed upgrade-plan-h2)
+    (b/wait-until-displayed upgrade-plan)
     ;; got cold feet, decides against upgrading
     (b/click back-to-user-settings)
     (is (= "Basic" (get-db-plan)))

@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.user.billing
   (:require [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
+            [sysrev.nav :as nav]
             [sysrev.stripe :refer [pro-plans StripeCardInfo]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
@@ -77,6 +78,9 @@
                                    "(paid annually)"))]
                            [:li "Unlimited public and private projects"]])]
        [Column {:width 6 :align "right"}
+        (when unlimited?
+          [Button {:href (nav/make-url plans-url
+                                       {:changing-interval true})} "Change Billing Interval"])
         [Button {:class (css "nav-plans" [basic? "subscribe" unlimited? "unsubscribe"])
                  :color (when basic? "green")
                  :href plans-url}

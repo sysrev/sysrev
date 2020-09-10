@@ -31,8 +31,12 @@
 
 ;; pricing workflow elements
 (def choose-team-pro-button (xpath "//button[contains(text(),'Choose Team Pro')]"))
-(def create-account-h4 (xpath "//h4[contains(text(),'Create a free account before moving on to team creation')]"))
-(def create-team-h4 (xpath "//h4[contains(text(),'create a Sysrev organization for your team')]"))
+(def continue-with-team-pro (xpath "//div[contains(text(),'Continue with Team Pro')]"))
+(def create-organization (xpath "//span[contains(text(),'Create Organization')]"))
+(def create-account (xpath "//h3[contains(text(),'Create a free account before moving on to team creation')]"))
+(def create-team (xpath "//h3[contains(text(),'create a Sysrev organization for your team')]"))
+(def enter-payment-information
+  (xpath "//h3[contains(text(),'enter payment information')]"))
 
 (defn change-user-permission-dropdown [username]
   (let [[username] (str/split username #"@")]
@@ -388,28 +392,19 @@
     (b/wait-until-displayed choose-team-pro-button)
     (b/click choose-team-pro-button)
     ;; register
-    (b/wait-until-displayed create-account-h4)
+    (b/wait-until-displayed create-account)
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" b/test-password)
     (b/click "button[name='submit']")
     ;; create a team
-    (b/wait-until-displayed create-team-h4)
+    (b/wait-until-displayed create-team)
     (b/set-input-text-per-char create-org-input org-name)
     (b/click create-org-button)
     ;; upgrade plan
-    (b/wait-until-displayed plans/upgrade-plan-h2 10000 100)
-    (is (= "Basic" (-> (user-groups email)
-                       first
-                       :group-id
-                       group-current-plan
-                       :nickname)))
-    ;; refresh to make sure state isn't an issue
-    (taxi/refresh)
-    (b/wait-until-displayed plans/upgrade-plan-h2)
+    (b/wait-until-displayed enter-payment-information)
     ;; update payment method
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card :delay 50)
-    (plans/click-upgrade-plan)
     ;; ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
     (is (= "Unlimited_Org" (-> (user-groups email)
@@ -429,49 +424,44 @@
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
     (b/wait-until-displayed choose-team-pro-button)
     (b/click choose-team-pro-button)
-    (b/wait-until-displayed create-account-h4)
+    (b/wait-until-displayed create-account)
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" b/test-password)
     (b/click "button[name='submit']")
     ;; don't create a team
-    (b/wait-until-displayed create-team-h4)
+    (b/wait-until-displayed create-team)
     (nav/go-route "/")
     ;; let's go through pricing again for a team pro account
     (b/wait-until-displayed plans/pricing-link)
     (b/click plans/pricing-link)
-    (b/wait-until-displayed choose-team-pro-button)
-    (b/click choose-team-pro-button)
+    (b/wait-until-displayed continue-with-team-pro)
+    (b/click continue-with-team-pro)
+    (b/click create-organization)
     ;; create a team
-    (b/wait-until-displayed create-team-h4)
+    (b/wait-until-displayed create-team)
     (b/set-input-text-per-char create-org-input org-name)
     (b/click create-org-button)
-    (b/wait-until-displayed plans/upgrade-plan-h2)
+    (b/wait-until-displayed enter-payment-information)
     (b/wait-until-loading-completes :pre-wait 100)
     ;; whoops nevermind, got cold feet
     (nav/go-route "/")
     ;; let's try to pay again
     (b/click plans/pricing-link)
-    (b/wait-until-displayed choose-team-pro-button)
-    (b/click choose-team-pro-button)
     ;; click the existing team
     (taxi/refresh)
-    (b/wait-until-displayed (xpath "//a[text()='" org-name"']") 5000 100)
-    (b/click (xpath "//a[text()='" org-name"']"))
+    (b/wait-until-displayed continue-with-team-pro)
+    (b/click continue-with-team-pro)
+    ;; we have to create an org again our last one didn't save
+    (b/click create-organization)
+    (b/wait-until-displayed create-team)
+    (b/set-input-text-per-char create-org-input org-name)
+    (b/click create-org-button)
     ;; upgrade plan
-    (b/wait-until-displayed plans/upgrade-plan-h2)
-    (is (= "Basic" (-> (user-groups email)
-                       first
-                       :group-id
-                       group-current-plan
-                       :nickname)))
-    ;; refresh to make sure state isn't an issue
-    (taxi/refresh)
-    (b/wait-until-displayed plans/upgrade-plan-h2)
+    (b/wait-until-displayed enter-payment-information)
     ;; update payment method
     (bstripe/enter-cc-information
      {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card :delay 50)
-    (plans/click-upgrade-plan)
     ;; ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
     (is (= "Unlimited_Org" (-> (user-groups email)

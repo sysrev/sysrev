@@ -97,20 +97,28 @@
                                        (reset! new-plan
                                                (medley/find-first #(= (:interval %) "year")
                                                                   @available-plans)))}]]])})))
+
+(defn ProPlanPrice [plan]
+  [:p (str "Pro Plan ("
+           (str "$" (util/cents->dollars
+                     (:amount @plan)) " / " (:interval @plan))
+           ")")])
+
 (defn Unlimited
-  [{:keys [amount
-           interval]}]
-  [Segment
-   (if-not amount
-     [Loader {:active true
-              :inline "centered"}]
-     [Grid {:stackable true}
-      [Row
-       [Column {:width 10}
-        [:b "Pro Plan"]
-        [ProBenefits]]
-       [Column {:width 6 :align "right"}
-        [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
+  [plan]
+  (let [{:keys [amount
+                interval]} @plan]
+    [Segment
+     (if-not amount
+       [Loader {:active true
+                :inline "centered"}]
+       [Grid {:stackable true}
+        [Row
+         [Column {:width 10}
+          [:b "Pro Plan"]
+          [ProBenefits]]
+         [Column {:width 6 :align "right"}
+          [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])]))
 
 (defn BasicPlan [{:keys [amount interval]}]
   [Segment
@@ -135,7 +143,6 @@
         error-message (r/cursor state [:error-message])
         available-plans (subscribe [:user/available-plans])
         changing-plan? (r/cursor state [:changing-plan?])
-        current-path (uri-utils/getPath @active-route)
         current-plan (subscribe [:user/current-plan self-id])
         new-plan (r/cursor state [:new-plan])]
     (r/create-class
@@ -150,14 +157,12 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe from"]
-                        [Unlimited @current-plan]]]]
+                        [Unlimited current-plan]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [BasicPlan @new-plan]
                         [:a {:href (str "/user/" self-id "/billing")}
-                         (if (= current-path "/user/plans")
-                           "Back to user settings"
-                           "Back to org settings")]]]]]
+                         "Back to user settings"]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]
@@ -184,23 +189,26 @@
         changing-plan? (r/cursor state [:changing-plan?])
         mobile? (util/mobile?)
         new-plan (r/cursor state [:new-plan])
-        available-plans (subscribe [:user/available-plans])
         self-id @(subscribe [:self/user-id])
         default-source (subscribe [:user/default-source])
-        show-payment-form? (r/atom false)]
-    (fn []
-      (if (empty? @new-plan)
-        (do
-          (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_User") @available-plans))
-          [Loader {:active true
-                   :inline "centered"}])
+        show-payment-form? (r/atom false)
+        changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
+    (fn [available-plans]
+      (when-not (nil? @available-plans)
+        (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_User") @available-plans)))
+      (if (empty? @available-plans)
+        [Loader {:active true
+                 :inline "centered"}]
         [:div
-         (when-not mobile? [:h1 "Upgrade your plan from Basic to Pro"])
+         (when-not (and (not mobile?)
+                        changing-interval?)
+           [:h1 "Upgrade from Basic to Pro"])
          [Grid {:stackable true :columns 2 :class "upgrade-plan"}
           [Column
            [Grid [Row [Column
-                       [:h3 "UPGRADING TO"]
-                       [Unlimited @new-plan]
+                       (when-not changing-interval?
+                         [:h3 "UPGRADING TO"])
+                       [Unlimited new-plan]
                        (when-not mobile?
                          [:a {:href (str "/user/" self-id "/billing")}
                           "Back to user settings"])]]]]
@@ -209,15 +217,12 @@
              [Grid
               [Row
                [Column
-                [:h3 "Upgrade Summary"]
+                (if changing-interval? [:h3 "Billing Summary"] [:h3 "Upgrade Summary"])
                 [ToggleInterval]
-                [:p {:style {:color "red"}} "Pay yearly and get the first month free!"]
+                [:p {:style {:color "green"}} "Pay yearly and get the first month free!"]
                 [ListUI {:divided true}
                  [:h4 "New Monthly Bill"]
-                 [ListItem [:p (str "Pro Plan ("
-                                    (str "$" (util/cents->dollars
-                                              (:amount @new-plan)) " / " (:interval @new-plan))
-                                    ")")]]
+                 [ListItem [ProPlanPrice new-plan]]
                  [:h4 "Billing Information"]
                  [ListItem
                   (when (not no-default?)
@@ -273,14 +278,17 @@
 (defn- UserPlansContent []
   (when @(subscribe [:self/user-id])
     (let [current-plan @(subscribe [:user/current-plan])
-          redirecting? (r/cursor state [:redirecting?])]
+          redirecting? (r/cursor state [:redirecting?])
+          changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
       (cond
         @redirecting?
         [:div [:h3 "Redirecting"]
          [Loader {:active true
                   :inline "centered"}]]
+        changing-interval?
+        [UpgradePlan (subscribe [:user/available-plans])]
         (= (:nickname current-plan) "Basic")
-        [UpgradePlan]
+        [UpgradePlan (subscribe [:user/available-plans])]
         (contains? #{"Unlimited_User" "Unlimited_User_Annual"} (:nickname current-plan))
         [DowngradePlan]
         :else

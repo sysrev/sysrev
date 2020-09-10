@@ -42,6 +42,7 @@
 (def Label (component S/Label))
 (def LabelDetail (component S/Label "Detail"))
 (def Button (component S/Button))
+(def ButtonGroup (component S/Button.Group))
 (def Dropdown (component S/Dropdown))
 (def DropdownMenu (component S/Dropdown.Menu))
 (def DropdownItem (component S/Dropdown.Item))
