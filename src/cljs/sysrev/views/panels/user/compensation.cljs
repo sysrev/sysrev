@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.compensation
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
+  (:require ["moment" :as moment]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.accounting :as accounting]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.identity :refer [current-user-id]]
@@ -68,7 +69,14 @@
   [ListItem
    [Grid [Row
           [Column {:width 5} project-name]
-          [Column {:width 8} (str "Paid on: " (util/unix-epoch->date-string created))]
+          [Column {:width 8} (str "Paid on: "
+                                  (-> created
+                                      (moment.)
+                                      (.format "YYYY-MM-DD"))
+                                  " at "
+                                  (-> created
+                                      (moment.)
+                                      (.format "h:mm A")))]
           [Column {:width 3 :align "right"} (accounting/cents->string total-paid)]]]])
 
 (defn PaymentsPaid []
