@@ -27,7 +27,7 @@
     (select :article-id)
     (from
       [(->
-         (select :ar.article-id)
+         (select :ar.article-id :ar.last-assigned)
          (from [:article :ar])
          (where [:and
                  [:= :project-id project-id]
@@ -36,8 +36,8 @@
                                     (where [:and
                                             [:= :al.article-id :ar.article-id]
                                             [:= :user-id user-id]]))]]])
-         (limit 10)) :ul])
-    (order-by :%random)
+         (limit 50)) :ul])
+    (order-by [:last-assigned :nulls-first] :%random)
     (limit 1)
     do-query
     (first)))
@@ -47,7 +47,7 @@
     (select :article-id)
     (from
       [(->
-         (select :ar.article-id)
+         (select :ar.article-id :ar.last-assigned)
          (from [:article :ar])
          (where [:and
                  [:= :project-id project-id]
@@ -55,8 +55,8 @@
                  [:exists (-> (select 1)(from [:article-label :al])(where [:= :al.article-id :ar.article-id]))]
                  [:not [:exists (-> (select 1)(from [:article-label :al])
                                     (where [:and [:= :al.article-id :ar.article-id][:= :user-id user-id]]))]]])
-         (limit 10)) :ul])
-    (order-by :%random)
+         (limit 50)) :ul])
+    (order-by [:last-assigned :nulls-first] :%random)
     (limit 1)
     do-query
     (first)))
@@ -77,7 +77,7 @@
   (-> (select :article-id)
       (from
         [(->
-           (select :ar.article-id)(from [:article :ar])
+           (select :ar.article-id :ar.last-assigned)(from [:article :ar])
            (where [:and
                    [:= :project-id project-id]
                    [:= :ar.enabled true]
@@ -91,7 +91,7 @@
                                  [:= (sql/call :max (sql/raw ["CASE WHEN user_id = " user-id "THEN 1 ELSE 0 END"])) 0]]))]])
 
            (limit 30)) :sa])
-      (order-by :%random)
+      (order-by [:last-assigned :nulls-first] :%random)
       (limit 1)
       do-query
       (first)))
@@ -99,7 +99,7 @@
 (defn- query-any-unlabeled-article [project-id]
   (-> (select :article-id)
       (from
-        [(-> (select :ar.article-id) (from [:article :ar])
+        [(-> (select :ar.article-id :ar.last-assigned) (from [:article :ar])
              (where [:and
                      [:= :project-id project-id]
                      [:= :ar.enabled true]
@@ -108,7 +108,7 @@
                                       (from [:article-label :al])
                                       (where [:= :al.article-id :ar.article-id]))]]])
              (limit 30)) :sq])
-      (order-by :%random)
+      (order-by [:last-assigned :nulls-first] :%random)
       (limit 1)
       do-query
       (first)))
@@ -120,7 +120,7 @@
       (let [res
             (-> (select :article-id :val)
                 (from
-                  [(-> (select :ar.article-id :lp.val) (from [:article :ar])
+                  [(-> (select :ar.article-id :ar.last-assigned :lp.val) (from [:article :ar])
                        (left-join [:label-predicts :lp] [:= :ar.article-id :lp.article-id])
                        (where [:and
                                [:= :project-id project-id]
@@ -131,7 +131,7 @@
                                                 (from [:article-label :al])
                                                 (where [:= :al.article-id :ar.article-id]))]]])
                        (limit 100)) :preds])
-                (order-by :%random)
+                (order-by [:last-assigned :nulls-first] :%random)
                 (limit 30)
                 do-query)]
         (if (empty? res)
