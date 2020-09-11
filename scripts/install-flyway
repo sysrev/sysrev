@@ -1,25 +1,24 @@
 #!/bin/bash
-set -eu
+set -eu -o pipefail ; S="./scripts"
 
-if [[ -e "./flyway" ]]; then
-    echo "flyway is already installed"
-    exit
-fi
+[[ -e "./flyway" ]] && (echo "flyway is already installed" ; false)
+
+v="6.5.5"
 
 rm -f flyway
-rm -rf .flyway-5.2.4
-rm -f flyway-commandline-5.2.4.tar.gz
+rm -rf .flyway-*.* 2> /dev/null
+rm -f flyway-commandline-*.tar.gz 2> /dev/null
 
-echo "Downloading and installing Flyway..."
-
-wget --quiet https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/5.2.4/flyway-commandline-5.2.4.tar.gz
-tar zxf flyway-commandline-5.2.4.tar.gz
-mv flyway-5.2.4 .flyway-5.2.4
-ln -s .flyway-5.2.4/flyway flyway
-rm -f flyway-commandline-5.2.4.tar.gz
+echo -n "Downloading and installing Flyway... "
+wget --quiet https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/$v/flyway-commandline-$v.tar.gz
+tar zxf flyway-commandline-$v.tar.gz
+mv flyway-$v .flyway-$v
+ln -s .flyway-$v/flyway flyway
+rm -f flyway-commandline-$v.tar.gz
 cp flyway.conf.example flyway.conf
+echo -e "done\n"
 
-echo "Flyway installed."
-echo " ** ./flyway script created"
-echo " ** SQL schema files are in ./resources/sql"
-echo " ** Edit Flyway config at ./flyway.conf (copied from flyway.conf.example)"
+(echo "./flyway script created"
+ echo "SQL schema files are in ./resources/sql"
+ echo "Edit Flyway config at ./flyway.conf (copied from flyway.conf.example)") |
+  $S/prefix-lines - " * " ; echo

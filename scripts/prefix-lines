@@ -6,11 +6,12 @@ cmd="$1"
 prefix="$2"
 default="  >> "
 
-set -eu
+set -eu -o pipefail
 
 show_usage() {
   echoerr "Usage: prefix-lines COMMAND [PREFIX]"
   echoerr "Pipes output from COMMAND to add a PREFIX string to each line."
+  echoerr "If COMMAND is -, read input from stdin."
   echoerr "stdout and stderr from COMMAND are merged to stdout."
   echoerr "Default PREFIX string is \"$default\"."
   false
@@ -26,7 +27,8 @@ check_cmd() {
     false
   fi
 }
-check_cmd $cmd
 
-set -o pipefail
-bash -c "$cmd" 2>&1 | sed -Ee "s/(^.*$)/${prefix}\1/g" || show_usage
+[ "$cmd" == "-" ] || check_cmd $cmd
+
+(if [ "$cmd" == "-" ] ; then cat ; else bash -c "$cmd" 2>&1 ; fi) |
+  sed -Ee "s/(^.*$)/${prefix}\1/g" || show_usage
