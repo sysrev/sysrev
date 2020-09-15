@@ -16,7 +16,7 @@
 
 (def admin-fee 0.20)
 
-(def check-pending-interval 600000)
+(def ^:unused check-pending-interval 600000)
 
 (defn- amount->cents [amount-string]
   (some->> (not-empty amount-string)

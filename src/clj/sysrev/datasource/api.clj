@@ -101,13 +101,6 @@
        (run-ds-query)
        :body :data :risFileCitationsByFileHash))
 
-(defn fetch-pubmed-article
-  "Queries datasource API to return article data map for a single `pmid`."
-  [pmid & {:as opts}]
-  (let [pmid (parse-integer pmid)]
-    (-> (apply-keyargs fetch-pubmed-articles [pmid] opts)
-        (get pmid))))
-
 ;; TODO: support this for article import (analogous to `fetch-pubmed-articles`)
 (defn-spec fetch-nct-entities (s/map-of string? map?)
   "Queries datasource API to return article data for sequence `nctids`,
@@ -118,12 +111,6 @@
                    :fields (concat [:nctid] (or fields [:json]))})
        (map (fn [entry] (update entry :json #(json/read-str % :key-fn keyword))))
        (index-by :nctid)))
-
-(defn fetch-nct-entry
-  "Queries datasource to return article data map for a single `nctid`."
-  [nctid & {:as opts}]
-  (-> (apply-keyargs fetch-nct-entities [nctid] opts)
-      (get nctid)))
 
 (defn fetch-entities
   "Queries datasource to return map of entity-id -> entity for `entity-ids`."

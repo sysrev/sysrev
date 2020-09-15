@@ -25,10 +25,10 @@
 (def default-project-settings {:second-review-prob 0.5
                                :public-access true})
 
-(defn all-project-ids []
+(defn ^:repl all-project-ids []
   (q/find :project {} :project-id, :order-by :project-id))
 
-(defn all-projects
+(defn ^:repl all-projects
   "Returns seq of short info on all projects, for interactive use."
   []
   (q/find [:project :p] {}
@@ -265,7 +265,7 @@
   (or (util/parse-integer url-id)
       (first (q/find :project-url-id {:url-id url-id} :project-id))))
 
-(defn add-project-url-id
+(defn ^:unused add-project-url-id
   "Adds a project-url-id entry (custom URL)"
   [project-id url-id & {:keys [user-id]}]
   (db/with-clear-project-cache project-id

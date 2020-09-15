@@ -19,8 +19,8 @@
 (def fail-luhn-check-cc "4242424242424241") ; fails Luhn Check
 
 ;; these fail after payment method is updated
-(def attach-success-charge-fail-cc "4000000000000341")
-(def highest-risk-fraudulent-cc "4100000000000019")
+#_(def attach-success-charge-fail-cc "4000000000000341")
+#_(def highest-risk-fraudulent-cc "4100000000000019")
 
 ;; 3D Secure 2
 (def three-d-secure-successful "4000000000003220")

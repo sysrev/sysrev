@@ -307,19 +307,19 @@
 (defn get-payment-intent [intent-id]
   (stripe-get (str "/payment_intents/" intent-id)))
 
-(defn get-subscription-latest-invoice-intent [subscription-id]
+(defn ^:unused get-subscription-latest-invoice-intent [subscription-id]
   (-> (get-subscription subscription-id)
       :latest_invoice
       (get-invoice)
       :payment_intent
       (get-payment-intent)))
 
-(defn get-invoices [stripe-id]
+(defn ^:unused get-invoices [stripe-id]
   (stripe-get "/invoices" {:customer stripe-id}))
 
-(defn get-invoice-ids [stripe-id]
+(defn ^:unused get-invoice-ids [stripe-id]
   (map :id (:data (get-invoices stripe-id))))
 
 ;; "You can't delete invoices created by subscriptions."
-(defn delete-invoice! [invoice-id]
+(defn ^:unused delete-invoice! [invoice-id]
   (stripe-delete (str "/invoices/" invoice-id)))

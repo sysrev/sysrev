@@ -193,7 +193,7 @@
     (->> (merge entry-values {:name (str short-label "_" (rand-int 1000))})
          (add-label project-id))))
 
-(defonce tests-initialized
+(defonce ^:init-once tests-initialized
   (when (contains? #{:test :remote-test} (:profile env))
     (ensure-db-shutdown-hook)
     (case (:profile env)

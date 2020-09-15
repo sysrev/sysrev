@@ -641,10 +641,9 @@
 (defn filter-valid-article-label [m confirmed?]
   (merge-where m (where-valid-article-label confirmed?)))
 
-(declare find-article-label find-article-label-1 get-article-label)
+(declare find-article-label find-article-label-1)
 (def-find-type [:article-label :al]
-  {:id-field      article-label-id
-   :join-default  [:article :label :web-user]
+  {:join-default  []
    :join-specs    {:article       [[:article :a]        :al.article-id]
                    :label         [[:label :l]          :al.label-id]
                    :web-user      [[:web-user :u]       :al.user-id]

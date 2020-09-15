@@ -37,36 +37,6 @@
                       (do-update-set :id :created :interval :amount :tiers)))
           do-execute))))
 
-;; TODO: has this been run? should it be?
-(defn ^:repl update-dates-from-article-raw
-  "Extract the date from the raw column of the article and then update
-  the corresponding date field"
-  []
-  (let [pubmed-extract-date
-        #(->> % util/parse-xml-str pubmed/parse-pmid-xml :date)
-        endnote-extract-date
-        #(-> % dxml/parse-str load-endnote-record :date)
-        article-xml-extract-date
-        #(cond (str/blank? %)
-               nil
-               (not (str/blank? (pubmed-extract-date %)))
-               (pubmed-extract-date %)
-               (not (str/blank? (endnote-extract-date %)))
-               (endnote-extract-date %)
-               :else nil)]
-    (log/info "Started Converting dates... ")
-    (doseq [article (-> (select :raw :article-id)
-                        (from [:article :a])
-                        (order-by [:a.article-id :desc])
-                        do-query)]
-      (let [date (article-xml-extract-date (:raw article))]
-        (when-not (str/blank? date)
-          (-> (sqlh/update :article)
-              (sset {:date date})
-              (where [:= :article-id (:article-id article)])
-              do-execute))))
-    (log/info "Finished Converting Dates. ")))
-
 (defn ensure-user-email-entries
   "Migrate to new email verification system, should only be run when the
   user-email table is essentially empty"

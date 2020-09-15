@@ -191,7 +191,7 @@
          (binding [*conn* conn#]
            (do ~@body)))))
 
-(defmacro with-transaction-on-db
+(defmacro ^:unused with-transaction-on-db
   "Like with-transaction, but takes a db value as an argument instead
   of using the value from the active-db atom."
   [db & body]

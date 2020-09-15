@@ -218,7 +218,7 @@
 ;; use: phone number: 000-000-0000
 ;;      text confirm number: 000 000
 ;;      use debit card:  4000 0566 5566 5556
-(defn ConnectWithStripe []
+(defn ^:unused ConnectWithStripe []
   (let [params {"client_id" stripe-client-id
                 "response_type" "code"
                 "redirect_uri" (str js/window.location.origin "/user/settings")
@@ -228,7 +228,7 @@
                         (generate-query-string params))}
      "Connect with Stripe"]))
 
-(defn check-if-stripe-user! []
+(defn ^:unused check-if-stripe-user! []
   (let [user-id @(subscribe [:self/user-id])
         connected? (r/cursor state [:connected?])
         retrieving-connected? (r/cursor state [:retrieving-connected?])]
@@ -242,7 +242,7 @@
                            (reset! retrieving-connected? false)
                            (js/console.error "[[sysrev.strip/check-if-stripe-user!]]" error))})))
 
-(defn save-stripe-user! [user-id stripe-code]
+(defn ^:unused save-stripe-user! [user-id stripe-code]
   (POST "/api/stripe/finalize-user"
         {:params {:user-id user-id, :stripe-code stripe-code}
          :headers {"x-csrf-token" @(subscribe [:csrf-token])}

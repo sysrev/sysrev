@@ -19,7 +19,7 @@
             [sysrev.util :as util :refer [map-values in?]])
   (:import java.util.UUID))
 
-(defn all-users
+(defn ^:repl all-users
   "Returns seq of short info on all users, for interactive use."
   []
   (->> (q/find :web-user {})

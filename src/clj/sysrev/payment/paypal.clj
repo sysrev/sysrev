@@ -106,7 +106,7 @@
       c/to-epoch))
 
 ;; this won't show direct deposits
-(defn get-transactions
+(defn ^:repl get-transactions
   "Get the transactions for the account from start-date to end-date in the format of YYYY-MM-dd"
   [& {:keys [start-date end-date]
       :or {start-date "2018-01-01" end-date "2018-05-11"}}]
@@ -119,7 +119,7 @@
                :as :json
                :coerce :always}))
 
-(defn get-transactions-max
+(defn ^:repl get-transactions-max
   []
   (let [today (f/unparse (f/formatter :year-month-day) (t/now))
         thirty-one-days-ago (-> (t/now) (t/minus (t/days 31))

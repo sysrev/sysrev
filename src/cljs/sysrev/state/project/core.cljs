@@ -34,7 +34,7 @@
                       first :url-ids first)]
     (or project-url self-url)))
 ;;
-(defn project-active-url-id [db project-id]
+(defn ^:unused project-active-url-id [db project-id]
   (let [project (get-project-raw db project-id)
         self-projects (get-self-projects db :include-available? true)]
     (project-active-url-id-impl project-id project self-projects)))

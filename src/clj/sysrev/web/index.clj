@@ -48,7 +48,7 @@
         [:meta {:name "theme-color"
                 :content "#ffffff"}]))
 
-(def google-oauth-id-browser
+(def ^:unused google-oauth-id-browser
   "663198182926-2scj6i34qibj3fjfrtkmphktk9vo23u5.apps.googleusercontent.com")
 
 ;;; issues with SRI: https://shkspr.mobi/blog/2018/11/major-sites-running-unauthenticated-javascript-on-their-payment-pages/

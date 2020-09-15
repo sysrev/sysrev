@@ -1,12 +1,15 @@
 (ns sysrev.custom.ebtc
-  (:require [clojure.math.combinatorics :as combo]
+  (:require [clojure.data.xml :as dxml]
+            [clojure.string :as str]
+            [clojure.math.combinatorics :as combo]
             [clojure-csv.core :as csv]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.article.core :refer [set-article-flag]]
+            [sysrev.export.endnote :as endnote]
             [sysrev.label.core :as labels]
-            [sysrev.util :refer [in?]]))
+            [sysrev.util :as util :refer [in?]]))
 
 (defn label-possible-values [{:keys [label-id] :as label}]
   (case (:value-type label)
@@ -80,3 +83,28 @@
                                        [:< :%char_length.abstract min-length]])]
       (set-article-flag article-id "short abstract" true {:min-length min-length}))
     true))
+
+(defn filter-endnote-xml-includes
+  "Create an EndNote XML export filtered to keep only included articles.
+
+   `project-id` is the project containing inclusion labels.
+   `in-path` is path to the EndNote XML file which project was imported from.
+   `out-path` is path to write filtered EndNote XML file."
+  [project-id in-path out-path]
+  (spit out-path
+        (as-> in-path f
+          (endnote/parse-endnote-file f)
+          (endnote/filter-endnote-articles project-id f)
+          (dxml/emit-str f)
+          ;; EndNote XML format seems to use \r
+          (str/replace f #"\n" "\r")
+          (str/trim-newline f)))
+  true)
+
+;; TODO: add export functionality in web Articles interface, delete this
+(defn project-included-to-endnote-xml
+  [project-id & {:keys [to-file]}]
+  (let [filename (str "Sysrev_Included_" project-id "_" (util/today-string))
+        article-ids (keys (labels/project-included-articles project-id))
+        file (some-> to-file endnote/make-endnote-out-file)]
+    (endnote/article-ids-to-endnote-xml article-ids filename :file file)))

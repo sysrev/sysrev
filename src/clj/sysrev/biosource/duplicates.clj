@@ -52,7 +52,7 @@
                (sort <)))]
     (->> article-dups (map lookup-group-matches) distinct)))
 
-(defn update-project-duplicates [project-id]
+(defn ^:unused update-project-duplicates [project-id]
   (db/with-clear-project-cache project-id
     (-> (delete-from [:article-flag :af])
         (where [:and
