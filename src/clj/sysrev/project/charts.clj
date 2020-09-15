@@ -1,10 +1,9 @@
 (ns sysrev.project.charts
-  (:require [sysrev.db.core :as db :refer [do-query]]
+  (:require [honeysql.helpers :as sqlh :refer [select from where group join order-by]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
-            [honeysql.helpers :as sqlh :refer
-             [select from where group order-by join]]
             [sysrev.shared.charts :refer [get-color-palette palette-lookup]]
-            [honeysql.core :as sql]))
+            [sysrev.util :as util :refer [sum]]))
 
 (defn count-categorical-vals [project-id]
   (-> (select :l.label-id :l.short-label :l.value-type :o1.value :o1.count)
@@ -24,19 +23,18 @@
       do-query))
 
 (defn count-boolean-vals [project-id]
-  (q/find [:label :l] {:l.project-id project-id :l.value-type "boolean"}
-          [:l.label-id :short-label :value-type [:al.answer :value] :%count.*]
-          :join [[:article-label :al] :l.label-id]
-          :where [:!= :al.confirm-time nil]
-          :group [:l.label-id :short-label :value-type :value]
-          :order-by [:count :asc]))
+  (q/find-label {:project-id project-id :value-type "boolean"}
+                [:l.label-id :short-label :value-type [:al.answer :value] :%count.*]
+                :with [:article-label], :where [:!= :al.confirm-time nil]
+                :group [:l.label-id :short-label :value-type :value]
+                :order-by [:count :asc]))
 
 (defn process-label-counts [project-id]
   (let [ordered-counts (->> (concat (count-categorical-vals project-id)
                                     (count-boolean-vals project-id))
                             (remove #(nil? (:value %)))
                             (group-by :label-id)
-                            (sort-by (fn [[_ v]] (apply + (map :count v))))
+                            (sort-by (fn [[_ v]] (sum (map :count v))))
                             (mapcat (fn [[_ v]] v))
                             (reverse))
         all-label-ids  (distinct (map :label-id ordered-counts))

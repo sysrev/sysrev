@@ -36,8 +36,7 @@
                    [java.math BigInteger]
                    [java.io File ByteArrayOutputStream ByteArrayInputStream]
                    [org.joda.time DateTime]
-                   [java.security MessageDigest]
-                   [org.apache.commons.lang3.exception ExceptionUtils])))
+                   [java.security MessageDigest])))
 
 ;;;
 ;;; CLJ+CLJS code
@@ -155,16 +154,12 @@
   ([f m]
    (map-kv f {} m)))
 
-(defn check
+(defn ^:unused check
   "Returns val after running an assertion on (f val).
   If f is not specified, checks that (not (nil? val))."
   [val & [f]]
   (assert ((or f (comp not nil?)) val))
   val)
-
-(defn conform-map [spec x]
-  (and (s/valid? spec x)
-       (apply hash-map (s/conform spec x))))
 
 (defn uuid-str? [s]
   (boolean
@@ -198,10 +193,6 @@
 
 (defn short-uuid [uuid]
   (last (str/split (str uuid) #"\-")))
-
-(defn integer-project-id? [url-id]
-  (if (re-matches #"^[0-9]+$" url-id)
-    true false))
 
 (defn parse-html-str
   "Convert \"&lt;\" and \"&gt;\" to \"<\" and \">\"."
@@ -240,13 +231,6 @@
   (if (str/starts-with? s prefix)
     s
     (str prefix s)))
-
-(defn ensure-suffix
-  "Adds suffix at end of string s if not already present."
-  [s suffix]
-  (if (str/ends-with? s suffix)
-    s
-    (str s suffix)))
 
 (defn random-id
   "Generate a random string id from uppercase/lowercase letters"
@@ -428,11 +412,6 @@
   (->> (xml-find roots path)
        (mapv #(-> % :content first))))
 
-(defn map-to-arglist
-  "Converts a map to a vector of function keyword arguments."
-  [m]
-  (->> m (mapv identity) (apply concat) vec))
-
 (defn today-string
   "Returns string of current date, by default in the form
   YYYYMMDD. Optional time-format value (default :basic-date) may be
@@ -495,7 +474,7 @@
         :else                            [x]))
 
 (defn sum [xs]
-  (reduce + xs))
+  (apply + xs))
 
 ;;;
 ;;; CLJ code
@@ -555,9 +534,6 @@
                 n-rand (BigInteger. 1 (crypto.random/bytes size))]
             (int (mod n-rand n)))))
 
-#?(:clj (defn crypto-rand-nth [coll]
-          (nth coll (crypto-rand-int (count coll)))))
-
 ;; see: https://groups.google.com/forum/#!topic/clojure/ORRhWgYd2Dk
 ;;      https://stackoverflow.com/questions/22116257/how-to-get-functions-name-as-string-in-clojure
 #?(:clj (defmacro current-function-name
@@ -576,12 +552,6 @@
                     (integer? t)                      (tc/from-epoch t)
                     (string? t)                       (parse-time-string t))
               (throw (ex-info "to-clj-time: unable to convert value" {:value t})))))
-
-#?(:clj (defn to-epoch
-          "Converts various types to clj-time compatible Unix epoch seconds. See
-  `to-clj-time`."
-          [t]
-          (-> t (to-clj-time) (tc/to-epoch))))
 
 #?(:clj (defn write-time-string
           "Returns :mysql format time string from time value. Compatible with
@@ -638,11 +608,6 @@
           (let [algorithm (MessageDigest/getInstance "SHA-1")
                 raw (.digest algorithm bytes)]
             (format "%x" (BigInteger. 1 raw)))))
-
-#?(:clj (defn string->sha-1-hash
-          "Convert a string into a sha-1 hash"
-          [^String s]
-          (byte-array->sha-1-hash (.getBytes s))))
 
 #?(:clj (defn file->byte-array
           "Convert a file into a byte-array"
@@ -705,20 +670,6 @@
           (let [file (File/createTempFile "sysrev-" suffix)]
             (.deleteOnExit file)
             file)))
-
-#?(:clj (defn ex-summary
-          "Returns string showing type and message from exception."
-          [ex]
-          (str (type ex) " - " (.getMessage ex))))
-
-#?(:clj (defn ex-log-message
-          "Returns a string summarizing exception for logging purposes."
-          [ex]
-          (format "%s\n%s" (str ex) (->> (ExceptionUtils/getStackTrace ex)
-                                         (str/split-lines)
-                                         (filter #(str/includes? % "sysrev"))
-                                         (take 5)
-                                         (str/join "\n")))))
 
 #?(:clj (defn ^:repl rename-flyway-files
           "Handles renaming flyway sql files for formatting. Returns a sequence
@@ -802,7 +753,7 @@
            (. js/window (scrollTo 0 0))
            nil))
 
-#?(:cljs (defn schedule-scroll-top []
+#?(:cljs (defn ^:unused schedule-scroll-top []
            (scroll-top)))
 
 #?(:cljs (defn viewport-width []
@@ -823,12 +774,9 @@
 #?(:cljs (defn annotator-size? []
            (>= (viewport-width) 1100)))
 
-#?(:cljs (defn get-layout-status []
-           [(mobile?) (full-size?) (desktop-size?)]))
-
 #?(:cljs (def nbsp (unescapeEntities "&nbsp;")))
 
-#?(:cljs (defn number-to-word [n]
+#?(:cljs (defn ^:unused number-to-word [n]
            (->> n (nth ["zero" "one" "two" "three" "four" "five" "six"
                         "seven" "eight" "nine" "ten" "eleven" "twelve"
                         "thirteen" "fourteen" "fifteen" "sixteen"]))))
@@ -871,9 +819,6 @@
                    (pos? days)    (write days "day")
                    (pos? hours)   (write hours "hour")
                    :else          (write minutes "minute")))))
-
-#?(:cljs (defn go-back []
-           (-> js/window .-history (.back))))
 
 #?(:cljs (defn get-dom-elt [selector]
            (-> ($ selector) (.get 0))))

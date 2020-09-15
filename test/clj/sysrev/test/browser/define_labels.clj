@@ -9,8 +9,6 @@
 
 (def save-button
   (xpath "//button[contains(text(),'Save')]"))
-(def disabled-save-button
-  (xpath "//button[contains(@class,'disabled') and contains(text(),'Save')]"))
 (def discard-button
   (xpath "//button[contains(@class,'labeled') and contains(text(),'Discard')]"))
 
@@ -33,12 +31,6 @@
   "Given a label-name, return the xpath for it"
   [label-name]
   (xpath "label[contains(text(),'" label-name "')]"))
-
-(defn delete-label [xpath]
-  (let [div-id (taxi/attribute (x/xpath xpath) :id)]
-    (b/click
-     (x/xpath "//div[@id='" div-id "']"
-              "/descendant::div[contains(@class,'remove')]"))))
 
 (defn save-label []
   (log/info "saving label definition")

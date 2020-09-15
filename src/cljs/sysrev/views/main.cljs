@@ -98,11 +98,6 @@
                           (nil? pdf-key)  (merge {:class "abstract"}))]
         [annotator/AnnotationMenu ann-context "abstract"]))}))
 
-(defn get-article-list-context []
-  (let [panel @(subscribe [:active-panel])]
-    (cond (= panel project-articles/panel)  (project-articles/get-context)
-          (= panel single-article/panel)    (single-article/get-context))))
-
 (defn SidebarColumn []
   (let [article-id @(subscribe [:visible-article-id])
         article-datasource @(subscribe [:article/datasource-name article-id])

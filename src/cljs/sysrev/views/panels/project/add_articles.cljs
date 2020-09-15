@@ -188,7 +188,7 @@
 ;; TODO: these (:source meta) values should be stored as identifiers
 ;;       from an enforced set of possible values and shouldn't be
 ;;       mistakable for a description intended for users
-(defn meta->source-name-vector [{:keys [source] :as meta}]
+(defn ^:unused meta->source-name-vector [{:keys [source] :as meta}]
   (condp = source
     "PubMed search"  ["PubMed Search" (str (:search-term meta))]
     "PMID file"      ["PMIDs from File" (:filename meta)]
@@ -269,7 +269,7 @@
                  :else
                  import-label)]])]]]))
 
-(defn source-name
+(defn ^:unused source-name
   "Given a source-id, return the source name vector"
   [source-id]
   (->> @(subscribe [:project/sources])

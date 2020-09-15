@@ -106,12 +106,6 @@
       (dispatch [:review/reset-saving]))
     (route-fn)))
 
-(defmacro defroute-app-id
-  [name uri params app-id & body]
-  `(when (= ~app-id @(subscribe [:app-id]))
-     (defroute ~name ~uri ~params
-       ~@body)))
-
 (defmacro sr-defroute
   [name uri params & body]
   `(when (= :main @(subscribe [:app-id]))
@@ -131,9 +125,6 @@
            #_ (route-fn#)
            (route-fn-when-ready#)
            #_ (js/setTimeout route-fn-when-ready# 10))))))
-
-(defn lookup-project-url [url-id]
-  @(subscribe [:lookup-project-url url-id]))
 
 (defmacro sr-defroute-project--impl
   [owner-key name uri _suburi params & body]

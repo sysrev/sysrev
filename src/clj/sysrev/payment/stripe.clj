@@ -112,7 +112,7 @@
                               :user-id "delete-all-customers! override"})
           customers)))
 
-(defn list-subscriptions [& {:keys [limit] :or {limit 10}}]
+(defn ^:unused list-subscriptions [& {:keys [limit] :or {limit 10}}]
   (stripe-get "/subscriptions" {:limit (str limit)}))
 
 (defn delete-subscription! [subscription-id]

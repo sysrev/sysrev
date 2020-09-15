@@ -9,7 +9,7 @@
             [sysrev.views.project :refer [ProjectName]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Divider Button]]
-            [sysrev.util :as util :refer [condensed-number parse-integer]]
+            [sysrev.util :as util :refer [condensed-number parse-integer sum]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
 
 ;; for clj-kondo
@@ -79,7 +79,7 @@
 
 (defn- UserActivitySummary [projects]
   (let [item-totals (apply merge (->> [:articles :labels :annotations]
-                                      (map (fn [k] {k (apply + (map k projects))}))))]
+                                      (map (fn [k] {k (sum (map k projects))}))))]
     (when (some pos? (vals item-totals))
       [Segment {:class "user-activity-summary"}
        [UserActivityContent {:articles (item-totals :articles)

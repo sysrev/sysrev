@@ -219,11 +219,6 @@
   []
   (= (saved-labels) (to-global-labels (get-local-labels))))
 
-(defn single-label-synced?
-  [label-id]
-  (= (get (saved-labels) label-id)
-     (get (to-global-labels (get-local-labels)) label-id)))
-
 (defn sync-to-server
   "Send local labels to server to update DB."
   []

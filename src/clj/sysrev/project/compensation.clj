@@ -10,7 +10,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :refer [transaction-source-descriptor]]
-            [sysrev.util :as util :refer [index-by nilable-coll]]))
+            [sysrev.util :as util :refer [index-by nilable-coll sum]]))
 
 ;; for clj-kondo
 (declare create-project-compensation! read-project-compensations)
@@ -155,14 +155,14 @@
                                   first))))))
 
 (defn- project-user-total-paid [project-id user-id]
-  (apply + (q/find :project-fund {:project-id project-id
-                                  :user-id user-id
-                                  :transaction-source "PayPal/payout-batch-id"}
-                   :amount, :where [:< :amount 0])))
+  (sum (q/find :project-fund {:project-id project-id
+                              :user-id user-id
+                              :transaction-source "PayPal/payout-batch-id"}
+               :amount, :where [:< :amount 0])))
 
 (defn- project-user-total-earned [project-id user-id]
-  (apply + (->> (project-compensation-for-user project-id user-id)
-                (map #(* (:articles %) (get-in % [:rate :amount]))))))
+  (sum (->> (project-compensation-for-user project-id user-id)
+            (map #(* (:articles %) (get-in % [:rate :amount]))))))
 
 (defn- compensation-owed-to-user-by-project [project-id user-id]
   (+ (project-user-total-earned project-id user-id)
@@ -183,11 +183,11 @@
               :last-payment (project-user-last-payment project-id user-id)})))))
 
 (defn ^:unused project-total-paid [project-id]
-  (apply + (q/find :project-fund {:project-id project-id}
-                   :amount, :where [:< :amount 0])))
+  (sum (q/find :project-fund {:project-id project-id}
+               :amount, :where [:< :amount 0])))
 
 (defn project-total-owed [project-id]
-  (apply + (map :compensation-owed (compensation-owed-by-project project-id))))
+  (sum (map :compensation-owed (compensation-owed-by-project project-id))))
 
 (defn user-compensation
   "Return the current compensation-id associated with `user-id` for
@@ -210,7 +210,7 @@
     (assoc user :compensation-id (user-compensation project-id user-id))))
 
 (defn project-total-admin-fees [project-id]
-  (apply + (map :admin-fee (compensation-owed-by-project project-id))))
+  (sum (map :admin-fee (compensation-owed-by-project project-id))))
 
 (defn- projects-compensating-user
   "Returns a list of projects with compensations for user."

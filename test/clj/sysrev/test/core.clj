@@ -184,15 +184,6 @@
   ([pred timeout] `(wait-until* ~(pr-str pred) ~pred ~timeout))
   ([pred timeout interval] `(wait-until* ~(pr-str pred) ~pred ~timeout ~interval)))
 
-(defn add-test-label [project-id entry-values]
-  (let [{:keys [value-type short-label]} entry-values
-        add-label (case value-type
-                    "boolean" labels/add-label-entry-boolean
-                    "categorical" labels/add-label-entry-categorical
-                    "string" labels/add-label-entry-string)]
-    (->> (merge entry-values {:name (str short-label "_" (rand-int 1000))})
-         (add-label project-id))))
-
 (defonce ^:init-once tests-initialized
   (when (contains? #{:test :remote-test} (:profile env))
     (ensure-db-shutdown-hook)

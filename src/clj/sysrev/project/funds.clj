@@ -1,5 +1,6 @@
 (ns sysrev.project.funds
-  (:require [sysrev.db.queries :as q]))
+  (:require [sysrev.db.queries :as q]
+            [sysrev.util :as util :refer [sum]]))
 
 (def transaction-source-descriptor {:paypal-payment "PayPal/payment-id"
                                     :stripe-charge "Stripe/charge-id"
@@ -12,9 +13,9 @@
   (q/create :project-fund fields))
 
 (defn project-funds [project-id]
-  (apply + (q/find :project-fund {:project-id project-id} :amount)))
+  (sum (q/find :project-fund {:project-id project-id} :amount)))
 
-(defn create-project-fund-pending-entry!
+(defn ^:unused create-project-fund-pending-entry!
   [{:keys [project-id user-id amount transaction-id transaction-source status created]
     :as fields}]
   (q/create :project-fund-pending fields))

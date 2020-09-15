@@ -65,10 +65,6 @@
       (editing?) (merge active)
       skey (get skey))))
 
-(defn misc-inputs [& [skey]]
-  (cond-> (:misc-inputs @state)
-    skey (get skey)))
-
 (defn edit-misc [skey value]
   (let [inputs (r/cursor state [:misc-inputs])
         values (r/cursor state [:misc-active])]

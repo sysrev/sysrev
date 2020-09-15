@@ -42,10 +42,6 @@
        (sort-by :project-ordering <)
        (mapv :label-id)))
 
-(defn project-label-ids [db & [project-id include-disabled?]]
-  (-> (project-labels db project-id)
-      (sort-client-project-labels include-disabled?)))
-
 ;; Use this to get a sequence of label-id from project in a consistent
 ;; sorted order.
 (reg-sub :project/label-ids

@@ -495,7 +495,7 @@
           (format "invalid value for find-fn: %s" (some-> find-fn (symbol))))
   (assert (keyword? table))
   (assert (keyword? alias))
-  (assert (symbol? id-field))
+  (assert (->> id-field (s/valid? (s/nilable symbol?))))
   (assert (->> table-name (s/valid? (s/nilable string?))))
   (assert (symbol? -match-by))
   (assert (symbol? -fields))
@@ -597,7 +597,8 @@
 (def-find-type [:label :l]
   {:id-field       label-id
    :join-default   []
-   :join-specs     {:project [[:project :p] :l.project-id]}
+   :join-specs     {:project         [[:project :p]          :l.project-id]
+                    :article-label   [[:article-label :al]   :l.label-id]}
    :match-by       (cond->> match-by
                      (not include-disabled) (merge {:l.enabled true}))}
   {:custom-opts [include-disabled]
@@ -789,10 +790,6 @@
 
 (defn join-users [m user-id]
   (merge-join m [:web-user :u] [:= :u.user-id user-id]))
-
-(defn join-user-member-entries [m project-id]
-  (-> (merge-join m [:project-member :m] [:= :m.user-id :u.user-id])
-      (merge-where [:= :m.project-id project-id])))
 
 (defn-spec filter-user-permission map?
   [m map?, permission string?, & [not?] (s/cat :not? (s/? boolean?))]

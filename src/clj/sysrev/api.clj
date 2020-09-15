@@ -50,7 +50,7 @@
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer]]
+            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer sum]]
             [venia.core :as venia])
   (:import (java.util UUID)
            (java.util.zip ZipOutputStream ZipEntry)))
@@ -65,7 +65,6 @@
 (def conflict 409)
 ;; server settings
 (def minimum-support-level 100)
-(def max-import-articles (:max-import-articles env))
 (def paywall-grandfather-date "2019-06-09 23:56:00")
 
 (s/def ::success boolean?)
@@ -290,14 +289,6 @@
   [source-id cursors]
   (if (source/source-exists? source-id)
     {:source-id (source/alter-source-meta source-id #(assoc % :cursors cursors))}
-    {:error {:status not-found
-             :message (str "source-id " source-id " does not exists")}}))
-
-(defn delete-source-cursors!
-  "Delete the cursors from a source meta"
-  [source-id]
-  (if (source/source-exists? source-id)
-    {:source-id (source/alter-source-meta source-id #(dissoc % :cursors))}
     {:error {:status not-found
              :message (str "source-id " source-id " does not exists")}}))
 
@@ -657,9 +648,7 @@
         compensation-outstanding (compensation/project-total-owed project-id)
         admin-fees (compensation/project-total-admin-fees project-id)
         current-balance (- available-funds compensation-outstanding admin-fees)
-        pending-funds (->> (funds/pending-funds project-id)
-                           (map :amount)
-                           (apply +))]
+        pending-funds (sum (map :amount (funds/pending-funds project-id)))]
     {:current-balance current-balance
      :admin-fees admin-fees
      :compensation-outstanding compensation-outstanding

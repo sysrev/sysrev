@@ -1,13 +1,11 @@
 (ns sysrev.web.routes.api.handlers
   (:require [clojure.string :as str]
             [clojure.walk :as walk]
-            [honeysql.helpers :as sqlh :refer [select from]]
             [sysrev.api :as api]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.project.core :as project]
-            [sysrev.project.member :as member]
             [sysrev.project.clone :as clone]
             [sysrev.source.import :as import]
             [sysrev.web.app :refer [make-error-response]]
@@ -27,21 +25,14 @@
   {:require-token? false
    :doc "Returns a listing of available API calls."}
   (fn [_request]
-    (let [api-info
-          (->>
-           @web-api-routes-order
-           (mapv
-            (fn [name]
-              (let [route (get @web-api-routes name)
-                    info (select-keys
-                          route
-                          [:name :method :required :optional
-                           :check-answers? :doc])]
-                (cond-> info
-                  (:check-answers? info)
-                  (update :doc #(str % "\n"
-                                     "Unless \"allow-answers\" is passed, does nothing if project has any user answers.")))))))]
-      {:result {:api api-info}})))
+    (->> (for [name @web-api-routes-order]
+           (let [route (get @web-api-routes name)
+                 info (select-keys route [:name :method :required :optional
+                                          :check-answers? :doc])]
+             (cond-> info
+               (:check-answers? info)
+               (update :doc #(str % "\nUnless \"allow-answers\" is passed, does nothing if project has any user answers.")))))
+         (into []) (assoc-in {} [:result :api]))))
 
 (def-webapi
   :get-api-token :get
@@ -147,80 +138,6 @@
               :project-articles
               (project/project-article-count project-id)}}))))))
 
-;; disabled, let users join on their own, use invite link
-#_
-(def-webapi
-  :add-project-member :post
-  {:required [:project-id :email]
-   :project-role "admin"
-   :doc (->> ["Adds user (given by email) to project."
-              "Does nothing if user is already a member of project."]
-             (str/join "\n"))}
-  (fn [request]
-    (let [{:keys [project-id email] :as body} (:body request)
-          project (q/query-project-by-id project-id [:*])
-          {:keys [user-id] :as user} (user-by-email email)]
-      (cond
-        (nil? user)
-        (make-error-response
-         500 :api (format "user not found (email=%s)" email))
-        (in? (project/project-user-ids project-id) user-id)
-        {:result
-         {:success true
-          :message "User is already a member of project"}}
-        :else
-        (do (member/add-project-member project-id user-id)
-            {:result {:success true}})))))
-
-;; disabled, too dangerous, can be done via web UI
-#_
-(def-webapi
-  :delete-project-articles :post
-  {:required [:project-id]
-   :project-role "admin"
-   :check-answers? true
-   :doc "Deletes all articles from project."}
-  (fn [request]
-    (let [{:keys [project-id] :as body}
-          (-> request :body)]
-      (assert project-id)
-      (assert (q/query-project-by-id project-id [:project-id]))
-      (project/delete-project-articles project-id)
-      {:result {:success true}})))
-
-;; TODO: add a way to do this (or disable account) from web interface
-#_
-(def-webapi
-  :delete-user :post
-  {:required [:email]
-   :require-admin? true
-   :doc "Deletes user and all entries belonging to the user."}
-  (fn [request]
-    (let [{:keys [email] :as body} (:body request)
-          {:keys [user-id] :as user} (user-by-email email)]
-      (cond (nil? user) (make-error-response
-                         500 :api (format "user not found (email=%s)" email))
-            :else       (do (user/delete-user user-id)
-                            {:result {:success true}})))))
-
-;; TODO: remove for now, use web interface
-#_
-(def-webapi
-  :create-user :post
-  {:required [:email :password]
-   :optional [:permissions]
-   :require-admin? true}
-  (fn [request]
-    (let [{:keys [email password permissions] :as body} (:body request)
-          user (user-by-email email)]
-      (if (nil? user)
-        {:result {:success true
-                  :user (if (nil? permissions)
-                          (user/create-user email password)
-                          (user/create-user email password :permissions permissions))}}
-        (make-error-response
-         500 :api "A user with that email already exists")))))
-
 ;; TODO: needed? safe?
 (def-webapi
   :create-project :post
@@ -231,7 +148,6 @@
       {:result (merge {:success true}
                       (api/create-project-for-user! project-name user-id false))})))
 
-;; TODO: does tom need this? disable for now
 #_
 (def-webapi
   :delete-project :post
@@ -254,185 +170,6 @@
   (fn [request]
     (let [{:keys [project-id]} (:body request)]
       {:result (project/project-labels project-id true)})))
-
-;; TODO: disable for now, not needed, web UI
-#_
-(def-webapi
-  :delete-label :post
-  {:required [:project-id :name]
-   :project-role "admin"
-   :check-answers? true
-   :doc "Deletes entry for label in project. Any answers for the label will be deleted also."}
-  (fn [request]
-    (let [{:keys [project-id name] :as body}
-          (-> request :body)]
-      (let [{:keys [label-id] :as entry}
-            (-> (q/select-label-where
-                 project-id [:= :l.name name] [:*])
-                do-query first)]
-        (cond
-          (nil? entry)
-          (make-error-response
-           500 :api
-           (format "No label found with name: '%s'" name))
-          :else
-          (do (labels/delete-label-entry project-id label-id)
-              {:result {:success true}}))))))
-
-;; TODO: enable if tom/anyone wants
-#_
-(def-webapi
-  :define-label-boolean :post
-  {:required [:project-id :name :question :short-label :inclusion-value :required]
-   :project-role "admin"
-   :check-answers? true
-   :doc "Create an entry for a boolean label.
-  * `required` is a boolean.
-  * `inclusion-value` may be true or false to require that value for inclusion, or null to define no inclusion relationship.
-  * descriptive string values:
-    * `name` functions primarily as a short internal identifier
-    * `short-label` is generally what will be displayed to users
-    * `question` is displayed as an longer description of the label"}
-  (fn [request]
-    (let [{:keys [project-id name question short-label
-                  inclusion-value required] :as body}
-          (-> request :body)
-          _ (do (assert (integer? project-id))
-                (assert (string? name))
-                (assert (string? question))
-                (assert (string? short-label))
-                (assert (or (boolean? inclusion-value)
-                            (nil? inclusion-value)))
-                (assert (or (boolean? required)
-                            (nil? required))))
-          result (labels/add-label-entry-boolean
-                  project-id
-                  {:name name :question question :short-label short-label
-                   :inclusion-value inclusion-value :required required})]
-      {:result result})))
-#_
-(def-webapi
-  :define-label-categorical :post
-  {:required [:project-id :name :question :short-label :all-values :required]
-   :optional [:inclusion-values :multi?]
-   :project-role "admin"
-   :check-answers? true
-   :doc "Create an entry for a categorical label.
-  * `required` is a boolean.
-  * `all-values` is a vector of strings listing the allowable values for the label.
-  * `inclusion-values` is an optional vector of strings which should be a subset of `all-values` and defines which values are acceptable for inclusion; if `inclusion-values` is present, other values will be treated as implying exclusion.
-  * descriptive string values:
-    * `name` functions primarily as a short internal identifier
-    * `short-label` is generally what will be displayed to users
-    * `question` is displayed as an longer description of the label
-  * `multi?` is an optional boolean (currently ignored, all labels allow multiple values)."}
-  (fn [request]
-    (let [{:keys [project-id name question short-label all-values
-                  inclusion-values required multi?] :as body}
-          (-> request :body)
-          _ (do (assert (integer? project-id))
-                (assert (string? name))
-                (assert (string? question))
-                (assert (string? short-label))
-                (assert (every? string? all-values))
-                (assert (every? string? inclusion-values))
-                (assert (or (boolean? required) (nil? required)))
-                (assert (or (boolean? multi?) (nil? multi?))))
-          result (labels/add-label-entry-categorical
-                  project-id
-                  {:name name :question question :short-label short-label
-                   :all-values all-values :inclusion-values inclusion-values
-                   :required required :multi? multi?})]
-      {:result result})))
-#_
-(def-webapi
-  :define-label-string :post
-  {:required [:project-id :name :question :short-label :max-length :required :multi?]
-   :optional [:regex :examples :entity]
-   :project-role "admin"
-   :check-answers? true
-   :doc
-   "Creates an entry for a string label definition. Value is provided by user
-  in a text input field.
-
-  `max-length` is a required integer.
-  `regex` is an optional vector of strings to require that answers must match
-  one of the regex values.
-  `entity` is an optional string to identify what the value represents.
-  `examples` is an optional list of example strings to indicate to users
-  the required format.
-  `multi?` if true allows multiple string values in answer."}
-  (fn [request]
-    (let [{:keys [project-id name question short-label max-length regex
-                  examples entity required multi?] :as body}
-          (-> request :body)
-          _ (do (assert (integer? project-id))
-                (assert (string? name))
-                (assert (string? question))
-                (assert (string? short-label))
-                (assert (every? string? regex))
-                (assert (every? string? examples))
-                (assert (or (nil? entity) (string? entity)))
-                (assert (or (boolean? required) (nil? required)))
-                (assert (or (boolean? multi?) (nil? multi?))))
-          result (labels/add-label-entry-string
-                  project-id
-                  {:name name :question question :short-label short-label
-                   :max-length max-length :regex regex :examples examples
-                   :entity entity :required required :multi? multi?})]
-      {:result result})))
-
-;; not used, predictions stored in db from this project directly
-#_
-(def-webapi
-  :create-predict-run :post
-  {:required [:project-id :predict-version-id]
-   :project-role "admin"
-   :doc
-   "Creates a predict-run entry for a project, and returns a predict-run-id
-  to use in later requests to reference the new entry.
-
-  `prediction-version-id` is a required integer ID referring to an entry in
-  `predict_version` table. This identifies the prediction algorithm used."}
-  (fn [request]
-    (let [{:keys [project-id predict-version-id] :as body}
-          (-> request :body)]
-      (assert (integer? project-id))
-      (assert (integer? predict-version-id))
-      (let [predict-run-id
-            (predict/create-predict-run project-id predict-version-id)]
-        {:result {:predict-run-id predict-run-id}}))))
-#_
-(def-webapi
-  :store-article-predictions :post
-  {:required [:project-id :predict-run-id :label-id :article-values]
-   :project-role "admin"
-   :doc
-   "Creates label-predicts entries for `predict-run-id` in `project-id`,
-  using the values from `article-values`.
-
-  `predict-run-id` is an integer ID representing an individual run of a
-  prediction algorithm on a project. A value can be obtained from the return
-  value of the `create-predict-run` API call.
-
-  `label-id` is a UUID string referring to the project label for which
-  prediction values are being stored.
-
-  `article-values` is a vector of entries that each contain a prediction value
-  for a single article. Each entry should be a map containing two fields:
-  `article-id` (integer) and `value` (float)."}
-  (fn [request]
-    (let [{:keys [project-id predict-run-id label-id article-values] :as body}
-          (-> request :body)
-          label-id (util/to-uuid label-id)]
-      (assert (integer? project-id))
-      (assert (integer? predict-run-id))
-      (assert (uuid? label-id))
-      (assert (or (empty? article-values)
-                  (sequential? article-values)))
-      (assert (every? map? article-values))
-      (predict/store-article-predictions
-       predict-run-id label-id article-values))))
 
 (def-webapi
   :project-annotations :get
@@ -560,39 +297,24 @@
               "On success, returns the newly created project-id."]
              (str/join "\n"))}
   (fn [request]
-    (let [{:keys [project-id user-id group-id]}
-          (:body request)]
-      (cond
-        (and (nil? user-id)
-             (nil? group-id))
-        (make-error-response
-         500 :api "user-id or group-id value must be provided")
-        (not (or (integer? user-id)
-                 (integer? group-id)))
-        (make-error-response
-         500 :api "user-id or group-id value must be an integer value")
-        (not (integer? project-id))
-        (make-error-response
-         500 :api "project-id must be an interger value ")
-        :else
-        (let [change-project-resp
-              (cond ((comp not nil?) user-id)
-                    (api/change-project-owner
-                     project-id
-                     :user-id user-id)
-                    ((comp not nil?) group-id)
-                    (api/change-project-owner
-                     project-id
-                     :group-id group-id)
-                    :else
-                    "error")]
-          (if (= change-project-resp
-                 "error")
-            {:result {:success false
-                      :message "There was an error transferring projects"}}
-            {:result {:success true
-                      :project-id {:project-id project-id
-                                   :url (str "https://sysrev.com/p/" project-id)}}}))))))
+    (let [{:keys [project-id user-id group-id]} (:body request)]
+      (cond (and (nil? user-id) (nil? group-id))
+            (make-error-response
+             500 :api "user-id or group-id must be provided")
+            (and (some? user-id) (some? group-id))
+            (make-error-response
+             500 :api "only one of user-id or group-id may be provided")
+            (not (or (integer? user-id) (integer? group-id)))
+            (make-error-response
+             500 :api "user-id or group-id must be an integer value")
+            (not (integer? project-id))
+            (make-error-response
+             500 :api "project-id must be an integer value")
+            :else
+            (do (api/change-project-owner project-id :user-id user-id :group-id group-id)
+                {:result {:success true
+                          :project-id {:project-id project-id
+                                       :url (str "https://sysrev.com/p/" project-id)}}})))))
 
 ;; Prevent Cider compile command from returning a huge def-webapi map
 nil

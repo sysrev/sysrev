@@ -17,26 +17,7 @@
 
 (def e-util-api-key (:e-util-api-key config/env))
 
-(defn extract-wrapped-text [x]
-  (if (and (map? x) (contains? x :tag) (contains? x :content)
-           (-> x :content first string?))
-    (-> x :content first)
-    (ensure-pred string? x)))
-
-(defn parse-pubmed-author-names [authors]
-  (when (seq authors)
-    (->> (for [entry authors]
-           (let [last-name (xml-find-value entry [:LastName])
-                 initials (xml-find-value entry [:Initials])]
-             (if (string? initials)
-               (str last-name ", " (->> initials
-                                        (#(str/split % #" "))
-                                        (map #(str % "."))
-                                        (str/join " ")))
-               last-name)))
-         (filterv string?))))
-
-(defn extract-article-location-entries
+(defn ^:unused extract-article-location-entries
   "Extracts entries for article_location from parsed PubMed API XML article."
   [pxml]
   (distinct
@@ -49,135 +30,6 @@
          (map (fn [{_tag :tag, {source :IdType} :attrs, content :content}]
                 (map #(hash-map :source source, :external-id %) content)))
          (apply concat)))))
-
-(defn parse-html-text-content [content]
-  (when (or (string? content) (seq content))
-    (->> (for [txt content]
-           (if (and (map? txt) (:tag txt))
-             ;; Handle embedded HTML
-             (when (:content txt)
-               (str "<" (name (:tag txt)) ">"
-                    (str/join (:content txt))
-                    "</" (name (:tag txt)) ">"))
-             txt))
-         (filter string?)
-         (map str/trim)
-         (str/join))))
-
-(defn parse-abstract [abstract-texts]
-  (try
-    (when (not-empty abstract-texts)
-      (let [sections
-            (map (fn [sec]
-                   {:header  (some-> sec :attrs :Label str/trim)
-                    :content (some-> sec :content parse-html-text-content)})
-                 abstract-texts)
-            parse-section (fn [{:keys [header content]}]
-                            (if (not-empty header)
-                              (str header ": " content)
-                              content))
-            paragraphs (map parse-section sections)]
-        (str/join "\n\n" paragraphs)))
-    (catch Throwable e
-      (log/error "parse-abstract error:" (.getMessage e))
-      (log/error "abstract-texts =" (pr-str abstract-texts))
-      (throw e))))
-
-(defn parse-pmid-xml
-  [pxml & {:keys [create-raw?] :or {create-raw? true}}]
-  (try
-    (let [title (->> [:MedlineCitation :Article :ArticleTitle]
-                     (xml-find-value pxml) extract-wrapped-text)
-          journal (->> [:MedlineCitation :Article :Journal :Title]
-                       (xml-find-value pxml) extract-wrapped-text)
-          abstract (->> [:MedlineCitation :Article :Abstract :AbstractText]
-                        (xml-find pxml) parse-abstract)
-          authors (->> [:MedlineCitation :Article :AuthorList :Author]
-                       (xml-find pxml) parse-pubmed-author-names)
-          pmid (->> [:MedlineCitation :PMID] (xml-find-value pxml))
-          keywords (->> [:MedlineCitation :KeywordList :Keyword]
-                        (xml-find-vector pxml)
-                        (mapv extract-wrapped-text)
-                        (filterv identity))
-          locations (extract-article-location-entries pxml)
-          year (or (->> [:MedlineCitation :DateCompleted :Year]
-                        (xml-find [pxml])
-                        first :content first parse-integer)
-                   (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Year]
-                        (xml-find [pxml])
-                        first :content first parse-integer))
-          month (or (->> [:MedlineCitation :DateCompleted :Month]
-                         (xml-find [pxml])
-                         first :content first parse-integer)
-                    (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Month]
-                         (xml-find [pxml])
-                         first :content first))
-          day (or (->> [:MedlineCitation :DateCompleted :Day]
-                       (xml-find [pxml])
-                       first :content first parse-integer)
-                  (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Day]
-                       (xml-find [pxml])
-                       first :content first))]
-      (cond-> {:remote-database-name "MEDLINE"
-               :primary-title title
-               :secondary-title journal
-               :abstract abstract
-               :authors (mapv str/trim authors)
-               :year year
-               :keywords keywords
-               :public-id (some-> pmid str)
-               :locations locations
-               :date (-> (str year)
-                         (cond-> month
-                           (str "-" (if (and (integer? month) (<= 1 month 9))
-                                      "0" "")
-                                month))
-                         (cond-> (and month day)
-                           (str "-" (if (and (integer? day) (<= 1 day 9))
-                                      "0" "")
-                                day)))}
-        create-raw? (assoc :raw (dxml/emit-str pxml))))
-    (catch Throwable e
-      (log/warn "parse-pmid-xml:" "error while parsing article -" (.getMessage e))
-      (-> (log/warn "xml =" (dxml/emit-str pxml)) (ignore-exceptions))
-      nil)))
-
-(defn fetch-pmids-xml [pmids]
-  (util/wrap-retry
-   (fn []
-     (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-                   {:query-params {"db" "pubmed"
-                                   "id" (str/join "," pmids)
-                                   "retmode" "xml"
-                                   "api_key" e-util-api-key}})
-         :body))
-   :fname "fetch-pmids-xml" :throttle-delay 100))
-
-(defn fetch-pmid-entries [pmids]
-  (->> (:content (parse-xml-str (fetch-pmids-xml pmids)))
-       (mapv parse-pmid-xml)
-       (remove nil?)))
-
-(defn fetch-pmid-entries-cassandra [pmids]
-  (let [result (when @cdb/active-session
-                 (try (->> (cdb/get-pmids-xml pmids)
-                           (pmap #(some-> % parse-xml-str
-                                          (parse-pmid-xml :create-raw? false)
-                                          (merge {:raw %})))
-                           vec)
-                      (catch Throwable _
-                        (log/warn "fetch-pmid-entries-cassandra:"
-                                  "error while fetching or parsing"))))]
-    (if (empty? result)
-      (fetch-pmid-entries pmids)
-      (->> (if (< (count result) (count pmids))
-             (let [result-pmids (->> result (map #(some-> % :public-id parse-integer)))
-                   diff (set/difference (set pmids) (set result-pmids))
-                   ;; _have (set/difference (set pmids) (set diff))
-                   from-pubmed (fetch-pmid-entries (vec diff))]
-               (concat result from-pubmed))
-             result)
-           (remove nil?)))))
 
 ;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
 (defn get-search-query
@@ -235,30 +87,6 @@
                         [:esearchresult :idlist])
                 (map parse-integer)))
          (apply concat)
-         vec)))
-
-(defn ^:repl compare-fetched-pmids
-  "Test function for Cassandra/PubMed import.
-
-  Returns list of differences between PubMed entries fetched from
-  PubMed API and Cassandra for a range of PMID values."
-  [start count & [offset]]
-  (let [pmids (range (+ start offset) (+ start offset count))
-        direct (->> (fetch-pmid-entries pmids) (map #(dissoc % :raw)))
-        cdb (->> (fetch-pmid-entries-cassandra pmids) (map #(dissoc % :raw)))]
-    (->> (mapv (fn [d c]
-                 (when (not= d c)
-                   (->> [(keys d) (keys c)]
-                        (apply concat)
-                        distinct
-                        (mapv (fn [k]
-                                (when (not= (get d k) (get c k))
-                                  {k {:direct (get d k)
-                                      :cassandra (get c k)}})))
-                        (remove nil?)
-                        (apply merge))))
-               direct cdb)
-         (remove nil?)
          vec)))
 
 (def oa-root-link "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi")

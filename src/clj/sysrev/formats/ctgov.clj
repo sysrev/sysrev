@@ -3,40 +3,6 @@
 
 (def ct-gov-root "https://clinicaltrials.gov/api")
 
-(defn get-trials
-  "Given a collection of nctids, return the results"
-  [nctids]
-  (let [resp (-> (client/get
-                  (str ct-gov-root "/query/study_fields")
-                  {:query-params {:expr (str "AREA[NCTId]" (clojure.string/join " " nctids))
-                                  :fields
-                                  (clojure.string/join ","
-                                                       ["Condition"
-                                                        "NCTId"
-                                                        "OverallStatus"
-                                                        "BriefTitle"
-                                                        "InterventionName"
-                                                        "InterventionType"
-                                                        "LocationFacility"
-                                                        "LocationState"
-                                                        "LocationCountry"
-                                                        "LocationCity"])
-                                  :max_rnk 1
-                                  :fmt "JSON"}
-                   :as :json
-                   :throw-exceptions false})
-                 :body)
-        studies (get-in resp [:StudyFieldsResponse :StudyFields])
-        extract-studies (fn [m]
-                          (let [{:keys [BriefTitle Condition LocationFacility LocationCity LocationState LocationCountry InterventionType InterventionName]} m]
-                            {:title BriefTitle
-                             :study-title BriefTitle
-                             :conditions Condition
-                             :interventions {:type InterventionType
-                                             :name InterventionName}
-                             :locations [LocationFacility LocationCity LocationState LocationCountry]}))]
-    {:results (map extract-studies studies)}))
-
 (defn search
   [q p]
   (let [page-size 10

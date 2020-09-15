@@ -18,8 +18,7 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(defn switch-user
-  [email project-id]
+(defn switch-user [email project-id]
   (nav/log-in email)
   (nav/go-project-route "" :project-id project-id :silent true :wait-ms 50))
 
@@ -214,6 +213,5 @@
       ;; check for resolved labels in article component
       (is (b/exists? ".ui.label.review-status.purple"))
       (is (b/exists? ".ui.label.labels-status.purple")))
-  :cleanup (do (some-> @project-id (project/delete-project))
-               (doseq [{:keys [email]} test-users]
-                 (b/delete-test-user :email email))))
+  :cleanup (doseq [{:keys [email]} test-users]
+             (b/delete-test-user :email email)))

@@ -17,13 +17,6 @@
   ([comp props content]
    [comp (assoc props :dangerouslySetInnerHTML {:__html content})]))
 
-(defn labeled-input [label-text input-elt & [attrs label-attrs]]
-  (let [attrs (or attrs {})
-        label-attrs (or label-attrs {})]
-    [:div.ui.labeled.input attrs
-     [:div.ui.label label-attrs label-text]
-     input-elt]))
-
 (defn wrap-dropdown [_elt & [{:keys [onChange]}]]
   (r/create-class
    {:component-did-mount
@@ -297,32 +290,6 @@
      [:div.ui {:class (bclass false (true? curval))
                :on-click (wrap-user-event #(on-change true))}
       (get icons true)]]))
-
-(defn true-false-nil-tag
-  "UI component for representing an optional boolean value.
-  `value` is one of true, false, nil."
-  [label _value &
-   {:keys [size style show-icon? value color?]
-    :or {size "large", style {}, show-icon? true, color? true}}]
-  (let [vclass (cond
-                 (not color?) ""
-                 (true? value) "green"
-                 (false? value) "orange"
-                 (string? value) value
-                 :else "")
-        iclass (case value
-                 true "add circle icon"
-                 false "minus circle icon"
-                 "question circle icon")]
-    [:div.ui.label
-     {:class (css vclass size)
-      :style style}
-     (str label " ")
-     (when (and iclass show-icon?)
-       [:i {:class iclass
-            :aria-hidden true
-            :style {:margin-left "0.25em"
-                    :margin-right "0"}}])]))
 
 (defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
   [:i.circle.question.mark.icon {:class (css "grey" size class)

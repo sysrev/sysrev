@@ -7,6 +7,7 @@ sysrev.db.core/with-transaction-on-db
 sysrev.db.migration/set-project-owners
 sysrev.file.s3/create-bucket
 sysrev.file.s3/list-bucket-files
+sysrev.formats.pubmed/extract-article-location-entries
 sysrev.label.migrate/migrate-labels-project-ordering
 sysrev.logging/logging-initialized
 sysrev.payment.paypal/get-transactions
@@ -19,23 +20,37 @@ sysrev.payment.stripe/get-subscription-latest-invoice-intent
 sysrev.payment.stripe/get-invoices
 sysrev.payment.stripe/get-invoice-ids
 sysrev.payment.stripe/delete-invoice!
+sysrev.payment.stripe/delete-all-customers!
+sysrev.payment.stripe/delete-all-subscriptions!
+sysrev.payment.stripe/list-subscriptions
+sysrev.predict.core/create-predict-version
 sysrev.project.core/add-project-url-id
+sysrev.project.core/all-projects
 sysrev.project.clone/clone-subproject-articles
 sysrev.project.compensation/start-compensation-period-for-all-users!
 sysrev.project.compensation/project-total-paid
+sysrev.project.funds/create-project-fund-pending-entry!
+sysrev.sendgrid/send-text-email
+sysrev.sendgrid/send-html-email
 sysrev.source.import/import-datasource-query
 sysrev.source.import/import-datasource
 sysrev.source.import/import-dataset
 sysrev.source.import/import-project-filter
-sysrev.user.core/all-users
 sysrev.test.core/set-selenium-config
 sysrev.test.core/tests-initialized
+sysrev.test.browser.core/current-project-route
+sysrev.test.browser.stripe/three-d-secure-successful
+sysrev.test.browser.stripe/three-d-secure-card-declined
+sysrev.user.core/all-users
+sysrev.util/check
+sysrev.util/crypto-rand-int
 sysrev.util/clear-project-symbols
 sysrev.util/clear-project-aliases
 sysrev.util/reload-all
 sysrev.util/rename-flyway-files
 sysrev.util/linux?
 sysrev.util/random-uuid
+sysrev.util/xml-find-value
 sysrev.web.index/google-oauth-id-browser
 
 
@@ -50,7 +65,15 @@ sysrev.stripe/save-stripe-user!
 sysrev.util/ensure-dom-elt-visible-soon
 sysrev.util/log
 sysrev.util/log-warn
+sysrev.util/number-to-word
+sysrev.util/schedule-scroll-top
+sysrev.views.annotator/AddAnnotation
+sysrev.views.article-list.filters/ResetReloadForm
+sysrev.views.components.core/three-state-selection-icons
+sysrev.views.panels.project.add-articles/meta->source-name-vector
+sysrev.views.panels.project.add-articles/source-name
 sysrev.views.panels.project.compensation/check-pending-interval
+sysrev.views.panels.project.support/SupportFormOnce
 
 
 

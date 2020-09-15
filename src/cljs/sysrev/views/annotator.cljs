@@ -282,7 +282,7 @@
                         [:i.red.circle.times.icon]
                         (when full-width? "Delete")]]])]]))
 
-(defn AddAnnotation
+(defn ^:unused AddAnnotation
   "Render absolute-positioned \"Add Annotation\" button
   within AnnotationCapture container."
   [{:keys [class] :as context}]

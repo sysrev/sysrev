@@ -58,18 +58,6 @@
                   (when (= active-panel panel)
                     @(subscribe [:article-list/resolving? context article-id]))))))
 
-(defn nav-action []
-  [::al/get (get-context) [:recent-nav-action]])
-
-(defn reset-nav-action []
-  [::al/set-recent-nav-action (get-context) nil])
-
-(defn show-article [article-id]
-  [:article-list/set-active-article (get-context) article-id])
-
-(defn hide-article []
-  [:article-list/set-active-article (get-context) nil])
-
 (reg-event-fx :project-articles/hide-article [trim-v]
               (fn [{:keys [db]}]
                 {:dispatch [:article-list/set-active-article

@@ -11,7 +11,7 @@
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
-            [sysrev.util :as util]))
+            [sysrev.util :as util :refer [sum]]))
 
 (use-fixtures :once default-fixture)
 
@@ -274,10 +274,10 @@
             (is (= (+ (:article-count grault-search-source) (:article-count foo-bar-search-source))
                    (project/project-article-count project-id)))
             ;; try it another way
-            (is (= (reduce + (map #(:article-count %)
-                                  (get-in (route-response :get "/api/project-sources"
-                                                          {:project-id project-id})
-                                          [:result :sources])))
+            (is (= (sum (map :article-count
+                             (get-in (route-response :get "/api/project-sources"
+                                                     {:project-id project-id})
+                                     [:result :sources])))
                    (project/project-article-count project-id)))
             ;; can grault-search-source be deleted?
             (is (get-in (route-response :post "/api/delete-source"
@@ -285,8 +285,8 @@
                                          :source-id grault-search-source-id})
                         [:result :success]))
             ;; are the total articles equivalent to sum of its single source?
-            (is (= (reduce + (map #(:article-count %)
-                                  (get-in (route-response :get "/api/project-sources"
-                                                          {:project-id project-id})
-                                          [:result :sources])))
+            (is (= (sum (map :article-count
+                             (get-in (route-response :get "/api/project-sources"
+                                                     {:project-id project-id})
+                                     [:result :sources])))
                    (project/project-article-count project-id)))))))))

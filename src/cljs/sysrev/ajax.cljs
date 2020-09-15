@@ -103,15 +103,6 @@
          (or build-id build-time)  (assoc-in [:effects :reload-on-new-build]
                                              [build-id build-time]))))))
 
-(defn reg-event-ajax
-  "Wrapper for standard event-db handler for ajax response"
-  ([id db-handler]
-   (reg-event-ajax id nil db-handler))
-  ([id interceptors db-handler]
-   (reg-event-db id (concat interceptors [trim-v handle-ajax])
-                 (fn [db event]
-                   (db-handler db event)))))
-
 (defn reg-event-ajax-fx
   "Wrapper for standard event-fx handler for ajax response"
   ([id fx-handler]

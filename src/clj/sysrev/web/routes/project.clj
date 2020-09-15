@@ -837,10 +837,11 @@
                pdf-key (-> request :params :pdf-key)]
            (api/article-pdf-user-annotations article-id pdf-key))))
 
-#_(dr (GET "/api/annotations/:article-id" request
-           (with-authorize request {:allow-public true}
-             (let [article-id (-> request :params :article-id parse-integer)]
-               (api/article-abstract-annotations article-id)))))
+;; unused
+(dr (GET "/api/annotations/:article-id" request
+         (with-authorize request {:allow-public true}
+           (let [article-id (-> request :params :article-id parse-integer)]
+             (api/article-abstract-annotations article-id)))))
 
 ;;;
 ;;; Funding and compensation

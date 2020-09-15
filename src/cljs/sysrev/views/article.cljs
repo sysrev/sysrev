@@ -19,7 +19,6 @@
             [sysrev.util :as util :refer [css filter-values nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
-(def RJson (r/adapt-react-class ReactJson))
 (def XMLViewerComponent (r/adapt-react-class XMLViewer))
 #_
 (def-data :article/annotations

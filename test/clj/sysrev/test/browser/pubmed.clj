@@ -70,9 +70,10 @@
 (defn disabled-pager-link?
   "Given a nav string, check to see if that pager link is disabled"
   [nav]
-  (let [query (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")]
-    (b/wait-until-exists query)
-    (boolean (re-matches #".*disabled.*" (taxi/attribute query :class)))))
+  (boolean (-> (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")
+               (taxi/element)
+               (taxi/attribute :class)
+               (->> (re-matches #".*disabled.*")))))
 
 (defn search-term-articles-summary
   "Given a search term, return the map corresponding to the overlap of
@@ -81,8 +82,8 @@
   {:unique-articles <int>, :reviewed-articles <int>, :total-articles <int>
    :overlap [{:overlap-count <int>, :source string} ...]"
   [search-term]
-  (let [span-xpath #(x/search-source search-term
-                                     (format "/descendant::span[contains(@class,'%s')]" %))
+  (let [span-xpath #(xpath (x/search-source search-term)
+                           (format "/descendant::span[contains(@class,'%s')]" %))
         read-count #(-> (span-xpath %) taxi/text (str/split #",") str/join parse-integer)
         reviewed (read-count "reviewed-count")
         unique (read-count "unique-count")
@@ -154,7 +155,8 @@
   (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 4))
 
 (deftest-browser pubmed-search
-  true test-user []
+  true test-user
+  [page-num-is #(is (= (get-current-page-number) %))]
   (do (nav/log-in (:email test-user))
       (nav/go-route "/pubmed-search")
       (is (nav/panel-exists? [:pubmed-search]))
@@ -166,22 +168,14 @@
              {:xpath "//h3[contains(text(),'No documents match your search terms')]"})))
       (testing "Pager works properly"
         (search-pubmed "dangerous statistics three")
-        ;; (is (disabled-pager-link? "First"))
         (is (disabled-pager-link? "Previous"))
-        ;; Go to next page
-        (click-pager "Next")
-        (is (= 2 (get-current-page-number)))
-        ;; Go to last page
-        (click-button-class "nav-last")
+        (click-pager "Next")            ; Go to next page
+        (page-num-is 2)
+        (click-button-class "nav-last") ; Go to last page
         (is (disabled-pager-link? "Next"))
-        ;; (is (disabled-pager-link? "Last"))
-        (is (= (max-pages)
-               (get-current-page-number)))
-        ;; Go back one page
-        (click-pager "Previous")
-        (is (= (- (max-pages) 1)
-               (get-current-page-number)))
-        ;; Go to first page
-        (click-button-class "nav-first")
-        (is (= 1 (get-current-page-number)))
+        (page-num-is (max-pages))
+        (click-pager "Previous")        ; Go back one page
+        (page-num-is (dec (max-pages)))
+        (click-button-class "nav-first") ; Go to first page
+        (page-num-is 1)
         (nav/log-out))))

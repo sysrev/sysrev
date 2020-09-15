@@ -135,16 +135,6 @@
     (reset! *wd* nil)
     (reset! *wd-config* nil)))
 
-(defonce webdriver-shutdown-hook (atom nil))
-
-(defn ensure-webdriver-shutdown-hook
-  "Ensures that any chromedriver process is killed when JVM exits."
-  []
-  (when-not @webdriver-shutdown-hook
-    (let [runtime (Runtime/getRuntime)]
-      (.addShutdownHook runtime (Thread. #(stop-webdriver)))
-      (reset! webdriver-shutdown-hook true))))
-
 (defn take-screenshot [& [level]]
   (if (standard-webdriver?)
     (let [path (util/tempfile-path (str "screenshot-" (System/currentTimeMillis) ".png"))
@@ -209,8 +199,7 @@
   interval ms until timeout ms have elapsed, or throws exception on
   timeout."
   [pred & [timeout interval]]
-  (let [remote? (test/remote-test?)
-        timeout (or timeout (if remote? 12500 10000))
+  (let [timeout (or timeout (if (test/remote-test?) 12500 10000))
         interval (or interval web-default-interval)]
     (when-not (pred)
       (Thread/sleep interval)
@@ -235,6 +224,10 @@
   exception on timeout."
   [q & [timeout interval]]
   (wait-until #(displayed-now? q) timeout interval))
+
+(defn displayed?
+  [q & [timeout interval]]
+  (is-soon (displayed-now? q) timeout interval))
 
 (defn is-xpath?
   "Test whether q is taxi query in xpath form."
@@ -331,10 +324,6 @@
         (Thread/sleep char-delay)))
     (Thread/sleep (quot delay 2))))
 
-(defn input-text [q text & {:keys [delay] :as opts}]
-  (util/apply-keyargs set-input-text
-                      q text (merge opts {:clear? false})))
-
 (defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
   (when wait?
     (try (wait-until-exists q timeout interval)
@@ -345,6 +334,14 @@
   (let [result (taxi/exists? q)]
     (when wait? (wait-until-loading-completes))
     result))
+
+(defn text [q]
+  (wait-until-displayed q)
+  (-> q taxi/element taxi/text))
+
+(defn text-is? [q value]
+  (is-soon (and (displayed-now? q)
+                (= (text q) value))))
 
 (defn click [q & {:keys [if-not-exists delay displayed? external? timeout]
                   :or {if-not-exists :wait, delay 40}}]
@@ -375,12 +372,6 @@
   (dotimes [_ length]
     (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
     (Thread/sleep 20)))
-
-(defn ensure-logged-out []
-  (ignore-exceptions
-   (when (taxi/exists? "a#log-out-link")
-     (click "a#log-out-link" :if-not-exists :skip)
-     (wait-until-loading-completes :pre-wait true))))
 
 (defmacro with-webdriver [& body]
   `(let [visual# (:visual @*wd-config*) ]
@@ -512,9 +503,6 @@
 ;; if this doesn't do anything, why not take it out? - James
 (defn webdriver-fixture-once [f]
   (f))
-
-(defn reuse-webdriver? []
-  (not (contains? #{false 0 "false" "0"} (:sysrev-reuse-webdriver env))))
 
 (defn webdriver-fixture-each [f]
   (let [local? (= "localhost" (:host (test/get-selenium-config)))

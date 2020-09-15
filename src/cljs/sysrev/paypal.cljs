@@ -15,8 +15,6 @@
                                     :get-sub ::get :set-event ::set})
 
 (def minimum-amount "$1")
-(def default-amount "$10")
-
 (def ^:unused paypal-env
   (some-> (.getElementById js/document "paypal-env")
           (.getAttribute "data-paypal-env")))

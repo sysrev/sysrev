@@ -9,9 +9,6 @@
             [sysrev.shared.text :refer [uri-title]]
             [sysrev.util :refer [scroll-top]]))
 
-(defn force-dispatch [uri]
-  (secretary/dispatch! uri))
-
 (defn make-url [route & [params]]
   (let [hash (hc/generate-query-string params)]
     (if (empty? hash)

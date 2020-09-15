@@ -1,54 +1,11 @@
 (ns sysrev.export.endnote
-  (:require [clojure.string :as str]
-            [clojure.data.xml :as dxml]
+  (:require [clojure.data.xml :as dxml]
             [clojure.data.xml node prxml]
             [clojure.java.io :as io]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.label.core :as labels]
             [sysrev.article.core :as article]
-            [sysrev.formats.endnote :refer [parse-endnote-file]]
-            [sysrev.util :as util :refer [map-values xml-find-value parse-xml-str]]))
-
-(defn all-included-articles [project-id]
-  (->> (keys (labels/project-included-articles project-id))
-       (mapv (fn [article-id]
-               (let [article (q/get-article article-id)]
-                 (assoc article :rec-number (-> (parse-xml-str (:raw article))
-                                                (xml-find-value [:rec-number]))))))
-       (group-by :rec-number)
-       (map-values first)))
-
-(defn- merge-record-xml
-  "Add a new child element to content of an existing <record> element."
-  [rxml tag & content]
-  (apply dxml/element :record {}
-         (dxml/element
-          tag {}
-          (apply dxml/element :style {:face "normal"
-                                      :font "default"
-                                      :size "100%"}
-                 content))
-         (:content rxml)))
-
-(defn filter-endnote-articles [project-id exml]
-  (let [articles (all-included-articles project-id)
-        include-record?
-        #(when-let [rec-number (xml-find-value % [:rec-number])]
-           (when (contains? articles rec-number)
-             (let [{:keys [article-uuid]} (get articles rec-number)]
-               (-> %
-                   (merge-record-xml :custom4 rec-number)
-                   (merge-record-xml :custom5 (str article-uuid))))))
-        records (->> exml :content first :content
-                     (map include-record?)
-                     (remove nil?))]
-    (dxml/element
-     :xml {}
-     (apply dxml/element :records {}
-            records))))
-
-
+            [sysrev.util :as util]))
 
 (defn- with-style [& content]
   (apply vector

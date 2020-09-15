@@ -48,14 +48,14 @@
                    :asm {:group_id sendgrid-asm-group-id}}
                   payload)))
 
-(defn send-text-email
+(defn ^:unused send-text-email
   [to subject message
    & {:keys [from]
       :or {from sendgrid-default-from}}]
   (send-email to from subject
               {:content [{:type "text" :value message}]}))
 
-(defn send-html-email
+(defn ^:unused send-html-email
   [to subject message
    & {:keys [from]
       :or {from sendgrid-default-from}}]

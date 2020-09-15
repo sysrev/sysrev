@@ -17,15 +17,6 @@
 
 (setup-panel-state panel [:project :project :analytics :labels])
 
-(def colors {:grey "rgba(160,160,160,0.5)"
-             :green "rgba(33,186,69,0.55)"
-             :dim-green "rgba(33,186,69,0.35)"
-             :orange "rgba(242,113,28,0.55)"
-             :dim-orange "rgba(242,113,28,0.35)"
-             :red "rgba(230,30,30,0.6)"
-             :blue "rgba(30,100,230,0.5)"
-             :purple "rgba(146,29,252,0.5)"})
-
 ;;; UTILITIES
 (defn- get-default [db key default-val]
   (as-> (get db key) x
@@ -237,10 +228,10 @@
                               :answer (str value) :raw-answer value}
                       :curset @(subscribe [::filter-answers])}]))))))
 
+
 (defn- LabelCountChart [label-ids combined count-type]
   (let [font           (charts/graph-font-settings)
         max-length     (if (util/mobile?) 16 22)
-
         counts         (mapv (condp #(contains? %2 %1) count-type
                                "Count Every Answer" :answers
                                "Once Per Article"   :articles

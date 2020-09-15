@@ -193,7 +193,7 @@
       (when @error-message
         [:div.ui.red.header @error-message])]]))
 
-(defn SupportFormOnce [state]
+(defn ^:unused SupportFormOnce [state]
   (let [support-level (r/cursor state [:support-level "once"])
         user-defined-support-level (r/cursor state [:user-defined-support-level])
         error-message (r/cursor state [:error-message "once"])

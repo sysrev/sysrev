@@ -3,7 +3,6 @@
   (:use sysrev.logging
         sysrev.util
         sysrev.db.core
-        sysrev.db.entity
         sysrev.db.migration
         sysrev.user.core
         sysrev.group.core
@@ -56,10 +55,8 @@
         #_ sysrev.custom.immuno
         #_ sysrev.custom.ebtc
         #_ sysrev.custom.insilica
-        sysrev.misc
         sysrev.init
         sysrev.shared.keywords
-        sysrev.shared.transit
         sysrev.test.core
         sysrev.test.browser.navigate)
   (:require [clojure.spec.alpha :as s]

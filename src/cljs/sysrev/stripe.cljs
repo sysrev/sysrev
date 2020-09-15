@@ -37,7 +37,6 @@
 ;; Stripe elements
 (def Elements (r/adapt-react-class RStripe/Elements))
 (def CardCVCElement (r/adapt-react-class RStripe/CardCVCElement))
-(def CardElement (r/adapt-react-class RStripe/CardElement))
 (def CardExpiryElement (r/adapt-react-class RStripe/CardExpiryElement))
 (def CardNumberElement (r/adapt-react-class RStripe/CardNumberElement))
 (def StripeProvider (r/adapt-react-class RStripe/StripeProvider))

@@ -23,11 +23,6 @@
        (mapv #(or (parse-integer %) (keyword %)))
        prune-cursor))
 
-(defn- cursor->ns
-  "Convert a cursor vector into a namespace string"
-  [m]
-  (str/join " " (for [x m] (-> x symbol str))))
-
 (defn- EditCancelButton [editing-view?]
   [:div {:style {:padding-left "1em"}}
    [Button {:size "tiny"

@@ -1,21 +1,19 @@
 (ns sysrev.views.reagent-json-view
-  (:require [sysrev.views.html :refer [html]]
+  (:require [clojure.string :as str]
+            [sysrev.views.html :refer [html]]
             [sysrev.views.semantic :refer [Icon]]
-            [clojure.string :as st]
             [reagent.core :as r]))
 
 (defn ns-str
   "Create a new namespace given a root and leaf"
   [root & [leaf]]
-  (let [namespace (clojure.string/trim (str root " " leaf))]
-    (if (seq namespace)
-      namespace
-      "root")))
+  (or (not-empty (str/trim (str root " " leaf)))
+      "root"))
 
 ;; this is from https://github.com/yogthos/json-html
 ;; MIT License
 (defn render-keyword [k]
-  (str (->> k ((juxt namespace name)) (remove nil?) (st/join "/"))))
+  (str (->> k ((juxt namespace name)) (remove nil?) (str/join "/"))))
 
 (def url-regex ;; good enough...
   (re-pattern "(\\b(https?|ftp|file|ldap)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|])"))
@@ -23,24 +21,21 @@
 (defn linkify-links
   "Make links clickable."
   [string]
-  (clojure.string/replace string url-regex "<a class='jh-type-string-link' href=$1>$1</a>"))
+  (str/replace string url-regex "<a class='jh-type-string-link' href=$1>$1</a>"))
 
 (defprotocol Render
   (render [this] "Renders the element a Hiccup structure"))
 
 (defn escape-html [s]
-  (st/escape s
-             {"&" "&amp;"
-              ">" "&gt;"
-              "<" "&lt;"
-              "\"" "&quot;"}))
+  (str/escape s {"&" "&amp;"
+                 ">" "&gt;"
+                 "<" "&lt;"
+                 "\"" "&quot;"}))
 
 (defn- obj->clj [obj]
-  (reduce
-   (fn [props k]
-     (assoc props (keyword k) (aget obj k)))
-   {}
-   (js/Object.keys obj)))
+  (->> (for [k (js/Object.keys obj)]
+         {(keyword k) (aget obj k)})
+       (apply merge {})))
 
 (declare render-html)
 
@@ -155,7 +150,7 @@
                   :on-mouse-leave (fn [e]
                                     (.stopPropagation e)
                                     (reset! hover? false))}
-           (if (st/blank? s)
+           (if (str/blank? s)
              [:span.jh-empty-string (when-not (nil? on-add)
                                       {:on-click #(on-add % (-> context
                                                                 (dissoc :on-click)

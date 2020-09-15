@@ -17,8 +17,6 @@
 (declare site-routes)
 
 ;; Functions defined after defroutes form
-(declare public-project-summaries)
-
 (defonce global-stats-cache (atom {:value nil, :updated nil}))
 (defonce global-stats-agent (agent nil))
 
@@ -177,21 +175,3 @@
 
   #_ (POST "/api/error" request
            (let [])))
-
-(defn public-project-summaries
-  "Returns a sequence of summary maps for every project."
-  []
-  (let [admins (-> (select :u.user-id :u.email :m.permissions :m.project-id)
-                   (from [:project-member :m])
-                   (join [:web-user :u] [:= :u.user-id :m.user-id])
-                   (->> do-query
-                        (group-by :project-id)
-                        (map-values (fn [members]
-                                      (->> members
-                                           (filter #(in? (:permissions %) "admin"))
-                                           (mapv #(dissoc % :project-id)))))))]
-    (-> (select :*)
-        (from :project)
-        (->> do-query
-             (index-by :project-id)
-             (map-values #(assoc % :admins (get admins (:project-id %) [])))))))

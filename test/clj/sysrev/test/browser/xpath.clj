@@ -16,26 +16,18 @@
 (defn search-source
   "Given a search term, return a string of the xpath corresponding to the
   project-source div"
-  [search-term & xpath-rest]
-  (apply xpath
-         "//span[contains(@class,'import-label') and text()='"
-         search-term
-         "']/ancestor::div[@class='project-source']"
-         xpath-rest))
+  [search-term]
+  (xpath "//span[contains(@class,'import-label') and text()='" search-term "']"
+         "/ancestor::div[@class='project-source']"))
 
 (defn search-term-delete
   "Given a search term, return the xpath corresponding to its delete button"
   [search-term]
-  (search-source
-   search-term
-   "/descendant::div[contains(@class,'button') and contains(text(),'Delete')]"))
+  (xpath (search-source search-term)
+         "/descendant::div[contains(@class,'button') and contains(text(),'Delete')]"))
 
 (defn project-title-value [name]
   (xpath "//span[contains(@class,'project-title') and contains(text(),'" name "')]"))
-
-(def project-sources-list
-  (xpath "//div[@id='project-sources']"
-         "/descendant::div[contains(@class,'project-sources-list')]"))
 
 (def project-source
   (xpath "//div[@class='project-sources-list']"
@@ -46,15 +38,15 @@
   (xpath (format "//%s[text()='%s']" element text)))
 
 (def review-annotator-tab
-  {:xpath (str "//div[contains(@class,'review-interface')]"
-               "//a[contains(text(),'Annotations')]")})
+  (xpath "//div[contains(@class,'review-interface')]"
+         "//a[contains(text(),'Annotations')]"))
 
 (def review-labels-tab
-  {:xpath (str "//div[contains(@class,'review-interface')]"
-               "//a[contains(text(),'Labels')]")})
+  (xpath "//div[contains(@class,'review-interface')]"
+         "//a[contains(text(),'Labels')]"))
 
 (defn project-menu-item [item-class]
   (str ".ui.menu.project-menu > .item." (name item-class)))
 
 (def import-button-xpath
-  {:xpath "//button[contains(@class,'button') and contains(text(),'Import')]"})
+  (xpath "//button[contains(@class,'button') and contains(text(),'Import')]"))

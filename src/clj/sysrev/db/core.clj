@@ -41,9 +41,6 @@
 ;; This is used to bind a transaction connection in with-transaction.
 (defonce ^:dynamic *conn* nil)
 
-;; Used by sysrev.db.entity; must be defined here to allow resetting in set-active-db!
-(defonce entity-columns-cache (atom {}))
-
 (defn make-db-config
   "Creates a Postgres db pool object to use with JDBC.
 
@@ -75,7 +72,6 @@
   (when-not (and only-if-new (= (:config db) (:config @active-db)))
     (close-active-db)
     (reset! active-db db)
-    (reset! entity-columns-cache {})
     (when-not (in? [:test :remote-test] (:profile env))
       (let [{:keys [host port dbname]} (:config db)]
         (log/info (format "connected to postgres (%s:%d/%s)"
@@ -149,14 +145,6 @@
            raw-sql
            {:identifiers sql-identifier-to-clj
             :result-set-fn vec}))
-
-(defmacro with-debug-sql
-  "Runs body with exception handler to print SQL error details."
-  [& body]
-  `(try
-     (do ~@body)
-     (catch Throwable e#
-       (.printStackTrace (.getNextException e#)))))
 
 (defn do-execute
   "Execute SQL command defined by honeysql SQL map."

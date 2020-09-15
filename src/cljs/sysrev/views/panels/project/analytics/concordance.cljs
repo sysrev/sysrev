@@ -34,31 +34,6 @@
   (as-> (get db key) x
     (if (nil? x) default-val x)))
 
-(def example-concordance
-  [{:user-a "joe"   :user-b "tom"   :label "Include"  :concordance 0.1  :count 100}
-   {:user-a "joe"   :user-b "james" :label "Include"  :concordance 0.4  :count 100}
-   {:user-a "joe"   :user-b "joe"   :label "Include"  :concordance 1.0  :count 100}
-
-   {:user-a "joe"   :user-b "tom"   :label "Species"  :concordance 0.1  :count 80}
-   {:user-a "joe"   :user-b "james" :label "Species"  :concordance 0.5  :count 80}
-   {:user-a "joe"   :user-b "joe"   :label "Species"  :concordance 1.0  :count 80}
-
-   {:user-a "james" :user-b "tom"   :label "Include"  :concordance 0.1  :count 100}
-   {:user-a "james" :user-b "james" :label "Include"  :concordance 1.0  :count 100}
-   {:user-a "james" :user-b "joe"   :label "Include"  :concordance 0.1  :count 100}
-
-   {:user-a "james" :user-b "tom"   :label "Species"  :concordance 0.1  :count 80}
-   {:user-a "james" :user-b "james" :label "Species"  :concordance 1.0  :count 80}
-   {:user-a "james" :user-b "joe"   :label "Species"  :concordance 1.0  :count 80}
-
-   {:user-a "tom"   :user-b "tom"   :label "Include"  :concordance 1.0  :count 100}
-   {:user-a "tom"   :user-b "james" :label "Include"  :concordance 0.1  :count 80}
-   {:user-a "tom"   :user-b "joe"   :label "Include"  :concordance 0.1  :count 100}
-
-   {:user-a "tom"   :user-b "tom"   :label "Species"  :concordance 1.0  :count 80}
-   {:user-a "tom"   :user-b "james" :label "Species"  :concordance 0.1  :count 100}
-   {:user-a "tom"   :user-b "joe"   :label "Species"  :concordance 0.1  :count 80}])
-
 (def colors {:grey           "rgba(160, 160, 160, 0.5)"
              :green          "rgba(33,  186, 69,  0.55)"
              :bright-green   "rgba(33,  186, 69,  0.9)"

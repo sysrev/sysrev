@@ -1,19 +1,20 @@
 (ns sysrev.views.panels.org.plans
   (:require [goog.uri.utils :as uri-utils]
-            [medley.core :as medley]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [medley.core :as medley]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.macros :refer-macros [setup-panel-state]]
             [sysrev.nav :as nav]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
-            [sysrev.util :as util]
-            [sysrev.views.semantic :refer [SegmentGroup Segment Radio Loader Grid Column Row ListUI ListItem Message MessageHeader Button]]
+            [sysrev.views.semantic :refer [SegmentGroup Segment Radio Loader Grid Column Row
+                                           ListUI ListItem Message MessageHeader Button]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.views.panels.user.plans :refer [TogglePlanButton BasicPlan]]
-            [sysrev.views.panels.pricing :refer [TeamProBenefits]]))
+            [sysrev.views.panels.pricing :refer [TeamProBenefits]]
+            [sysrev.util :as util :refer [sum]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
 (declare panel state panel-get panel-set)
@@ -72,8 +73,8 @@
 
 (defn price-summary
   [member-count tiers]
-  (let [base (->> tiers (map :flat_amount) (filter int?) (apply +))
-        per-user (->> tiers (map :unit_amount) (filter int?) (apply +))
+  (let [base (->> tiers (map :flat_amount) (filter int?) sum)
+        per-user (->> tiers (map :unit_amount) (filter int?) sum)
         up-to (->> tiers (map :up_to) (filter int?) first)
         monthly-bill (+ base (* (max 0 (- member-count 5)) per-user))]
     {:base base
@@ -289,8 +290,7 @@
         (contains? #{"Unlimited_Org" "Unlimited_Org_Annual"} (:nickname current-plan))
         [DowngradePlan org-id]
         :else
-        [Loader {:active true
-                 :inline "centered"}]))))
+        [Loader {:active true :inline "centered"}]))))
 
 (defn OrgPlans [{:keys [org-id]}]
   (r/create-class

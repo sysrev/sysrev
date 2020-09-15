@@ -15,17 +15,6 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-;; for manual testing purposes, this is handy:
-;;
-#_(let [email "james@insilica.co"]
-  (b/cleanup-test-user! :email email :groups true))
-
-;; recreate
-#_(let [email "james@insilica.co" password "testing"]
-    (b/create-test-user :email email :password password)
-    (users/create-user-stripe-customer! (user-by-email email))
-    (stripe/create-subscription-user! (user-by-email email)))
-
 (def use-card "form.StripeForm button.ui.button.use-card")
 (def upgrade-link (xpath "//a[text()='Upgrade']"))
 (def back-to-user-settings (xpath "//a[contains(text(),'Back to user settings')]"))
@@ -52,8 +41,7 @@
   (b/wait-until-loading-completes :pre-wait delay))
 
 (defn get-user-customer [email]
-  (some-> email (user-by-email) :stripe-id
-          (stripe/get-customer)))
+  (some-> (user-by-email email :stripe-id) (stripe/get-customer)))
 
 (defn customer-plan [customer]
   (some-> customer :subscriptions :data first :items :data first :plan))
@@ -62,7 +50,7 @@
   (some-> (get-user-customer email) (customer-plan) :nickname))
 
 (defn user-db-plan [email]
-  (some-> email (user-by-email) :user-id (plans/user-current-plan) :nickname))
+  (some-> (user-by-email email :user-id) (plans/user-current-plan) :nickname))
 
 (defn wait-until-stripe-id
   "Wait until stripe has customer entry for email."

@@ -54,8 +54,6 @@
 
 (defn html [hiccup]
   (postwalk
-   (fn [node]
-     (if (vector? node)
-       (-> node normalize-element render-element)
-       node))
+   #(cond-> %
+      (vector? %) ((comp render-element normalize-element)))
    hiccup))

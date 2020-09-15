@@ -10,7 +10,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]
             [sysrev.user.core :as user :refer [user-by-email]]
-            [sysrev.util :as util :refer [index-by random-id]]))
+            [sysrev.util :as util]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -30,7 +30,6 @@
                         "/descendant::div[contains(@class,'radio') and contains(@class,'disabled')]"))
       ;; signup through 'Pro Accounts' button
       (b/click (xpath "//a[contains(text(),'Pro Accounts')]"))
-      (b/wait-until-displayed plans/choose-pro-button)
       (b/click plans/choose-pro-button)
       ;; update payment method
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
@@ -52,10 +51,8 @@
                       "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       (b/click (xpath "//button[contains(text(),'Create Project')]"))
       ;; is this project private?
-      (b/exists? (xpath "//i[contains(@class,'lock') and contains(@class,'grey')]"))
-      (b/exists? (xpath "//span[contains(text(),'Private')]"))
-      (b/cleanup-test-user! :email (:email test-user)))
-  :cleanup (b/cleanup-test-user! :email (:email test-user)))
+      (b/exists? "i.grey.lock")
+      (b/exists? (xpath "//span[contains(text(),'Private')]"))))
 
 (deftest-browser group-create-new
   (and (test/db-connected?) (not (test/remote-test?))) test-user
@@ -101,7 +98,5 @@
                       "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       (b/click (xpath "//button[contains(text(),'Create Project')]"))
       ;; is this project private?
-      (b/exists? (xpath "//i[contains(@class,'lock') and contains(@class,'grey')]"))
-      (b/exists? (xpath "//span[contains(text(),'Private')]"))
-      (b/cleanup-test-user! :email (:email test-user)))
-  :cleanup (b/cleanup-test-user! :email (:email test-user)))
+      (b/exists? "i.grey.lock")
+      (b/exists? (xpath "//span[contains(text(),'Private')]"))))

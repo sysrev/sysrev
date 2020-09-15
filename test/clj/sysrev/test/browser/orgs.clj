@@ -9,7 +9,6 @@
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.user-profiles :as user-profiles]
             [sysrev.test.browser.xpath :refer [xpath]]
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.plans :as plans]
@@ -45,17 +44,10 @@
            "/td/div[contains(@class,'change-org-user')]")))
 (def change-role (xpath "//span[contains(text(),'Change role...')]"))
 (def org-change-role-button "#org-change-role-button")
-(def change-org-dropdown "#change-org-dropdown")
-(def current-org-dropdown (xpath "//div[@id='change-org-dropdown']/div[@class='text']"))
 (def disabled-set-private-button (xpath "//button[@id='public-access_private' and contains(@class,'disabled')]"))
 (def active-set-private-button (xpath "//button[@id='public-access_private' and contains(@class,'active')]"))
 (def set-private-button "#public-access_private")
 (def save-options-button "#save-options")
-(def no-payment-on-file (xpath "//div[contains(text(),'No payment method on file')]"))
-
-(defn payment-method [{:keys [exp-date last-4]}]
-  (xpath "//div[contains(text(),'Visa expiring on " exp-date " and ending in " last-4 "')]"))
-
 (defn user-group-permission
   [user-id group-name]
   (group/user-group-permission user-id (group/group-name->id group-name)))
@@ -96,7 +88,7 @@
                (pr-str username) (pr-str permission))))
 
 (defn create-org [org-name]
-  (b/click user-profiles/user-name-link)
+  (b/click "#user-name-link")
   (b/click user-orgs)
   (b/set-input-text-per-char create-org-input org-name)
   (b/click create-org-button)
@@ -119,7 +111,7 @@
 (defn switch-to-org
   "switch to org-name, must be in Organization Settings"
   [org-name & {:keys [silent]}]
-  (b/click user-profiles/user-name-link)
+  (b/click "#user-name-link")
   (b/click "#user-orgs")
   (b/click (xpath "//a[text()='" org-name "']"))
   (b/wait-until-exists org-users)
@@ -152,13 +144,13 @@
     ;; only an owner can change permissions, not a member
     (change-user-permission (:email user1) "Member")
     (nav/log-in (:email user1))
-    (b/click user-profiles/user-name-link)
+    (b/click "#user-name-link")
     (b/click user-orgs)
     (b/click (xpath "//a[text()='" org-name-1 "']"))
     (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:email test-user)))))
     ;; an org is switched, the correct user list shows up
     (nav/log-in (:email test-user))
-    (b/click user-profiles/user-name-link)
+    (b/click "#user-name-link")
     ;; create a new org
     (create-org org-name-2)
     ;; should only be one user in this org
@@ -176,7 +168,7 @@
     (change-user-permission (:email user1) "Owner")
     ;; log-in as user1 and see that they cannot create group projects
     (nav/log-in (:email user1))
-    (b/click user-profiles/user-name-link)
+    (b/click "#user-name-link")
     (b/click user-orgs)
     (b/click (xpath "//a[text()='" org-name-1 "']") :delay 20)
     ;; org-users and projects links exists, but billing link doesn't exist
@@ -200,7 +192,7 @@
     (b/exists? org-billing)
     ;; duplicate orgs can't be created
     (nav/log-in (:email test-user))
-    (b/click user-profiles/user-name-link)
+    (b/click "#user-name-link")
     (b/click user-orgs)
     (b/set-input-text-per-char create-org-input org-name-1)
     (b/click create-org-button)
@@ -243,7 +235,7 @@
     (is (b/exists? active-set-private-button))
     (log/info "set project to private access")
     ;; user downgrades to basic plan
-    (b/click user-profiles/user-name-link)
+    (b/click "#user-name-link")
     (b/click "#user-billing")
     (b/click ".button.nav-plans.unsubscribe")
     (b/click ".button.unsubscribe-plan")
@@ -260,7 +252,7 @@
     (log/info "set project to public access")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to Unlimited
-    (b/click user-profiles/user-name-link)
+    (b/click "#user-name-link")
     (b/click "#user-billing")
     (b/click ".button.nav-plans.subscribe" :delay 50)
     (plans/click-upgrade-plan :delay 50)
@@ -277,7 +269,7 @@
     (is (b/exists? active-set-private-button))
     (log/info "set project to private access")
     ;; downgrade to basic plan again
-    (b/click user-profiles/user-name-link)
+    (b/click "#user-name-link")
     (b/click "#user-billing")
     (b/click ".button.nav-plans.unsubscribe")
     (b/click ".button.unsubscribe-plan")

@@ -106,7 +106,7 @@
                        :user-uuid (UUID/randomUUID)
                        :api-token (generate-api-token)}
                 user-id (assoc :user-id user-id))]
-    (when project-id (assert (q/query-project-by-id project-id [:project-id])))
+    (when project-id (assert (q/get-project project-id)))
     (let [{:keys [user-id] :as user} (q/create :web-user entry, :returning :*)]
       (when project-id (add-project-member project-id user-id))
       user)))

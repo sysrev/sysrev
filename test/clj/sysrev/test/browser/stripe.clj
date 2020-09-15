@@ -27,7 +27,6 @@
 (def three-d-secure-card-declined "4000008400001629")
 
 ;; error messages
-(def no-payment-method-error "You must enter a valid payment method before subscribing to this plan")
 (def invalid-card-number-error "Your card number is invalid")
 (def incomplete-card-number-error "Your card number is incomplete")
 (def incomplete-expiration-date-error "Your card's expiration date is incomplete")
@@ -36,7 +35,6 @@
 (def card-declined-error "Your card was declined")
 (def card-expired-error "Your card has expired")
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
-(def no-payment-method "You must provide a valid payment method")
 (def cardnumber-input (xpath "//input[@name='cardnumber']"))
 
 (defn get-stripe-frame-names []

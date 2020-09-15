@@ -727,7 +727,7 @@
                         (al/reload-list context :transition))}
         [:i.arrow.down.icon]]]]]))
 
-(defn ResetReloadForm [context]
+(defn ^:unused ResetReloadForm [context]
   (let [recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
         any-filters? (not-empty @(subscribe [::filters-input context]))
         display @(subscribe [::al/display-options (al/cached context)])

@@ -154,15 +154,6 @@
                          :stacktrace (with-out-str
                                        (print-cause-trace-custom exception))}}))})
 
-(defn make-web-page-event [request browser-url]
-  {:event-type "page"
-   :logged-in (boolean (current-user-id request))
-   :user-id (current-user-id request)
-   :project-id (active-project request)
-   :skey (:session/key request)
-   :client-ip (request-client-ip request)
-   :browser-url browser-url})
-
 (defn wrap-sysrev-response [handler]
   (fn [request]
     (try

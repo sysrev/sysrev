@@ -11,10 +11,6 @@
 ;; for clj-kondo
 (declare article-to-sql)
 
-(defn merge-article-data-content [article]
-  (merge (dissoc article :content)
-         (:content article)))
-
 (defn-spec article-to-sql map?
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
@@ -115,7 +111,6 @@
       (:score (q/find-one [:article :a] {:a.article-id article-id} :*
                           :prepare #(q/with-article-predict-score % predict-run-id))))))
 
-;; TODO: replace with generic interface for querying db entities with added values
 (defn get-article
   "Queries for article data by id, with data from other tables included.
 
@@ -170,11 +165,6 @@
                                   (not include-disabled?) (merge {:a.enabled true}))
           [:a.article-id :lp.val]
           :join [[:article :a] :lp.article-id]))
-
-(defn article-ids-to-uuids [article-ids]
-  (->> (partition-all 500 article-ids)
-       (mapv #(q/find :article {:article-id %} :article-uuid))
-       (apply concat)))
 
 ;; FIX: get this PMCID value from somewhere other than raw xml
 (defn article-pmcid [_article-id]

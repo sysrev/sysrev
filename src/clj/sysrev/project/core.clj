@@ -247,16 +247,6 @@
          (index-by :user-id)
          (map-values #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
 
-(defn project-pmids [project-id]
-  (->> (q/find [:article :a] {:a.project-id project-id
-                              :ad.datasource-name "pubmed"
-                              :a.enabled true}
-               :ad.external-id
-               :join [[:article-data :ad] :a.article-data-id]
-               :where [:!= :ad.external-id nil])
-       (map util/parse-number)
-       (remove nil?) distinct vec))
-
 (defn project-url-ids [project-id]
   (vec (q/find :project-url-id {:project-id project-id} [:url-id :user-id :date-created]
                :order-by [:date-created :desc])))
