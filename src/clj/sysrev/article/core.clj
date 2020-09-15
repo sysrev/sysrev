@@ -179,7 +179,7 @@
 ;; FIX: get this PMCID value from somewhere other than raw xml
 (defn article-pmcid [_article-id]
   nil
-  #_ (some->> (qt/get-article _article-id :raw) (re-find #"PMC\d+")))
+  #_ (some->> (q/get-article _article-id :raw) (re-find #"PMC\d+")))
 
 (defn modify-articles-by-id
   "Runs SQL update setting `values` on articles in `article-ids`."

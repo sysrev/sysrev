@@ -7,7 +7,6 @@
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.util :as util :refer [in? map-values index-by]]))
@@ -61,15 +60,14 @@
 
 (defn project-article-notes [project-id]
   (with-project-cache project-id [:article-list :notes]
-    (-> (q/select-project-articles
-         project-id [:a.article-id :an.user-id :an.content :an.updated-time :pn.name])
-        (q/with-article-note)
-        (->> do-query
-             (remove (fn [{:keys [content]}]
-                       (or (nil? content) (and (string? content)
-                                               (empty? (str/trim content))))))
-             (map #(update % :updated-time tc/to-epoch))
-             (group-by :article-id)))))
+    (->> (q/find-article {:a.project-id project-id}
+                         [:a.article-id :an.user-id :an.content :an.updated-time :pn.name]
+                         :with [:article-note :project-note])
+         (remove (fn [{:keys [content]}]
+                   (or (nil? content) (and (string? content)
+                                           (empty? (str/trim content))))))
+         (map #(update % :updated-time tc/to-epoch))
+         (group-by :article-id))))
 
 (defn project-article-updated-time [_ article-id & [all-labels all-notes all-annotations]]
   (let [labels (get all-labels article-id)
@@ -126,9 +124,9 @@
 
 (defn article-ids-from-text-search-remote [project-id text]
   (with-project-cache project-id [:text-search-ids :remote text]
-    (let [pmid->id (->> (qt/find-article
-                         {:a.project-id project-id :ad.datasource-name "pubmed"}
-                         :article-id, :index-by :external-id, :where [:!= :ad.external-id nil])
+    (let [pmid->id (->> (q/find-article {:a.project-id project-id :ad.datasource-name "pubmed"}
+                                        :article-id, :index-by :external-id
+                                        :where [:!= :ad.external-id nil])
                         (util/map-keys util/parse-integer))]
       (mapv (partial get pmid->id)
             (ds-api/search-text-by-pmid text (sort (keys pmid->id)))))))
@@ -291,8 +289,8 @@
 
 (defn lookup-article-entries [project-id article-ids]
   (when (seq article-ids)
-    (->> (qt/find-article {:a.project-id project-id :a.article-id article-ids}
-                          [:a.article-id :ad.title])
+    (->> (q/find-article {:a.project-id project-id :a.article-id article-ids}
+                         [:a.article-id :ad.title])
          (map (fn [{:keys [article-id title] :as a}]
                 (-> (assoc a :primary-title title)
                     (dissoc :title)

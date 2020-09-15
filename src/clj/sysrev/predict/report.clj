@@ -87,7 +87,7 @@
          include
          exclude]
         (pvalues
-         (q/query-predict-run-by-id predict-run-id [:*])
+         (q/find-one :predict-run {:predict-run-id predict-run-id})
          (predict-run-article-count predict-run-id label-id nil)
          (predict-run-article-count predict-run-id label-id true)
          (predict-run-article-count predict-run-id label-id true true)
@@ -128,4 +128,4 @@
                                      predict-run-id overall-id))}))))
 
 (defn predict-summary [predict-run-id]
-  (:meta (q/query-predict-run-by-id predict-run-id [:meta])))
+  (q/find-one :predict-run {:predict-run-id predict-run-id} :meta))

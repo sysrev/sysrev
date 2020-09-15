@@ -1,18 +1,16 @@
 (ns sysrev.article.assignment
-  (:require [clojure.math.numeric-tower :as math]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [merge-where]]
-            [sysrev.db.core :as db :refer [do-query do-execute with-project-cache]]
-            [honeysql.helpers :as sqlh :refer [select limit from join insert-into values where order-by
-                                               having left-join offset sset]]
+  (:require [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer [select limit from where order-by having
+                                               merge-where left-join sset]]
+            [sysrev.db.core :as db :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
-            [sysrev.article.core :as article]
             [sysrev.project.core :as project]
-            [sysrev.util :as util :refer [in? map-values index-by]]))
+            [sysrev.util :as util]))
 
-(defn record-last-assigned [article-id]
-  "record that the given article has been assigned right now"
-  (-> (sqlh/update :article) (sset {:last_assigned (sql/call :now)}) (where [:= :article-id article-id]) do-execute))
+(defn record-last-assigned
+  "Record that the given article has been assigned right now."
+  [article-id]
+  (q/modify :article {:article-id article-id} {:last-assigned :%now}))
 
 (defn user-confirmed-today-count [project-id user-id]
   (-> (q/select-project-article-labels project-id true [:al.article-id])

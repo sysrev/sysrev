@@ -5,7 +5,6 @@
             [clojure.string :as str]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.project.core :as project]
             [sysrev.label.core :as labels]
             [sysrev.predict.core :as predict]
@@ -34,10 +33,10 @@
                        [article-id answer])))))))
 
 (defn- get-training-article-ids [project-id label-id]
-  (qt/find-article {:a.project-id project-id} :a.article-id
-                   :where (q/exists [:article-label :al]
-                                    {:al.article-id :a.article-id, :al.label-id label-id}
-                                    :prepare #(q/filter-valid-article-label % true))))
+  (q/find-article {:project-id project-id} :article-id, :with []
+                  :where (q/exists [:article-label :al]
+                                   {:al.article-id :a.article-id, :al.label-id label-id}
+                                   :prepare #(q/filter-valid-article-label % true))))
 
 (defn- prediction-text-for-articles [article-ids]
   (->> (ds-api/get-articles-content article-ids)

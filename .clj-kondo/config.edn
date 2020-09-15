@@ -1,7 +1,7 @@
 {:linters
  {:unresolved-symbol {:exclude
                       [;; ignore unresolved symbols inside these macro forms
-                       (sysrev.db.query-types/def-find-type nil)
+                       (sysrev.db.queries/def-find-type nil)
                        (sysrev.util/with-print-time-elapsed nil)
                        (sysrev.test.browser.core/deftest-browser nil)
                        (sysrev.macros/sr-defroute nil)

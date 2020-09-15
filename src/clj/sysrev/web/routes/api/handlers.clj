@@ -68,14 +68,12 @@
    :project-role "member"}
   (fn [request]
     (let [{:keys [project-id]} (:body request)
-          project (q/query-project-by-id project-id [:*])
-          members (-> (select :u.user-id)
-                      (from [:web-user :u])
-                      (q/filter-admin-user false)
-                      (q/join-user-member-entries project-id)
-                      do-query)
-          labels (-> (q/select-label-where project-id true [:name])
-                     (->> do-query (map :name)))]
+          project (q/get-project project-id :*, :include-disabled true)
+          members (q/find-project {:pm.project-id project-id} [:u.user-id]
+                                  :with [:project-member :web-user]
+                                  :include-disabled true
+                                  :prepare #(q/filter-admin-user % false))
+          labels  (q/find-label {:project-id project-id} :name)]
       (merge (->> [:project-id :name :date-created :settings]
                   (select-keys project))
              {:members members

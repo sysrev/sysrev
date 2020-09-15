@@ -59,8 +59,7 @@
                     [(map #(if (nil? %) "<not labeled>" %) lvalues)
                      count])))
         label-names
-        (->> label-ids (map #(:name (q/query-label-where
-                                     project-id [:= :label-id %] [:name]))))
+        (->> label-ids (map #(q/get-label % :name)))
         titles
         (concat label-names ["article_count"])
         output

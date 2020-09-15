@@ -468,12 +468,12 @@
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
   (util/assert-single user-id email)
-  (let [email (or email (user/get-user user-id :email))
+  (let [email (or email (q/get-user user-id :email))
         user-id (or user-id (user/user-by-email email :user-id))]
     (when (and email user-id)
       (when projects (delete-test-user-projects! user-id compensations))
       (when groups (delete-test-user-groups! user-id))
-      (when-let [stripe-id (user/get-user user-id :stripe-id)]
+      (when-let [stripe-id (q/get-user user-id :stripe-id)]
         (when-let [{:keys [sub-id]} (plans/user-current-plan user-id)]
           (stripe/delete-subscription! sub-id))
         (user/delete-user-stripe-customer! {:stripe-id stripe-id :user-id user-id}))

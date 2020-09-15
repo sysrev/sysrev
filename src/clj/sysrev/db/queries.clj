@@ -8,45 +8,17 @@
                                                merge-select]]
             [honeysql-postgres.helpers :as sqlh-pg]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
-            [sysrev.util :as util :refer
-             [in? map-values apply-keyargs ensure-pred assert-pred opt-keys]])
+            [sysrev.util :as util :refer [in? map-values apply-keyargs ensure-pred
+                                          assert-pred opt-keys filter-keys ensure-vector]])
   (:import java.util.UUID))
 
 ;; for clj-kondo
 (declare merge-join-args filter-user-permission filter-admin-user
          find find-one find-count exists not-exists create modify delete)
 
-;;;
-;;; * Query DSL
-;;;
-
-;;;
-;;; ** Shared helper functions
-;;;
-
-(defn wildcard? [kw]
-  (some-> kw name (str/ends-with? "*")))
-
-(defn literal? [kw]
-  (and (keyword? kw) (not (wildcard? kw))))
-
-(defn- sql-select-map?
-  "Test whether x is a honeysql map for a select query."
-  [x]
-  (and (map? x) (contains? x :select) (contains? x :from)))
-
-(defn- merge-match-by
-  "Returns updated honeysql map based on `m`, merging a where clause
-  generated from `match-by` map."
-  [m match-by]
-  (merge-where m (or (some->> (seq (for [[field match-value] (seq match-by)]
-                                     (if (or (sequential? match-value)
-                                             (sql-select-map? match-value))
-                                       [:in field match-value]
-                                       [:= field match-value])))
-                              (apply vector :and))
-                     true)))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Query DSL - spec definitions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn no-spaces? [s]
   (when (or (string? s) (keyword? s))
     (let [s (name s)]
@@ -95,17 +67,46 @@
 (s/def ::returning (s/or :single ::keyword-id
                          :multi  (s/coll-of ::keyword-id)))
 (s/def ::set-values map?)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- Query DSL - spec definitions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn read-named-id [id]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Query DSL - helper functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn wildcard? [kw]
+  (some-> kw name (str/ends-with? "*")))
+
+(defn literal? [kw]
+  (and (keyword? kw) (not (wildcard? kw))))
+
+(defn- sql-select-map?
+  "Test whether x is a honeysql map for a select query."
+  [x]
+  (and (map? x) (contains? x :select) (contains? x :from)))
+
+(defn- merge-match-by
+  "Returns updated honeysql map based on `m`, merging a where clause
+  generated from `match-by` map."
+  [m match-by]
+  (merge-where m (or (some->> (seq (for [[field match-value] (seq match-by)]
+                                     (if (or (sequential? match-value)
+                                             (sql-select-map? match-value))
+                                       [:in field match-value]
+                                       [:= field match-value])))
+                              (apply vector :and))
+                     true)))
+
+(defn- read-named-id [id]
   (->> (cond (s/valid? ::simple-id id)   [id id]
              (s/valid? ::aliased-id id)  id)
        (mapv keyword)))
 
-(defn read-table-column [id]
+(defn- read-table-column [id]
   (when (s/valid? ::table-column id)
     (mapv keyword (str/split (name id) #"\."))))
 
-(defn-spec merge-join-args map?
+(defn-spec ^:private merge-join-args map?
   "Returns updated honeysql map based on `m`, merging a join clause
   generated from `join-spec` using honeysql function
   `merge-join-fn` (e.g. merge-join, merge-left-join)."
@@ -139,7 +140,7 @@
             last
             keyword)))
 
-(def max-sql-query-literal-values 1000)
+(def ^:private max-sql-query-literal-values 1000)
 
 (defn- split-match-by-value-seqs
   "Converts a `match-by` map into a sequence of match-by maps, by
@@ -160,15 +161,16 @@
                                                     (get match-by k))]
                          (assoc match-by k k-group))
           :else        (list match-by))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- Query DSL - helper functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;
-;;; ** DSL functions
-;;;
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Query DSL - top-level functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; TODO: disallow LIMIT and ORDER BY when splitting with
 ;;       `split-match-by-value-seqs`?
 ;; TODO: splitting queries like this also breaks `find-count`
-
 (defn-spec find any?
   "Runs select query on `table` filtered according to `match-by`.
 
@@ -397,9 +399,9 @@
       :as opts} (opt-keys ::returning ::prepare ::return)]
   (assert (every? #{:returning :prepare :return} (keys opts)))
   (let [single-value? (map? insert-values)
-        insert-values (util/ensure-vector insert-values)
+        insert-values (ensure-vector insert-values)
         single-returning? (literal? returning)
-        returning (util/ensure-vector returning)]
+        returning (ensure-vector returning)]
     (when (seq insert-values)
       (-> (sqlh/insert-into table)
           (values insert-values)
@@ -430,7 +432,7 @@
       :as opts} (opt-keys ::where ::returning ::prepare ::join ::left-join ::return)]
   (assert (every? #{:where :returning :prepare :join :left-join :return} (keys opts)))
   (let [single-returning? (and (keyword? returning) (not= returning :*))
-        returning (util/ensure-vector returning)]
+        returning (ensure-vector returning)]
     (-> (sqlh/update table)
         (merge-match-by match-by)
         (sset set-values)
@@ -470,11 +472,203 @@
            :query   query
            :string  (db/to-sql-string query)
            :execute (first (do-execute query)))))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- Query DSL - top-level functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;
-;;; * Article queries
-;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ def-find-type macro (find-*, find-*-1, get-*)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defmacro --def-find-type-impl
+  "Defines table-specific functions query functions.
+  find-<table> find-<table>-1 get-<table>"
+  [find-fn
+   [table alias]
+   {:keys [id-field table-name join-default join-specs match-by opts]
+    :or {table-name nil join-default [] join-specs {}}
+    :as _customize}
+   {:keys [custom-opts -match-by -fields -opts -with]
+    :or {custom-opts []}
+    :as _symbols}]
+  (assert (->> (some-> find-fn name symbol)
+               (in? #{'find 'find-one nil}))
+          (format "invalid value for find-fn: %s" (some-> find-fn (symbol))))
+  (assert (keyword? table))
+  (assert (keyword? alias))
+  (assert (symbol? id-field))
+  (assert (->> table-name (s/valid? (s/nilable string?))))
+  (assert (symbol? -match-by))
+  (assert (symbol? -fields))
+  (assert (symbol? -opts))
+  (assert (symbol? -with))
+  (assert (->> custom-opts (s/valid? (s/coll-of symbol? :kind vector?))))
+  (assert (->> join-specs (s/valid? (s/map-of keyword? ::join-single))))
+  (assert (->> join-default (s/valid? (s/coll-of keyword? :kind vector?))))
+  (let [table-name   (or table-name (name table))
+        find-name    (symbol (str "find-" table-name))
+        find-name-1  (symbol (str "find-" table-name "-1"))
+        table-dot-*  (keyword (format "%s.*" (name alias)))
+        find-name-fn (condp = (some-> find-fn name symbol)
+                       'find      find-name
+                       'find-one  find-name-1
+                       nil)]
+    (if (symbol? find-fn)
+      `(defn ~find-name-fn
+         ([~-match-by & [~-fields & {:keys [~-with ~@custom-opts]
+                                     :or {~-with ~join-default}
+                                     :as ~-opts}]]
+          (apply-keyargs
+           ~find-fn ~[table alias]
+           ~(or match-by -match-by)
+           (or ~-fields ~table-dot-*)
+           (let [default-join-arg# (map #(get ~join-specs %) ~-with)]
+             (as-> ~-opts ~-opts
+               (update ~-opts :join
+                       #(some-> (concat default-join-arg# %) seq vec))
+               (cond-> ~-opts (nil? (:join ~-opts)) (dissoc :join))
+               (apply dissoc ~-opts
+                      ~(keyword -with) [~@(map keyword custom-opts)])
+               ~(or opts -opts)))))
+         {:doc ~(format "`%s` for table %s with specialized default options.
 
+  `%s` is a list of keywords naming tables to join with; values allowed are %s."
+                        (name find-fn) table
+                        (name -with) (-> join-specs keys vec pr-str))})
+      (when (symbol? id-field)
+        `(defn ~(symbol (str "get-" table-name))
+           ([~id-field & [~-fields & {:keys [~-with ~@custom-opts] :as ~-opts}]]
+            (apply-keyargs (if (sequential? ~id-field) ~find-name ~find-name-1)
+                           {~(keyword (format "%s.%s" (name alias) (name id-field)))
+                            ~id-field}
+                           (or ~-fields ~table-dot-*)
+                           ~-opts))
+           {:doc ~(format "Query table %s by value of %s.
+
+  If `%s` is a sequence, calls `%s`; otherwise `%s`.
+
+  `%s` is a list of keywords naming tables to join with; values allowed are %s."
+                          table (keyword id-field)
+                          (name id-field) (name find-name) (name find-name-1)
+                          (name -with) (-> join-specs keys vec pr-str))})))))
+
+(defmacro def-find-type
+  "Defines table-specific functions query functions.
+  find-<table> find-<table>-1 get-<table>"
+  [[table alias]
+   {:keys [id-field table-name join-default join-specs match-by opts]
+    :or {table-name nil join-default [] join-specs {}}
+    :as customize}
+   {:keys [custom-opts -match-by -fields -opts -with]
+    :or {custom-opts []}
+    :as symbols}]
+  `(list (--def-find-type-impl find      [~table ~alias] ~customize ~symbols)
+         (--def-find-type-impl find-one  [~table ~alias] ~customize ~symbols)
+         (--def-find-type-impl nil       [~table ~alias] ~customize ~symbols)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- def-find-type macro (find-*, find-*-1, get-*)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ def-find-type table definitions (find-*, find-*-1, get-*)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(declare find-project find-project-1 get-project)
+(def-find-type [:project :p]
+  {:id-field       project-id
+   :join-default   []
+   :join-specs     {:label           [[:label :l]            :p.project-id]
+                    :project-member  [[:project-member :pm]  :p.project-id]
+                    :web-user        [[:web-user :u]         :pm.user-id]
+                    :project-note    [[:project-note :pn]    :p.project-id]}
+   :match-by       (cond->> match-by
+                     (not include-disabled) (merge {:p.enabled true}))}
+  {:custom-opts [include-disabled]
+   :-match-by match-by :-fields fields :-opts opts :-with with})
+
+(declare find-user find-user-1 get-user)
+(def-find-type [:web-user :u]
+  {:id-field       user-id
+   :table-name     "user"
+   :join-default   []
+   :join-specs     {:project-member  [[:project-member :pm]  :u.user-id]
+                    :project         [[:project :p]          :pm.project-id]}}
+  {:-match-by match-by :-fields fields :-opts opts :-with with})
+
+(declare find-label find-label-1 get-label)
+(def-find-type [:label :l]
+  {:id-field       label-id
+   :join-default   []
+   :join-specs     {:project [[:project :p] :l.project-id]}
+   :match-by       (cond->> match-by
+                     (not include-disabled) (merge {:l.enabled true}))}
+  {:custom-opts [include-disabled]
+   :-match-by match-by :-fields fields :-opts opts :-with with})
+
+(declare find-article find-article-1 get-article)
+(def-find-type [:article :a]
+  {:id-field      article-id
+   :join-default  [:article-data]
+   :join-specs    {:project         [[:project :p]          :a.project-id]
+                   :article-data    [[:article-data :ad]    :a.article-data-id]
+                   :article-label   [[:article-label :al]   :a.article-id]
+                   :label           [[:label :l]            :al.label-id]
+                   :web-user        [[:web-user :u]         :al.user-id]
+                   :article-note    [[:article-note :an]    :a.article-id]
+                   :project-note    [[:project-note :pn]    :an.project-note-id]
+                   :article-resolve [[:article-resolve :ar] :ar.article-id]
+                   :predict-run     [[:predict-run :pr]     :p.project-id]}
+   :match-by      (cond->> match-by
+                    (and (not include-disabled)
+                         (not include-disabled-source)) (merge {:a.enabled true}))
+   :opts          (cond-> opts
+                    include-disabled-source
+                    (update :where #(vector :and (if (some? %) % true)
+                                            (not-exists [:article-flag :af-1]
+                                                        {:af-1.article-id :a.article-id
+                                                         :af-1.disable true}))))}
+  {:custom-opts [include-disabled include-disabled-source]
+   :-match-by match-by :-fields fields :-opts opts :-with with})
+
+(defn label-confirmed-test [confirmed?]
+  (case confirmed?
+    true [:!= :confirm-time nil]
+    false [:= :confirm-time nil]
+    true))
+(defn where-valid-article-label [confirmed?]
+  [:and (label-confirmed-test confirmed?)
+   [:!= :al.answer nil]
+   [:!= :al.answer (db/to-jsonb nil)]
+   [:!= :al.answer (db/to-jsonb [])]])
+(defn filter-valid-article-label [m confirmed?]
+  (merge-where m (where-valid-article-label confirmed?)))
+
+(declare find-article-label find-article-label-1 get-article-label)
+(def-find-type [:article-label :al]
+  {:id-field      article-label-id
+   :join-default  [:article :label :web-user]
+   :join-specs    {:article       [[:article :a]        :al.article-id]
+                   :label         [[:label :l]          :al.label-id]
+                   :web-user      [[:web-user :u]       :al.user-id]
+                   :project       [[:project :p]        :a.project-id]
+                   :article-data  [[:article-data :ad]  :a.article-data-id]}
+   :match-by      (cond->> match-by
+                    (not include-disabled)
+                    (merge {:a.enabled true, :l.enabled true}))
+   :opts          (update opts :where
+                          #(apply vector :and (if (some? %) % true)
+                                  (->> {filter-valid        (where-valid-article-label nil)
+                                        (true? confirmed)   [:!= :al.confirm-time nil]
+                                        (false? confirmed)  [:= :al.confirm-time nil]}
+                                       (filter-keys boolean)
+                                       vals)))}
+  {:custom-opts [include-disabled filter-valid confirmed]
+   :-match-by match-by :-fields fields :-opts opts :-with with})
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- def-find-type table definitions (find-*, find-*-1, get-*)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Article queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn select-project-articles
   "Constructs a honeysql query to select the articles in project-id.
 
@@ -521,48 +715,13 @@
    fields
    {:include-disabled? include-disabled?
     :tname tname}))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- Article queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn filter-article-by-disable-flag
-  [m disabled? & [{:keys [tname] :or {tname :a}} :as _opts]]
-  (let [exists
-        [:exists
-         (-> (select :*)
-             (from [:article-flag :af-filter])
-             (where [:and
-                     [:= :af-filter.disable true]
-                     [:=
-                      :af-filter.article-id
-                      (sql-field tname :article-id)]]))]]
-    (cond-> m
-      disabled? (merge-where exists)
-      (not disabled?) (merge-where [:not exists]))))
-
-(defn join-article-flags [m]
-  (merge-join m [:article-flag :aflag] [:= :aflag.article-id :a.article-id]))
-
-(defn query-article-by-id [article-id fields & [opts]]
-  (-> (select-article-by-id article-id fields opts)
-      do-query first))
-
-;;;
-;;; * Label queries
-;;;
-
-(defn select-label-by-id
-  [label-id fields & [{:keys [include-disabled?]
-                       :or {include-disabled? true} :as _opts}]]
-  (assert (or (in? [UUID String] (type label-id))
-              (integer? label-id)))
-  (cond->
-      (-> (apply select fields)
-          (from [:label :l]))
-    (integer? label-id)
-    (merge-where [:= :label-id-local label-id])
-    (not (integer? label-id))
-    (merge-where [:= :label-id label-id])
-    (not include-disabled?)
-    (merge-where [:= :enabled true])))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Label queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn select-label-where
   [project-id where-clause fields & [{:keys [include-disabled?]
                                       :or {include-disabled? false} :as _opts}]]
@@ -574,10 +733,6 @@
     project-id (merge-where [:= :project-id project-id])
 
     (not include-disabled?) (merge-where [:= :enabled true])))
-
-(defn query-label-where [project-id where-clause fields]
-  (-> (select-label-where project-id where-clause (or fields [:*]))
-      do-query first))
 
 (defn join-article-labels [m & [{:keys [tname-a tname-al]
                                  :or {tname-a :a
@@ -598,22 +753,6 @@
   (-> m (merge-join [:label :l]
                     [:= :l.label-id :al.label-id])))
 
-(defn label-confirmed-test [confirmed?]
-  (case confirmed?
-    true [:!= :confirm-time nil]
-    false [:= :confirm-time nil]
-    true))
-
-(defn where-valid-article-label [confirmed?]
-  [:and (label-confirmed-test confirmed?)
-   [:!= :al.answer nil]
-   [:!= :al.answer (db/to-jsonb nil)]
-   [:!= :al.answer (db/to-jsonb [])]
-   #_ [:!= :al.answer (db/to-jsonb {})]])
-
-(defn filter-valid-article-label [m confirmed?]
-  (merge-where m (where-valid-article-label confirmed?)))
-
 (defn filter-label-user [m user-id]
   (-> m (merge-where [:= :al.user-id user-id])))
 
@@ -622,20 +761,14 @@
       (join-article-labels)
       (join-article-label-defs)
       (filter-valid-article-label confirmed?)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- Label queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn select-user-article-labels [user-id article-id confirmed? fields]
-  (-> (apply select fields)
-      (from [:article-label :al])
-      (where [:and
-              [:= :al.user-id user-id]
-              [:= :al.article-id article-id]])
-      (filter-valid-article-label confirmed?)))
-
-;;;
-;;; * Project queries
-;;;
-
-(defn select-project-where [where-clause fields]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Project queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- select-project-where [where-clause fields]
   (cond-> (-> (apply select fields) (from [:project :p]))
     (and (not (nil? where-clause))
          (not (true? where-clause))) (merge-where where-clause)))
@@ -643,20 +776,11 @@
 (defn query-project-by-id [project-id fields]
   (-> (select-project-where [:= :p.project-id project-id] fields)
       do-query first))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;
-;;; * Keyword queries
-;;;
-
-(defn select-project-keywords [project-id fields]
-  (-> (apply select fields)
-      (from [:project-keyword :pkw])
-      (where [:= :pkw.project-id project-id])))
-
-;;;
-;;; * User queries
-;;;
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ User queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn select-project-members [project-id fields]
   (-> (apply select fields)
       (from [:project-member :m])
@@ -683,22 +807,13 @@
     (true? admin?) (filter-user-permission "admin")
     (false? admin?) (filter-user-permission "admin" true)
     (nil? admin?) (identity)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- User queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;
-;;; * Label prediction queries
-;;;
-
-(defn select-predict-run-where [where-clause fields]
-  (cond-> (-> (apply select fields)
-              (from [:predict-run :pr]))
-    (and (not (nil? where-clause))
-         (not (true? where-clause))) (merge-where where-clause)))
-
-(defn query-predict-run-by-id [predict-run-id fields]
-  (-> (select-predict-run-where
-       [:= :predict-run-id predict-run-id] fields)
-      do-query first))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Label prediction queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn join-article-predict-values [m & [predict-run-id]]
   (if-not predict-run-id m
           (-> m
@@ -722,74 +837,28 @@
                             [:= :l.name "overall include"]])
               (merge-select [:lp.val :score]))))
 
-(defn select-latest-predict-run [fields]
-  (-> (apply select fields)
-      (from [:predict-run :pr])
-      (sqlh/order-by [:pr.create-time :desc])
-      (sqlh/limit 1)))
-
 (defn project-latest-predict-run-id
   "Gets the most recent predict-run ID for a project."
   [project-id]
   (db/with-project-cache project-id [:predict :latest-predict-run-id]
-    (-> (select-latest-predict-run [:predict-run-id])
-        (merge-where [:= :project-id project-id])
-        do-query first :predict-run-id)))
+    (first (find :predict-run {:project-id project-id} :predict-run-id
+                 :order-by [:create-time :desc] :limit 1))))
 
 (defn article-latest-predict-run-id
   "Gets the most recent predict-run ID for the project of an article."
   [article-id]
-  (-> (select-latest-predict-run [:predict-run-id])
-      (merge-join [:project :p]
-                  [:= :p.project-id :pr.project-id])
-      (merge-join [:article :a]
-                  [:= :a.project-id :p.project-id])
-      (merge-where (if (or (string? article-id) (uuid? article-id))
-                     [:= :a.article-uuid article-id]
-                     [:= :a.article-id article-id]))
-      do-query first :predict-run-id))
+  (first (find-article {:a.article-id article-id} :pr.predict-run-id
+                       :include-disabled true
+                       :with [:project :predict-run]
+                       :order-by [:pr.create-time :desc] :limit 1)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; -- Label prediction queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;
-;;; * Article note queries
-;;;
-
-(defn with-project-note [m & [note-name]]
-  (cond-> m
-    true (merge-join [:project-note :pn]
-                     [:= :pn.project-id :p.project-id])
-    note-name (merge-where [:= :pn.name note-name])))
-
-(defn with-article-note [m & [note-name user-id]]
-  (cond->
-      (-> m
-          (merge-join [:article-note :an]
-                      [:= :an.article-id :a.article-id])
-          (merge-join [:project-note :pn]
-                      [:= :pn.project-note-id :an.project-note-id]))
-    note-name (merge-where [:= :pn.name note-name])
-    user-id (merge-where [:= :an.user-id user-id])))
-
-;;;
-;;; * Utility functions
-;;;
-
-(defn query-multiple-by-id
-  "Runs query to select rows from table where id-field is any of id-values.
-  Allows for unlimited count of id-values by partitioning values into
-  groups and running multiple select queries."
-  [table fields id-field id-values & {:keys [where prepare]}]
-  (apply concat (for [id-group (->> (if (sequential? id-values) id-values [id-values])
-                                    (partition-all 200))]
-                  (when (seq id-group)
-                    (-> (apply select fields) (from table)
-                        (sqlh/where [:in id-field (vec id-group)])
-                        (#(if where (merge-where % where) %))
-                        (#(if prepare (prepare %) %))
-                        do-query)))))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ++ Utility functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn table-exists? [table]
   (try (find table {} :*, :limit 1) true
        (catch Throwable _ false)))
-
-(defn table-count [table]
-  (find-one table {} [[:%count.* :count]]))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

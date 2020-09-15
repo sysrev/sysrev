@@ -67,7 +67,7 @@
 
 (defn merge-duplicate-articles [article-ids]
   (when (seq article-ids)
-    (let [articles (doall (->> article-ids (pmap #(q/query-article-by-id % [:*]))))
+    (let [articles (doall (pmap q/get-article article-ids))
           single-id (->> articles
                          (sort-by #(vector (-> % :urls count)
                                            (-> % :locations count)

@@ -6,10 +6,9 @@
             [clj-http.client :as http]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
-            [sysrev.db.query-types :as qt]
-            [sysrev.util :as util :refer
-             [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys
-              gquery url-join index-by]])
+            [sysrev.db.queries :as q]
+            [sysrev.util :as util :refer [assert-pred map-keys parse-integer apply-keyargs
+                                          req-un opt-keys gquery url-join index-by]])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
 ;; for clj-kondo
@@ -206,9 +205,9 @@
    content for each article from either datasource API or local
    `article-data` table."
   [article-ids (s/every int?)]
-  (->> (qt/find-article {:article-id (distinct article-ids)}
-                        [:a.* :ad.datasource-name :ad.external-id :ad.content]
-                        :include-disabled true)
+  (->> (q/get-article (distinct article-ids)
+                      [:a.* :ad.datasource-name :ad.external-id :ad.content]
+                      :include-disabled true)
        enrich-articles-with-datasource
        (index-by :article-id)))
 

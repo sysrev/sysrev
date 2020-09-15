@@ -1,15 +1,25 @@
 (ns sysrev.test.db.project
   (:require [clojure.test :refer [deftest is use-fixtures]]
-            [sysrev.db.core :as db :refer [do-query]]
+            [honeysql.helpers :refer [select from where merge-where]]
+            [sysrev.db.core :as db :refer [do-query sql-field]]
             [sysrev.db.queries :as q]
-            #_ [sysrev.project.core :as project]
-            #_ [sysrev.source.core :as source]
-            #_ [sysrev.source.import :as import]
-            #_ [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.core :refer [default-fixture]]))
 
 (use-fixtures :once default-fixture)
-#_ (use-fixtures :each database-rollback-fixture)
+
+(defn- filter-article-by-disable-flag
+  [m disabled? & [{:keys [tname] :or {tname :a}} :as _opts]]
+  (let [exists
+        [:exists
+         (-> (select :*)
+             (from [:article-flag :af-filter])
+             (where [:and
+                     [:= :af-filter.disable true]
+                     [:= :af-filter.article-id
+                      (sql-field tname :article-id)]]))]]
+    (cond-> m
+      disabled? (merge-where exists)
+      (not disabled?) (merge-where [:not exists]))))
 
 (deftest article-flag-counts
   (doseq [project-id (q/find :project {} :project-id, :limit 10)]
@@ -19,8 +29,8 @@
           [total flag-enabled flag-disabled]
           (db/with-transaction
             [(get-count query)
-             (get-count (-> query (q/filter-article-by-disable-flag true)))
-             (get-count (-> query (q/filter-article-by-disable-flag false)))])]
+             (get-count (-> query (filter-article-by-disable-flag true)))
+             (get-count (-> query (filter-article-by-disable-flag false)))])]
       (is (= total (+ flag-enabled flag-disabled))))))
 
 #_

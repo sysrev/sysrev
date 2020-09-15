@@ -34,7 +34,7 @@
             [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.label.define :as ldefine]
-            [sysrev.user.core :as user :refer [get-user user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.group.core :as group]
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
@@ -150,7 +150,7 @@
   the project, disables project instead of deleting it"
   [project-id int?, user-id int?]
   (assert (or (member/member-role? project-id user-id "admin")
-              (in? (get-user user-id :permissions) "admin")))
+              (in? (q/get-user user-id :permissions) "admin")))
   (if (project/project-has-labeled-articles? project-id)
     (project/disable-project! project-id)
     (project/delete-project project-id))
@@ -349,7 +349,7 @@
 (defn update-user-stripe-payment-method!
   "Update the payment method for user-id"
   [user-id payment-method]
-  (let [{:keys [stripe-id]} (get-user user-id)
+  (let [{:keys [stripe-id]} (q/get-user user-id)
         stripe-response (stripe/update-customer-payment-method! stripe-id payment-method)]
     (if (:error stripe-response)
       stripe-response
@@ -532,7 +532,7 @@
 
 (defn user-default-stripe-source [user-id]
   (with-transaction
-    {:default-source (or (some-> (:stripe-id (get-user user-id))
+    {:default-source (or (some-> (q/get-user user-id :stripe-id)
                                  (stripe/get-customer-invoice-default-payment-method))
                          [])}))
 
@@ -682,7 +682,7 @@
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 (defn pay-user!
   [project-id user-id compensation admin-fee]
-  (let [user (get-user user-id)
+  (let [user (q/get-user user-id)
         total-amount (+ compensation admin-fee)
         {:keys [available-funds]} (calculate-project-funds project-id)]
     (if (> total-amount available-funds)
@@ -1039,7 +1039,7 @@
                                 invitation/invitations-for-user
                                 (filter #(= project-id (:project-id %)))
                                 (filter #(= description (:description %))))
-        email (get-user invitee :email)]
+        email (q/get-user invitee :email)]
     (if (empty? project-invitation)
       (do
         ;; send invitation email
@@ -1218,7 +1218,7 @@
         (-> (response/response (s3-file/get-file-stream key :image))
             (response/header "Content-Disposition"
                              (format "attachment: filename=\"%s\"" filename))))
-      (when-let [gravatar-img (user-image/gravatar-image-data (get-user user-id :email))]
+      (when-let [gravatar-img (user-image/gravatar-image-data (q/get-user user-id :email))]
         (-> (response/response gravatar-img)
             (response/header "Content-Disposition"
                              (format "attachment: filename=\"%d-gravatar.jpeg\"" user-id))))
@@ -1255,7 +1255,7 @@
       (with-transaction
         ;; create the group
         (let [new-org-id (group/create-group! org-name)
-              user (get-user user-id)
+              user (q/get-user user-id)
               _ (group/create-group-stripe-customer! new-org-id user)
               stripe-id (group/group-stripe-id new-org-id)]
           ;; set the user as group admin

@@ -100,7 +100,6 @@
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.api :as api]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])

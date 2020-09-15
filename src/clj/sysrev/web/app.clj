@@ -8,7 +8,7 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :refer [get-user user-by-api-token update-member-access-time]]
+            [sysrev.user.core :refer [user-by-api-token update-member-access-time]]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [project-member]]
             [sysrev.web.build :as build]
@@ -266,7 +266,7 @@
          valid-project# (some-> project-id# ((ensure-pred integer?)) project/project-exists?)
          public-project# (and valid-project# (-> (project/project-settings project-id#)
                                                  ((comp true? :public-access))))
-         user# (and user-id# (get-user user-id#))
+         user# (some-> user-id# q/get-user)
          member# (and user-id# valid-project# (project-member project-id# user-id#))
          dev-user?# (in? (:permissions user#) "admin")
          mperms# (:permissions member#)

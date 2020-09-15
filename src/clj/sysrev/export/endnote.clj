@@ -13,7 +13,7 @@
 (defn all-included-articles [project-id]
   (->> (keys (labels/project-included-articles project-id))
        (mapv (fn [article-id]
-               (let [article (q/query-article-by-id article-id [:*])]
+               (let [article (q/get-article article-id)]
                  (assoc article :rec-number (-> (parse-xml-str (:raw article))
                                                 (xml-find-value [:rec-number]))))))
        (group-by :rec-number)

@@ -12,7 +12,6 @@
             [sysrev.db.core :as db :refer
              [with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.user.core :as user]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
@@ -38,8 +37,7 @@
             [sysrev.slack :as slack]
             [sysrev.util :as util :refer [parse-integer]]
             [ring.util.io :as ring-io])
-  (:import (java.io File)
-           (java.util.zip ZipOutputStream ZipEntry ZipInputStream)))
+  (:import (java.io File)))
 
 ;; for clj-kondo
 (declare project-routes dr finalize-routes)
@@ -711,18 +709,18 @@
 (dr (GET "/api/user-support-subscriptions" request
          (with-authorize request {:logged-in true}
            (api/user-support-subscriptions
-            (user/get-user (current-user-id request))))))
+            (q/get-user (current-user-id request))))))
 
 (dr (GET "/api/current-support" request
          (with-authorize request {:logged-in true}
            (api/user-project-support-level
-            (user/get-user (current-user-id request))
+            (q/get-user (current-user-id request))
             (active-project request)))))
 
 (dr (POST "/api/cancel-project-support" request
           (with-authorize request {:logged-in true}
             (api/cancel-user-project-support
-             (user/get-user (current-user-id request))
+             (q/get-user (current-user-id request))
              (active-project request)))))
 
 ;;;
@@ -775,7 +773,7 @@
                   {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
                                           (filter #(= key (str (:key %))))
                                           first)]
-              (if (not= (qt/get-article article-id :project-id)
+              (if (not= (q/get-article article-id :project-id)
                         (active-project request))
                 {:error {:status api/not-found
                          :message (str "Article " article-id " not found in project")}}

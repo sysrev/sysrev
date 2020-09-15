@@ -12,7 +12,6 @@
             [sysrev.db.core :as db :refer
              [do-query with-transaction with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.util :as util :refer
              [map-values filter-values index-by opt-keys]])
@@ -135,13 +134,13 @@
   [project-id int? &
    [include-disabled] (s/cat :include-disabled (s/? (s/nilable boolean?)))]
   (with-project-cache project-id [:labels :consensus include-disabled]
-    (qt/find-label {:project-id project-id :consensus true} :label-id
-                   :include-disabled include-disabled)))
+    (q/find-label {:project-id project-id :consensus true} :label-id
+                  :include-disabled include-disabled)))
 
 (defn-spec project-overall-label-id (s/nilable ::sl/label-id)
   [project-id int?]
   (with-project-cache project-id [:labels :overall-label-id]
-    (qt/find-label-1 {:project-id project-id :name "overall include"} :label-id)))
+    (q/find-label-1 {:project-id project-id :name "overall include"} :label-id)))
 
 (defn-spec delete-member-labels-notes nil?
   "Deletes all labels and notes saved in `project-id` by `user-id`."
@@ -177,9 +176,9 @@
   "Returns map of `project-keyword` entries for a project."
   [project-id int?]
   (with-project-cache project-id [:keywords :all]
-    (->> (do-query (q/select-project-keywords project-id [:*]))
-         (map (fn [kw] (assoc kw :toks (->> (str/split (:value kw) #" ")
-                                            (mapv canonical-keyword)))))
+    (->> (q/find :project-keyword {:project-id project-id} :*)
+         (map #(assoc % :toks (->> (str/split (:value %) #" ")
+                                   (mapv canonical-keyword))))
          (index-by :keyword-id))))
 
 (defn-spec add-project-note ::snt/project-note
@@ -218,11 +217,9 @@
   (q/find :project-member {:project-id project-id} :user-id :return return))
 
 (defn project-id-from-register-hash [register-hash]
-  (-> (q/select-project-where true [:project-id :project-uuid])
-      (->> do-query
-           (filter (fn [{:keys [project-id project-uuid]}]
-                     (= register-hash (util/short-uuid project-uuid))))
-           first :project-id)))
+  (->> (q/find :project {} [:project-id :project-uuid])
+       (filter #(= register-hash (-> % :project-uuid util/short-uuid)))
+       first :project-id))
 
 (defn-spec project-exists? boolean?
   "Does a project with project-id exist?"

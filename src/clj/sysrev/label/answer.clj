@@ -1,7 +1,6 @@
 (ns sysrev.label.answer
   (:require [sysrev.db.core :as db :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.project.core :as project]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :as util :refer [in?]]))
@@ -47,7 +46,7 @@
   for an article at current time and for current consensus labels."
   [article-id user-id & {:keys [resolve-time label-ids]}]
   (with-transaction
-    (let [project-id (qt/get-article article-id :project-id)
+    (let [project-id (q/get-article article-id :project-id)
           label-ids (or label-ids (project/project-consensus-label-ids project-id))
           resolve-time (or resolve-time (db/sql-now))]
       (q/create :article-resolve [{:article-id article-id
@@ -75,7 +74,7 @@
   (assert (integer? article-id))
   (assert (map? label-values))
   (with-transaction
-    (let [{:keys [project-id]} (q/query-article-by-id article-id [:project-id])
+    (let [project-id (q/get-article article-id :project-id, :with [])
           project-labels (project/project-labels project-id)
           valid-values (filter-valid-label-values project-labels label-values)
           now (db/sql-now)

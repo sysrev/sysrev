@@ -148,35 +148,18 @@
             do-execute)))))
 
 (defn copy-project-keywords [src-project-id dest-project-id]
-  (let [src-id-to-name
-        (-> (q/select-label-where src-project-id true
-                                  [:label-id :name]
-                                  {:include-disabled? true})
-            (->> do-query
-                 (map (fn [{:keys [label-id name]}]
-                        [label-id name]))
-                 (apply concat)
-                 (apply hash-map)))
-        name-to-dest-id
-        (-> (q/select-label-where dest-project-id true
-                                  [:label-id :name]
-                                  {:include-disabled? true})
-            (->> do-query
-                 (map (fn [{:keys [label-id name]}]
-                        [name label-id]))
-                 (apply concat)
-                 (apply hash-map)))
+  (let [src-id-to-name  (q/find-label {:project-id src-project-id}
+                                      :name, :index-by :label-id, :include-disabled true)
+        name-to-dest-id (q/find-label {:project-id dest-project-id}
+                                      :label-id, :index-by :name, :include-disabled true)
         convert-label-id #(-> % src-id-to-name name-to-dest-id)
-        entries
-        (-> (q/select-project-keywords src-project-id [:*])
-            (->> do-query
-                 (map #(when-let [label-id (convert-label-id (:label-id %))]
-                         (-> (dissoc % :keyword-id :label-id :project-id)
-                             (assoc :label-id label-id
-                                    :project-id dest-project-id)
-                             (update :label-value to-jsonb))))
-                 (remove nil?)
-                 vec))]
+        entries (->> (q/find :project-keyword {:project-id src-project-id})
+                     (map #(when-let [label-id (convert-label-id (:label-id %))]
+                             (-> (dissoc % :keyword-id :label-id :project-id)
+                                 (assoc :label-id label-id
+                                        :project-id dest-project-id)
+                                 (update :label-value to-jsonb))))
+                     (filterv some?))]
     (q/create :project-keyword entries)))
 
 (defn populate-child-project-articles [parent-id child-id article-uuids]

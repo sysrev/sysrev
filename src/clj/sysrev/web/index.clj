@@ -2,15 +2,15 @@
   (:require [clojure.string :as str]
             [hiccup.page :as page]
             [sitemap.core :refer [generate-sitemap]]
-            [sysrev.shared.components :refer [loading-content]]
             [sysrev.config :refer [env]]
-            [sysrev.payment.paypal :refer [paypal-env paypal-client-id]]
-            [sysrev.web.build :as build]
-            [sysrev.payment.stripe :refer [stripe-public-key stripe-client-id]]
-            [sysrev.util :refer [today-string]]
-            [sysrev.user.core :refer [get-user]]
+            [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
-            [sysrev.shared.text :as text]))
+            [sysrev.web.build :as build]
+            [sysrev.payment.paypal :refer [paypal-env paypal-client-id]]
+            [sysrev.payment.stripe :refer [stripe-public-key stripe-client-id]]
+            [sysrev.shared.text :as text]
+            [sysrev.shared.components :refer [loading-content]]
+            [sysrev.util :refer [today-string]]))
 
 (defonce web-asset-path (atom "/out"))
 
@@ -22,7 +22,7 @@
 
 (defn- user-theme [{:keys [session] :as _request}]
   (if-let [user-id (-> session :identity :user-id)]
-    (or (some-> user-id get-user :settings :ui-theme str/lower-case)
+    (or (some-> (q/get-user user-id :settings) :ui-theme str/lower-case)
         "default")
     (or (some-> session :settings :ui-theme str/lower-case)
         "default")))

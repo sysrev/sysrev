@@ -1,7 +1,10 @@
 #!/bin/bash
 set -eu -o pipefail ; S="./scripts"
 
-[[ -e "./flyway" ]] && (echo "flyway is already installed" ; false)
+if [[ -e "./flyway" ]]; then
+  echo "flyway is already installed"
+  exit
+fi
 
 v="6.5.5"
 

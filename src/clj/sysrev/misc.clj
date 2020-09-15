@@ -20,8 +20,7 @@
         " )")))
 
 (defn fix-duplicate-label-values [label-id]
-  (let [label (->> (q/select-label-by-id label-id [:*])
-                   do-query first)
+  (let [label (q/get-label label-id)
         {:keys [all-values inclusion-values]} (:definition label)]
     (cond-> label
       all-values        (update-in [:definition :all-values]

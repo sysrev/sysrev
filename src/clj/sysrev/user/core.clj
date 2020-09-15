@@ -29,9 +29,6 @@
   (q/find-one :web-user {} (or fields :*)
               :where [:= (sql/call :lower :email) (sql/call :lower email)]))
 
-(defn get-user [user-id & args]
-  (apply q/find-one :web-user {:user-id user-id} args))
-
 (defn user-projects
   "Returns sequence of projects for which user-id is a
   member. Includes :project-id by default; fields optionally specifies
@@ -151,15 +148,15 @@
 
 (defn user-password-reset-url
   [user-id & {:keys [url-base] :or {url-base "https://sysrev.com"}}]
-  (when-let [reset-code (get-user user-id :reset-code)]
+  (when-let [reset-code (q/get-user user-id :reset-code)]
     (format "%s/reset-password/%s" url-base reset-code)))
 
 (defn user-settings [user-id]
-  (into {} (get-user user-id :settings)))
+  (into {} (q/get-user user-id :settings)))
 
 (defn change-user-setting [user-id setting new-value]
   (with-transaction
-    (let [cur-settings (get-user user-id :settings)
+    (let [cur-settings (q/get-user user-id :settings)
           new-settings (assoc cur-settings setting new-value)]
       (assert (s/valid? ::su/settings new-settings))
       (q/modify :web-user {:user-id user-id} {:settings (db/to-jsonb new-settings)})
@@ -168,7 +165,7 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [_self?]]
-  (get-user user-id [:user-id :user-uuid :email :verified :permissions :settings]))
+  (q/get-user user-id [:user-id :user-uuid :email :verified :permissions :settings]))
 
 (defn user-self-info
   "Returns a map of values with various user account information.
@@ -268,7 +265,7 @@
   (q/find-one :user-email {:user-id user-id :email email}))
 
 (defn primary-email-verified? [user-id]
-  (when-let [email (get-user user-id :email)]
+  (when-let [email (q/get-user user-id :email)]
     (boolean (q/find-one :user-email {:user-id user-id :email email :principal true}
                          :verified))))
 
