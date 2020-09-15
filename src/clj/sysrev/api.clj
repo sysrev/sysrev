@@ -874,19 +874,16 @@
                        (->> (:files (article-pdfs aid))
                             (map-indexed (fn [i art]
                                            (if (= i 0)
-                                                 {:key (:key art) :name (format "%s.pdf" aid)}
-                                                 {:key (:key art) :name (format "%s-%d.pdf" aid i)})))))
+                                             {:key (:key art) :name (format "%s.pdf" aid)}
+                                             {:key (:key art) :name (format "%s-%d.pdf" aid i)})))))
                      articles)
         tmpzip (util/create-tempfile :suffix (format "%d.zip" project-id))]
     (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
       (doseq [f pdfs]
-        (try
-          (let [is (s3-file/get-file-stream (:key f) :pdf)]
-            (.putNextEntry zip (ZipEntry. (str (:name f))))
-            (io/copy is zip)
-            (.close is))
-          (catch Exception _)
-          )))
+        (util/ignore-exceptions
+         (with-open [is (s3-file/get-file-stream (:key f) :pdf)]
+           (.putNextEntry zip (ZipEntry. (str (:name f))))
+           (io/copy is zip)))))
     tmpzip))
 
 (defn dissociate-article-pdf

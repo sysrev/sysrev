@@ -136,17 +136,16 @@
      [:custom5 (-> article :article-uuid str)]]))
 
 (defn- article-ids-to-endnote-xml [article-ids filename & {:keys [file]}]
-  (let [entries (->> article-ids
-                     (pmap #(article-to-endnote-xml % {:filename filename})))
-        writer (io/writer file)]
-    (-> [:xml [:records entries]]
-        (dxml/sexp-as-element)
-        (#(if file
-            (do (dxml/emit % writer)
-                (.flush writer)
-                (.close writer)
-                file)
-            (dxml/emit-str %))))))
+  (-> [:xml [:records (pmap #(article-to-endnote-xml % {:filename filename})
+                            article-ids)]]
+      (dxml/sexp-as-element)
+      (as-> element
+          (if file
+            (with-open [writer (io/writer file)]
+              (dxml/emit element writer)
+              (.flush writer)
+              file)
+            (dxml/emit-str element)))))
 
 (defn- make-out-file [to-file]
   (cond (nil? to-file)   nil
