@@ -9,8 +9,7 @@
             [honeysql-postgres.helpers :as sqlh-pg]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
             [sysrev.util :as util :refer [in? map-values apply-keyargs ensure-pred
-                                          assert-pred opt-keys filter-keys ensure-vector]])
-  (:import java.util.UUID))
+                                          assert-pred opt-keys ensure-vector]]))
 
 ;; for clj-kondo
 (declare merge-join-args filter-user-permission filter-admin-user
@@ -47,7 +46,7 @@
 
 ;;; top-level function args
 (s/def ::table ::named-id)
-(s/def ::match-by (s/nilable (s/map-of ::simple-id any?)))
+(s/def ::match-by (s/nilable (s/map-of any? any?)))
 (s/def ::fields (s/or :single ::named-id
                       :multi (s/coll-of ::named-id)))
 (s/def ::index-by ifn?)
@@ -358,13 +357,14 @@
       :as opts} (opt-keys ::where ::prepare ::join ::left-join ::return)]
   (apply-keyargs find-one table match-by [[:%count.* :count]] opts))
 
+(s/def ::opts-exists (opt-keys ::join ::left-join ::where ::prepare))
+
 (defn-spec exists vector?
   "Runs (find ... :return :query) and wraps result in [:exists ...].
 
   See `find` for description of all arguments."
   [table ::table, match-by ::match-by
-   & {:keys [join left-join where prepare]
-      :as opts} (opt-keys ::join ::left-join ::where ::prepare)]
+   & {:keys [join left-join where prepare] :as opts} ::opts-exists]
   (assert (every? #{:join :left-join :where :prepare} (keys opts)))
   [:exists (apply-keyargs find table match-by :*
                           (assoc opts :return :query))])
@@ -373,7 +373,8 @@
   "Runs (find ... :return :query) and wraps result in [:not [:exists ...].
 
   See `find` for description of all arguments."
-  [table ::table, match-by ::match-by, & {:as opts} ::opts-exists]
+  [table ::table, match-by ::match-by
+   & {:keys [join left-join where prepare]:as opts} ::opts-exists]
   [:not (apply-keyargs exists table match-by opts)])
 
 (defn-spec create any?
@@ -655,11 +656,10 @@
                     (merge {:a.enabled true, :l.enabled true}))
    :opts          (update opts :where
                           #(apply vector :and (if (some? %) % true)
-                                  (->> {filter-valid        (where-valid-article-label nil)
-                                        (true? confirmed)   [:!= :al.confirm-time nil]
-                                        (false? confirmed)  [:= :al.confirm-time nil]}
-                                       (filter-keys boolean)
-                                       vals)))}
+                                  (->> [[filter-valid        (where-valid-article-label nil)]
+                                        [(true? confirmed)   [:!= :al.confirm-time nil]]
+                                        [(false? confirmed)  [:= :al.confirm-time nil]]]
+                                       (filter first) (map second))))}
   {:custom-opts [include-disabled filter-valid confirmed]
    :-match-by match-by :-fields fields :-opts opts :-with with})
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

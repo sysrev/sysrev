@@ -7,7 +7,7 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.util :as util :refer [assert-pred map-keys parse-integer apply-keyargs
+            [sysrev.util :as util :refer [assert-pred map-keys parse-integer
                                           req-un opt-keys gquery url-join index-by]])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 

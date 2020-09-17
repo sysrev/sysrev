@@ -84,8 +84,8 @@
                       (log/warn (.getMessage e))
                       nil))
                user (when user-info (user-by-email email))
-               {_verified :verified :or {_verified false}} user
-               _success (not-empty user)
+               ;; {verified :verified :or {verified false}} user
+               ;; _success (not-empty user)
                session-identity (select-keys user [:user-id :user-uuid :email])]
            (with-meta (response/redirect base-url)
              {:session (assoc session :identity session-identity)}))))

@@ -1,6 +1,6 @@
 (ns sysrev.predict.report
-  (:require [honeysql.helpers :as sqlh :refer [select from where join merge-join sset]]
-            [sysrev.db.core :as db :refer [do-query do-execute]]
+  (:require [honeysql.helpers :as sqlh :refer [select from where join merge-join]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.predict.core]

@@ -1,75 +1,64 @@
 (ns sysrev.views.panels.project.new
-  (:require [medley.core :as medley]
+  (:require [medley.core :as medley :refer [find-first]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.action.core :refer [def-action]]
+            [sysrev.action.core :refer [def-action run-action]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav :refer [nav-scroll-top]]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.semantic :refer [Divider Dropdown Form FormRadio FormGroup Grid Input Row Column Button Icon Radio]]))
+            [sysrev.views.semantic :refer [Divider Dropdown Form Grid Input Row Column
+                                           Button Icon Radio]]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
-(defonce state (r/atom {}))
+;; for clj-kondo
+(declare panel state)
+
+(setup-panel-state panel [:new] {:state-var state})
 
 (def-action :create-project
-  :uri (fn [_] "/api/create-project")
+  :uri (fn [_ _] "/api/create-project")
   :content (fn [project-name public-access?] {:project-name project-name
                                               :public-access public-access?})
   :process (fn [_ _ {:keys [success message project]}]
-             (if success
-               {:dispatch-n
-                (list [:reload [:identity]]
-                      [:project/navigate (:project-id project)])}
-               ;; TODO: do something on error
-               {})))
+             (when success
+               {:dispatch-n (list [:reload [:identity]]
+                                  [:project/navigate (:project-id project)])})))
 
 (def-action :create-org-project
-  :uri (fn [_ org-id] (str "/api/org/" org-id "/project"))
+  :uri (fn [_ org-id _] (str "/api/org/" org-id "/project"))
   :content (fn [project-name _ public-access?] {:project-name project-name
                                                 :public-access public-access?})
   :process (fn [_ _ {:keys [success message project]}]
-             (if success
-               {:dispatch-n
-                (list [:reload [:identity]]
-                      [:project/navigate (:project-id project)])}
-               ;; TODO: do something on error
-               {})))
+             (when success
+               {:dispatch-n (list [:reload [:identity]]
+                                  [:project/navigate (:project-id project)])})))
 
-(defn NewProjectButton
-  [& [{:keys [project-owner]}]]
-  [Button {:size "small"
-           :id "new-project"
-           :positive true
+(defn NewProjectButton [& [{:keys [project-owner]}]]
+  [Button {:id "new-project"
+           :size "small" :positive true
            :on-click #(if (integer? project-owner)
                         (nav-scroll-top "/new" :params {:project_owner project-owner})
                         (nav-scroll-top "/new"))}
    [Icon {:name "list alternate outline"}] "New"])
 
-(defn OwnerDropdown []
+(defn- OwnerDropdown []
   (let [project-owner (r/cursor state [:project-owner])
-        orgs (subscribe [:self/orgs])
-        options (fn [orgs]
-                  (->> orgs
-                       ;; get the orgs you have permission to modify
-                       (filter #(some #{"owner" "admin"} (:permissions %)))
-                       (map #(hash-map :text (:group-name %)
-                                       :value (:group-id %)))
-                       (cons {:text @(subscribe [:user/display])
-                              :value "current-user"})))]
-    (r/create-class
-     {:reagent-render (fn [_]
-                        [:div {:style {:margin-top "0.5em"}}
-                         [Dropdown {:fluid true
-                                    :options (options @orgs)
-                                    :value @project-owner
-                                    :on-change (fn [_event data]
-                                                 (reset! project-owner (.-value data)))}]])
-      :get-initial-state (fn [_]
-                           (when (nil? @project-owner)
-                             (reset! project-owner "current-user")))})))
+        user-name @(subscribe [:user/display])
+        admin? #(some #{"owner" "admin"} (:permission %))
+        options (cons {:text user-name :value "current-user"}
+                      (for [{:keys [group-name group-id]}
+                            (filter admin? @(subscribe [:self/orgs]))]
+                        {:text group-name :value group-id}))]
+    [:div {:style {:margin-top "0.5em"}}
+     [Dropdown {:fluid true
+                :options options
+                :value (or @project-owner "current-user")
+                :on-change (fn [_event data]
+                             (reset! project-owner (.-value data)))}]]))
 
-(defn CreateProject []
+(defn- CreateProject []
   (let [project-name (r/cursor state [:project-name])
         project-owner (r/cursor state [:project-owner])
         public-access? (r/cursor state [:public-access])
@@ -79,42 +68,34 @@
     (r/create-class
      {:reagent-render
       (fn [_]
-        (let [owner-has-pro? (if (= @project-owner "current-user")
-                               (boolean (contains? stripe/pro-plans (:nickname @current-plan)))
-                               (boolean (contains? stripe/pro-plans (->> @orgs
-                                                                         (medley.core/find-first #(= (:group-id %)
-                                                                                                     @project-owner))
-                                                                         :plan
-                                                                         :nickname))))]
+        (let [plan (if (= @project-owner "current-user")
+                     @current-plan
+                     (:plan (->> @orgs (find-first #(= @project-owner (:group-id %))))))
+              owner-has-pro? (contains? stripe/pro-plans (:nickname plan))]
           [Form {:id "create-project-form"
-                 :on-submit  #(if-not (nil? @project-name)
+                 :on-submit  #(when @project-name
                                 (if (= @project-owner "current-user")
-                                  (dispatch [:action [:create-project @project-name @public-access?]])
-                                  (dispatch [:action [:create-org-project @project-name @project-owner @public-access?]])))}
+                                  (run-action :create-project
+                                              @project-name @public-access?)
+                                  (run-action :create-org-project
+                                              @project-name @project-owner @public-access?)))}
            [:div
             [:div {:id "create-project-form-header"}
-             [:p {:style {:font-size "1.9rem"
-                          :margin-bottom "0.5rem"}} "Create a new project"]
+             [:p {:style {:font-size "1.9rem" :margin-bottom "0.5rem"}}
+              "Create a new project"]
              [:p "A project contains articles that are labeled by reviewers."]]
             [Divider]
             [:div {:id "create-project-form-owner-name"}
              [Grid {:doubling true}
               [Row
-               [Column {:width (if (util/mobile?) 6 3)}
-                [:p "Owner"]]
-               [Column {:width (if (util/mobile?) 10 5)}
-                [:p "Project Name"]]]
+               [Column {:width (if (util/mobile?) 6 3)}   [:p "Owner"]]
+               [Column {:width (if (util/mobile?) 10 5)}  [:p "Project Name"]]]
               [Row [Column {:width (if (util/mobile?) 6 3)}
-                    [:div {:style {:display "inline-block"
-                                   :width (if (util/mobile?)
-                                            "80%"
-                                            "88%")}}
+                    [:div.inline-block {:style {:width (if (util/mobile?) "80%" "88%")}}
                      [OwnerDropdown]]
-                    [:span {:style {:font-size "1.5em"
-                                    :margin-left "1rem"}
-                            :class "bold"} "/"]]
-               [Column {:width (if (util/mobile?) 10 5)
-                        :text-align "left"}
+                    [:span.bold {:style {:font-size "1.5em" :margin-left "1rem"}}
+                     "/"]]
+               [Column {:text-align "left" :width (if (util/mobile?) 10 5)}
                 [Input {:placeholder "Project Name"
                         :class "project-name"
                         :fluid true
@@ -123,60 +104,43 @@
             [:div {:id "create-project-form-public-or-private"}
              [Grid {:doubling true}
               [Row [Column {:width 12}
-                    [Radio {:style
-                            {:float "left"
-                             :margin-top "0.90rem"}
+                    [Radio {:style {:float "left" :margin-top "0.90rem"}
                             :checked @public-access?
-                            :on-click (fn [_]
-                                        (reset! public-access? true))}]
-                    [:div {:style {:float "left"
-                                   :margin-left "0.5rem"}}
-                     [Icon {:name "list alternate outline"
-                            :size "huge"
-                            :style {:float "left"
-                                    :margin-top "0.5rem"}}]
-                     [:div {:style {:float "left"
-                                    :margin-top "0.25rem"
-                                    :margin-left "0.5rem"}}
-                      [:p {:style {:font-size "1.9rem"
-                                   :margin-bottom "0.25rem"}}  "Public"]
+                            :on-click #(reset! public-access? true)}]
+                    [:div {:style {:float "left" :margin-left "0.5rem"}}
+                     [Icon {:name "list alternate outline" :size "huge"
+                            :style {:float "left" :margin-top "0.5rem"}}]
+                     [:div {:style {:float "left" :margin-top "0.25rem" :margin-left "0.5rem"}}
+                      [:p {:style {:margin-bottom "0.25rem" :font-size "1.9rem"}}
+                       "Public"]
                       [:p {:style {:margin-top "0.25rem"}}
                        "Anyone on the internet can see this project."]]]]]
               [Row
                [Column {:width 12}
-                [Radio {:style {:float "left"
-                                :margin-top "0.90rem"}
+                [Radio {:style {:float "left" :margin-top "0.90rem"}
                         :checked (not @public-access?)
                         :disabled (not owner-has-pro?)
-                        :on-click (fn [_]
-                                    (when owner-has-pro?
-                                      (reset! public-access? false)))}]
-                [:div {:style (cond-> {:float "left"
-                                       :margin-left "0.5rem"}
-                                (not owner-has-pro?)
-                                (assoc :color "grey"))}
-                 [Icon {:name "lock"
-                        :size "huge"
-                        :style {:float "left"
-                                :margin-top "0.5rem"}}]
-                 [:div {:style {:float "left"
-                                :margin-top "0.25rem"
-                                :margin-left "0.5rem"}}
-                  [:p {:style {:font-size "1.9rem"
-                               :margin-bottom "0.25rem"}} "Private"]
+                        :on-click #(when owner-has-pro?
+                                     (reset! public-access? false))}]
+                [:div {:style (cond-> {:float "left" :margin-left "0.5rem"}
+                                (not owner-has-pro?) (assoc :color "grey"))}
+                 [Icon {:name "lock" :size "huge"
+                        :style {:float "left" :margin-top "0.5rem"}}]
+                 [:div {:style {:float "left" :margin-top "0.25rem" :margin-left "0.5rem"}}
+                  [:p {:style {:font-size "1.9rem" :margin-bottom "0.25rem"}}
+                   "Private"]
                   [:p {:style {:margin-top "0.25rem"}}
                    "Only people you've invited to the project can see it."]
                   [:p {:style {:margin-top "0.25rem"}}
-                   "Private Projects are only available for " [:a {:href "/pricing"} "Pro Accounts"] "."]]]]]]]
+                   "Private Projects are only available for "
+                   [:a {:href "/pricing"} "Pro Accounts"]
+                   "."]]]]]]]
             [Divider]
             [:div {:id "create-project-form-submit-button"}
              [Button {:positive true
-                      :disabled (if (or (loading/any-action-running?)
-                                        (loading/any-loading?))
-                                  true
-                                  (if (not (seq @project-name))
-                                    true
-                                    false))
+                      :disabled (or (loading/any-action-running?)
+                                    (loading/any-loading?)
+                                    (empty? @project-name))
                       :loading (or (loading/any-action-running?)
                                    (loading/any-loading?))}
               "Create Project"]]]]))
@@ -191,9 +155,8 @@
                            (reset! public-access? true)
                            nil)})))
 
-(defmethod panel-content [:new] []
-  (fn [_]
-    [CreateProject]))
+(defmethod panel-content panel []
+  (fn [_] [CreateProject]))
 
-(defmethod logged-out-content [:new] []
+(defmethod logged-out-content panel []
   (logged-out-content :logged-out))

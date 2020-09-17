@@ -1,7 +1,8 @@
 (ns sysrev.payment.stripe
-  (:require [clj-http.client :as http]
-            [clojure.data.json :as json]
+  (:require [clojure.data.json :as json]
             [clojure.tools.logging :as log]
+            [clojure.walk :as walk]
+            [clj-http.client :as http]
             [sysrev.config :refer [env]]
             [sysrev.payment.plans :as db-plans]
             [sysrev.project.funds :as funds]
@@ -27,13 +28,13 @@
   (:body (http/get (str stripe-url uri)
                    (cond-> default-req
                      query-params
-                     (assoc :query-params (clojure.walk/stringify-keys query-params))))))
+                     (assoc :query-params (walk/stringify-keys query-params))))))
 
 (defn stripe-post [uri & [form-params]]
   (:body (http/post (str stripe-url uri)
                     (assoc default-req
                            :form-params
-                           (clojure.walk/stringify-keys form-params)))))
+                           (walk/stringify-keys form-params)))))
 
 (defn stripe-delete [uri]
   (:body (http/delete (str stripe-url uri) default-req)))
@@ -98,7 +99,7 @@
 ;;
 ;;
 ;; !!! WARNING !!
-(defn- delete-all-customers! []
+(defn delete-all-customers! []
   (assert (and (re-matches #"pk_test_.*" (env :stripe-public-key))
                (re-matches #"sk_test_.*" (env :stripe-secret-key)))
           (str "Error in" (current-function-name) "- attempt to run with non-test keys"))
@@ -118,14 +119,15 @@
 (defn delete-subscription! [subscription-id]
   (stripe-delete (str "/subscriptions/" subscription-id)))
 
-(defn- delete-all-subscriptions! [& {:keys [limit] :or {limit 10}}]
+(defn delete-all-subscriptions! [& {:keys [limit] :or {limit 10}}]
   (if (and (re-matches #"pk_test_.*" (env :stripe-public-key))
            (re-matches #"sk_test_.*" (env :stripe-secret-key)))
     (let [subscriptions (:data (list-subscriptions :limit limit))
           subscription-ids (doall (map #(-> % :id) subscriptions))]
       (doall (map delete-subscription! subscription-ids))
       "done")
-    (log/info (str "Error in " (current-function-name) ": " "attempt to run with non-test keys"))))
+    (log/infof "Error in %s: attempt to run with non-test keys"
+               (current-function-name))))
 
 (defn get-plans
   "Get all site plans"
@@ -140,7 +142,9 @@
 ;; it is not prorated at the time of upgrade/downgrade
 ;; https://stripe.com/docs/subscriptions/upgrading-downgrading
 (defn create-subscription-user!
-  "Create a subscription using the basic plan for user. This subscription is used for all subsequent subscription plans. Return the stripe response."
+  "Create a subscription using the basic plan for user. This
+  subscription is used for all subsequent subscription plans. Return
+  the stripe response."
   [{:keys [user-id stripe-id]}]
   (let [{:keys [plan id error] :as response}
         (stripe-post  "/subscriptions"

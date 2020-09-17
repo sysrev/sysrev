@@ -1,7 +1,6 @@
 (ns sysrev.views.menu
-  (:require [goog.uri.utils :as uri-utils]
-            [re-frame.core :refer [subscribe dispatch dispatch-sync]]
-            [sysrev.base :refer [active-route]]
+  (:require [re-frame.core :refer [subscribe dispatch dispatch-sync]]
+            [sysrev.action.core :refer [run-action]]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [user-uri]]
             [sysrev.views.components.core :refer [dropdown-menu with-tooltip]]
@@ -18,8 +17,8 @@
 (defn toggle-ui-theme [logged-in? settings]
   (let [new-theme (if (= "Dark" (:ui-theme settings)) "Default" "Dark")]
     (if logged-in?
-      (dispatch [:action [:user/change-settings [{:setting :ui-theme, :value new-theme}]]])
-      (dispatch [:action [:session/change-settings (merge settings {:ui-theme new-theme})]]))))
+      (run-action :user/change-settings [{:setting :ui-theme :value new-theme}])
+      (run-action :session/change-settings (assoc settings :ui-theme new-theme)))))
 
 (defn header-menu []
   (let [logged-in? @(subscribe [:self/logged-in?])
@@ -30,7 +29,7 @@
         [full? mobile?] [(util/full-size?) (util/mobile?)]
         dev-menu (when admin?
                    [dropdown-menu [{:content "Clear query cache"
-                                    :action #(dispatch [:action [:dev/clear-query-cache]])}]
+                                    :action #(run-action :dev/clear-query-cache)}]
                     :dropdown-class "dropdown item"
                     :label [:i.fitted.code.icon]])
         settings @(subscribe [:self/settings])
@@ -59,9 +58,8 @@
        [:img.ui.middle.aligned.image
         (merge {:src "/SysRev_header_2.png" :alt "SysRev"}
                (if mobile? {:width "80" :height "25"} {:width "90" :height "28"}))]]
-      ;(when (and logged-in? (= "/" (uri-utils/getPath @active-route)))
-        [:a.item.distinct {:id "pricing-link" :href "/pricing"} "Pricing"]
-    ;)
+      #_(when (and logged-in? (= "/" (uri-utils/getPath @active-route))))
+      [:a.item.distinct {:id "pricing-link" :href "/pricing"} "Pricing"]
       (when-not full? dev-menu)
       [loading-indicator]
       (if logged-in?
@@ -69,13 +67,11 @@
          (when full? dev-menu)
          (toggle-theme-button)
          (when-not mobile? [SiteSearch])
-         [:a.item {:id "user-name-link"
-                   :href (user-uri user-id)}
+         [:a.item {:id "user-name-link" :href (user-uri user-id)}
           [:div
            [Avatar {:user-id user-id}]
            [:span.blue-text {:style {:margin-left "0.25em"}} user-display]]]
-         [:a.item {:id "log-out-link"
-                   :on-click #(dispatch [:action [:auth/log-out]])}
+         [:a.item {:id "log-out-link" :on-click #(run-action :auth/log-out)}
           "Log Out"]
          [:div.item {:style {:width "0" :padding "0"}}]]
         ;; not logged in

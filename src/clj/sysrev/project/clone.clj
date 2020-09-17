@@ -12,7 +12,6 @@
             [sysrev.label.core :as labels]
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
-            [sysrev.biosource.importance :as importance-api]
             [sysrev.util :refer [in? index-by]]))
 
 (defn copy-project-members [src-project-id dest-project-id &

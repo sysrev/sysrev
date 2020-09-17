@@ -1,7 +1,6 @@
 (ns sysrev.views.panels.project.analytics.common
-  (:require
-    [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
-    [sysrev.state.nav :refer [project-uri]]))
+  (:require [re-frame.core :refer [subscribe]]
+            [sysrev.state.nav :refer [project-uri]]))
 
 (defn beta-message []
   (let [project-id @(subscribe [:project/active-url-id])]

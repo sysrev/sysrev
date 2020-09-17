@@ -2,7 +2,6 @@
   (:require [re-frame.core :refer [subscribe]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.article :refer [ArticleInfo]]
-            [sysrev.views.components.core :as ui]
             [sysrev.views.group-label :refer [GroupLabelEditor]]
             [sysrev.views.review :refer [LabelAnswerEditor]]
             [sysrev.macros :refer-macros [with-loader]]))

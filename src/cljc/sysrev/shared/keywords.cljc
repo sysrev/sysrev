@@ -156,8 +156,8 @@
   "Processes text to find instances of keywords, and returns a map which can
    be quickly converted to a Reagent element.
    `keywords` is the value from (d/project-keywords) in client."
-  [text keywords]
-    [{:keyword-id nil, :text text}])
+  [text _keywords]
+  [{:keyword-id nil, :text text}])
 
 (defn format-abstract
   "Splits abstract text into sections and processes each section for keywords."

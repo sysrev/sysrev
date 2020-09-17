@@ -4,6 +4,7 @@
             [clojure.spec.alpha :as s]
             [ajax.core :refer [GET POST PUT]]
             [reagent.core :as r]
+            [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
@@ -25,8 +26,8 @@
                                            :get-fn panel-get :set-fn panel-set
                                            :get-sub ::get :set-event ::set})
 
-(s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
-                    (instance? reagent.ratom/RCursor %)))
+(s/def ::ratom #(or (instance? ratom/RAtom %)
+                    (instance? ratom/RCursor %)))
 
 (defn get-project-invitations!
   "Get all of the invitations that have been sent by the project for which user-id is the admin of"

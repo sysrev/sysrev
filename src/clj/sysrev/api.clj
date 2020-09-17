@@ -1180,20 +1180,19 @@
 (defn read-profile-image
   "Return the currently active profile image for user"
   [user-id]
-  (let [{:keys [key filename]} (user-image/user-active-profile-image user-id)]
-    (if key
-      (-> (response/response (s3-file/get-file-stream key :image))
-          (response/header "Content-Disposition"
-                           (format "attachment: filename=\"" filename "\"")))
-      {:error {:status not-found
-               :message "No profile image associated with user"}})))
+  (if-let [{:keys [key filename] :as _x} (user-image/user-active-profile-image user-id)]
+    (-> (response/response (s3-file/get-file-stream key :image))
+        (response/header "Content-Disposition"
+                         (format "attachment: filename=\"%s\"" filename)))
+    {:error {:status not-found
+             :message "No profile image associated with user"}}))
 
 (defn read-profile-image-meta
   "Read the current profile image meta data"
   [user-id]
   {:success true
-   :meta (json/read-json (or (:meta (user-image/user-active-profile-image user-id))
-                             "{}"))})
+   :meta (-> (some-> user-id user-image/user-active-profile-image :meta json/read-json)
+             (or {}))})
 
 (defn create-avatar! [user-id file filename meta]
   (user-image/save-user-avatar-image user-id file filename meta)

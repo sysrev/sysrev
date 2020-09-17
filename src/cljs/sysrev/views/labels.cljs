@@ -1,12 +1,13 @@
 (ns sysrev.views.labels
   (:require [clojure.string :as str]
-            [re-frame.core :refer [subscribe dispatch dispatch-sync]]
+            [re-frame.core :refer [subscribe dispatch]]
             [cljs-time.core :as t]
             [reagent.core :as r]
             [sysrev.views.components.core :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
-            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell Icon Button]]
+            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody
+                                           TableCell Icon Button]]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch nbsp parse-integer]]
             [sysrev.macros :refer-macros [with-loader]]))
@@ -18,15 +19,13 @@
                 false  "orange"
                 nil)
         values (if (= "boolean" @(subscribe [:label/value-type root-label-id label-id]))
-                 (if (boolean? answer)
-                   [answer] [])
+                 (if (boolean? answer) [answer] [])
                  (cond (nil? answer)        nil
                        (sequential? answer) answer
                        :else                [answer]))]
     [:span {:class (when color (str color "-text"))}
-     (if (empty? values)
-       "—"
-       (str/join ", " values))]))
+     (or (some->> (not-empty values) (str/join ", "))
+         "—")]))
 
 (defn LabelAnswerTag [root-label-id label-id answer]
   (let [display @(subscribe [:label/display root-label-id label-id])
@@ -49,56 +48,57 @@
     (when (seq answers)
       [:div.ui.tiny.labeled.label-answer-tag
        [Table {:striped true}
-        [TableHeader {:fullWidth true}
-         [TableRow {:textAlign "center"}
-          [TableHeaderCell {:colSpan (if indexed?
-                                       (+ (count labels) 1)
-                                       (count labels))} label-name]]]
+        [TableHeader {:full-width true}
+         [TableRow {:text-align "center"}
+          [TableHeaderCell {:col-span (if indexed?
+                                        (+ (count labels) 1)
+                                        (count labels))} label-name]]]
         [TableHeader
          [TableRow
-          (when indexed?
-            [TableHeaderCell])
-          (doall (for [label labels]
-                   ^{:key (str group-label-id "-" (:label-id label) "-table-header" )}
-                   [TableHeaderCell @(subscribe [:label/display group-label-id (:label-id label)])]))]]
+          (when indexed? [TableHeaderCell])
+          (for [{:keys [label-id]} labels]
+            ^{:key (str group-label-id "-" label-id "-table-header" )}
+            [TableHeaderCell @(subscribe [:label/display group-label-id label-id])])]]
         [TableBody
          (for [ith (sort (keys answers))]
            ^{:key (str group-label-id "-" ith "-row")}
            [TableRow
             (when indexed? [TableCell (+ (parse-integer ith) 1)])
-            (for [label labels]
-              ^{:key (str group-label-id "-" ith "-row-" (:label-id label) "-cell")}
+            (for [{:keys [label-id]} labels]
+              ^{:key (str group-label-id "-" ith "-row-" label-id "-cell")}
               [TableCell
-               [ValueDisplay group-label-id (:label-id label) (get-in answers [ith (:label-id label)])]])])]]])))
+               [ValueDisplay group-label-id label-id
+                (get-in answers [ith label-id])]])])]]])))
 
 (defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
-  (let [dark-theme? @(subscribe [:self/dark-theme?])]
+  (let [all-label-ids (->> @(subscribe [:project/label-ids])
+                           (filter #(contains? labels %)))
+        value-type #(deref (subscribe [:label/value-type "na" %]))
+        dark-theme? @(subscribe [:self/dark-theme?])]
     [:div.label-values
      (when user-name
        [:div.ui.label.user-name {:class (css [(not dark-theme?) "basic"])}
         user-name])
      ;; basic labels
-     (doall (for [[label-id answer] (->> @(subscribe [:project/label-ids])
-                                         (filter #(contains? labels %))
-                                         (remove #(= "group" @(subscribe [:label/value-type "na" %])))
-                                         (map #(list % (get-in labels [% :answer]))))]
-              (when (real-answer? answer)
-                ^{:key (str label-id)} [LabelAnswerTag "na" label-id answer])))
+     (for [[label-id answer] (->> all-label-ids
+                                  (remove #(= "group" (value-type %)))
+                                  (map #(list % (get-in labels [% :answer]))))]
+       (when (real-answer? answer)
+         ^{:key (str label-id)} [LabelAnswerTag "na" label-id answer]))
      ;; group labels
-     (doall (for [[group-label-id answer] (->> @(subscribe [:project/label-ids])
-                                               (filter #(contains? labels %))
-                                               (remove #(not= "group" @(subscribe [:label/value-type "na" %])))
-                                               (map #(list % (get-in labels [% :answer]))))]
-              ^{:key (str group-label-id)}
-              [GroupLabelAnswerTag {:group-label-id group-label-id
-                                    :answers (:labels answer)}]))
+     (for [[group-label-id answer] (->> all-label-ids
+                                        (filter #(= "group" (value-type %)))
+                                        (map #(list % (get-in labels [% :answer]))))]
+       ^{:key (str group-label-id)}
+       [GroupLabelAnswerTag {:group-label-id group-label-id
+                             :answers (:labels answer)}])
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])
      (when resolved?
        [:div.ui.basic.purple.label.labels-status "Resolved"])
-     (doall (for [note-name (keys notes)] ^{:key [note-name]}
-              [note-content-label note-name (get notes note-name)]))] ))
+     (for [note-name (keys notes)] ^{:key [note-name]}
+       [note-content-label note-name (get notes note-name)])] ))
 
 (defn- ArticleLabelValuesView [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])
@@ -108,33 +108,36 @@
 (defn- copy-user-answers [project-id article-id user-id]
   (let [label-ids (set @(subscribe [:project/label-ids project-id]))
         labels @(subscribe [:article/labels article-id user-id])
-
-        nil-events (mapv (fn [lid] [:review/set-label-value article-id "na" lid "na" nil]) label-ids)
-
-        group-label-ids (mapv (fn [[uuid _]] uuid) (filter (fn [[_ {:keys [answer]}]] (:labels answer)) labels))
-        group-munge-labels (mapcat (fn [lbl-id]
-                             (let [lbl (get labels lbl-id)
-                                   answers (:labels (:answer lbl))]
-                               (mapcat (fn [[ith ithanswers]]
-                                         (mapv (fn [[uid answer]] {:uid uid :ith ith :answer answer :lid lbl-id :aid article-id})
-                                               ithanswers))
-                                       answers)))
-                           group-label-ids)
-
-        group-events (map (fn [{:keys [uid ith answer lid aid]}]
-                            (if (and (vector? answer) (= 1 (count answer)))
-                              [:review/set-label-value aid lid uid ith (first answer)]
-                              [:review/set-label-value aid lid uid ith answer])
-                            ) group-munge-labels)
-
-        non-group-label-ids (mapv (fn [[uuid _]] uuid) (filter (fn [[_ {:keys [answer]}]] (nil? (:labels answer))) labels))
-        ng-munge-labels (mapv (fn [lbl-id] {:uuid lbl-id :answer (:answer (get labels lbl-id))}) non-group-label-ids)
-        ng-events (mapv (fn [{:keys [uuid answer]}] [:review/set-label-value article-id "na" uuid "na" answer]) ng-munge-labels)]
-
-    (doall (map (fn [event] (dispatch event)) nil-events))
-    (doall (map (fn [event] (dispatch event)) ng-events))
-    (doall (map (fn [event] (dispatch event)) group-events))
-  label-ids))
+        nil-events (for [label-id label-ids]
+                     [:review/set-label-value article-id "na" label-id "na" nil])
+        group? #(boolean (get-in % [:answer :labels]))
+        group-label-ids     (keys (util/filter-values group? labels))
+        non-group-label-ids (keys (util/filter-values (comp not group?) labels))
+        group-munge-labels (mapcat (fn [label-id]
+                                     (let [label (get labels label-id)
+                                           answers (:labels (:answer label))]
+                                       (mapcat (fn [[ith ithanswers]]
+                                                 (mapv (fn [[uid answer]]
+                                                         {:uid uid
+                                                          :ith ith
+                                                          :answer answer
+                                                          :lid label-id
+                                                          :aid article-id})
+                                                       ithanswers))
+                                               answers)))
+                                   group-label-ids)
+        group-events (for [{:keys [uid ith answer lid aid]} group-munge-labels]
+                       [:review/set-label-value aid lid uid ith
+                        (cond-> answer
+                          (and (vector? answer) (= 1 (count answer)))
+                          first)])
+        ng-munge-labels (for [label-id non-group-label-ids]
+                          {:label-id label-id :answer (:answer (get labels label-id))})
+        ng-events (for [{:keys [label-id answer]} ng-munge-labels]
+                    [:review/set-label-value article-id "na" label-id "na" answer])]
+    (doseq [event (concat nil-events ng-events group-events)]
+      (dispatch event))
+    label-ids))
 
 (defn ArticleLabelsView [article-id & {:keys [self-only? resolving?]}]
   (let [project-id @(subscribe [:active-project-id])
@@ -158,20 +161,20 @@
                               (some #(real-answer? (get-in ulmap [% :answer]))
                                     (keys ulmap))))
         resolved? (fn [user-id] (= user-id resolve-id))
-        user-ids-resolved (->> user-ids
-                               (filter resolved?)
-                               (filter some-real-answer?)
-                               (filter user-confirmed?))
-        user-ids-other (->> user-ids
-                            (remove resolved?)
-                            (filter some-real-answer?)
-                            (filter user-confirmed?))
-        user-ids-annotated (->> user-ids (filter user-annotations))
-        user-ids-ordered (cond->> (concat user-ids-resolved
-                                          user-ids-other
-                                          user-ids-annotated)
-                           self-only? (filter (partial = self-id))
-                           true distinct)]
+        user-ids-resolved  (->> user-ids
+                                (filter resolved?)
+                                (filter some-real-answer?)
+                                (filter user-confirmed?))
+        user-ids-other     (->> user-ids
+                                (remove resolved?)
+                                (filter some-real-answer?)
+                                (filter user-confirmed?))
+        user-ids-annotated (->> user-ids
+                                (filter user-annotations))
+        user-ids-ordered (distinct (cond->> (concat user-ids-resolved
+                                                    user-ids-other
+                                                    user-ids-annotated)
+                                     self-only? (filter (partial = self-id))))]
     (dispatch [:require ann-data-item])
     (dispatch [:require ann-status-item])
     (when (seq user-ids-ordered)
@@ -199,12 +202,10 @@
                                                  :display-name user-name}]
                          (when resolving?
                            (r/as-element
-                             [Button {:size "tiny"
-                                      :class "project-access"
-                                      :id "copy-label-button"
-                                      :style {:margin-left "0.25rem"}
-                                      :on-click #(copy-user-answers project-id article-id user-id)}
-                              [Icon {:name "copy"}] "copy"]))])]
+                            [Button {:id "copy-label-button" :class "project-access"
+                                     :size "tiny" :style {:margin-left "0.25rem"}
+                                     :on-click #(copy-user-answers project-id article-id user-id)}
+                             [Icon {:name "copy"}] "copy"]))])]
                    [:div.right.aligned.column
                     [updated-time-label updated-time]]]]
                  [:div.labels

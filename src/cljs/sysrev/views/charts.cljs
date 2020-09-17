@@ -141,7 +141,7 @@
         options (wrap-default-options
                  {:legend {:display false}
                   :onClick (when on-click
-                             (fn [e elts]
+                             (fn [_e elts]
                                (when (pos-int? (.-length elts))
                                  (when-let [idx (-> elts (aget 0) .-index)]
                                    (on-click idx)))))}

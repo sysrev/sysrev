@@ -1,19 +1,13 @@
 (ns sysrev.formats.pubmed
-  (:require [clojure.tools.logging :as log]
-            [clojure.set :as set]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.data.json :as json]
-            [clojure.data.xml :as dxml]
             [clj-http.client :as http]
             [hickory.core :as hickory]
             [hickory.select :as hs]
             [me.raynes.fs :as fs]
             [miner.ftp :as ftp]
             [sysrev.config :as config]
-            [sysrev.cassandra :as cdb]
-            [sysrev.util :as util :refer
-             [parse-integer ensure-pred ignore-exceptions
-              parse-xml-str xml-find xml-find-value xml-find-vector]]))
+            [sysrev.util :as util :refer [parse-integer xml-find]]))
 
 (def e-util-api-key (:e-util-api-key config/env))
 

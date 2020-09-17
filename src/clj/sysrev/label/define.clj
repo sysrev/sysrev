@@ -1,11 +1,11 @@
 (ns sysrev.label.define
-  (:require [bouncer.core :as b]
-            [bouncer.validators :as v :refer [defvalidator]]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.set :as set]
+            [bouncer.core :as b]
+            [bouncer.validators :as v :refer [defvalidator]]
+            [honeysql.helpers :as sqlh :refer [select from where]]
             [sysrev.db.core :as db :refer [do-query]]
-            [sysrev.label.core :as label]
-            [honeysql.helpers :as sqlh :refer [select from where]]))
+            [sysrev.label.core :as label]))
 
 ;; label validations
 

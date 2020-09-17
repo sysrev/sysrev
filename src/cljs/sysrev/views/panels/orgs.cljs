@@ -9,9 +9,9 @@
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.panels.org.plans :refer [Unlimited ToggleInterval TeamProPlanPrice price-summary]]
-            [sysrev.views.semantic :refer
-             [Form FormField Button Segment Header Input Message MessageHeader Grid Row Column ListUI ListItem Loader]]
+            [sysrev.views.panels.org.plans :refer [Unlimited ToggleInterval TeamProPlanPrice]]
+            [sysrev.views.semantic :refer [Form FormField Button Segment Header Input Message
+                                           MessageHeader Grid Row Column ListUI ListItem Loader]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo
@@ -42,11 +42,7 @@
     (when-not @create-org-retrieving?
       (reset! create-org-retrieving? true)
       (GET "/api/org/valid-name"
-           {:params {:org-name
-                     ;; this is a check that if it isn't a seq, make it blank string, because nil is sent as the string "null" to the server
-                     (if (seq org-name)
-                       org-name
-                       "")}
+           {:params {:org-name (or (not-empty org-name) "")}
             :headers {"x-csrf-token" @(subscribe [:csrf-token])}
             :handler (fn [{:keys [valid]}]
                        (reset! create-org-error nil)
@@ -143,8 +139,7 @@
         [:div
          [Grid {:stackable true :columns 2 :class "upgrade-plan"}
           [Column
-           [Grid [Row [Column
-                       [Unlimited new-plan]]]]]
+           [Grid [Row [Column [Unlimited new-plan]]]]]
           [Column
            [Grid
             [Row
@@ -152,7 +147,8 @@
               [ToggleInterval {:style {:margin-top "0"}
                                :new-plan new-plan
                                :available-plans @available-plans}]
-              [:p {:style {:color "green"}} "Pay yearly and get the first month free!"]
+              [:p {:style {:color "green"}}
+               "Pay yearly and get the first month free!"]
               [ListUI {:divided true}
                [:h4 "New Monthly Bill"]
                [ListItem [TeamProPlanPrice new-plan]]
@@ -162,44 +158,39 @@
                                   (create-org-pro! new-org-name @new-plan payload))
                                 :submit-button-text "Subscribe To Plan"}]
                [:p {:style {:margin-top "1em"}}
-                "By clicking 'Subscribe To Plan' you authorize Insilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]             
+                "By clicking 'Subscribe To Plan' you authorize Insilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]
                (when @plan-error-message
                  [Message {:negative true}
                   [MessageHeader "Change Plan Error"]
                   [:p @plan-error-message]])]]]]]]]))))
 
-(defn SubscribeOrgPanel
-  []
-  (r/create-class
-   {:reagent-render
-    (fn [_]
-      (let [panel-type  (uri-utils/getParamValue @active-route "panel-type")
-            plan (uri-utils/getParamValue @active-route "plan")
-            new-org-name (uri-utils/getParamValue @active-route "new-org-name")
-            create-org-error (r/cursor state [:create-org-error])
-            available-plans (subscribe [:org/available-plans])]
-        (if new-org-name
-          [:div
-           [:h3 {:style {:text-align "center"}} "Next, enter payment information and choose a payment interval for your team"]
-           [:div {:style {:margin-bottom "1em"}} [:h2 (str "New Team: ") new-org-name]
-            (when @create-org-error
-              [Message {:negative true
-                        :onDismiss #(reset! create-org-error nil)}
-               [MessageHeader {:as "h4"} "Create Org Error"]
-               @create-org-error])]
-           [CreateOrgPro new-org-name available-plans]]
-          [:div
-           (cond (= plan "basic") nil
-                 (= panel-type "new-account")
-                 [:h3 {:style {:text-align "center"}} "Next, create a Sysrev organization for your team"]                   
-                 (= panel-type "existing-account")
-                 [:h3 {:style {:text-align "center"}} "First, create a Sysrev organization for your team"])
-           [Segment {:secondary true
-                     :class "ui segment auto-margin auth-segment" }
-            [Header {:as "h4" :dividing true} "Create a New Organization"]
-            [CreateOrgForm]]])))
-    :component-did-mount (fn [_this]
-                           (dispatch [:data/load [:org/available-plans]]))}))
+(defn SubscribeOrgPanel []
+  (let [panel-type  (uri-utils/getParamValue @active-route "panel-type")
+        plan (uri-utils/getParamValue @active-route "plan")
+        new-org-name (uri-utils/getParamValue @active-route "new-org-name")
+        create-org-error (r/cursor state [:create-org-error])
+        available-plans (subscribe [:org/available-plans])]
+    (if new-org-name
+      [:div
+       [Header {:as "h3" :align "center"}
+        "Next, enter payment information and choose a payment interval for your team"]
+       [:div {:style {:margin-bottom "1em"}}
+        [Header {:as "h2"} (str "New Team: ") new-org-name]
+        (when @create-org-error
+          [Message {:negative true :onDismiss #(reset! create-org-error nil)}
+           [MessageHeader {:as "h4"} "Create Org Error"]
+           @create-org-error])]
+       [CreateOrgPro new-org-name available-plans]]
+      [:div
+       (when-not (= plan "basic")
+         [Header {:as "h3" :align "center"}
+          (case panel-type
+            "new-account"       "Next, create a Sysrev organization for your team"
+            "existing-account"  "First, create a Sysrev organization for your team"
+            nil)])
+       [Segment {:secondary true :class "auto-margin auth-segment" }
+        [Header {:as "h4" :dividing true} "Create a New Organization"]
+        [CreateOrgForm]]])))
 
 (defmethod panel-content panel []
   (fn [_child] [SubscribeOrgPanel]))
@@ -207,7 +198,6 @@
 (defmethod logged-out-content panel []
   (logged-out-content :logged-out))
 
-(sr-defroute
- create-org "/create/org" []
- (dispatch [:set-active-panel [:orgs]]))
-
+(sr-defroute create-org "/create/org" []
+             (dispatch [:set-active-panel [:orgs]])
+             (dispatch [:data/load [:org/available-plans]]))

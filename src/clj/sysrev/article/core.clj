@@ -155,16 +155,16 @@
 
 (defn project-prediction-scores
   "Given a project-id, return the prediction scores for all articles"
-  [project-id &
-   {:keys [include-disabled? predict-run-id]
-    :or {include-disabled? false
-         predict-run-id (first (q/find :predict-run {:project-id project-id} :predict-run-id
-                                       :order-by [:create-time :desc] :limit 1))}}]
-  (q/find [:label-predicts :lp] (cond-> {:a.project-id project-id
-                                         :lp.predict-run-id predict-run-id}
-                                  (not include-disabled?) (merge {:a.enabled true}))
-          [:a.article-id :lp.val]
-          :join [[:article :a] :lp.article-id]))
+  [project-id & {:keys [include-disabled? predict-run-id]
+                 :or {include-disabled? false}}]
+  (let [predict-run-id
+        (or predict-run-id
+            (first (q/find :predict-run {:project-id project-id} :predict-run-id
+                           :order-by [:create-time :desc] :limit 1)))]
+    (q/find [:label-predicts :lp] (cond-> {:a.project-id project-id
+                                           :lp.predict-run-id predict-run-id}
+                                    (not include-disabled?) (merge {:a.enabled true}))
+            [:a.article-id :lp.val], :join [[:article :a] :lp.article-id])))
 
 ;; FIX: get this PMCID value from somewhere other than raw xml
 (defn article-pmcid [_article-id]

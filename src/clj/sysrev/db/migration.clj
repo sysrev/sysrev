@@ -1,18 +1,13 @@
 (ns sysrev.db.migration
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [clojure.data.xml :as dxml]
-            [honeysql.helpers :as sqlh :refer [select from where order-by
-                                               insert-into values sset]]
+  (:require [clojure.tools.logging :as log]
+            [honeysql.helpers :as sqlh :refer [insert-into values]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.api :as api]
-            [sysrev.db.core :as db :refer [do-query do-execute to-jsonb]]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.group.core :as group]
             [sysrev.user.core :as user]
-            [sysrev.formats.endnote :refer [load-endnote-record]]
-            [sysrev.formats.pubmed :as pubmed]
             [sysrev.payment.stripe :as stripe]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.file.document :refer [migrate-filestore-table]]
@@ -27,7 +22,7 @@
   (let [plans (->> (:data (stripe/get-plans))
                    (mapv #(select-keys % [:nickname :created :id :interval :amount :tiers]))
                    (mapv #(update % :created (partial util/to-clj-time)))
-                   (mapv #(update % :tiers to-jsonb)))]
+                   (mapv #(update % :tiers db/to-jsonb)))]
     (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
       (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
     (let [valid-plans (->> plans (remove #(nil? (:nickname %))))]
@@ -35,7 +30,7 @@
           (values valid-plans)
           (upsert (-> (on-conflict :nickname)
                       (do-update-set :id :created :interval :amount :tiers)))
-          do-execute))))
+          db/do-execute))))
 
 (defn ensure-user-email-entries
   "Migrate to new email verification system, should only be run when the

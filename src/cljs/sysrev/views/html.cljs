@@ -1,7 +1,6 @@
 (ns sysrev.views.html
-  (:require
-   [clojure.string :as string]
-   [clojure.walk :refer [postwalk]]))
+  (:require [clojure.string :as str]
+            [clojure.walk :refer [postwalk]]))
 
 ;; this is from https://github.com/yogthos/json-html
 ;; MIT License
@@ -17,43 +16,44 @@
   "Change special characters into HTML character entities."
   [text]
   (-> (as-str text)
-      (string/replace #"&" "&amp;")
-      (string/replace #"<" "&lt;")
-      (string/replace #">" "&gt;")
-      (string/replace #"'" "&apos;")))
+      (str/replace #"&" "&amp;")
+      (str/replace #"<" "&lt;")
+      (str/replace #">" "&gt;")
+      (str/replace #"'" "&apos;")))
 
 (defn xml-attribute [id value]
   (str " " (as-str (name id)) "=\"" (escape-html value) "\""))
 
 (defn render-attribute [[name value]]
-  (cond
-    (true? value) (xml-attribute name name)
-    (not value) ""
-    :else (xml-attribute name value)))
+  (cond (true? value) (xml-attribute name name)
+        (not value)   ""
+        :else         (xml-attribute name value)))
 
 (defn render-attr-map [attrs]
   (apply str (sort (map render-attribute attrs))))
 
 (defn- merge-attributes [{:keys [id class]} map-attrs]
   (->> map-attrs
-       (merge (if id {:id id}))
-       (merge-with #(if %1 (str %1 " " %2) %2) (if class {:class class}))))
+       (merge (when id {:id id}))
+       (merge-with #(if %1 (str %1 " " %2) %2)
+                   (when class {:class class}))))
 
 (defn normalize-element [[tag & content]]
   (let [re-tag    #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?"
         [_ tag id class] (re-matches re-tag (as-str (name tag)))
         tag-attrs {:id    id
-                   :class (if class (string/replace class #"\." " "))}
+                   :class (some-> class (str/replace #"\." " "))}
         map-attrs (first content)]
     (if (map? map-attrs)
       [tag (merge-attributes tag-attrs map-attrs) (next content)]
       [tag tag-attrs content])))
 
 (defn render-element [[tag attrs & content]]
-  (str "<" (name tag) (render-attr-map attrs) ">" (as-str (flatten content)) "</" (name tag) ">"))
+  (str "<" (name tag) (render-attr-map attrs) ">"
+       (as-str (flatten content))
+       "</" (name tag) ">"))
 
 (defn html [hiccup]
-  (postwalk
-   #(cond-> %
-      (vector? %) ((comp render-element normalize-element)))
-   hiccup))
+  (postwalk #(cond-> %
+               (vector? %) ((comp render-element normalize-element)))
+            hiccup))

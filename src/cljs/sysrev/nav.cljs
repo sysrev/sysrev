@@ -1,7 +1,6 @@
 (ns sysrev.nav
   (:require [clojure.string :as str]
             [goog.uri.utils :as uri-utils]
-            [secretary.core :as secretary]
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
             [cljs-http.client :as hc]

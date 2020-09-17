@@ -6,6 +6,7 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [reagent.dom :refer [dom-node]]
+            [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]))
 
@@ -413,13 +414,10 @@
      (not (nil? default-value)) (merge {:default-value default-value})
      (and (nil? default-value)
           (not (nil? value)))
-     (merge {:value (if (in? [cljs.core/Atom
-                              reagent.ratom/RAtom
-                              reagent.ratom/RCursor
-                              reagent.ratom/Reaction]
-                             (type value))
-                      @value
-                      value)})
+     (merge {:value (cond-> value
+                      (in? [cljs.core/Atom ratom/RAtom ratom/RCursor ratom/Reaction]
+                           (type value))
+                      (deref))})
      (not (nil? placeholder)) (merge {:placeholder placeholder})
      (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
      (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
@@ -558,20 +556,19 @@
                                    (merge opts))))
                   (.on "error" (fn [file msg _]
                                  (js/console.log (str "Upload error [" file "]: " msg))
-                                 (reset! error-msg (get (re-find #"message\",\"(.*)?\"" msg) 1))
+                                 (reset! error-msg (-> (re-find #"message\",\"(.*)?\"" msg)
+                                                       (get 1)))
                                  true))
                   (.on "success" on-success)))]
       (r/create-class
-       {:reagent-render (fn [childer upload-url on-success text class style {:keys [post-error-text]}]
-                          [:div
-                           [childer id upload-url error-msg text class style]
-                           (if (not (nil? @error-msg))
-                           [:div.ui {:style {:text-align "center" :margin-top "1em"}}
-                            [:i.ui.red.exclamation.icon]
-                            [:span @error-msg]
-                            [:br]
-                            [:span post-error-text]
-                            ])])
+       {:reagent-render
+        (fn [childer upload-url _on-success text class style {:keys [post-error-text]}]
+          [:div [childer id upload-url error-msg text class style]
+           (when @error-msg
+             [:div {:style {:text-align "center" :margin-top "1em"}}
+              [:i.ui.red.exclamation.icon]
+              [:span @error-msg] [:br]
+              [:span post-error-text]])])
         :component-did-mount #(init-dropzone)
         :display-name "upload-container"}))))
 

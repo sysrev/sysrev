@@ -1,7 +1,7 @@
 (ns sysrev.action.core
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
-            [re-frame.core :refer [reg-event-fx trim-v]]
+            [re-frame.core :refer [reg-event-fx trim-v dispatch]]
             [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
             [sysrev.loading :as loading]))
 
@@ -114,3 +114,6 @@
                 (do (js/console.error (str "action error: item = " (pr-str item)
                                            "\nerror: " (pr-str (:error cofx))))
                     {})))))))
+
+(defn run-action [& item]
+  (dispatch [:action (into [] item)]))

@@ -15,6 +15,7 @@
                        (compojure.core/PUT nil)
                        (compojure.core/DELETE nil)
                        (compojure.core/context nil)
+                       (bouncer.validators/defvalidator nil)
                        ;; ignore unresolved symbols from setup-panel-state macro
                        panel-get panel-set]}
   :unused-binding {:exclude-destructured-keys-in-fn-args true}
