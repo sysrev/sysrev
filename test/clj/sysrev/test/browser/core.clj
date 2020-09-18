@@ -30,10 +30,20 @@
        (catch Throwable _
          (log/warn "unable to read console logs"))))
 
+(defn browser-console-warnings []
+  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_warnings();"))
+       (catch Throwable _
+         (log/warn "unable to read console warnings"))))
+
 (defn browser-console-errors []
   (try (not-empty (taxi/execute-script "return sysrev.base.get_console_errors();"))
        (catch Throwable _
          (log/warn "unable to read console errors"))))
+
+(defn test-browser-console-clean []
+  (is (empty? (browser-console-errors)))
+  (is (empty? (browser-console-warnings)))
+  nil)
 
 (defn log-console-messages [& [level]]
   (when *driver*
@@ -41,6 +51,9 @@
       (if-let [logs (browser-console-logs)]
         (log/logf level "browser console logs:\n\n%s" logs)
         (log/logp level "browser console logs: (none)"))
+      (if-let [warnings (browser-console-warnings)]
+        (log/logf level "browser console warnings:\n\n%s" warnings)
+        (log/logp level "browser console warnings: (none)"))
       (if-let [errors (browser-console-errors)]
         (log/logf level "browser console errors:\n\n%s" errors)
         (log/logp level "browser console errors: (none)")))))
@@ -404,8 +417,10 @@
                            (catch Throwable e#
                              (log/warn "got exception in repl cleanup:" (str e#)))))
                     ~body
+                    (test-browser-console-clean)
                     (catch Throwable e#
                       (log/error "current-url:" (-> (taxi/current-url) (ignore-exceptions)))
+                      (test-browser-console-clean)
                       (log-console-messages :error)
                       (take-screenshot :error)
                       (throw e#))
@@ -490,6 +505,7 @@
 
 (defn init-route [path & {:keys [silent]}]
   (let [full-url (path->url path)]
+    (test-browser-console-clean)
     (when-not silent (log/info "loading" full-url))
     (taxi/to full-url)
     (wait-until-loading-completes :pre-wait true :loop 2)

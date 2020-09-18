@@ -319,7 +319,7 @@
             timed-out? (source-import-timed-out? source)
             polling? @polling-sources?
             sample-article @(subscribe [:project-source/sample-article project-id source-id])]
-        (when (nil? sample-article)
+        (when (and (nil? sample-article) @(subscribe [:member/admin?]))
           (dispatch [:require [:project-source/sample-article project-id source-id]]))
         (when (or (and (true? importing-articles?) (not timed-out?))
                   deleting? delete-running?)

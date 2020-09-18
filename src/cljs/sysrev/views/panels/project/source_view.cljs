@@ -83,8 +83,10 @@
   (let [project-id (subscribe [:active-project-id])
         active-tab (r/atom :edit)
         temp-cursors (r/atom (-> @source :meta :cursors))]
-    (dispatch [:reload [:project-source/sample-article
-                        @project-id (:source-id @source)]])
+    (when (and @(subscribe [:member/admin?])
+               @project-id
+               (:source-id @source))
+      (dispatch [:reload [:project-source/sample-article @project-id (:source-id @source)]]))
     (fn [{:keys [source editing-view?]}]
       (let [{:keys [source-id meta]} @source
             source-name (:source meta)

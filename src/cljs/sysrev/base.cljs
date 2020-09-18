@@ -27,24 +27,34 @@
     (let [default (.bind js/console.log js/console)]
       (set! js/console.defaultLog default)
       (swap! default-console-fns assoc :log default))
-    (set! js/console.log
-          (fn []
-            (let [args (js-arguments)]
-              (.apply (.-defaultLog js/console) js/console (garray/clone args))
-              (swap! console-logs update :log
-                     #(conj (or % []) (vec (js->clj args))))
-              nil)))
+    ;; wrap js/console.warn
+    (let [default (.bind js/console.warn js/console)]
+      (set! js/console.defaultWarn default)
+      (swap! default-console-fns assoc :warn default))
     ;; wrap js/console.error
     (let [default (.bind js/console.error js/console)]
       (set! js/console.defaultError default)
       (swap! default-console-fns assoc :error default))
-    (set! js/console.error
-          (fn []
-            (let [args (js-arguments)]
-              (.apply (.-defaultError js/console) js/console (garray/clone args))
-              (swap! console-logs update :error
-                     #(conj (or % []) (vec (js->clj args))))
-              nil)))
+    ;; redefine console functions
+    (letfn [(make-console-fn [msg-type default-fn & {:keys [ignore-regexps]}]
+              (fn []
+                (let [args (js-arguments)]
+                  (.apply default-fn js/console (garray/clone args))
+                  (when (empty? (filter #(re-find % (-> (js->clj args) vec pr-str str/lower-case))
+                                        ignore-regexps))
+                    (swap! console-logs update msg-type
+                           #(conj (or % []) (vec (js->clj args)))))
+                  nil)))]
+      (set! js/console.log
+            (make-console-fn :log js/console.defaultLog))
+      (set! js/console.warn
+            (make-console-fn :warn js/console.defaultWarn
+                             :ignore-regexps
+                             [#"you may test.*stripe.*integration"]))
+      (set! js/console.error
+            (make-console-fn :error js/console.defaultError
+                             :ignore-regexps
+                             [#"no longer attached.*unable to animate"])))
     nil))
 
 (defn log-entry-string [entry]
@@ -58,6 +68,11 @@
 (defn ^:export get-console-logs []
   (with-out-str
     (doseq [entry (:log @console-logs)]
+      (println (log-entry-string entry)))))
+
+(defn ^:export get-console-warnings []
+  (with-out-str
+    (doseq [entry (:warn @console-logs)]
       (println (log-entry-string entry)))))
 
 (defn ^:export get-console-errors []
