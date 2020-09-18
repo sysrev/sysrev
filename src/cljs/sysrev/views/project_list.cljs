@@ -4,7 +4,7 @@
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.list-pager :refer [ListPager]]
-            [sysrev.views.panels.project.new :refer [NewProjectButton]]
+            [sysrev.views.panels.new-project :refer [NewProjectButton]]
             [sysrev.views.project :refer [ProjectName]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader]]))

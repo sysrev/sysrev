@@ -6,7 +6,8 @@
             [re-frame.db :refer [app-db]]
             [secretary.core :refer [defroute]]
             [sysrev.loading]
-            #?(:cljs [sysrev.state.ui])
+            #?@(:cljs [[sysrev.state.ui]
+                       [sysrev.views.base]])
             [sysrev.util :refer [ensure-pred]]))
 
 (defmacro with-mount-hook [on-mount]
@@ -109,7 +110,7 @@
 
 (defmacro sr-defroute
   [name uri params & body]
-  `(defroute ~name ~uri ~params
+  `(defroute ~@(when name [name]) ~uri ~params
      (let [clear-text# true]
        (letfn [(route-fn# []
                  (go-route-sync-data
@@ -128,7 +129,7 @@
 
 (defmacro sr-defroute-project--impl
   [owner-key name uri _suburi params & body]
-  `(defroute ~name ~uri ~params
+  `(defroute ~@(when name [name]) ~uri ~params
      (let [clear-text# true
            project-url-id# ~(if owner-key (second params) (first params))
            owner-url-id# ~(when (and owner-key (first params))
@@ -263,3 +264,20 @@
      ~(when set-event
         `(reg-event-db ~set-event (fn [db# [_# path# val#]]
                                     (~set-fn db# path# val#))))))
+
+(defmacro def-panel [{:keys [name uri params panel
+                             on-route content logged-out-content]
+                      :or {name nil params [] logged-out-content nil}}]
+  (assert (or (nil? name) (symbol? name)) "name argument should be a symbol")
+  (assert (some? uri) "uri argument is required")
+  (assert (some? content) "content argument is required")
+  `(list (assert (and (vector? ~panel) (every? keyword? ~panel))
+                 "panel must be a vector of keywords")
+         (sr-defroute ~name ~uri ~params ~on-route)
+         (defmethod sysrev.views.base/panel-content ~panel []
+           ~(if (= 'fn (first content))
+              content
+              `(fn [_child#] ~content)))
+         ~(when logged-out-content
+            `(defmethod sysrev.views.base/logged-out-content ~panel []
+               ~logged-out-content))))

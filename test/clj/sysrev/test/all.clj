@@ -11,7 +11,7 @@
             sysrev.test.browser.group-labels
             sysrev.test.browser.simple
             sysrev.test.browser.sources
-            sysrev.test.browser.new
+            sysrev.test.browser.new-project
             sysrev.test.browser.orgs
             sysrev.test.browser.plans
             sysrev.test.browser.project-articles

@@ -171,9 +171,6 @@
 ;;
 ;; non-project routes
 ;;
-(sr-defroute
- new "/new" []
- (dispatch [:set-active-panel [:new]]))
 
 (sr-defroute
  login "/login" []
@@ -208,11 +205,6 @@
 (sr-defroute
  pubmed-search "/pubmed-search" []
  (dispatch [:set-active-panel [:pubmed-search]]))
-
-#_
-(sr-defroute-project
- support "/support" [project-id]
- (dispatch [:set-active-panel [:project :project :support]]))
 
 (sr-defroute
  plans "/user/payment" []

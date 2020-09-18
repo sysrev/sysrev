@@ -5,7 +5,7 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub reg-event-db trim-v dispatch]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.panels.project.new :refer [NewProjectButton]]
+            [sysrev.views.panels.new-project :refer [NewProjectButton]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
             [sysrev.views.semantic :refer

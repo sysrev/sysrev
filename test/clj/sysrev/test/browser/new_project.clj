@@ -1,4 +1,4 @@
-(ns sysrev.test.browser.new
+(ns sysrev.test.browser.new-project
   (:require [clojure.test :refer [is use-fixtures]]
             [sysrev.payment.plans :refer [group-current-plan]]
             [sysrev.payment.stripe :as stripe]
