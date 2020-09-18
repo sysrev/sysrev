@@ -126,7 +126,7 @@
              (-> (get-in db [:data :project project-id :sample-article])
                  (contains? source-id)))
   :uri (fn [_ source-id] (str "/api/sources/" source-id "/sample-article"))
-  :content (fn [project-id] {:project-id project-id})
+  :content (fn [project-id _] {:project-id project-id})
   :process (fn [{:keys [db]} [project-id source-id] {:keys [article]}]
              {:db (assoc-in db [:data :project project-id :sample-article source-id] article)}))
 

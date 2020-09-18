@@ -1,5 +1,5 @@
 (ns sysrev.sendgrid
-  (:require [clj-http.client :as client]
+  (:require [clj-http.client :as http]
             [sysrev.config :refer [env]]))
 
 (def sendgrid-api-key (env :sendgrid-api-key))
@@ -21,13 +21,13 @@
 
 (defn- request
   [endpoint & [params headers]]
-  (try (let [resp (-> (client/post (str sendgrid-api-url endpoint)
-                                   (merge-with merge
-                                               common-opts
-                                               {:form-params params}
-                                               {:headers headers}))
+  (try (let [resp (-> (http/post (str sendgrid-api-url endpoint)
+                                 (merge-with merge
+                                             common-opts
+                                             {:form-params params}
+                                             {:headers headers}))
                       :body)]
-         {:success (not (seq (:errors resp)))
+         {:success (empty? (:errors resp))
           :resp resp})
        (catch Throwable _
          {:success false

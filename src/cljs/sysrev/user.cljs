@@ -1,3 +1,4 @@
+#_{:clj-kondo/ignore [:unused-import :unused-namespace :unused-referred-var :use :refer-all]}
 (ns sysrev.user
   (:require [clojure.string :as str]
             [clojure.spec.alpha :as s]

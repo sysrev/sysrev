@@ -64,6 +64,8 @@
 
 ;; the dereferencing of db as an atom is particular to the case
 ;; where pooled connections are stored in an atom
+;;
+#_{:clj-kondo/ignore [:invalid-arity]}
 (defcache SQLMemoCache [cache db f]
   CacheProtocol
   (lookup [_ item]

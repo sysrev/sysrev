@@ -3,13 +3,13 @@
             [goog.uri.utils :as uri-utils]
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
-            [cljs-http.client :as hc]
+            [cljs-http.client :as http]
             [sysrev.base :refer [history]]
             [sysrev.shared.text :refer [uri-title]]
             [sysrev.util :refer [scroll-top]]))
 
 (defn make-url [route & [params]]
-  (let [hash (hc/generate-query-string params)]
+  (let [hash (http/generate-query-string params)]
     (if (empty? hash)
       route
       (str route "?" hash))))
@@ -55,9 +55,8 @@
 
 (reg-fx :nav-scroll-top (fn [url]
                           (let [uri (uri-utils/getPath url)
-                                params (-> url
-                                           uri-utils/getQueryData
-                                           (cljs-http.client/parse-query-params))]
+                                params (-> (uri-utils/getQueryData url)
+                                           (http/parse-query-params))]
                             (nav-scroll-top uri :params params))))
 
 (reg-fx :nav-reload (fn [url] (nav-reload url)))
@@ -93,7 +92,7 @@
                        (str/starts-with? s "?"))
                 (subs s 1)
                 s)]
-    (hc/parse-query-params query)))
+    (http/parse-query-params query)))
 
 (defn set-page-title [title]
   (let [uri js/window.location.pathname]

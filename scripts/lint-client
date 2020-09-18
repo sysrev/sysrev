@@ -1,8 +1,0 @@
-#!/bin/bash
-set -eu
-
-paths="src/cljc src/cljs"
-
-cd client
-clj-kondo --lang cljs --lint $paths --config '{:output {:exclude-files ["sysrev/user.cljs"]}}'
-cd ..

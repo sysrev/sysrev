@@ -28,7 +28,7 @@
                        ["moment" :as moment]
                        ["dropzone" :as Dropzone]
                        ["decamelize" :as decamelize]
-                       [goog.string :as gstring :refer [unescapeEntities]]
+                       [goog.string :as gstr :refer [unescapeEntities]]
                        [goog.string.format]
                        [re-frame.core :refer [subscribe]]]))
   #?(:clj (:import [java.util UUID]
@@ -45,7 +45,7 @@
 #?(:cljs (defn format
            "Wrapper to provide goog.string/format functionality from this namespace."
            [format-string & args]
-           (apply gstring/format format-string args)))
+           (apply gstr/format format-string args)))
 
 (defn ensure-pred
   "Returns `value` if (`pred` `value`) returns logical true, otherwise

@@ -4,7 +4,7 @@
             [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
-            [clojure.string :as string]
+            [clojure.string :as str]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [clj-time.core :as t]
@@ -1228,7 +1228,7 @@
         {:error {:status conflict
                  :message (str "An organization with the name '" org-name "' already exists."
                                " Please try using another name.")}}
-        (string/blank? org-name)
+        (str/blank? org-name)
         {:error {:status bad-request
                  :message (str "Organization names can't be blank!")}}
         :else {:valid true}))

@@ -1,3 +1,4 @@
+#_{:clj-kondo/ignore [:unused-import :unused-namespace :unused-referred-var :use :refer-all]}
 (ns sysrev.user
   (:refer-clojure :exclude [find])
   (:use sysrev.logging
@@ -58,7 +59,8 @@
         sysrev.init
         sysrev.shared.keywords
         sysrev.test.core
-        sysrev.test.browser.navigate)
+        sysrev.test.browser.navigate
+        sysrev.stacktrace)
   (:require [clojure.spec.alpha :as s]
             [clojure.edn :as edn]
             [orchestra.spec.test :as t]
@@ -103,9 +105,8 @@
   (:import java.util.UUID))
 
 (defonce started
-  (try
-    (sysrev.init/start-app)
-    (catch Throwable e
-      (log/info "error in sysrev.init/start-app")
-      (log/info (.getMessage e))
-      (.printStackTrace e))))
+  (try (sysrev.init/start-app)
+       (catch Throwable e
+         (log/error "error in sysrev.init/start-app")
+         (log/error (.getMessage e))
+         (log/error (with-out-str (print-cause-trace-custom e))))))

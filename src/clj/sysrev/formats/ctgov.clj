@@ -1,6 +1,6 @@
 (ns sysrev.formats.ctgov
   (:require [clojure.string :as str]
-            [clj-http.client :as client]))
+            [clj-http.client :as http]))
 
 (def ct-gov-root "https://clinicaltrials.gov/api")
 
@@ -8,7 +8,7 @@
   (let [page-size 10
         max-rank (* p page-size)
         min-rank (- max-rank (- page-size 1))
-        resp (-> (client/get
+        resp (-> (http/get
                   (str ct-gov-root "/query/study_fields")
                   ;; https://clinicaltrials.gov/api/gui/ref/expr
                   ;; https://clinicaltrials.gov/api/info/search_areas?fmt=XML
@@ -55,14 +55,14 @@
   (let [total-studies (:count (search q 1))
         thousands (int (/ total-studies 1000))]
     (->> (for [i (range 0 (+ 1 thousands))]
-           (-> (client/get (str ct-gov-root "/query/study_fields")
-                           {:query-params {:expr q
-                                           :fields (clojure.string/join "," ["NCTId" "BriefTitle"])
-                                           :min_rnk (+ 1 (* i 1000))
-                                           :max_rnk (* (+ i 1) 1000)
-                                           :fmt "json"}
-                            :as :json
-                            :throw-exceptions false})
+           (-> (http/get (str ct-gov-root "/query/study_fields")
+                         {:query-params {:expr q
+                                         :fields (clojure.string/join "," ["NCTId" "BriefTitle"])
+                                         :min_rnk (+ 1 (* i 1000))
+                                         :max_rnk (* (+ i 1) 1000)
+                                         :fmt "json"}
+                          :as :json
+                          :throw-exceptions false})
                :body
                (get-in [:StudyFieldsResponse :StudyFields])))
          (apply concat)

@@ -5,7 +5,7 @@
                   sysrev.shared.keywords
                   ;; cljs
                   sysrev.annotation
-                  sysrev.charts.chartjs
+                  sysrev.chartjs
                   sysrev.core
                   sysrev.views.html
                   sysrev.views.reagent-json-view

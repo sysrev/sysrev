@@ -5,7 +5,7 @@
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
             [sysrev.datasource.core :as ds]
-            [sysrev.source.core :as s]
+            [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.slack :refer [log-slack-custom]]
             [sysrev.stacktrace :as strace]
@@ -96,7 +96,7 @@
                                        (mapv #(assoc % :article-id article-id))))))
                          (apply concat)
                          vec)]
-                (s/add-articles-to-source
+                (source/add-articles-to-source
                  (concat existing-article-ids (keys new-articles-map))
                  source-id)
                 (q/create :article-location new-locations)
@@ -150,8 +150,8 @@
   (db/with-transaction
     ;; update source metadata
     (if success?
-      (s/alter-source-meta source-id #(assoc % :importing-articles? false))
-      (s/fail-source-import source-id))
+      (source/alter-source-meta source-id #(assoc % :importing-articles? false))
+      (source/fail-source-import source-id))
     ;; log errors
     (try (let [source (q/find-one :project-source {:source-id source-id})]
            (cond (not success?)
@@ -165,7 +165,7 @@
          (catch Throwable _
            (log/error "after-source-import - logging error to slack failed")))
     ;; update the enabled flag for the articles
-    (s/update-project-articles-enabled project-id))
+    (source/update-project-articles-enabled project-id))
   ;; start threads for updates from api.insilica.co
   (when success?
     (predict-api/schedule-predict-update project-id))
@@ -219,11 +219,11 @@
    {:keys [use-future? threads] :or {use-future? true threads 4}}
    & {:keys [filename file]}]
   (let [blocking? (boolean (or (not use-future?) *conn*))
-        source-id (s/create-source project-id (assoc source-meta :importing-articles? true))
+        source-id (source/create-source project-id (assoc source-meta :importing-articles? true))
         do-import
         (fn []
           (->> (try (when (and filename file)
-                      (try (s/save-import-file source-id filename file)
+                      (try (source/save-import-file source-id filename file)
                            (catch Throwable e
                              (log/warn "failed to save import file -" (.getMessage e)))))
                     (import-source-articles

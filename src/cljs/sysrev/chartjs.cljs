@@ -1,4 +1,4 @@
-(ns sysrev.charts.chartjs
+(ns sysrev.chartjs
   (:require ["chart.js" :as Chart]
             [reagent.core :as r]
             [reagent.dom :refer [dom-node]]))

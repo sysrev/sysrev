@@ -1,7 +1,0 @@
-#!/bin/bash
-set -eu
-
-paths="src/cljc src/clj"
-paths="$paths test/clj"
-
-clj-kondo --lang clj --lint $paths --config '{:output {:exclude-files ["sysrev/user.clj"]}}'

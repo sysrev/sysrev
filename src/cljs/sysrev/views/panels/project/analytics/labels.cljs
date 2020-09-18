@@ -2,7 +2,7 @@
   (:require [clojure.set :as set]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.charts.chartjs :as chartjs]
+            [sysrev.chartjs :as chartjs]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Grid Row Column Button]]
             [sysrev.views.charts :as charts]

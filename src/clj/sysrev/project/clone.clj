@@ -9,7 +9,7 @@
             [sysrev.project.member :as member]
             [sysrev.file.article :as article-file]
             [sysrev.article.core :as article]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.util :refer [in? index-by]]))
@@ -246,7 +246,7 @@
                               :admin-members-only admin-members-only))
       (if labels
         (copy-project-label-defs src-id dest-id)
-        (labels/add-label-overall-include dest-id))
+        (label/add-label-overall-include dest-id))
       (when labels
         (copy-project-keywords src-id dest-id))
       (when (and labels answers articles)
@@ -281,7 +281,7 @@
                             :admin-members-only admin-members-only)
       (if labels?
         (copy-project-label-defs src-id dest-id)
-        (labels/add-label-overall-include dest-id))
+        (label/add-label-overall-include dest-id))
       (when labels?
         (copy-project-keywords src-id dest-id))
       (when (and labels? answers?)

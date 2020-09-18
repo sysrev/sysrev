@@ -30,7 +30,7 @@ cd ..
 
 clj_kondo_quiet() {
   classpath="$@"
-  clj-kondo --lint $classpath | grep -v 'warning:' | grep -v 'error:' || true
+  clj-kondo --parallel --lint $classpath | grep -v 'warning:' | grep -v 'error:' || true
 }
 
 echo "processing CLJ project ..."

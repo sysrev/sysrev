@@ -1,21 +1,83 @@
-{:linters
- {:unresolved-symbol {:exclude
-                      [;; ignore unresolved symbols inside these macro forms
-                       (sysrev.db.queries/def-find-type nil)
-                       (sysrev.util/with-print-time-elapsed nil)
-                       (sysrev.test.browser.core/deftest-browser nil)
-                       (sysrev.macros/sr-defroute nil)
-                       (sysrev.macros/sr-defroute-project nil)
-                       (sysrev.graphql.core/with-datasource-proxy nil)
-                       (orchestra.core/defn-spec nil)
-                       (clojure.core.cache/defcache nil)
-                       (compojure.core/GET nil)
-                       (compojure.core/POST nil)
-                       (compojure.core/PUT nil)
-                       (compojure.core/DELETE nil)
-                       (compojure.core/context nil)
-                       (bouncer.validators/defvalidator nil)
-                       ;; ignore unresolved symbols from setup-panel-state macro
-                       panel-get panel-set]}
-  :unused-binding {:exclude-destructured-keys-in-fn-args true}
-  :unused-namespace {:exclude [#_ clojure.tools.logging]}}}
+{:linters {:use {:level :off}
+           :unresolved-symbol {:exclude
+                               [ ;; ignore unresolved symbols inside these macro forms
+                                (sysrev.db.queries/def-find-type nil)
+                                (sysrev.util/with-print-time-elapsed nil)
+                                (sysrev.test.browser.core/deftest-browser nil)
+                                (sysrev.macros/sr-defroute nil)
+                                (sysrev.macros/sr-defroute-project nil)
+                                (sysrev.graphql.core/with-datasource-proxy nil)
+                                (orchestra.core/defn-spec nil)
+                                (clojure.core.cache/defcache nil)
+                                (compojure.core/GET nil)
+                                (compojure.core/POST nil)
+                                (compojure.core/PUT nil)
+                                (compojure.core/DELETE nil)
+                                (compojure.core/context nil)
+                                (bouncer.validators/defvalidator nil)
+                                ;; ignore unresolved symbols from setup-panel-state macro
+                                panel-get panel-set]}
+           :unused-binding {:exclude-destructured-keys-in-fn-args true}
+           :unused-namespace {:exclude [#_ clojure.tools.logging
+                                        sysrev.util
+                                        medley.core]}
+           :unused-referred-var {:exclude {clojure.test [is deftest testing]}}
+           :consistent-alias {:aliases {
+;;; clojure api namespaces
+                                        clojure.data.json              json
+                                        clojure.data.xml               dxml
+                                        clojure.edn                    edn
+                                        clojure.java.io                io
+                                        clojure.math.numeric-tower     math
+                                        clojure.set                    set
+                                        clojure.spec.alpha             s
+                                        clojure.string                 str
+                                        clojure.tools.logging          log
+                                        clojure.walk                   walk
+                                        clojure.zip                    zip
+;;; library namespaces [CLJ]
+                                        clj-http.client                http
+                                        clojure-csv.core               csv
+                                        cognitect.transit              transit
+                                        honeysql.core                  sql
+                                        honeysql.helpers               sqlh
+                                        medley.core                    medley
+                                        me.raynes.fs                   fs
+                                        ring.mock.request              mock
+                                        venia.core                     venia
+;;; library namespaces [CLJS]
+                                        cljs-http.client               http
+                                        goog.string                    gstr
+                                        reagent.core                   r
+                                        reagent.ratom                  ratom
+;;; sysrev namespaces  [CLJ]
+                                        sysrev.article.core            article
+                                        sysrev.config                  config
+                                        sysrev.datasource.api          ds-api
+                                        sysrev.db.core                 db
+                                        sysrev.db.queries              q
+                                        sysrev.group.core              group
+                                        sysrev.init                    init
+                                        sysrev.label.core              label
+                                        sysrev.label.answer            answer
+                                        sysrev.user.core               user
+                                        sysrev.project.core            project
+                                        sysrev.sendgrid                sendgrid
+                                        sysrev.slack                   slack
+                                        sysrev.source.core             source
+                                        sysrev.source.import           import
+                                        sysrev.util                    util
+;;; sysrev namespaces  [CLJS]
+                                        sysrev.action.core             action
+                                        sysrev.chartjs                 chartjs
+                                        sysrev.data.core               data
+                                        sysrev.loading                 loading
+;;; sysrev test namespaces
+                                        clj-webdriver.taxi             taxi
+                                        sysrev.test.core               test
+                                        sysrev.test.browser.core       b
+                                        sysrev.test.browser.navigate   nav
+                                        sysrev.test.browser.xpath      x}}}
+ :output {:exclude-files ["src/clj/sysrev/user.clj"
+                          "src/cljs/sysrev/user.cljs"
+                          "src/scripts/repl.clj"]}}

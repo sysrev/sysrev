@@ -79,19 +79,19 @@
      (when user-name
        [:div.ui.label.user-name {:class (css [(not dark-theme?) "basic"])}
         user-name])
-     ;; basic labels
-     (for [[label-id answer] (->> all-label-ids
-                                  (remove #(= "group" (value-type %)))
-                                  (map #(list % (get-in labels [% :answer]))))]
-       (when (real-answer? answer)
-         ^{:key (str label-id)} [LabelAnswerTag "na" label-id answer]))
-     ;; group labels
-     (for [[group-label-id answer] (->> all-label-ids
-                                        (filter #(= "group" (value-type %)))
-                                        (map #(list % (get-in labels [% :answer]))))]
-       ^{:key (str group-label-id)}
-       [GroupLabelAnswerTag {:group-label-id group-label-id
-                             :answers (:labels answer)}])
+     (doall ;; basic labels
+      (for [[label-id answer] (->> all-label-ids
+                                   (remove #(= "group" (value-type %)))
+                                   (map #(list % (get-in labels [% :answer]))))]
+        (when (real-answer? answer)
+          ^{:key (str label-id)} [LabelAnswerTag "na" label-id answer])))
+     (doall ;; group labels
+      (for [[group-label-id answer] (->> all-label-ids
+                                         (filter #(= "group" (value-type %)))
+                                         (map #(list % (get-in labels [% :answer]))))]
+        ^{:key (str group-label-id)}
+        [GroupLabelAnswerTag {:group-label-id group-label-id
+                              :answers (:labels answer)}]))
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])

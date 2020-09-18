@@ -6,7 +6,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]
             [sysrev.config :as config]
@@ -19,14 +19,14 @@
 ;; TODO: this only works for boolean inclusion criteria labels
 (defn- get-training-label-values [project-id label-id]
   (db/with-transaction
-    (->> (labels/query-public-article-labels project-id)
+    (->> (label/query-public-article-labels project-id)
          (map-kv (fn [article-id {:keys [labels]}]
-                   (let [consensus (labels/article-consensus-status project-id article-id)
+                   (let [consensus (label/article-consensus-status project-id article-id)
                          labels (get labels label-id)
                          answer (cond (in? [:single :consistent] consensus)
                                       (->> labels (map :answer) (remove nil?) first)
                                       (= :resolved consensus)
-                                      (-> (labels/article-resolved-labels
+                                      (-> (label/article-resolved-labels
                                            project-id article-id)
                                           (get label-id)))]
                      (when-not (nil? answer)
@@ -94,7 +94,7 @@
       (report/update-predict-meta project-id predict-run-id))))
 
 (defn update-project-predictions [project-id]
-  (let [{:keys [reviewed]} (labels/project-article-status-counts project-id)]
+  (let [{:keys [reviewed]} (label/project-article-status-counts project-id)]
     (when (and reviewed (>= reviewed 10))
       (send predict-api
             (fn [_] (try (db/with-transaction

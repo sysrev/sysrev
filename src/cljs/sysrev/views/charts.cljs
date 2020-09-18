@@ -1,5 +1,5 @@
 (ns sysrev.views.charts
-  (:require [sysrev.charts.chartjs :as chartjs]
+  (:require [sysrev.chartjs :as chartjs]
             [re-frame.core :refer [subscribe]]
             [sysrev.util :as util]))
 

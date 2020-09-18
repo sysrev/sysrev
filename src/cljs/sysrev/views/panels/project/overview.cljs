@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.overview
   (:require [clojure.string :as str]
             [reagent.core :as r]
-            [sysrev.charts.chartjs :as chartjs]
+            [sysrev.chartjs :as chartjs]
             [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]

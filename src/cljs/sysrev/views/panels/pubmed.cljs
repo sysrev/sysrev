@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.pubmed
   (:require [clojure.string :as str]
-            [cljs-http.client :as http-client]
+            [cljs-http.client :as http]
             [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
@@ -177,8 +177,7 @@
   (let [on-change-search-term (r/cursor state [:on-change-search-term])]
     [:a.ui.fluid.right.labeled.icon.button.search-results
      {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/?"
-                 (http-client/generate-query-string
-                  {:term @on-change-search-term}))
+                 (http/generate-query-string {:term @on-change-search-term}))
       :target "_blank"}
      "PubMed " [:i.external.icon]]))
 

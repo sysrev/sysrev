@@ -7,8 +7,8 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :as p]
-            [sysrev.article.core :as a]
+            [sysrev.project.core :as project]
+            [sysrev.article.core :as article]
             [sysrev.file.s3 :as s3-file]
             [sysrev.util :as util :refer [map-values index-by]]))
 
@@ -121,7 +121,7 @@
   [project-id int?]
   (db/with-clear-project-cache project-id
     (let [ ;; get id for all articles in project
-          article-ids (p/project-article-ids project-id)
+          article-ids (project/project-article-ids project-id)
           ;; get list of enabled sources for each article
           a-sources (project-article-sources-map project-id :enabled true)
           ;; get current state to check against new computed value
@@ -141,8 +141,8 @@
           ;; list of articles we need to change to disabled
           update-disable-ids (->> disabled-ids (filter #(true? (get a-enabled %))))]
       ;; apply db updates for changed articles
-      (a/modify-articles-by-id update-enable-ids {:enabled true})
-      (a/modify-articles-by-id update-disable-ids {:enabled false})
+      (article/modify-articles-by-id update-enable-ids {:enabled true})
+      (article/modify-articles-by-id update-disable-ids {:enabled false})
       nil)))
 
 (defn-spec delete-source boolean?
@@ -169,7 +169,7 @@
   "Return count of labeled articles within source-id."
   [source-id int?]
   (if-let [project-id (source-id->project-id source-id)]
-    (let [overall-id (p/project-overall-label-id project-id)]
+    (let [overall-id (project/project-overall-label-id project-id)]
       (-> (select :%count.%distinct.al.article-id)
           (from [:article-source :asrc])
           (join [:article :a] [:= :a.article-id :asrc.article-id]
