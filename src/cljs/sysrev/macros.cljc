@@ -71,36 +71,37 @@
 
               :else [:div])])))
 
+#_[project-id @(subscribe [:active-project-id])
+   article-values (->> @(subscribe [:article/labels article-id user-id])
+                       (map-values :answer))
+   active-values @(subscribe [:review/active-labels article-id])
+   user-status @(subscribe [:article/user-status article-id user-id])
+   unconfirmed? (or (= user-status :unconfirmed)
+                    (= user-status :none))
+   resolving? @(subscribe [:review/resolving?])
+   article-loading? (sysrev.loading/item-loading? [:article project-id article-id])
+   send-labels? (and unconfirmed?
+                     (not resolving?)
+                     (not article-loading?)
+                     (not= active-values article-values))]
+;; not sure this should occur here anymore, labels should
+;; be manually saved and this causes errors in the console
+#_(when send-labels?
+    (dispatch [:action [:review/send-labels
+                        project-id {:article-id article-id
+                                    :label-values active-values
+                                    :confirm? false :resolve? false :change? false}]]))
+
 (defn go-route-sync-data [route-fn]
   (if-let [article-id @(subscribe [:review/editing-id])]
     (let [user-id @(subscribe [:self/user-id])
-          ;; project-id @(subscribe [:active-project-id])
-          ;; article-values (->> @(subscribe [:article/labels article-id user-id])
-          ;;                     (map-values :answer))
-          ;; active-values @(subscribe [:review/active-labels article-id])
-          ;; user-status @(subscribe [:article/user-status article-id user-id])
-          ;; unconfirmed? (or (= user-status :unconfirmed)
-          ;;                  (= user-status :none))
-          ;; resolving? @(subscribe [:review/resolving?])
-          ;; article-loading? (sysrev.loading/item-loading? [:article project-id article-id])
-          #_ send-labels? #_ (and unconfirmed?
-                                  (not resolving?)
-                                  (not article-loading?)
-                                  (not= active-values article-values))
           sync-notes? (not @(subscribe [:review/all-notes-synced? article-id]))
           ui-notes @(subscribe [:review/ui-notes article-id])
           article-notes @(subscribe [:article/notes article-id user-id])]
-      ;; not sure this should occur here anymore, labels should
-      ;; be manually saved and this causes errors in the console
-      #_(when send-labels?
-          (dispatch [:action [:review/send-labels
-                              project-id {:article-id article-id
-                                          :label-values active-values
-                                          :confirm? false :resolve? false :change? false}]]))
       (when sync-notes?
         (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
-      (if (or #_send-labels? sync-notes?)
-        #?(:cljs (js/setTimeout route-fn 30)
+      (if sync-notes?
+        #?(:cljs (js/setTimeout route-fn 50)
            :clj (route-fn))
         (route-fn))
       (dispatch [:review/reset-saving]))
@@ -108,23 +109,22 @@
 
 (defmacro sr-defroute
   [name uri params & body]
-  `(when (= :main @(subscribe [:app-id]))
-     (defroute ~name ~uri ~params
-       (let [clear-text# true]
-         (letfn [(route-fn# []
-                   (go-route-sync-data
-                    #(do (dispatch [:set-active-panel nil])
-                         (dispatch [:set-active-project-url nil])
-                         (when clear-text# (sysrev.util/clear-text-selection))
-                         ~@body
-                         (when clear-text# (sysrev.util/clear-text-selection-soon)))))
-                 (route-fn-when-ready# []
-                   (if (sysrev.loading/ajax-status-inactive?)
-                     (route-fn#)
-                     (js/setTimeout route-fn-when-ready# 10)))]
-           #_ (route-fn#)
-           (route-fn-when-ready#)
-           #_ (js/setTimeout route-fn-when-ready# 10))))))
+  `(defroute ~name ~uri ~params
+     (let [clear-text# true]
+       (letfn [(route-fn# []
+                 (go-route-sync-data
+                  #(do (dispatch [:set-active-panel nil])
+                       (dispatch [:set-active-project-url nil])
+                       (when clear-text# (sysrev.util/clear-text-selection))
+                       ~@body
+                       (when clear-text# (sysrev.util/clear-text-selection-soon)))))
+               (route-fn-when-ready# []
+                 (if (sysrev.loading/ajax-status-inactive?)
+                   (route-fn#)
+                   (js/setTimeout route-fn-when-ready# 10)))]
+         (route-fn-when-ready#)
+         #_ (route-fn#)
+         #_ (js/setTimeout route-fn-when-ready# 10)))))
 
 (defmacro sr-defroute-project--impl
   [owner-key name uri _suburi params & body]

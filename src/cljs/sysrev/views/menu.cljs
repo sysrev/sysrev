@@ -78,11 +78,10 @@
         [:div.right.menu
          (toggle-theme-button)
          (when-not mobile? [SiteSearch])
-         (when (= :main @(subscribe [:app-id]))
-           [:a.item.distinct
-            {:id "log-in-link"
-             :on-click (util/wrap-user-event
-                        #(do (dispatch-sync [:set-login-redirect-url (util/get-url-path)])
-                             (dispatch [:navigate [:login]])))}
-            "Log In"])
+         [:a.item.distinct
+          {:id "log-in-link"
+           :on-click (util/wrap-user-event
+                      #(do (dispatch-sync [:set-login-redirect-url (util/get-url-path)])
+                           (dispatch [:navigate [:login]])))}
+          "Log In"]
          [:div.item {:style {:width "0" :padding "0"}}]])]]))

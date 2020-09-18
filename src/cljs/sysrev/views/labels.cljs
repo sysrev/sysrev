@@ -24,8 +24,8 @@
                        (sequential? answer) answer
                        :else                [answer]))]
     [:span {:class (when color (str color "-text"))}
-     (or (some->> (not-empty values) (str/join ", "))
-         "—")]))
+     (-> (some->> (seq values) (str/join ", "))
+         (or "—"))]))
 
 (defn LabelAnswerTag [root-label-id label-id answer]
   (let [display @(subscribe [:label/display root-label-id label-id])

@@ -67,31 +67,23 @@
   (dev-setup)
   (mount-root))
 
-(reg-sub
- :touch-event-time
- (fn [db _] (:touch-event-time db)))
+(reg-sub :touch-event-time #(:touch-event-time %))
 
-(reg-event-db
- :touch-event-time
- (fn [db] (assoc db :touch-event-time (js/Date.now))))
+(reg-event-db :touch-event-time
+              (fn [db] (assoc db :touch-event-time (js/Date.now))))
 
-(reg-sub
- :mouse-event-time
- (fn [db _] (:mouse-event-time db)))
+(reg-sub :mouse-event-time #(:mouse-event-time %))
 
-(reg-event-db
- :mouse-event-time
- (fn [db] (assoc db :mouse-event-time (js/Date.now))))
+(reg-event-db :mouse-event-time
+              (fn [db] (assoc db :mouse-event-time (js/Date.now))))
 
-(reg-sub
- :touchscreen?
- :<- [:touch-event-time]
- :<- [:mouse-event-time]
- (fn [[touch mouse]]
-   (cond (and touch mouse)        (not (> (- mouse touch) 5000))
-         (and touch (nil? mouse)) true
-         (and mouse (nil? touch)) false
-         :else                    (if (util/full-size?) false true))))
+(reg-sub :touchscreen?
+         :<- [:touch-event-time] :<- [:mouse-event-time]
+         (fn [[touch mouse]]
+           (cond (and touch mouse)        (not (> (- mouse touch) 5000))
+                 (and touch (nil? mouse)) true
+                 (and mouse (nil? touch)) false
+                 :else                    (if (util/full-size?) false true))))
 
 (defn on-touchstart []
   (dispatch [:touch-event-time])
@@ -112,13 +104,12 @@
   (count (t/instrument)))
 
 (defn ^:export init []
-  (case (base/app-id)
-    :main (do (when base/debug? (enable-console-print!))
-              (base/setup-console-hooks)
-              (pushy/start! base/history)
-              (dispatch-sync [:initialize-db])
-              (data/init-data)
-              (mount-root))))
+  (when base/debug? (enable-console-print!))
+  (base/setup-console-hooks)
+  (pushy/start! base/history)
+  (dispatch-sync [:initialize-db])
+  (data/init-data)
+  (mount-root))
 
 (defonce started
   (do (init)

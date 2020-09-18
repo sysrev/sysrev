@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [pushy.core :as pushy]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
+            [re-frame.core :refer [subscribe dispatch reg-event-db trim-v]]
             [re-frame.db :refer [app-db]]
             [secretary.core :as secretary]))
 
@@ -64,11 +64,6 @@
   (with-out-str
     (doseq [entry (:error @console-logs)]
       (println (log-entry-string entry)))))
-
-(defn app-id []
-  :main)
-
-(reg-sub :app-id (fn [_] (app-id)))
 
 (reg-event-db :toggle-analytics [trim-v]
               (fn [db [enable?]]
