@@ -13,7 +13,7 @@
             [sysrev.state.label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Icon Message]]
+            [sysrev.views.semantic :as S :refer [Icon Message Select]]
             [sysrev.util :as util :refer [in? css nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -48,12 +48,6 @@
                   (set-label-value db article-id root-label-id label-id ith
                                    (->> current-values (remove (partial = label-value)) vec)))))
 
-;; Triggers "set selected" Semantic dropdown action
-(reg-fx ::select-categorical-value
-        (fn [[article-id _root-label-id label-id ith label-value]]
-          (.dropdown ($ (str "#label-edit-" article-id "-" label-id "-" ith))
-                     "set selected" label-value)))
-
 (reg-event-db ::remove-string-value [trim-v]
               (fn [db [article-id root-label-id label-id ith value-idx curvals]]
                 (set-label-value db article-id root-label-id label-id ith
@@ -76,7 +70,7 @@
                 (let [{:keys [value-type]} (get-label-raw db label-id)]
                   (condp = value-type
                     "boolean"      {:db (set-label-value db article-id root-label-id label-id ith label-value)}
-                    "categorical"  {::select-categorical-value [article-id root-label-id label-id ith label-value]}))))
+                    "categorical"  {::add-label-value [article-id root-label-id label-id ith label-value]}))))
 
 ;; missing labels
 (reg-event-db :review/create-missing-label
@@ -120,93 +114,34 @@
 (defn CategoricalLabelInput
   [[root-label-id label-id ith] article-id]
   (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)
-        input-name (str "label-edit(" dom-class ")")
-        dom-q (str "." dom-class ":visible")
-        _input-q (str dom-q " input[type!='hidden']")
-        ensure-values-loaded
-        (fn [this]
-          (let [^js node ($ (dom-node this))
-                _ (.dropdown node "refresh")
-                active-vals (vec @(subscribe [:review/active-labels article-id root-label-id label-id ith]))
-                comp-vals (-> (.dropdown node "get value")
-                              gstr/unescapeEntities
-                              (str/split #",")
-                              ((partial filterv not-empty)))]
-            #_ (util/log
-                (->> ["---------------------------------"
-                      (format "comp-vals = %s" (pr-str comp-vals))
-                      (format "active-vals = %s" (pr-str active-vals))
-                      "---------------------------------"]
-                     (str/join "\n")))
-            (when (not= comp-vals active-vals)
-              (let [active-str (->> active-vals (str/join ","))]
-                #_ (util/log
-                    (->> [(format "setting dropdown dom values: %s" (pr-str active-str))
-                          "---------------------------------"]
-                         (str/join "\n")))
-                (.dropdown node "clear" true)
-                (.dropdown node "set exactly" active-str)))))]
+        input-name (str "label-edit(" dom-class ")")]
     (r/create-class
-     {:component-did-mount
-      (fn [this]
-        (let [node #($ (dom-node this))]
-          (->> {:duration 125
-                :onAdd     (fn [v _t]
-                             (let [val (gstr/unescapeEntities v)]
-                               (dispatch [::add-label-value article-id root-label-id label-id ith val])
-                               (.dropdown (node) "hide")))
-                :onRemove  (fn [v _t]
-                             (let [val (gstr/unescapeEntities v)]
-                               (dispatch [::remove-label-value article-id root-label-id label-id ith val])))
-                :onChange  (fn [& _args]
-                             #_ (util/log "onChange: %s" (pr-str _args))
-                             #_ (.dropdown (node) "hide"))}
-               (clj->js)
-               (.dropdown (node))))
-        (ensure-values-loaded this))
-      :component-will-update
-      (fn [this]
-        (ensure-values-loaded this))
-      :reagent-render
-      (fn [[root-label-id label-id ith] article-id]
-        (when (= article-id @(subscribe [:review/editing-id]))
-          (let [required? @(subscribe [:label/required? root-label-id label-id ith])
-                all-values (as-> @(subscribe [:label/all-values root-label-id label-id ith]) vs
-                             (if (every? string? vs)
-                               (concat
-                                (->> vs (filter #(in? ["none" "other"] (str/lower-case %))))
-                                (->> vs (remove #(in? ["none" "other"] (str/lower-case %)))))
-                               vs))
-                current-values @(subscribe [:review/active-labels article-id root-label-id label-id ith])
-                touchscreen? @(subscribe [:touchscreen?])]
-            [(if touchscreen?
-               :div.ui.small.fluid.multiple.selection.dropdown
-               :div.ui.small.fluid.search.selection.dropdown.multiple)
-             {:key [:dropdown dom-class]
-              :class dom-class
-              :on-click
-              ;; remove label elements on click anywhere on label
-              (util/wrap-user-event
-               #(let [target ($ (.-target %))]
-                  (when (and (.hasClass target "label")
-                             ((every-pred string? not-empty)
-                              (.attr target "data-value")))
-                    (let [v (.attr target "data-value")
-                          node ($ dom-q)]
-                      (.dropdown node "remove selected" v)
-                      (when (.dropdown node "is visible")
-                        (.dropdown node "hide"))))))}
-             [:input {:name input-name
-                      :value (str/join "," current-values)
-                      :type "hidden"}]
-             [:i.dropdown.icon]
-             (if required?
-               [:div.default.text "No answer selected " [:span.default.bold "(required)"]]
-               [:div.default.text "No answer selected"])
-             [:div.menu
-              (doall (for [[i lval] (map-indexed vector all-values)]
-                       (let [v (-> lval gstr/htmlEscape)] ^{:key [i]}
-                         [:div.item {:data-value v} lval])))]])))})))
+      {:component-did-mount ; see https://github.com/mcku/UI-Dropdown/blob/master/dropdown.js for dropdown class options
+       (fn [this]
+         (->> {:duration 125 :action "hide"
+               :onChange (fn [v _t] (dispatch [::add-label-value article-id root-label-id label-id ith v]))}
+              (clj->js) (.dropdown ($ (dom-node this)) )))
+       :reagent-render
+       (fn [[root-label-id label-id ith] article-id]
+         (when (= article-id @(subscribe [:review/editing-id]))
+           (let [required?      @(subscribe [:label/required? root-label-id label-id ith])
+                 all-values     @(subscribe [:label/all-values root-label-id label-id ith])
+                 current-values @(subscribe [:review/active-labels article-id root-label-id label-id ith])
+                 touchscreen?   @(subscribe [:touchscreen?])
+                 unsel-values   (vec (clojure.set/difference (set all-values) (set current-values)))
+
+                 on-deselect    (fn [v] #(dispatch [::remove-label-value article-id root-label-id label-id ith v]))]
+             [(if touchscreen?
+                :div.ui.small.fluid.multiple.selection.dropdown
+                :div.ui.small.fluid.search.selection.dropdown.multiple)
+              {:key [:dropdown dom-class] :class dom-class}
+              (map (fn [v] [:a.ui.label {:key [(str "sel-" label-id "-" v)] :on-click (on-deselect v)}
+                            v [:i.delete.icon]]) current-values)
+              [:input {:name input-name :value (str/join "," current-values) :type "hidden"}]
+              [:i.dropdown.icon]
+              (if (empty? current-values)
+                [:div.default.text "No answer selected" (if required? [:span.default.bold "(required)"])])
+              [:div.menu (map (fn [v] ^{:key [v]} [:div.item {:data-value v} v]) unsel-values)]])))})))
 
 (defn StringLabelInput
   [[root-label-id label-id ith] article-id]

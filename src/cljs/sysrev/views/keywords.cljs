@@ -48,7 +48,7 @@
               {:class class
                :on-click
                (when (and enabled? has-value? editing?)
-                 ;; this is broken for group labels
+                 ;; this is broken
                  #(dispatch [:review/trigger-enable-label-value
                              article-id "na" label-id label-value]))}
               text)
