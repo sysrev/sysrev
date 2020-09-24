@@ -327,7 +327,9 @@
 (dr (GET "/api/concordance" request
          (with-authorize request {:allow-public true}
            (let [{:keys [#_ n]} (-> request :params)]
-             (api/project-concordance (active-project request))))))
+             (api/project-concordance
+               (active-project request)
+               :keep-resolved (= "true" (get-in request [:params :keep-resolved])))))))
 
 (dr (GET "/api/countgroup" request
          (with-authorize request {:allow-public true}

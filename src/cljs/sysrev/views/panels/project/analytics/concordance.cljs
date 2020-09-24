@@ -2,7 +2,7 @@
   (:require
     ["jquery" :as $]
     [reagent.core :as r]
-    [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
+    [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx]]
     [sysrev.views.panels.project.description :refer [ProjectDescription]]
     [sysrev.nav :as nav]
     [sysrev.state.nav :refer [project-uri]]
@@ -135,17 +135,21 @@
     (zipmap users con-val)))
 
 ; EVENTS & SUBSCRIPTIONS
-(def-data :project/concordance
-          :loaded? (fn [db project-id]
-                     (-> (get-in db [:data :project project-id])
-                         (contains? :concordance)))
-          :uri (fn [_] "/api/concordance")
-          :content (fn [project-id] {:project-id project-id})
-          :prereqs (fn [project-id] [[:project project-id]])
-          :process (fn [{:keys [db]} [project-id] result]
-                     {:db (assoc-in db [:data :project project-id :concordance] result)})
-          :on-error (fn [{:keys [db error]} [project-id] _]
-                      {:db (assoc-in db [:data :project project-id :concordance] {:error error})}))
+(def-data
+  :project/concordance
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :concordance)))
+  :uri (fn [_] "/api/concordance")
+  :content (fn [project-id & {:keys [keep-resolved] :or {keep-resolved true}}]
+             {:project-id project-id :keep-resolved keep-resolved})
+  :prereqs (fn [project-id] [[:project project-id]])
+  :process (fn [{:keys [db]} [project-id] result]
+             (util/log "processing...")
+             (util/log (str result))
+             {:db (assoc-in db [:data :project project-id :concordance] result)})
+  :on-error (fn [{:keys [db error]} [project-id] _]
+              {:db (assoc-in db [:data :project project-id :concordance] {:error error})}))
 
 (reg-sub :project/concordance
          (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
@@ -184,6 +188,15 @@
 (reg-event-db ::set-show-counts-step-3 (fn [db [_ new-value]] (assoc db ::show-counts-step-3 new-value)))
 
 (reg-sub ::show-counts-step-3 (fn [db _] (if (nil? (::show-counts-step-3 db)) true (::show-counts-step-3 db))))
+
+(reg-event-fx
+  ::set-keep-resolved-articles
+  (fn [cofx [_ new-value]]
+    (util/log (str "newvalue-" new-value))
+    {:db (assoc (:db cofx) ::keep-resolved-articles (:value new-value))
+     :dispatch [:reload [:project/concordance (:project-id new-value) :keep-resolved (:value new-value)]]}))
+
+(reg-sub ::keep-resolved-articles (fn [db _] (if (nil? (::keep-resolved-articles db)) true (::keep-resolved-articles db))))
 
 ; CHART SETTINGS
 (defn inv-color [] (if (= "Dark" (:ui-theme @(subscribe [:self/settings]))) "white" "#282828"))
@@ -263,6 +276,26 @@
                       :style {:margin "2px"}
                       :on-click #(dispatch [click-set-event disp-value])} lbl]))
        (range (count labels))))
+
+; ARTICLE FILTERS
+(defn article-filters [project-id]
+  [:div.ui.segments
+   [:div.ui.segment
+    [:span [:b "Keep Resolved Articles?"]]
+    [Checkbox {:id        "ignore-resolved?"
+               :as        "span"
+               :style     {:margin-top "0.0rem" :margin-left "10px" }
+               :checked   @(subscribe [::keep-resolved-articles])
+               :on-change #(dispatch [::set-keep-resolved-articles {:project-id project-id :value true}])
+               :radio     true
+               :label     "Keep"}]
+    [Checkbox {:id        "keep-resolved?"
+               :as        "span"
+               :style     {:margin-top "0.0rem" :margin-left "10px" }
+               :checked   (not @(subscribe [::keep-resolved-articles]))
+               :on-change #(dispatch [::set-keep-resolved-articles {:project-id project-id :value false}])
+               :radio     true
+               :label     "Remove"}]]])
 
 ; STEP 1
 (defn concordance-description []
@@ -423,7 +456,7 @@
    [:br][:br] "Invite a friend with the invite link on the overview page and get reviewing!"
    [:br][beta-message]])
 
-(defn main-view [concordance-data]
+(defn main-view [project-id concordance-data]
   (let [mean-conc         (* 100 (measure-overall-concordance concordance-data))
         selected-label    @(subscribe [::concordance-label-selection])
         selected-user     @(subscribe [::concordance-user-selection])]
@@ -436,10 +469,14 @@
          (> mean-conc 90) [:span {:style {:color (:bright-orange colors)}} "Some discordance in your labels. Make sure reviewers understand tasks "]
          :else            [:span {:style {:color (:red colors)}} "Significant discordance. Reviewers may not understand some tasks. "])
        [:br] [beta-message]
-       [:br] [:span "User concordance tracks how often users agree with each other. "]
-       [:br] [:span "Learn more at " [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics."]]]
+       [:br] [:span "User concordance tracks how often users agree with each other.
+       Learn more at " [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics."]]]
       [Column {:width 8 :text-align "center" :vertical-align "middle"}
        [:h3 [:a {:href "https://www.youtube.com/watch?v=HmQhiVNtB2s"} "Youtube Demo Video"]]]]
+     [Row
+      [Column {:width 6}  [:h3 "Article Filters"][:span "Restrict concordance analysis to articles that match filters."]]
+      [Column {:width 10} [article-filters project-id]]]
+
      [Row
       [Column {:width 6}  [concordance-description]]
       [Column {:width 10} [label-concordance concordance-data]]]
@@ -457,12 +494,12 @@
 (defn overall-concordance []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader
-      [[:project/concordance project-id]] {}
+      [[:project/concordance project-id :keep-resolved true]] {}
       (let [concordance-data @(subscribe [:project/concordance])]
         (cond
           (exists? (:error concordance-data)) [broken-service-view]
           (->> (:label concordance-data) (mapv :count) (reduce +) (= 0)) [no-data-view]
-          :else [main-view concordance-data])))))
+          :else [main-view project-id concordance-data])))))
 
 (defn ConcordanceView []
   (r/create-class

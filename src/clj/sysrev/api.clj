@@ -729,7 +729,8 @@
 (defn project-important-terms-text [project-id & [max-terms]]
   (importance/project-important-terms project-id (or max-terms 20)))
 
-(defn project-concordance [project-id] (concordance-api/get-concordance project-id))
+(defn project-concordance [project-id & {:keys [keep-resolved] :or {keep-resolved true}}]
+  (concordance-api/get-concordance project-id :keep-resolved keep-resolved))
 
 (defn project-label-count-groups [project-id] (biosource-contgroup/get-label-countgroup project-id))
 
