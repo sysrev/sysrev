@@ -145,8 +145,6 @@
              {:project-id project-id :keep-resolved keep-resolved})
   :prereqs (fn [project-id] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id] result]
-             (util/log "processing...")
-             (util/log (str result))
              {:db (assoc-in db [:data :project project-id :concordance] result)})
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:db (assoc-in db [:data :project project-id :concordance] {:error error})}))
@@ -192,7 +190,6 @@
 (reg-event-fx
   ::set-keep-resolved-articles
   (fn [cofx [_ new-value]]
-    (util/log (str "newvalue-" new-value))
     {:db (assoc (:db cofx) ::keep-resolved-articles (:value new-value))
      :dispatch [:reload [:project/concordance (:project-id new-value) :keep-resolved (:value new-value)]]}))
 
