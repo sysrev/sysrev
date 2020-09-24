@@ -252,13 +252,10 @@
                        (* 10 (Math/round (/ (inc (count label-ids)) 3)))
                        (* 10 (count counts))))
         background-colors (->>  entries (mapv :color))
-        color-map (processed-label-color-map entries)
-        short-label->label-uuid (fn [short-label] @(subscribe [:label/id-from-short-label short-label]))
-        legend-labels
-        (->> color-map
-             (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (short-label->label-uuid (:short-label %))))
-             (mapv (fn [{:keys [short-label color]}] {:text short-label :fillStyle color :lineWidth 0})))
-        scale @(subscribe [::scale-type])
+        legend-labels (->>
+                        (group-by :short-label entries)
+                        (map (fn [[k vs]] {:text k :fillStyle (:color (first vs)) :lineWidth 0}))
+                        vec)
         options (charts/wrap-default-options
                   {:scales {:xAxes @(subscribe [::x-axis]) :yAxes (y-axis font) }
                    :legend {:labels (->> {:generateLabels (fn [_] (clj->js legend-labels))} (merge font))}

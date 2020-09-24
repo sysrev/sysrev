@@ -3,7 +3,8 @@
             [sysrev.db.queries :as q]
             [honeysql.helpers :as sqlh :refer
              [select from where group order-by join]]
-            [sysrev.shared.charts :refer [get-color-palette palette-lookup]]))
+            [sysrev.shared.charts :refer [get-color-palette palette-lookup]]
+            [honeysql.core :as sql]))
 
 (defn count-categorical-vals [project-id]
   (-> (select :l.label-id :l.short-label :l.value-type :o1.value :o1.count)
@@ -11,10 +12,12 @@
       (join [(-> (select :al.label-id :value :%count.*)
                  (from [:article-label :al]
                        [:%jsonb_array_elements.al.answer :value])
-                 (where (q/exists [:label :l] {:l.project-id project-id
-                                               :l.label-id :al.label-id
-                                               :l.value-type "categorical"}
-                                  :where [:!= :al.confirm-time nil]))
+                 (where [:and
+                         [:= :%jsonb_typeof.answer "array"]
+                         (q/exists [:label :l] {:l.project-id project-id
+                                                :l.label-id :al.label-id
+                                                :l.value-type "categorical"}
+                                   :where [:!= :al.confirm-time nil])])
                  (group :al.label-id :value)) :o1]
             [:= :l.label-id :o1.label-id])
       (order-by [:count :asc])
