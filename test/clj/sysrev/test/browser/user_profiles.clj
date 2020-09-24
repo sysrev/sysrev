@@ -383,7 +383,7 @@
         ;; log in as foo and check invitation
         (nav/log-in (:email user1) (:password user1))
         ;; confirm we aren't a member of Invitation Test
-        (b/wait-until-exists "button#new-project")
+        (b/wait-until-exists "#new-project.button")
         (is (= 0 (your-projects-count)))
         (b/click "#user-name-link")
         (b/click "#user-settings")

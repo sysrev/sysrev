@@ -25,25 +25,36 @@
 (defonce ^:dynamic *wd* (atom nil))
 (defonce ^:dynamic *wd-config* (atom nil))
 
+(defn sysrev-url? []
+  (when-let [url (util/ignore-exceptions (taxi/current-url))]
+    (->> ["localhost" "sysrev"] (some #(str/includes? url %)))))
+
 (defn browser-console-logs []
-  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_logs();"))
-       (catch Throwable _
-         (log/warn "unable to read console logs"))))
+  (when (sysrev-url?)
+    (try (not-empty (taxi/execute-script "return sysrev.base.get_console_logs();"))
+         (catch Throwable _
+           (log/warn "unable to read console logs")))))
 
 (defn browser-console-warnings []
-  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_warnings();"))
-       (catch Throwable _
-         (log/warn "unable to read console warnings"))))
+  (when (sysrev-url?)
+    (try (not-empty (taxi/execute-script "return sysrev.base.get_console_warnings();"))
+         (catch Throwable _
+           (log/warn "unable to read console warnings")))))
 
 (defn browser-console-errors []
-  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_errors();"))
-       (catch Throwable _
-         (log/warn "unable to read console errors"))))
+  (when (sysrev-url?)
+    (try (not-empty (taxi/execute-script "return sysrev.base.get_console_errors();"))
+         (catch Throwable _
+           (log/warn "unable to read console errors")))))
 
-(defn test-browser-console-clean []
-  (is (empty? (browser-console-errors)))
-  (is (empty? (browser-console-warnings)))
-  nil)
+(defn test-browser-console-clean [& {:keys [assert?]}]
+  (let [errors (browser-console-errors)
+        warnings (browser-console-warnings)]
+    (is (and (empty? errors) (empty? warnings)))
+    (when assert?
+      (assert (empty? errors) "errors in browser console")
+      (assert (empty? warnings) "warnings in browser console"))
+    nil))
 
 (defn log-console-messages [& [level]]
   (when *driver*
@@ -375,7 +386,8 @@
                (log/warnf "got exception clicking %s, trying again..." (pr-str q))
                (wait (+ delay 200))
                (taxi/click q))))
-      (wait delay))))
+      (wait delay)
+      (test-browser-console-clean :assert? true))))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -395,7 +407,7 @@
        (if visual#
          (start-visual-webdriver true)
          (start-webdriver true))
-       (try ~@body (finally (when-not visual# (stop-webdriver)) )))))
+       (try ~@body (finally (when-not visual# (stop-webdriver)))))))
 
 (defmacro deftest-browser [name enable test-user bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)
@@ -403,6 +415,7 @@
     `(deftest ~name
        (when (or ~repl? ~enable)
          (util/with-print-time-elapsed ~name-str
+           (log/infof "")
            (log/infof "[[ %s started ]]" ~name-str)
            (with-webdriver
              (init-route "/" :silent true)

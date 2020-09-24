@@ -215,7 +215,7 @@
 
 (defn get-params-from-url []
   (let [{:keys [filters text-search display offset show-article sort-by sort-dir]}
-        (nav/get-url-params)]
+        (util/get-url-params)]
     (cond-> {}
       (string? offset)        (assoc :offset (parse-integer offset))
       (string? text-search)   (assoc :text-search text-search)

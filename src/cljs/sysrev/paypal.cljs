@@ -86,7 +86,7 @@
    [:div#paypal-button]])
 
 (defn amount-validation [amount]
-  (let [amount (some-> (util/ensure-pred string? amount)
+  (let [amount (some-> (util/when-test string? amount)
                        not-empty
                        (util/ensure-prefix "$"))]
     (cond (empty? amount)                                  :empty

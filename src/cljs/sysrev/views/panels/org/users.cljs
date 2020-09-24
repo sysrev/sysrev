@@ -2,20 +2,23 @@
   (:require [clojure.set :as set]
             [ajax.core :refer [GET POST PUT DELETE]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe reg-sub dispatch]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [sysrev.data.core :refer [def-data reload]]
             [sysrev.views.semantic :as S :refer
              [Table TableBody TableRow TableCell Search Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
               Input Message MessageHeader]]
+            [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
+            [sysrev.views.panels.org.main :as org]
             [sysrev.util :as util]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org :users] {:state-var state})
+(setup-panel-state panel [:org :users] {:state-var state
+                                        :get-fn panel-get  :set-fn panel-set
+                                        :get-sub ::get     :set-event ::set})
 
 (def-data :org/users
   :uri (fn [org-id] (str "/api/org/" org-id "/users"))
@@ -28,7 +31,7 @@
          (fn [db [_ org-id]]
            (get-in db [:org org-id :users])))
 
-(defn remove-from-org! [{:keys [user-id org-id]}]
+(defn- remove-from-org! [{:keys [user-id org-id]}]
   (let [retrieving? (r/cursor state [:remove-from-org! :retrieving])
         error (r/cursor state [:remove-from-org! :error])
         modal-open (r/cursor state [:remove-modal :open])]
@@ -46,7 +49,7 @@
                               (reset! retrieving? false)
                               (reset! error (get-in response [:response :error :message])))})))
 
-(defn RemoveModal [{:keys [org-id]}]
+(defn- RemoveModal [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:remove-modal :open])
         user-id (r/cursor state [:current-user-id])
         username (r/cursor state [:current-username])
@@ -76,7 +79,7 @@
            [MessageHeader {:as "h4"} "Remove member error"]
            @error])]]]]))
 
-(defn change-role! [{:keys [new-role user-id permissions org-id]}]
+(defn- change-role! [{:keys [new-role user-id permissions org-id]}]
   (let [retrieving? (r/cursor state [:change-role! :retrieving])
         error (r/cursor state [:change-role! :error])
         modal-open (r/cursor state [:change-role-modal :open])]
@@ -95,7 +98,7 @@
                            (reset! retrieving? false)
                            (reset! error (get-in response [:response :error :message])))})))
 
-(defn ChangeRoleModal [{:keys [org-id]}]
+(defn- ChangeRoleModal [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:change-role-modal :open])
         user-id (r/cursor state [:current-user-id])
         username (r/cursor state [:current-username])
@@ -151,7 +154,7 @@
                              (reset! new-role nil)
                              (reset! error ""))})))
 
-(defn UserRow [{:keys [user-id username permissions]} org-id]
+(defn- UserRow [{:keys [user-id username permissions]} org-id]
   (let [change-role-modal-open (r/cursor state [:change-role-modal :open])
         remove-modal-open (r/cursor state [:remove-modal :open])
         current-user-id (r/cursor state [:current-user-id])
@@ -194,14 +197,14 @@
                         (reset! (r/cursor state [:remove-from-org! :error]) "")
                         (reset! remove-modal-open true))}]]])]]))
 
-(defn UsersTable [{:keys [org-users org-id]}]
+(defn- UsersTable [{:keys [org-users org-id]}]
   (when (seq org-users)
-    [Table {:id "org-user-table", :basic true}
+    [Table {:id "org-user-table" :basic true}
      [TableBody
-      (for [user org-users] ^{:key (:user-id user)}
-        [UserRow user org-id])]]))
+      (doall (for [user org-users] ^{:key (:user-id user)}
+               [UserRow user org-id]))]]))
 
-(defn user-suggestions! [org-id term]
+(defn- user-suggestions! [org-id term]
   (let [retrieving? (r/cursor state [:search-loading?])
         user-search-results (r/cursor state [:user-search-results])
         org-users-set (->> @(subscribe [:org/users org-id])
@@ -244,7 +247,7 @@
                             (reset! retrieving? false)
                             (reset! error (get-in response [:response :error :messaage])))})))
 
-(defn InviteMemberModal [{:keys [org-id]}]
+(defn- InviteMemberModal [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:invite-member-modal-open?])
         search-loading? (r/cursor state [:search-loading?])
         user-search-results (r/cursor state [:user-search-results])
@@ -324,16 +327,21 @@
       :component-did-mount (fn [_this]
                              (reset-state!))})))
 
-(defn OrgUsers [{:keys [org-id]}]
-  (let [org-users (subscribe [:org/users org-id])
-        org-permissions (subscribe [:org/permissions org-id])]
-    (r/create-class
-     {:reagent-render
-      (fn [_]
-        (dispatch [:data/load [:org/users org-id]])
-        [:div
-         (when (some #{"owner" "admin"} @org-permissions)
-           [InviteMemberModal {:org-id org-id}])
-         [ChangeRoleModal {:org-id org-id}]
-         [RemoveModal {:org-id org-id}]
-         [UsersTable {:org-users @org-users :org-id org-id}]])})))
+(defn- OrgUsers [org-id]
+  (let [org-users @(subscribe [:org/users org-id])
+        org-permissions @(subscribe [:org/permissions org-id])]
+    [:div
+     (when (some #{"owner" "admin"} org-permissions)
+       [InviteMemberModal {:org-id org-id}])
+     [ChangeRoleModal {:org-id org-id}]
+     [RemoveModal {:org-id org-id}]
+     [UsersTable {:org-users org-users :org-id org-id}]]))
+
+(def-panel {:uri "/org/:org-id/users" :params [org-id]
+            :on-route (let [org-id (util/parse-integer org-id)]
+                        (org/on-navigate-org org-id panel)
+                        (reload :org/users org-id))
+            :panel panel
+            :content (when-let [org-id @(subscribe [::org/org-id])]
+                       (with-loader [[:org/users org-id]] {}
+                         [OrgUsers org-id]))})

@@ -936,7 +936,7 @@
           project-id    @(subscribe [:active-project-id])
           project-plan  @(subscribe [:project/plan project-id])
           group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
-                                    (contains? stripe/pro-plans project-plan))]
+                                    (stripe/pro? project-plan))]
       (ensure-state)
       [:div.define-labels
        [ReadOnlyMessage

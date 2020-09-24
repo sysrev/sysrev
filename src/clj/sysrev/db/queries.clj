@@ -8,7 +8,7 @@
                                                merge-select]]
             [honeysql-postgres.helpers :as sqlh-pg]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
-            [sysrev.util :as util :refer [in? map-values apply-keyargs ensure-pred
+            [sysrev.util :as util :refer [in? map-values apply-keyargs when-test
                                           assert-pred opt-keys ensure-vector]]))
 
 ;; for clj-kondo
@@ -131,10 +131,10 @@
   represents an sql function call rather than a column."
   [k]
   (if (and (sequential? k) (= (count k) 2) (every? keyword? k))
-    (ensure-pred keyword? (second k))
-    (some-> (ensure-pred keyword? k)
+    (when-test keyword? (second k))
+    (some-> (when-test keyword? k)
             name
-            ((ensure-pred (fn [s] (not (str/includes? s "%")))))
+            ((when-test (fn [s] (not (str/includes? s "%")))))
             (str/split #"\.")
             last
             keyword)))
@@ -218,27 +218,27 @@
                      :limit :order-by :group :prepare :return}
                    (keys opts)))
    (let [return (or return :execute)
-         single-field (or (some->> fields (ensure-pred literal?) extract-column-name)
+         single-field (or (some->> fields (when-test literal?) extract-column-name)
                           (some->> fields
-                                   (ensure-pred #(and (coll? %)
-                                                      (= 1 (count %))
-                                                      (coll? (first %))
-                                                      (= 2 (count (first %)))
-                                                      (every? keyword? (first %))))
+                                   (when-test #(and (coll? %)
+                                                    (= 1 (count %))
+                                                    (coll? (first %))
+                                                    (= 2 (count (first %)))
+                                                    (every? keyword? (first %))))
                                    first
                                    extract-column-name
-                                   (ensure-pred literal?)))
+                                   (when-test literal?)))
          specified (some->> (cond (keyword? fields)  [fields]
                                   (empty? fields)    nil
                                   :else              fields)
                             (map extract-column-name)
-                            (ensure-pred (partial every? literal?)))
+                            (when-test (partial every? literal?)))
          fields (cond (keyword? fields)  [fields]
                       (empty? fields)    [:*]
                       :else              (vec fields))
          select-fields (as-> (concat fields
-                                     (some->> index-by (ensure-pred keyword?) (list))
-                                     (some->> group-by (ensure-pred keyword?) (list)))
+                                     (some->> index-by (when-test keyword?) (list))
+                                     (some->> group-by (when-test keyword?) (list)))
                            select-fields
                          (if (in? select-fields :*) [:*] select-fields)
                          (distinct select-fields))

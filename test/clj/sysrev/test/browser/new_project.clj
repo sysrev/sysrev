@@ -23,7 +23,7 @@
       (plans/wait-until-stripe-id (:email test-user))
       (plans/wait-until-plan (:email test-user) stripe/default-plan)
       (nav/log-in (:email test-user))
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is disabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
@@ -39,13 +39,13 @@
       (is (= "Unlimited_User" (plans/user-db-plan (:email test-user))))
       ;; now try to create private project
       (nav/go-route "/")
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is enabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
                         "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       ;; create the private project
-      (b/set-input-text "form#create-project-form div.project-name input" project-name)
+      (b/set-input-text "#create-project .project-name input" project-name)
       (b/click (xpath "//p[contains(text(),'Private')]"
                       "/ancestor::div[contains(@class,'row')]"
                       "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
@@ -64,7 +64,7 @@
       (plans/wait-until-plan (:email test-user) stripe/default-plan)
       (nav/log-in (:email test-user))
       (orgs/create-org org-name)
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is disabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
@@ -86,13 +86,13 @@
                                  :nickname)))
       ;; now try to create private project
       (b/click "a#org-projects")
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is enabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
                         "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       ;; create the private project
-      (b/set-input-text "form#create-project-form div.project-name input" project-name)
+      (b/set-input-text "#create-project .project-name input" project-name)
       (b/click (xpath "//p[contains(text(),'Private')]"
                       "/ancestor::div[contains(@class,'row')]"
                       "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))

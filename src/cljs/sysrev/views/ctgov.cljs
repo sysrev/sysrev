@@ -1,4 +1,4 @@
-(ns sysrev.views.panels.ctgov
+(ns sysrev.views.ctgov
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer
@@ -6,18 +6,16 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
 (setup-panel-state panel [:ctgov-search] {:state-var state
-                                          :get-fn panel-get
-                                          :set-fn panel-set})
+                                          :get-fn panel-get :set-fn panel-set})
 
 (reg-sub ::page-number #(or (panel-get % :page-number) 1))
 
@@ -269,14 +267,3 @@
           [:div.ui.segment.search-results-container.margin
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
-
-(defn SearchPanel
-  "A panel for searching ClinicalTrials.gov"
-  []
-  [:div.search-panel
-   [SearchBar]
-   [SearchActions]
-   [SearchResultsContainer]])
-
-(defmethod panel-content panel []
-  (fn [_child] [SearchPanel]))

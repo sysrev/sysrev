@@ -6,7 +6,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.paypal :as paypal]
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
-            [sysrev.util :as util :refer [index-by ensure-pred]]
+            [sysrev.util :as util :refer [index-by when-test]]
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
@@ -21,7 +21,7 @@
 (defn- amount->cents [amount-string]
   (some->> (not-empty amount-string)
            (acct/string->cents)
-           (ensure-pred integer?)))
+           (when-test integer?)))
 
 (defn- rate->string [rate]
   (str (acct/cents->string (:amount rate)) " / " (:item rate)))
@@ -252,7 +252,7 @@
                                     (reset! error-message "Amount is not valid")
                                     (reset! error-message nil))))}]]
        (when-let [cents-amount (->> (amount->cents @compensation-amount)
-                                    (ensure-pred pos?))]
+                                    (when-test pos?))]
          [:span {:style {:margin-left "0.5em" :font-size "1.2rem"}}
           [AdminFee cents-amount admin-fee] " / article"])]
       [:div.five.wide.field {:style {:text-align "right"}}

@@ -18,18 +18,8 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-;; org tabs
-(def org-projects "#org-projects")
-(def org-users "#org-members")
-(def org-billing "#org-billing")
-(def user-orgs "#user-orgs")
-
-(def create-org-input "#create-org-input")
-(def create-org-button "#create-org-button")
-(def org-user-table "#org-user-table")
-
 ;; pricing workflow elements
-(def choose-team-pro-button (xpath "//button[contains(text(),'Choose Team Pro')]"))
+(def choose-team-pro-button (xpath "//a[contains(text(),'Choose Team Pro')]"))
 (def continue-with-team-pro (xpath "//div[contains(text(),'Continue with Team Pro')]"))
 (def create-organization (xpath "//span[contains(text(),'Create Organization')]"))
 (def create-account (xpath "//h3[contains(text(),'Create a free account before moving on to team creation')]"))
@@ -55,8 +45,8 @@
 (defn org-user-table-entries []
   ;; go to the user table
   (b/click "a#org-members")
-  (b/wait-until-exists org-user-table)
-  (->> (taxi/find-elements-under org-user-table {:tag :tr})
+  (b/wait-until-exists "#org-user-table")
+  (->> (taxi/find-elements-under "#org-user-table" {:tag :tr})
        (mapv taxi/text)
        (mapv #(str/split % #"\n"))
        (mapv #(hash-map :name (first %) :permission (second %)))
@@ -66,7 +56,7 @@
   "Must be in Organization Settings of the project to add user to"
   [username]
   (let [[username] (str/split username #"@")]
-    (b/click org-users)
+    (b/click "#org-members")
     (b/click "#add-member-button" :delay 400)
     (b/set-input-text-per-char "#org-search-users-input" username)
     (b/wait-until-exists (xpath "//button[@id='submit-add-member' and not(contains(@class,'disabled'))]"))
@@ -89,18 +79,18 @@
 
 (defn create-org [org-name]
   (b/click "#user-name-link")
-  (b/click user-orgs)
-  (b/set-input-text-per-char create-org-input org-name)
-  (b/click create-org-button)
-  (b/wait-until-exists "button#new-project")
+  (b/click "#user-orgs")
+  (b/set-input-text-per-char "#create-org-input" org-name)
+  (b/click "#create-org-button")
+  (b/wait-until-exists "#new-project.button")
   (b/wait-until-loading-completes :pre-wait 100)
   (log/infof "created org %s" (pr-str org-name)))
 
 (defn create-project-org
   "Must be in the Organization Settings for the org for which the project is being created"
   [project-name]
-  (b/click "button#new-project")
-  (b/set-input-text "form#create-project-form div.project-name input" project-name)
+  (b/click "#new-project.button")
+  (b/set-input-text "#create-project .project-name input" project-name)
   (b/click (xpath "//button[contains(text(),'Create Project')]"))
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
@@ -114,7 +104,7 @@
   (b/click "#user-name-link")
   (b/click "#user-orgs")
   (b/click (xpath "//a[text()='" org-name "']"))
-  (b/wait-until-exists org-users)
+  (b/wait-until-exists "#org-members")
   (b/wait-until-loading-completes :pre-wait 50)
   (when-not silent
     (log/infof "switched to org %s" (pr-str org-name))))
@@ -145,7 +135,7 @@
     (change-user-permission (:email user1) "Member")
     (nav/log-in (:email user1))
     (b/click "#user-name-link")
-    (b/click user-orgs)
+    (b/click "#user-orgs")
     (b/click (xpath "//a[text()='" org-name-1 "']"))
     (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:email test-user)))))
     ;; an org is switched, the correct user list shows up
@@ -159,7 +149,7 @@
     (switch-to-org org-name-1)
     (b/is-soon (= 2 (count (org-user-table-entries))) 3000 50)
     ;; only an owner or admin of an org can create projects for that org
-    (b/click org-projects :delay 30)
+    (b/click "#org-projects" :delay 30)
     (create-project-org org-name-1-project)
     ;; add user1 to Baz Qux as an owner
     (nav/go-route "/org/users")
@@ -169,13 +159,13 @@
     ;; log-in as user1 and see that they cannot create group projects
     (nav/log-in (:email user1))
     (b/click "#user-name-link")
-    (b/click user-orgs)
+    (b/click "#user-orgs")
     (b/click (xpath "//a[text()='" org-name-1 "']") :delay 20)
     ;; org-users and projects links exists, but billing link doesn't exist
-    (b/is-soon (and (taxi/exists? org-users) (taxi/exists? org-projects)))
-    (b/is-soon (not (taxi/exists? org-billing)))
+    (b/is-soon (and (taxi/exists? "#org-members") (taxi/exists? "#org-projects")))
+    (b/is-soon (not (taxi/exists? "#org-billing")))
     ;; group projects exists, but not the create project input
-    (b/click org-projects :delay 30)
+    (b/click "#org-projects" :delay 30)
     (b/exists? "#projects")
     (b/is-soon (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
@@ -183,24 +173,24 @@
     ;; switch to org-name-2
     (switch-to-org org-name-2)
     ;; user can create projects here
-    (b/click org-projects :delay 30)
-    (b/wait-until-exists "button#new-project")
+    (b/click "#org-projects" :delay 30)
+    (b/wait-until-exists "#new-project.button")
     ;; can change user permissions for browser+test
-    (b/click org-users)
+    (b/click "#org-members")
     (b/wait-until-exists (change-user-permission-dropdown (:email test-user)))
     ;; billing link is available
-    (b/exists? org-billing)
+    (b/exists? "#org-billing")
     ;; duplicate orgs can't be created
     (nav/log-in (:email test-user))
     (b/click "#user-name-link")
-    (b/click user-orgs)
-    (b/set-input-text-per-char create-org-input org-name-1)
-    (b/click create-org-button)
+    (b/click "#user-orgs")
+    (b/set-input-text-per-char "#create-org-input" org-name-1)
+    (b/click "#create-org-button")
     (is (b/check-for-error-message (str "An organization with the name '" org-name-1
                                         "' already exists. Please try using another name.")))
     ;; blank orgs can't be created
-    (b/backspace-clear (count org-name-1) create-org-input)
-    (b/click create-org-button)
+    (b/backspace-clear (count org-name-1) "#create-org-input")
+    (b/click "#create-org-button")
     (is (b/check-for-error-message "Organization names can't be blank")))
   :cleanup (doseq [{:keys [user-id]} [user1 test-user]]
              (b/cleanup-test-user! :user-id user-id :groups true)))
@@ -247,7 +237,7 @@
     ;; this is a user project, should redirect to /user/plans
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; set the project publicly viewable
-    (b/click ".ui.button.set-publicly-viewable")
+    (b/click ".button.set-publicly-viewable")
     (b/click "#confirm-cancel-form-confirm")
     (log/info "set project to public access")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
@@ -306,7 +296,7 @@
     (nav/log-in (:email test-user))
     (create-org org-name-1)
     ;; create org project
-    (b/click org-projects :delay 30)
+    (b/click "#org-projects" :delay 30)
     (create-project-org org-name-1-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
@@ -324,41 +314,41 @@
 ;;; org paywall
     ;; go to org, subscribe to basic
     (switch-to-org org-name-1)
-    (b/click org-billing :delay 30)
+    (b/click "#org-billing" :delay 30)
     (b/click ".button.nav-plans.unsubscribe")
     (b/click ".button.unsubscribe-plan")
     (is (b/exists? ".button.nav-plans.subscribe"))
     ;; go to org projects
-    (b/click org-projects :delay 30)
+    (b/click "#org-projects" :delay 30)
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     ;; should redirect to /org/<org-id>/plans
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     ;; set the project publicly viewable
-    (b/click ".ui.button.set-publicly-viewable")
+    (b/click ".button.set-publicly-viewable")
     (b/click "#confirm-cancel-form-confirm")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to unlimited
     (switch-to-org org-name-1 :silent true)
-    (b/click org-billing :delay 30)
+    (b/click "#org-billing" :delay 30)
     (b/click ".button.nav-plans.subscribe" :delay 30)
     (plans/click-upgrade-plan)
     (is (b/exists? ".button.nav-plans.unsubscribe"))
     ;; set project to private again
     (switch-to-org org-name-1 :silent true)
-    (b/click org-projects :delay 30)
+    (b/click "#org-projects" :delay 30)
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     (nav/go-project-route "/settings" :pre-wait-ms 50 :wait-ms 50)
     (b/click set-private-button)
     (b/click save-options-button)
     ;; downgrade to basic plan again
     (switch-to-org org-name-1 :silent true)
-    (b/click org-billing :delay 30)
+    (b/click "#org-billing" :delay 30)
     (b/click ".button.nav-plans.unsubscribe")
     (b/click ".button.unsubscribe-plan")
     (log/info "downgraded org plan")
     (b/exists? ".button.nav-plans.subscribe")
     ;; go to project again
-    (b/click org-projects :delay 30)
+    (b/click "#org-projects" :delay 30)
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     ;; paywall is in place
     (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]"))
@@ -390,8 +380,8 @@
     (b/click "button[name='submit']")
     ;; create a team
     (b/wait-until-displayed create-team)
-    (b/set-input-text-per-char create-org-input org-name)
-    (b/click create-org-button)
+    (b/set-input-text-per-char "#create-org-input" org-name)
+    (b/click "#create-org-button")
     ;; upgrade plan
     (b/wait-until-displayed enter-payment-information)
     ;; update payment method
@@ -431,8 +421,8 @@
     (b/click create-organization)
     ;; create a team
     (b/wait-until-displayed create-team)
-    (b/set-input-text-per-char create-org-input org-name)
-    (b/click create-org-button)
+    (b/set-input-text-per-char "#create-org-input" org-name)
+    (b/click "#create-org-button")
     (b/wait-until-displayed enter-payment-information)
     (b/wait-until-loading-completes :pre-wait 100)
     ;; whoops nevermind, got cold feet
@@ -446,8 +436,8 @@
     ;; we have to create an org again our last one didn't save
     (b/click create-organization)
     (b/wait-until-displayed create-team)
-    (b/set-input-text-per-char create-org-input org-name)
-    (b/click create-org-button)
+    (b/set-input-text-per-char "#create-org-input" org-name)
+    (b/click "#create-org-button")
     ;; upgrade plan
     (b/wait-until-displayed enter-payment-information)
     ;; update payment method

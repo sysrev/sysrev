@@ -5,14 +5,13 @@
             [re-frame.core :refer [dispatch subscribe reg-sub]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.action.core :refer [def-action]]
+            [sysrev.action.core :refer [def-action run-action]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.views.semantic :as s :refer
              [Segment SegmentGroup Grid  Column Row ListUI ListItem Button Loader Radio]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.views.panels.pricing :refer [FreeBenefits ProBenefits]]
-            [sysrev.nav :as nav]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
@@ -51,7 +50,7 @@
   :content (fn [_ new-plan] {:plan new-plan})
   :process (fn [{:keys [db]} [user-id _] {:keys [stripe-body plan]}]
              (when (:created stripe-body)
-               (let [nav-url (-> (or (:on_subscribe_uri (nav/get-url-params))
+               (let [nav-url (-> (or (:on_subscribe_uri (util/get-url-params))
                                      (str "/user/" user-id "/billing")))]
                  {:db (-> (panel-set db :changing-plan? false)
                           (panel-set :error-message nil)
@@ -66,8 +65,7 @@
                          (panel-set :error-message msg)
                          (stripe/panel-set :need-card? true))})))
 
-(defn ToggleInterval
-  []
+(defn ToggleInterval []
   (let [new-plan (r/cursor state [:new-plan])
         available-plans (subscribe [:user/available-plans])]
     (r/create-class
@@ -77,8 +75,7 @@
                                :style {:width "46%"}}
                  [Segment (cond-> {}
                             (= (:interval @new-plan) "month")
-                            (merge
-                             {:tertiary true}))
+                            (merge {:tertiary true}))
                   [Radio {:label "Pay Monthly"
                           :value "monthly"
                           :checked (= (:interval @new-plan) "month")
@@ -104,36 +101,29 @@
                      (:amount @plan)) " / " (:interval @plan))
            ")")])
 
-(defn Unlimited
-  [plan]
-  (let [{:keys [amount
-                interval]} @plan]
-    [Segment
-     (if-not amount
-       [Loader {:active true
-                :inline "centered"}]
-       [Grid {:stackable true}
-        [Row
-         [Column {:width 10}
-          [:b "Pro Plan"]
-          [ProBenefits]]
-         [Column {:width 6 :align "right"}
-          [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])]))
-
-(defn BasicPlan [{:keys [amount interval]}]
+(defn Unlimited [{:keys [amount interval] :as _plan}]
   [Segment
    (if-not amount
-     [Loader {:active true
-              :inline "centered"}]
+     [Loader {:active true :inline "centered"}]
+     [Grid {:stackable true}
+      [Row
+       [Column {:width 10}
+        [:b "Pro Plan"]
+        [ProBenefits]]
+       [Column {:width 6 :align "right"}
+        [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
+
+(defn BasicPlan [{:keys [amount interval] :as _plan}]
+  [Segment
+   (if-not amount
+     [Loader {:active true :inline "centered"}]
      [Grid {:stackable true}
       [Row
        [Column {:width 8}
         [:b "Basic"]
-        [ListUI
-         [FreeBenefits]]]
+        [ListUI [FreeBenefits]]]
        [Column {:width 8 :align "right"}
-        [Row
-         [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
+        [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
 
 (defn TogglePlanButton [{:keys [on-click class loading disabled] :as attrs} text]
   [Button (merge {:color "green"} attrs) text])
@@ -157,7 +147,7 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe from"]
-                        [Unlimited current-plan]]]]
+                        [Unlimited @current-plan]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [BasicPlan @new-plan]
@@ -172,7 +162,8 @@
                          [:div {:style {:margin-top "1em" :width "100%"}}
                           [TogglePlanButton {:disabled @changing-plan?
                                              :on-click #(do (reset! changing-plan? true)
-                                                            (dispatch [:action [:user/subscribe-plan self-id @new-plan]]))
+                                                            (run-action :user/subscribe-plan
+                                                                        self-id @new-plan))
                                              :class "unsubscribe-plan"
                                              :loading @changing-plan?}
                            "Unsubscribe"]]
@@ -208,7 +199,7 @@
            [Grid [Row [Column
                        (when-not changing-interval?
                          [:h3 "UPGRADING TO"])
-                       [Unlimited new-plan]
+                       [Unlimited @new-plan]
                        (when-not mobile?
                          [:a {:href (str "/user/" self-id "/billing")}
                           "Back to user settings"])]]]]
@@ -224,22 +215,19 @@
                  [:h4 "New Monthly Bill"]
                  [ListItem [ProPlanPrice new-plan]]
                  [:h4 "Billing Information"]
-                 [ListItem
-                  (when (not no-default?)
-                    [DefaultSource {:default-source @default-source}])]
-                 (when (and @show-payment-form?
-                            (not no-default?))
+                 [ListItem (when (not no-default?)
+                             [DefaultSource @default-source])]
+                 (when (and @show-payment-form? (not no-default?))
                    [Button {:on-click #(swap! show-payment-form? not)
                             :positive true
-                            :style {:margin-bottom "1em"
-                                    :margin-top "1em"}}
+                            :style {:margin-bottom "1em" :margin-top "1em"}}
                     "Use current payment source"])
                  (when (empty? @error-message)
                    (if (or no-default? @show-payment-form?)
                      [StripeCardInfo {:add-payment-fn
                                       (fn [payload]
                                         (reset! show-payment-form? false)
-                                        (dispatch [:action [:stripe/add-payment-user self-id payload ]]))}]
+                                        (run-action :stripe/add-payment-user self-id payload))}]
                      [:a.payment-method
                       {:class (if no-default? "add-method" "change-method")
                        :style {:cursor "pointer"}
@@ -251,7 +239,8 @@
                    [:div {:style {:margin-top "1em" :width "100%"}}
                     [TogglePlanButton {:disabled (or no-default? @changing-plan?)
                                        :on-click #(do (reset! changing-plan? true)
-                                                      (dispatch [:action [:user/subscribe-plan self-id @new-plan]]))
+                                                      (run-action :user/subscribe-plan
+                                                                  self-id @new-plan))
                                        :class "upgrade-plan"
                                        :loading @changing-plan?}
                      "Upgrade Plan"]
@@ -292,8 +281,7 @@
         (contains? #{"Unlimited_User" "Unlimited_User_Annual"} (:nickname current-plan))
         [DowngradePlan]
         :else
-        [Loader {:active true
-                 :inline "centered"}]))))
+        [Loader {:active true :inline "centered"}]))))
 
 (defn UserPlans []
   (r/create-class {:reagent-render (fn [] [UserPlansContent])

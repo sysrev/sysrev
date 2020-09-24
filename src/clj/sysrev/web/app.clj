@@ -15,7 +15,7 @@
             [sysrev.web.index :as index]
             [sysrev.slack :as slack]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
-            [sysrev.util :as util :refer [in? parse-integer ensure-pred]]))
+            [sysrev.util :as util :refer [in? parse-integer when-test]]))
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)
@@ -97,7 +97,7 @@
   "If response result is a map and has keyword key values, merge in
   default {:success true} entry."
   [{:keys [body] :as response}]
-  (let [{:keys [result]} (ensure-pred map? body)]
+  (let [{:keys [result]} (when-test map? body)]
     (if (and (map? result)
              (some keyword? (keys result))
              (not (contains? result :success)))
@@ -254,7 +254,7 @@
 
          user-id# (current-user-id request#)
          project-id# (active-project request#)
-         valid-project# (some-> project-id# ((ensure-pred integer?)) project/project-exists?)
+         valid-project# (some-> project-id# ((when-test integer?)) project/project-exists?)
          public-project# (and valid-project# (-> (project/project-settings project-id#)
                                                  ((comp true? :public-access))))
          user# (some-> user-id# q/get-user)
@@ -304,7 +304,7 @@
                 (api/subscription-lapsed? project-id#)
                 (not dev-user?#))
            {:error {:status 402 :type :project
-                    :message "This action requires an upgraded plan"}}
+                    :message "This request requires an upgraded plan"}}
 
            :else (body-fn#))))
 

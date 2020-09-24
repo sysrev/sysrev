@@ -32,6 +32,7 @@ opts=()
 #opts+=("--no-sandbox")
 #opts+=("--disable-dev-shm-usage")
 #opts+=("--disable-gpu")
+#opts+=("--ozone-platform=headless")
 
 #export DISPLAY=
 #export WAYLAND_DISPLAY=

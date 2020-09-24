@@ -8,7 +8,7 @@
             [sysrev.loading]
             #?@(:cljs [[sysrev.state.ui]
                        [sysrev.views.base]])
-            [sysrev.util :refer [ensure-pred]]))
+            [sysrev.util :refer [when-test]]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]
@@ -142,10 +142,10 @@
                (route-fn# []
                  (let [cur-id# @(subscribe [:active-project-url])
                        full-id# @(subscribe [:lookup-project-url url-id#])
-                       project-id# (or (ensure-pred #(= :loading %) full-id#)
-                                       (some->> (ensure-pred map? full-id#)
+                       project-id# (or (when-test #(= :loading %) full-id#)
+                                       (some->> (when-test map? full-id#)
                                                 :project-id
-                                                (ensure-pred integer?))
+                                                (when-test integer?))
                                        :not-found)]
                    (dispatch [:set-active-project-url url-id#])
                    (cond
@@ -266,18 +266,30 @@
                                     (~set-fn db# path# val#))))))
 
 (defmacro def-panel [{:keys [name uri params panel
-                             on-route content logged-out-content]
-                      :or {name nil params [] logged-out-content nil}}]
+                             on-route content require-login logged-out-content]
+                      :or {name nil params []
+                           require-login false logged-out-content nil}}]
   (assert (or (nil? name) (symbol? name)) "name argument should be a symbol")
   (assert (some? uri) "uri argument is required")
-  (assert (some? content) "content argument is required")
-  `(list (assert (and (vector? ~panel) (every? keyword? ~panel))
-                 "panel must be a vector of keywords")
-         (sr-defroute ~name ~uri ~params ~on-route)
-         (defmethod sysrev.views.base/panel-content ~panel []
-           ~(if (= 'fn (first content))
-              content
-              `(fn [_child#] ~content)))
-         ~(when logged-out-content
-            `(defmethod sysrev.views.base/logged-out-content ~panel []
-               ~logged-out-content))))
+  (when (some? panel)
+    (assert (some? content) "content argument is required with panel"))
+  (when (or content logged-out-content)
+    (assert (some? panel) "panel must be provided with content"))
+  (when (and (nil? content) (nil? logged-out-content))
+    (assert (nil? panel) "panel should not be provided without content"))
+  `(list (sr-defroute ~name ~uri ~params ~on-route)
+         ~(when (some? panel)
+            `(assert (and (vector? ~panel) (every? keyword? ~panel))
+                     "panel must be a vector of keywords"))
+         ~(when (some? panel)
+            `(defmethod sysrev.views.base/panel-content ~panel []
+               ~(if (= 'fn (first content))
+                  content
+                  `(fn [_child#] ~content))))
+         ~(when (some? panel)
+            (let [logged-out-content (if require-login
+                                       `(sysrev.views.base/logged-out-content :logged-out)
+                                       logged-out-content)]
+              (when logged-out-content
+                `(defmethod sysrev.views.base/logged-out-content ~panel []
+                   ~logged-out-content))))))

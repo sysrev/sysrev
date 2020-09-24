@@ -2,7 +2,7 @@
   (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.orgs :refer [CreateOrg]]
+            [sysrev.views.panels.create-org :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Divider]]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))

@@ -12,7 +12,7 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.util :as util :refer
              [in? map-values css space-join wrap-parens parse-integer parse-number
-              ensure-pred nbsp]]))
+              when-test nbsp]]))
 
 (reg-sub ::inputs
          (fn [[_ context path]]
@@ -234,8 +234,8 @@
 (defn- SelectUserDropdown [_context value on-change multiple?]
   (let [user-ids @(subscribe [:project/member-user-ids nil true])
         self-id @(subscribe [:self/user-id])
-        value (-> (if (= value :self) self-id value)
-                  ((ensure-pred (in? user-ids))))]
+        value (->> (if (= value :self) self-id value)
+                   (when-test (in? user-ids)))]
     [FilterDropdown
      (concat [nil] user-ids)
      #(if (or (nil? %) (= :any %))

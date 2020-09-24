@@ -6,7 +6,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.util :as util :refer
-             [in? parse-integer ensure-pred filter-values]]))
+             [in? parse-integer when-test filter-values]]))
 
 (defn active-panel [db]
   (get-in db [:state :active-panel]))
@@ -94,10 +94,10 @@
                  [project-id-url owner-url] url-id
                  full-id (some->> url-id
                                   (lookup-project-url db)
-                                  (ensure-pred map?))
-                 project-id-full (ensure-pred integer? (:project-id full-id))
-                 user-id-full (ensure-pred integer? (:user-id full-id))
-                 org-id-full (ensure-pred integer? (:org-id full-id))
+                                  (when-test map?))
+                 project-id-full (when-test integer? (:project-id full-id))
+                 user-id-full (when-test integer? (:user-id full-id))
+                 org-id-full (when-test integer? (:org-id full-id))
                  full-id-valid? (and project-id-full (or user-id-full org-id-full))]
              ;; redirect on legacy url for owned project
              (when (and (parse-integer project-id-url)
@@ -108,9 +108,9 @@
 (defn active-project-id [db]
   (let [url-id (get-in db [:state :active-project-url])]
     (some->> (lookup-project-url db url-id)
-             (ensure-pred map?)
+             (when-test map?)
              :project-id
-             (ensure-pred integer?))))
+             (when-test integer?))))
 
 (reg-sub :active-project-id active-project-id)
 
@@ -171,7 +171,7 @@
                                        @(subscribe [:lookup-project-url active-url-id]))
                       {:keys [user-id org-id]} active-full-id
                       project-url-id (or (->> @(subscribe [:project/active-url-id project-id])
-                                              (ensure-pred string?))
+                                              (when-test string?))
                                          project-id)]
                   (str (cond user-id  (str "/u/" user-id)
                              org-id   (str "/o/" org-id)

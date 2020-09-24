@@ -1,6 +1,5 @@
 (ns sysrev.nav
-  (:require [clojure.string :as str]
-            [goog.uri.utils :as uri-utils]
+  (:require [goog.uri.utils :as uri-utils]
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
             [cljs-http.client :as http]
@@ -85,14 +84,6 @@
 #_
 (defn ^:export eval-form [form-transit]
   (let [form ]))
-
-(defn get-url-params []
-  (let [s js/window.location.search
-        query (if (and (string? s)
-                       (str/starts-with? s "?"))
-                (subs s 1)
-                s)]
-    (http/parse-query-params query)))
 
 (defn set-page-title [title]
   (let [uri js/window.location.pathname]

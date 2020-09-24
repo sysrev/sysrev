@@ -5,16 +5,14 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
             [sysrev.base :as base :refer [active-route]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.loading :as loading]
             [sysrev.util :refer [css validate wrap-prevent-default nbsp on-event-value]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]))
 
-(def login-panel [:login])
 (def register-panel [:register])
 
 (def-data :register-project
@@ -395,21 +393,35 @@
                {:on-click #(dispatch [:action [:join-project project-id]])}
                "Join Project"]]]))))))
 
-(defmethod logged-out-content login-panel []
-  [LoginRegisterPanel])
+(defn- redirect-root-content []
+  (nav/nav-redirect "/" :scroll-top? true)
+  [:div])
 
-(defmethod logged-out-content register-panel []
-  [LoginRegisterPanel])
+(defn- register-logged-in-content []
+  (if (and (nil? @(subscribe [:register/project-id]))
+           (nil? @(subscribe [:register/register-hash])))
+    [redirect-root-content]
+    [join-project-panel]))
 
-(defmethod panel-content login-panel []
-  (fn [_child]
-    (nav/nav-redirect "/" :scroll-top? true)
-    [:div]))
+(def-panel {:panel [:login]
+            :content [redirect-root-content]
+            :logged-out-content [LoginRegisterPanel]
+            :uri "/login"
+            :on-route (dispatch [:set-active-panel [:login]])})
 
-(defmethod panel-content register-panel []
-  (fn [_child]
-    (if (and (nil? @(subscribe [:register/project-id]))
-             (nil? @(subscribe [:register/register-hash])))
-      (do (nav/nav-redirect "/" :scroll-top? true)
-          [:div])
-      [join-project-panel])))
+(def-panel {:panel [:register]
+            :content [register-logged-in-content]
+            :logged-out-content [LoginRegisterPanel]
+            :uri "/register"
+            :on-route (dispatch [:set-active-panel [:register]])})
+
+(def-panel {:uri "/register/:register-hash" :params [register-hash]
+            :on-route (do (dispatch [:set-active-panel [:register]])
+                          (dispatch [:register/register-hash register-hash]))})
+
+(def-panel {:uri "/register/:register-hash/login" :params [register-hash]
+            :on-route (do (dispatch [:set-active-panel [:register]])
+                          (dispatch [:register/register-hash register-hash])
+                          (dispatch [:register/login? true])
+                          (dispatch [:set-login-redirect-url
+                                     (str "/register/" register-hash)]))})

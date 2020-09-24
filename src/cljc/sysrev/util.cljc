@@ -28,6 +28,7 @@
                        ["moment" :as moment]
                        ["dropzone" :as Dropzone]
                        ["decamelize" :as decamelize]
+                       [cljs-http.client :as http]
                        [goog.string :as gstr :refer [unescapeEntities]]
                        [goog.string.format]
                        [re-frame.core :refer [subscribe]]]))
@@ -47,11 +48,11 @@
            [format-string & args]
            (apply gstr/format format-string args)))
 
-(defn ensure-pred
+(defn when-test
   "Returns `value` if (`pred` `value`) returns logical true, otherwise
   returns nil. With one argument, returns a function using `pred` that
   can be applied to a value."
-  ([pred] #(ensure-pred pred %))
+  ([pred] #(when-test pred %))
   ([pred value] (when (pred value) value)))
 
 (defn assert-pred
@@ -76,11 +77,11 @@
         #?(:clj
            (try (Integer/parseInt s)
                 (catch Throwable _
-                  (try (->> (read-string s) (ensure-pred integer?))
+                  (try (->> (read-string s) (when-test integer?))
                        (catch Throwable _ nil))))
            :cljs
            (->> (js/parseInt s)
-                (ensure-pred #(and (integer? %) (not= % ##NaN) (not (js/isNaN %)))))))))
+                (when-test #(and (integer? %) (not= % ##NaN) (not (js/isNaN %)))))))))
 
 (defn parse-number
   "Reads a number from a string. Returns nil if not a number."
@@ -788,7 +789,7 @@
              (or (some-> url (sp "//") second (sp "/") first (sp ".")
                          (some->> (take-last 2)
                                   (str/join ".")
-                                  (ensure-pred string?)))
+                                  (when-test string?)))
                  url))))
 
 #?(:cljs (defn validate
@@ -1166,3 +1167,9 @@
            ([query-id]       (fn [& args]
                                @(subscribe (vec (concat [query-id] args)))))
            ([query-id args]  (apply (read-sub query-id) args))))
+
+#?(:cljs (defn get-url-params []
+           (let [s js/window.location.search]
+             (-> (cond-> s
+                   (and (string? s) (str/starts-with? s "?")) (subs 1))
+                 (http/parse-query-params)))))

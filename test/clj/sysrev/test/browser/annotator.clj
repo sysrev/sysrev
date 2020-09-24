@@ -13,7 +13,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review-articles]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.util :as util :refer [in? ensure-pred css ignore-exceptions]]))
+            [sysrev.util :as util :refer [in? when-test css ignore-exceptions]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -70,7 +70,7 @@
   (mapv (fn [form-el]
           (letfn [(find-el [q]
                     (some->> (taxi/find-elements-under form-el {:css q})
-                             (ensure-pred #(<= (count %) 1))
+                             (when-test #(<= (count %) 1))
                              first))
                   (find-input-value [parent-q]
                     (or (ignore-exceptions
@@ -140,7 +140,7 @@
                                  (dissoc :annotation)))
                        (filter #(= (select-keys % match-fields)
                                    (select-keys check-values match-fields)))
-                       (ensure-pred #(= 1 (count %)))
+                       (when-test #(= 1 (count %)))
                        first)]
     (is entry "no matching annotation found")
     (when entry

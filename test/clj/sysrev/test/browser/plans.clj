@@ -15,12 +15,12 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(def use-card "form.StripeForm button.ui.button.use-card")
+(def use-card "form.StripeForm .ui.button.use-card")
 (def upgrade-link (xpath "//a[text()='Upgrade']"))
 (def back-to-user-settings (xpath "//a[contains(text(),'Back to user settings')]"))
 
 ;; pricing workflow elements
-(def choose-pro-button (xpath "//button[contains(text(),'Choose Pro')]"))
+(def choose-pro-button (xpath "//a[contains(text(),'Choose Pro')]"))
 (def create-account (xpath "//h3[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
 (def upgrade-plan (xpath "//h1[contains(text(),'Upgrade from Basic to Pro')]"))
 (def pricing-link (xpath "//a[@id='pricing-link']"))

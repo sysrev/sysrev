@@ -250,9 +250,12 @@
             (when-let [entry (get @data-defs name)]
               (if-let [process (:on-error entry)]
                 (apply process [cofx args result])
-                (do (js/console.error (str "data error: item = " (pr-str item)
-                                           "\nerror: " (pr-str (:error cofx))))
-                    {})))))))
+                (let [{:keys [error]} cofx
+                      {:keys [#_ type message]} error]
+                  (cond (= message "This request requires an upgraded plan") nil
+                        :else (util/log-err "data error: item = %s\nerror: %s"
+                                            (pr-str item) (pr-str error)))
+                  {})))))))
 
 ;; Reload data item from server if already loaded.
 (reg-event-fx :reload [trim-v]
@@ -295,3 +298,15 @@
 (defn init-data []
   (dispatch [:ui/load-default-panels])
   (dispatch [:fetch [:identity]]))
+
+(defn fetch [& item]
+  (dispatch [:fetch (into [] item)]))
+
+(defn require-data [& item]
+  (dispatch [:require (into [] item)]))
+
+(defn reload [& item]
+  (dispatch [:reload (into [] item)]))
+
+(defn load-data [& item]
+  (dispatch [:data/load (into [] item)]))

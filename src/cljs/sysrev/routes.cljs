@@ -173,46 +173,8 @@
 ;;
 
 (sr-defroute
- login "/login" []
- (dispatch [:set-active-panel [:login]]))
-
-(sr-defroute
- register-user "/register" []
- (dispatch [:set-active-panel [:register]]))
-
-(sr-defroute
- register-project "/register/:register-hash" [register-hash]
- (dispatch [:set-active-panel [:register]])
- (dispatch [:register/register-hash register-hash]))
-
-(sr-defroute
- register-project-login "/register/:register-hash/login" [register-hash]
- (dispatch [:set-active-panel [:register]])
- (dispatch [:register/register-hash register-hash])
- (dispatch [:register/login? true])
- (dispatch [:set-login-redirect-url (str "/register/" register-hash)]))
-
-(sr-defroute
- request-password-reset "/request-password-reset" []
- (dispatch [:set-active-panel [:request-password-reset]]))
-
-(sr-defroute
- reset-password "/reset-password/:reset-code" [reset-code]
- (dispatch [:set-active-panel [:reset-password]])
- (dispatch [:reset-password/reset-code reset-code])
- (dispatch [:fetch [:password-reset reset-code]]))
-
-(sr-defroute
- pubmed-search "/pubmed-search" []
- (dispatch [:set-active-panel [:pubmed-search]]))
-
-(sr-defroute
  plans "/user/payment" []
  (dispatch [:set-active-panel [:payment]]))
-
-(sr-defroute
- org-settings "/org/*" []
- (dispatch [:set-active-panel [:org-settings]]))
 
 (sr-defroute
  users "/users" []

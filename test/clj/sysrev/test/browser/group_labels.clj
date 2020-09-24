@@ -752,7 +752,7 @@
       (b/exists? (xpath "//button[contains(text(),'Add Group Label')]"))
       ;; Now, let's make a group
       (orgs/create-org org-name)
-      (b/click orgs/org-projects :delay 30)
+      (b/click "#org-projects" :delay 30)
       (orgs/create-project-org org-project-name)
       ;; paywall in place?
       (nav/go-project-route "/labels/edit")

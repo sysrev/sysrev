@@ -59,9 +59,8 @@ sysrev.accounting/to-fixed
 sysrev.paypal/paypal-env
 sysrev.paypal/paypal-client-id
 sysrev.state.project.core/project-active-url-id
-sysrev.stripe/ConnectWithStripe
+sysrev.stripe/stripe-client-id
 sysrev.stripe/check-if-stripe-user!
-sysrev.stripe/save-stripe-user!
 sysrev.util/ensure-dom-elt-visible-soon
 sysrev.util/log
 sysrev.util/log-warn
@@ -95,3 +94,9 @@ sysrev.db.queries/get-article
 
 sysrev.db.queries/find-article-label
 sysrev.db.queries/find-article-label-1
+sysrev.data.core/fetch
+sysrev.data.core/require-data
+sysrev.data.core/load-data
+sysrev.stripe/org-pro?
+sysrev.stripe/basic?
+sysrev.stripe/basic-plans

@@ -21,7 +21,8 @@
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or (some-> wait-ms (quot 2))
                                                             25)
-                                              :loop 2)))
+                                              :loop 2)
+              (b/test-browser-console-clean :assert? true)))
     nil))
 
 (defn go-project-route [suburi & {:keys [project-id wait-ms pre-wait-ms silent]}]
@@ -75,7 +76,7 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-exists "button#new-project")
+    (b/wait-until-exists "#new-project.button")
     (b/wait-until-loading-completes :pre-wait true :loop 2)
     #_ (log/info "register successful")))
 
@@ -86,8 +87,8 @@
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
   (go-route "/" :silent true)
-  (b/click "button#new-project")
-  (b/set-input-text "form#create-project-form div.project-name input" project-name)
+  (b/click "#new-project.button")
+  (b/set-input-text "#create-project div.project-name input" project-name)
   (b/click (xpath "//button[contains(text(),'Create Project')]"))
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists

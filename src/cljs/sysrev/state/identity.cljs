@@ -1,5 +1,5 @@
 (ns sysrev.state.identity
-  (:require [re-frame.core :refer [reg-sub]]
+  (:require [re-frame.core :refer [reg-sub reg-event-db trim-v]]
             [sysrev.state.core :refer [store-user-map]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -74,11 +74,11 @@
 
 (reg-sub :self/email
          :<- [::identity]
-         (fn [identity] (:email identity)))
+         #(:email %))
 
 (reg-sub :self/verified
          :<- [::identity]
-         (fn [identity] (:verified identity)))
+         #(:verified %))
 
 (defn current-user-id [db]
   (get-in db [:state :identity :user-id]))
@@ -87,7 +87,7 @@
 
 (reg-sub :self/logged-in?
          :<- [:self/user-id]
-         (fn [user-id] ((comp not nil?) user-id)))
+         #(some? %))
 
 (reg-sub ::self-state #(get-in % [:state :self]))
 
@@ -104,9 +104,11 @@
              projects
              (filterv :member? projects))))
 
-(reg-sub :self/orgs
-         :<- [::self-state]
-         (fn [self] (:orgs self)))
+(reg-sub      :self/orgs
+              :<- [::self-state]
+              #(:orgs %))
+(reg-event-db :self/orgs [trim-v]
+              (fn [db [orgs]] (assoc-in db [:state :self :orgs] orgs)))
 
 (reg-sub :self/org-permissions
          :<- [:self/orgs]
@@ -125,15 +127,16 @@
 
 (reg-sub :self/settings
          :<- [::identity]
-         (fn [identity] (:settings identity)))
+         #(:settings %))
 
 (reg-sub :self/ui-theme
          :<- [:self/settings]
-         (fn [settings] (if (-> settings :ui-theme (= "Dark")) "Dark" "Default")))
+         #(if (= (:ui-theme %) "Dark")
+            "Dark" "Default"))
 
 (reg-sub :self/dark-theme?
          :<- [:self/ui-theme]
-         (fn [ui-theme] (= ui-theme "Dark")))
+         #(= % "Dark"))
 
 (def-action :user/change-settings
   :uri (fn [_] "/api/change-user-settings")
@@ -143,8 +146,7 @@
                (if (not= (:ui-theme settings)
                          (:ui-theme old-settings))
                  {:reload-page [true]}
-                 {:db (assoc-in db [:state :identity :settings]
-                                settings)}))))
+                 {:db (assoc-in db [:state :identity :settings] settings)}))))
 
 (def-action :session/change-settings
   :uri (fn [_] "/api/auth/change-session-settings")
@@ -156,8 +158,7 @@
                      theme-changed? (and cur-theme (not= cur-theme new-theme))]
                  (if theme-changed?
                    {:reload-page [true]}
-                   {:db (assoc-in db [:state :identity :settings]
-                                  settings)})))))
+                   {:db (assoc-in db [:state :identity :settings] settings)})))))
 
 (def-action :user/delete-account
   :uri (fn [_] "/api/delete-user")

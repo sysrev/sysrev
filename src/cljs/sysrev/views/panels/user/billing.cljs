@@ -2,11 +2,11 @@
   (:require [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
             [sysrev.nav :as nav]
-            [sysrev.stripe :refer [pro-plans StripeCardInfo]]
+            [sysrev.stripe :as stripe]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer
              [Segment Grid Row Column Button Icon Loader Header ListUI ListItem]]
-            [sysrev.util :as util :refer [in? css parse-integer]]
+            [sysrev.util :as util :refer [css parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo
@@ -14,7 +14,7 @@
 
 (setup-panel-state panel [:user :billing])
 
-(defn DefaultSource [{:keys [default-source]}]
+(defn DefaultSource [default-source]
   [:div.bold
    [Icon {:name "credit card"}]
    (if (seq default-source)
@@ -39,13 +39,13 @@
             [Column {:width 8} [Loader {:active true
                                         :inline "centered"}]]
             (not @show-payment-form?)
-            [Column {:width 8} [DefaultSource {:default-source @default-source}]]
+            [Column {:width 8} [DefaultSource @default-source]]
             @show-payment-form?
             [Column {:width 8}
-             [StripeCardInfo {:add-payment-fn
-                              (fn [payload]
-                                (swap! show-payment-form? not)
-                                (change-source-fn payload))}]])
+             [stripe/StripeCardInfo
+              {:add-payment-fn (fn [payload]
+                                 (swap! show-payment-form? not)
+                                 (change-source-fn payload))}]])
           [Column {:width 6 :align "right"}
            [Button {:on-click #(swap! show-payment-form? not)}
             (cond @show-payment-form? [:div "Stop Editing Payment Information"]
@@ -56,7 +56,7 @@
 (defn Plan [{:keys [plans-url current-plan]}]
   (let [basic? (= (:nickname current-plan) "Basic")
         {:keys [nickname interval]} current-plan
-        unlimited? (in? pro-plans nickname)
+        unlimited? (stripe/pro? nickname)
         mobile? (util/mobile?)]
     (if (nil? nickname)
       [Grid
