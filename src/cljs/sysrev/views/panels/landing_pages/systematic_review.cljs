@@ -1,4 +1,4 @@
-(ns sysrev.views.panels.landing_pages.systematic_review
+(ns sysrev.views.panels.landing_pages.systematic-review
    (:require [cljs-time.core :as time]
              [re-frame.core :refer [subscribe reg-sub]]
              [sysrev.data.core :refer [def-data]]

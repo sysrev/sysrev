@@ -1,4 +1,4 @@
-(ns sysrev.views.panels.landing_pages.data_extraction
+(ns sysrev.views.panels.landing_pages.data-extraction
    (:require [cljs-time.core :as time]
              [re-frame.core :refer [subscribe reg-sub]]
              [sysrev.data.core :refer [def-data]]

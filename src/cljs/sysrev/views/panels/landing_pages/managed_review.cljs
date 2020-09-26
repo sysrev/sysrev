@@ -1,4 +1,4 @@
-(ns sysrev.views.panels.landing_pages.managed_review
+(ns sysrev.views.panels.landing_pages.managed-review
   (:require
     ["jquery" :as $]
     [ajax.core :refer [GET POST PUT DELETE]]
