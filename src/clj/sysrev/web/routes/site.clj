@@ -169,6 +169,9 @@
   (POST "/api/stripe/hooks" request
         (api/handle-stripe-hooks request))
 
+  (POST "/api/managed-review-request" request
+    (api/managed-review-request request))
+
   #_ (POST "/api/activity" request
            (let []))
 

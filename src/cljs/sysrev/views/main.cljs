@@ -10,6 +10,10 @@
             [sysrev.views.base :refer
              [panel-content logged-out-content render-panel-tree]]
             [sysrev.views.panels.login]
+            [sysrev.views.panels.landing_pages.lit_review]
+            [sysrev.views.panels.landing_pages.data_extraction]
+            [sysrev.views.panels.landing_pages.managed_review]
+            [sysrev.views.panels.landing_pages.systematic_review]
             [sysrev.views.panels.root]
             [sysrev.views.panels.orgs]
             [sysrev.views.panels.org.main]

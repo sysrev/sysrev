@@ -1,36 +1,15 @@
-(ns sysrev.views.panels.root
-  (:require [cljs-time.core :as time]
-            [re-frame.core :refer [subscribe reg-sub]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.panels.login :refer [LoginRegisterPanel]]
-            [sysrev.views.panels.pricing :refer [Pricing]]
-            [sysrev.views.project-list :as plist]
-            [sysrev.nav :refer [nav]]
-            [sysrev.macros :refer-macros [with-loader]]))
+(ns sysrev.views.panels.landing_pages.lit_review
+   (:require [cljs-time.core :as time]
+             [re-frame.core :refer [subscribe reg-sub]]
+             [sysrev.data.core :refer [def-data]]
+             [sysrev.views.base :refer [panel-content logged-out-content]]
+             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
+             [sysrev.views.panels.pricing :refer [Pricing]]
+             [sysrev.views.project-list :as plist]
+             [sysrev.nav :refer [nav]]
+             [sysrev.macros :refer-macros [with-loader]]))
 
-(def ^:private panel [:root])
-
-(reg-sub :landing-page?
-         :<- [:active-panel]
-         :<- [:self/logged-in?]
-         (fn [[active-panel logged-in?]]
-           (and (not logged-in?)
-                (or (= active-panel [:lit-review])
-                    (= active-panel [:systematic-review])
-                    (= active-panel [:data-extraction])
-                    (= active-panel [:managed-review])
-                    (= active-panel [:root])))))
-
-(def-data :global-stats
-  :loaded? (fn [db] (-> (get-in db [:data])
-                        (contains? :global-stats)))
-  :uri (constantly "/api/global-stats")
-  :process (fn [{:keys [db]} _ {:keys [stats]}]
-             (when stats
-               {:db (assoc-in db [:data :global-stats] stats)})))
-
-(reg-sub :global-stats #(get-in % [:data :global-stats]))
+(def ^:private panel [:lit-review])
 
 (defn GlobalStatsReport []
   [:div.global-stats
@@ -43,28 +22,22 @@
                    [:div.column [:p [:span.bold (str label-entries)] " Review Answers"]]]))])
 
 (defn IntroSegment []
-  [:div.ui.segment.center.aligned.inverted {:style {:padding-top 50 :padding-bottom 40 :margin-top -13
-                                                    :margin-bottom 0 :border-radius 0}}
+   [:div.ui.segment.center.aligned.inverted {:style {:padding-top 50 :padding-bottom 40 :margin-top -13
+                                                     :margin-bottom 0 :border-radius 0}}
    [:div.description.wrapper.open-sans {:style {:margin "auto" :max-width "500px" :margin-bottom 20}}
-    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Built for data miners."]
-    [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "SysRev helps humans work together and with machines to extract data from documents."]
-    [:h2.ui {:style {:margin-top 5 :font-size "20px"}} ""]
-    [:div.ui.three.column.middle.aligned.center.aligned.stackable.grid
-     {:style {:max-width "700px" :margin "auto" :margin-top 0}}
-     [:div.column [:h1 [:a {:href "/lit-review"} "Literature Review"]]]
-     [:div.column [:h1 [:a {:href "/data-extraction"} "Data Extraction"]]]
-     [:div.column [:h1 [:a {:href "/systematic-review"} "Systematic Review"]]]]
+    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Start reviewing literature for free."]
+    [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "There are hundreds of literature reviews on SysRev. Join one or start your own. "]
     [:button.ui.fluid.primary.button {:style {:width 200 :margin "auto" :padding "20px" :margin-top "32px"}
                                       :on-click #(nav "/register")} "Sign up for SysRev"]]
-   [:div {:style {:margin-top 50}}
-    [:h5 {:style {:margin-bottom 0}} "live updates"]
-    [GlobalStatsReport]]])
+    [:div {:style {:margin-top 50}}
+     [:h5 {:style {:margin-bottom 0}} "live updates"]
+     [GlobalStatsReport]]])
 
 (defn FeaturedReviews []
   [:div.ui.segment.center.aligned {:style {:padding-top 60 :margin-top 0 :border 0 :border-radius 0 :margin-bottom 0}}
    [:div.description.wrapper.open-sans {:style {:margin "auto" :max-width "600px" :padding-bottom 0}}
     [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Learn from the best with open access projects."]
-    [:h2.ui "Watch, " [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"] " and learn from successful projects."]]
+    [:h2.ui "Watch, learn and " [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"] " successful literature reviews."]]
    [:h3.ui.top.attached {:style {:margin-bottom 0}} "Community Literature Reviews"]
    [:div.ui.attached.three.stackable.cards {:style {:max-width "1000px" :margin "auto"}}
 
@@ -94,7 +67,7 @@
      [:div.content
       [:a.header "Cancer Hallmark Mapping"]
       [:div.meta [:a {:href "https://sysrev.com/p/3588"} "sysrev.com/p/3588"]]
-      [:div.description [:p "The aim of this project is to identify novel assays and biomarkers
+      [:div.description [:p "The aim of this literature review is to identify novel assays and biomarkers
                     that map to the hallmarks of cancer and the key characteristics of carcinogens"]]]
      [:div.extra.content
       [:span "Collaboration at" [:br] "National Toxicology Program “Converging on Cancer” workshop"]]]]
@@ -106,8 +79,7 @@
    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Get Started"]
    [:h3.ui {:style {:margin-top 5 :font-size "20px"}} "Learn to " [:a {:href "https://blog.sysrev.com/getting-started/"} " make a SysRev in 5 steps"] " or watch the video below"]
    [:iframe {:width "560" :height "315" :src "https://www.youtube.com/embed/dHISlGOm7A8" :frameborder "0" :allow "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" :allowfullscreen "true"}]
-   [:button.ui.fluid.primary.button {:style {:width 200 :margin "auto" :padding "20px" :margin-top "32px"}
-                                     :on-click #(nav "/register")} "Sign up for SysRev"]])
+   [:button.ui.fluid.primary.button {:style {:width 200 :margin "auto" :padding "20px" :margin-top "32px"} :on-click #(nav "/register")} "Sign up for SysRev"]])
 
 (defn RootFullPanelPublic []
   (with-loader [[:identity] [:public-projects] [:global-stats]] {}
@@ -116,11 +88,5 @@
                 [FeaturedReviews]
                 [GetStarted]]))
 
-(defn RootFullPanelUser []
-  [:div.landing-page [plist/UserProjectListFull]])
-
 (defmethod panel-content panel []
-  (fn [_child] [RootFullPanelUser]))
-
-(defmethod logged-out-content panel []
-  [RootFullPanelPublic])
+  (fn [_child] [RootFullPanelPublic]))

@@ -1428,3 +1428,13 @@
       {:status internal-server-error
        :errors (:errors resp)}
       (:data resp))))
+
+(defn managed-review-request [request]
+  (let [name        (:name  (:body request))
+        email       (:email (:body request))
+        description (:description (:body request))]
+    (sendgrid/send-template-email
+      "info@insilica.co"
+      (format "%s - MANAGED REVIEW REQUEST " name)
+      (format "Name %s email %s\n%s." name email description))
+    {:success true}))

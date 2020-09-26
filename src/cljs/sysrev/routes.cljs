@@ -14,6 +14,33 @@
  (dispatch [:reload [:identity]])
  (dispatch [:reload [:public-projects]]))
 
+(sr-defroute
+  home "/lit-review" []
+  (dispatch [:set-active-panel [:lit-review]])
+  (dispatch [:require [:identity]])
+  (dispatch [:reload [:identity]])
+  (dispatch [:reload [:public-projects]]))
+
+(sr-defroute
+  home "/data-extraction" []
+  (dispatch [:set-active-panel [:data-extraction]])
+  (dispatch [:require [:identity]])
+  (dispatch [:reload [:identity]])
+  (dispatch [:reload [:public-projects]]))
+
+(sr-defroute
+  home "/systematic-review" []
+  (dispatch [:set-active-panel [:systematic-review]])
+  (dispatch [:require [:identity]])
+  (dispatch [:reload [:identity]])
+  (dispatch [:reload [:public-projects]]))
+
+(sr-defroute
+  home "/managed-review" []
+  (dispatch [:set-active-panel [:managed-review]])
+  (dispatch [:require [:identity]])
+  (dispatch [:reload [:identity]])
+  (dispatch [:reload [:public-projects]]))
 ;;
 ;; project routes
 ;;
