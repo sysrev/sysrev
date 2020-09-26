@@ -63,7 +63,7 @@
     [:div.ui.raised.card
      [:div.image [:img {:src "/mangiferin-clustering.png"}]]
      [:div.content
-      [:a.header "Extracting Mangiferin Effects"]
+      [:a.header {:href "https://sysrev.com/p/21696"} "Extracting Mangiferin Effects"]
       [:div.meta [:a {:href "https://sysrev.com/p/21696"} "sysrev.com/p/21696"]]
       [:div.description [:p "An extraction of mangiferin (a mango extract) effects from publications. R and "
                          [:a {:href "https://github.com/sysrev/RSysrev"} "RSysrev"] " were used to analyze results. "

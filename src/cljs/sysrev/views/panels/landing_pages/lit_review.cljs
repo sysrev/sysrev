@@ -65,7 +65,7 @@
     [:div.ui.raised.card
      [:div.image [:img {:src "/tumur.png"}]]
      [:div.content
-      [:a.header "Cancer Hallmark Mapping"]
+      [:a.header {:href "https://sysrev.com/p/3588"} "Cancer Hallmark Mapping"]
       [:div.meta [:a {:href "https://sysrev.com/p/3588"} "sysrev.com/p/3588"]]
       [:div.description [:p "The aim of this literature review is to identify novel assays and biomarkers
                     that map to the hallmarks of cancer and the key characteristics of carcinogens"]]]

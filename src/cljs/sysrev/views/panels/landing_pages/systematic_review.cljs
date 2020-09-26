@@ -45,7 +45,7 @@
     [:div.ui.raised.card
      [:div.image [:img {:src "/tumur.png"}]]
      [:div.content
-      [:a.header "Cancer Hallmark Mapping"]
+      [:a.header {:href "https://sysrev.com/p/3588"}  "Cancer Hallmark Mapping"]
       [:div.meta [:a {:href "https://sysrev.com/p/3588"} "sysrev.com/p/3588"]]
       [:div.description [:p "The aim of this systematic review is to identify novel assays and biomarkers
                     that map to the hallmarks of cancer and the key characteristics of carcinogens"]]]
@@ -54,7 +54,7 @@
     [:div.ui.raised.card
      [:div.image [:img {:src "/ckd-covid.png"}]]
      [:div.content
-      [:a.header "COVID-19 Kidney Disease"]
+      [:a.header {:href "/p/29506"} "COVID-19 Kidney Disease"]
       [:div.meta [:a {:href "https://sysrev.com/p/29506"} "sysrev.com/p/29506"]]
       [:div.description [:p "A multinational team used Sysrev to assess the clinical characteristics and the risk factors associated with SARS CoV2 in patients with Chronic Kidney Disease.  "]]]
      [:div.extra.content
