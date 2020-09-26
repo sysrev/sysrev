@@ -48,12 +48,12 @@
    [:div.description.wrapper.open-sans {:style {:margin "auto" :max-width "500px" :margin-bottom 20}}
     [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Built for data miners."]
     [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "SysRev helps humans work together and with machines to extract data from documents."]
-    [:h2.ui {:style {:margin-top 5 :font-size "20px"}} ""]
     [:div.ui.three.column.middle.aligned.center.aligned.stackable.grid
      {:style {:max-width "700px" :margin "auto" :margin-top 0}}
      [:div.column [:h1 [:a {:href "/lit-review"} "Literature Review"]]]
      [:div.column [:h1 [:a {:href "/data-extraction"} "Data Extraction"]]]
      [:div.column [:h1 [:a {:href "/systematic-review"} "Systematic Review"]]]]
+    [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "Want help with a big project?"[:br]"Talk to the "[:a {:href "/managed-review"} "Managed Review Division"]]
     [:button.ui.fluid.primary.button {:style {:width 200 :margin "auto" :padding "20px" :margin-top "32px"}
                                       :on-click #(nav "/register")} "Sign up for SysRev"]]
    [:div {:style {:margin-top 50}}
