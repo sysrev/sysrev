@@ -26,7 +26,7 @@
      [:a {:href "/p/21696/analytics/concordance"} "Live Demo"]]
     [:br][:br]]
    [:div {:style {:height "50vh"}}
-    [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
+    [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/FgxJ4zTVUn4"
               :frameBorder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
               :allowFullScreen "{true}"}]]])
 
@@ -42,7 +42,7 @@
      [:a {:href "/p/21696/analytics/concordance"} "Live Demo"]]
     [:br][:br]]
    [:div  {:style {:height "50vh"}}
-    [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
+    [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/FgxJ4zTVUn4"
               :frameBorder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
               :allowFullScreen true}]]])
 
