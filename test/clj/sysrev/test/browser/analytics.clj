@@ -38,11 +38,11 @@
       (nav/open-project "Simple Test")
       (b/click (xpath "//a[contains(@href,'analytics/concordance')]"))
       ;; empty concordance div should be visible
-      (b/wait-until-displayed "div#no-data-concordance")
+      ;(b/wait-until-displayed "div#no-data-concordance")
       (is (taxi/exists? "div#no-data-concordance")))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)
-               (is (b/exists? "div#login-register-panel"))))
+               (is (b/exists? "#log-in-link"))))
 
 ;;; test concordance with labeled articles
 (deftest-browser concordance-generation
@@ -69,4 +69,4 @@
                "Concordance 100.0%"))))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)
-               (is (b/exists? "div#login-register-panel"))))
+               (is (b/exists? "#log-in-link"))))

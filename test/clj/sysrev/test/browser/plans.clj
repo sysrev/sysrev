@@ -250,6 +250,7 @@
    get-customer #(get-user-customer email)
    get-db-plan #(user-db-plan email)]
   (do
+    (nav/go-route "/pricing")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
     (b/wait-until-displayed choose-pro-button)
     (b/click choose-pro-button)
@@ -281,7 +282,7 @@
    get-customer #(get-user-customer email)
    get-db-plan #(user-db-plan email)]
   (do
-    (nav/go-route "/")
+    (nav/go-route "/pricing")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
     (b/wait-until-displayed choose-pro-button)
     (b/click choose-pro-button)

@@ -36,4 +36,4 @@
       (is (= (count distinct-content) 6))))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)
-               (is (b/exists? "div#login-register-panel"))))
+               (is (b/exists? "a#log-in-link"))))

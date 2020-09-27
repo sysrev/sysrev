@@ -387,7 +387,7 @@
   [org-name (str "Foo Bar Inc. " (random-id))
    email (format "foo+%s@bar.com" (random-id))]
   (do
-    (nav/go-route "/")
+    (nav/go-route "/pricing")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
     (b/wait-until-displayed choose-team-pro-button)
     (b/click choose-team-pro-button)
@@ -420,7 +420,7 @@
   [email (format "baz+%s@qux.com" (random-id))
    org-name (str "Foo Bar Inc. " (random-id))]
   (do
-    (nav/go-route "/")
+    (nav/go-route "/pricing")
     (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
     (b/wait-until-displayed choose-team-pro-button)
     (b/click choose-team-pro-button)

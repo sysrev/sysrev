@@ -27,8 +27,8 @@
     [:br][:br]]
    [:div {:style {:height "50vh"}}
     [:iframe {:width "100%" :height "100%" :src "https://www.youtube.com/embed/HmQhiVNtB2s"
-              :frameborder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-              :allowfullscreen "true"}]]])
+              :frameBorder "0" :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+              :allowFullScreen "{true}"}]]])
 
 (defn paywall []
   [:div.ui.aligned.segment {:id "paywall" :style {:text-align "center" }}

@@ -78,7 +78,7 @@
   [:div.ui.segment.center.aligned.inverted {:style {:margin-top 0 :border-radius 0 :border 0}}
    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Get Started"]
    [:h3.ui {:style {:margin-top 5 :font-size "20px"}} "Learn to " [:a {:href "https://blog.sysrev.com/getting-started/"} " make a SysRev in 5 steps"] " or watch the video below"]
-   [:iframe {:width "560" :height "315" :src "https://www.youtube.com/embed/dHISlGOm7A8" :frameborder "0" :allow "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" :allowfullscreen "true"}]
+   [:iframe {:width "560" :height "315" :src "https://www.youtube.com/embed/dHISlGOm7A8" :frameBorder "0" :allow "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" :allowFullScreen "{true}"}]
    [:button.ui.fluid.primary.button {:style {:width 200 :margin "auto" :padding "20px" :margin-top "32px"} :on-click #(nav "/register")} "Sign up for SysRev"]])
 
 (defn RootFullPanelPublic []
