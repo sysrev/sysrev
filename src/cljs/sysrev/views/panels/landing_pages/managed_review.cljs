@@ -33,6 +33,7 @@
                       (let [name (.val ($ "#nameinput"))
                             email (.val ($ "#emailinput"))
                             description (.val ($ "#descriptioninput"))]
+                        (dispatch [::set-is-submitted true])
                         (send-managed-review-request name email description))))]
     (if (not @(subscribe [::is-submitted]))
     [:div.ui.raised.segment.left.aligned {:style { :max-width "500px" :margin "auto"}}
