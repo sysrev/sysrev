@@ -2,7 +2,7 @@
   (:require [goog.uri.utils :as uri-utils]
             [re-frame.core :refer [subscribe dispatch reg-event-db reg-sub]]
             [sysrev.base :refer [active-route]]
-            [sysrev.nav :as nav]
+            [sysrev.nav :as nav :refer [nav]]
             [sysrev.state.nav :refer [project-uri user-uri group-uri]]
             [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content]]
@@ -12,7 +12,6 @@
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.project :refer [ProjectName]]
-            [sysrev.nav :refer [nav]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ProjectTitle [project-id]

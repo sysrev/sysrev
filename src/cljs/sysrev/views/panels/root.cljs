@@ -1,10 +1,7 @@
 (ns sysrev.views.panels.root
-  (:require [cljs-time.core :as time]
-            [re-frame.core :refer [subscribe reg-sub]]
+  (:require [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.panels.login :refer [LoginRegisterPanel]]
-            [sysrev.views.panels.pricing :refer [Pricing]]
             [sysrev.views.project-list :as plist]
             [sysrev.nav :refer [nav]]
             [sysrev.macros :refer-macros [with-loader]]))

@@ -8,8 +8,7 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :refer [load-settings-and-navigate]]
             [sysrev.views.panels.project.analytics.common :refer [beta-message]]
-            [sysrev.shared.charts :refer [processed-label-color-map]]
-            [sysrev.util :as util :refer [read-sub format round ellipsize sum]]
+            [sysrev.util :as util :refer [format round ellipsize sum]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
 
 ;; for clj-kondo
