@@ -56,7 +56,7 @@
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'7')]")))
+    (is (b/exists? (unique-count-span 7)))
     ;; Import Clinical Trials
     (b/click "a.tab-ctgov")
     (ctgov/search-ctgov "foo olive")
