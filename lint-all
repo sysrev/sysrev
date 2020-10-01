@@ -1,3 +1,10 @@
 #!/bin/bash
 set -eu
-clj-kondo --lint src/ "$@"
+
+if [ ! -e "scripts/clj-kondo" ] ; then
+  echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
+  ./scripts/install-clj-kondo --dir $PWD/scripts > /dev/null
+  echo "done"
+fi
+
+./scripts/clj-kondo --lint src/ test/ "$@"

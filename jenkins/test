@@ -4,4 +4,7 @@ set -eux
 rm -rf ./target
 
 rm -f target/junit.xml
+
+./lint-all
+
 lein with-profile +jenkins eftest

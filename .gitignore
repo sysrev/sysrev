@@ -211,3 +211,4 @@ client/semantic
 .*
 
 !/.carve_ignore
+/scripts/clj-kondo
