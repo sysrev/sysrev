@@ -22,16 +22,16 @@
       (not disabled?) (merge-where [:not exists]))))
 
 (deftest article-flag-counts
-  (doseq [project-id (q/find :project {} :project-id, :limit 10)]
-    (let [query (q/select-project-articles
-                 project-id [:%count.*] {:include-disabled? true})
-          get-count #(-> % do-query first :count)
-          [total flag-enabled flag-disabled]
-          (db/with-transaction
+  (db/with-transaction
+    (doseq [project-id (q/find :project {} :project-id, :limit 10)]
+      (let [query (q/select-project-articles
+                   project-id [:%count.*] {:include-disabled? true})
+            get-count #(-> % do-query first :count)
+            [total flag-enabled flag-disabled]
             [(get-count query)
              (get-count (-> query (filter-article-by-disable-flag true)))
-             (get-count (-> query (filter-article-by-disable-flag false)))])]
-      (is (= total (+ flag-enabled flag-disabled))))))
+             (get-count (-> query (filter-article-by-disable-flag false)))]]
+        (is (= total (+ flag-enabled flag-disabled)))))))
 
 #_
 (deftest project-sources-creation-deletion
