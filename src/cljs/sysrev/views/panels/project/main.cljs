@@ -53,7 +53,7 @@
             access-button (fn [content]
                             [:button.ui.tiny.button.project-access
                              {:on-click (when @(subscribe [:user/project-admin?])
-                                          #(nav/nav-scroll-top (project-uri nil "/settings")))}
+                                          #(nav/nav (project-uri nil "/settings")))}
                              content])
             access-label (if public?
                            [access-button [:span [:i.globe.icon] "Public"]]
@@ -127,7 +127,7 @@
     (when-let [redirect-id @(subscribe [:project-redirect-needed])]
       (let [[_ suburi] (re-matches #".*/p/[\d]+(.*)" @active-route)
             std-uri @(subscribe [:project/uri redirect-id suburi])]
-        (dispatch [:nav-redirect std-uri])))
+        (dispatch [:nav std-uri :redirect true])))
     (when-let [url-id @(subscribe [:active-project-url])]
       ;; make sure we've queried for translation from url -> project-id
       (with-loader [[:lookup-project-url url-id]] {}

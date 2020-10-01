@@ -4,7 +4,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.loading :as loading]
-            [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.nav :as nav :refer [nav]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util]
             [sysrev.views.panels.org.plans :refer [Unlimited ToggleInterval TeamProPlanPrice]]
@@ -28,7 +28,7 @@
   :uri (constantly "/api/org")
   :content (fn [org-name _] {:org-name org-name})
   :process (fn [_ [_ redirect-subpath] {:keys [id]}]
-             {:nav-scroll-top (str "/org/" id (or redirect-subpath "/projects"))})
+             {:nav [(str "/org/" id (or redirect-subpath "/projects"))]})
   :on-error (fn [{:keys [error]} _ _]
               {:dispatch [::set :create-org-error (:message error)]}))
 
@@ -47,7 +47,7 @@
   :content (fn [org-name plan payment-method]
              {:org-name org-name :plan plan :payment-method payment-method})
   :process (fn [_ _ {:keys [id]}]
-             {:nav-scroll-top (str "/org/" id "/billing")
+             {:nav [(str "/org/" id "/billing")]
               :dispatch [::set :create-org-error nil]})
   :on-error (fn [{:keys [error]} _ _]
               (let [{:keys [stripe-error org-error plan-error]} error]
@@ -63,8 +63,8 @@
      [Form {:on-submit (fn []
                          (cond (= plan "pro")
                                (run-action :org/validate-name @new-org
-                                           #(nav-scroll-top "/create/org" :params
-                                                            {:new-org-name @new-org}))
+                                           #(nav "/create/org"
+                                                 :params {:new-org-name @new-org}))
                                (or (= panel-type "new-account")
                                    (= panel-type "existing-account"))
                                (run-action :org/create @new-org "/plans")

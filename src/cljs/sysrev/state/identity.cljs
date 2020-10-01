@@ -54,7 +54,7 @@
 (def-action :auth/log-out
   :uri (fn [] "/api/auth/logout")
   :process (fn [{:keys [db]} _ _]
-             {:reset-data true :nav-scroll-top "/"}))
+             {:reset-data true :nav ["/"]}))
 
 (def-action :auth/register
   :uri (fn [& _] "/api/auth/register")
@@ -167,7 +167,7 @@
              {:db (-> (assoc-in db [:state :identity] nil)
                       (dissoc-in [:state :self]))
               :reset-data true
-              :nav-scroll-top "/"
+              :nav ["/"]
               :dispatch [:fetch [:identity]]}))
 
 (def-action :user/delete-member-labels

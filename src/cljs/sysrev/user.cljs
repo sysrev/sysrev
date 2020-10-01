@@ -4,6 +4,7 @@
             [clojure.spec.alpha :as s]
             [orchestra-cljs.spec.test :as spec-test]
             [cljs-time.core :as t]
+            [cljs-http.client :as http]
             [cognitect.transit :as transit]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
@@ -13,7 +14,6 @@
             sysrev.base
             sysrev.core
             sysrev.util
-            sysrev.routes
             sysrev.ajax
             sysrev.nav
             sysrev.state.all
@@ -34,7 +34,6 @@
   (import-vars 'sysrev.base)
   (import-vars 'sysrev.core)
   (import-vars 'sysrev.util)
-  (import-vars 'sysrev.routes)
   (import-vars 'sysrev.state.core)
   (import-vars 'sysrev.state.ui)
   (import-vars 'sysrev.data.core)

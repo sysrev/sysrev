@@ -1,13 +1,13 @@
 (ns sysrev.views.panels.project.single-article
-  (:require [re-frame.core :refer [subscribe reg-sub reg-sub-raw reg-event-fx trim-v]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-sub-raw reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
-            [sysrev.views.base :refer [panel-content]]
+            [sysrev.nav :as nav]
             [sysrev.views.article-list.core :as alist]
             [sysrev.views.group-label :refer [GroupLabelEditor]]
             [sysrev.views.review :as review]
             [sysrev.util :as util :refer [css]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]))
 
 (def panel [:project :project :single-article])
 
@@ -74,11 +74,28 @@
           "Back to Article List"]
          [alist/ArticleContent context article-id]]))))
 
-(defmethod panel-content panel []
-  (fn [child]
-    (when @(subscribe [:active-project-id])
-      [:div.project-content
-       (when (review/display-sidebar?)
-         [GroupLabelEditor @(subscribe [:visible-article-id])])
-       [ArticlePanel]
-       child])))
+(defn- Panel [child]
+  (when @(subscribe [:active-project-id])
+    [:div.project-content
+     (when (review/display-sidebar?)
+       [GroupLabelEditor @(subscribe [:visible-article-id])])
+     [ArticlePanel]
+     child]))
+
+(def-panel {:project? true
+            :uri "/article/:article-id" :params [project-id article-id] :name article-id
+            :on-route (let [article-id (util/parse-integer article-id)
+                            item [:article project-id article-id]
+                            have-project? @(subscribe [:have? [:project project-id]])
+                            set-panel [:set-active-panel panel]
+                            set-article [:article-view/set-active-article article-id]]
+                        (if (integer? article-id)
+                          (do (if (not have-project?)
+                                (do (dispatch set-panel)
+                                    (dispatch set-article))
+                                (dispatch [:data/after-load item :article-route
+                                           (list set-panel set-article)]))
+                              (dispatch [:data/load item]))
+                          (do (util/log "invalid article id")
+                              (nav/nav "/"))))
+            :panel panel :content (fn [child] [Panel child])})

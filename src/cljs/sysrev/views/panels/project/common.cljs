@@ -3,7 +3,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.core :refer
              [primary-tabbed-menu secondary-tabbed-menu]]
-            [sysrev.util :refer [in? mobile?]]))
+            [sysrev.util :as util :refer [in?]]))
 
 (defn admin? []
   (or @(subscribe [:member/admin?])
@@ -14,7 +14,7 @@
 (defn beta-compensation-user? [email]
   (contains? beta-compensation-users email))
 
-(defn analytics-submenu-full []
+(defn- analytics-submenu []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) last)]
     [secondary-tabbed-menu
@@ -32,72 +32,41 @@
      "bottom attached project-menu-2"
      false]))
 
-(defn project-submenu-full []
-  (let [project-id @(subscribe [:active-project-id])
+(defn project-submenu []
+  (let [mobile? (util/mobile?)
+        project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
-        {:keys [total]} @(subscribe [:project/article-counts])]
+        {:keys [total]} @(subscribe [:project/article-counts])
+        content (fn [title & [icon]]
+                  [:span (when (and icon (not mobile?))
+                           [:i.icon {:class icon}])
+                   title])]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
-       :content [:span [:i.list.icon] "Sources"]
+       :content (content "Sources" "list")
        :action (project-uri project-id "/add-articles")}
       {:tab-id :labels
-       :content [:span [:i.tags.icon] "Label Definitions"]
+       :content (content (if mobile? "Labels" "Label Definitions") "tags")
        :action (project-uri project-id "/labels/edit")}
-      (when (> total 0)
+      (when (and (> total 0) (not mobile?))
         {:tab-id :export-data
-         :content [:span [:i.download.icon] "Export"]
+         :content (content "Export" "download")
          :action (project-uri project-id "/export")})
       (when (and (admin?)
                  (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
                      (beta-compensation-user? @(subscribe [:user/email]))))
-        {:tab-id :compensations
-         :content "Compensation"
+        {:tab-id :compensation
+         :content (content "Compensation")
          :action (project-uri project-id "/compensations")})
       {:tab-id :settings
-       :content [:span [:i.configure.icon] "Settings"]
+       :content (content "Settings" "configure")
        :action (project-uri project-id "/settings")}]
      [#_[{:tab-id :support
-          :content [:span [:i.dollar.sign.icon] "Support"]
+          :content (content "Support" "dollar sign")
           :action (project-uri project-id "/support")}]]
      active-tab
      "bottom attached project-menu-2"
-     false]))
-
-(defn project-submenu-mobile []
-  (let [project-id @(subscribe [:active-project-id])
-        active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
-        action-params {:project-id project-id}]
-    [secondary-tabbed-menu
-     [{:tab-id :add-articles
-       :content [:span "Sources"]
-       :action (list [:project :project :add-articles] action-params)}
-      {:tab-id :labels
-       :content [:span "Labels"]
-       :action (list [:project :project :labels :edit] action-params)}
-      ;; disabled because no mobile interface for article list
-      #_
-      (when (> total 0)
-        {:tab-id :export-data
-         :content [:span "Export"]
-         :action (list [:project :project :export-data] action-params)})
-      (when (and (admin?)
-                 (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
-                     (beta-compensation-user? @(subscribe [:user/email]))))
-        {:tab-id :compensations
-         :content "Compensation"
-         :action (project-uri project-id "/compensations")})
-      {:tab-id :settings
-       :content [:span "Settings"]
-       :action (list [:project :project :settings] action-params)}]
-     []
-     active-tab
-     "bottom attached project-menu-2"
-     true]))
-
-(defn project-submenu []
-  (if (mobile?)
-    [project-submenu-mobile]
-    [project-submenu-full]))
+     mobile?]))
 
 (defn project-page-menu []
   (let [project-id @(subscribe [:active-project-id])
@@ -107,13 +76,13 @@
                              [:project :export-data]
                              [:project :settings]
                              [:project :support]
-                             [:project :compensations]]
+                             [:project :compensation]]
                             active-tab)
                      :manage active-tab)
         manage? (= active-tab :manage)
         {:keys [total]}
         @(subscribe [:project/article-counts])
-        mobile? (mobile?)
+        mobile? (util/mobile?)
         member? @(subscribe [:self/member? project-id])
         ready? (and (integer? total) (> total 0))
         not-ready-msg (when (not ready?) "No articles in project yet")
@@ -171,8 +140,8 @@
           ^{:key [:project-manage-menu]}
           [project-submenu])
         (when (= active-tab [:project :analytics])
-          ^{:key [:project-analytics-menu]} 
-          [analytics-submenu-full]))))))
+          ^{:key [:project-analytics-menu]}
+          [analytics-submenu]))))))
 
 (defn ReadOnlyMessage [text & [message-closed-atom]]
   (when (and (not (or @(subscribe [:member/admin?])

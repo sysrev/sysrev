@@ -1,10 +1,10 @@
 (ns sysrev.views.panels.landing-pages.lit-review
-  (:require [re-frame.core :refer [subscribe]]
+  (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :refer [nav]]
-            [sysrev.views.base :refer [panel-content]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.data.core :refer [reload load-data]]
+            [sysrev.macros :refer-macros [def-panel with-loader]]))
 
-(def ^:private panel [:lit-review])
+(def panel [:lit-review])
 
 (defn- GlobalStatsReport []
   [:div.global-stats
@@ -81,11 +81,14 @@
       "Collaboration at" [:br]
       "National Toxicology Program “Converging on Cancer” workshop"]]]])
 
-(defn- RootFullPanelPublic []
+(defn- Panel []
   (with-loader [[:identity] [:public-projects] [:global-stats]] {}
     [:div.landing-page.landing-public
      [IntroSegment]
      [FeaturedReviews]]))
 
-(defmethod panel-content panel []
-  (fn [_child] [RootFullPanelPublic]))
+(def-panel {:uri "/lit-review"
+            :on-route (do (dispatch [:set-active-panel panel])
+                          (load-data :identity)
+                          (reload :public-projects))
+            :panel panel :content [Panel]})

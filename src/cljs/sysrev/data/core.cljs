@@ -26,8 +26,9 @@
 (s/def ::db-item-args (s/cat :db ::db :args (s/* ::item-arg)))
 
 ;; def-data arguments
-(doseq [arg [::loaded? ::uri ::process ::prereqs ::content ::on-error]]
+(doseq [arg [::loaded? ::process ::prereqs ::content ::on-error]]
   (s/def arg ifn?))
+(s/def ::uri (s/or :fn fn? :string string?))
 (s/def ::method keyword?)
 (s/def ::content-type string?)
 
@@ -37,6 +38,7 @@
   Required parameters:
 
   `:uri` - fn taking `::item-args`, returns url string for request.
+  `:uri` can also be passed as a string value.
 
   `:loaded?` - fn taking `::db-item-args`, returns boolean indicating
   whether item is already loaded. Should check db for the presence of
@@ -90,7 +92,8 @@
   (when on-error (s/assert ::on-error on-error))
   (when method (s/assert ::method method))
   (swap! data-defs assoc name
-         (merge fields {:prereqs prereqs :method method})))
+         (-> (merge fields {:prereqs prereqs :method method})
+             (update :uri #(if (string? %) (constantly %) %)))))
 
 ;; Gets raw list of data requirements
 (defn- get-needed-raw [db] (get db :needed []))
@@ -296,7 +299,6 @@
             (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 10))))
 
 (defn init-data []
-  (dispatch [:ui/load-default-panels])
   (dispatch [:fetch [:identity]]))
 
 (defn fetch [& item]

@@ -2,12 +2,12 @@
   (:require ["jquery" :as $]
             [sysrev.action.core :refer [def-action run-action]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
-            [sysrev.views.base :refer [panel-content]]
-            [sysrev.macros :refer-macros [with-loader]]
+            [sysrev.data.core :refer [reload load-data]]
             [sysrev.views.semantic :as S]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.macros :refer-macros [with-loader def-panel]]))
 
-(def ^:private panel [:managed-review])
+(def panel [:managed-review])
 
 (reg-sub      ::is-submitted #(::is-submitted %))
 (reg-event-db ::is-submitted
@@ -114,11 +114,14 @@
       [:a {:href "https://insilica.co"} "Insilica.co"] [:br]
       [:a {:href "https://twitter.com/tomlue"} [:i.twitter.icon] "tomlue"]]]]])
 
-(defn- RootFullPanelPublic []
+(defn- Panel []
   (with-loader [[:identity] [:public-projects] [:global-stats]] {}
     [:div.landing-page.landing-public
      [IntroSegment]
      [FeaturedReviews]]))
 
-(defmethod panel-content panel []
-  (fn [_child] [RootFullPanelPublic]))
+(def-panel {:uri "/managed-review"
+            :on-route (do (dispatch [:set-active-panel panel])
+                          (load-data :identity)
+                          (reload :public-projects))
+            :panel panel :content [Panel]})

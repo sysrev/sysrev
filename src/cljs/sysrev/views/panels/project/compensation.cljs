@@ -3,16 +3,18 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [sysrev.accounting :as acct]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.paypal :as paypal]
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.util :as util :refer [index-by when-test]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:project :project :compensation] {:state-var state})
+(setup-panel-state panel [:project :project :compensation]
+                   {:state-var state
+                    :get-fn panel-get :set-fn panel-set
+                    :get-sub ::get    :set-event ::set})
 
 (def admin-fee 0.20)
 
@@ -461,42 +463,39 @@
                     [UserCompensationDropdown user-id]])))]])))
 
 (defn- ProjectCompensationPanel []
-  (r/create-class
-   {:reagent-render
-    (fn []
-      [:div.project-content.compensation
-       [:div.ui.segment.funds
-        [:div.ui.stackable.divided.grid
-         [:div.eleven.wide.column.project-funds
-          [ProjectFunds]]
-         [:div.five.wide.column.add-funds
-          [paypal/AddFunds :on-success #(js/setTimeout check-pending-transactions 1000)]]
-         #_ [:div.column [support/SupportFormOnce support/state]]]]
-       [:div.ui.segment.rates
-        [:div.ui.stackable.divided.two.column.grid
-         [:div.column.project-rates [ProjectRates]]
-         [:div.column.user-rates [UserRates]]]]
-       [:div.ui.one.column.stackable.grid
-        [:div.column [CompensationSummary]]]])
-    :component-will-mount
-    (fn [_this]
-      (reset! (r/cursor state [:project-funds]) nil)
-      (dispatch [:project/get-funds])
-      (check-pending-transactions)
-      (get-compensations! state)
-      (get-default-compensation! state)
-      (get-project-users-current-compensation! state)
-      (compensation-owed! state)
-      (reset! (r/cursor state [:compensation-amount]) nil)
-      (reset! (r/cursor state [:create-compensation-error]) nil)
-      ;; TODO: run a timer to update pending status
-      #_ (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
-           (util/continuous-update-until check-pending-transactions
-                                         #(= @pending-funds 0)
-                                         (constantly nil)
-                                         check-pending-interval)))}))
+  ;; TODO: hide and show message if user is not project admin
+  [:div.project-content.compensation
+   [:div.ui.segment.funds
+    [:div.ui.stackable.divided.grid
+     [:div.eleven.wide.column.project-funds
+      [ProjectFunds]]
+     [:div.five.wide.column.add-funds
+      [paypal/AddFunds :on-success #(js/setTimeout check-pending-transactions 1000)]]
+     #_ [:div.column [support/SupportFormOnce support/state]]]]
+   [:div.ui.segment.rates
+    [:div.ui.stackable.divided.two.column.grid
+     [:div.column.project-rates [ProjectRates]]
+     [:div.column.user-rates [UserRates]]]]
+   [:div.ui.one.column.stackable.grid
+    [:div.column [CompensationSummary]]]])
 
-(defmethod panel-content [:project :project :compensations] []
-  (fn [_child]
-    ;; TODO: hide and show message if user is not project admin
-    [ProjectCompensationPanel]))
+(def-panel {:project? true?
+            :uri "/compensations" :params [project-id] :name project-compensations
+            :on-route (do (dispatch [::set :project-funds nil])
+                          (dispatch [::set :compensation-amount nil])
+                          (dispatch [::set :create-compensation-error nil])
+                          (dispatch [:project/get-funds])
+                          (check-pending-transactions)
+                          (get-compensations! state)
+                          (get-default-compensation! state)
+                          (get-project-users-current-compensation! state)
+                          (compensation-owed! state)
+                          ;; TODO: run a timer to update pending status
+                          #_ (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
+                               (util/continuous-update-until
+                                check-pending-transactions
+                                #(= @pending-funds 0)
+                                (constantly nil)
+                                check-pending-interval))
+                          (dispatch [:set-active-panel panel]))
+            :panel panel :content [ProjectCompensationPanel]})

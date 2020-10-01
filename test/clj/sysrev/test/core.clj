@@ -8,7 +8,6 @@
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
             [sysrev.db.migration :refer [ensure-updated-db]]
-            [sysrev.label.core :as labels]
             [sysrev.util :as util :refer [in? ignore-exceptions shell]]))
 
 (def test-dbname "sysrev_auto_test")

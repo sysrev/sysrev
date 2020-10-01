@@ -3,11 +3,11 @@
             [cljs-time.core :as t]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub reg-event-db trim-v]]
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.data.core :refer [reload]]
+            [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.ctgov :as ctgov]
             [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
@@ -15,7 +15,8 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util :refer [css]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
+                                          sr-defroute-project]]))
 
 ;; for clj-kondo
 (declare panel state panel-set panel-get)
@@ -303,7 +304,7 @@
          (when (and first-source? (not browser-test?))
            (dispatch [:data/after-load [:project project-id] :poll-source-redirect
                       #(when (some-> @article-counts :total pos?)
-                         (nav/nav-scroll-top (project-uri project-id "/articles")))])))
+                         (nav/nav (project-uri project-id "/articles")))])))
        600))
     nil))
 
@@ -379,14 +380,15 @@
                      [:span.unique-count {:data-count (str unique-articles-count)}
                       (.toLocaleString unique-articles-count)]
                      " unique " (article-or-articles unique-articles-count)])
-                  (for [{shared-count :count, overlap-source-id :overlap-source-id}
-                        (filter #(pos? (:count %)) (:overlap source))]
-                    (let [src-type @(subscribe [:source/display-type overlap-source-id])
-                          src-info (some-> @(subscribe [:source/display-info overlap-source-id])
-                                           (util/ellipsis-middle 40))]
-                      ^{:key [:shared source-id overlap-source-id]}
-                      [:div.column (.toLocaleString shared-count) " shared: "
-                       [:div.ui.label.source-shared src-type [:div.detail src-info]]]))]]
+                  (doall
+                   (for [{shared-count :count, overlap-source-id :overlap-source-id}
+                         (filter #(pos? (:count %)) (:overlap source))]
+                     (let [src-type @(subscribe [:source/display-type overlap-source-id])
+                           src-info (some-> @(subscribe [:source/display-info overlap-source-id])
+                                            (util/ellipsis-middle 40))]
+                       ^{:key [:shared source-id overlap-source-id]}
+                       [:div.column (.toLocaleString shared-count) " shared: "
+                        [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
                 (when (admin?)
                   [:div.column.right.aligned.source-actions
                    {:key :buttons
@@ -515,6 +517,15 @@
         (r/cursor state [:read-only-message-closed?])]
        [ProjectSourcesList]])))
 
-(defmethod panel-content panel []
-  (fn [_child] [:div#add-articles.project-content
-                [ProjectSourcesPanel]]))
+(def-panel {:project? true
+            :uri "/add-articles" :params [project-id] :name add-articles
+            :on-route (do (reload :project/sources project-id)
+                          (dispatch [:set-active-panel panel]))
+            :panel panel
+            :content [:div#add-articles.project-content
+                      [ProjectSourcesPanel]] })
+
+;; redirect to "/add-articles" when "Manage" tab is clicked
+(sr-defroute-project
+ manage-project "/manage" [project-id]
+ (nav/nav (project-uri project-id "/add-articles") :redirect true))

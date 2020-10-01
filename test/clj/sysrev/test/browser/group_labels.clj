@@ -8,7 +8,7 @@
             [ring.mock.request :as mock]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member set-member-permissions]]
             [sysrev.source.import :as import]
@@ -220,7 +220,7 @@
     (b/wait-until-displayed
      (group-label-div-with-name (:short-label group-label-definition)))
     ;; we shouldn't have any labels for this project
-    (is (empty? (labels/query-public-article-labels @project-id)))
+    (is (empty? (label/query-public-article-labels @project-id)))
     ;; set the include label
     (ra/set-label-answer (merge ra/include-label-definition
                                 {:value include-label-value}))
@@ -232,10 +232,10 @@
     ;;verify we are on the next article
     (is (b/exists? ".ui.button.save-labels.disabled"))
     ;; check in the database for the labels
-    (is (= 1 (count (labels/query-public-article-labels @project-id))))
+    (is (= 1 (count (label/query-public-article-labels @project-id))))
     (log/info "checking label values from db")
     (let [ ;; this is not yet generalized
-          [article-id] (keys (labels/query-public-article-labels @project-id))
+          [article-id] (keys (label/query-public-article-labels @project-id))
           label->id (q/find :label {:project-id @project-id}
                             :label-id, :index-by :short-label)
           group-label-settings (-> (ra/short-label-answer @project-id article-id user-id "Group Label")
@@ -496,7 +496,7 @@
     (b/wait-until-displayed
      (group-label-div-with-name (:short-label group-label-definition)))
     ;; we shouldn't have any labels for this project
-    (is (empty? (labels/query-public-article-labels @project-id)))
+    (is (empty? (label/query-public-article-labels @project-id)))
     (log/info "Testing required and regex match")
     ;; can't save
     (b/exists? ".ui.button.save-labels.disabled")

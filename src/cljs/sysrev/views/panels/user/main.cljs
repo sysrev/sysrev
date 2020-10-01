@@ -45,8 +45,8 @@
         payments-paid @(subscribe [:user/payments-paid])
         invitations @(subscribe [:user/invitations])
         ;; drop the :user from [:user ...], take first keyword
-        active-subpanel (->> @(subscribe [:active-panel]) (drop 1) first)
-        active (fn [panel-key] (css "item" [(= panel-key active-subpanel) "active"]))]
+        active-tab (->> @(subscribe [:active-panel]) (drop 1) first)
+        active (fn [panel-key] (css "item" [(= panel-key active-tab) "active"]))]
     (when self?
       (dispatch [:require [:user/payments-owed self-id]])
       (dispatch [:require [:user/payments-paid self-id]])

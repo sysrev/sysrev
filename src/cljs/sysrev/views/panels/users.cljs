@@ -1,48 +1,47 @@
 (ns sysrev.views.panels.users
-  (:require [clojure.string :as str]
-            [ajax.core :refer [GET]]
-            [reagent.core :as r]
-            [re-frame.core :refer [subscribe]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [sysrev.data.core :refer [def-data load-data]]
             [sysrev.views.semantic :refer [Segment Message MessageHeader]]
             [sysrev.views.panels.user.profile :refer [User]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:users] {:state-var state})
+(setup-panel-state panel [:users] {:state-var state
+                                   :get-fn panel-get :set-fn panel-set
+                                   :get-sub ::get    :set-event ::set})
+
+(def-data :public-reviewers
+  :loaded?  (fn [db] (-> (get-in db [:data])
+                         (contains? :public-reviewers)))
+  :uri      "/api/users/group/public-reviewer"
+  :process  (fn [{:keys [db]} _ {:keys [users]}]
+              {:db (assoc-in db [:data :public-reviewers]
+                             (filterv :primary-email-verified users))})
+  :on-error (fn [{:keys [db]} _ _]
+              (panel-set db :error-msg "There was a problem retrieving users.")))
+
+(reg-sub :public-reviewers #(get-in % [:data :public-reviewers]))
 
 (defn AllUsers []
-  (let [users (r/cursor state [:users])
-        error-message (r/atom "")
-        get-users! (fn []
-                     (GET "/api/users/group/public-reviewer"
-                          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                           :handler
-                           (fn [response]
-                             (reset! users (->> (-> response :result :users)
-                                                (filter :primary-email-verified))))
-                           :error-handler
-                           (fn [_response]
-                             (reset! error-message "There was a problem retrieving users"))}))]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        [:div
-         [Segment [:h4 "Users"]]
-         (when-not (str/blank? @error-message)
-           [Message {:negative true :onDismiss #(reset! error-message nil)}
-            [MessageHeader "Retrieving Users Error"]
-            @error-message])
-         (if (seq @users)
-           (doall (for [user @users] ^{:key (:user-id user)}
-                    [User user]))
-           [Message "There currently are no public reviewers"])])
-      :get-initial-state (fn [_this] (get-users!))})))
+  [:div
+   [Segment [:h4 "Users"]]
+   (when-let [msg @(subscribe [::get :error-msg])]
+     [Message {:negative true :onDismiss #(dispatch [::set :error-msg nil])}
+      [MessageHeader "Retrieving Users Error"]
+      msg])
+   (with-loader [[:public-reviewers]] {}
+     (let [reviewers @(subscribe [:public-reviewers])]
+       (if (seq reviewers)
+         (doall (for [user reviewers] ^{:key (:user-id user)}
+                  [User user]))
+         [Message "There currently are no public reviewers."])))])
 
-(defmethod logged-out-content [:users] []
-  (fn [_child] [AllUsers]))
-
-(defmethod panel-content [:users] []
-  (fn [_child] [:div#users-content [AllUsers]]))
+(def-panel {:uri "/users"
+            :on-route (do (dispatch [::set [] {}])
+                          (load-data :public-reviewers)
+                          (dispatch [:set-active-panel panel]))
+            :panel panel
+            :content [:div#users-content [AllUsers]]
+            :logged-out-content [AllUsers]})

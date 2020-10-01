@@ -1,10 +1,10 @@
 (ns sysrev.views.panels.landing-pages.data-extraction
-  (:require [re-frame.core :refer [subscribe]]
+  (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :refer [nav]]
-            [sysrev.views.base :refer [panel-content]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.data.core :refer [reload load-data]]
+            [sysrev.macros :refer-macros [with-loader def-panel]]))
 
-(def ^:private panel [:data-extraction])
+(def panel [:data-extraction])
 
 (defn- GlobalStatsReport []
   [:div.global-stats
@@ -91,11 +91,14 @@
       "Insilica Managed Review Division" [:br]
       [:i.envelope.icon] "info@insilica.co"]]]])
 
-(defn- RootFullPanelPublic []
+(defn- Panel []
   (with-loader [[:identity] [:public-projects] [:global-stats]] {}
     [:div.landing-page.landing-public
      [IntroSegment]
      [FeaturedReviews]]))
 
-(defmethod panel-content panel []
-  (fn [_child] [RootFullPanelPublic]))
+(def-panel {:uri "/data-extraction"
+            :on-route (do (dispatch [:set-active-panel panel])
+                          (load-data :identity)
+                          (reload :public-projects))
+            :panel panel :content [Panel]})

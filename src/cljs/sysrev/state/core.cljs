@@ -13,8 +13,7 @@
                          (dissoc-in [:state :identity])
                          (dissoc-in [:state :self])
                          (dissoc-in [:state :review])
-                         (dissoc-in [:state :panels])
-                         (dissoc-in [:state :navigation :subpanels]))
+                         (dissoc-in [:state :panels]))
                  :dispatch [:data/load [:identity]]}))
 
 (reg-fx :reset-data
@@ -24,7 +23,6 @@
               (fn [db]
                 (-> (dissoc-in db [:data :review])
                     (dissoc-in [:state :review])
-                    (dissoc-in [:state :navigation :subpanels])
                     (update-in [:state :panels]
                                (fn [panels-map]
                                  (util/filter-keys

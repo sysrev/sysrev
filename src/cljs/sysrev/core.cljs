@@ -12,7 +12,6 @@
             [sysrev.data.core :as data]
             [sysrev.action.core]
             [sysrev.loading]
-            [sysrev.routes]
             [sysrev.views.article]
             [sysrev.views.main :refer [main-content]]
             [sysrev.shared.spec.core]

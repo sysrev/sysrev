@@ -7,7 +7,7 @@
             [reagent.core :as r]
             [reagent.dom :refer [dom-node]]
             [reagent.ratom :as ratom]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe]]
             [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]))
 
 (defn dangerous
@@ -53,18 +53,8 @@
       (for [{:keys [action content] :as entry} entries]
         (when entry ^{:key entry}
           [:a.item {:href (when (string? action) action)
-                    :on-click (wrap-user-event
-                               (cond (and (seq? action)
-                                          (= (count action) 2))
-                                     #(dispatch [:navigate
-                                                 (first action) (second action)])
-
-                                     (vector? action)
-                                     #(dispatch [:navigate action])
-
-                                     (string? action) nil
-
-                                     :else action))}
+                    :on-click (when-not (string? action)
+                                (some-> action (wrap-user-event)))}
            content])))]]])
 
 (s/def ::tab-id keyword?)
@@ -100,13 +90,11 @@
     {:style {:min-width width}}
     message]))
 
-(defn primary-tabbed-menu
-  [left-entries right-entries active-tab-id & [menu-class mobile?]]
+(defn primary-tabbed-menu [left-entries right-entries active-tab-id
+                           & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         left-entries (remove nil? left-entries)
         right-entries (remove nil? right-entries)
-        ;; n-tabs (count entries)
-        ;; n-tabs-word (util/num-to-english n-tabs)
         render-entry
         (fn [{:keys [tab-id action content class disabled tooltip] :as entry}]
           (let [active? (= tab-id active-tab-id)
@@ -118,18 +106,8 @@
                                    [class class]
                                    [disabled "disabled"])
                        :href (when (string? action) action)
-                       :on-click
-                       (wrap-user-event
-                        (cond (and (seq? action)
-                                   (= (count action) 2))
-                              #(dispatch [:navigate (first action) (second action)])
-
-                              (vector? action)
-                              #(dispatch [:navigate action])
-
-                              (string? action) nil
-
-                              :else action))}
+                       :on-click (when-not (string? action)
+                                   (some-> action (wrap-user-event)))}
                    content])]
             (if (and disabled tooltip)
               (WrapMenuItemTooltip item tooltip tab-id)
@@ -148,8 +126,8 @@
           (doall (for [entry right-entries]
                    (doall (render-entry entry))))]))]))
 
-(defn secondary-tabbed-menu
-  [left-entries right-entries active-tab-id & [menu-class mobile?]]
+(defn secondary-tabbed-menu [left-entries right-entries active-tab-id
+                             & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         render-entry
         (fn [{:keys [tab-id action content class] :as entry}]
@@ -157,18 +135,8 @@
             [:a {:key tab-id
                  :class (css [(= tab-id active-tab-id) "active"] "item" class)
                  :href (when (string? action) action)
-                 :on-click
-                 (wrap-user-event
-                  (cond (and (seq? action)
-                             (= (count action) 2))
-                        #(dispatch [:navigate (first action) (second action)])
-
-                        (vector? action)
-                        #(dispatch [:navigate action])
-
-                        (string? action) nil
-
-                        :else action))}
+                 :on-click (when-not (string? action)
+                             (some-> action (wrap-user-event)))}
              content]))]
     [:div.ui.secondary.pointing.menu.secondary-menu {:class menu-class}
      (doall (for [entry left-entries]
@@ -195,14 +163,8 @@
                                 [class class] [disabled "disabled"]
                                 (str "tab-" (name tab-id)))
                     :href (when (string? action) action)
-                    :on-click
-                    (let [[a1 a2] (when (and (seq? action) (= 2 (count action)))
-                                    action)]
-                      (wrap-user-event
-                       (cond a1                #(dispatch [:navigate a1 a2])
-                             (vector? action)  #(dispatch [:navigate action])
-                             (string? action)  nil
-                             :else             action)))}
+                    :on-click (when-not (string? action)
+                                (some-> action (wrap-user-event)))}
                 content]))]]))
 
 (defn out-link [url]

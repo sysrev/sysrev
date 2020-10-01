@@ -369,7 +369,7 @@
              [:div.ui.center.aligned.segment
               {:key [2]}
               (when-not @redirecting?
-                (-> #(nav/nav-scroll-top (project-uri project-id ""))
+                (-> #(nav/nav (project-uri project-id ""))
                     (js/setTimeout 1000))
                 (reset! redirecting? true))
               [:h4 "You are already a member of this project."]
@@ -394,7 +394,7 @@
                "Join Project"]]]))))))
 
 (defn- redirect-root-content []
-  (nav/nav-redirect "/" :scroll-top? true)
+  (nav/nav "/")
   [:div])
 
 (defn- register-logged-in-content []

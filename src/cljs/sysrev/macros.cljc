@@ -265,10 +265,9 @@
         `(reg-event-db ~set-event (fn [db# [_# path# val#]]
                                     (~set-fn db# path# val#))))))
 
-(defmacro def-panel [{:keys [name uri params panel
-                             on-route content require-login logged-out-content]
-                      :or {name nil params []
-                           require-login false logged-out-content nil}}]
+(defmacro def-panel [{:keys [project? uri params name on-route
+                             panel content require-login logged-out-content]
+                      :or {params [] require-login false}}]
   (assert (or (nil? name) (symbol? name)) "name argument should be a symbol")
   (assert (some? uri) "uri argument is required")
   (when (some? panel)
@@ -277,7 +276,9 @@
     (assert (some? panel) "panel must be provided with content"))
   (when (and (nil? content) (nil? logged-out-content))
     (assert (nil? panel) "panel should not be provided without content"))
-  `(list (sr-defroute ~name ~uri ~params ~on-route)
+  `(list ~(if project?
+            `(sr-defroute-project ~name ~uri ~params ~on-route)
+            `(sr-defroute ~name ~uri ~params ~on-route))
          ~(when (some? panel)
             `(assert (and (vector? ~panel) (every? keyword? ~panel))
                      "panel must be a vector of keywords"))

@@ -31,7 +31,7 @@
                        [cljs-http.client :as http]
                        [goog.string :as gstr :refer [unescapeEntities]]
                        [goog.string.format]
-                       [re-frame.core :refer [subscribe]]]))
+                       [re-frame.core :refer [subscribe reg-event-db reg-fx]]]))
   #?(:clj (:import [java.util UUID]
                    [java.util.zip GZIPInputStream]
                    [java.math BigInteger]
@@ -753,9 +753,8 @@
 #?(:cljs (defn scroll-top []
            (. js/window (scrollTo 0 0))
            nil))
-
-#?(:cljs (defn ^:unused schedule-scroll-top []
-           (scroll-top)))
+#?(:cljs (reg-event-db :scroll-top #(do (scroll-top) (dissoc % :scroll-top))))
+#?(:cljs (reg-fx :scroll-top (fn [_] (scroll-top))))
 
 #?(:cljs (defn viewport-width []
            (-> ($ js/window) (.width))))
@@ -1116,17 +1115,17 @@
 #?(:cljs (defn log
            "Wrapper to run js/console.log using printf-style formatting."
            [format-string & args]
-           (js/console.log (apply format format-string args))))
+           (js/console.log (apply format format-string args)) nil))
 
 #?(:cljs (defn log-err
            "Wrapper to run js/console.error using printf-style formatting."
            [format-string & args]
-           (js/console.error (apply format format-string args))))
+           (js/console.error (apply format format-string args)) nil))
 
 #?(:cljs (defn log-warn
            "Wrapper to run js/console.error using printf-style formatting."
            [format-string & args]
-           (js/console.warn (apply format format-string args))))
+           (js/console.warn (apply format format-string args)) nil))
 
 #?(:cljs (defn ^:export add-dropzone-file-blob [to-blob base64-image]
            (let [zone (Dropzone/forElement ".dropzone")

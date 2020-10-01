@@ -1,12 +1,11 @@
 (ns sysrev.views.panels.root
-  (:require [re-frame.core :refer [subscribe reg-sub]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [sysrev.nav :as nav :refer [nav]]
+            [sysrev.data.core :refer [def-data reload load-data]]
             [sysrev.views.project-list :as plist]
-            [sysrev.nav :refer [nav]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]))
 
-(def ^:private panel [:root])
+(def panel [:root])
 
 (reg-sub :landing-page?
          :<- [:active-panel]
@@ -97,17 +96,19 @@
       [:span "Collaboration at" [:br] "National Toxicology Program “Converging on Cancer” workshop"]]]]
    ])
 
-(defn RootFullPanelPublic []
-  (with-loader [[:identity] [:public-projects] [:global-stats]] {}
-               [:div.landing-page.landing-public
-                [IntroSegment]
-                [FeaturedReviews]]))
-
-(defn RootFullPanelUser []
+(defn- RootFullPanelUser []
   [:div.landing-page [plist/UserProjectListFull]])
 
-(defmethod panel-content panel []
-  (fn [_child] [RootFullPanelUser]))
+(defn- RootFullPanelPublic []
+  (with-loader [[:identity] [:public-projects] [:global-stats]] {}
+    [:div.landing-page.landing-public
+     [IntroSegment]
+     [FeaturedReviews]]))
 
-(defmethod logged-out-content panel []
-  [RootFullPanelPublic])
+(def-panel {:uri "/"
+            :on-route (do (dispatch [:set-active-panel panel])
+                          (load-data :identity)
+                          (reload :public-projects))
+            :panel panel
+            :content [RootFullPanelUser]
+            :logged-out-content [RootFullPanelPublic]})

@@ -11,8 +11,8 @@
 (declare panel state)
 
 (setup-panel-state panel [:org :billing] {:state-var state
-                                          :get-fn panel-get  :set-fn panel-set
-                                          :get-event ::get   :set-event ::set})
+                                          :get-fn panel-get :set-fn panel-set
+                                          :get-sub ::get    :set-event ::set})
 
 (defn OrgBilling [org-id]
   [Segment

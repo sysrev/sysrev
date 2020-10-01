@@ -2,6 +2,7 @@
   (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.state.ui]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :refer [ConfirmationDialog]]
@@ -26,8 +27,7 @@
   :process (fn [{:keys [db]} [user-id] {:keys [projects]}]
              {:db (assoc-in db [:data :user-projects user-id] projects)})
   :on-error (fn [{:keys [db error]} [_] _]
-              (js/console.error (pr-str error))
-              {}))
+              (util/log-err (pr-str error))))
 
 (reg-sub :user/projects (fn [db [_ user-id]] (get-in db [:data :user-projects user-id])))
 

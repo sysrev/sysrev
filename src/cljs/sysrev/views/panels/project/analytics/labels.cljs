@@ -1,15 +1,14 @@
 (ns sysrev.views.panels.project.analytics.labels
   (:require [clojure.set :as set]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :refer [def-data reload]]
             [sysrev.chartjs :as chartjs]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Grid Row Column Button]]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :refer [load-settings-and-navigate]]
             [sysrev.views.panels.project.analytics.common :refer [beta-message]]
             [sysrev.util :as util :refer [format round ellipsize sum]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -484,5 +483,10 @@
               (empty? (:groups data))  [NoDataView]
               :else                    [MainView])))))
 
-(defmethod panel-content panel []
-  (fn [child] [:div.ui.segment [LabelCountView] child]))
+(def-panel {:project? true
+            :uri "/analytics/labels" :params [project-id] :name analytics-labels
+            :on-route (do (reload :project project-id)
+                          (dispatch [:set-active-panel panel]))
+            :panel panel
+            :content (fn [child]
+                       [:div.ui.segment [LabelCountView] child])})

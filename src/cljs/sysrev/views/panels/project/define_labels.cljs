@@ -8,6 +8,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.data.core :refer [reload]]
             [sysrev.loading :as loading]
             [sysrev.state.label :refer [sort-client-project-labels]]
             [sysrev.state.nav :refer [active-project-id]]
@@ -19,7 +20,7 @@
             [sysrev.views.semantic :refer [Divider Button Message Segment]]
             [sysrev.dnd :as dnd]
             [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; Convention -
 ;; A (new) label that exists in the client but not on the
@@ -48,10 +49,12 @@
                                           "boolean" nil
                                           []))
         add-local-keys (fn [label]
-                         (if (= (:value-type label) "group")
-                           (assoc label :editing? (boolean (or (not-empty (:errors label))
-                                                               (->> label :labels vals (map :errors) (every? nil?) not))))
-                           (assoc label :editing? (boolean (not-empty (:errors label))))))
+                         (->> (boolean
+                               (if (= (:value-type label) "group")
+                                 (or (seq (:errors label))
+                                     (seq (->> label :labels vals (map :errors) (remove nil?))))
+                                 (seq (:errors label))))
+                              (assoc label :editing?)))
         set-inclusion #(cond-> %
                          (not (contains? % :inclusion))
                          (assoc :inclusion (pos? (-> % :definition :inclusion-values count))))]
@@ -251,10 +254,11 @@
     (when-not (string? label-id) ;; don't show this for unsaved labels
       [:button.ui.small.fluid.labeled.icon.button
        {:class (css [(not enabled) "primary"])
-        :on-click (util/wrap-user-event #(do (reset-local-label! labels-atom root-label-id label-id)
-                                             (swap! (r/cursor label [:enabled]) not)
-                                             (sync-to-server))
-                                        :prevent-default true)}
+        :on-click (util/wrap-user-event
+                   #(do (reset-local-label! labels-atom root-label-id label-id)
+                        (swap! (r/cursor label [:enabled]) not)
+                        (sync-to-server))
+                   :prevent-default true)}
        [:i {:class (css "circle" [enabled "minus" :else "plus"] "icon")}]
        (if enabled "Disable" "Enable") " Label"])))
 
@@ -586,9 +590,8 @@
                  {:checked? @multi?
                   :on-change #(reset! multi? (-> % .-target .-checked boolean))}
                  errors)]
-     [:div {:class (str "sub-labels-edit-form "
-                        (when (:labels-error @errors)
-                          "error"))}
+     [:div {:class (css "sub-labels-edit-form"
+                        [(:labels-error @errors) "error"])}
       (when (:labels-error @errors)
         [:div.ui.red.message (:labels-error @errors)])
       ;; enabled labels
@@ -596,28 +599,29 @@
                               (sort-by :project-ordering <)
                               (filter :enabled))]
                ^{:key (:label-id label)}
-               [:div
-                [LabelEditForm labels @root-label-id (r/cursor labels [(:label-id label)])]]))
+               [:div [LabelEditForm labels @root-label-id
+                      (r/cursor labels [(:label-id label)])]]))
       (let [disabled-labels (->> (vals @labels)
                                  (sort-by :project-ordering <)
-                                 (filter (comp not :enabled)))]
+                                 (remove :enabled))]
         (when (seq disabled-labels)
           ;; disabled labels
           [Divider]
           [:div "Disabled Labels"
-           (doall (for [label disabled-labels]
-                    ^{:key (:label-id label)}
-                    [:div
-                     [LabelEditForm labels @root-label-id (r/cursor labels [(:label-id label)])]]))]))
+           (doall (for [label disabled-labels] ^{:key (:label-id label)}
+                    [:div [LabelEditForm labels @root-label-id
+                           (r/cursor labels [(:label-id label)])]]))]))
       [Divider]
       [:div.ui.one.column.stackable.grid
-       [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels) (max-group-label-ordering @root-label-id)]]
-       [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels) (max-group-label-ordering @root-label-id)]]
-       [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels) (max-group-label-ordering @root-label-id)]]]]
+       [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)
+                           (max-group-label-ordering @root-label-id)]]
+       [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels)
+                           (max-group-label-ordering @root-label-id)]]
+       [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels)
+                           (max-group-label-ordering @root-label-id)]]]]
      [:div.field {:style {:margin-bottom "0.75em"}}
       [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
-       [:div.column {:style {:padding "0.5em"}
-                     :id "group-id-submit"}
+       [:div.column {:id "group-id-submit" :style {:padding "0.5em"}}
         [SaveLabelButton label :on-click (util/wrap-user-event
                                           (fn [_]
                                             (if (not (labels-synced?))
@@ -626,7 +630,8 @@
                                               ;; just reset editing
                                               (reset! (r/cursor label [:editing?]) false)))
                                           :prevent-default true) ]]
-       [:div.column {:style {:padding "0.5em"}} [CancelDiscardButton labels-atom "na" label]]]]]))
+       [:div.column {:style {:padding "0.5em"}}
+        [CancelDiscardButton labels-atom "na" label]]]]]))
 
 ;; this corresponds to
 ;; (defmethod sysrev.views.review/label-input-el "string" ...)
@@ -730,7 +735,7 @@
                                              "boolean"      "boolean"
                                              "categorical"  "category"
                                              "string"       "string"
-                                             "group" "group"
+                                             "group"        "group"
                                              nil)}
       [:div.inner
        (case value-type
@@ -749,37 +754,63 @@
                           :onAdd (fn [v _t] (swap! answer conj v))
                           :onRemove
                           (fn [v _t] (swap! answer #(into [] (remove (partial = v) %))))}]
-         "group" (let [sub-label-vals (->> (vals @(r/cursor label [:labels]))
-                                           (sort-by :project-ordering <))
-                       move-label-fn (fn [sub-label-id direction]
-                                       (let [this-label (r/cursor label [:labels sub-label-id])
-                                             this-label-ordering (:project-ordering @this-label)
-                                             this-label-new-ordering (if (= direction "up")
-                                                                       (- this-label-ordering 1)
-                                                                       (+ this-label-ordering 1))
-                                             above-label (r/cursor label [:labels (-> (find-first #(= (:project-ordering %) this-label-new-ordering) sub-label-vals)
-                                                                                      :label-id)])]
-                                         (reset! (r/cursor this-label [:project-ordering]) this-label-new-ordering)
-                                         (reset! (r/cursor above-label [:project-ordering]) this-label-ordering)
-                                         (sync-to-server)))
-                       max-ordering-value (->> (map :project-ordering sub-label-vals)
-                                               sort reverse
-                                               first)]
-                   ;; enabled
-                   (for [sub-label (filter :enabled sub-label-vals)]
-                     (let [sub-label-id (:label-id sub-label)]
-                       ^{:key sub-label-id}
-                       [:div {:id (str "sub-label-" sub-label-id)}
-                        (when-not (= (:project-ordering sub-label) 0) [Button {:on-click #(move-label-fn sub-label-id "up")
-                                                                               :attached "top"} (str "Move Up")])
-                        [Label (r/cursor label [:labels sub-label-id])]
-                        (when-not (= (:project-ordering sub-label) max-ordering-value) [Button {:on-click #(move-label-fn sub-label-id "down")
-                                                                                                :attached "bottom"} (str "Move Down")])])))
+         "group"
+         (let [sub-label-vals (->> (vals @(r/cursor label [:labels]))
+                                   (sort-by :project-ordering <))
+               move-label-fn (fn [sub-label-id direction]
+                               (let [this-label (r/cursor label [:labels sub-label-id])
+                                     this-label-ordering (:project-ordering @this-label)
+                                     this-label-new-ordering (if (= direction "up")
+                                                               (- this-label-ordering 1)
+                                                               (+ this-label-ordering 1))
+                                     above-label
+                                     (r/cursor label [:labels (-> (find-first
+                                                                   #(= (:project-ordering %)
+                                                                       this-label-new-ordering)
+                                                                   sub-label-vals)
+                                                                  :label-id)])]
+                                 (reset! (r/cursor this-label [:project-ordering])
+                                         this-label-new-ordering)
+                                 (reset! (r/cursor above-label [:project-ordering])
+                                         this-label-ordering)
+                                 (sync-to-server)))
+               max-ordering-value (->> (map :project-ordering sub-label-vals)
+                                       sort reverse first)]
+           (for [sub-label (filter :enabled sub-label-vals)]
+             (let [sub-label-id (:label-id sub-label)]
+               ^{:key sub-label-id}
+               [:div {:id (str "sub-label-" sub-label-id)}
+                (when-not (= 0 (:project-ordering sub-label))
+                  [Button {:on-click #(move-label-fn sub-label-id "up")
+                           :attached "top"} "Move Up"])
+                [Label (r/cursor label [:labels sub-label-id])]
+                (when-not (= max-ordering-value (:project-ordering sub-label))
+                  [Button {:on-click #(move-label-fn sub-label-id "down")
+                           :attached "bottom"} "Move Down"])])))
          (pr-str label))]]]))
 
 (defn GroupLabel [label]
   (let [{:keys [short-label required]} @label
-        on-click-help (util/wrap-user-event #(do nil))]
+        on-click-help (util/wrap-user-event #(do nil))
+        sub-label-vals (->> (vals @(r/cursor label [:labels]))
+                            (sort-by :project-ordering <))
+        move-label-fn (fn [sub-label-id direction]
+                        (let [this-label (r/cursor label [:labels sub-label-id])
+                              this-label-ordering (:project-ordering @this-label)
+                              this-label-new-ordering (if (= direction "up")
+                                                        (dec this-label-ordering)
+                                                        (inc this-label-ordering))
+                              above-label (->> [:labels (:label-id
+                                                         (find-first
+                                                          #(= (:project-ordering %)
+                                                              this-label-new-ordering)
+                                                          sub-label-vals))]
+                                               (r/cursor label))]
+                          (reset! (r/cursor this-label [:project-ordering]) this-label-new-ordering)
+                          (reset! (r/cursor above-label [:project-ordering]) this-label-ordering)
+                          (sync-to-server)))
+        max-ordering-value (->> (map :project-ordering sub-label-vals)
+                                sort reverse first)]
     [:div.ui.column.label-edit {:class (css [required "required"])
                                 :style {:padding "0"
                                         :border "none"}}
@@ -798,45 +829,31 @@
         :inline true
         :position "top center"
         :distanceAway 8}]]
-     [:div.inner
-      (let [sub-label-vals (->> (vals @(r/cursor label [:labels]))
-                                (sort-by :project-ordering <))
-            move-label-fn (fn [sub-label-id direction]
-                            (let [this-label (r/cursor label [:labels sub-label-id])
-                                  this-label-ordering (:project-ordering @this-label)
-                                  this-label-new-ordering (if (= direction "up")
-                                                            (- this-label-ordering 1)
-                                                            (+ this-label-ordering 1))
-                                  above-label (r/cursor label [:labels (-> (find-first #(= (:project-ordering %) this-label-new-ordering) sub-label-vals)
-                                                                           :label-id)])]
-                              (reset! (r/cursor this-label [:project-ordering]) this-label-new-ordering)
-                              (reset! (r/cursor above-label [:project-ordering]) this-label-ordering)
-                              (sync-to-server)))
-            max-ordering-value (->> (map  :project-ordering sub-label-vals)
-                                    sort reverse
-                                    first)]
-        [:div
-         (when (and (not (seq (filter :enabled sub-label-vals)))
-                    (filter :disabled sub-label-vals))
-           [Message {:style {:margin-bottom "0.5rem"}} "There are disabled labels, edit label to view them"])
-         ;; enabled
-         (doall (for [sub-label (filter :enabled sub-label-vals)]
-                  (let [sub-label-id (:label-id sub-label)
-                        label (r/cursor label [:labels sub-label-id])]
-                    ^{:key sub-label-id}
-                    [:div {:id (str "sub-label-" sub-label-id)
-                           :style {:border "solid 1px grey"
-                                   :border-radius ".28571429rem"
-                                   :margin-bottom "0.5rem"}}
-                     (when-not (= (:project-ordering sub-label) 0) [Button {:on-click #(move-label-fn sub-label-id "up")
-                                                                            :attached "top"
-                                                                            :color "grey"} (str "Move Up")])
-                     [:div.ui.column.label-edit {:class (css [(:required @label) "required"])
-                                                 :style {:border "none"}}
-                      [Label label]]
-                     (when-not (= (:project-ordering sub-label) max-ordering-value) [Button {:on-click #(move-label-fn sub-label-id "down")
-                                                                                             :attached "bottom"
-                                                                                             :color "grey"} (str "Move Down")])])))])]]))
+     [:div.inner>div
+      (when (and (empty? (filter :enabled sub-label-vals))
+                 (filter :disabled sub-label-vals))
+        [Message {:style {:margin-bottom "0.5rem"}}
+         "There are disabled labels, edit label to view them"])
+      ;; enabled
+      (doall (for [sub-label (filter :enabled sub-label-vals)]
+               (let [sub-label-id (:label-id sub-label)
+                     label (r/cursor label [:labels sub-label-id])]
+                 ^{:key sub-label-id}
+                 [:div {:id (str "sub-label-" sub-label-id)
+                        :style {:border "solid 1px grey"
+                                :border-radius ".28571429rem"
+                                :margin-bottom "0.5rem"}}
+                  (when-not (= 0 (:project-ordering sub-label))
+                    [Button {:on-click #(move-label-fn sub-label-id "up")
+                             :attached "top"
+                             :color "grey"} "Move Up"])
+                  [:div.ui.column.label-edit {:class (css [(:required @label) "required"])
+                                              :style {:border "none"}}
+                   [Label label]]
+                  (when-not (= max-ordering-value (:project-ordering sub-label))
+                    [Button {:on-click #(move-label-fn sub-label-id "down")
+                             :attached "bottom"
+                             :color "grey"} "Move Down"])])))]]))
 
 (defn- LabelItem [labels-atom i label & {:keys [status]}]
   (let [{:keys [label-id name editing? enabled value-type]} @label
@@ -870,47 +887,39 @@
        [EditLabelButton label allow-edit?]
        "two wide center aligned column delete-label"]]]))
 
-(defn label-drag-spec []
+(defn- label-drag-spec []
   (dnd/make-drag-spec
    {:begin-drag (fn [props _monitor _component]
-                  #_(util/log "begin-drag called: props = %s" (pr-str props))
                   {:label-id (-> props :id-spec :label-id)})}))
 
-(defn label-drop-spec []
+(defn- label-drop-spec []
   (dnd/make-drop-spec
    {:drop (fn [props monitor _component]
-            #_ (util/log "drop called: props = %s" (pr-str props))
-            ;; Save changes to server when drag interaction is finished
             (sync-to-server)
             {:label-id (-> props :id-spec :label-id)
              :item (.getItem monitor)})}))
 
-(defn wrap-label-dnd [id-spec content-fn]
+(defn- wrap-label-dnd [id-spec content-fn]
   [dnd/wrap-dnd
    id-spec
    {:item-type    "label-edit"
     :drag-spec    (label-drag-spec)
     :drop-spec    (label-drop-spec)
     :content      (fn [props]
-                    #_ (when (:is-dragging props)
-                         (util/log "wrap-label-dnd: props = %s" (pr-str props)))
                     (content-fn props))
     :on-enter    (fn [props]
                    (let [src-id (-> props :item :label-id)
                          dest-id (-> props :id-spec :label-id)]
                      (when (not= src-id dest-id)
-                       #_ (util/log "on-enter: dragging %s to %s" src-id dest-id)
                        (move-label-to src-id dest-id))))
     :on-exit     (fn [_props]
-                   #_ (util/log "on-exit: props = %s" (pr-str props))
                    nil)}])
 
-(defn UpgradeMessage []
+(defn- UpgradeMessage []
   [Segment {:style {:text-align "center"}
             :id "group-label-paywall"}
    [:div
-    [:h2 "Group Labels are available for Pro Accounts"
-     [:br]
+    [:h2 "Group Labels are available for Pro Accounts" [:br]
      "Sign up at " [:a {:href "/pricing"} "sysrev.com/pricing"]]
     [:span {:font-size "0.5em !important"}
      "Read a " [:a {:href "https://blog.sysrev.com/group-labels/"
@@ -922,67 +931,73 @@
      " to learn more about this feature"]
     [:br]]])
 
-(defmethod panel-content panel []
-  (fn [_child]
-    (let [admin? (or @(subscribe [:member/admin?])
-                     @(subscribe [:user/admin?]))
-          labels (r/cursor state [:labels])
-          read-only-message-closed? (r/cursor state [:read-only-message-closed?])
-          sort-label-ids (fn [enabled?]
-                           (->> (sort-client-project-labels @labels (not enabled?))
-                                (filter #(= enabled? (:enabled (get @labels %))))))
-          active-ids (sort-label-ids true)
-          disabled-ids (sort-label-ids false)
-          project-id    @(subscribe [:active-project-id])
-          project-plan  @(subscribe [:project/plan project-id])
-          group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
-                                    (stripe/pro? project-plan))]
-      (ensure-state)
-      [:div.define-labels
-       [ReadOnlyMessage
-        "Editing label definitions is restricted to project administrators."
-        read-only-message-closed?]
+(defn- Panel []
+  (let [admin? (or @(subscribe [:member/admin?])
+                   @(subscribe [:user/admin?]))
+        labels (r/cursor state [:labels])
+        read-only-message-closed? (r/cursor state [:read-only-message-closed?])
+        sort-label-ids (fn [enabled?]
+                         (->> (sort-client-project-labels @labels (not enabled?))
+                              (filter #(= enabled? (:enabled (get @labels %))))))
+        active-ids (sort-label-ids true)
+        disabled-ids (sort-label-ids false)
+        project-id    @(subscribe [:active-project-id])
+        project-plan  @(subscribe [:project/plan project-id])
+        group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+                                  (stripe/pro? project-plan))]
+    (ensure-state)
+    [:div.define-labels
+     [ReadOnlyMessage
+      "Editing label definitions is restricted to project administrators."
+      read-only-message-closed?]
+     [:div.ui.two.column.stackable.grid.label-items
+      (doall (map-indexed
+              (fn [i label-id]
+                (if (= (get-in @labels [label-id :name]) "overall include")
+                  ;; "overall include" should not be movable, always first
+                  ^{:key [:label-item i label-id]}
+                  [:div.column {:key [:label-column i label-id]}
+                   [LabelItem labels i (r/cursor state [:labels label-id])
+                    :status {:draggable false}]]
+                  ;; other active labels should be movable
+                  ^{:key [:label-item i label-id]}
+                  [wrap-label-dnd {:idx i :label-id (str label-id)}
+                   (fn [{:as _props}]
+                     [:div.column {:key [:label-column i label-id]}
+                      [LabelItem labels i (r/cursor state [:labels label-id])
+                       :status {:draggable true}]])]))
+              active-ids))]
+     (when (seq disabled-ids)
+       [:h4.ui.block.header "Disabled Labels"])
+     ;; TODO: collapse disabled labels by default, display on click
+     (when (seq disabled-ids)
        [:div.ui.two.column.stackable.grid.label-items
         (doall (map-indexed
-                (fn [i label-id]
-                  (if (= (get-in @labels [label-id :name]) "overall include")
-                    ;; "overall include" should not be movable, always first
-                    ^{:key [:label-item i label-id]}
-                    [:div.column {:key [:label-column i label-id]}
-                     [LabelItem labels i (r/cursor state [:labels label-id])
-                      :status {:draggable false}]]
-                    ;; other active labels should be movable
-                    ^{:key [:label-item i label-id]}
-                    [wrap-label-dnd {:idx i :label-id (str label-id)}
-                     (fn [{:as _props}]
-                       [:div.column {:key [:label-column i label-id]}
-                        [LabelItem labels i (r/cursor state [:labels label-id])
-                         :status {:draggable true}]])]))
-                active-ids))]
-       (when (seq disabled-ids)
-         [:h4.ui.block.header "Disabled Labels"])
-       ;; TODO: collapse disabled labels by default, display on click
-       (when (seq disabled-ids)
-         [:div.ui.two.column.stackable.grid.label-items
-          (doall (map-indexed
-                  (fn [i label-id] ^{:key [:label-id label-id]}
-                    [:div.column [LabelItem labels i (r/cursor state [:labels label-id])]])
-                  disabled-ids))])
-       (when admin?
-         [:div {:style {:margin-top "1rem"}}
-          (if group-labels-allowed?
-            [:div.ui.four.column.stackable.grid
-             [:div.column [AddLabelButton "boolean" add-new-label!]]
-             [:div.column [AddLabelButton "categorical" add-new-label!]]
-             [:div.column [AddLabelButton "string" add-new-label!]]
-             [:div.column [AddLabelButton "group" add-new-label!]]]
-            [:div.ui.three.column.stackable.grid
-             [:div.column [AddLabelButton "boolean" add-new-label!]]
-             [:div.column [AddLabelButton "categorical" add-new-label!]]
-             [:div.column [AddLabelButton "string" add-new-label!]]])
-          (when-not group-labels-allowed?
-            [UpgradeMessage])])])))
+                (fn [i label-id] ^{:key [:label-id label-id]}
+                  [:div.column [LabelItem labels i (r/cursor state [:labels label-id])]])
+                disabled-ids))])
+     (when admin?
+       [:div {:style {:margin-top "1rem"}}
+        (if group-labels-allowed?
+          [:div.ui.four.column.stackable.grid
+           [:div.column [AddLabelButton "boolean" add-new-label!]]
+           [:div.column [AddLabelButton "categorical" add-new-label!]]
+           [:div.column [AddLabelButton "string" add-new-label!]]
+           [:div.column [AddLabelButton "group" add-new-label!]]]
+          [:div.ui.three.column.stackable.grid
+           [:div.column [AddLabelButton "boolean" add-new-label!]]
+           [:div.column [AddLabelButton "categorical" add-new-label!]]
+           [:div.column [AddLabelButton "string" add-new-label!]]])
+        (when-not group-labels-allowed?
+          [UpgradeMessage])])]))
 
+(def-panel {:project? true
+            :uri "/labels/edit" :params [project-id] :name labels-edit
+            :on-route (do (reload :project project-id)
+                          (dispatch [:set-active-panel panel]))
+            :panel panel :content (fn [child] [Panel child])})
+
+;; this wraps the panel for [:project :project :labels :edit]
 (defmethod panel-content [:project :project :labels] []
   (fn [child]
     [:div.project-content

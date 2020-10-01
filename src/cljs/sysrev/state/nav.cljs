@@ -26,54 +26,14 @@
 
 (reg-event-fx :do-login-redirect
               (fn [{:keys [db]}]
-                {:nav-reload (get-login-redirect-url db)}))
-
-(defn panel-prefixes [path]
-  (->> (range 1 (inc (count path)))
-       (map #(vec (take % path)))
-       reverse vec))
-
-(reg-sub ::active-subpanels #(get-in % [:state :navigation :subpanels]))
-
-(reg-sub ::navigate-defaults #(get-in % [:state :navigation :defaults]))
-
-(defn active-subpanel-uri [db path]
-  (or (get-in db [:state :navigation :subpanels path])
-      (get-in db [:state :navigation :defaults path])
-      path))
-
-(defn default-subpanel-uri [db path]
-  (get-in db [:state :navigation :defaults path]))
-
-(defn set-active-subpanel [db prefix uri]
-  (assoc-in db [:state :navigation :subpanels (vec prefix)] uri))
-
-(defn set-subpanel-default-uri [db prefix uri]
-  (assoc-in db [:state :navigation :defaults (vec prefix)] uri))
-
-(reg-event-db :set-active-subpanel [trim-v]
-              (fn [db [prefix uri]]
-                (set-active-subpanel db prefix uri)))
+                {:load-url [(get-login-redirect-url db)]}))
 
 (reg-event-fx :set-active-panel [trim-v]
-              (fn [{:keys [db]} [panel uri]]
-                (let [uri (or uri (default-subpanel-uri db panel))]
-                  {:db (assoc-in db [:state :active-panel] panel)
-                   :dispatch-n (concat [[:review/reset-ui-labels]
-                                        [:review/reset-ui-notes]
-                                        [:reset-transient-fields panel]]
-                                       (for [prefix (panel-prefixes panel)]
-                                         [:set-active-subpanel prefix uri]))})))
-
-;; TODO: remove this subpanel logic? (not used now)
-(reg-event-fx :navigate [trim-v]
-              (fn [{:keys [db]} [path params & {:keys [scroll-top?]}]]
-                (let [active (active-panel db)]
-                  {(if scroll-top? :nav-scroll-top :nav)
-                   (let [uri (if (= path (take (count path) active))
-                               (default-subpanel-uri db path)
-                               (active-subpanel-uri db path))]
-                     (if (fn? uri) (uri params) uri))})))
+              (fn [{:keys [db]} [panel]]
+                {:db (assoc-in db [:state :active-panel] panel)
+                 :dispatch-n (concat [[:review/reset-ui-labels]
+                                      [:review/reset-ui-notes]
+                                      [:reset-transient-fields panel]])}))
 
 (defn lookup-project-url [db url-id]
   (when url-id (get-in db [:data :project-lookups url-id] :loading)))
@@ -114,6 +74,7 @@
 
 (reg-sub :active-project-id active-project-id)
 
+#_
 (reg-sub :recent-active-project #(get-in % [:state :recent-active-project]))
 
 (reg-event-db :set-project-url-error
@@ -145,6 +106,7 @@
                   ;; update value of most recent non-nil url id
                   (cond-> new-db url-id (assoc-in [:state :recent-project-url] url-id))
                   ;; update value of most recent non-nil project id
+                  #_
                   (if-let [_new-active (active-project-id new-db)]
                     (assoc-in new-db [:state :recent-active-project] (active-project-id new-db))
                     new-db))
@@ -186,16 +148,10 @@
 
 (defn group-uri [group-id]
   (str "/org/" group-id "/users" ))
-;; TODO: add this function for use in re-frame events
-#_ (defn get-project-uri [db project-id suburi]
-     (let [project-url-id (project-active-url-id db project-id)
-           url-id (if (string? project-url-id)
-                    project-url-id project-id)]
-       (str "/p/" url-id suburi)))
 
 (reg-event-fx :project/navigate
               (fn [_ [_ project-id]]
-                {:nav-scroll-top (project-uri project-id "")}))
+                {:nav [(project-uri project-id "")]}))
 
 (reg-event-db :load-project-url-ids
               (fn [db [_ url-ids-map]]

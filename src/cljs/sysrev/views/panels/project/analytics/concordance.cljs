@@ -1,13 +1,12 @@
 (ns sysrev.views.panels.project.analytics.concordance
   (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx]]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :refer [def-data reload]]
             [sysrev.chartjs :as chartjs]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :as S :refer [Grid Row Column Checkbox Button]]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.analytics.common :refer [beta-message]]
             [sysrev.util :as util :refer [format sum round]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state with-mount-hook]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -497,12 +496,13 @@
               (zero? (sum (map :count label)))  [NoDataView]
               :else                             [MainView cdata])))))
 
-(defn- ConcordanceView []
-  [(with-mount-hook #(do (dispatch [::set-concordance-label-selection nil])
-                         (dispatch [::set-concordance-user-selection nil])))
-   [OverallConcordance]])
-
-(defmethod panel-content [:project :project :analytics :concordance] []
-  (fn [child]
-    [:div.ui.aligned.segment
-     [ConcordanceView] child]))
+(def-panel {:project? true
+            :uri "/analytics/concordance" :params [project-id] :name analytics-concordance
+            :on-route (do (reload :project project-id)
+                          (dispatch [:set-active-panel panel])
+                          (dispatch [::set-concordance-label-selection nil])
+                          (dispatch [::set-concordance-user-selection nil]))
+            :panel panel
+            :content (fn [child]
+                       [:div.ui.aligned.segment
+                        [OverallConcordance] child])})

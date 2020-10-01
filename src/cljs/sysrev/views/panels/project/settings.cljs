@@ -4,14 +4,14 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-event-db]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.data.core :refer [reload]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util :refer [in? css parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -194,7 +194,7 @@
   :process (fn [{:keys [db]} _ _]
              {:db (assoc-in db [:state :active-project-id] nil)
               :dispatch [:reload [:identity]]
-              :nav-scroll-top "/"}))
+              :nav ["/"]}))
 
 (defn- input-field-class [skey]
   (if (valid-input? skey) "" "error"))
@@ -631,17 +631,22 @@
           (if clicked? "Updating" "Update Predictions")
           (if clicked? [:i.check.circle.icon] [:i.repeat.icon])])])))
 
-(defmethod panel-content [:project :project :settings] []
-  (fn [_child]
-    [:div.project-content
-     [ReadOnlyMessage
-      "Changing settings is restricted to project administrators."
-      (r/cursor state [:read-only-message-closed?])]
-     [:div.ui.two.column.stackable.grid.project-settings
-      [:div.column
-       [ProjectMiscBox]
-       [ProjectOptionsBox]]
-      [:div.column
-       [ProjectMembersBox]
-       [ProjectExtraActions]
-       [DeveloperActions]]]]))
+(defn- Panel []
+  [:div.project-content
+   [ReadOnlyMessage
+    "Changing settings is restricted to project administrators."
+    (r/cursor state [:read-only-message-closed?])]
+   [:div.ui.two.column.stackable.grid.project-settings
+    [:div.column
+     [ProjectMiscBox]
+     [ProjectOptionsBox]]
+    [:div.column
+     [ProjectMembersBox]
+     [ProjectExtraActions]
+     [DeveloperActions]]]])
+
+(def-panel {:project? true
+            :uri "/settings" :params [project-id] :name project-settings
+            :on-route (do (reload :project project-id)
+                          (dispatch [:set-active-panel panel]))
+            :panel panel :content [Panel]})

@@ -5,7 +5,7 @@
             [sysrev.state.nav :refer [user-uri]]
             [sysrev.views.components.core :refer [dropdown-menu with-tooltip]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
-            [sysrev.views.search.core :refer [SiteSearch]]
+            [sysrev.views.panels.search :refer [SiteSearch]]
             [sysrev.util :as util]))
 
 (defn loading-indicator []
@@ -82,6 +82,6 @@
           {:id "log-in-link"
            :on-click (util/wrap-user-event
                       #(do (dispatch-sync [:set-login-redirect-url (util/get-url-path)])
-                           (dispatch [:navigate [:login]])))}
+                           (dispatch [:nav "/login"])))}
           "Log In"]
          [:div.item {:style {:width "0" :padding "0"}}]])]]))

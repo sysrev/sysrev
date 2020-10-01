@@ -12,7 +12,7 @@
 
 (setup-panel-state panel [:org :payment] {:state-var state
                                           :get-fn panel-get :set-fn panel-set
-                                          :get-event ::get :set-event ::set})
+                                          :get-sub ::get    :set-event ::set})
 
 (defn OrgPayment [org-id]
   [Grid {:stackable true :columns 2}

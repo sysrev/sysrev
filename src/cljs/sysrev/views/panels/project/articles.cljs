@@ -3,12 +3,11 @@
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-sub-raw reg-event-fx trim-v reg-fx]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.core :refer [ArticleListPanel]]
             [sysrev.views.article-list.filters :refer [export-type-default-filters]]
             [sysrev.util :as util]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -176,9 +175,36 @@
                 (al/reload-list (get-context-from-db db) :transition)
                 {}))
 
-(defmethod panel-content panel []
-  (fn [child]
-    (when @(subscribe [:active-project-id])
-      [:div.project-content
-       [ArticleListPanel (get-context)]
-       child])))
+(defn- Panel [child]
+  (when @(subscribe [:active-project-id])
+    [:div.project-content
+     [ArticleListPanel (get-context)]
+     child]))
+
+(def-panel {:project? true
+            :uri "/articles" :params [project-id] :name articles
+            :on-route (let [panel [:project :project :articles]
+                            context (get-context)
+                            active-panel @(subscribe [:active-panel])
+                            panel-changed? (not= panel active-panel)
+                            data-item @(subscribe [::al/articles-query context])
+                            set-panel [:set-active-panel panel]
+                            have-project? @(subscribe [:have? [:project project-id]])
+                            load-params [:article-list/load-url-params context]
+                            sync-params #(al/sync-url-params context)
+                            set-transition [::al/set-recent-nav-action context :transition]]
+                        (cond (not have-project?)
+                              (do (dispatch [:require [:project project-id]])
+                                  (dispatch [:data/after-load [:project project-id]
+                                             :project-articles-project
+                                             (list load-params set-panel)]))
+                              panel-changed?
+                              (do (dispatch [:data/after-load data-item
+                                             :project-articles-route
+                                             (list set-panel #(js/setTimeout sync-params 30))])
+                                  (dispatch set-transition)
+                                  (al/require-list context)
+                                  (al/reload-list context))
+                              :else
+                              (dispatch load-params)))
+            :panel panel :content (fn [child] [Panel child])})

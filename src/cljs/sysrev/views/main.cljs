@@ -59,7 +59,7 @@
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :as review]
-            [sysrev.views.search.core]
+            [sysrev.views.panels.search]
             [sysrev.util :as util :refer [css]]
             [sysrev.shared.components :refer [loading-content]]))
 

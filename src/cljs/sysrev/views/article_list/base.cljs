@@ -231,10 +231,8 @@
 
 (reg-event-fx ::navigate [trim-v]
               (fn [{:keys [db]} [context & {:keys [article-id redirect?]}]]
-                (let [url (get-nav-url db context article-id)]
-                  (if redirect?
-                    {:nav-redirect url}
-                    {:nav url}))))
+                {:nav [(get-nav-url db context article-id)
+                       :redirect redirect?]}))
 
 (reg-event-fx :article-list/load-url-params [trim-v]
               (fn [{:keys [db]} [context]]
@@ -245,7 +243,7 @@
                   (if show-article
                     ;; show-article url param here is no longer used.
                     ;; This will redirect to valid url for the article.
-                    {:nav-scroll-top (str (:article-base-uri context) "/" show-article)}
+                    {:nav [(str (:article-base-uri context) "/" show-article)]}
                     (cond-> {:db (-> (set-state db context [:active-article] show-article)
                                      (set-state context [:filters] filters)
                                      (set-state context [:text-search] text-search)

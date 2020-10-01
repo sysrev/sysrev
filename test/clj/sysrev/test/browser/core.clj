@@ -18,7 +18,7 @@
             [sysrev.payment.plans :as plans]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.test.core :as test :refer [succeeds?]]
-            [sysrev.test.browser.xpath :as xpath :refer [xpath]]
+            [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
   (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)))
 
@@ -595,6 +595,7 @@
                           :start-y start-y :offset-y offset-y
                           :x x :y y}))
     (Thread/sleep delay)
+    #_{:clj-kondo/ignore [:invalid-arity]}
     (->actions *driver*
                (move-to-element (taxi/element q) x y)
                (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))

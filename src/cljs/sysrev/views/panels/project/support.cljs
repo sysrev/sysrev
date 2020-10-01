@@ -166,7 +166,7 @@
              (wrap-prevent-default
               #(do (dispatch [:stripe/set-calling-route!
                               (project-uri @project-uri "/support")])
-                   (dispatch [:navigate [:payment]])))}
+                   (dispatch [:nav "/user/payment"])))}
             "Update Payment Information"])
          (when-not (nil? @current-support-level)
            [:button.ui.button
@@ -236,7 +236,7 @@
                (wrap-prevent-default
                 #(do (dispatch [:stripe/set-calling-route!
                                 (project-uri @project-id "/compensations")])
-                     (dispatch [:navigate [:payment]])))}
+                     (dispatch [:nav "/user/payment"])))}
               "Update Payment Information"])]
           (when @error-message
             [:div.ui.red.header @error-message])]])

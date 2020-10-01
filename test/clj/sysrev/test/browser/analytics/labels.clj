@@ -1,6 +1,5 @@
 (ns sysrev.test.browser.analytics.labels
   (:require [clojure.test :refer [use-fixtures]]
-            [clj-webdriver.taxi :as taxi]
             [sysrev.project.member :refer [add-project-member]]
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]

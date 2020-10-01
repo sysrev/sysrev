@@ -1,8 +1,8 @@
 (ns sysrev.views.panels.project.analytics
-  (:require [re-frame.core :refer [subscribe]]
+  (:require [re-frame.core :refer [subscribe dispatch]]
+            [sysrev.data.core :refer [reload]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.base :refer [panel-content]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -52,17 +52,22 @@
      [:a {:href "/pricing"} "Sysrev Pro"]
      " To Access On Personal Projects"]]])
 
-(defmethod panel-content panel []
-  (fn [child]
-    (let [project-id    @(subscribe [:active-project-id])
-          project-plan  @(subscribe [:project/plan project-id])
-          superuser?    @(subscribe [:user/actual-admin?])]
-      [:div.project-content
-       (cond
-         ;; superusers like the insilica team can always see analytics
-         superuser?             child
-         (= project-id 21696)   [:div [DemoMessage] child]
-         (not (admin?))         [NotAdminDescription]
-         ;; project admins of paid plan projects can see analytics
-         (and (admin?) (stripe/pro? project-plan))  child
-         :else                  [Paywall])])))
+(defn- Panel [child]
+  (let [project-id    @(subscribe [:active-project-id])
+        project-plan  @(subscribe [:project/plan project-id])
+        superuser?    @(subscribe [:user/actual-admin?])]
+    [:div.project-content
+     (cond
+       ;; superusers like the insilica team can always see analytics
+       superuser?             child
+       (= project-id 21696)   [:div [DemoMessage] child]
+       (not (admin?))         [NotAdminDescription]
+       ;; project admins of paid plan projects can see analytics
+       (and (admin?) (stripe/pro? project-plan))  child
+       :else                  [Paywall])]))
+
+(def-panel {:project? true
+            :uri "/analytics" :params [project-id] :name analytics
+            :on-route (do (reload :project project-id)
+                          (dispatch [:set-active-panel panel]))
+            :panel panel :content (fn [child] [Panel child])})

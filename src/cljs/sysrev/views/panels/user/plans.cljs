@@ -56,7 +56,7 @@
                           (panel-set :error-message nil)
                           (panel-set :redirecting? true)
                           (load-user-current-plan plan))
-                  :dispatch [:nav-reload nav-url]})))
+                  :dispatch [:load-url nav-url]})))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"

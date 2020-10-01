@@ -5,9 +5,8 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.db.core :as db]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.project.core :as project]
-            [sysrev.user.core :as user :refer [user-self-info]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -150,7 +149,7 @@
   (let [label-uuid (->> (vals (project/project-labels project-id))
                         (filter #(= short-label (:short-label %)))
                         first :label-id)]
-    (get-in (labels/article-user-labels-map article-id)
+    (get-in (label/article-user-labels-map article-id)
             [user-id label-uuid :answer])))
 
 (defn set-label-answer
@@ -251,7 +250,7 @@
       (b/wait-until-displayed
        (label-div-with-name (:short-label include-label-definition)))
       ;; We shouldn't have any labels for this project
-      (is (empty? (labels/query-public-article-labels @project-id)))
+      (is (empty? (label/query-public-article-labels @project-id)))
       ;; set the labels
       (set-article-answers [(merge include-label-definition
                                    {:value include-label-value})
@@ -265,10 +264,10 @@
       (is (b/exists? ".ui.button.save-labels.disabled"))
 ;;;; check in the database for the labels
       ;; we have labels for just one article
-      (is (= 1 (count (labels/query-public-article-labels @project-id))))
+      (is (= 1 (count (label/query-public-article-labels @project-id))))
       (log/info "checking label values from db")
       (let [ ;; this is not yet generalized
-            article-id (-> (labels/query-public-article-labels
+            article-id (-> (label/query-public-article-labels
                             @project-id) keys first)]
         ;; these are just checks in the database
         (is (= include-label-value
@@ -310,7 +309,7 @@
                                (merge categorical-label-definition
                                       {:value categorical-label-value})])
         ;;check that 2 articles are now labeled
-        (is (= 2 (count (labels/query-public-article-labels @project-id))))))
+        (is (= 2 (count (label/query-public-article-labels @project-id))))))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (deftest-browser review-label-components

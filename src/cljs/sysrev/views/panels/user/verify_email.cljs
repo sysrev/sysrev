@@ -15,7 +15,7 @@
                                                 :get-sub ::get :set-event ::set})
 
 (defn- do-verify-redirect [user-id]
-  (-> #(nav/nav-scroll-top (str "/user/" user-id "/email"))
+  (-> #(nav/nav (str "/user/" user-id "/email"))
       (js/setTimeout 1000)))
 
 (def-action :user/verify-email

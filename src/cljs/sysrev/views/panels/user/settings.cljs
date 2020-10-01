@@ -144,7 +144,7 @@
         #_ [:button.ui.yellow.button
             {:on-click
              #(do (dispatch [:action [:user/delete-member-labels user-id]])
-                  (nav-scroll-top "/"))}
+                  (nav/nav "/"))}
             "Delete Member Labels"]
         [:button.ui.orange.button
          {:on-click #(dispatch [:action [:user/delete-account user-id]])}

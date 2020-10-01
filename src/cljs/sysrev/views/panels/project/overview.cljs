@@ -2,18 +2,17 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [sysrev.chartjs :as chartjs]
-            [re-frame.core :refer [subscribe reg-sub]]
+            [re-frame.core :refer [subscribe reg-sub dispatch]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
             [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -497,13 +496,24 @@
          [ProjectFilesBox]
          [LabelCounts]]]])))
 
-(defmethod panel-content [:project :project :overview] []
-  (fn [child]
-    (when-let [project-id @(subscribe [:active-project-id])]
-      (if (false? @(subscribe [:project/has-articles?]))
-        (do (nav/nav-redirect (project-uri project-id "/add-articles")
-                              :scroll-top? true)
-            [:div])
-        [:div.project-content
-         [ProjectOverviewContent]
-         child]))))
+(defn- Panel [child]
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (if (false? @(subscribe [:project/has-articles?]))
+      [:div (nav/nav (project-uri project-id "/add-articles") :redirect true)]
+      [:div.project-content
+       [ProjectOverviewContent]
+       child])))
+
+(def-panel {:project? true
+            :uri "" :params [project-id] :name project
+            :on-route (let [prev-panel @(subscribe [:active-panel])
+                            diff-panel (and prev-panel (not= panel prev-panel))
+                            all-items [[:project project-id]
+                                       [:project/markdown-description project-id {:panel panel}]
+                                       [:project/label-counts project-id]
+                                       [:project/important-terms-text project-id]
+                                       [:project/prediction-histograms project-id]]]
+                        (dispatch [:set-active-panel panel])
+                        (when diff-panel
+                          (doseq [item all-items] (dispatch [:reload item]))))
+            :panel panel :content (fn [child] [Panel child])})
