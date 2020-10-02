@@ -9,11 +9,11 @@
             [sysrev.views.base :refer
              [panel-content logged-out-content render-panel-tree]]
             [sysrev.views.panels.login]
+            [sysrev.views.panels.landing-pages.root]
             [sysrev.views.panels.landing-pages.lit-review]
             [sysrev.views.panels.landing-pages.data-extraction]
             [sysrev.views.panels.landing-pages.managed-review]
             [sysrev.views.panels.landing-pages.systematic-review]
-            [sysrev.views.panels.root]
             [sysrev.views.panels.create-org]
             [sysrev.views.panels.org.main]
             [sysrev.views.panels.org.plans]

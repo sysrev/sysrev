@@ -167,6 +167,12 @@
                                 (some-> action (wrap-user-event)))}
                 content]))]]))
 
+(defn url-link
+  "Renders a link with human-formatted text based on href value."
+  [href & [props]]
+  [:a (merge props {:href href})
+   (util/humanize-url href)])
+
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}
    (util/url-domain url) nbsp [:i.external.icon]])

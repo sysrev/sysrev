@@ -31,7 +31,8 @@
                        [cljs-http.client :as http]
                        [goog.string :as gstr :refer [unescapeEntities]]
                        [goog.string.format]
-                       [re-frame.core :refer [subscribe reg-event-db reg-fx]]]))
+                       [re-frame.core :refer [subscribe reg-event-db reg-fx]]
+                       [sysrev.base :refer [active-route sysrev-hostname]]]))
   #?(:clj (:import [java.util UUID]
                    [java.util.zip GZIPInputStream]
                    [java.math BigInteger]
@@ -1168,7 +1169,23 @@
            ([query-id args]  (apply (read-sub query-id) args))))
 
 #?(:cljs (defn get-url-params []
-           (let [s js/window.location.search]
-             (-> (cond-> s
-                   (and (string? s) (str/starts-with? s "?")) (subs 1))
-                 (http/parse-query-params)))))
+           (:query-params (http/parse-url @active-route))))
+
+#?(:cljs (defn humanize-url
+           "Returns human-formatted link text based on href value.
+  Displays internal links as \"sysrev.com/...\""
+           [href]
+           (let [p (http/parse-url href)]
+             (cond (empty? (:server-name p))
+                   (str sysrev-hostname
+                        (when-not (= href "/") href))
+
+                   (in? #{:http :https} (:scheme p))
+                   (str (:server-name p)
+                        (some->> (:server-port p) (str ":"))
+                        (if (str/ends-with? (:uri p) "/")
+                          (apply str (butlast (:uri p)))
+                          (:uri p))
+                        (some->> (:query-string p) (str "?")))
+
+                   :else href))))
