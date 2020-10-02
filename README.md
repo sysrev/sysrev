@@ -354,22 +354,6 @@ false
            "/create-project"))
 ```
 
-1. If an event should change the route, add it to load-default-panels
-```clojurescript
-(defn- load-default-panels [db]
-  (->> [[[]
-         "/"]
-
-        ...
-
-        ...
-
-        [[:user-settings]
-         "/user/settings"]]
-       (reduce (fn [db [prefix uri]]
-                 (set-subpanel-default-uri db prefix uri))
-               db)))
-```
 1. From the repl
 ---
 <!-- 1. Define data in 'state/' -->
@@ -396,10 +380,10 @@ to pinpoint what is actually causing the error without experiencing it yourself.
 
 1. Isolate the test and transform it into a plain (defn ...) function definition. This will
 generally mean
-	i. rename (deftest-browser failing-test ...) -> (defn failing-test [] ...)
-	ii. deleting the initial lines regarding when to test and the test-user line
-	iii. transforming the vector of local vars into a let block
-	iv. manually inserting the :cleanup statements to the end of the block
+    i. rename (deftest-browser failing-test ...) -> (defn failing-test [] ...)
+    ii. deleting the initial lines regarding when to test and the test-user line
+    iii. transforming the vector of local vars into a let block
+    iv. manually inserting the :cleanup statements to the end of the block
 2. Start the visual webdriver
    > (sysrev.test.browser.core/start-visual-webdriver)
 3. Run the tests multiple times to trigger a failure
@@ -492,9 +476,9 @@ creating database...
 running pg_restore...
 + pg_restore --host=localhost --port=5432 --dbname=sysrev --username=postgres --no-password --format=custom --disable-triggers --single-transaction --no-owner sysrev-2019-12-08_06-31-10.pgdumpc
 
-real	16m26.235s
-user	0m19.438s
-sys	0m3.071s
+real   16m26.235s
+user   0m19.438s
+sys    0m3.071s
 =======
 ```
 
@@ -547,8 +531,8 @@ Note: externalIds are strings, though in this example the string values correspo
 To generate such a string in Clojure
 ```clojure
 > (venia/graphql-query {:venia/operation {:operation/type :mutation :operation/name "M"}
-	:venia/queries [[:importArticles {:id 102 :query (venia/graphql-query
-	{:venia/queries [[:entitiesByExternalIds {:dataset 5 :externalIds ["12" "8498" "8499"]} [:id :external_id :content]]]})}]]})
+    :venia/queries [[:importArticles {:id 102 :query (venia/graphql-query
+    {:venia/queries [[:entitiesByExternalIds {:dataset 5 :externalIds ["12" "8498" "8499"]} [:id :external_id :content]]]})}]]})
 
 "mutation M{importArticles(id:102,query:\"{entitiesByExternalIds(dataset:5,externalIds:[\"12\",\"8498\",\"8499\"]){id,external_id,content}}\")}"
 ```

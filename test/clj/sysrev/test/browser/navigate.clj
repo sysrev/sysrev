@@ -16,6 +16,7 @@
           (not= current (b/path->url path))
           (do (when-not silent
                 (log/info "navigating to" path))
+              (b/test-browser-console-clean :assert? true)
               (when pre-wait-ms
                 (b/wait-until-loading-completes :pre-wait pre-wait-ms))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))

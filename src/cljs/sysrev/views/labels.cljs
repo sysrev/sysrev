@@ -171,10 +171,10 @@
                                 (filter user-confirmed?))
         user-ids-annotated (->> user-ids
                                 (filter user-annotations))
-        user-ids-ordered (distinct (cond->> (concat user-ids-resolved
-                                                    user-ids-other
-                                                    user-ids-annotated)
-                                     self-only? (filter (partial = self-id))))]
+        user-ids-ordered   (distinct (cond->> (concat user-ids-resolved
+                                                      user-ids-other
+                                                      user-ids-annotated)
+                                       self-only? (filter (partial = self-id))))]
     (dispatch [:require ann-data-item])
     (dispatch [:require ann-status-item])
     (when (seq user-ids-ordered)

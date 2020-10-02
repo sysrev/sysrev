@@ -13,10 +13,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(def user-pro-plans #{"Unlimited_User"
-                      "Unlimited_User_Annual"})
-(def org-pro-plans  #{"Unlimited_Org"
-                      "Unlimited_Org_Annual"})
+(def user-pro-plans #{"Unlimited_User" "Unlimited_User_Annual"})
+(def org-pro-plans  #{"Unlimited_Org" "Unlimited_Org_Annual"})
 (def pro-plans      (set (concat user-pro-plans org-pro-plans)))
 (def basic-plans    #{"Basic"})
 

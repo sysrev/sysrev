@@ -30,12 +30,12 @@
 
 (deftest-browser clone-project-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [project-source-name "Sysrev Browser Test (clone-project-happy-path)"
+  [project-name "Sysrev Browser Test (clone-project-happy-path)"
    filename "test-pdf-import.zip"
    src-project-id (atom nil)]
   (do
     (nav/log-in (:email test-user))
-    (nav/new-project project-source-name)
+    (nav/new-project project-name)
     (reset! src-project-id (b/current-project-id))
     ;; import pdfs, check that the PDF count is correct
     ;; disabling this for now, having issues importing
@@ -99,14 +99,14 @@
 
 (deftest-browser clone-permissions-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [project-source-name "Sysrev Browser Test (clone-permissions-test)"
+  [project-name "Sysrev Browser Test (clone-permissions-test)"
    test-user-b (b/create-test-user :email "foo@qux.com"
                                    :password "foobar")
    src-project-id (atom nil)
    user-id (user/user-by-email (:email test-user) :user-id)]
   (do
     (plans/user-subscribe-to-unlimited (:email test-user))
-    (nav/new-project project-source-name)
+    (nav/new-project project-name)
     (reset! src-project-id (b/current-project-id))
     ;; PubMed search input
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
@@ -119,8 +119,8 @@
     (b/exists? clone-button)
     ;; another user can also clone the project
     (nav/log-in (:email test-user-b) (:password test-user-b))
-    (search/search-for project-source-name)
-    (b/click (xpath (str "//h3[contains(text(),'" project-source-name "')]")))
+    (search/search-for project-name)
+    (b/click (xpath (str "//h3[contains(text(),'" project-name "')]")))
     (b/exists? clone-button)
     ;; test-user-b joins the project
     (member/add-project-member @src-project-id (:user-id test-user-b))
@@ -135,17 +135,17 @@
 
 (deftest-browser clone-login-redirect
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [project-source-name "Sysrev Browser Test (clone-login-redirect)"
+  [project-name "Sysrev Browser Test (clone-login-redirect)"
    test-user-b {:email (format "foo+%s@qux.com" (util/random-id))
                 :password "foobar"}
    create-account-div (xpath "//h3[contains(text(),'First, create an account to clone the project to')]")]
   ;; first, login create the test project
   (do
     (nav/log-in (:email test-user))
-    (nav/new-project project-source-name)
+    (nav/new-project project-name)
     (nav/log-out)
-    (search/search-for project-source-name)
-    (b/click (xpath (str "//h3[contains(text(),'" project-source-name "')]")))
+    (search/search-for project-name)
+    (b/click (xpath (str "//h3[contains(text(),'" project-name "')]")))
     (b/click clone-button)
     ;; redirected to create account
     (is (b/exists? create-account-div))

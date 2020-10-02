@@ -220,12 +220,10 @@
                         (-> elts (aget 0) .-index))]
       (when (and (nat-int? idx) (< idx (count entries)))
         (let [{:keys [label-id value short-label]} (nth entries idx)]
-          (js/console.log "on-click-chart:" (pr-str (nth entries idx)))
           (dispatch [::filter-answers
                      {:value {:label-id (str label-id) :name short-label
                               :answer (str value) :raw-answer value}
                       :curset @(subscribe [::filter-answers])}]))))))
-
 
 (defn- LabelCountChart [label-ids combined count-type]
   (let [font           (charts/graph-font-settings)

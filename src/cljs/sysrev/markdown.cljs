@@ -78,7 +78,7 @@
              ;;       https://www.npmjs.com/package/react-textarea-autosize
              [TextArea {:fluid "true"
                         ;; :autoHeight true
-                        :style {:min-height "12em"}
+                        :style {:min-height "15em"}
                         :disabled (boolean loading?)
                         :placeholder "Enter a Markdown description"
                         :on-change (util/on-event-value #(reset! draft-content %))
