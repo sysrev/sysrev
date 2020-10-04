@@ -290,8 +290,8 @@
                                         :register? register?
                                         :project-id project-id
                                         :redirect redirect}])))}
-         [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Try Sysrev for Free"]
-         [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "Start your systematic review."]
+         [:h1.ui {:style {:margin-top 5 :font-size "48px"}} (if register? "Try Sysrev for Free" "Log In to Sysrev")]
+         (when register? [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "Start your systematic review."])
 
          [:div.field.email {:class (field-class :email)}
           [:div.ui.left.icon.input

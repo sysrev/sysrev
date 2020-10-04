@@ -54,7 +54,7 @@
                                                 :font-size "12px"}}
                                        [:span.open-sans.medium-weight "Switch Theme"]])))]
     [:div.ui.menu.site-menu {:class (when landing? "landing")}
-     [:div.ui.container
+     [:div.ui.container {:style {:width "100%" :padding-left "20px" :padding-right "20px"}}
       [:a.header.item {:href "/"}
        [:img.ui.middle.aligned.image
         (merge {:src "/SysRev_header_2.png" :alt "SysRev"}
