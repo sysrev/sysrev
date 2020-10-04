@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.project.main
   (:require [goog.uri.utils :as uri-utils]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe dispatch reg-event-db reg-sub]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri group-uri]]
@@ -12,6 +12,7 @@
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.project :refer [ProjectName]]
+            [sysrev.nav :refer [nav]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ProjectTitle [project-id]
@@ -39,10 +40,17 @@
         [:a {:href (project-uri (:project-id parent-project) "")}
          [ProjectName {:name (:project-name parent-project)} project-owner]]])]))
 
+(reg-event-db
+  ::set-message-dismissed-for-project
+  (fn [db [_ project-id]] (assoc db ::message-dismissed-for-project project-id)))
+
+(reg-sub ::message-dismissed-for-project (fn [db _] (::message-dismissed-for-project db)))
+
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]] {}
       (let [public? @(subscribe [:project/public-access?])
+            logged-in? @(subscribe [:self/logged-in?])
             access-button (fn [content]
                             [:button.ui.tiny.button.project-access
                              {:on-click (when @(subscribe [:user/project-admin?])
@@ -50,7 +58,8 @@
                              content])
             access-label (if public?
                            [access-button [:span [:i.globe.icon] "Public"]]
-                           [access-button [:span [:i.lock.icon] "Private"]])]
+                           [access-button [:span [:i.lock.icon] "Private"]])
+            message-dismissed-for-project @(subscribe [::message-dismissed-for-project])]
         [:div
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
@@ -70,6 +79,12 @@
               [CloneProject])
             [:span.access-header access-label]]]]
          (project-page-menu)
+         (when (and (not logged-in?) (not= message-dismissed-for-project project-id))
+         [:div.ui.positive.message {:style {:text-align "center"}}
+          [:i.close.icon {:on-click (fn [_] (dispatch [::set-message-dismissed-for-project project-id]))}]
+          [:div.header {:style {:margin "auto"}} "Welcome to Sysrev!"]
+          [:p  "Join today to create projects like this one."]
+          [:button.ui.primary.button {:on-click #(nav "/register")} "Try for Free"]])
          child]))))
 
 (defn ProjectErrorNotice [message]
