@@ -6,6 +6,7 @@
             [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
             [cljs-http.client :as hc]
             [sysrev.base :refer [history]]
+            [sysrev.shared.text :refer [uri-title]]
             [sysrev.util :refer [scroll-top]]))
 
 (defn force-dispatch [uri]
@@ -98,9 +99,8 @@
     (hc/parse-query-params query)))
 
 (defn set-page-title [title]
+  (let [uri js/window.location.pathname]
   (set! (-> js/document .-title)
-        (if (string? title)
-          (str "Sysrev - " title)
-          "Sysrev")))
+        (if (string? title) title (uri-title uri)))))
 
 (reg-fx :set-page-title set-page-title)

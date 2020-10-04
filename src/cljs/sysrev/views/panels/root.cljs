@@ -68,7 +68,7 @@
    [:h3.ui.top.attached {:style {:margin-bottom 0}} "Community Literature Reviews"]
    [:div.ui.attached.three.stackable.cards {:style {:max-width "1000px" :margin "auto"}}
 
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/16612")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/entogem.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/16612"} "EntoGEM"]
@@ -79,7 +79,7 @@
      [:div.extra.content
       [:span "Eliza Grames"[:br] "University of Connecticut"][:br]
       [:span [:a {:href "https://twitter.com/elizagrames"} [:i.twitter.icon] "ElizaGrames"]]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/24557")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/bushfires.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/24557"} "Fire & Australian Invertebrates"]
@@ -89,7 +89,7 @@
      [:div.extra.content
       [:span "Manu Saunders" [:br] "University of New England AU"][:br]
       [:span [:a {:href "https://twitter.com/ManuSaunders"} [:i.twitter.icon] "ManuSaunders"]]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/3588")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/tumur.png"}]]
      [:div.content
       [:a.header "Cancer Hallmark Mapping"]

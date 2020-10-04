@@ -41,7 +41,7 @@
    [:h3.ui.top.attached {:style {:margin-bottom 0}} "Open Access Data Extraction Projects"]
    [:div.ui.attached.three.stackable.cards {:style {:max-width "1000px" :margin "auto"}}
 
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/3588")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/genehunter.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/3588"} "Gene Hunter"]
@@ -51,7 +51,7 @@
      [:div.extra.content
       [:span "Tom Luechtefeld"[:br] [:a {:href "https://insilica.co"} "Insilica.co"][:br]
       [:span [:a {:href "https://twitter.com/tomlue"} [:i.twitter.icon] "tomlue"]]]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/4047")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/sds.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/4047"} "Safety Data Sheet Extraction"]
@@ -60,7 +60,7 @@
                          [:a {:href "https://blog.sysrev.com/srg-sysrev-chemical-transparency/"} "Learn more at blog.sysrev.com"]]]]
      [:div.extra.content
       [:span "Daniel Mcgee" [:br] [:a {:href "https://sustainableresearchgroup.com/"} "Sustainable Research Group"][:br]]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/21696")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/mangiferin-clustering.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/21696"} "Extracting Mangiferin Effects"]

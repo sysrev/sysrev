@@ -59,13 +59,11 @@
 (defn index [& [request maintainence-msg]]
   (page/html5
    [:head
-    [:title "Sysrev"]
+    [:title (sysrev.shared.text/uri-title (:uri request))]
     [:meta {:charset "utf-8"}]
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
-    (when (= (:uri request) "/")
-      [:meta {:name "Description"
-              :content (str "Sysrev" (first text/site-intro-text))}])
+    [:meta {:name "Description" :content (sysrev.shared.text/uri-meta-description (:uri request))}]
     #_ [:meta {:name "google-signin-scope" :content "profile email"}]
     #_ [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
     #_ [:script {:src "https://apis.google.com/js/platform.js"
@@ -107,7 +105,7 @@
 (defn not-found [& [request]]
   (page/html5
    [:head
-    [:title "Sysrev"]
+    [:title (sysrev.shared.text/uri-title (:uri request))]
     [:meta {:charset "utf-8"}]
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]

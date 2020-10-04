@@ -273,7 +273,7 @@
       [:div
        [:h3 {:style {:text-align "center"}}
         redirect-message]
-       [:div.ui.segment.auto-margin.auth-segment
+       [:div.ui.segment.auto-margin.auth-segment.inverted.center.aligned
         {:id "login-register-panel"}
         (when register-hash
           [:h4.ui.header
@@ -290,10 +290,9 @@
                                         :register? register?
                                         :project-id project-id
                                         :redirect redirect}])))}
-         (when landing?
-           [:div.create-account
-            [:h4.header "Create an Account"]
-            [:div.ui.divider]])
+         [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Try Sysrev for Free"]
+         [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "Start your systematic review."]
+
          [:div.field.email {:class (field-class :email)}
           [:div.ui.left.icon.input
            [:i.user.icon]

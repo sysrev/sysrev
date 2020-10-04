@@ -42,7 +42,7 @@
      "Publish your work with a simple link."]]
    [:h3.ui.top.attached {:style {:margin-bottom 0}} "Community Systematic Reviews"]
    [:div.ui.attached.three.stackable.cards {:style {:max-width "1000px" :margin "auto"}}
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/3588")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/tumur.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/3588"}  "Cancer Hallmark Mapping"]
@@ -51,7 +51,7 @@
                     that map to the hallmarks of cancer and the key characteristics of carcinogens"]]]
      [:div.extra.content
       [:span "Collaboration at" [:br] "National Toxicology Program “Converging on Cancer” workshop"]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/29506")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/ckd-covid.png"}]]
      [:div.content
       [:a.header {:href "/p/29506"} "COVID-19 Kidney Disease"]
@@ -60,7 +60,7 @@
      [:div.extra.content
       [:span "Ciara Keenan" [:br] "Associate Director - Cochrane Ireland"][:br]
       [:span [:a {:href "https://twitter.com/MetaEvidence"} [:i.twitter.icon] "MetaEvidence"]]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card  {:on-click (fn [_] (nav "/p/6737")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/vitc.png"}]]
      [:div.content
       [:a.header {:href "/p/6737"} "Vitamin C Cancer Trials"]

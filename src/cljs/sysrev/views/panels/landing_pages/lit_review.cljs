@@ -1,13 +1,13 @@
 (ns sysrev.views.panels.landing-pages.lit-review
-   (:require [cljs-time.core :as time]
-             [re-frame.core :refer [subscribe reg-sub]]
-             [sysrev.data.core :refer [def-data]]
-             [sysrev.views.base :refer [panel-content logged-out-content]]
-             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
-             [sysrev.views.panels.pricing :refer [Pricing]]
-             [sysrev.views.project-list :as plist]
-             [sysrev.nav :refer [nav]]
-             [sysrev.macros :refer-macros [with-loader]]))
+  (:require [cljs-time.core :as time]
+            [re-frame.core :refer [subscribe reg-sub]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.panels.login :refer [LoginRegisterPanel]]
+            [sysrev.views.panels.pricing :refer [Pricing]]
+            [sysrev.views.project-list :as plist]
+            [sysrev.nav :refer [nav]]
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (def ^:private panel [:lit-review])
 
@@ -25,10 +25,10 @@
    [:div.ui.segment.center.aligned.inverted {:style {:padding-top 50 :padding-bottom 40 :margin-top -13
                                                      :margin-bottom 0 :border-radius 0}}
    [:div.description.wrapper.open-sans {:style {:margin "auto" :max-width "500px" :margin-bottom 20}}
-    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Start reviewing literature for free."]
-    [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "There are hundreds of literature reviews on SysRev. Join one or start your own. "]
+    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Review Literature for Free."]
+    [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "Make a Team."[:br]"Upload Citations."[:br]"Extract Answers."]
     [:button.ui.fluid.primary.button {:style {:width 200 :margin "auto" :padding "20px" :margin-top "32px"}
-                                      :on-click #(nav "/register")} "Sign up for SysRev"]]
+                                      :on-click #(nav "/register")} "Try for Free"]]
     [:div {:style {:margin-top 50}}
      [:h5 {:style {:margin-bottom 0}} "live updates"]
      [GlobalStatsReport]]])
@@ -36,12 +36,12 @@
 (defn FeaturedReviews []
   [:div.ui.segment.center.aligned {:style {:padding-top 60 :margin-top 0 :border 0 :border-radius 0 :margin-bottom 0}}
    [:div.description.wrapper.open-sans {:style {:margin "auto" :max-width "600px" :padding-bottom 0}}
-    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Learn from the best with open access projects."]
-    [:h2.ui "Watch, learn and " [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"] " successful literature reviews."]]
+    [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Want to Learn How?"]
+    [:h2.ui "Check out some of the best public review projects."]]
    [:h3.ui.top.attached {:style {:margin-bottom 0}} "Community Literature Reviews"]
    [:div.ui.attached.three.stackable.cards {:style {:max-width "1000px" :margin "auto"}}
 
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/16612")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/entogem.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/16612"} "EntoGEM"]
@@ -52,7 +52,7 @@
      [:div.extra.content
       [:span "Eliza Grames"[:br] "University of Connecticut"][:br]
       [:span [:a {:href "https://twitter.com/elizagrames"} [:i.twitter.icon] "ElizaGrames"]]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/24557")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/bushfires.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/24557"} "Fire & Australian Invertebrates"]
@@ -62,7 +62,7 @@
      [:div.extra.content
       [:span "Manu Saunders" [:br] "University of New England AU"][:br]
       [:span [:a {:href "https://twitter.com/ManuSaunders"} [:i.twitter.icon] "ManuSaunders"]]]]
-    [:div.ui.raised.card
+    [:div.ui.raised.card {:on-click (fn [_] (nav "/p/3588")) :style {:cursor "pointer"}}
      [:div.image [:img {:src "/tumur.png"}]]
      [:div.content
       [:a.header {:href "https://sysrev.com/p/3588"} "Cancer Hallmark Mapping"]
@@ -74,19 +74,11 @@
    ])
 
 
-(defn GetStarted []
-  [:div.ui.segment.center.aligned.inverted {:style {:margin-top 0 :border-radius 0 :border 0}}
-   [:h1.ui {:style {:margin-top 5 :font-size "48px"}} "Get Started"]
-   [:h3.ui {:style {:margin-top 5 :font-size "20px"}} "Learn to " [:a {:href "https://blog.sysrev.com/getting-started/"} " make a SysRev in 5 steps"] " or watch the video below"]
-   [:iframe {:width "560" :height "315" :src "https://www.youtube.com/embed/dHISlGOm7A8" :frameBorder "0" :allow "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" :allowFullScreen "{true}"}]
-   [:button.ui.fluid.primary.button {:style {:width 200 :margin "auto" :padding "20px" :margin-top "32px"} :on-click #(nav "/register")} "Sign up for SysRev"]])
-
 (defn RootFullPanelPublic []
   (with-loader [[:identity] [:public-projects] [:global-stats]] {}
                [:div.landing-page.landing-public
                 [IntroSegment]
-                [FeaturedReviews]
-                [GetStarted]]))
+                [FeaturedReviews]]))
 
 (defmethod panel-content panel []
   (fn [_child] [RootFullPanelPublic]))
