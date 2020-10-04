@@ -33,6 +33,7 @@
 (defn nav
   "Change the current route."
   [route & {:keys [params]}]
+  (scroll-top)
   (pushy/set-token! history (make-url route params))
   nil)
 
