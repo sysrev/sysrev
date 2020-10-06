@@ -149,7 +149,7 @@
     (switch-to-org org-name-1)
     (b/is-soon (= 2 (count (org-user-table-entries))) 3000 50)
     ;; only an owner or admin of an org can create projects for that org
-    (b/click "#org-projects" :delay 30)
+    (b/click "#org-projects")
     (create-project-org org-name-1-project)
     ;; add user1 to Baz Qux as an owner
     (nav/go-route "/org/users")
@@ -160,12 +160,12 @@
     (nav/log-in (:email user1))
     (b/click "#user-name-link")
     (b/click "#user-orgs")
-    (b/click (xpath "//a[text()='" org-name-1 "']") :delay 20)
+    (b/click (xpath "//a[text()='" org-name-1 "']"))
     ;; org-users and projects links exists, but billing link doesn't exist
     (b/is-soon (and (taxi/exists? "#org-members") (taxi/exists? "#org-projects")))
     (b/is-soon (not (taxi/exists? "#org-billing")))
     ;; group projects exists, but not the create project input
-    (b/click "#org-projects" :delay 30)
+    (b/click "#org-projects")
     (b/exists? "#projects")
     (b/is-soon (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
@@ -173,7 +173,7 @@
     ;; switch to org-name-2
     (switch-to-org org-name-2)
     ;; user can create projects here
-    (b/click "#org-projects" :delay 30)
+    (b/click "#org-projects")
     (b/wait-until-exists "#new-project.button")
     ;; can change user permissions for browser+test
     (b/click "#org-members")
@@ -218,7 +218,7 @@
     (b/is-current-path "/user/plans")
     ;; get a plan for user
     (bstripe/enter-cc-information user-cc)
-    (plans/click-use-card :delay 50)
+    (plans/click-use-card)
     (plans/click-upgrade-plan)
     (b/click set-private-button)
     (b/click save-options-button)
@@ -244,18 +244,18 @@
     ;; renew subscription to Unlimited
     (b/click "#user-name-link")
     (b/click "#user-billing")
-    (b/click ".button.nav-plans.subscribe" :delay 50)
-    (plans/click-upgrade-plan :delay 50)
+    (b/click ".button.nav-plans.subscribe")
+    (plans/click-upgrade-plan)
     (b/exists? ".button.nav-plans.unsubscribe")
     (log/info "upgraded user plan")
     ;; go back to projects
     (b/click "#user-projects")
     (b/click (xpath "//a[contains(text(),'" user-project "')]"))
     ;; set the project private
-    (nav/go-project-route "/settings" :wait-ms 30)
+    (nav/go-project-route "/settings")
     (b/wait-until-displayed set-private-button)
-    (b/click set-private-button :delay 30)
-    (b/click save-options-button :delay 30)
+    (b/click set-private-button)
+    (b/click save-options-button)
     (is (b/exists? active-set-private-button))
     (log/info "set project to private access")
     ;; downgrade to basic plan again
@@ -296,7 +296,7 @@
     (nav/log-in (:email test-user))
     (create-org org-name-1)
     ;; create org project
-    (b/click "#org-projects" :delay 30)
+    (b/click "#org-projects")
     (create-project-org org-name-1-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
@@ -305,7 +305,7 @@
     (log/info "attempting plan subscription")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
-    (plans/click-use-card :delay 50)
+    (plans/click-use-card)
     (plans/click-upgrade-plan)
     ;; should be back at project settings
     (b/click set-private-button :delay 100)
@@ -314,12 +314,12 @@
 ;;; org paywall
     ;; go to org, subscribe to basic
     (switch-to-org org-name-1)
-    (b/click "#org-billing" :delay 30)
+    (b/click "#org-billing")
     (b/click ".button.nav-plans.unsubscribe")
     (b/click ".button.unsubscribe-plan")
     (is (b/exists? ".button.nav-plans.subscribe"))
     ;; go to org projects
-    (b/click "#org-projects" :delay 30)
+    (b/click "#org-projects")
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     ;; should redirect to /org/<org-id>/plans
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
@@ -329,30 +329,30 @@
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to unlimited
     (switch-to-org org-name-1 :silent true)
-    (b/click "#org-billing" :delay 30)
-    (b/click ".button.nav-plans.subscribe" :delay 30)
+    (b/click "#org-billing")
+    (b/click ".button.nav-plans.subscribe")
     (plans/click-upgrade-plan)
     (is (b/exists? ".button.nav-plans.unsubscribe"))
     ;; set project to private again
     (switch-to-org org-name-1 :silent true)
-    (b/click "#org-projects" :delay 30)
+    (b/click "#org-projects")
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
-    (nav/go-project-route "/settings" :pre-wait-ms 50 :wait-ms 50)
+    (nav/go-project-route "/settings")
     (b/click set-private-button)
     (b/click save-options-button)
     ;; downgrade to basic plan again
     (switch-to-org org-name-1 :silent true)
-    (b/click "#org-billing" :delay 30)
+    (b/click "#org-billing")
     (b/click ".button.nav-plans.unsubscribe")
     (b/click ".button.unsubscribe-plan")
     (log/info "downgraded org plan")
     (b/exists? ".button.nav-plans.subscribe")
     ;; go to project again
-    (b/click "#org-projects" :delay 30)
+    (b/click "#org-projects")
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
     ;; paywall is in place
     (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]"))
-    (b/click (xpath "//a[contains(text(),'Upgrade your plan')]") :delay 50)
+    (b/click (xpath "//a[contains(text(),'Upgrade your plan')]"))
     (log/info "got paywall on org project")
     (plans/click-upgrade-plan)
     ;; paywall has been lifted
@@ -386,7 +386,7 @@
     (b/wait-until-displayed enter-payment-information)
     ;; update payment method
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-    (plans/click-use-card :delay 50)
+    (plans/click-use-card)
     ;; ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
     (is (= "Unlimited_Org" (-> (user-groups email)
@@ -443,7 +443,7 @@
     ;; update payment method
     (bstripe/enter-cc-information
      {:cardnumber bstripe/valid-visa-cc})
-    (plans/click-use-card :delay 50)
+    (plans/click-use-card)
     ;; ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
     (is (= "Unlimited_Org" (-> (user-groups email)

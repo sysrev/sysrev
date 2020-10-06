@@ -33,7 +33,7 @@
       (b/click plans/choose-pro-button)
       ;; update payment method
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (plans/click-use-card :delay 50)
+      (plans/click-use-card)
       (plans/click-upgrade-plan)
         ;;;;;;;;; cut here
       (is (= "Unlimited_User" (plans/user-db-plan (:email test-user))))
@@ -76,7 +76,7 @@
       (b/click (xpath "//span[contains(text(),'" org-name "')]"))
       ;; update payment method
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (plans/click-use-card :delay 50)
+      (plans/click-use-card)
       (plans/click-upgrade-plan)
       ;;;;;;; cut here
       (is (= "Unlimited_Org" (-> (orgs/user-groups (:email test-user))

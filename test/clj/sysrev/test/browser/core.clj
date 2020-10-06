@@ -368,7 +368,7 @@
                 (= (text q) value))))
 
 (defn click [q & {:keys [if-not-exists delay displayed? external? timeout]
-                  :or {if-not-exists :wait, delay 40}}]
+                  :or {if-not-exists :wait, delay 50}}]
   (letfn [(wait [ms]
             (if external?
               (Thread/sleep (+ ms 25))

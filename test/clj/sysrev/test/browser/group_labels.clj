@@ -215,7 +215,7 @@
            (group-sub-short-labels "Group Label")))
     ;; review an article
     (nav/go-project-route "")
-    (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (x/project-menu-item :review))
     (b/click x/review-labels-tab)
     (b/wait-until-displayed
      (group-label-div-with-name (:short-label group-label-definition)))
@@ -256,7 +256,7 @@
       (test-short-label-answer "String Label")
       (log/info "checking label values from editor")
 ;;;; Let's check the actual UI for this
-      (nav/go-project-route "/articles" :wait-ms 50)
+      (nav/go-project-route "/articles")
       (b/click "a.article-title")
       (b/wait-until-displayed ".ui.button.change-labels")
       ;; check overall include
@@ -390,7 +390,7 @@
                   (group-sub-short-labels "Group Label 2")))
     ;; check to make sure the review editor has them in the correct order
     (nav/go-project-route "")
-    (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (x/project-menu-item :review))
     (b/click (group-label-div-with-name "Group Label 2"))
     (b/is-soon (= ["String Label" "Boolean Label" "Categorical Label"]
                   (group-sub-short-labels-review)))
@@ -402,7 +402,7 @@
                   (group-sub-short-labels "Group Label 2")))
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
-    (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (x/project-menu-item :review))
     (b/click (group-label-div-with-name "Group Label 2"))
     (b/is-soon (= ["Boolean Label" "Categorical Label"] (group-sub-short-labels-review)))
     ;; test disabling the Boolean Label
@@ -411,7 +411,7 @@
     (b/is-soon (= ["Boolean Label"] (group-sub-short-labels "Group Label 2")))
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
-    (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (x/project-menu-item :review))
     (b/click (group-label-div-with-name "Group Label 2"))
     (b/is-soon (= ["Boolean Label"] (group-sub-short-labels-review)))
     ;; completely disable the label by disabling all other buttons
@@ -421,7 +421,7 @@
     (group-label-disabled? "Group Label 2")
     ;; is this disabled in the review view too?
     (nav/go-project-route "")
-    (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (x/project-menu-item :review))
     (is (not (taxi/exists? (group-label-div-with-name "Group Label 2"))))
     ;; now re-enable this label
     (nav/go-project-route "/labels/edit")
@@ -432,7 +432,7 @@
     (b/is-soon (= ["Boolean Label" "String Label"] (group-sub-short-labels "Group Label 2")))
     ;; check that this appears now in the review
     (nav/go-project-route "")
-    (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (x/project-menu-item :review))
     (b/click (group-label-div-with-name "Group Label 2"))
     (b/is-soon (= ["Boolean Label" "String Label"] (group-sub-short-labels-review)))))
 
@@ -491,7 +491,7 @@
            (group-sub-short-labels "Group Label")))
     ;; review an article
     (nav/go-project-route "")
-    (b/click (x/project-menu-item :review) :delay 50)
+    (b/click (x/project-menu-item :review))
     (b/click x/review-labels-tab)
     (b/wait-until-displayed
      (group-label-div-with-name (:short-label group-label-definition)))
@@ -541,11 +541,11 @@
     (b/click (delete-row-icon 3))
     (b/click (delete-row-icon 3))
     (b/is-soon (not (taxi/exists? (delete-row-icon 3))))
-    (b/click ".button.save-labels" :delay 30 :displayed? true)
+    (b/click ".button.save-labels" :displayed? true)
     (b/wait-until-loading-completes :pre-wait (if (test/remote-test?) 150 30) :loop 2)
     (some-> (b/current-project-id) (db/clear-project-cache))
     ;; check the article
-    (nav/go-project-route "/articles" :wait-ms 50)
+    (nav/go-project-route "/articles")
     (b/click "a.article-title")
     (b/wait-until-displayed ".ui.button.change-labels")
     (is (= include-label-value
@@ -603,7 +603,7 @@
 
 (defn check-status
   [n-full n-conflict n-resolved]
-  (nav/go-project-route "" :silent true :wait-ms 50 :pre-wait-ms 50)
+  (nav/go-project-route "" :silent true)
   (b/wait-until-loading-completes :pre-wait true)
   (is (b/exists? include-full))
   (is (= (format "Full (%d)" n-full) (taxi/text include-full)))
@@ -679,7 +679,7 @@
                                         {:short-label "Categorical Label"
                                          :value ["Foo"]
                                          :value-type "categorical"}]))
-      (b/click ".button.save-labels" :delay 30 :displayed? true)
+      (b/click ".button.save-labels" :displayed? true)
       (is (b/exists? ".no-review-articles"))
       ;; review article from user2 (different categorical answer)
       (switch-user (:email user2) @project-id)
@@ -696,13 +696,13 @@
                                         {:short-label "Categorical Label"
                                          :value ["Bar"]
                                          :value-type "categorical"}]))
-      (b/click ".button.save-labels" :delay 30 :displayed? true)
+      (b/click ".button.save-labels" :displayed? true)
       (is (b/exists? ".no-review-articles"))
       ;; check for conflict
       (check-status 0 1 0)
       ;; attempt to resolve conflict as admin
       (switch-user (:email test-user) @project-id)
-      (nav/go-project-route "/articles" :wait-ms 50)
+      (nav/go-project-route "/articles")
       (b/click "a.article-title")
       ;; the labels are in conflict
       (is (b/exists? (xpath "//div[contains(@class, 'review-status') and contains(text(),'Conflicting labels')]")))
@@ -752,7 +752,7 @@
       (b/exists? (xpath "//button[contains(text(),'Add Group Label')]"))
       ;; Now, let's make a group
       (orgs/create-org org-name)
-      (b/click "#org-projects" :delay 30)
+      (b/click "#org-projects")
       (orgs/create-project-org org-project-name)
       ;; paywall in place?
       (nav/go-project-route "/labels/edit")
@@ -762,7 +762,7 @@
       (b/click "#org-billing")
       (b/click ".subscribe")
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (plans/click-use-card :delay 50)
+      (plans/click-use-card)
       (plans/click-upgrade-plan)
       ;; now let's check that the paywall is lifted
       (b/click "#org-projects")

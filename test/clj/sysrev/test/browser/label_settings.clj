@@ -26,9 +26,8 @@
 (def conflicts ".label-status-help .conflict-button")
 (def resolved ".label-status-help .resolve-button")
 
-(defn check-status
-  [n-full n-conflict n-resolved]
-  (nav/go-project-route "" :silent true :wait-ms 50 :pre-wait-ms 50)
+(defn check-status [n-full n-conflict n-resolved]
+  (nav/go-project-route "" :silent true)
   (is (b/exists? include-full))
   (b/is-soon (= (format "Full (%d)" n-full) (taxi/text include-full)))
   (is (b/exists? conflicts))

@@ -245,7 +245,7 @@
       (is (b/exists? (x/match-text "span" (:short-label categorical-label-definition))))
 ;;;; review an article
       (nav/go-project-route "")
-      (b/click (x/project-menu-item :review) :delay 50)
+      (b/click (x/project-menu-item :review))
       (b/click x/review-labels-tab)
       (b/wait-until-displayed
        (label-div-with-name (:short-label include-label-definition)))
@@ -281,7 +281,7 @@
                                           (:short-label categorical-label-definition)))))
         (log/info "checking label values from editor")
 ;;;; Let's check the actual UI for this
-        (nav/go-project-route "/articles" :wait-ms 50)
+        (nav/go-project-route "/articles")
         (b/click "a.article-title")
         (b/wait-until-displayed ".ui.button.change-labels")
         ;; check overall include
@@ -296,7 +296,7 @@
         (is (= categorical-label-value
                (label-button-value (:short-label categorical-label-definition))))
         ;;manually add labels to an article
-        (nav/go-project-route "/articles" :wait-ms 50)
+        (nav/go-project-route "/articles")
         ;;select unlabeled article
         (b/click "div.article-list-article.last")
         ;;add labels
@@ -351,7 +351,7 @@
       (is (b/exists? (x/match-text "span" name2)))
 ;;;; review an article
       (nav/go-project-route "")
-      (b/click (x/project-menu-item :review) :delay 50)
+      (b/click (x/project-menu-item :review))
       (b/click x/review-labels-tab)
       (b/wait-until-loading-completes :pre-wait 50 :loop 2)
       (log/info "testing categorical component")

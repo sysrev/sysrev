@@ -78,7 +78,7 @@
   [public?]
   (let [status-q #(str "button#public-access_" (if % "public" "private"))
         q (status-q public?)]
-    (nav/go-project-route "/settings" :pre-wait-ms 50 :wait-ms 50)
+    (nav/go-project-route "/settings")
     (b/wait-until-exists (-> q b/not-disabled))
     (log/infof "changing project access to %s" (if public? "public" "private"))
     (if (taxi/exists? (-> q b/not-disabled (b/not-class "active")))
@@ -95,7 +95,7 @@
    project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"
    click-project-link #(do (log/infof "loading project %s" (pr-str %))
-                           (b/click (xpath "//a[contains(text(),'" % "')]") :delay 50))]
+                           (b/click (xpath "//a[contains(text(),'" % "')]")))]
   (do #_ (b/start-webdriver true)
       (nav/log-in email)
       ;; subscribe to plans
@@ -107,18 +107,18 @@
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the user profile
       (b/click "#user-name-link")
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-projects")
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-1))
       ;; do some work to see if it shows up in the user profile
       (click-project-link project-name-1)
-      (b/click (x/project-menu-item :review) :delay 50)
+      (b/click (x/project-menu-item :review))
       ;; set three article labels
       (dotimes [_ 3]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; go back to profile, check activity
       (b/click "#user-name-link")
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-projects")
       ;; is the user's overall activity correct?
       (b/is-soon (= (select-keys (user-activity-summary)
                                  [:articles-reviewed :labels-contributed])
@@ -136,7 +136,7 @@
         :offset-x 99})
       ;; return to the profile, the user should have one annotation
       (b/click "#user-name-link")
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-projects")
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 3
                                              :labels-contributed 3
@@ -151,7 +151,7 @@
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the profile
       (b/click "#user-name-link")
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-projects")
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-2))
       ;; do some work to see if it shows up in the user profile
@@ -167,7 +167,7 @@
         :offset-x 99})
       ;; go back and check activity
       (b/click "#user-name-link")
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-projects")
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 5
                                              :labels-contributed 5
@@ -184,7 +184,7 @@
       (click-project-link project-name-1)
       (change-project-public-access true)
       (b/click "#user-name-link")
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-projects")
       (b/is-soon (and (in? (public-project-names) project-name-1)
                       (not (in? (private-project-names) project-name-1))))
       (b/is-soon (and (in? (private-project-names) project-name-2)
@@ -203,10 +203,10 @@
     (b/click "#user-name-link")
     (b/click "a#user-profile")
     ;; edit introduction
-    (b/click "a#edit-introduction" :delay 50)
+    (b/click "a#edit-introduction")
     (b/wait-until-displayed "textarea")
     (b/wait-until-loading-completes :pre-wait 50)
-    (b/set-input-text-per-char "textarea" user-introduction :delay 50)
+    (b/set-input-text-per-char "textarea" user-introduction)
     (markdown/click-save)
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; log in as test user
@@ -230,7 +230,7 @@
   (do (nav/log-in email)
       ;; go to the user profile
       (b/click "#user-name-link")
-      (b/click "a#user-profile" :delay 30)
+      (b/click "a#user-profile")
       ;; click the user profile avatar
       (b/click avatar :displayed? true :delay 100)
       ;; "upload" file

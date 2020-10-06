@@ -120,11 +120,11 @@
       (b/set-input-text input-q semantic-class) ; enter value into text input
       ;; otherwise have dropdown menu
       (taxi/element dd-menu-q)
-      (do (b/click dd-menu-q :delay 50) ; click dropdown input to expand menu
+      (do (b/click dd-menu-q) ; click dropdown input to expand menu
           (if (taxi/element dd-item-q) ; check if the value we want is already in the list
-            (b/click dd-item-q :delay 50) ; value found, click to select
+            (b/click dd-item-q) ; value found, click to select
             ;; menu doesn't have this value
-            (do (b/click dd-menu-q :delay 50) ; collapse dropdown menu
+            (do (b/click dd-menu-q) ; collapse dropdown menu
                 (b/click semantic-class-new-button) ; click button to add a new value
                 (b/set-input-text input-q semantic-class) ; enter the new value into text input
                 )))
@@ -234,7 +234,7 @@
         elts (taxi/find-elements {:css q})]
     (cond (empty? elts)        (log/warn "no annotation entry found" q)
           (> (count elts) 1)   (log/warn "matched multiple annotation entries" q)
-          :else                (b/click (css q ".ui.button.delete-annotation") :delay 50))))
+          :else                (b/click (css q ".ui.button.delete-annotation")))))
 
 (deftest-browser annotator-interface
   (test/db-connected?) test-user

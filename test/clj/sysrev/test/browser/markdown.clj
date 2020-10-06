@@ -14,7 +14,7 @@
 
 (defn click-save []
   (b/wait-until-loading-completes :pre-wait 50)
-  (b/click ".markdown-component .ui.save-button" :delay 50))
+  (b/click ".markdown-component .ui.save-button"))
 
 (deftest-browser happy-path-project-description
   true test-user
@@ -51,7 +51,7 @@
       (b/wait-until-displayed {:xpath "//h1[contains(text(),'foo bar')]"})
       (is (b/exists? {:xpath "//p[contains(text(),'quxx quzz corge')]"}))
       ;; delete the markdown, make sure we are back at stage one
-      (b/click edit-icon :delay 50)
+      (b/click edit-icon)
       ;; clear the text area
       (b/wait-until-displayed input)
       (taxi/clear input)
@@ -62,6 +62,6 @@
       (Thread/sleep 25)
       (click-save)
       ;; a prompt for creating a project description
-      (b/is-soon (b/displayed-now? create-button)))
+      (b/displayed? create-button))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)))
