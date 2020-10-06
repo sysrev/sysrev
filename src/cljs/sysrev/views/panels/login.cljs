@@ -264,15 +264,16 @@
                        [:div.ui.warning.message msg])
         form-class (when-not (empty? form-errors) "warning")
         redirect (uri-utils/getParamValue @active-route "redirect")
-        redirect-message (uri-utils/getParamValue @active-route "redirect_message")]
+        redirect-message (uri-utils/getParamValue @active-route "redirect_message")
+        _dark? @(subscribe [:self/dark-theme?])]
     (with-loader (if register-hash
                    [[:register-project register-hash]]
                    []) {}
       [:div
        [:h3 {:style {:text-align "center"}}
         redirect-message]
-       [:div.ui.segment.auto-margin.auth-segment.inverted.center.aligned
-        {:id "login-register-panel"}
+       [:div.ui.center.aligned.segment.auto-margin.auth-segment
+        {:id "login-register-panel" :class (css #_ [_dark? "secondary"])}
         (when register-hash
           [:h4.ui.header
            [:i.grey.list.alternate.outline.icon]
@@ -288,8 +289,10 @@
                                         :register? register?
                                         :project-id project-id
                                         :redirect redirect}])))}
-         [:h1.ui {:style {:margin-top 5 :font-size "48px"}} (if register? "Try Sysrev for Free" "Log In to Sysrev")]
-         (when register? [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "Start your systematic review."])
+         [:h1 {:style {:margin-top 5 :font-size "48px"}}
+          (if register? "Try Sysrev for Free" "Log In to Sysrev")]
+         (when register? [:h2 {:style {:margin-top 5 :font-size "20px"}}
+                          "Start your systematic review."])
 
          [:div.field.email {:class (field-class :email)}
           [:div.ui.left.icon.input
