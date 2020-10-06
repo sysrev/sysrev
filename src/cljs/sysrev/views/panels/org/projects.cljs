@@ -1,9 +1,10 @@
 (ns sysrev.views.panels.org.projects
   (:require ["moment" :as moment]
             [clojure.string :as str]
-            [ajax.core :refer [GET]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe reg-event-fx reg-sub reg-event-db trim-v dispatch]]
+            [re-frame.core :refer [subscribe reg-sub dispatch]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.loading :as loading :refer [any-loading?]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.panels.create-project :refer [NewProjectButton]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
@@ -17,47 +18,36 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org :projects] :state state)
+(setup-panel-state panel [:org :projects]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
-(reg-sub :org/projects
-         (fn [db [_ org-id]]
-           (get-in db [:org org-id :projects])))
+(def-data :org/projects
+  :loaded?  (fn [db org-id]
+              (-> (get-in db [:org org-id])
+                  (contains? :projects)))
+  :uri      (fn [org-id] (str "/api/org/" org-id "/projects"))
+  :process  (fn [{:keys [db]} [org-id] {:keys [projects]}]
+              (let [user-projects (index-by :project-id @(subscribe [:self/projects]))
+                    member-of? #(get-in user-projects [% :member?])]
+                {:db (-> (assoc-in db [:org org-id :projects]
+                                   (for [p projects]
+                                     (assoc p :member? (member-of? (:project-id p)))))
+                         (panel-set :get-projects-error nil))}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:db (panel-set db :get-projects-error (:message error))}))
 
-(reg-event-db :org/set-projects! [trim-v]
-              (fn [db [org-id projects]]
-                (assoc-in db [:org org-id :projects] projects)))
-
-(defn get-org-projects! [org-id]
-  (let [retrieving? (r/cursor state [:retrieving-projects?])
-        error-msg (r/cursor state [:retrieving-projects-error])]
-    (reset! retrieving? true)
-    (GET (str "/api/org/" org-id "/projects")
-         {:header {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [{:keys [result]}]
-                     (let [user-projects (index-by :project-id @(subscribe [:self/projects]))
-                           member-of? #(get-in user-projects [% :member?])]
-                       (reset! retrieving? false)
-                       (dispatch [:org/set-projects! org-id
-                                  (map #(assoc % :member? (member-of? (:project-id %)))
-                                       (:projects result))])))
-          :error-handler (fn [{:keys [error]}]
-                           (reset! retrieving? false)
-                           (reset! error-msg (:message error)))})))
-
-(reg-event-fx :org/get-projects! [trim-v]
-              (fn [_ [org-id]]
-                (get-org-projects! org-id)
-                {}))
+(reg-sub  :org/projects
+          (fn [db [_ org-id]]
+            (get-in db [:org org-id :projects])))
 
 (defn- OrgProject [{:keys [name project-id settings member-count admins last-active]}]
-  (let [project-owner @(subscribe [:project/owner project-id])
-        org-id (-> project-owner vals first)]
+  (let [{:keys [group-id]} @(subscribe [:project/owner project-id])]
     [TableRow {:id (str "project-" project-id) :class "org-project-entry"}
      [TableCell
       [:a.inline-block {:href (project-uri project-id)} name]
       (when (and
              ;; user has proper perms for this project
-             (some #{"admin" "owner"} @(subscribe [:self/org-permissions org-id]))
+             (some #{"admin" "owner"} @(subscribe [:self/org-permissions group-id]))
              ;; this project is not public
              (not (:public-access settings))
              ;; the subscription has lapsed
@@ -114,24 +104,24 @@
         [Message [:h4 "This organization doesn't have any public projects"]]))))
 
 (defn OrgProjects [org-id]
-  (let [error (r/cursor state [:retrieving-projects-error])
-        retrieving? (:retrieving-projects? @state)]
+  (let [error (r/cursor state [:get-projects-error])
+        loading? (any-loading? :only :org/projects)]
     [:div
      (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
        [:div {:style {:margin-bottom "1rem"}}
         [NewProjectButton {:project-owner org-id}]])
-     (when-not retrieving?
+     (when-not loading?
        [OrgProjectList @(subscribe [:org/projects org-id])])
      (when (seq @error)
        [Message {:negative true :onDismiss #(reset! error "")}
         [MessageHeader {:as "h4"} "Get Group Projects error"]
         @error])
-     (when retrieving?
+     (when loading?
        [Loader {:active true :inline "centered"}])]))
 
 (def-panel :uri "/org/:org-id/projects" :params [org-id] :panel panel
   :on-route (let [org-id (util/parse-integer org-id)]
               (org/on-navigate-org org-id panel)
-              (dispatch [:org/get-projects! org-id]))
+              (dispatch [:data/load [:org/projects org-id]]))
   :content (when-let [org-id @(subscribe [::org/org-id])]
              [OrgProjects org-id]))

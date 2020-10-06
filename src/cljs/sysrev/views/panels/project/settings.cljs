@@ -135,11 +135,9 @@
              ;; this is hacky, need a keyword to [:action [...] :on-success #(do something)]
              ;; because this can't just be handled by sysrev.views.panels.user.projects/set-public!
              (let [self-id (current-user-id db)
-                   project-owner @(subscribe [:project/owner project-id])
-                   owner-type (-> project-owner keys first)
-                   owner-id (-> project-owner vals first)]
-               (when (= :group-id owner-type)
-                 (dispatch [:org/get-projects! owner-id]))
+                   {:keys [group-id]} @(subscribe [:project/owner project-id])]
+               (when group-id
+                 (dispatch [:data/load [:org/projects group-id]]))
                {:db (assoc-in db [:data :project project-id :settings] settings)
                 :dispatch [:reload [:user/projects self-id]]})))
 

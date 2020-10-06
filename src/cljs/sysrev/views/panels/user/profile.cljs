@@ -340,7 +340,7 @@
     (when @(subscribe [:user-panel/self?])
       (dispatch [:reload [:user/payments-owed user-id]])
       (dispatch [:reload [:user/payments-paid user-id]])
-      (dispatch [:user/get-invitations!]))
+      (dispatch [:data/load [:user/invitations user-id]]))
     (dispatch [:set-active-panel panel])))
 
 (sr-defroute user-root #"/user/(\d+)$" [user-id]
