@@ -11,8 +11,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org] {:state-var state
-                                 :get-fn panel-get :set-fn panel-set})
+(setup-panel-state panel [:org]
+                   :state state :get [panel-get] :set [panel-set])
 
 (def-data ::orgs
   :loaded?  (fn [db] (-> (panel-get db)
@@ -82,7 +82,7 @@
     (reload :org/default-source org-id)
     (reload :org/current-plan org-id)))
 
-(defmethod panel-content panel []
+(defmethod panel-content [:org] []
   (fn [child]
     (when-let [org-id @(subscribe [::org-id])]
       (with-loader [[::orgs]] {}

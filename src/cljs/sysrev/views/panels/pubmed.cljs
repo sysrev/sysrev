@@ -9,7 +9,6 @@
    [pubmed/SearchActions]
    [pubmed/SearchResultsContainer]])
 
-(def-panel {:uri "/pubmed-search"
-            :on-route (dispatch [:set-active-panel pubmed/panel])
-            :panel pubmed/panel
-            :content [SearchPanel]})
+(def-panel :uri "/pubmed-search" :panel pubmed/panel
+  :on-route (dispatch [:set-active-panel pubmed/panel])
+  :content [SearchPanel])

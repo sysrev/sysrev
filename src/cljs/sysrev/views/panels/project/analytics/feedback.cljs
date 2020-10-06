@@ -26,8 +26,8 @@
               :margin-height "0" :margin-width "0"}
      "Loading…"]]])
 
-(def-panel {:project? true
-            :uri "/analytics/feedback" :params [project-id] :name analytics-feedback
-            :on-route (do (reload :project project-id)
-                          (dispatch [:set-active-panel panel]))
-            :panel panel :content [Panel]})
+(def-panel :project? true :panel panel
+  :uri "/analytics/feedback" :params [project-id] :name analytics-feedback
+  :on-route (do (reload :project project-id)
+                (dispatch [:set-active-panel panel]))
+  :content [Panel])

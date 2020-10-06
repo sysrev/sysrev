@@ -504,16 +504,16 @@
        [ProjectOverviewContent]
        child])))
 
-(def-panel {:project? true
-            :uri "" :params [project-id] :name project
-            :on-route (let [prev-panel @(subscribe [:active-panel])
-                            diff-panel (and prev-panel (not= panel prev-panel))
-                            all-items [[:project project-id]
-                                       [:project/markdown-description project-id {:panel panel}]
-                                       [:project/label-counts project-id]
-                                       [:project/important-terms-text project-id]
-                                       [:project/prediction-histograms project-id]]]
-                        (dispatch [:set-active-panel panel])
-                        (when diff-panel
-                          (doseq [item all-items] (dispatch [:reload item]))))
-            :panel panel :content (fn [child] [Panel child])})
+(def-panel :project? true :panel panel
+  :uri "" :params [project-id] :name project
+  :on-route (let [prev-panel @(subscribe [:active-panel])
+                  diff-panel (and prev-panel (not= panel prev-panel))
+                  all-items [[:project project-id]
+                             [:project/markdown-description project-id {:panel panel}]
+                             [:project/label-counts project-id]
+                             [:project/important-terms-text project-id]
+                             [:project/prediction-histograms project-id]]]
+              (dispatch [:set-active-panel panel])
+              (when diff-panel
+                (doseq [item all-items] (dispatch [:reload item]))))
+  :content (fn [child] [Panel child]))

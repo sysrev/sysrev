@@ -20,11 +20,10 @@
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:user :profile] {:state-var state
-                                           :get-fn panel-get :set-fn panel-set
-                                           :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :profile]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (s/def ::ratom #(or (instance? ratom/RAtom %)
                     (instance? ratom/RCursor %)))

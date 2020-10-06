@@ -22,10 +22,9 @@
        (when article-id [LabelAnswerEditor article-id])
        child])))
 
-(def-panel {:project? true
-            :uri "/review" :params [project-id] :name review
-            :on-route
-            (let [have-project? (and project-id @(subscribe [:have? [:project project-id]]))
+(def-panel :project? true :panel panel
+  :uri "/review" :params [project-id] :name review
+  :on-route (let [have-project? (and project-id @(subscribe [:have? [:project project-id]]))
                   set-panel [:set-active-panel panel]
                   set-panel-after #(dispatch [:data/after-load % :review-route set-panel])]
               (when-not have-project? (dispatch set-panel))
@@ -37,4 +36,4 @@
                 (when (= task-id :none)
                   (reload :review/task project-id))
                 (require-data :review/task project-id)))
-            :panel panel :content (fn [child] [Panel child])})
+  :content (fn [child] [Panel child]))

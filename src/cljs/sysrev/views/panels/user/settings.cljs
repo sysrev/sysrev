@@ -4,18 +4,16 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.views.components.core :refer [selection-dropdown]]
             [ajax.core :refer [GET PUT]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as sui :refer
              [Segment Header Grid Column Radio Message MessageHeader]]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:user :settings] {:state-var state
-                                            :get-fn panel-get :set-fn panel-set
-                                            :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :settings]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 ;;;
 ;;; TODO: refactor to remove this inputs/values/... stuff
@@ -207,20 +205,16 @@
         (reset! loading? true)
         (get-opt-in))})))
 
-(defn UserSettings [{:keys [user-id]}]
+(defn- UserSettings [{:keys [user-id]}]
   [Grid {:class "user-settings" :stackable true :columns 2}
    [Column [UserOptions]]
    [Column [UserDevTools]]
    [Column [PublicReviewerOptIn]]])
 
-(defmethod panel-content panel []
-  (fn [_child] [UserSettings]))
-
-(defmethod logged-out-content panel []
-  (logged-out-content :logged-out))
-
-(sr-defroute user-settings "/user/:user-id/settings" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [:reload [:identity]])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/settings" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (dispatch [:reload [:identity]])
+              (dispatch [:set-active-panel panel]))
+  :content [UserSettings]
+  :require-login true)

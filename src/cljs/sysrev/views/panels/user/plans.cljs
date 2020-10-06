@@ -9,20 +9,16 @@
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.views.semantic :as s :refer
              [Segment SegmentGroup Grid  Column Row ListUI ListItem Button Loader Radio]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.views.panels.pricing :refer [FreeBenefits ProBenefits]]
             [sysrev.util :as util]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:plans] {:state-var state
-                                   :get-fn panel-get
-                                   :set-fn panel-set
-                                   :get-sub ::get
-                                   :set-event ::set})
+(setup-panel-state panel [:plans]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-data :user/available-plans
   :loaded? (fn [db _user-id] (-> (get-in db [:data :plans :available-plans])))
@@ -65,7 +61,7 @@
                          (panel-set :error-message msg)
                          (stripe/panel-set :need-card? true))})))
 
-(defn ToggleInterval []
+(defn- ToggleInterval []
   (let [new-plan (r/cursor state [:new-plan])
         available-plans (subscribe [:user/available-plans])]
     (r/create-class
@@ -95,7 +91,7 @@
                                                (medley/find-first #(= (:interval %) "year")
                                                                   @available-plans)))}]]])})))
 
-(defn ProPlanPrice [plan]
+(defn- ProPlanPrice [plan]
   [:p (str "Pro Plan ("
            (str "$" (util/cents->dollars
                      (:amount @plan)) " / " (:interval @plan))
@@ -128,7 +124,7 @@
 (defn TogglePlanButton [{:keys [on-click class loading disabled] :as attrs} text]
   [Button (merge {:color "green"} attrs) text])
 
-(defn DowngradePlan []
+(defn- DowngradePlan []
   (let [self-id @(subscribe [:self/user-id])
         error-message (r/cursor state [:error-message])
         available-plans (subscribe [:user/available-plans])
@@ -175,7 +171,7 @@
                            (reset! changing-plan? false)
                            (reset! error-message nil))})))
 
-(defn UpgradePlan []
+(defn- UpgradePlan []
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])
         mobile? (util/mobile?)
@@ -252,8 +248,7 @@
                     [s/MessageHeader "Change Plan Error"]
                     [:p @error-message]])]]]])]]]))))
 
-
-(defn on-mount-user-plans []
+(defn- on-mount-user-plans []
   (let [self-id @(subscribe [:self/user-id])]
     (dispatch [::set :changing-plan? nil])
     (dispatch [::set :error-message nil])
@@ -264,34 +259,28 @@
       (dispatch [:data/load [:user/default-source self-id]])
       (dispatch [:data/load [:user/available-plans self-id]]))))
 
-(defn- UserPlansContent []
-  (when @(subscribe [:self/user-id])
-    (let [current-plan @(subscribe [:user/current-plan])
-          redirecting? (r/cursor state [:redirecting?])
-          changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
-      (cond
-        @redirecting?
-        [:div [:h3 "Redirecting"]
-         [Loader {:active true
-                  :inline "centered"}]]
-        changing-interval?
-        [UpgradePlan (subscribe [:user/available-plans])]
-        (= (:nickname current-plan) "Basic")
-        [UpgradePlan (subscribe [:user/available-plans])]
-        (contains? #{"Unlimited_User" "Unlimited_User_Annual"} (:nickname current-plan))
-        [DowngradePlan]
-        :else
-        [Loader {:active true :inline "centered"}]))))
+(defn- Panel []
+  (on-mount-user-plans)
+  (fn []
+    (when @(subscribe [:self/user-id])
+      (let [current-plan @(subscribe [:user/current-plan])
+            redirecting? (r/cursor state [:redirecting?])
+            changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
+        (cond
+          @redirecting?
+          [:div [:h3 "Redirecting"]
+           [Loader {:active true
+                    :inline "centered"}]]
+          changing-interval?
+          [UpgradePlan (subscribe [:user/available-plans])]
+          (= (:nickname current-plan) "Basic")
+          [UpgradePlan (subscribe [:user/available-plans])]
+          (contains? #{"Unlimited_User" "Unlimited_User_Annual"} (:nickname current-plan))
+          [DowngradePlan]
+          :else
+          [Loader {:active true :inline "centered"}])))))
 
-(defn UserPlans []
-  (r/create-class {:reagent-render (fn [] [UserPlansContent])
-                   :component-did-mount (fn [] (on-mount-user-plans))}))
-
-(defmethod panel-content [:plans] []
-  (fn [_child] [UserPlans]))
-
-(defmethod logged-out-content [:plans] []
-  (logged-out-content :logged-out))
-
-(sr-defroute user-plans "/user/plans" []
-             (on-mount-user-plans))
+(def-panel :uri "/user/plans" :panel panel
+  :on-route (on-mount-user-plans)
+  :content [Panel]
+  :require-login true)

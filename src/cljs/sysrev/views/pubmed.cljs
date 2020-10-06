@@ -13,11 +13,10 @@
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:pubmed-search] {:state-var state
-                                           :get-fn panel-get
-                                           :set-fn panel-set})
+(setup-panel-state panel [:pubmed-search]
+                   :state state :get [panel-get] :set [panel-set])
 
 (reg-sub ::page-number #(or (panel-get % :page-number) 1))
 

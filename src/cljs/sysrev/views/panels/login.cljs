@@ -406,25 +406,23 @@
     [redirect-root-content]
     [join-project-panel]))
 
-(def-panel {:panel [:login]
-            :content [redirect-root-content]
-            :logged-out-content [LoginRegisterPanel]
-            :uri "/login"
-            :on-route (dispatch [:set-active-panel [:login]])})
+(def-panel :uri "/login" :panel [:login]
+  :on-route (dispatch [:set-active-panel [:login]])
+  :content [redirect-root-content]
+  :logged-out-content [LoginRegisterPanel])
 
-(def-panel {:panel [:register]
-            :content [register-logged-in-content]
-            :logged-out-content [LoginRegisterPanel]
-            :uri "/register"
-            :on-route (dispatch [:set-active-panel [:register]])})
+(def-panel :uri "/register" :panel [:register]
+  :on-route (dispatch [:set-active-panel [:register]])
+  :content [register-logged-in-content]
+  :logged-out-content [LoginRegisterPanel])
 
-(def-panel {:uri "/register/:register-hash" :params [register-hash]
-            :on-route (do (dispatch [:set-active-panel [:register]])
-                          (dispatch [:register/register-hash register-hash]))})
+(def-panel :uri "/register/:register-hash" :params [register-hash]
+  :on-route (do (dispatch [:set-active-panel [:register]])
+                (dispatch [:register/register-hash register-hash])))
 
-(def-panel {:uri "/register/:register-hash/login" :params [register-hash]
-            :on-route (do (dispatch [:set-active-panel [:register]])
-                          (dispatch [:register/register-hash register-hash])
-                          (dispatch [:register/login? true])
-                          (dispatch [:set-login-redirect-url
-                                     (str "/register/" register-hash)]))})
+(def-panel :uri "/register/:register-hash/login" :params [register-hash]
+  :on-route (do (dispatch [:set-active-panel [:register]])
+                (dispatch [:register/register-hash register-hash])
+                (dispatch [:register/login? true])
+                (dispatch [:set-login-redirect-url
+                           (str "/register/" register-hash)])))

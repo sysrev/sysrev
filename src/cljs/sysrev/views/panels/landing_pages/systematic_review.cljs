@@ -31,8 +31,8 @@
                ^{:key 2} [reviews/CovidKidneyReview]
                ^{:key 3} [reviews/VitaminCCancerReview]]}]]))
 
-(def-panel {:uri "/systematic-review"
-            :on-route (do (dispatch [:set-active-panel panel])
-                          (load-data :identity)
-                          (reload :public-projects))
-            :panel panel :content [Panel]})
+(def-panel :uri "/systematic-review" :panel panel
+  :on-route (do (dispatch [:set-active-panel panel])
+                (load-data :identity)
+                (reload :public-projects))
+  :content [Panel])

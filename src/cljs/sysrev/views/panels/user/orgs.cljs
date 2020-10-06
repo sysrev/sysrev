@@ -1,17 +1,15 @@
 (ns sysrev.views.panels.user.orgs
   (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.create-org :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Divider]]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
 (declare panel)
 
-;; Using same panel value as sysrev.views.panels.user.profile
-(setup-panel-state panel [:user :orgs] {})
+(setup-panel-state panel [:user :orgs])
 
 (def-data :user/orgs
   :loaded? (fn [db user-id] (-> (get-in db [:data :user-orgs])
@@ -44,16 +42,14 @@
         (doall (for [org orgs] ^{:key (:group-id org)}
                  [UserOrganization org]))]])))
 
-(defn UserOrgsPanel []
+(defn- Panel []
   [:div
    (when @(subscribe [:user-panel/self?]) [CreateOrg])
    [UserOrgs @(subscribe [:user-panel/user-id])]])
 
-(defmethod panel-content panel []
-  (fn [_child] [UserOrgsPanel]))
-
-(sr-defroute user-orgs "/user/:user-id/orgs" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [:reload [:user/orgs user-id]])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/orgs" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (dispatch [:reload [:user/orgs user-id]])
+              (dispatch [:set-active-panel panel]))
+  :content [Panel])

@@ -34,7 +34,7 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:project :project :labels :edit] {:state-var state})
+(setup-panel-state panel [:project :project :labels :edit] :state state)
 
 (def initial-state {:read-only-message-closed? false})
 
@@ -991,11 +991,11 @@
         (when-not group-labels-allowed?
           [UpgradeMessage])])]))
 
-(def-panel {:project? true
-            :uri "/labels/edit" :params [project-id] :name labels-edit
-            :on-route (do (reload :project project-id)
-                          (dispatch [:set-active-panel panel]))
-            :panel panel :content (fn [child] [Panel child])})
+(def-panel :project? true :panel panel
+  :uri "/labels/edit" :params [project-id] :name labels-edit
+  :on-route (do (reload :project project-id)
+                (dispatch [:set-active-panel panel]))
+  :content (fn [child] [Panel child]))
 
 ;; this wraps the panel for [:project :project :labels :edit]
 (defmethod panel-content [:project :project :labels] []

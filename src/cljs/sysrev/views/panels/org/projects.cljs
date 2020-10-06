@@ -17,9 +17,7 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org :projects] {:state-var state
-                                           :get-fn panel-get  :set-fn panel-set
-                                           :get-sub ::get     :set-event ::set})
+(setup-panel-state panel [:org :projects] :state state)
 
 (reg-sub :org/projects
          (fn [db [_ org-id]]
@@ -131,10 +129,9 @@
      (when retrieving?
        [Loader {:active true :inline "centered"}])]))
 
-(def-panel {:uri "/org/:org-id/projects" :params [org-id]
-            :on-route (let [org-id (util/parse-integer org-id)]
-                        (org/on-navigate-org org-id panel)
-                        (dispatch [:org/get-projects! org-id]))
-            :panel panel
-            :content (when-let [org-id @(subscribe [::org/org-id])]
-                       [OrgProjects org-id])})
+(def-panel :uri "/org/:org-id/projects" :params [org-id] :panel panel
+  :on-route (let [org-id (util/parse-integer org-id)]
+              (org/on-navigate-org org-id panel)
+              (dispatch [:org/get-projects! org-id]))
+  :content (when-let [org-id @(subscribe [::org/org-id])]
+             [OrgProjects org-id]))

@@ -14,8 +14,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:ctgov-search] {:state-var state
-                                          :get-fn panel-get :set-fn panel-set})
+(setup-panel-state panel [:ctgov-search]
+                   :state state :get [panel-get] :set [panel-set])
 
 (reg-sub ::page-number #(or (panel-get % :page-number) 1))
 

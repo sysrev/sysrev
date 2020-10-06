@@ -27,9 +27,8 @@
 (defn basic? [plan-nickname]
   (contains? basic-plans plan-nickname))
 
-(setup-panel-state panel [:stripe] {:state-var state
-                                    :get-fn panel-get :set-fn panel-set
-                                    :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:stripe]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 ;;; based on: https://github.com/stripe/react-stripe-elements
 ;;;           https://jsfiddle.net/g9rm5qkt/

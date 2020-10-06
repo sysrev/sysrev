@@ -4,21 +4,19 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :refer [ConfirmationDialog]]
             [sysrev.views.panels.create-project :refer [NewProjectButton]]
             [sysrev.views.project :refer [ProjectName]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Divider Button]]
             [sysrev.util :as util :refer [condensed-number parse-integer sum]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
 (declare panel state panel-get panel-set)
 
-(setup-panel-state panel [:user :projects] {:state-var state
-                                            :get-fn panel-get :set-fn panel-set
-                                            :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :projects]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-data :user/projects
   :loaded? (fn [db user-id] (-> (get-in db [:data :user-projects])
@@ -138,7 +136,7 @@
              (doall (for [project (sort sort-activity private)] ^{:key (:project-id project)}
                       [UserProject project]))]])]))))
 
-(defn UserProjects [user-id]
+(defn- UserProjects [user-id]
   (with-loader [[:user/projects user-id]] {}
     (let [projects @(subscribe [:user/projects user-id])]
       [:div
@@ -147,11 +145,9 @@
        [UserActivitySummary projects]
        [UserProjectsList {:user-id user-id}]])))
 
-(defmethod panel-content panel []
-  (fn [_child] [UserProjects @(subscribe [:user-panel/user-id])]))
-
-(sr-defroute user-projects "/user/:user-id/projects" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [:data/load [:user/projects user-id]])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/projects" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (dispatch [:data/load [:user/projects user-id]])
+              (dispatch [:set-active-panel panel]))
+  :content [UserProjects @(subscribe [:user-panel/user-id])])

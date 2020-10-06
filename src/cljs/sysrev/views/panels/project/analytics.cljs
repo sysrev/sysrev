@@ -66,8 +66,8 @@
        (and (admin?) (stripe/pro? project-plan))  child
        :else                  [Paywall])]))
 
-(def-panel {:project? true
-            :uri "/analytics" :params [project-id] :name analytics
-            :on-route (do (reload :project project-id)
-                          (dispatch [:set-active-panel panel]))
-            :panel panel :content (fn [child] [Panel child])})
+(def-panel :project? true :panel panel
+  :uri "/analytics" :params [project-id] :name analytics
+  :on-route (do (reload :project project-id)
+                (dispatch [:set-active-panel panel]))
+  :content (fn [child] [Panel child]))

@@ -4,16 +4,15 @@
             [ajax.core :refer [GET PUT]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]]
             [sysrev.util :refer [index-by space-join parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:user :invitations] {:state-var state
-                                               :get-fn panel-get :set-fn panel-set})
+(setup-panel-state panel [:user :invitations]
+                   :state state :get [panel-get] :set [panel-set])
 
 (reg-sub :user/invitations #(panel-get % :invitations))
 
@@ -102,14 +101,10 @@
         (when-not @getting-invitations?
           (dispatch [:user/get-invitations!])))})))
 
-(defmethod panel-content panel []
-  (fn [_child] [UserInvitations]))
-
-(defmethod logged-out-content panel []
-  (logged-out-content :logged-out))
-
-(sr-defroute user-invitations "/user/:user-id/invitations" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [:user/get-invitations!])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/invitations" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (dispatch [:user/get-invitations!])
+              (dispatch [:set-active-panel panel]))
+  :content [UserInvitations]
+  :require-login true)

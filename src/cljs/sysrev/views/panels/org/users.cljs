@@ -16,9 +16,7 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org :users] {:state-var state
-                                        :get-fn panel-get  :set-fn panel-set
-                                        :get-sub ::get     :set-event ::set})
+(setup-panel-state panel [:org :users] :state state)
 
 (def-data :org/users
   :uri (fn [org-id] (str "/api/org/" org-id "/users"))
@@ -337,11 +335,10 @@
      [RemoveModal {:org-id org-id}]
      [UsersTable {:org-users org-users :org-id org-id}]]))
 
-(def-panel {:uri "/org/:org-id/users" :params [org-id]
-            :on-route (let [org-id (util/parse-integer org-id)]
-                        (org/on-navigate-org org-id panel)
-                        (reload :org/users org-id))
-            :panel panel
-            :content (when-let [org-id @(subscribe [::org/org-id])]
-                       (with-loader [[:org/users org-id]] {}
-                         [OrgUsers org-id]))})
+(def-panel :uri "/org/:org-id/users" :params [org-id] :panel panel
+  :on-route (let [org-id (util/parse-integer org-id)]
+              (org/on-navigate-org org-id panel)
+              (reload :org/users org-id))
+  :content (when-let [org-id @(subscribe [::org/org-id])]
+             (with-loader [[:org/users org-id]] {}
+               [OrgUsers org-id])))

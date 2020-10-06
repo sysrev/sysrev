@@ -19,11 +19,10 @@
                                           sr-defroute-project]]))
 
 ;; for clj-kondo
-(declare panel state panel-set panel-get)
+(declare panel state)
 
-(setup-panel-state panel [:project :project :add-articles] {:state-var state
-                                                            :set-fn panel-set
-                                                            :get-fn panel-get})
+(setup-panel-state panel [:project :project :add-articles]
+                   :state state :get [panel-get] :set [panel-set])
 
 (reg-sub :add-articles/import-tab #(or (panel-get % :import-tab) :zip-file))
 
@@ -517,15 +516,14 @@
         (r/cursor state [:read-only-message-closed?])]
        [ProjectSourcesList]])))
 
-(def-panel {:project? true
-            :uri "/add-articles" :params [project-id] :name add-articles
-            :on-route (do (reload :project/sources project-id)
-                          (dispatch [:set-active-panel panel]))
-            :panel panel
-            :content [:div#add-articles.project-content
-                      [ProjectSourcesPanel]] })
+(def-panel :project? true :panel panel
+  :uri "/add-articles" :params [project-id] :name add-articles
+  :on-route (do (reload :project/sources project-id)
+                (dispatch [:set-active-panel panel]))
+  :content [:div#add-articles.project-content
+            [ProjectSourcesPanel]])
 
 ;; redirect to "/add-articles" when "Manage" tab is clicked
-(sr-defroute-project
- manage-project "/manage" [project-id]
- (nav/nav (project-uri project-id "/add-articles") :redirect true))
+(sr-defroute-project manage-project "/manage" [project-id]
+                     (nav/nav (project-uri project-id "/add-articles")
+                              :redirect true))

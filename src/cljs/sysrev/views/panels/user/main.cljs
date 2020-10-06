@@ -6,12 +6,10 @@
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
-(declare panel panel-get panel-set)
+(declare panel)
 
-(setup-panel-state panel [:user] {:get-fn panel-get
-                                  :set-fn panel-set
-                                  :get-sub ::get
-                                  :set-event ::set})
+(setup-panel-state panel [:user]
+                   :get [panel-get ::get] :set [panel-set ::set])
 
 (reg-sub :user/get (fn [db [_ user-id]] (get-in db [:data :users-public user-id])))
 

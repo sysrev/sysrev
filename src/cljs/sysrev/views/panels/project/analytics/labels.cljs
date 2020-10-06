@@ -481,10 +481,9 @@
               (empty? (:groups data))  [NoDataView]
               :else                    [MainView])))))
 
-(def-panel {:project? true
-            :uri "/analytics/labels" :params [project-id] :name analytics-labels
-            :on-route (do (reload :project project-id)
-                          (dispatch [:set-active-panel panel]))
-            :panel panel
-            :content (fn [child]
-                       [:div.ui.segment [LabelCountView] child])})
+(def-panel :project? true :panel panel
+  :uri "/analytics/labels" :params [project-id] :name analytics-labels
+  :on-route (do (reload :project project-id)
+                (dispatch [:set-active-panel panel]))
+  :content (fn [child]
+             [:div.ui.segment [LabelCountView] child]))

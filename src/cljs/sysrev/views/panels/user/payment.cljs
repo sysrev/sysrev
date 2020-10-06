@@ -16,7 +16,7 @@
                         (fn [payload]
                           (dispatch [:action [:stripe/add-payment-user user-id payload]]))}]]]]))
 
-(def-panel {:uri "/user/payment"
-            :on-route (dispatch [:set-active-panel panel])
-            :panel panel :content [Panel]
-            :require-login true})
+(def-panel :uri "/user/payment" :panel panel
+  :on-route (dispatch [:set-active-panel panel])
+  :content [Panel]
+  :require-login true)

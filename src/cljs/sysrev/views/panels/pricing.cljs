@@ -4,15 +4,12 @@
             [reagent.core :as r]
             [sysrev.nav :refer [nav make-url]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Segment Column Row Grid Icon Button Popup Divider
                                            ListUI ListItem ListContent Dropdown Header]]
             [sysrev.util :as util :refer [when-test css]]
-            [sysrev.macros :refer-macros [sr-defroute setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
-;; for clj-kondo
 (declare panel)
-
 (setup-panel-state panel [:pricing])
 
 (defn- PricingItem [{:keys [icon icon-color content]
@@ -192,8 +189,6 @@
               [:a {:href "mailto:sales@sysrev.com"} "Contact us"]
               " about designing a custom data processing and analysis solution to meet your needs today!"]))]]]))))
 
-(defmethod panel-content panel []
-  (fn [_child] [Pricing]))
-
-(sr-defroute pricing "/pricing" []
-             (dispatch [:set-active-panel panel]))
+(def-panel :uri "/pricing" :panel panel
+  :on-route (dispatch [:set-active-panel panel])
+  :content [Pricing])

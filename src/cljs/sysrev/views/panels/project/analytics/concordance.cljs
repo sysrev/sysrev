@@ -496,13 +496,12 @@
               (zero? (sum (map :count label)))  [NoDataView]
               :else                             [MainView cdata])))))
 
-(def-panel {:project? true
-            :uri "/analytics/concordance" :params [project-id] :name analytics-concordance
-            :on-route (do (reload :project project-id)
-                          (dispatch [:set-active-panel panel])
-                          (dispatch [::set-concordance-label-selection nil])
-                          (dispatch [::set-concordance-user-selection nil]))
-            :panel panel
-            :content (fn [child]
-                       [:div.ui.aligned.segment
-                        [OverallConcordance] child])})
+(def-panel :project? true :panel panel
+  :uri "/analytics/concordance" :params [project-id] :name analytics-concordance
+  :on-route (do (reload :project project-id)
+                (dispatch [:set-active-panel panel])
+                (dispatch [::set-concordance-label-selection nil])
+                (dispatch [::set-concordance-user-selection nil]))
+  :content (fn [child]
+             [:div.ui.aligned.segment
+              [OverallConcordance] child]))

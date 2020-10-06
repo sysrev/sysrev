@@ -12,9 +12,7 @@
 (declare panel state)
 
 (setup-panel-state panel [:project :project :compensation]
-                   {:state-var state
-                    :get-fn panel-get :set-fn panel-set
-                    :get-sub ::get    :set-event ::set})
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def admin-fee 0.20)
 
@@ -479,23 +477,23 @@
    [:div.ui.one.column.stackable.grid
     [:div.column [CompensationSummary]]]])
 
-(def-panel {:project? true?
-            :uri "/compensations" :params [project-id] :name project-compensations
-            :on-route (do (dispatch [::set :project-funds nil])
-                          (dispatch [::set :compensation-amount nil])
-                          (dispatch [::set :create-compensation-error nil])
-                          (dispatch [:project/get-funds])
-                          (check-pending-transactions)
-                          (get-compensations! state)
-                          (get-default-compensation! state)
-                          (get-project-users-current-compensation! state)
-                          (compensation-owed! state)
-                          ;; TODO: run a timer to update pending status
-                          #_ (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
-                               (util/continuous-update-until
-                                check-pending-transactions
-                                #(= @pending-funds 0)
-                                (constantly nil)
-                                check-pending-interval))
-                          (dispatch [:set-active-panel panel]))
-            :panel panel :content [ProjectCompensationPanel]})
+(def-panel :project? true :panel panel
+  :uri "/compensations" :params [project-id] :name project-compensations
+  :on-route (do (dispatch [::set :project-funds nil])
+                (dispatch [::set :compensation-amount nil])
+                (dispatch [::set :create-compensation-error nil])
+                (dispatch [:project/get-funds])
+                (check-pending-transactions)
+                (get-compensations! state)
+                (get-default-compensation! state)
+                (get-project-users-current-compensation! state)
+                (compensation-owed! state)
+                ;; TODO: run a timer to update pending status
+                #_ (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
+                     (util/continuous-update-until
+                      check-pending-transactions
+                      #(= @pending-funds 0)
+                      (constantly nil)
+                      check-pending-interval))
+                (dispatch [:set-active-panel panel]))
+  :content [ProjectCompensationPanel])

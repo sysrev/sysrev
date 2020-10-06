@@ -30,8 +30,8 @@
                ^{:key 2} [reviews/SDSReview]
                ^{:key 3} [reviews/MangiferinReview]]}]]))
 
-(def-panel {:uri "/data-extraction"
-            :on-route (do (dispatch [:set-active-panel panel])
-                          (load-data :identity)
-                          (reload :public-projects))
-            :panel panel :content [Panel]})
+(def-panel :uri "/data-extraction" :panel panel
+  :on-route (do (dispatch [:set-active-panel panel])
+                (load-data :identity)
+                (reload :public-projects))
+  :content [Panel])

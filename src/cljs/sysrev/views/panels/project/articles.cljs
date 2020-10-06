@@ -181,30 +181,30 @@
      [ArticleListPanel (get-context)]
      child]))
 
-(def-panel {:project? true
-            :uri "/articles" :params [project-id] :name articles
-            :on-route (let [panel [:project :project :articles]
-                            context (get-context)
-                            active-panel @(subscribe [:active-panel])
-                            panel-changed? (not= panel active-panel)
-                            data-item @(subscribe [::al/articles-query context])
-                            set-panel [:set-active-panel panel]
-                            have-project? @(subscribe [:have? [:project project-id]])
-                            load-params [:article-list/load-url-params context]
-                            sync-params #(al/sync-url-params context)
-                            set-transition [::al/set-recent-nav-action context :transition]]
-                        (cond (not have-project?)
-                              (do (dispatch [:require [:project project-id]])
-                                  (dispatch [:data/after-load [:project project-id]
-                                             :project-articles-project
-                                             (list load-params set-panel)]))
-                              panel-changed?
-                              (do (dispatch [:data/after-load data-item
-                                             :project-articles-route
-                                             (list set-panel #(js/setTimeout sync-params 30))])
-                                  (dispatch set-transition)
-                                  (al/require-list context)
-                                  (al/reload-list context))
-                              :else
-                              (dispatch load-params)))
-            :panel panel :content (fn [child] [Panel child])})
+(def-panel :project? true :panel panel
+  :uri "/articles" :params [project-id] :name articles
+  :on-route (let [panel [:project :project :articles]
+                  context (get-context)
+                  active-panel @(subscribe [:active-panel])
+                  panel-changed? (not= panel active-panel)
+                  data-item @(subscribe [::al/articles-query context])
+                  set-panel [:set-active-panel panel]
+                  have-project? @(subscribe [:have? [:project project-id]])
+                  load-params [:article-list/load-url-params context]
+                  sync-params #(al/sync-url-params context)
+                  set-transition [::al/set-recent-nav-action context :transition]]
+              (cond (not have-project?)
+                    (do (dispatch [:require [:project project-id]])
+                        (dispatch [:data/after-load [:project project-id]
+                                   :project-articles-project
+                                   (list load-params set-panel)]))
+                    panel-changed?
+                    (do (dispatch [:data/after-load data-item
+                                   :project-articles-route
+                                   (list set-panel #(js/setTimeout sync-params 30))])
+                        (dispatch set-transition)
+                        (al/require-list context)
+                        (al/reload-list context))
+                    :else
+                    (dispatch load-params)))
+  :content (fn [child] [Panel child]))

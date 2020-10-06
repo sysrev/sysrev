@@ -109,8 +109,8 @@
                ^{:key 2} [SDSReview]
                ^{:key 3} [GeneHunterReview]]}]]))
 
-(def-panel {:uri "/managed-review"
-            :on-route (do (dispatch [:set-active-panel panel])
-                          (load-data :identity)
-                          (reload :public-projects))
-            :panel panel :content [Panel]})
+(def-panel :uri "/managed-review" :panel panel
+  :on-route (do (dispatch [:set-active-panel panel])
+                (load-data :identity)
+                (reload :public-projects))
+  :content [Panel])

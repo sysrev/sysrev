@@ -1,9 +1,8 @@
 (ns sysrev.views.panels.terms-of-use
   (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.markdown :as md]
-            [sysrev.macros :refer-macros [with-loader sr-defroute setup-panel-state]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -34,8 +33,6 @@
       [:div.ui.segment.terms-of-use
        [md/RenderMarkdown content]])))
 
-(defmethod panel-content panel []
-  (fn [_child] [TermsOfUsePanel]))
-
-(sr-defroute terms-of-use "/terms-of-use" []
-             (dispatch [:set-active-panel panel]))
+(def-panel :uri "/terms-of-use" :panel panel
+  :on-route (dispatch [:set-active-panel panel])
+  :content [TermsOfUsePanel])

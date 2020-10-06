@@ -10,9 +10,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org :payment] {:state-var state
-                                          :get-fn panel-get :set-fn panel-set
-                                          :get-sub ::get    :set-event ::set})
+(setup-panel-state panel [:org :payment]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (defn OrgPayment [org-id]
   [Grid {:stackable true :columns 2}
@@ -21,14 +20,13 @@
      [Header {:as "h1"} "Enter your Payment Method"]
      [StripeCardInfo {:add-payment-fn #(run-action :stripe/add-payment-org org-id %)}]]]])
 
-(def-panel {:uri "/org/:org-id/payment" :params [org-id]
-            :on-route  (let [org-id (util/parse-integer org-id)]
-                         (org/on-navigate-org org-id panel)
-                         (dispatch [:reload [:org/default-source org-id]]))
-            :panel panel
-            :content (when-let [org-id @(subscribe [::org/org-id])]
-                       (with-loader [[:org/current-plan org-id]
-                                     [:org/available-plans org-id]
-                                     [:org/default-source org-id]] {}
-                         [OrgPayment org-id]))
-            :require-login true})
+(def-panel :uri "/org/:org-id/payment" :params [org-id] :panel panel
+  :on-route (let [org-id (util/parse-integer org-id)]
+              (org/on-navigate-org org-id panel)
+              (dispatch [:reload [:org/default-source org-id]]))
+  :content (when-let [org-id @(subscribe [::org/org-id])]
+             (with-loader [[:org/current-plan org-id]
+                           [:org/available-plans org-id]
+                           [:org/default-source org-id]] {}
+               [OrgPayment org-id]))
+  :require-login true)

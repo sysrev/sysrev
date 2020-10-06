@@ -15,7 +15,7 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:project :project :support] {:state-var state})
+(setup-panel-state panel [:project :project :support] :state state)
 
 (defn get-user-support-subscriptions
   "Get the current support subscriptions for user"

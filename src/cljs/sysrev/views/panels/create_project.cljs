@@ -7,7 +7,6 @@
             [sysrev.nav :refer [make-url]]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.views.base :refer [logged-out-content]]
             [sysrev.views.semantic :refer [Divider Dropdown Form Grid Input Row Column
                                            Button Icon Radio Header]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
@@ -15,9 +14,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:new-project] {:state-var state
-                                         :get-fn panel-get :set-fn panel-set
-                                         :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:new-project]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-action :create-project
   :uri (fn [_ _] "/api/create-project")
@@ -137,21 +135,20 @@
                :loading (or (loading/any-action-running?)
                             (loading/any-loading?))} "Create Project"]]]))
 
-(def-panel {:panel panel
-            :content (when-let [user-id @(subscribe [:self/user-id])]
-                       (with-loader [[:user/current-plan user-id]
-                                     [:user/orgs user-id]] {}
-                         [CreateProject]))
-            :logged-out-content (logged-out-content :logged-out)
-            :uri "/new"
-            :on-route (let [user-id @(subscribe [:self/user-id])]
-                        (when user-id
-                          (dispatch [:reload [:user/current-plan user-id]])
-                          (dispatch [:reload [:user/orgs user-id]]))
-                        (dispatch [:set-active-panel panel])
-                        (dispatch [::set :project-owner
-                                   (-> (some-> (util/get-url-params) :project_owner
-                                               parse-integer)
-                                       (or "current-user"))])
-                        (dispatch [::set :project-name nil])
-                        (dispatch [::set :public-access true]))})
+(def-panel :uri "/new" :panel panel
+  :on-route (let [user-id @(subscribe [:self/user-id])]
+              (when user-id
+                (dispatch [:reload [:user/current-plan user-id]])
+                (dispatch [:reload [:user/orgs user-id]]))
+              (dispatch [:set-active-panel panel])
+              (dispatch [::set :project-owner
+                         (-> (some-> (util/get-url-params) :project_owner
+                                     parse-integer)
+                             (or "current-user"))])
+              (dispatch [::set :project-name nil])
+              (dispatch [::set :public-access true]))
+  :content (when-let [user-id @(subscribe [:self/user-id])]
+             (with-loader [[:user/current-plan user-id]
+                           [:user/orgs user-id]] {}
+               [CreateProject]))
+  :require-login true)

@@ -128,7 +128,7 @@
          :<- [:panel-field [:transient :password] reset-panel]
          identity)
 
-(defn reset-password-panel []
+(defn- reset-password-panel []
   (let [reset-code @(subscribe [:reset-password/reset-code])
         email @(subscribe [:reset-password/email])
         submitted? @(subscribe [::reset-submitted?])
@@ -183,7 +183,7 @@
          (when-let [msg @(subscribe [:reset-password/error])]
            [:div.ui.negative.message msg])])]]))
 
-(defn request-password-reset-panel []
+(defn- request-password-reset-panel []
   (let [email @(subscribe [::request-email])
         submitted? @(subscribe [::request-submitted?])
         errors (when submitted?
@@ -226,24 +226,22 @@
         [:div.ui.green.message
          "An email has been sent with a link to reset your password."])]]))
 
-(def-panel {:uri "/request-password-reset"
-            :on-route (dispatch [:set-active-panel [:request-password-reset]])
-            :panel request-panel
-            :content [:div.ui.padded.segments.auto-margin
-                      {:style {:max-width "500px" :margin-top "10px"}}
-                      [:h3.ui.top.attached.header "Request Password Reset"]
-                      [:div.ui.bottom.attached.segment
-                       [:div.ui.orange.message "You must be logged out before using this."]]]
-            :logged-out-content [request-password-reset-panel]})
+(def-panel :uri "/request-password-reset" :panel request-panel
+  :on-route (dispatch [:set-active-panel [:request-password-reset]])
+  :content [:div.ui.padded.segments.auto-margin
+            {:style {:max-width "500px" :margin-top "10px"}}
+            [:h3.ui.top.attached.header "Request Password Reset"]
+            [:div.ui.bottom.attached.segment
+             [:div.ui.orange.message "You must be logged out before using this."]]]
+  :logged-out-content [request-password-reset-panel])
 
-(def-panel {:uri "/reset-password/:reset-code" :params [reset-code]
-            :on-route (do (dispatch [:set-active-panel [:reset-password]])
-                          (dispatch [:reset-password/reset-code reset-code])
-                          (dispatch [:fetch [:password-reset reset-code]]))
-            :panel reset-panel
-            :content [:div.ui.padded.segments.auto-margin
-                      {:style {:max-width "500px" :margin-top "10px"}}
-                      [:h3.ui.top.attached.header "Reset Password"]
-                      [:div.ui.bottom.attached.segment
-                       [:div.ui.orange.message "You must be logged out before using this."]]]
-            :logged-out-content [reset-password-panel]})
+(def-panel :uri "/reset-password/:reset-code" :params [reset-code] :panel reset-panel
+  :on-route (do (dispatch [:set-active-panel [:reset-password]])
+                (dispatch [:reset-password/reset-code reset-code])
+                (dispatch [:fetch [:password-reset reset-code]]))
+  :content [:div.ui.padded.segments.auto-margin
+            {:style {:max-width "500px" :margin-top "10px"}}
+            [:h3.ui.top.attached.header "Reset Password"]
+            [:div.ui.bottom.attached.segment
+             [:div.ui.orange.message "You must be logged out before using this."]]]
+  :logged-out-content [reset-password-panel])

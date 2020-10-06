@@ -1,15 +1,14 @@
 (ns sysrev.views.panels.promotion
   (:require [cljs-time.core :as time]
             [re-frame.core :refer [dispatch]]
-            [sysrev.views.base :refer [panel-content]]
-            [sysrev.macros :refer-macros [sr-defroute setup-panel-state]]))
+            [sysrev.macros :refer-macros [def-panel setup-panel-state]]))
 
 ;; for clj-kondo
 (declare panel)
 
 (setup-panel-state panel [:promotion])
 
-(defn teampro-promotion []
+(defn- TeamProPromotion []
   [:div.ui.aligned.segment {:style {:font-size "large" :line-height "18pt" :width "800px"}}
    [:div {:style {:width "700px"}}
     [:h1 "Sysrev Team Pro - $500 for Reviews"]
@@ -33,15 +32,15 @@
     [:iframe {:src "https://docs.google.com/forms/d/e/1FAIpQLSfwwGo-rbzxZAurT3CmW0pdpcw82a3kYSQbFpsJ41-o5zpJDw/viewform?embedded=true"
               :width "640" :height "1100" :frameBorder "0" :marginHeight "0" :marginWidth "0"} "Loading…"]]])
 
-(defn promotion-expired []
+(defn- PromotionExpired []
   [:div.ui.center.aligned.segment>h1.ui.center.aligned.header
    "This Promotion has expired"])
 
-(defmethod panel-content [:promotion] []
-  (fn [_child]
-    (if (< (time/now) (time/date-time 2020 9 1))
-      [teampro-promotion]
-      [promotion-expired])))
+(defn- Panel []
+  (if (< (time/now) (time/date-time 2020 9 1))
+    [TeamProPromotion]
+    [PromotionExpired]))
 
-(sr-defroute promotion "/promotion" []
-             (dispatch [:set-active-panel panel]))
+(def-panel :uri "/promotion" :panel panel
+  :on-route (dispatch [:set-active-panel panel])
+  :content [Panel])

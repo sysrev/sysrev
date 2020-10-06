@@ -10,9 +10,8 @@
 ;; for clj-kondo
 (declare panel state panel-get panel-set)
 
-(setup-panel-state panel [:paypal] {:state-var state
-                                    :get-fn panel-get :set-fn panel-set
-                                    :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:paypal] :state state
+                   :get [panel-get ::get] :set [panel-set ::set])
 
 (def minimum-amount "$1")
 (def ^:unused paypal-env

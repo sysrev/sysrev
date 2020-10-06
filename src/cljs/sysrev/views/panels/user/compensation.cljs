@@ -2,21 +2,18 @@
   (:require ["moment" :as moment]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.accounting :as accounting]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :refer [def-data load-data]]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as sui :refer
              [Grid Row Column Segment Header ListUI ListItem]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:user :compensation] {:state-var state
-                                                :get-fn panel-get :set-fn panel-set
-                                                :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :compensation])
 
 (def-data :user/payments-owed
   :uri (fn [user-id] (str "/api/user/" user-id "/payments-owed"))
@@ -52,7 +49,7 @@
           [Column {:width 8}]
           [Column {:width 3 :align "right"} (accounting/cents->string total-owed)]]]])
 
-(defn PaymentsOwed []
+(defn- PaymentsOwed []
   (when-let [user-id @(subscribe [:self/user-id])]
     [Segment
      [Header {:as "h4" :dividing true} "Payments Owed"]
@@ -79,7 +76,7 @@
                                       (.format "h:mm A")))]
           [Column {:width 3 :align "right"} (accounting/cents->string total-paid)]]]])
 
-(defn PaymentsPaid []
+(defn- PaymentsPaid []
   (when-let [user-id @(subscribe [:self/user-id])]
     (with-loader [[:user/payments-paid user-id]] {}
       (when-let [payments (seq @(subscribe [:user/payments-paid]))]
@@ -88,21 +85,17 @@
          [ListUI {:divided true :relaxed true}
           (doall (map (partial PaymentPaid) payments))]]))))
 
-(defn UserCompensation []
+(defn- UserCompensation []
   [:div
    [PaymentsOwed]
    [PaymentsPaid]
    [UserSupportSubscriptions]])
 
-(defmethod panel-content panel []
-  (fn [_child] [UserCompensation]))
-
-(defmethod logged-out-content panel []
-  (logged-out-content :logged-out))
-
-(sr-defroute user-compensation "/user/:user-id/compensation" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [:data/load [:user/payments-owed user-id]])
-               (dispatch [:data/load [:user/payments-paid user-id]])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/compensation" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (load-data :user/payments-owed user-id)
+              (load-data :user/payments-paid user-id)
+              (dispatch [:set-active-panel panel]))
+  :content [UserCompensation]
+  :require-login true)

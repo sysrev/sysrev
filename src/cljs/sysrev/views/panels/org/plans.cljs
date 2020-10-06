@@ -20,11 +20,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org-plans] {:state-var state
-                                       :get-fn panel-get
-                                       :set-fn panel-set
-                                       :get-sub ::get
-                                       :set-event ::set})
+(setup-panel-state panel [:org-plans]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-data :org/available-plans
   :loaded? (fn [db] (-> (get-in db [:data :plans])
@@ -251,14 +248,13 @@
                   [DowngradePlan org-id]
                   [Loader {:active true :inline "centered"}]))))
 
-(def-panel {:uri "/org/:org-id/plans" :params [org-id]
-            :on-route (let [org-id (util/parse-integer org-id)]
-                        (org/on-navigate-org org-id panel)
-                        (dispatch [:reload [:org/default-source org-id]]))
-            :panel panel
-            :content (when-let [org-id @(subscribe [::org/org-id])]
-                       (with-loader [[:org/current-plan org-id]
-                                     [:org/available-plans org-id]
-                                     [:org/default-source org-id]] {}
-                         [OrgPlansContent org-id]))
-            :require-login true})
+(def-panel :uri "/org/:org-id/plans" :params [org-id] :panel panel
+  :on-route (let [org-id (util/parse-integer org-id)]
+              (org/on-navigate-org org-id panel)
+              (dispatch [:reload [:org/default-source org-id]]))
+  :content (when-let [org-id @(subscribe [::org/org-id])]
+             (with-loader [[:org/current-plan org-id]
+                           [:org/available-plans org-id]
+                           [:org/default-source org-id]] {}
+               [OrgPlansContent org-id]))
+  :require-login true)

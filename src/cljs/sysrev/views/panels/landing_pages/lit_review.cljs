@@ -27,8 +27,8 @@
                ^{:key 2} [reviews/FireAustralianReview]
                ^{:key 3} [reviews/CancerHallmarkReview]]}]]))
 
-(def-panel {:uri "/lit-review"
-            :on-route (do (dispatch [:set-active-panel panel])
-                          (load-data :identity)
-                          (reload :public-projects))
-            :panel panel :content [Panel]})
+(def-panel :uri "/lit-review" :panel panel
+  :on-route (do (dispatch [:set-active-panel panel])
+                (load-data :identity)
+                (reload :public-projects))
+  :content [Panel])

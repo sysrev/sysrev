@@ -8,12 +8,11 @@
             [sysrev.markdown :as markdown]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.user.profile :refer [ProfileAvatar]]
             [sysrev.views.semantic :refer
              [Form Input Loader Divider Grid Row Column Menu MenuItem Label Pagination]]
             [sysrev.util :as util]
-            [sysrev.macros :refer-macros [sr-defroute]]))
+            [sysrev.macros :refer-macros [def-panel]]))
 
 (def state (r/atom {:search-results {}
                     :search-value ""}))
@@ -194,12 +193,11 @@
                             [:a {:href (search-url "genes")} "\"genes\""]]])])))]]]]))
     :component-did-mount (fn [_this] (site-search q p))}))
 
-(defmethod panel-content [:search] []
-  (fn [_child]
-    [SearchResults {:q (uri-utils/getParamValue @active-route "q")
-                    :p (uri-utils/getParamValue @active-route "p")
-                    :type (uri-utils/getParamValue @active-route "type")}]))
+(defn- Panel []
+  [SearchResults {:q (uri-utils/getParamValue @active-route "q")
+                  :p (uri-utils/getParamValue @active-route "p")
+                  :type (uri-utils/getParamValue @active-route "type")}])
 
-(sr-defroute
- search "/search" []
- (dispatch [:set-active-panel [:search]]))
+(def-panel :uri "/search" :panel [:search]
+  :on-route (dispatch [:set-active-panel [:search]])
+  :content [Panel])

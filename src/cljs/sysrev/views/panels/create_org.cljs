@@ -15,9 +15,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:orgs] {:state-var state
-                                  :get-fn panel-get :set-fn panel-set
-                                  :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:orgs]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (defn- org-ajax-active? []
   (or (loading/any-action-running? :only :org/create)
@@ -153,13 +152,12 @@
         [Header {:as "h4" :dividing true} "Create a New Organization"]
         [CreateOrgForm]]])))
 
-(def-panel {:uri "/create/org"
-            :on-route (do (dispatch [:set-active-panel panel])
-                          (dispatch [:data/load [:org/available-plans]])
-                          (dispatch [::set :params (util/get-url-params)])
-                          (dispatch [::set :new-org nil])
-                          (dispatch [::set :create-org-error nil]))
-            :panel panel
-            :content (with-loader [[:org/available-plans]] {}
-                       [SubscribeOrgPanel])
-            :require-login true})
+(def-panel :uri "/create/org" :panel panel
+  :on-route (do (dispatch [:set-active-panel panel])
+                (dispatch [:data/load [:org/available-plans]])
+                (dispatch [::set :params (util/get-url-params)])
+                (dispatch [::set :new-org nil])
+                (dispatch [::set :create-org-error nil]))
+  :content (with-loader [[:org/available-plans]] {}
+             [SubscribeOrgPanel])
+  :require-login true)

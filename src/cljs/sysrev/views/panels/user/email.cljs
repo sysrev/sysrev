@@ -3,18 +3,16 @@
             [ajax.core :refer [GET PUT POST DELETE]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label]]
             [sysrev.util :as util :refer [index-by parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:user :email] {:state-var state
-                                         :get-fn panel-get :set-fn panel-set
-                                         :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :email]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (defn get-email-addresses! []
   (let [email-addresses (r/cursor state [:email :addresses])]
@@ -220,37 +218,29 @@
         nil)})))
 
 (defn EmailAddresses []
-  (r/create-class
-   {:reagent-render (fn []
-                      (let [email-addresses (vals @(r/cursor state [:email :addresses]))
-                            primary-email-address (->> email-addresses (filter :principal))
-                            rest-email-addresses (->> email-addresses
-                                                      (filter (comp not :principal))
-                                                      (sort-by :email))
-                            email-object-fn (fn [email-object] ^{:key (:id email-object)}
-                                              [s/ListItem [EmailAddress email-object]])]
-                        [s/ListUI {:divided true :relaxed true}
-                         (when (seq primary-email-address)
-                           (doall (map email-object-fn primary-email-address)))
-                         (when (seq rest-email-addresses)
-                           (doall (map email-object-fn rest-email-addresses)))
-                         [s/ListItem [CreateEmailAddress]]]))
-    :get-initial-state (fn [_this]
-                         (get-email-addresses!))}))
+  (let [email-addresses (vals @(r/cursor state [:email :addresses]))
+        primary-email-address (->> email-addresses (filter :principal))
+        rest-email-addresses (->> email-addresses
+                                  (filter (comp not :principal))
+                                  (sort-by :email))
+        email-object-fn (fn [email-object] ^{:key (:id email-object)}
+                          [s/ListItem [EmailAddress email-object]])]
+    [s/ListUI {:divided true :relaxed true}
+     (when (seq primary-email-address)
+       (doall (map email-object-fn primary-email-address)))
+     (when (seq rest-email-addresses)
+       (doall (map email-object-fn rest-email-addresses)))
+     [s/ListItem [CreateEmailAddress]]]))
 
-(defn UserEmailSettings []
+(defn- UserEmailSettings []
   [Segment
    [Header {:as "h4" :dividing true} "Email"]
    [EmailAddresses]])
 
-(defmethod panel-content panel []
-  (fn [_child] [UserEmailSettings]))
-
-(defmethod logged-out-content panel []
-  (logged-out-content :logged-out))
-
-(sr-defroute user-email "/user/:user-id/email" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (get-email-addresses!)
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/email" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (get-email-addresses!)
+              (dispatch [:set-active-panel panel]))
+  :content [UserEmailSettings]
+  :require-login true)

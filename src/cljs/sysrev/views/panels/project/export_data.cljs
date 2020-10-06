@@ -11,9 +11,7 @@
 (declare panel state)
 
 (setup-panel-state panel [:project :project :export-data]
-                   {:state-var state
-                    :get-fn panel-get :set-fn panel-set
-                    :get-sub ::get    :set-event ::set})
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-action :project/generate-export
   :uri (fn [project-id export-type _]
@@ -194,8 +192,8 @@
      [ExportGroupLabelCSV]]]
    child])
 
-(def-panel {:project? true
-            :uri "/export" :params [project-id] :name project-export
-            :on-route (do (dispatch [::set [] {}])
-                          (dispatch [:set-active-panel panel]))
-            :panel panel :content (fn [child] [Panel child])})
+(def-panel :project? true :panel panel
+  :uri "/export" :params [project-id] :name project-export
+  :on-route (do (dispatch [::set [] {}])
+                (dispatch [:set-active-panel panel]))
+  :content (fn [child] [Panel child]))

@@ -41,10 +41,9 @@
                ^{:key 2} [reviews/FireAustralianReview]
                ^{:key 3} [reviews/CancerHallmarkReview]]}]]))
 
-(def-panel {:uri "/"
-            :on-route (do (dispatch [:set-active-panel panel])
-                          (load-data :identity)
-                          (reload :public-projects))
-            :panel panel
-            :content [PanelLoggedIn]
-            :logged-out-content [PanelLoggedOut]})
+(def-panel :uri "/" :panel panel
+  :on-route (do (dispatch [:set-active-panel panel])
+                (load-data :identity)
+                (reload :public-projects))
+  :content [PanelLoggedIn]
+  :logged-out-content [PanelLoggedOut])

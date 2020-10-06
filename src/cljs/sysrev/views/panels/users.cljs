@@ -8,9 +8,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:users] {:state-var state
-                                   :get-fn panel-get :set-fn panel-set
-                                   :get-sub ::get    :set-event ::set})
+(setup-panel-state panel [:users]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-data :public-reviewers
   :loaded?  (fn [db] (-> (get-in db [:data])
@@ -38,10 +37,9 @@
                   [User user]))
          [Message "There currently are no public reviewers."])))])
 
-(def-panel {:uri "/users"
-            :on-route (do (dispatch [::set [] {}])
-                          (load-data :public-reviewers)
-                          (dispatch [:set-active-panel panel]))
-            :panel panel
-            :content [:div#users-content [AllUsers]]
-            :logged-out-content [AllUsers]})
+(def-panel :uri "/users" :panel panel
+  :on-route (do (dispatch [::set [] {}])
+                (load-data :public-reviewers)
+                (dispatch [:set-active-panel panel]))
+  :content [:div#users-content [AllUsers]]
+  :logged-out-content [AllUsers])

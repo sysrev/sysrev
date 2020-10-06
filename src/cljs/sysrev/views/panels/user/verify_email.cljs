@@ -3,16 +3,15 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :as nav]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer [Message]]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
-(declare panel panel-get panel-set)
+(declare panel)
 
-(setup-panel-state panel [:user :verify-email] {:get-fn panel-get :set-fn panel-set
-                                                :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :verify-email]
+                   :get [panel-get ::get] :set [panel-set ::set])
 
 (defn- do-verify-redirect [user-id]
   (-> #(nav/nav (str "/user/" user-id "/email"))
@@ -31,7 +30,7 @@
                        (panel-set :verify-error (or (:message error)
                                                     "An error occurred while verifying email.")))}))
 
-(defn VerifyEmail []
+(defn- VerifyEmail []
   ;; wait for [:identity] to avoid anti-forgery token error
   (with-loader [[:identity]] {}
     (let [{:keys [code verify-message verify-error]} @(subscribe [::get])
@@ -46,11 +45,9 @@
        [:div {:style {:margin-top "1em"}}
         "Redirecting to email settings..."]])))
 
-(defmethod panel-content panel []
-  (fn [_child] [VerifyEmail]))
-
-(sr-defroute user-email-verify "/user/:user-id/email/:code" [user-id code]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [::set [] {:code code}])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/email/:code" :params [user-id code] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (dispatch [::set [] {:code code}])
+              (dispatch [:set-active-panel panel]))
+  :content [VerifyEmail])

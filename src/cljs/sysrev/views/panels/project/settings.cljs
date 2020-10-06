@@ -16,9 +16,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:project :project :settings] {:state-var state
-                                                        :get-fn panel-get
-                                                        :set-fn panel-set})
+(setup-panel-state panel [:project :project :settings]
+                   :state state :get [panel-get] :set [panel-set])
 
 (reg-event-db :project-settings/reset-state! #(panel-set % nil {}))
 
@@ -645,8 +644,8 @@
      [ProjectExtraActions]
      [DeveloperActions]]]])
 
-(def-panel {:project? true
-            :uri "/settings" :params [project-id] :name project-settings
-            :on-route (do (reload :project project-id)
-                          (dispatch [:set-active-panel panel]))
-            :panel panel :content [Panel]})
+(def-panel :project? true :panel panel
+  :uri "/settings" :params [project-id] :name project-settings
+  :on-route (do (reload :project project-id)
+                (dispatch [:set-active-panel panel]))
+  :content [Panel])
