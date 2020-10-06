@@ -3,4 +3,4 @@ set -eu
 
 config="$(cat carve-config.edn | sed -Ee s/':dry-run\? true'/':dry-run\? false'/g)"
 
-clojure -A:carve --opts "$config"
+clojure -M:carve --opts "$config"

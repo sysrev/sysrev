@@ -3,4 +3,4 @@ set -eu
 
 config="$(cat carve-config.edn)"
 
-clojure -A:carve --opts "$config"
+clojure -M:carve --opts "$config"

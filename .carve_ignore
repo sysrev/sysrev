@@ -65,6 +65,7 @@ sysrev.util/ensure-dom-elt-visible-soon
 sysrev.util/log
 sysrev.util/log-warn
 sysrev.util/number-to-word
+sysrev.util/read-sub
 sysrev.views.annotator/AddAnnotation
 sysrev.views.article-list.filters/ResetReloadForm
 sysrev.views.components.core/three-state-selection-icons

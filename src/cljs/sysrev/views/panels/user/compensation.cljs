@@ -11,7 +11,7 @@
             [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
-(declare panel state)
+(declare panel)
 
 (setup-panel-state panel [:user :compensation])
 
