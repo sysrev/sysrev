@@ -1,7 +1,6 @@
 (ns sysrev.test.all
   (:require sysrev.test.core
             sysrev.test.import
-            sysrev.test.db.project
             sysrev.test.api
             sysrev.test.browser.core
             sysrev.test.browser.analytics
