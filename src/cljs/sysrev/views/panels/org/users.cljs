@@ -9,7 +9,8 @@
             [sysrev.views.semantic :as S :refer
              [Table TableBody TableRow TableCell Search Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
-              Input Message MessageHeader]]
+              Input]]
+            [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.panels.org.main :as org]
             [sysrev.util :as util :refer [wrap-user-event]]
@@ -144,10 +145,7 @@
                                              :positive true
                                              :disabled (nil? @current-user-id)}
                                      "Add Member"])}])}]]
-        (when (seq @error)
-          [Message {:negative true :onDismiss #(reset! error nil)}
-           [MessageHeader {:as "h4"} "Add Member Error"]
-           @error])]]]]))
+        [CursorMessage error {:negative true}]]]]]))
 
 (defn- RemoveModal [org-id]
   (let [modal-open (r/cursor state [:remove-user :open])
@@ -171,10 +169,7 @@
             [UserPublicProfileLink {:user-id @user-id :display-name @username}]]]]]
         [Button {:color "orange" :disabled running?}
          "Remove members"]
-        (when (seq @error)
-          [Message {:negative true :onDismiss #(reset! error nil)}
-           [MessageHeader {:as "h4"} "Remove member error"]
-           @error])]]]]))
+        [CursorMessage error {:negative true}]]]]]))
 
 (defn- ChangeRoleModal [org-id]
   (let [modal-open (r/cursor state [:change-role :open])
@@ -210,10 +205,7 @@
                  :type "submit", :color "orange"
                  :disabled (or (nil? @new-role) running?)}
          "Change Role"]
-        (when (seq @error)
-          [Message {:negative true :onDismiss #(reset! error nil)}
-           [MessageHeader {:as "h4"} "Change role error"]
-           @error])]]]]))
+        [CursorMessage error {:negative true}]]]]]))
 
 (defn- UserRow [{:keys [user-id username permissions]} org-id]
   (let [self-id @(subscribe [:self/user-id])

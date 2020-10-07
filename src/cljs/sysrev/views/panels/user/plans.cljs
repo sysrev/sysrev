@@ -7,8 +7,8 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
-            [sysrev.views.semantic :as s :refer
-             [Segment SegmentGroup Grid  Column Row ListUI ListItem Button Loader Radio]]
+            [sysrev.views.semantic :as S :refer
+             [Segment SegmentGroup Grid Column Row ListUI ListItem Button Loader Radio]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.views.panels.pricing :refer [FreeBenefits ProBenefits]]
             [sysrev.util :as util]
@@ -164,8 +164,8 @@
                                              :loading @changing-plan?}
                            "Unsubscribe"]]
                          (when @error-message
-                           [s/Message {:negative true}
-                            [s/MessageHeader "Change Plan Error"]
+                           [S/Message {:negative true}
+                            [S/MessageHeader "Change Plan Error"]
                             [:p @error-message]])]]]]]]]])
       :get-initial-state (fn [_this]
                            (reset! changing-plan? false)
@@ -244,8 +244,8 @@
                     [:p {:style {:margin-top "1em"}}
                      "By clicking 'Upgrade Plan' you authorize Insilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]])
                  (when @error-message
-                   [s/Message {:negative true}
-                    [s/MessageHeader "Change Plan Error"]
+                   [S/Message {:negative true}
+                    [S/MessageHeader "Change Plan Error"]
                     [:p @error-message]])]]]])]]]))))
 
 (defn- on-mount-user-plans []

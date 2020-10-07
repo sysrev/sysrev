@@ -8,7 +8,8 @@
             [reagent.dom :refer [dom-node]]
             [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe]]
-            [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]))
+            [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]
+            [sysrev.views.semantic :refer [Message]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -638,3 +639,8 @@
                                    (:style props)
                                    {:min-width width :max-width width})})
              tooltip-content]))))
+
+(defn CursorMessage [cursor & [props]]
+  (when (seq @cursor)
+    [Message (merge props {:on-dismiss #(reset! cursor nil)})
+     (str @cursor)]))

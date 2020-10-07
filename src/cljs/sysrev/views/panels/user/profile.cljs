@@ -14,8 +14,9 @@
             [sysrev.state.nav :refer [user-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select
+             [Segment Header Grid Row Column Icon Image Message Button Select
               Modal ModalContent ModalHeader ModalDescription]]
+            [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.util :as util :refer [parse-integer wrap-prevent-default]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
@@ -153,11 +154,7 @@
                 [Button {:on-click #(reset! project-id nil)
                          :disabled (or @loading? @retrieving-invitations?)
                          :size "tiny"} "Cancel"]])
-             (when-not (str/blank? @error-message)
-               [Message {:onDismiss #(reset! error-message nil)
-                         :negative true}
-                [MessageHeader "Invitation Error"]
-                @error-message])])))
+             [CursorMessage error-message {:negative true}]])))
       :get-initial-state
       (fn [_this]
         (reset! loading? false)
@@ -311,19 +308,17 @@
 
 (defn UserProfile [user-id]
   (let [{:keys [introduction] :as user} @(subscribe [:user/info user-id])
-        error-message @(subscribe [::get [:user user-id :info-error]])
+        info-error (r/cursor state [:user user-id :info-error])
         self? @(subscribe [:user-panel/self?])]
     (dispatch [:require [:user/info user-id]])
-    (if (str/blank? error-message)
-      (when user
-        [:div
-         [ProfileSettings user]
-         [Introduction {:mutable? self?
-                        :introduction introduction
-                        :user-id user-id}]])
-      [Message {:negative true}
-       [MessageHeader "Error Retrieving User"]
-       error-message])))
+    [:div
+     (when (and user (str/blank? @info-error))
+       [:div
+        [ProfileSettings user]
+        [Introduction {:mutable? self?
+                       :introduction introduction
+                       :user-id user-id}]])
+     [CursorMessage info-error {:negative true}]]))
 
 (defn UserProfilePanel []
   (when-let [user-id @(subscribe [:user-panel/user-id])]

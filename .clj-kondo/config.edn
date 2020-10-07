@@ -73,6 +73,7 @@
                                         sysrev.chartjs                 chartjs
                                         sysrev.data.core               data
                                         sysrev.loading                 loading
+                                        sysrev.views.semantic          S
 ;;; sysrev test namespaces
                                         clj-webdriver.taxi             taxi
                                         sysrev.test.core               test

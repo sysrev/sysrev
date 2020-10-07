@@ -4,7 +4,7 @@
             [sysrev.accounting :as accounting]
             [sysrev.data.core :refer [def-data load-data]]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.views.semantic :as sui :refer
+            [sysrev.views.semantic :as S :refer
              [Grid Row Column Segment Header ListUI ListItem]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.util :as util :refer [parse-integer]]

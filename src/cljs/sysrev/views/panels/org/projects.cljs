@@ -6,11 +6,12 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading :refer [any-loading?]]
             [sysrev.state.nav :refer [project-uri]]
+            [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.create-project :refer [NewProjectButton]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
             [sysrev.views.panels.org.main :as org]
-            [sysrev.views.semantic :refer [Message MessageHeader Icon Loader Table TableHeader
+            [sysrev.views.semantic :refer [Message Icon Loader Table TableHeader
                                            TableHeaderCell TableBody TableRow TableCell]]
             [sysrev.util :as util :refer [index-by]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
@@ -112,10 +113,7 @@
         [NewProjectButton {:project-owner org-id}]])
      (when-not loading?
        [OrgProjectList @(subscribe [:org/projects org-id])])
-     (when (seq @error)
-       [Message {:negative true :onDismiss #(reset! error "")}
-        [MessageHeader {:as "h4"} "Get Group Projects error"]
-        @error])
+     [CursorMessage error {:negative true}]
      (when loading?
        [Loader {:active true :inline "centered"}])]))
 

@@ -1,7 +1,9 @@
 (ns sysrev.views.panels.users
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :refer [def-data load-data]]
-            [sysrev.views.semantic :refer [Segment Message MessageHeader]]
+            [sysrev.views.semantic :refer [Segment Message]]
+            [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.user.profile :refer [User]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
@@ -24,18 +26,16 @@
 (reg-sub :public-reviewers #(get-in % [:data :public-reviewers]))
 
 (defn AllUsers []
-  [:div
-   [Segment [:h4 "Users"]]
-   (when-let [msg @(subscribe [::get :error-msg])]
-     [Message {:negative true :onDismiss #(dispatch [::set :error-msg nil])}
-      [MessageHeader "Retrieving Users Error"]
-      msg])
-   (with-loader [[:public-reviewers]] {}
-     (let [reviewers @(subscribe [:public-reviewers])]
-       (if (seq reviewers)
-         (doall (for [user reviewers] ^{:key (:user-id user)}
-                  [User user]))
-         [Message "There currently are no public reviewers."])))])
+  (let [error-msg (r/cursor state [:error-msg])]
+    [:div
+     [Segment [:h4 "Users"]]
+     [CursorMessage error-msg {:negative true}]
+     (with-loader [[:public-reviewers]] {}
+       (let [reviewers @(subscribe [:public-reviewers])]
+         (if (seq reviewers)
+           (doall (for [user reviewers] ^{:key (:user-id user)}
+                    [User user]))
+           [Message "There currently are no public reviewers."])))]))
 
 (def-panel :uri "/users" :panel panel
   :on-route (do (dispatch [::set [] {}])

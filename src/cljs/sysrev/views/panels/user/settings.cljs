@@ -1,11 +1,10 @@
 (ns sysrev.views.panels.user.settings
-  (:require [clojure.string :as str]
+  (:require [ajax.core :refer [GET PUT]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.views.components.core :refer [selection-dropdown]]
-            [ajax.core :refer [GET PUT]]
-            [sysrev.views.semantic :as sui :refer
-             [Segment Header Grid Column Radio Message MessageHeader]]
+            [sysrev.views.semantic :as S :refer
+             [Segment Header Grid Column Radio Message]]
+            [sysrev.views.components.core :refer [selection-dropdown CursorMessage]]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
@@ -196,10 +195,7 @@
                      :checked @active?
                      :disabled (or (not verified) @loading?)
                      :on-change (fn [_e] (put-opt-in!))}]
-             (when-not (str/blank? @error-message)
-               [Message {:negative true, :onDismiss #(reset! error-message nil)}
-                [MessageHeader "Opt-In Error"]
-                @error-message])])))
+             [CursorMessage error-message {:negative true}]])))
       :get-initial-state
       (fn [_this]
         (reset! loading? true)

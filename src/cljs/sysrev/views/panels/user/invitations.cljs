@@ -1,11 +1,13 @@
 (ns sysrev.views.panels.user.invitations
   (:require ["moment" :as moment]
+            [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading :refer [any-action-running?]]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.views.semantic :refer [Segment Button Message MessageHeader Grid Row Column]]
+            [sysrev.views.semantic :refer [Segment Button Grid Row Column]]
+            [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.util :as util :refer [index-by space-join parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
@@ -44,7 +46,7 @@
 (defn- Invitation [{:keys [id project-id project-name description accepted
                            active created updated]}]
   (let [self-id @(subscribe [:self/user-id])
-        error-msg @(subscribe [::get :update-error])
+        update-error (r/cursor state [:update-error])
         running? (any-action-running? :only :user/update-invitation)]
     [Segment
      [Grid
@@ -69,11 +71,7 @@
                  :color "orange"
                  :disabled running?
                  :size "mini"} "Decline"]])
-     (when (seq error-msg)
-       [Message {:onDismiss #(dispatch [::set :update-error nil])
-                 :negative true}
-        [MessageHeader "Invitation Error"]
-        error-msg])]))
+     [CursorMessage update-error {:negative true}]]))
 
 (defn UserInvitations []
   (when-let [self-id @(subscribe [:self/user-id])]

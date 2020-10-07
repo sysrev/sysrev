@@ -7,9 +7,10 @@
             [sysrev.nav :as nav :refer [nav]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util]
+            [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.org.plans :refer [Unlimited ToggleInterval TeamProPlanPrice]]
-            [sysrev.views.semantic :refer [Form FormField Button Segment Header Input Message
-                                           MessageHeader Grid Row Column ListUI ListItem Loader]]
+            [sysrev.views.semantic :refer [Form FormField Button Segment Header Input
+                                           Grid Row Column ListUI ListItem Loader]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
@@ -80,10 +81,7 @@
                :on-change (util/on-event-value
                            #(do (reset! create-org-error nil)
                                 (reset! new-org %)))}]]]
-     (when (seq @create-org-error)
-       [Message {:negative true :on-dismiss #(reset! create-org-error nil)}
-        [MessageHeader {:as "h4"} "Create Org Error"]
-        @create-org-error])]))
+     [CursorMessage create-org-error {:negative true}]]))
 
 (defn CreateOrg []
   [Segment {:secondary true}
@@ -92,7 +90,7 @@
 
 (defn- CreateOrgPro [new-org-name]
   (let [available-plans @(subscribe [:org/available-plans])
-        {:keys [plan-error-message]} @(subscribe [::get])
+        plan-error-message (r/cursor state [:plan-error-message])
         new-plan (or @(subscribe [::get :new-plan])
                      (find-first #(= (:nickname %) "Unlimited_Org")
                                  available-plans))]
@@ -122,10 +120,7 @@
                :submit-button-text "Subscribe To Plan"}]
              [:p {:style {:margin-top "1em"}}
               "By clicking 'Subscribe To Plan' you authorize Insilica LLC to send instructions to the financial institution that issued your card to take payments from your card account in accordance with the above terms."]
-             (when plan-error-message
-               [Message {:negative true}
-                [MessageHeader "Change Plan Error"]
-                [:p plan-error-message]])]]]]]]])))
+             [CursorMessage plan-error-message {:negative true}]]]]]]]])))
 
 (defn- SubscribeOrgPanel []
   (let [{:keys [panel-type plan new-org-name]} @(subscribe [::get :params])
@@ -136,10 +131,7 @@
         "Next, enter payment information and choose a payment interval for your team"]
        [:div {:style {:margin-bottom "1em"}}
         [Header {:as "h2"} (str "New Team: ") new-org-name]
-        (when @create-org-error
-          [Message {:negative true :onDismiss #(reset! create-org-error nil)}
-           [MessageHeader {:as "h4"} "Create Org Error"]
-           @create-org-error])]
+        [CursorMessage create-org-error {:negative true}]]
        [CreateOrgPro new-org-name]]
       [:div
        (when-not (= plan "basic")

@@ -4,7 +4,7 @@
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [sysrev.accounting :as acct]
             [sysrev.paypal :as paypal]
-            [sysrev.views.semantic :as s :refer [Button Dropdown]]
+            [sysrev.views.semantic :as S :refer [Button Dropdown]]
             [sysrev.util :as util :refer [index-by when-test]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
@@ -260,7 +260,7 @@
                 :disabled (or @creating? @loading?)}
         "Create Rate"]]]
      (when @error-message
-       [s/Message {:negative true} @error-message])]))
+       [S/Message {:negative true} @error-message])]))
 
 (defn- ProjectRates []
   (let [project-compensations (->> (vals (:project-compensations @state))
