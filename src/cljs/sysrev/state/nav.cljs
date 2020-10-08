@@ -129,16 +129,17 @@
                 (let [active-id @(subscribe [:active-project-id])
                       project-id (or project-id active-id)
                       active-url-id @(subscribe [:active-project-url])
-                      active-full-id (when active-url-id
+                      active-full-id (when (and active-url-id (= project-id active-id))
                                        @(subscribe [:lookup-project-url active-url-id]))
                       {:keys [user-id org-id]} active-full-id
-                      project-url-id (or (->> @(subscribe [:project/active-url-id project-id])
-                                              (when-test string?))
-                                         project-id)]
+                      #_ project-url-id
+                      #_ (or (->> @(subscribe [:project/active-url-id project-id])
+                                  (when-test string?))
+                             project-id)]
                   (str (cond user-id  (str "/u/" user-id)
                              org-id   (str "/o/" org-id)
                              :else    "")
-                       "/p/" project-url-id (or suburi ""))))))
+                       "/p/" project-id (or suburi ""))))))
 
 (defn project-uri [project-id & [suburi]]
   @(subscribe [:project/uri project-id suburi]))

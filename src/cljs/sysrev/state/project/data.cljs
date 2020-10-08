@@ -15,12 +15,21 @@
              #(merge % project)))
 
 (def-data :public-projects
+  :uri     "/api/public-projects"
   :loaded? (fn [db] (-> (get-in db [:data])
                         (contains? :public-projects)))
-  :uri (fn [] "/api/public-projects")
   :process (fn [{:keys [db]} [] {:keys [projects]}]
              {:db (assoc-in db [:data :public-projects]
                             (index-by :project-id projects))}))
+
+(reg-sub :public-projects
+         (fn [db [_ project-id]]
+           (cond-> (get-in db [:data :public-projects])
+             project-id (get project-id))))
+
+(reg-sub :public-project-ids
+         :<- [:public-projects]
+         #(sort (map :project-id (vals %))))
 
 (def-data :project
   :loaded? project-loaded?
@@ -141,13 +150,4 @@
 
 (reg-sub :project/has-articles?
          (fn [[_ project-id]] (subscribe [:project/article-counts project-id]))
-         (fn [{:keys [total]}] (when total (> total 0))))
-
-(reg-sub :public-projects
-         (fn [db [_ project-id]]
-           (cond-> (get-in db [:data :public-projects])
-             project-id (get project-id))))
-
-(reg-sub :public-project-ids
-         :<- [:public-projects]
-         #(sort (map :project-id (vals %))))
+         (fn [{:keys [total]}] (some-> total pos?)))

@@ -262,14 +262,6 @@
     (q/delete :project-url-id {:project-id project-id :url-id url-id})
     (q/create :project-url-id {:project-id project-id :url-id url-id :user-id user-id})))
 
-(defn all-public-projects []
-  (-> (select :project-id :name :settings)
-      (from :project)
-      (where [:= :enabled true])
-      (->> do-query
-           (filter #(-> % :settings :public-access true?))
-           (mapv #(select-keys % [:project-id :name])))))
-
 (defn delete-all-projects-with-name [project-name]
   (q/delete :project {:name (not-empty project-name)}))
 
@@ -325,13 +317,32 @@
              (q/find-one [:project-group :pg] {:project-id project-id}
                          [:g.group-id :g.group-name]
                          :join [[:groups :g] :pg.group-id])]
-      {:group-id group-id, :name group-name}
+      {:group-id group-id :name group-name}
       (when-let [{:keys [user-id email] :as _owner}
                  (q/find-one [:project-member :pm] {:pm.project-id project-id
                                                     "owner" :%any.pm.permissions}
                              [:u.user-id :u.email]
                              :join [[:web-user :u] :pm.user-id])]
-        {:user-id user-id, :name (-> email (str/split #"@") first)}))))
+        {:user-id user-id :name (-> email (str/split #"@") first)}))))
+
+(defn all-project-owners []
+  (with-transaction
+    (merge (->> (q/find [:project-member :pm] {"owner" :%any.pm.permissions}
+                        [:u.user-id :u.email]
+                        :join [[:web-user :u] :pm.user-id], :index-by :project-id)
+                (map-values #(-> (assoc % :name (-> (:email %) (str/split #"@") first))
+                                 (dissoc :email))))
+           (q/find [:project-group :pg] {}
+                   [:g.group-id [:g.group-name :name]]
+                   :join [[:groups :g] :pg.group-id], :index-by :project-id))))
+
+(defn all-public-projects []
+  (with-transaction
+    (let [owners (all-project-owners)]
+      (->> (q/find-project {} [:project-id :name :settings])
+           (filter #(-> % :settings :public-access true?))
+           (map #(dissoc % :settings))
+           (map #(assoc % :owner (get owners (:project-id %))))))))
 
 (defn last-active
   "When was the last time an article-label was updated for project-id?"

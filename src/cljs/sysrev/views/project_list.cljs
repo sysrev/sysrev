@@ -19,7 +19,7 @@
          [:i.grey.list.alternate.outline.icon]
          [:i.grey.lock.icon])
        [:div.content {:display "inline-block"}
-        [:span.project-title.blue-text [ProjectName {:name name} project-owner]]
+        [:span.project-title.blue-text [ProjectName name (:name project-owner)]]
         description]]]]
     [:div.ui.middle.aligned.stackable.two.column.grid.segment.project-list-project.non-member
      [:div.column {:class (css [(not (util/mobile?)) "twelve wide"])}
@@ -31,7 +31,7 @@
             [:i.grey.list.alternate.outline.icon]
             [:i.grey.lock.icon]))
         [:div.content
-         [:span.project-title [ProjectName {:name name} project-owner]]]]]]
+         [:span.project-title [ProjectName name (:name project-owner)]]]]]]
      [:div.right.aligned.column {:class (css [(not (util/mobile?)) "four wide"])}
       [:div.ui.tiny.button
        {:class (css [(util/mobile?) "fluid"]
@@ -105,52 +105,32 @@
   [:div.ui.segments.projects-list
    [:div.ui.segment.projects-list-header
     [:h4.ui.header "Featured Projects"]]
-   [ProjectListItem {:project-id 21696
-                     :name (:name @(subscribe [:public-projects 21696]))
-                     :description [:span " - A managed review discovering relationships between diseases and mangiferin."]
-                     :public-access true
-                     :member? true
-                     :project-owner {:name "Insilica"}}]
-   [ProjectListItem {:project-id 16612
-                     :name (:name @(subscribe [:public-projects 16612]))
-                     :description [:span " - Winner of the sysrev mini-grants"
-                                   ". This project tracks changes in insect populations."]
-                     :public-access true
-                     :project-owner {:name "eliza.grames"}
-                     :member? true}]
-   [ProjectListItem {:project-id 23706
-                     :name (:name @(subscribe [:public-projects 23706]))
-                     :description [:span " - A search for papers which sequenced the mitochondrial ND2 gene in island birds. "]
-                     :public-access true
-                     :project-owner {:name "omarcaif"}
-                     :member? true}]
-   [ProjectListItem {:project-id 26314
-                     :name (:name @(subscribe [:public-projects 26314]))
-                     :description [:span " - A data extraction project evaluating the methods
-                     used to measure \"work of breathing\" during exercise.
-                     Led by Troy Cross at Mayo Clinic & University of Sydney and other researchers."]
-                     :public-access true
-                     :project-owner {:name "cross.troy"}
-                     :member? true}]
-   [ProjectListItem {:project-id 24557
-                     :name (:name @(subscribe [:public-projects 24557]))
-                     :description [:span " - This project was established in response to the catastrophic 2019-20 bushfire season in Australia, and will identify key knowledge gaps and research priorities for understanding how Australian invertebrates respond to fire events. "]
-                     :public-access true
-                     :project-owner {:name "manu.saunders"}
-                     :member? true}]
-   [ProjectListItem {:project-id 3509
-                     :name (:name @(subscribe [:public-projects 3509]))
-                     :description [:span " - An educational project by Dr. Lena Smirnova "
-                                   " at Johns Hopkins School of Public Health. Meant to teach students about zebrafish toxicology and systematic review."]
-                     :public-access true
-                     :member? true}]
-   [ProjectListItem {:project-id 16309
-                     :name (:name @(subscribe [:public-projects 16309]))
-                     :description [:span " - A project rigorously evaluating published systematic reviews in the humanitarian field, specifically on conflict and war. By the "
-                                   "Global Evidence Synthesis Initiative (GESI) "]
-                     :public-access true
-                     :project-owner {:name "zahrasaad82"}
-                     :member? true}]])
+   (let [public @(subscribe [:public-projects])
+         make-item (fn [{:keys [project-id description owner]}]
+                     {:project-id project-id
+                      :name (get-in public [project-id :name])
+                      :description [:span (str " - " description)]
+                      :project-owner (or owner (get-in public [project-id :owner]))
+                      :public-access true
+                      :member? true})]
+     (doall
+      (for [x [{:project-id 21696
+                :description "A managed review discovering relationships between diseases and mangiferin."
+                :owner {:name "Insilica"}}
+               {:project-id 16612
+                :description "Winner of the sysrev mini-grants. This project tracks changes in insect populations."}
+               {:project-id 23706
+                :description "A search for papers which sequenced the mitochondrial ND2 gene in island birds."}
+               {:project-id 26314
+                :description "A data extraction project evaluating the methods used to measure \"work of breathing\" during exercise. Led by Troy Cross at Mayo Clinic & University of Sydney and other researchers."}
+               {:project-id 24557
+                :description "This project was established in response to the catastrophic 2019-20 bushfire season in Australia, and will identify key knowledge gaps and research priorities for understanding how Australian invertebrates respond to fire events."}
+               {:project-id 3509
+                :description "An educational project by Dr. Lena Smirnova at Johns Hopkins School of Public Health. Meant to teach students about zebrafish toxicology and systematic review."}
+               {:project-id 16309
+                :description "A project rigorously evaluating published systematic reviews in the humanitarian field, specifically on conflict and war. By the Global Evidence Synthesis Initiative (GESI)."}]]
+        ^{:key (:project-id x)}
+        [ProjectListItem (make-item x)])))])
 
 (defn UserProjectListFull []
   (with-loader [[:identity] [:public-projects]] {}

@@ -86,12 +86,11 @@
 
 (defn- UserProject [{:keys [name project-id articles labels annotations settings project-owner]
                      :or {articles 0, labels 0, annotations 0}}]
-  [:div {:id (str "project-" project-id)
-         :class "user-project-entry"
+  [:div {:class "user-project-entry" :data-id project-id :data-name name
          :style {:margin-bottom "1em" :font-size "110%"}}
-   [:a {:href (project-uri project-id)
+   [:a {:class "project-link" :href (project-uri project-id)
         :style {:margin-bottom "0.5em" :display "inline-block"}}
-    [ProjectName {:name name} project-owner]]
+    [ProjectName name (:name project-owner)]]
    (when (and
           ;; user page is for logged in user
           ;; TODO: is this checking that the user is a project admin?
@@ -107,7 +106,7 @@
                          :count-font-size "1em"}]
    [Divider]])
 
-(defn- UserProjectsList [{:keys [user-id]}]
+(defn- UserProjectsList [user-id]
   (with-loader [[:user/projects user-id]] {}
     (let [projects @(subscribe [:user/projects user-id])
           {:keys [public private]}
@@ -143,7 +142,7 @@
        [:div {:style {:margin-bottom "1em"}}
         [NewProjectButton]]
        [UserActivitySummary projects]
-       [UserProjectsList {:user-id user-id}]])))
+       [UserProjectsList user-id]])))
 
 (def-panel :uri "/user/:user-id/projects" :params [user-id] :panel panel
   :on-route (let [user-id (parse-integer user-id)]

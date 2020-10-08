@@ -23,24 +23,18 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (defn project-activity-summary-headers [project-name]
-  (xpath "//a[contains(text(),'" project-name "')]"
-         "/ancestor::div[contains(@id,'project-')]"
-         "//h2"))
+  (format ".user-project-entry[data-name='%s'] h2" project-name))
 
 ;; avatar
 ;; (def avatar (xpath "//img[contains(@src,'avatar')]"))
 (def avatar (xpath "//div[@data-tooltip='Change Your Avatar']"))
 
 (defn private-project-names []
-  (->> (b/get-elements-text (xpath "//div[@id='private-projects']"
-                                   "/div[contains(@id,'project-')]"
-                                   "/a"))
+  (->> (b/get-elements-text "#private-projects .user-project-entry .project-link")
        (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
 
 (defn public-project-names []
-  (->> (b/get-elements-text (xpath "//div[@id='public-projects']"
-                                   "/div[contains(@id,'project-')]"
-                                   "/a"))
+  (->> (b/get-elements-text "#public-projects .user-project-entry .project-link")
        (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
 
 (defn user-activity-summary []

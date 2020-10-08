@@ -2,9 +2,9 @@
   (:require [goog.uri.utils :as uri-utils]
             [re-frame.core :refer [subscribe dispatch reg-event-db reg-sub]]
             [sysrev.base :refer [active-route]]
-            [sysrev.nav :as nav :refer [nav]]
+            [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri group-uri]]
-            [sysrev.util :as util]
+            [sysrev.util :as util :refer [format]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.clone-project :refer [CloneProject]]
             [sysrev.views.panels.project.common :refer [project-page-menu]]
@@ -26,9 +26,8 @@
      [:div.content.project-title
       (when project-owner
         [:span
-         [:a {:href (if-let [user-id (:user-id project-owner)]
-                      (user-uri user-id)
-                      (group-uri (:group-id project-owner)))}
+         [:a {:href (or (some-> (:user-id project-owner) user-uri)
+                        (some-> (:group-id project-owner) group-uri))}
           (:name project-owner)]
          [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
       [:a {:href (project-uri nil "")} project-name]]
@@ -36,14 +35,14 @@
        [:div {:style {:margin-top "0.5rem"
                       :font-size "0.9rem"}}
         [:span.ui.grey.text {:font-""} "cloned from "]
-        [:a {:href (project-uri (:project-id parent-project) "")}
-         [ProjectName {:name (:project-name parent-project)} project-owner]]])]))
+        [:a {:href (str "/p/" (:project-id parent-project))}
+         [ProjectName (:project-name parent-project) (:owner-name parent-project)]]])]))
 
-(reg-event-db
-  ::set-message-dismissed-for-project
-  (fn [db [_ project-id]] (assoc db ::message-dismissed-for-project project-id)))
+(reg-event-db ::set-message-dismissed-for-project
+              (fn [db [_ project-id]]
+                (assoc db ::message-dismissed-for-project project-id)))
 
-(reg-sub ::message-dismissed-for-project (fn [db _] (::message-dismissed-for-project db)))
+(reg-sub ::message-dismissed-for-project #(::message-dismissed-for-project %))
 
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -65,8 +64,7 @@
            [:div.eleven.wide.column
             [ProjectTitle project-id]]
            [:div.right.aligned.column.five.wide
-            (when-not (util/mobile?)
-              [CloneProject])
+            (when-not (util/mobile?) [CloneProject])
             access-label]]]
          [:div.ui.top.attached.segment.project-header.mobile
           [:div.row
@@ -74,16 +72,15 @@
            [ProjectTitle project-id]]
           [:div.row
            [:div.content
-            (when (util/mobile?)
-              [CloneProject])
+            (when (util/mobile?) [CloneProject])
             [:span.access-header access-label]]]]
          (project-page-menu)
          (when (and (not logged-in?) (not= message-dismissed-for-project project-id))
-         [:div.ui.positive.message {:style {:text-align "center"}}
-          [:i.close.icon {:on-click (fn [_] (dispatch [::set-message-dismissed-for-project project-id]))}]
-          [:div.header {:style {:margin "auto"}} "Welcome to Sysrev!"]
-          [:p  "Join today to create projects like this one."]
-          [:button.ui.primary.button {:on-click #(nav "/register")} "Try for Free"]])
+           [:div.ui.positive.message {:style {:text-align "center"}}
+            [:i.close.icon {:on-click (fn [_] (dispatch [::set-message-dismissed-for-project project-id]))}]
+            [:div.header {:style {:margin "auto"}} "Welcome to Sysrev!"]
+            [:p "Join today to create projects like this one."]
+            [:a.ui.primary.button {:href "/register"} "Try for Free"]])
          child]))))
 
 (defn ProjectErrorNotice [message]
@@ -105,20 +102,16 @@
   (when-let [url-id @(subscribe [:active-project-url])]
     (with-loader [[:lookup-project-url url-id]] {}
       (let [project-owner @(subscribe [:project/owner project-id])
-            project-owner-type (-> project-owner keys first)
-            project-owner-id (-> project-owner vals first)
             self-id @(subscribe [:self/user-id])
             project-url @(subscribe [:project/uri project-id])]
         [:div "This private project is currently inaccessible"
          (when @(subscribe [:project/controlled-by? project-id self-id])
            [:div
-            [:a {:href (nav/make-url (if (= :user-id project-owner-type)
+            [:a {:href (nav/make-url (if (:user-id project-owner)
                                        "/user/plans"
-                                       (str "/org/" project-owner-id "/plans"))
-                                     {:on_subscribe_uri
-                                      project-url})}
-             "Upgrade your plan"]
-            " or "
+                                       (format "/org/%s/plans" (:group-id project-owner)))
+                                     {:on_subscribe_uri project-url})}
+             "Upgrade your plan"] " or "
             [MakePublic {:project-id project-id}]])]))))
 
 (defn ProjectPanel [child]
