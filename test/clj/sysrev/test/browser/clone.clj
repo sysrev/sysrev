@@ -100,8 +100,7 @@
 (deftest-browser clone-permissions-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "Sysrev Browser Test (clone-permissions-test)"
-   test-user-b (b/create-test-user :email "foo@qux.com"
-                                   :password "foobar")
+   test-user-b (b/create-test-user :email "foo@qux.com" :password "foobar")
    src-project-id (atom nil)
    user-id (user/user-by-email (:email test-user) :user-id)]
   (do
@@ -138,7 +137,7 @@
   [project-name "Sysrev Browser Test (clone-login-redirect)"
    test-user-b {:email (format "foo+%s@qux.com" (util/random-id))
                 :password "foobar"}
-   create-account-div (xpath "//h3[contains(text(),'First, create an account to clone the project to')]")]
+   create-account-div (xpath "//h3[contains(text(),'First, create an account to clone the project')]")]
   ;; first, login create the test project
   (do
     (nav/log-in (:email test-user))
