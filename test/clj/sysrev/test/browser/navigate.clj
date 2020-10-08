@@ -16,14 +16,14 @@
           (not= current (b/path->url path))
           (do (when-not silent
                 (log/info "navigating to" path))
-              (b/test-browser-console-clean :assert? true)
+              (b/assert-browser-console-clean)
               (when pre-wait-ms
                 (b/wait-until-loading-completes :pre-wait pre-wait-ms))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or (some-> wait-ms (quot 2))
                                                             25)
                                               :loop 2)
-              (b/test-browser-console-clean :assert? true)))
+              (b/assert-browser-console-clean)))
     nil))
 
 (defn go-project-route [suburi & {:keys [project-id wait-ms pre-wait-ms silent]

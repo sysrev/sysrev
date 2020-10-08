@@ -47,14 +47,10 @@
          (catch Throwable _
            (log/warn "unable to read console errors")))))
 
-(defn test-browser-console-clean [& {:keys [assert?]}]
-  (let [errors (browser-console-errors)
-        warnings (browser-console-warnings)]
-    (is (and (empty? errors) (empty? warnings)))
-    (when assert?
-      (assert (empty? errors) "errors in browser console")
-      (assert (empty? warnings) "warnings in browser console"))
-    nil))
+(defn assert-browser-console-clean []
+  (assert (empty? (browser-console-errors))   "errors in browser console")
+  (assert (empty? (browser-console-warnings)) "warnings in browser console")
+  nil)
 
 (defn log-console-messages [& [level]]
   (when *driver*
@@ -387,7 +383,7 @@
                (wait (+ delay 200))
                (taxi/click q))))
       (wait delay)
-      (test-browser-console-clean :assert? true))))
+      (assert-browser-console-clean))))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -430,10 +426,9 @@
                            (catch Throwable e#
                              (log/warn "got exception in repl cleanup:" (str e#)))))
                     ~body
-                    (test-browser-console-clean)
+                    (assert-browser-console-clean)
                     (catch Throwable e#
                       (log/error "current-url:" (-> (taxi/current-url) (ignore-exceptions)))
-                      (test-browser-console-clean)
                       (log-console-messages :error)
                       (take-screenshot :error)
                       (throw e#))
@@ -518,7 +513,7 @@
 
 (defn init-route [path & {:keys [silent]}]
   (let [full-url (path->url path)]
-    (test-browser-console-clean)
+    (assert-browser-console-clean)
     (when-not silent (log/info "loading" full-url))
     (taxi/to full-url)
     (wait-until-loading-completes :pre-wait true :loop 2)
