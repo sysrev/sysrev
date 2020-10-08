@@ -857,8 +857,7 @@
 
 (defn- LabelItem [labels-atom i label & {:keys [status]}]
   (let [{:keys [label-id name editing? enabled value-type]} @label
-        admin? (or @(subscribe [:member/admin?])
-                   @(subscribe [:user/admin?]))
+        admin? @(subscribe [:member/admin? true])
         allow-edit? (and admin? (not= name "overall include"))
         {:keys [draggable]} status]
     [:div.ui.middle.aligned.grid.label-item
@@ -932,8 +931,7 @@
     [:br]]])
 
 (defn- Panel []
-  (let [admin? (or @(subscribe [:member/admin?])
-                   @(subscribe [:user/admin?]))
+  (let [admin? @(subscribe [:member/admin? true])
         labels (r/cursor state [:labels])
         read-only-message-closed? (r/cursor state [:read-only-message-closed?])
         sort-label-ids (fn [enabled?]

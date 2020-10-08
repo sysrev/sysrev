@@ -9,10 +9,6 @@
 
 (setup-panel-state panel [:project :project :analytics])
 
-(defn- admin? []
-  (or @(subscribe [:member/admin?])
-      @(subscribe [:user/admin?])))
-
 (defn- AnalyticsLearnMore [intro-text]
   [:p intro-text
    [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics"]
@@ -55,15 +51,16 @@
 (defn- Panel [child]
   (let [project-id    @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
-        superuser?    @(subscribe [:user/actual-admin?])]
+        superuser?    @(subscribe [:user/dev?])
+        admin?        @(subscribe [:member/admin?])]
     [:div.project-content
      (cond
        ;; superusers like the insilica team can always see analytics
        superuser?             child
        (= project-id 21696)   [:div [DemoMessage] child]
-       (not (admin?))         [NotAdminDescription]
+       (not admin?)           [NotAdminDescription]
        ;; project admins of paid plan projects can see analytics
-       (and (admin?) (stripe/pro? project-plan))  child
+       (and admin? (stripe/pro? project-plan))  child
        :else                  [Paywall])]))
 
 (def-panel :project? true :panel panel

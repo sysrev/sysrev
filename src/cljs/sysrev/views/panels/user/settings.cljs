@@ -133,7 +133,7 @@
 
 (defn- UserDevTools []
   (let [user-id @(subscribe [:self/user-id])]
-    (when @(subscribe [:user/admin?])
+    (when @(subscribe [:user/dev?])
       [:div.ui.segment
        [:h4.ui.dividing.header "Dev Tools"]
        [:div

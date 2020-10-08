@@ -89,7 +89,7 @@
      [:div.ui.large.icon.message
       [:i.warning.icon]
       [:div.content message]
-      (when (and @(subscribe [:user/admin?])
+      (when (and @(subscribe [:user/dev?])
                  project-id
                  (not @(subscribe [:project/not-found?])))
         [:button.ui.purple.button
@@ -142,7 +142,7 @@
 
                   (and @(subscribe [:project/subscription-lapsed? project-id])
                        ;; Don't block real (non-test) dev users from seeing projects
-                       (not @(subscribe [:user/actual-admin?])))
+                       (not @(subscribe [:user/dev?])))
                   [ProjectErrorNotice
                    [PrivateProjectNotViewable project-id]]
 
@@ -161,6 +161,6 @@
       [:div
        (when (and project-id
                   @(subscribe [:project/subscription-lapsed? project-id])
-                  @(subscribe [:user/actual-admin?]))
+                  @(subscribe [:user/dev?]))
          [:div.ui.small.warning.message "Subscription Lapsed (dev override)"])
        child])))

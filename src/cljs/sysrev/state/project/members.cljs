@@ -23,10 +23,9 @@
                       members @(subscribe [::members project-id])]
                   (->> (keys members)
                        (filter (fn [user-id]
-                                 (let [admin-user? @(subscribe [:user/admin? user-id])]
-                                   (or (not admin-user?)
-                                       (and self-id (= user-id self-id)
-                                            include-self-admin? )))))
+                                 (or (not @(subscribe [:user/dev? user-id]))
+                                     (and include-self-admin?
+                                          (some-> self-id (= user-id))))))
                        (sort <))))))
 
 ;; Tests if user-id is a member of project (user-id values are not filtered).
@@ -50,18 +49,20 @@
          #(:permissions %))
 
 (reg-sub :member/admin?
-         (fn [[_ user-id project-id]] (subscribe [:member/permissions user-id project-id]))
-         #(in? % "admin"))
+         (fn [[_ _match-dev? user-id project-id]]
+           [(subscribe [:member/permissions user-id project-id])
+            (subscribe [:user/dev? user-id])])
+         (fn [[permissions dev?] [_ match-dev? _ _]]
+           (boolean (or (in? permissions "admin")
+                        (and match-dev? dev?)))))
 
 (reg-sub :member/resolver?
          (fn [[_ user-id project-id]]
            [(subscribe [:project/member? user-id])
-            (subscribe [:member/admin? user-id project-id])
-            (subscribe [:user/admin? user-id])
+            (subscribe [:member/admin? true user-id project-id])
             (subscribe [:member/permissions user-id project-id])])
-         (fn [[member? admin? site-admin? permissions]]
-           (and member?
-                (or admin? site-admin? (in? permissions "resolve")))))
+         (fn [[member? admin? permissions]]
+           (and member? (or admin? (in? permissions "resolve")))))
 
 (reg-sub :member/include-count
          (fn [[_ user-id project-id]] (subscribe [::member user-id project-id]))
@@ -79,7 +80,6 @@
 (reg-sub :user/project-admin?
          (fn [[_ user-id]]
            [(subscribe [:self/logged-in?])
-            (subscribe [:user/admin? user-id])
-            (subscribe [:member/admin? user-id])])
-         (fn [[logged-in? dev? admin?]]
-           (boolean (and logged-in? (or dev? admin?)))))
+            (subscribe [:member/admin? true user-id])])
+         (fn [[logged-in? admin?]]
+           (boolean (and logged-in? admin?))))

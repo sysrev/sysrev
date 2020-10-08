@@ -25,9 +25,8 @@
         landing? @(subscribe [:landing-page?])
         user-id @(subscribe [:self/user-id])
         user-display @(subscribe [:user/display])
-        admin? @(subscribe [:user/admin?])
         [full? mobile?] [(util/full-size?) (util/mobile?)]
-        dev-menu (when admin?
+        dev-menu (when @(subscribe [:user/dev?])
                    [dropdown-menu [{:content "Clear query cache"
                                     :action #(run-action :dev/clear-query-cache)}]
                     :dropdown-class "dropdown item"

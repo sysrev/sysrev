@@ -5,10 +5,6 @@
              [primary-tabbed-menu secondary-tabbed-menu]]
             [sysrev.util :as util :refer [in?]]))
 
-(defn admin? []
-  (or @(subscribe [:member/admin?])
-      @(subscribe [:user/admin?])))
-
 (def beta-compensation-users #{"eliza.grames@uconn.edu"})
 
 (defn beta-compensation-user? [email]
@@ -52,7 +48,7 @@
         {:tab-id :export-data
          :content (content "Export" "download")
          :action (project-uri project-id "/export")})
-      (when (and (admin?)
+      (when (and @(subscribe [:member/admin? true])
                  (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
                      (beta-compensation-user? @(subscribe [:user/email]))))
         {:tab-id :compensation
@@ -144,8 +140,7 @@
           [analytics-submenu]))))))
 
 (defn ReadOnlyMessage [text & [message-closed-atom]]
-  (when (and (not (or @(subscribe [:member/admin?])
-                      @(subscribe [:user/admin?])))
+  (when (and (not @(subscribe [:member/admin? true]))
              (not (and message-closed-atom @message-closed-atom)))
     [:div.ui.icon.message.read-only-message
      [:i.lock.icon]

@@ -26,8 +26,7 @@
     input))
 
 (defn admin? []
-  (or @(subscribe [:member/admin?])
-      @(subscribe [:user/admin?])))
+  @(subscribe [:member/admin? true]))
 
 (defn editing? []
   (and (admin?) (= panel @(subscribe [:active-panel]))))
@@ -212,14 +211,13 @@
 
 (defn- SettingsButton [{:keys [setting key label value tooltip disabled?]}]
   (let [active? (= (render-setting setting)
-                   (render-setting-value setting value))
-        admin? (admin?)]
+                   (render-setting-value setting value))]
     (ui/FixedTooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
        :class (css [active? "active"]
                    [disabled? "disabled"])
-       :on-click (if admin? #(edit-setting setting value) nil)}
+       :on-click (if (admin?) #(edit-setting setting value) nil)}
       label]
      [:p tooltip]
      "20em"
@@ -268,7 +266,7 @@
       :label "Project Visibility"
       :entries public-access-buttons
       :disabled? (and (= project-plan "Basic")
-                      (not @(subscribe [:user/actual-admin?]))
+                      (not @(subscribe [:user/dev?]))
                       @(subscribe [:project/public-access? project-id]))}
      (when (and (= project-plan "Basic")
                 @(subscribe [:project/controlled-by? project-id self-id]))
@@ -354,8 +352,7 @@
 (defn- ProjectMiscBox []
   (let [saving? (r/atom false)]
     (fn []
-      (let [admin? (admin?)
-            modified? (misc-modified?)
+      (let [modified? (misc-modified?)
             project-id @(subscribe [:active-project-id])]
         (when (and @saving?
                    (not modified?)
@@ -365,7 +362,7 @@
          [:h4.ui.dividing.header "Project"]
          [:div.ui.form
           [ProjectNameField]]
-         (when admin?
+         (when (admin?)
            [:div
             [:div.ui.divider]
             [ui/SaveCancelForm
@@ -380,8 +377,7 @@
 (defn- ProjectOptionsBox []
   (let [saving? (r/atom false)]
     (fn []
-      (let [admin? (admin?)
-            modified? (modified?)
+      (let [modified? (modified?)
             valid? (valid-input?)
             project-id @(subscribe [:active-project-id])]
         (when (and @saving?
@@ -397,18 +393,18 @@
            [DoubleReviewPriorityField]]
           [:div.two.fields
            [UnlimitedReviewsField]]]
-         (when admin?
+         (when (admin?)
            [:div
             [:div.ui.divider]
             [ui/SaveCancelForm
-             :can-save? (and valid? modified?)
-             :can-reset? modified?
-             :on-save #(do (reset! saving? true)
-                           (save-changes project-id))
-             :on-reset #(do (reset! saving? false)
-                            (reset-fields))
-             :saving? @saving?
-             :id "save-options"]])]))))
+             :id          "save-options"
+             :can-save?   (and valid? modified?)
+             :can-reset?  modified?
+             :on-save     #(do (reset! saving? true)
+                               (save-changes project-id))
+             :on-reset    #(do (reset! saving? false)
+                               (reset-fields))
+             :saving?     @saving?]])]))))
 
 (defonce members-state (r/cursor state [:members]))
 
@@ -617,7 +613,7 @@
                 :dispatch [:set-panel-field [:update-predictions-clicked] nil panel]}]}))
 
 (defn- DeveloperActions []
-  (when @(subscribe [:user/admin?])
+  (when @(subscribe [:user/dev?])
     (let [project-id @(subscribe [:active-project-id])]
       [:div.ui.segments>div.ui.secondary.segment.action-segment
        [:h4.ui.dividing.header "Developer Actions"]

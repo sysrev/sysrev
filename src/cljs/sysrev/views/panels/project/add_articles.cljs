@@ -44,10 +44,6 @@
              [:reload [:project project-id]]
              [:reload [:project/sources project-id]])})))
 
-(defn admin? []
-  (or @(subscribe [:member/admin?])
-      @(subscribe [:user/admin?])))
-
 (defn article-or-articles
   "Return either the singular or plural form of article"
   [item-count]
@@ -318,8 +314,9 @@
             segment-class (if enabled nil "secondary")
             timed-out? (source-import-timed-out? source)
             polling? @polling-sources?
-            sample-article @(subscribe [:project-source/sample-article project-id source-id])]
-        (when (and (nil? sample-article) @(subscribe [:member/admin?]))
+            sample-article @(subscribe [:project-source/sample-article project-id source-id])
+            admin? @(subscribe [:member/admin? true])]
+        (when (and (nil? sample-article) admin?)
           (dispatch [:require [:project-source/sample-article project-id source-id]]))
         (when (or (and (true? importing-articles?) (not timed-out?))
                   deleting? delete-running?)
@@ -388,7 +385,7 @@
                        ^{:key [:shared source-id overlap-source-id]}
                        [:div.column (.toLocaleString shared-count) " shared: "
                         [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
-                (when (admin?)
+                (when admin?
                   [:div.column.right.aligned.source-actions
                    {:key :buttons
                     :class (if (util/desktop-size?) "two wide" "three wide")}
@@ -507,11 +504,12 @@
 (defn ProjectSourcesPanel []
   (let [project-id @(subscribe [:active-project-id])
         project? @(subscribe [:have? [:project project-id]])
-        lapsed? @(subscribe [:project/subscription-lapsed?])]
+        lapsed? @(subscribe [:project/subscription-lapsed?])
+        admin? @(subscribe [:member/admin? true])]
     (with-loader [(when (and project? (not lapsed?))
                     [:project/sources project-id])] {}
       [:div
-       (when (admin?) [ImportArticlesView])
+       (when admin? [ImportArticlesView])
        [ReadOnlyMessage "Managing sources is restricted to project administrators."
         (r/cursor state [:read-only-message-closed?])]
        [ProjectSourcesList]])))

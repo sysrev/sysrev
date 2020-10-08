@@ -51,8 +51,7 @@
                        #{:clone-project-user :clone-project-org})
         redirect-url (-> @(subscribe [:project/uri]) (make-url {:cloning true}))]
     (when (or @(subscribe [:project/public-access?])
-              @(subscribe [:member/admin?])
-              @(subscribe [:user/admin?])) ; render if user is allowed to clone
+              @(subscribe [:member/admin? true])) ; render if user is allowed to clone
       [Modal {:class "clone-project"
               :open modal-open
               :on-open #(if user-id

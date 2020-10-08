@@ -8,9 +8,7 @@
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer [select from join merge-join where order-by]]
-            [sysrev.config :refer [env]]
-            [sysrev.db.core :as db :refer
-             [do-query with-transaction sql-now]]
+            [sysrev.db.core :as db :refer [do-query with-transaction sql-now]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member]]
@@ -89,26 +87,18 @@
              :salt (crypto.random/bytes 16)}))
 
 (defn create-user [email password & {:keys [project-id user-id permissions]
-                                     :or {permissions ["user"]}
-                                     :as opts}]
-  (let [test-email? (and (not (in? #{:prod :test :remote-test} (:profile env)))
-                         (boolean (or (re-find #"\+test.*\@" email)
-                                      (re-find #"\@sysrev\.us$" email)
-                                      (re-find #"\@insilica\.co$" email))))
-        permissions (cond (:permissions opts)  (:permissions opts)
-                          test-email?          ["admin"]
-                          :else                permissions)
-        entry (cond-> {:email email
-                       :pw-encrypted-buddy (encrypt-password password)
-                       :verify-code nil ;; (crypto.random/hex 16)
-                       :permissions (db/to-sql-array "text" permissions)
-                       :date-created (sql-now)
-                       :user-uuid (UUID/randomUUID)
-                       :api-token (generate-api-token)}
-                user-id (assoc :user-id user-id))]
-    (when project-id (assert (q/get-project project-id)))
-    (let [{:keys [user-id] :as user} (q/create :web-user entry, :returning :*)]
-      (when project-id (add-project-member project-id user-id))
+                                     :or {permissions ["user"]}}]
+  (with-transaction
+    (let [user (q/create :web-user (cond-> {:email email
+                                            :pw-encrypted-buddy (encrypt-password password)
+                                            :verify-code nil ;; (crypto.random/hex 16)
+                                            :permissions (db/to-sql-array "text" permissions)
+                                            :date-created (sql-now)
+                                            :user-uuid (UUID/randomUUID)
+                                            :api-token (generate-api-token)}
+                                     user-id (assoc :user-id user-id))
+                         :returning :*)]
+      (when project-id (add-project-member project-id (:user-id user)))
       user)))
 
 (defn set-user-password [email new-password]

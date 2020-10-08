@@ -94,7 +94,7 @@
         set-description! #(dispatch [:action [:project/markdown-description project-id context %]])
         loading? (or (loading/any-loading? :only :project/markdown-description)
                      (loading/any-action-running? :only :project/markdown-description))
-        admin? (or @(subscribe [:member/admin?]) @(subscribe [:user/admin?]))]
+        admin? @(subscribe [:member/admin? true])]
     (with-loader [[:project/markdown-description project-id context]] {}
       (cond @editing?
             [:div.project-description

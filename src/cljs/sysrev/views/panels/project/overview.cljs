@@ -169,7 +169,7 @@
         ynames ["Include" "Exclude"]
         invite-url @(subscribe [:project/invite-url])
         invite? (and invite-url (or @(subscribe [:self/member?])
-                                    @(subscribe [:user/admin?])))]
+                                    @(subscribe [:user/dev?])))]
     [:div.ui.segments
      [:div.ui.segment
       [:h4.ui.dividing.header "Member Activity"]
