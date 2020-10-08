@@ -36,7 +36,7 @@
          min-height# (:min-height options#)
          class# (:class options#)
          require# (get options# :require true)
-         loading# (some #(sysrev.loading/item-loading? %) reqs#)
+         loading# (sysrev.loading/data-loading? (set reqs#))
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
          content-form# ~content-form
          dimmer-active# (and dimmer# (or loading#
@@ -80,7 +80,7 @@
    unconfirmed? (or (= user-status :unconfirmed)
                     (= user-status :none))
    resolving? @(subscribe [:review/resolving?])
-   article-loading? (sysrev.loading/item-loading? [:article project-id article-id])
+   article-loading? (sysrev.loading/data-loading? [:article project-id article-id])
    send-labels? (and unconfirmed?
                      (not resolving?)
                      (not article-loading?)

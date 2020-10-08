@@ -4,7 +4,7 @@
             [clojure.set :as set]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.state.ui :as ui-state]
             [sysrev.state.label :refer [project-overall-label-id]]
@@ -892,7 +892,7 @@
         options (merge @(subscribe [::al/export-filter-args (al/cached context)])
                        {:separator @(subscribe [::csv-separator])})
         action [:project/generate-export project-id export-type options]
-        running? (loading/action-running? action)
+        running? (action/running? action)
         entry @(subscribe [:project/export-file project-id export-type options])
         {:keys [filename url error]} entry
         {:keys [expand-export]} @(subscribe [::al/display-options context])

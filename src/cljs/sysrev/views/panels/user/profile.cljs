@@ -6,8 +6,7 @@
             [reagent.core :as r]
             [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.loading :as loading]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.state.ui]
@@ -287,7 +286,7 @@
                                 :error-handler (fn [_response]
                                                  (reset! loading? false)
                                                  (reset! editing? false))})))
-        user-loading? (loading/item-loading? [:user/info user-id])]
+        user-loading? (data/loading? [:user/info user-id])]
     (when (or mutable? (not (str/blank? introduction)))
       [Segment {:class "introduction"}
        [Header {:as "h4" :dividing true} "Introduction"]

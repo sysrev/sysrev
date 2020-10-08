@@ -3,9 +3,8 @@
             [cljs-time.core :as t]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub reg-event-db trim-v]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.data.core :refer [reload]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action run-action]]
+            [sysrev.data.core :as data]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
             [sysrev.views.ctgov :as ctgov]
@@ -58,8 +57,7 @@
                     date-created))))
 
 (defn any-source-processing? []
-  (or (loading/any-action-running? :only :sources/delete)
-      (loading/any-action-running? :only :sources/toggle-source)
+  (or (action/running? #{:sources/delete :sources/toggle-source})
       (->> @(subscribe [:project/sources])
            (some (fn [source]
                    (and (or (-> source :meta :importing-articles? true?)
@@ -152,34 +150,25 @@
       {}
       :post-error-text "Try processing your file with Zotero using the 'Having difficulties importing your RIS file?' instructions above."]]))
 
-(defn DeleteArticleSource
-  [source-id]
+(defn DeleteArticleSource [source-id]
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.tiny.fluid.labeled.icon.button.delete-button
      {:class (when (any-source-processing?) "disabled")
-      :on-click
-      #(dispatch [:action [:sources/delete project-id source-id]])}
+      :on-click #(run-action :sources/delete project-id source-id)}
      "Delete"
      [:i.red.times.circle.icon]]))
 
-(defn ToggleArticleSource
-  [source-id enabled?]
+(defn ToggleArticleSource [source-id enabled?]
   (let [project-id @(subscribe [:active-project-id])
-        action [:sources/toggle-source
-                project-id source-id (not enabled?)]
-        loading? (loading/action-running? action)]
+        action [:sources/toggle-source project-id source-id (not enabled?)]
+        loading? (action/running? action)]
     [:button.ui.tiny.fluid.labeled.icon.button
      {:on-click #(dispatch [:action action])
-      :class (cond
-               loading?                 "loading"
-               (any-source-processing?) "disabled")}
+      :class (cond loading?                 "loading"
+                   (any-source-processing?) "disabled")}
      (when-not loading?
-       (if enabled?
-         [:i.green.circle.icon]
-         [:i.grey.circle.icon]))
-     (if enabled?
-       "Enabled"
-       "Disabled")]))
+       [:i.circle.icon {:class (css [enabled? "green" :else "grey"])}])
+     (if enabled? "Enabled" "Disabled")]))
 
 ;; TODO: these (:source meta) values should be stored as identifiers
 ;;       from an enforced set of possible values and shouldn't be
@@ -284,7 +273,7 @@
           first-source? (empty? (->> @sources (remove #(-> % :meta :importing-articles?))))
           source-updating?
           (fn [source-id]
-            (or (loading/action-running? [:sources/delete project-id source-id])
+            (or (action/running? [:sources/delete project-id source-id])
                 (let [[source] (filter #(= (:source-id %) source-id) @sources)
                       {:keys [importing-articles? deleting?]} (:meta source)]
                   (or (and (true? importing-articles?)
@@ -310,7 +299,7 @@
             {:keys [meta source-id article-count labeled-article-count enabled]} source
             {:keys [importing-articles? deleting?]} meta
             source-name (:source meta)
-            delete-running? (loading/action-running? [:sources/delete project-id source-id])
+            delete-running? (action/running? [:sources/delete project-id source-id])
             segment-class (if enabled nil "secondary")
             timed-out? (source-import-timed-out? source)
             polling? @polling-sources?
@@ -516,7 +505,7 @@
 
 (def-panel :project? true :panel panel
   :uri "/add-articles" :params [project-id] :name add-articles
-  :on-route (do (reload :project/sources project-id)
+  :on-route (do (data/reload :project/sources project-id)
                 (dispatch [:set-active-panel panel]))
   :content [:div#add-articles.project-content
             [ProjectSourcesPanel]])

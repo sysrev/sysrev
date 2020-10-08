@@ -297,7 +297,7 @@ sysrev.user> (nav "/create-project")
 1. Check to see if the ajax request is ongoing,
 
 ```clojurescript
-sysrev.user> (sysrev.loading/item-loading? [:pubmed-query "foo bar"])
+sysrev.user> (sysrev.data.core/loading? [:pubmed-query "foo bar"])
 false
 ```
 

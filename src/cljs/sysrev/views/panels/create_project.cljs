@@ -2,8 +2,8 @@
   (:require [medley.core :as medley :refer [find-first]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action run-action]]
+            [sysrev.data.core :as data]
             [sysrev.nav :refer [make-url]]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [parse-integer]]
@@ -129,11 +129,11 @@
             "."]]]]]]
       [Divider]
       [Button {:type :submit :positive true
-               :disabled (or (loading/any-action-running?)
-                             (loading/any-loading?)
+               :disabled (or (action/running?)
+                             (data/loading?)
                              (empty? @project-name))
-               :loading (or (loading/any-action-running?)
-                            (loading/any-loading?))} "Create Project"]]]))
+               :loading (or (action/running?)
+                            (data/loading?))} "Create Project"]]]))
 
 (def-panel :uri "/new" :panel panel
   :on-route (let [user-id @(subscribe [:self/user-id])]

@@ -3,8 +3,7 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.core :refer [def-data load-data]]
-            [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.loading :refer [any-action-running?]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.semantic :as S :refer
              [Grid Row Column Segment Header Button Label ListUI ListItem
@@ -90,17 +89,17 @@
        (when (not verified)
          [Button {:id "resend-verification-email" :size "small" :color "green"
                   :on-click #(run-action :user-emails/send-verification self-id email id)
-                  :disabled (any-action-running? :only :user-emails/send-verification)}
+                  :disabled (action/running? :user-emails/send-verification)}
           "Resend Verification Email"])
        (when (not principal)
          [Button {:id "delete-email-button" :size "small" :color "orange"
                   :on-click #(run-action :user-emails/delete self-id email id)
-                  :disabled (any-action-running? :only :user-emails/delete)}
+                  :disabled (action/running? :user-emails/delete)}
           "Delete Email"])
        (when (and verified (not principal))
          [Button {:id "make-primary-button" :size "small" :primary true
                   :on-click #(run-action :user-emails/set-primary self-id email id)
-                  :disabled (any-action-running? :only :user-emails/set-primary)}
+                  :disabled (action/running? :user-emails/set-primary)}
           "Make Primary"])]]
      (when (some seq [@resend-message @resend-error @delete-error @set-primary-error])
        [Row {:style {:padding-top "0" :margin-top 0 #_ "-0.1rem"}}
@@ -116,7 +115,7 @@
         update-message  (r/cursor state [:create-email :message])
         update-error    (r/cursor state [:create-email :error])
         self-id         (subscribe [:self/user-id])
-        running?        (any-action-running? :only :user-emails/create)]
+        running?        (action/running? :user-emails/create)]
     (if @open?
       ;; form is shown
       [:div

@@ -58,10 +58,10 @@
 
 (def-action :auth/register
   :uri (fn [& _] "/api/auth/register")
-  :content (fn [email password & [project-id _redirect]]
+  :content (fn [email password project-id _redirect]
              {:email email :password password :project-id project-id})
   :process
-  (fn [_ [email password & [_ redirect]] {:keys [success message]}]
+  (fn [_ [email password _project-id redirect] {:keys [success message]}]
     (if success
       {:dispatch-n
        (list [:ga-event "auth" "register_success"]
@@ -131,8 +131,7 @@
 
 (reg-sub :self/ui-theme
          :<- [:self/settings]
-         #(if (= (:ui-theme %) "Dark")
-            "Dark" "Default"))
+         #(or (:ui-theme %) "Default"))
 
 (reg-sub :self/dark-theme?
          :<- [:self/ui-theme]

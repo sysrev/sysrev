@@ -1,7 +1,7 @@
 (ns sysrev.views.project-list
   (:require [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-fx trim-v]]
-            [sysrev.loading :as loading]
+            [sysrev.data.core :as data]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.panels.create-project :refer [NewProjectButton]]
@@ -64,7 +64,7 @@
                 (if member?
                   "your-projects" "available-projects")
                 id)}
-         (when (loading/item-loading? [:identity])
+         (when (data/loading? [:identity])
            [:div.ui.active.inverted.dimmer
             [:div.ui.loader]])
          [:div.ui.stackable.grid.segment.projects-list-header

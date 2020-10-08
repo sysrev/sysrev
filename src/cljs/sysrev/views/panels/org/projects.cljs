@@ -3,8 +3,7 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.loading :as loading :refer [any-loading?]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.create-project :refer [NewProjectButton]]
@@ -106,7 +105,7 @@
 
 (defn OrgProjects [org-id]
   (let [error (r/cursor state [:get-projects-error])
-        loading? (any-loading? :only :org/projects)]
+        loading? (data/loading? :org/projects)]
     [:div
      (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
        [:div {:style {:margin-bottom "1rem"}}

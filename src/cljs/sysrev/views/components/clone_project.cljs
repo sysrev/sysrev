@@ -1,8 +1,7 @@
 (ns sysrev.views.components.clone-project
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
-            [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.loading :refer [any-action-running?]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.nav :refer [nav make-url]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
             [sysrev.views.semantic :refer
@@ -47,8 +46,8 @@
         project-id @(subscribe [:active-project-id])
         user-id @(subscribe [:self/user-id])
         orgs @(subscribe [:self/orgs])
-        cloning? (some #(any-action-running? :only %)
-                       #{:clone-project-user :clone-project-org})
+        cloning? (action/running? #{:clone-project-user
+                                    :clone-project-org})
         redirect-url (-> @(subscribe [:project/uri]) (make-url {:cloning true}))]
     (when (or @(subscribe [:project/public-access?])
               @(subscribe [:member/admin? true])) ; render if user is allowed to clone

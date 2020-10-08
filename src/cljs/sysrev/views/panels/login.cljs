@@ -7,9 +7,9 @@
             [sysrev.base :as base :refer [active-route]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
+            [sysrev.action.core :as action]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
-            [sysrev.loading :as loading]
             [sysrev.util :refer [css validate wrap-prevent-default nbsp on-event-value]]
             [sysrev.macros :refer-macros [with-loader def-panel]]))
 
@@ -313,7 +313,7 @@
          [field-error :password]
          [:button.ui.fluid.primary.button
           {:type "submit" :name "submit"
-           :class (css [(and register? (loading/any-action-running? :only :auth/register))
+           :class (css [(and register? (action/running? :auth/register))
                         "loading"])}
           (cond landing?   "Sign Up"
                 register?  "Register"

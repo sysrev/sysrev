@@ -6,11 +6,19 @@
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
             [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
-            [sysrev.util :as util :refer [in? dissoc-in]]))
+            [sysrev.util :as util :refer [in? dissoc-in apply-keyargs]]))
 
 (defonce
   ^{:doc "Holds static definitions for data items fetched from server"}
   data-defs (atom {}))
+
+(defn loading?
+  "Tests if any AJAX data request matching `query` is currently pending.
+  `ignore` is an optional query value to exclude matching requests."
+  ([]
+   (loading? nil))
+  ([query & {:keys [ignore] :as args}]
+   (apply-keyargs #'loading/data-loading? query args)))
 
 ;; re-frame db value
 (s/def ::db map?)
@@ -201,7 +209,7 @@
                        :as entry} (get @data-defs name)
                       elapsed-millis (- (js/Date.now) @last-fetch-millis)]
                   (assert entry (str "def-data not found - " (pr-str name)))
-                  (when-not (loading/item-loading? item)
+                  (when-not (loading? item)
                     (cond (loading/item-spammed? item)
                           {:data-failed item}
 
@@ -265,7 +273,7 @@
               (fn [{:keys [db]} [item]]
                 (when (and (or (have-item? db item)
                                (loading/item-failed? item))
-                           (not (loading/item-loading? item)))
+                           (not (loading? item)))
                   {:dispatch [:fetch item]})))
 
 ;; Dispatch both `:require` and `:reload`
@@ -278,7 +286,7 @@
                                 missing (get-missing-items db)]
                             (when (and item (in? missing item)
                                        (not (loading/item-failed? item))
-                                       (not (loading/item-loading? item)))
+                                       (not (loading? item)))
                               (dispatch [:fetch item])))
                          5)))
 
@@ -288,7 +296,7 @@
                 {:dispatch-n
                  (->> (get-missing-items db)
                       (remove #(loading/item-failed? %))
-                      (remove #(loading/item-loading? %))
+                      (remove #(loading? %))
                       (mapv (fn [item] [:fetch item])))}))
 
 (reg-fx :fetch-missing
@@ -312,3 +320,5 @@
 
 (defn load-data [& item]
   (dispatch [:data/load (into [] item)]))
+
+

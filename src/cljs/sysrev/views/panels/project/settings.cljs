@@ -3,9 +3,8 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-event-db]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.data.core :refer [reload]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action]]
+            [sysrev.data.core :as data]
             [sysrev.nav :as nav]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.components.core :as ui]
@@ -356,7 +355,7 @@
             project-id @(subscribe [:active-project-id])]
         (when (and @saving?
                    (not modified?)
-                   (not (loading/any-action-running?)))
+                   (not (action/running?)))
           (reset! saving? false))
         [:div.ui.segment.project-misc
          [:h4.ui.dividing.header "Project"]
@@ -382,8 +381,7 @@
             project-id @(subscribe [:active-project-id])]
         (when (and @saving?
                    (not modified?)
-                   (not (loading/any-action-running?
-                         :only :project/change-settings)))
+                   (not (action/running? :project/change-settings)))
           (reset! saving? false))
         [:div.ui.segment.project-options
          [:h4.ui.dividing.header "Options"]
@@ -595,8 +593,8 @@
                        (reset-permissions-fields))
         :saving?
         (and changed?
-             (or (loading/any-action-running? :only :project/change-permissions)
-                 (loading/item-loading? [:project project-id])))])]))
+             (or (action/running? :project/change-permissions)
+                 (data/loading? [:project project-id])))])]))
 
 (defn- ProjectMembersBox []
   [:div.ui.segment.project-members
@@ -640,6 +638,6 @@
 
 (def-panel :project? true :panel panel
   :uri "/settings" :params [project-id] :name project-settings
-  :on-route (do (reload :project project-id)
+  :on-route (do (data/reload :project project-id)
                 (dispatch [:set-active-panel panel]))
   :content [Panel])

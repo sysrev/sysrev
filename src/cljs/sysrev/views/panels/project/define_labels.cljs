@@ -7,9 +7,8 @@
             [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.data.core :refer [reload]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action]]
+            [sysrev.data.core :as data]
             [sysrev.state.label :refer [sort-client-project-labels]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.stripe :as stripe]
@@ -273,7 +272,7 @@
      [:i.circle.times.icon] text]))
 
 (defn save-request-active? []
-  (loading/any-action-running? :only :labels/sync-project-labels))
+  (action/running? :labels/sync-project-labels))
 
 (defn SaveLabelButton [_label & {:keys [on-click]}]
   [:button.ui.small.fluid.positive.labeled.icon.button
@@ -991,7 +990,7 @@
 
 (def-panel :project? true :panel panel
   :uri "/labels/edit" :params [project-id] :name labels-edit
-  :on-route (do (reload :project project-id)
+  :on-route (do (data/reload :project project-id)
                 (dispatch [:set-active-panel panel]))
   :content (fn [child] [Panel child]))
 

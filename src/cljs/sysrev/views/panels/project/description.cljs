@@ -3,9 +3,8 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
             [re-frame.db :refer [app-db]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.semantic :refer [Segment]]
@@ -92,8 +91,8 @@
         {:keys [hide-description-warning?]} @state
         editing? (r/cursor state [:editing?])
         set-description! #(dispatch [:action [:project/markdown-description project-id context %]])
-        loading? (or (loading/any-loading? :only :project/markdown-description)
-                     (loading/any-action-running? :only :project/markdown-description))
+        loading? (or (data/loading? :project/markdown-description)
+                     (action/running? :project/markdown-description))
         admin? @(subscribe [:member/admin? true])]
     (with-loader [[:project/markdown-description project-id context]] {}
       (cond @editing?

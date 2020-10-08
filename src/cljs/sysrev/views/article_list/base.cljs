@@ -5,7 +5,7 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
             [sysrev.base :refer [active-route]]
-            [sysrev.loading :as loading]
+            [sysrev.data.core :as data]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [active-panel]]
             [sysrev.state.ui :as ui-state]
@@ -322,8 +322,8 @@
 (defn data-loading? [context]
   (let [count-item @(subscribe [::count-query context])
         data-item @(subscribe [::articles-query context])]
-    (or (loading/item-loading? count-item)
-        (loading/item-loading? data-item))))
+    (or (some-> count-item (data/loading?))
+        (some-> data-item (data/loading?)))))
 
 ;; Test if current state is ready to be fully displayed
 (reg-sub-raw ::state-ready?

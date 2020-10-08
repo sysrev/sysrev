@@ -3,8 +3,7 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.cursors :refer [map-from-cursors prune-cursor]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action]]
             [sysrev.views.semantic :refer [Button Icon]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.util :as util :refer [parse-integer css]]))
@@ -52,7 +51,7 @@
                      [Button {:size "tiny"
                               :disabled (= @temp-cursors @cursors)
                               :on-click #(dispatch [:action save-action])
-                              :loading (loading/action-running? save-action)}
+                              :loading (action/running? save-action)}
                       "Save"])
                    [Button {:size "tiny"
                             :disabled (empty? @temp-cursors)

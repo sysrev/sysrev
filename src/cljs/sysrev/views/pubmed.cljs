@@ -4,9 +4,8 @@
             [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :as util :refer [wrap-prevent-default nbsp]]
@@ -278,7 +277,7 @@
           nil
           ;; valid search is completed with no results
           (and (= (get-in search-results [:count]) 0)
-               (not (loading/item-loading?
+               (not (data/loading?
                      [:pubmed-search current-search-term @page-number])))
           [:div.ui.segment.search-results-container.margin
            [:h3 "No documents match your search terms"]]

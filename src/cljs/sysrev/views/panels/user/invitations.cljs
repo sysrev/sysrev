@@ -2,9 +2,8 @@
   (:require ["moment" :as moment]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
-            [sysrev.action.core :refer [def-action run-action]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.loading :as loading :refer [any-action-running?]]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.semantic :refer [Segment Button Grid Row Column]]
             [sysrev.views.components.core :refer [CursorMessage]]
@@ -47,7 +46,7 @@
                            active created updated]}]
   (let [self-id @(subscribe [:self/user-id])
         update-error (r/cursor state [:update-error])
-        running? (any-action-running? :only :user/update-invitation)]
+        running? (action/running? :user/update-invitation)]
     [Segment
      [Grid
       [Row

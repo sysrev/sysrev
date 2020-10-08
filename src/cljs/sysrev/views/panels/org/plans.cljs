@@ -4,9 +4,8 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.base :refer [active-route]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.loading :as loading]
+            [sysrev.data.core :as data :refer [def-data]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.views.panels.org.main :as org]
             [sysrev.views.semantic :refer [SegmentGroup Segment Radio Loader Grid Column Row
@@ -108,7 +107,7 @@
 (defn DowngradePlan [_org-id]
   (dispatch [::set :error-message nil])
   (fn [org-id]
-    (let [running? (loading/any-action-running? :only :org/subscribe-plan)
+    (let [running? (action/running? :org/subscribe-plan)
           available-plans @(subscribe [:org/available-plans])
           new-plan (or @(subscribe [::get :new-plan])
                        (find-first #(= (:nickname %) "Basic") available-plans))
@@ -166,7 +165,7 @@
     (fn [org-id]
       (let [new-plan (or @(subscribe [::get :new-plan])
                          (find-first #(= (:nickname %) "Unlimited_Org") @available-plans))
-            running? (loading/any-action-running? :only :org/subscribe-plan)]
+            running? (action/running? :org/subscribe-plan)]
         (if (empty? @available-plans)
           [Loader {:active true :inline "centered"}]
           [:div

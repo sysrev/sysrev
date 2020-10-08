@@ -3,9 +3,8 @@
             [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.util :as util :refer [wrap-prevent-default]]
@@ -262,7 +261,7 @@
           ;; valid search is completed with no results
           (and (not (nil? @current-search-term))
                (= (get-in @search-results [:count]) 0)
-               (not (loading/item-loading?
+               (not (data/loading?
                      [:ctgov-search @current-search-term @page-number])))
           [:div.ui.segment.search-results-container.margin
            [:h3 "No documents match your search terms"]]

@@ -2,8 +2,8 @@
   (:require [medley.core :as medley :refer [find-first]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action run-action]]
+            [sysrev.data.core :as data]
             [sysrev.nav :as nav :refer [nav]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util]
@@ -20,9 +20,8 @@
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (defn- org-ajax-active? []
-  (or (loading/any-action-running? :only :org/create)
-      (loading/any-action-running? :only :org/create-pro)
-      (loading/any-loading? :only :org/valid-name)))
+  (or (action/running? #{:org/create :org/create-pro})
+      (data/loading? #{:org/valid-name})))
 
 (def-action :org/create
   :uri (constantly "/api/org")

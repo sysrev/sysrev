@@ -1,9 +1,8 @@
 (ns sysrev.views.panels.password-reset
   (:require [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-fx trim-v]]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.loading :as loading]
             [sysrev.nav :as nav]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.util :refer [validate wrap-prevent-default css]]
@@ -155,7 +154,7 @@
      [:h3.ui.top.attached.header "Reset Password"]
      [:div.ui.bottom.attached.segment
       (if (nil? email)
-        (when-not (loading/any-loading?)
+        (when-not (data/loading?)
           [:h4 "Invalid reset code"])
         [:form.ui.form {:class form-class :on-submit on-submit
                         :autoComplete "off"}

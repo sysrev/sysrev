@@ -3,9 +3,8 @@
             [medley.core :refer [find-first]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.data.core :refer [def-data load-data reload]]
-            [sysrev.loading :refer [any-loading? any-action-running?]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
+            [sysrev.data.core :as data :refer [def-data load-data reload]]
             [sysrev.views.semantic :as S :refer
              [Table TableBody TableRow TableCell Search Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
@@ -116,7 +115,7 @@
          [Search
           {:id "org-search-users-input"
            :placeholder "Search for users by username"
-           :loading (any-loading? :only :user-search)
+           :loading (data/loading? :user-search)
            :on-result-select
            (fn [_e value]
              (let [{:keys [result]} (js->clj value :keywordize-keys true)
@@ -152,7 +151,7 @@
         error      (r/cursor state [:remove-user :error])
         user-id    (r/cursor state [:remove-user :user-id])
         username   (r/cursor state [:remove-user :username])
-        running?   (any-action-running? :only :org/remove-user)]
+        running?   (action/running? :org/remove-user)]
     [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
             :on-close #(reset! modal-open false)}
@@ -177,7 +176,7 @@
         username   (r/cursor state [:change-role :username])
         new-role   (r/cursor state [:change-role :new-role])
         error      (r/cursor state [:change-role :error])
-        running?   (any-action-running? :only :org/change-user-role)]
+        running?   (action/running? :org/change-user-role)]
     [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
             :on-close #(reset! modal-open false)}

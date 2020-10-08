@@ -2,7 +2,7 @@
   (:require [reagent.ratom :refer [reaction]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
-            [sysrev.loading :as loading]
+            [sysrev.data.core :as data]
             [sysrev.views.article :refer [ArticleInfo]]
             [sysrev.views.review :as review]
             [sysrev.views.components.core :as ui]
@@ -72,8 +72,8 @@
                         (dispatch-sync [::al/set-active-article context nil]))
        :recent-nav-action recent-action
        :loading? (or ((comp not nil?) recent-action)
-                     (loading/any-loading? :only :project/article-list)
-                     (loading/any-loading? :only :project/article-list-count))
+                     (data/loading? #{:project/article-list
+                                      :project/article-list-count}))
        :message-overrides {:offset @(subscribe [::al/display-offset (al/cached context)])
                            :total-count count-cached}}]]))
 
@@ -226,7 +226,7 @@
                (let [recent? (= article-id recent-article)
                      active? (= article-id active-article)
                      have? @(subscribe [:have? [:article project-id article-id]])
-                     loading? (loading/item-loading? [:article project-id article-id])
+                     loading? (data/loading? [:article project-id article-id])
                      labels? (or show-labels show-notes)
                      first? (= i 0)
                      last? (= i (dec (count articles)))]
@@ -255,7 +255,7 @@
         recent? (= article-id recent-article)
         active? (= article-id active-article)
         have? @(subscribe [:have? [:article project-id article-id]])
-        loading? (loading/item-loading? [:article project-id article-id])
+        loading? (data/loading? [:article project-id article-id])
         full-size? (util/full-size?)]
     (doall
      (list

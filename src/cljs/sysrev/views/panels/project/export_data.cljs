@@ -1,7 +1,6 @@
 (ns sysrev.views.panels.project.export-data
   (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action]]
             [sysrev.views.panels.project.define-labels :refer [label-settings-config]]
             [sysrev.views.semantic :refer [Dropdown]]
             [sysrev.util :as util :refer [css]]
@@ -39,7 +38,7 @@
         export-type :json
         options {}
         action [:project/generate-export project-id export-type options]
-        running? (loading/action-running? action)
+        running? (action/running? action)
         entry @(subscribe [:project/export-file project-id export-type options])
         {:keys [filename url error]} entry
         file? (and entry (not error))]
@@ -85,7 +84,7 @@
         value @(subscribe [::group-label-option])
         options {:label-id (util/to-uuid value)}
         action [:project/generate-export project-id export-type options]
-        running? (loading/action-running? action)
+        running? (action/running? action)
         entry @(subscribe [:project/export-file project-id export-type options])
         {:keys [filename url error]} entry
         file? (and entry (not error))]
@@ -126,7 +125,7 @@
         export-type :uploaded-article-pdfs-zip
         options {}
         action [:project/generate-export project-id export-type options]
-        running? (loading/action-running? action)
+        running? (action/running? action)
         entry @(subscribe [:project/export-file project-id export-type options])
         {:keys [filename url error]} entry
         file? (and entry (not error))]

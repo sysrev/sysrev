@@ -8,6 +8,8 @@
             [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
                                    reg-event-db reg-event-fx trim-v]]
+            [sysrev.action.core :as action]
+            [sysrev.data.core :as data]
             [sysrev.loading :as loading]
             [sysrev.state.nav :as nav :refer [project-uri]]
             [sysrev.state.label :refer [get-label-raw]]
@@ -402,9 +404,8 @@
 
 (defn- review-task-saving? [article-id]
   (and @(subscribe [:review/saving? article-id])
-       (or (loading/any-action-running? :only :review/send-labels)
-           (loading/any-loading? :only :article)
-           (loading/any-loading? :only :review/task))))
+       (or (action/running? :review/send-labels)
+           (data/loading? #{:article :review/task}))))
 
 (defn- review-task-ready-for-action? []
   (and (loading/ajax-status-inactive? 50)
@@ -427,7 +428,7 @@
                     [:review-save article-id]
                     review-task-ready-for-action?
                     (fn []
-                      (when-not (loading/any-action-running? :only :review/send-labels)
+                      (when-not (action/running? :review/send-labels)
                         (dispatch-sync [:review/mark-saving article-id])
                         (sync-article-notes article-id)
                         (dispatch
@@ -473,7 +474,7 @@
         on-review-task? (subscribe [:review/on-review-task?])
         loading-task? (and (not saving?)
                            @on-review-task?
-                           (loading/item-loading? [:review/task project-id]))
+                           (data/loading? [:review/task project-id]))
         on-click (util/wrap-user-event
                   (fn []
                     (util/run-after-condition

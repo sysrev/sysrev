@@ -1,7 +1,6 @@
 (ns sysrev.state.project.data
   (:require [re-frame.core :refer [subscribe reg-sub reg-event-db dispatch trim-v]]
-            [sysrev.loading :as loading]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.state.core :refer [store-user-maps]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.article-list.base :as al]
@@ -100,8 +99,8 @@
             action @(subscribe [::al/get context [:recent-nav-action]])]
         (js/setTimeout
          (fn []
-           (when-not (some #(loading/any-loading? :only %)
-                           [:project/article-list :project/article-list-count])
+           (when-not (data/loading? #{:project/article-list
+                                      :project/article-list-count})
              (dispatch [::al/set-recent-nav-action context nil])))
          (case action
            :transition  150
