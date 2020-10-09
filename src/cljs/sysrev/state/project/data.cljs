@@ -1,7 +1,6 @@
 (ns sysrev.state.project.data
   (:require [re-frame.core :refer [subscribe reg-sub reg-event-db dispatch trim-v]]
-            [sysrev.loading :as loading]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.state.core :refer [store-user-maps]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.article-list.base :as al]
@@ -15,12 +14,21 @@
              #(merge % project)))
 
 (def-data :public-projects
+  :uri     "/api/public-projects"
   :loaded? (fn [db] (-> (get-in db [:data])
                         (contains? :public-projects)))
-  :uri (fn [] "/api/public-projects")
   :process (fn [{:keys [db]} [] {:keys [projects]}]
              {:db (assoc-in db [:data :public-projects]
                             (index-by :project-id projects))}))
+
+(reg-sub :public-projects
+         (fn [db [_ project-id]]
+           (cond-> (get-in db [:data :public-projects])
+             project-id (get project-id))))
+
+(reg-sub :public-project-ids
+         :<- [:public-projects]
+         #(sort (map :project-id (vals %))))
 
 (def-data :project
   :loaded? project-loaded?
@@ -91,8 +99,8 @@
             action @(subscribe [::al/get context [:recent-nav-action]])]
         (js/setTimeout
          (fn []
-           (when-not (some #(loading/any-loading? :only %)
-                           [:project/article-list :project/article-list-count])
+           (when-not (data/loading? #{:project/article-list
+                                      :project/article-list-count})
              (dispatch [::al/set-recent-nav-action context nil])))
          (case action
            :transition  150
@@ -126,7 +134,7 @@
              (-> (get-in db [:data :project project-id :sample-article])
                  (contains? source-id)))
   :uri (fn [_ source-id] (str "/api/sources/" source-id "/sample-article"))
-  :content (fn [project-id] {:project-id project-id})
+  :content (fn [project-id _] {:project-id project-id})
   :process (fn [{:keys [db]} [project-id source-id] {:keys [article]}]
              {:db (assoc-in db [:data :project project-id :sample-article source-id] article)}))
 
@@ -141,13 +149,4 @@
 
 (reg-sub :project/has-articles?
          (fn [[_ project-id]] (subscribe [:project/article-counts project-id]))
-         (fn [{:keys [total]}] (when total (> total 0))))
-
-(reg-sub :public-projects
-         (fn [db [_ project-id]]
-           (cond-> (get-in db [:data :public-projects])
-             project-id (get project-id))))
-
-(reg-sub :public-project-ids
-         :<- [:public-projects]
-         #(sort (map :project-id (vals %))))
+         (fn [{:keys [total]}] (some-> total pos?)))

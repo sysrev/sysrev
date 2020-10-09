@@ -15,23 +15,12 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-;; for manual testing purposes, this is handy:
-;;
-#_(let [email "james@insilica.co"]
-  (b/cleanup-test-user! :email email :groups true))
-
-;; recreate
-#_(let [email "james@insilica.co" password "testing"]
-    (b/create-test-user :email email :password password)
-    (users/create-user-stripe-customer! (user-by-email email))
-    (stripe/create-subscription-user! (user-by-email email)))
-
-(def use-card "form.StripeForm button.ui.button.use-card")
+(def use-card "form.StripeForm .ui.button.use-card")
 (def upgrade-link (xpath "//a[text()='Upgrade']"))
 (def back-to-user-settings (xpath "//a[contains(text(),'Back to user settings')]"))
 
 ;; pricing workflow elements
-(def choose-pro-button (xpath "//button[contains(text(),'Choose Pro')]"))
+(def choose-pro-button (xpath "//a[contains(text(),'Choose Pro')]"))
 (def create-account (xpath "//h3[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
 (def upgrade-plan (xpath "//h1[contains(text(),'Upgrade from Basic to Pro')]"))
 (def pricing-link (xpath "//a[@id='pricing-link']"))
@@ -52,8 +41,7 @@
   (b/wait-until-loading-completes :pre-wait delay))
 
 (defn get-user-customer [email]
-  (some-> email (user-by-email) :stripe-id
-          (stripe/get-customer)))
+  (some-> (user-by-email email :stripe-id) (stripe/get-customer)))
 
 (defn customer-plan [customer]
   (some-> customer :subscriptions :data first :items :data first :plan))
@@ -62,7 +50,7 @@
   (some-> (get-user-customer email) (customer-plan) :nickname))
 
 (defn user-db-plan [email]
-  (some-> email (user-by-email) :user-id (plans/user-current-plan) :nickname))
+  (some-> (user-by-email email :user-id) (plans/user-current-plan) :nickname))
 
 (defn wait-until-stripe-id
   "Wait until stripe has customer entry for email."
@@ -94,14 +82,14 @@
   (Thread/sleep 100)
   (nav/log-in email password)
   ;; go to plans
-  (b/click "#user-name-link" :delay 50)
-  (b/click "#user-billing" :delay 50)
-  (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
+  (b/click "#user-name-link")
+  (b/click "#user-billing")
+  (b/click ".button.nav-plans.subscribe" :displayed? true)
   ;; enter payment information
   (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-  (click-use-card :delay 50)
+  (click-use-card)
   ;; upgrade to unlimited
-  (click-upgrade-plan :delay 50)
+  (click-upgrade-plan)
   ;; this time is goes through, confirm we are subscribed to the
   ;; Unlimited plan now
   (b/wait-until-displayed ".button.nav-plans.unsubscribe")
@@ -149,8 +137,8 @@
 ;;; upgrade plan
       (b/click "#user-name-link")
       (b/click "#user-billing")
-      (b/click ".button.nav-plans.subscribe" :delay 50 :displayed? true)
-      #_(b/click "a.payment-method.add-method" :delay 50)
+      (b/click ".button.nav-plans.subscribe" :displayed? true)
+      #_(b/click "a.payment-method.add-method")
 ;;; payment method
       ;; wait until a card number is available for input
       (b/wait-until-exists (label-input "Card Number"))
@@ -213,15 +201,15 @@
             #_ (b/is-soon (taxi/exists? (str use-card ".disabled"))))
           (when declined
             (b/wait-until-loading-completes :pre-wait 100)
-            (click-upgrade-plan :delay 50)
+            (click-upgrade-plan)
             (b/is-soon
              (taxi/exists? {:xpath "//p[contains(text(),'Your card was declined.')]"}))
-            (b/click "a.payment-method.change-method" :delay 50)
+            (b/click "a.payment-method.change-method")
             (b/wait-until-displayed (b/not-disabled use-card)))))
 ;;; finally, update with a valid cc number and see if we can subscribe to plans
       (log/info "testing valid card info")
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (click-use-card :delay 50)
+      (click-use-card)
       ;; try to subscribe again
       (click-upgrade-plan)
       ;; this time is goes through, confirm we are subscribed to the
@@ -264,7 +252,7 @@
     (is (= "Basic" (get-db-plan)))
     ;; update payment method
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-    (click-use-card :delay 50)
+    (click-use-card)
     (click-upgrade-plan)
     ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
@@ -302,12 +290,12 @@
     ;; go back to main page and go through pricing
     (nav/go-route "/")
     ;; click on pricing
-    (b/click pricing-link :delay 50)
+    (b/click pricing-link)
     (b/wait-until-displayed choose-pro-button)
     (b/click choose-pro-button)
     ;; update payment method
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-    (click-use-card :delay 50)
+    (click-use-card)
     (click-upgrade-plan)
     ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")

@@ -1,9 +1,9 @@
+#_{:clj-kondo/ignore [:unused-import :unused-namespace :unused-referred-var :use :refer-all]}
 (ns sysrev.user
   (:refer-clojure :exclude [find])
   (:use sysrev.logging
         sysrev.util
         sysrev.db.core
-        sysrev.db.entity
         sysrev.db.migration
         sysrev.user.core
         sysrev.group.core
@@ -15,6 +15,7 @@
         sysrev.datasource.core
         sysrev.datasource.api
         sysrev.project.core
+        sysrev.project.charts
         sysrev.project.member
         sysrev.project.description
         sysrev.project.clone
@@ -56,13 +57,13 @@
         #_ sysrev.custom.immuno
         #_ sysrev.custom.ebtc
         #_ sysrev.custom.insilica
-        sysrev.misc
         sysrev.init
         sysrev.shared.keywords
-        sysrev.shared.transit
         sysrev.test.core
-        sysrev.test.browser.navigate)
+        sysrev.test.browser.navigate
+        sysrev.stacktrace)
   (:require [clojure.spec.alpha :as s]
+            [clojure.edn :as edn]
             [orchestra.spec.test :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
@@ -99,16 +100,14 @@
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.api :as api]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])
   (:import java.util.UUID))
 
 (defonce started
-  (try
-    (sysrev.init/start-app)
-    (catch Throwable e
-      (log/info "error in sysrev.init/start-app")
-      (log/info (.getMessage e))
-      (.printStackTrace e))))
+  (try (sysrev.init/start-app)
+       (catch Throwable e
+         (log/error "error in sysrev.init/start-app")
+         (log/error (.getMessage e))
+         (log/error (with-out-str (print-cause-trace-custom e))))))

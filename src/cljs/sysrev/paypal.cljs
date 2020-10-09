@@ -3,25 +3,22 @@
             [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.accounting :as acct]
-            [sysrev.views.semantic :as s]
+            [sysrev.views.semantic :as S]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [setup-panel-state with-mount-body]]))
 
 ;; for clj-kondo
 (declare panel state panel-get panel-set)
 
-(setup-panel-state panel [:paypal] {:state-var state
-                                    :get-fn panel-get :set-fn panel-set
-                                    :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:paypal] :state state
+                   :get [panel-get ::get] :set [panel-set ::set])
 
 (def minimum-amount "$1")
-(def default-amount "$10")
-
-(def paypal-env
+(def ^:unused paypal-env
   (some-> (.getElementById js/document "paypal-env")
           (.getAttribute "data-paypal-env")))
 
-(def paypal-client-id
+(def ^:unused paypal-client-id
   (some-> (.getElementById js/document "paypal-client-id")
           (.getAttribute "data-paypal-client-id")))
 
@@ -88,7 +85,7 @@
    [:div#paypal-button]])
 
 (defn amount-validation [amount]
-  (let [amount (some-> (util/ensure-pred string? amount)
+  (let [amount (some-> (util/when-test string? amount)
                        not-empty
                        (util/ensure-prefix "$"))]
     (cond (empty? amount)                                  :empty
@@ -107,7 +104,7 @@
      [:h4.ui.dividing.header "Add Funds"]
      [:div.ui.form {:on-submit util/no-submit}
       [:div.fields {:style {:margin-bottom "0"}}
-       [s/FormField {:width 8 :error (boolean (and (not-empty amount)
+       [S/FormField {:width 8 :error (boolean (and (not-empty amount)
                                                    (amount-validation amount)))}
         [:div.ui.labeled.input
          [:div.ui.label "$"]
@@ -129,14 +126,14 @@
          ;; the built-in PayPal disabled button is weird, the buttons
          ;; simply aren't clickable. This reproduces the same effect
          ;; much simpler
-         [s/FormField {:width 8 :disabled disabled?
+         [S/FormField {:width 8 :disabled disabled?
                        :style (when disabled? {:pointer-events "none"})}
           [PayPalButton project-id user-id amount-ref :on-authorize on-success]])]
       (when-let [msg @(subscribe [::get :error-message])]
-        [s/Message {:negative true} msg])
+        [S/Message {:negative true} msg])
       (when-let [msg @(subscribe [::get :success-message])]
-        [s/Message {:positive true}
-         [s/MessageHeader "Payment Processed"] msg])]]))
+        [S/Message {:positive true}
+         [S/MessageHeader "Payment Processed"] msg])]]))
 
 (defn AddFunds [& {:keys [on-success]}]
   (let [set-val #(dispatch-sync [::set %1 %2])

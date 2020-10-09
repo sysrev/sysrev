@@ -1,6 +1,5 @@
 (ns sysrev.payment.plans
-  (:require [honeysql.helpers :refer [join]]
-            [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
+  (:require [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.db.queries :as q]))
 
 (defn add-user-to-plan! [user-id plan-id sub-id]

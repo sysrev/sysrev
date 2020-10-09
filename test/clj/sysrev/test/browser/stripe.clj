@@ -19,15 +19,14 @@
 (def fail-luhn-check-cc "4242424242424241") ; fails Luhn Check
 
 ;; these fail after payment method is updated
-(def attach-success-charge-fail-cc "4000000000000341")
-(def highest-risk-fraudulent-cc "4100000000000019")
+#_(def attach-success-charge-fail-cc "4000000000000341")
+#_(def highest-risk-fraudulent-cc "4100000000000019")
 
 ;; 3D Secure 2
 (def three-d-secure-successful "4000000000003220")
 (def three-d-secure-card-declined "4000008400001629")
 
 ;; error messages
-(def no-payment-method-error "You must enter a valid payment method before subscribing to this plan")
 (def invalid-card-number-error "Your card number is invalid")
 (def incomplete-card-number-error "Your card number is incomplete")
 (def incomplete-expiration-date-error "Your card's expiration date is incomplete")
@@ -36,7 +35,6 @@
 (def card-declined-error "Your card was declined")
 (def card-expired-error "Your card has expired")
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
-(def no-payment-method "You must provide a valid payment method")
 (def cardnumber-input (xpath "//input[@name='cardnumber']"))
 
 (defn get-stripe-frame-names []

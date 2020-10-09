@@ -3,26 +3,25 @@
             [cljs-time.core :as t]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub reg-event-db trim-v]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
+            [sysrev.data.core :as data]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
-            [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.ctgov :as ctgov]
-            [sysrev.views.panels.pubmed :as pubmed]
+            [sysrev.views.ctgov :as ctgov]
+            [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :refer [EditJSONView]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util :refer [css]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
+                                          sr-defroute-project]]))
 
 ;; for clj-kondo
-(declare panel state panel-set panel-get)
+(declare panel state)
 
-(setup-panel-state panel [:project :project :add-articles] {:state-var state
-                                                            :set-fn panel-set
-                                                            :get-fn panel-get})
+(setup-panel-state panel [:project :project :add-articles]
+                   :state state :get [panel-get] :set [panel-set])
 
 (reg-sub :add-articles/import-tab #(or (panel-get % :import-tab) :zip-file))
 
@@ -44,10 +43,6 @@
              [:reload [:project project-id]]
              [:reload [:project/sources project-id]])})))
 
-(defn admin? []
-  (or @(subscribe [:member/admin?])
-      @(subscribe [:user/admin?])))
-
 (defn article-or-articles
   "Return either the singular or plural form of article"
   [item-count]
@@ -62,8 +57,7 @@
                     date-created))))
 
 (defn any-source-processing? []
-  (or (loading/any-action-running? :only :sources/delete)
-      (loading/any-action-running? :only :sources/toggle-source)
+  (or (action/running? #{:sources/delete :sources/toggle-source})
       (->> @(subscribe [:project/sources])
            (some (fn [source]
                    (and (or (-> source :meta :importing-articles? true?)
@@ -156,39 +150,30 @@
       {}
       :post-error-text "Try processing your file with Zotero using the 'Having difficulties importing your RIS file?' instructions above."]]))
 
-(defn DeleteArticleSource
-  [source-id]
+(defn DeleteArticleSource [source-id]
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.tiny.fluid.labeled.icon.button.delete-button
      {:class (when (any-source-processing?) "disabled")
-      :on-click
-      #(dispatch [:action [:sources/delete project-id source-id]])}
+      :on-click #(run-action :sources/delete project-id source-id)}
      "Delete"
      [:i.red.times.circle.icon]]))
 
-(defn ToggleArticleSource
-  [source-id enabled?]
+(defn ToggleArticleSource [source-id enabled?]
   (let [project-id @(subscribe [:active-project-id])
-        action [:sources/toggle-source
-                project-id source-id (not enabled?)]
-        loading? (loading/action-running? action)]
+        action [:sources/toggle-source project-id source-id (not enabled?)]
+        loading? (action/running? action)]
     [:button.ui.tiny.fluid.labeled.icon.button
      {:on-click #(dispatch [:action action])
-      :class (cond
-               loading?                 "loading"
-               (any-source-processing?) "disabled")}
+      :class (cond loading?                 "loading"
+                   (any-source-processing?) "disabled")}
      (when-not loading?
-       (if enabled?
-         [:i.green.circle.icon]
-         [:i.grey.circle.icon]))
-     (if enabled?
-       "Enabled"
-       "Disabled")]))
+       [:i.circle.icon {:class (css [enabled? "green" :else "grey"])}])
+     (if enabled? "Enabled" "Disabled")]))
 
 ;; TODO: these (:source meta) values should be stored as identifiers
 ;;       from an enforced set of possible values and shouldn't be
 ;;       mistakable for a description intended for users
-(defn meta->source-name-vector [{:keys [source] :as meta}]
+(defn ^:unused meta->source-name-vector [{:keys [source] :as meta}]
   (condp = source
     "PubMed search"  ["PubMed Search" (str (:search-term meta))]
     "PMID file"      ["PMIDs from File" (:filename meta)]
@@ -269,7 +254,7 @@
                  :else
                  import-label)]])]]]))
 
-(defn source-name
+(defn ^:unused source-name
   "Given a source-id, return the source name vector"
   [source-id]
   (->> @(subscribe [:project/sources])
@@ -288,7 +273,7 @@
           first-source? (empty? (->> @sources (remove #(-> % :meta :importing-articles?))))
           source-updating?
           (fn [source-id]
-            (or (loading/action-running? [:sources/delete project-id source-id])
+            (or (action/running? [:sources/delete project-id source-id])
                 (let [[source] (filter #(= (:source-id %) source-id) @sources)
                       {:keys [importing-articles? deleting?]} (:meta source)]
                   (or (and (true? importing-articles?)
@@ -303,7 +288,7 @@
          (when (and first-source? (not browser-test?))
            (dispatch [:data/after-load [:project project-id] :poll-source-redirect
                       #(when (some-> @article-counts :total pos?)
-                         (nav/nav-scroll-top (project-uri project-id "/articles")))])))
+                         (nav/nav (project-uri project-id "/articles")))])))
        600))
     nil))
 
@@ -314,12 +299,13 @@
             {:keys [meta source-id article-count labeled-article-count enabled]} source
             {:keys [importing-articles? deleting?]} meta
             source-name (:source meta)
-            delete-running? (loading/action-running? [:sources/delete project-id source-id])
+            delete-running? (action/running? [:sources/delete project-id source-id])
             segment-class (if enabled nil "secondary")
             timed-out? (source-import-timed-out? source)
             polling? @polling-sources?
-            sample-article @(subscribe [:project-source/sample-article project-id source-id])]
-        (when (nil? sample-article)
+            sample-article @(subscribe [:project-source/sample-article project-id source-id])
+            admin? @(subscribe [:member/admin? true])]
+        (when (and (nil? sample-article) admin?)
           (dispatch [:require [:project-source/sample-article project-id source-id]]))
         (when (or (and (true? importing-articles?) (not timed-out?))
                   deleting? delete-running?)
@@ -384,11 +370,11 @@
                          (filter #(pos? (:count %)) (:overlap source))]
                      (let [src-type @(subscribe [:source/display-type overlap-source-id])
                            src-info (some-> @(subscribe [:source/display-info overlap-source-id])
-                                            (util/string-ellipsis 40))]
+                                            (util/ellipsis-middle 40))]
                        ^{:key [:shared source-id overlap-source-id]}
                        [:div.column (.toLocaleString shared-count) " shared: "
                         [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
-                (when (admin?)
+                (when admin?
                   [:div.column.right.aligned.source-actions
                    {:key :buttons
                     :class (if (util/desktop-size?) "two wide" "three wide")}
@@ -507,15 +493,24 @@
 (defn ProjectSourcesPanel []
   (let [project-id @(subscribe [:active-project-id])
         project? @(subscribe [:have? [:project project-id]])
-        lapsed? @(subscribe [:project/subscription-lapsed?])]
+        lapsed? @(subscribe [:project/subscription-lapsed?])
+        admin? @(subscribe [:member/admin? true])]
     (with-loader [(when (and project? (not lapsed?))
                     [:project/sources project-id])] {}
       [:div
-       (when (admin?) [ImportArticlesView])
+       (when admin? [ImportArticlesView])
        [ReadOnlyMessage "Managing sources is restricted to project administrators."
         (r/cursor state [:read-only-message-closed?])]
        [ProjectSourcesList]])))
 
-(defmethod panel-content panel []
-  (fn [_child] [:div#add-articles.project-content
-                [ProjectSourcesPanel]]))
+(def-panel :project? true :panel panel
+  :uri "/add-articles" :params [project-id] :name add-articles
+  :on-route (do (data/reload :project/sources project-id)
+                (dispatch [:set-active-panel panel]))
+  :content [:div#add-articles.project-content
+            [ProjectSourcesPanel]])
+
+;; redirect to "/add-articles" when "Manage" tab is clicked
+(sr-defroute-project manage-project "/manage" [project-id]
+                     (nav/nav (project-uri project-id "/add-articles")
+                              :redirect true))

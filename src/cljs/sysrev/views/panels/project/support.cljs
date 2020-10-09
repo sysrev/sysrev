@@ -15,7 +15,7 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:project :project :support] {:state-var state})
+(setup-panel-state panel [:project :project :support] :state state)
 
 (defn get-user-support-subscriptions
   "Get the current support subscriptions for user"
@@ -166,7 +166,7 @@
              (wrap-prevent-default
               #(do (dispatch [:stripe/set-calling-route!
                               (project-uri @project-uri "/support")])
-                   (dispatch [:navigate [:payment]])))}
+                   (dispatch [:nav "/user/payment"])))}
             "Update Payment Information"])
          (when-not (nil? @current-support-level)
            [:button.ui.button
@@ -193,7 +193,7 @@
       (when @error-message
         [:div.ui.red.header @error-message])]]))
 
-(defn SupportFormOnce [state]
+(defn ^:unused SupportFormOnce [state]
   (let [support-level (r/cursor state [:support-level "once"])
         user-defined-support-level (r/cursor state [:user-defined-support-level])
         error-message (r/cursor state [:error-message "once"])
@@ -236,7 +236,7 @@
                (wrap-prevent-default
                 #(do (dispatch [:stripe/set-calling-route!
                                 (project-uri @project-id "/compensations")])
-                     (dispatch [:navigate [:payment]])))}
+                     (dispatch [:nav "/user/payment"])))}
               "Update Payment Information"])]
           (when @error-message
             [:div.ui.red.header @error-message])]])

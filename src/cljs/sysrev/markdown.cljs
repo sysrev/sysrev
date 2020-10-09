@@ -77,7 +77,8 @@
              ;;       semantic-ui-react suggests replacement:
              ;;       https://www.npmjs.com/package/react-textarea-autosize
              [TextArea {:fluid "true"
-                        :autoHeight true
+                        ;; :autoHeight true
+                        :style {:min-height "15em"}
                         :disabled (boolean loading?)
                         :placeholder "Enter a Markdown description"
                         :on-change (util/on-event-value #(reset! draft-content %))

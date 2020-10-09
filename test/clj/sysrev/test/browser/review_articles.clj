@@ -5,9 +5,8 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.db.core :as db]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.project.core :as project]
-            [sysrev.user.core :as user :refer [user-self-info]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -23,24 +22,6 @@
 ;;       try resizing the window to desktop to see if there is a discrepancy and then fix it
 ;;       in the element xpath names.
 ;;       You should have consistent test behavior whether you are in mobile or desktop!!!
-;;
-;; helpful manual testing functions:
-;; There are additional notes in create_project.clj
-;; (b/delete-test-user)
-
-;; find the project
-;; (user-self-info (user-by-email ... :user-id))
-
-;; delete the project
-;; (let [project-ids (->> (user-by-email ...) :user-id user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
-
-;; useful definitions after basic values have been set by tests
-;; (def email "browser+test@insilica.co")
-;; (def password b/test-password)
-;; (def user-id (:user-id (user-by-email email)))
-;; (def project-id (get-user-project-id user-id))
-;; (def article-title (-> (labels/query-public-article-labels project-id) vals first :title))
-;; (def article-id (-> (labels/query-public-article-labels project-id) keys first))
 
 ;; for clj-kondo
 (declare set-boolean-value add-string-value add-categorical-value
@@ -51,9 +32,6 @@
          (format "/span[contains(@class,'inner') and text()='%s']" short-label)
          "/ancestor::div[contains(@class,'label-edit')"
          " and contains(@class,'column')][1]"))
-
-(defn sub-label-div-with-name [root-short-label sub-short-label]
-  (xpath "//div[contains(@class,'title') and contains(text(),'" root-short-label "')]" (label-div-with-name sub-short-label)))
 
 (defn-spec set-boolean-value any?
   "Sets boolean label `short-label` to `value` in review interface."
@@ -136,9 +114,6 @@
                   (format "/descendant::a[contains(@class,'label') and text()='%s']"
                           value))))
 
-(defn article-title-div [title]
-  (xpath "//div[contains(@class,'article-title') and contains(text(),'" title "')]"))
-
 (defn label-button-value [label]
   (taxi/text (xpath "//div[contains(@class,'button') and contains(text(),'" label "')]"
                     "/parent::div[contains(@class,'label-answer-tag')]"
@@ -149,12 +124,6 @@
 ;;;; label definitions
 (def include-label-definition {:value-type "boolean"
                                :short-label "Include"
-                               :required true})
-
-(def boolean-label-definition {:value-type "boolean"
-                               :short-label "Boolean Label"
-                               :question "Is this true or false?"
-                               :definition {:inclusion-values [true]}
                                :required true})
 
 (def string-label-definition {:value-type "string"
@@ -180,13 +149,8 @@
   (let [label-uuid (->> (vals (project/project-labels project-id))
                         (filter #(= short-label (:short-label %)))
                         first :label-id)]
-    (get-in (labels/article-user-labels-map article-id)
+    (get-in (label/article-user-labels-map article-id)
             [user-id label-uuid :answer])))
-
-(defn get-user-project-id
-  "Return the first project-id of user-id"
-  [user-id]
-  (-> user-id user-self-info :projects first :project-id))
 
 (defn set-label-answer
   "Set answer value for a single label on current article."
@@ -281,12 +245,12 @@
       (is (b/exists? (x/match-text "span" (:short-label categorical-label-definition))))
 ;;;; review an article
       (nav/go-project-route "")
-      (b/click (x/project-menu-item :review) :delay 50)
+      (b/click (x/project-menu-item :review))
       (b/click x/review-labels-tab)
       (b/wait-until-displayed
        (label-div-with-name (:short-label include-label-definition)))
       ;; We shouldn't have any labels for this project
-      (is (empty? (labels/query-public-article-labels @project-id)))
+      (is (empty? (label/query-public-article-labels @project-id)))
       ;; set the labels
       (set-article-answers [(merge include-label-definition
                                    {:value include-label-value})
@@ -300,10 +264,10 @@
       (is (b/exists? ".ui.button.save-labels.disabled"))
 ;;;; check in the database for the labels
       ;; we have labels for just one article
-      (is (= 1 (count (labels/query-public-article-labels @project-id))))
+      (is (= 1 (count (label/query-public-article-labels @project-id))))
       (log/info "checking label values from db")
       (let [ ;; this is not yet generalized
-            article-id (-> (labels/query-public-article-labels
+            article-id (-> (label/query-public-article-labels
                             @project-id) keys first)]
         ;; these are just checks in the database
         (is (= include-label-value
@@ -317,7 +281,7 @@
                                           (:short-label categorical-label-definition)))))
         (log/info "checking label values from editor")
 ;;;; Let's check the actual UI for this
-        (nav/go-project-route "/articles" :wait-ms 50)
+        (nav/go-project-route "/articles")
         (b/click "a.article-title")
         (b/wait-until-displayed ".ui.button.change-labels")
         ;; check overall include
@@ -332,7 +296,7 @@
         (is (= categorical-label-value
                (label-button-value (:short-label categorical-label-definition))))
         ;;manually add labels to an article
-        (nav/go-project-route "/articles" :wait-ms 50)
+        (nav/go-project-route "/articles")
         ;;select unlabeled article
         (b/click "div.article-list-article.last")
         ;;add labels
@@ -345,7 +309,7 @@
                                (merge categorical-label-definition
                                       {:value categorical-label-value})])
         ;;check that 2 articles are now labeled
-        (is (= 2 (count (labels/query-public-article-labels @project-id))))))
+        (is (= 2 (count (label/query-public-article-labels @project-id))))))
   :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (deftest-browser review-label-components
@@ -387,7 +351,7 @@
       (is (b/exists? (x/match-text "span" name2)))
 ;;;; review an article
       (nav/go-project-route "")
-      (b/click (x/project-menu-item :review) :delay 50)
+      (b/click (x/project-menu-item :review))
       (b/click x/review-labels-tab)
       (b/wait-until-loading-completes :pre-wait 50 :loop 2)
       (log/info "testing categorical component")
@@ -447,16 +411,3 @@
       (randomly-set-article-labels label-definitions)
       (b/wait-until #(or (b/displayed-now? ".ui.button.save-labels.disabled")
                          (b/displayed-now? ".no-review-articles"))))))
-
-(defn randomly-review-all-articles
-  "Randomly sets labels for articles until all have been reviewed"
-  [label-definitions]
-  (b/click (x/project-menu-item :review))
-  (b/wait-until-displayed "#project_review")
-  (while (not (b/displayed-now? ".no-review-articles"))
-    (randomly-set-article-labels label-definitions)
-    (b/wait-until #(or (b/displayed-now? ".ui.button.save-labels.disabled")
-                       (b/displayed-now? ".no-review-articles")))))
-
-;; (randomly-review-all-articles [(merge include-label-definition {:all-values [true false]})
-;; (randomly-review-n-articles 15 [(merge include-label-definition {:all-values [true false]})])

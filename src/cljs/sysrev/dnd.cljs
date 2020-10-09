@@ -1,7 +1,7 @@
 (ns sysrev.dnd
   (:require [reagent.core :as r]
-            ["react-dnd" :as react-dnd :refer [DndProvider DragSource DropTarget]]
-            ["react-dnd-html5-backend" :as dnd-html5]
+            ["react-dnd" :refer [DndProvider DragSource DropTarget]]
+            ["react-dnd-html5-backend" :refer [HTML5Backend]]
             [sysrev.util :as util :refer [clojurize-map]]))
 
 (def ^:private dnd-provider-react (r/adapt-react-class DndProvider))
@@ -9,7 +9,7 @@
 (defn wrap-dnd-app
   "Injects react-dnd functionality to a top-level reagent `app` component."
   [app]
-  [dnd-provider-react {:backend dnd-html5/default} app])
+  [dnd-provider-react {:backend HTML5Backend} app])
 
 (defn make-drag-spec
   "Creates a js spec object for DragSource (provides hook functions)."

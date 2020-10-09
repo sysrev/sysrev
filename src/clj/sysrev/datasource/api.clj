@@ -6,10 +6,9 @@
             [clj-http.client :as http]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
-            [sysrev.db.query-types :as qt]
-            [sysrev.util :as util :refer
-             [assert-pred map-keys parse-integer apply-keyargs req-un opt-keys
-              gquery url-join index-by]])
+            [sysrev.db.queries :as q]
+            [sysrev.util :as util :refer [assert-pred map-keys parse-integer
+                                          req-un opt-keys gquery url-join index-by]])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
 ;; for clj-kondo
@@ -102,13 +101,6 @@
        (run-ds-query)
        :body :data :risFileCitationsByFileHash))
 
-(defn fetch-pubmed-article
-  "Queries datasource API to return article data map for a single `pmid`."
-  [pmid & {:as opts}]
-  (let [pmid (parse-integer pmid)]
-    (-> (apply-keyargs fetch-pubmed-articles [pmid] opts)
-        (get pmid))))
-
 ;; TODO: support this for article import (analogous to `fetch-pubmed-articles`)
 (defn-spec fetch-nct-entities (s/map-of string? map?)
   "Queries datasource API to return article data for sequence `nctids`,
@@ -119,12 +111,6 @@
                    :fields (concat [:nctid] (or fields [:json]))})
        (map (fn [entry] (update entry :json #(json/read-str % :key-fn keyword))))
        (index-by :nctid)))
-
-(defn fetch-nct-entry
-  "Queries datasource to return article data map for a single `nctid`."
-  [nctid & {:as opts}]
-  (-> (apply-keyargs fetch-nct-entities [nctid] opts)
-      (get nctid)))
 
 (defn fetch-entities
   "Queries datasource to return map of entity-id -> entity for `entity-ids`."
@@ -206,9 +192,9 @@
    content for each article from either datasource API or local
    `article-data` table."
   [article-ids (s/every int?)]
-  (->> (qt/find-article {:article-id (distinct article-ids)}
-                        [:a.* :ad.datasource-name :ad.external-id :ad.content]
-                        :include-disabled true)
+  (->> (q/get-article (distinct article-ids)
+                      [:a.* :ad.datasource-name :ad.external-id :ad.content]
+                      :include-disabled true)
        enrich-articles-with-datasource
        (index-by :article-id)))
 

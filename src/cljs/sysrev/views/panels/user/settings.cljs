@@ -1,21 +1,18 @@
 (ns sysrev.views.panels.user.settings
-  (:require [clojure.string :as str]
+  (:require [ajax.core :refer [GET PUT]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.views.components.core :refer [selection-dropdown]]
-            [ajax.core :refer [GET PUT]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.semantic :as sui :refer
-             [Segment Header Grid Column Radio Message MessageHeader]]
+            [sysrev.views.semantic :as S :refer
+             [Segment Header Grid Column Radio Message]]
+            [sysrev.views.components.core :refer [selection-dropdown CursorMessage]]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:user :settings] {:state-var state
-                                            :get-fn panel-get :set-fn panel-set
-                                            :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :settings]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 ;;;
 ;;; TODO: refactor to remove this inputs/values/... stuff
@@ -136,7 +133,7 @@
 
 (defn- UserDevTools []
   (let [user-id @(subscribe [:self/user-id])]
-    (when @(subscribe [:user/admin?])
+    (when @(subscribe [:user/dev?])
       [:div.ui.segment
        [:h4.ui.dividing.header "Dev Tools"]
        [:div
@@ -144,7 +141,7 @@
         #_ [:button.ui.yellow.button
             {:on-click
              #(do (dispatch [:action [:user/delete-member-labels user-id]])
-                  (nav-scroll-top "/"))}
+                  (nav/nav "/"))}
             "Delete Member Labels"]
         [:button.ui.orange.button
          {:on-click #(dispatch [:action [:user/delete-account user-id]])}
@@ -198,29 +195,22 @@
                      :checked @active?
                      :disabled (or (not verified) @loading?)
                      :on-change (fn [_e] (put-opt-in!))}]
-             (when-not (str/blank? @error-message)
-               [Message {:negative true, :onDismiss #(reset! error-message nil)}
-                [MessageHeader "Opt-In Error"]
-                @error-message])])))
+             [CursorMessage error-message {:negative true}]])))
       :get-initial-state
       (fn [_this]
         (reset! loading? true)
         (get-opt-in))})))
 
-(defn UserSettings [{:keys [user-id]}]
+(defn- UserSettings [{:keys [user-id]}]
   [Grid {:class "user-settings" :stackable true :columns 2}
    [Column [UserOptions]]
    [Column [UserDevTools]]
    [Column [PublicReviewerOptIn]]])
 
-(defmethod panel-content panel []
-  (fn [_child] [UserSettings]))
-
-(defmethod logged-out-content panel []
-  (logged-out-content :logged-out))
-
-(sr-defroute user-settings "/user/:user-id/settings" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [:reload [:identity]])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/settings" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (dispatch [:reload [:identity]])
+              (dispatch [:set-active-panel panel]))
+  :content [UserSettings]
+  :require-login true)

@@ -3,22 +3,20 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-event-db]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action]]
+            [sysrev.data.core :as data]
             [sysrev.nav :as nav]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util :refer [in? css parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:project :project :settings] {:state-var state
-                                                        :get-fn panel-get
-                                                        :set-fn panel-set})
+(setup-panel-state panel [:project :project :settings]
+                   :state state :get [panel-get] :set [panel-set])
 
 (reg-event-db :project-settings/reset-state! #(panel-set % nil {}))
 
@@ -27,8 +25,7 @@
     input))
 
 (defn admin? []
-  (or @(subscribe [:member/admin?])
-      @(subscribe [:user/admin?])))
+  @(subscribe [:member/admin? true]))
 
 (defn editing? []
   (and (admin?) (= panel @(subscribe [:active-panel]))))
@@ -64,10 +61,6 @@
     (cond-> (misc-saved)
       (editing?) (merge active)
       skey (get skey))))
-
-(defn misc-inputs [& [skey]]
-  (cond-> (:misc-inputs @state)
-    skey (get skey)))
 
 (defn edit-misc [skey value]
   (let [inputs (r/cursor state [:misc-inputs])
@@ -140,11 +133,9 @@
              ;; this is hacky, need a keyword to [:action [...] :on-success #(do something)]
              ;; because this can't just be handled by sysrev.views.panels.user.projects/set-public!
              (let [self-id (current-user-id db)
-                   project-owner @(subscribe [:project/owner project-id])
-                   owner-type (-> project-owner keys first)
-                   owner-id (-> project-owner vals first)]
-               (when (= :group-id owner-type)
-                 (dispatch [:org/get-projects! owner-id]))
+                   {:keys [group-id]} @(subscribe [:project/owner project-id])]
+               (when group-id
+                 (dispatch [:data/load [:org/projects group-id]]))
                {:db (assoc-in db [:data :project project-id :settings] settings)
                 :dispatch [:reload [:user/projects self-id]]})))
 
@@ -198,7 +189,7 @@
   :process (fn [{:keys [db]} _ _]
              {:db (assoc-in db [:state :active-project-id] nil)
               :dispatch [:reload [:identity]]
-              :nav-scroll-top "/"}))
+              :nav ["/"]}))
 
 (defn- input-field-class [skey]
   (if (valid-input? skey) "" "error"))
@@ -219,14 +210,13 @@
 
 (defn- SettingsButton [{:keys [setting key label value tooltip disabled?]}]
   (let [active? (= (render-setting setting)
-                   (render-setting-value setting value))
-        admin? (admin?)]
+                   (render-setting-value setting value))]
     (ui/FixedTooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
        :class (css [active? "active"]
                    [disabled? "disabled"])
-       :on-click (if admin? #(edit-setting setting value) nil)}
+       :on-click (if (admin?) #(edit-setting setting value) nil)}
       label]
      [:p tooltip]
      "20em"
@@ -275,7 +265,7 @@
       :label "Project Visibility"
       :entries public-access-buttons
       :disabled? (and (= project-plan "Basic")
-                      (not @(subscribe [:user/actual-admin?]))
+                      (not @(subscribe [:user/dev?]))
                       @(subscribe [:project/public-access? project-id]))}
      (when (and (= project-plan "Basic")
                 @(subscribe [:project/controlled-by? project-id self-id]))
@@ -361,18 +351,17 @@
 (defn- ProjectMiscBox []
   (let [saving? (r/atom false)]
     (fn []
-      (let [admin? (admin?)
-            modified? (misc-modified?)
+      (let [modified? (misc-modified?)
             project-id @(subscribe [:active-project-id])]
         (when (and @saving?
                    (not modified?)
-                   (not (loading/any-action-running?)))
+                   (not (action/running?)))
           (reset! saving? false))
         [:div.ui.segment.project-misc
          [:h4.ui.dividing.header "Project"]
          [:div.ui.form
           [ProjectNameField]]
-         (when admin?
+         (when (admin?)
            [:div
             [:div.ui.divider]
             [ui/SaveCancelForm
@@ -387,14 +376,12 @@
 (defn- ProjectOptionsBox []
   (let [saving? (r/atom false)]
     (fn []
-      (let [admin? (admin?)
-            modified? (modified?)
+      (let [modified? (modified?)
             valid? (valid-input?)
             project-id @(subscribe [:active-project-id])]
         (when (and @saving?
                    (not modified?)
-                   (not (loading/any-action-running?
-                         :only :project/change-settings)))
+                   (not (action/running? :project/change-settings)))
           (reset! saving? false))
         [:div.ui.segment.project-options
          [:h4.ui.dividing.header "Options"]
@@ -404,18 +391,18 @@
            [DoubleReviewPriorityField]]
           [:div.two.fields
            [UnlimitedReviewsField]]]
-         (when admin?
+         (when (admin?)
            [:div
             [:div.ui.divider]
             [ui/SaveCancelForm
-             :can-save? (and valid? modified?)
-             :can-reset? modified?
-             :on-save #(do (reset! saving? true)
-                           (save-changes project-id))
-             :on-reset #(do (reset! saving? false)
-                            (reset-fields))
-             :saving? @saving?
-             :id "save-options"]])]))))
+             :id          "save-options"
+             :can-save?   (and valid? modified?)
+             :can-reset?  modified?
+             :on-save     #(do (reset! saving? true)
+                               (save-changes project-id))
+             :on-reset    #(do (reset! saving? false)
+                               (reset-fields))
+             :saving?     @saving?]])]))))
 
 (defonce members-state (r/cursor state [:members]))
 
@@ -606,8 +593,8 @@
                        (reset-permissions-fields))
         :saving?
         (and changed?
-             (or (loading/any-action-running? :only :project/change-permissions)
-                 (loading/item-loading? [:project project-id])))])]))
+             (or (action/running? :project/change-permissions)
+                 (data/loading? [:project project-id])))])]))
 
 (defn- ProjectMembersBox []
   [:div.ui.segment.project-members
@@ -624,7 +611,7 @@
                 :dispatch [:set-panel-field [:update-predictions-clicked] nil panel]}]}))
 
 (defn- DeveloperActions []
-  (when @(subscribe [:user/admin?])
+  (when @(subscribe [:user/dev?])
     (let [project-id @(subscribe [:active-project-id])]
       [:div.ui.segments>div.ui.secondary.segment.action-segment
        [:h4.ui.dividing.header "Developer Actions"]
@@ -635,17 +622,22 @@
           (if clicked? "Updating" "Update Predictions")
           (if clicked? [:i.check.circle.icon] [:i.repeat.icon])])])))
 
-(defmethod panel-content [:project :project :settings] []
-  (fn [_child]
-    [:div.project-content
-     [ReadOnlyMessage
-      "Changing settings is restricted to project administrators."
-      (r/cursor state [:read-only-message-closed?])]
-     [:div.ui.two.column.stackable.grid.project-settings
-      [:div.column
-       [ProjectMiscBox]
-       [ProjectOptionsBox]]
-      [:div.column
-       [ProjectMembersBox]
-       [ProjectExtraActions]
-       [DeveloperActions]]]]))
+(defn- Panel []
+  [:div.project-content
+   [ReadOnlyMessage
+    "Changing settings is restricted to project administrators."
+    (r/cursor state [:read-only-message-closed?])]
+   [:div.ui.two.column.stackable.grid.project-settings
+    [:div.column
+     [ProjectMiscBox]
+     [ProjectOptionsBox]]
+    [:div.column
+     [ProjectMembersBox]
+     [ProjectExtraActions]
+     [DeveloperActions]]]])
+
+(def-panel :project? true :panel panel
+  :uri "/settings" :params [project-id] :name project-settings
+  :on-route (do (data/reload :project project-id)
+                (dispatch [:set-active-panel panel]))
+  :content [Panel])

@@ -1,13 +1,12 @@
 (ns sysrev.views.panels.password-reset
   (:require [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-fx trim-v]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
+            [sysrev.data.core :as data :refer [def-data]]
+            [sysrev.action.core :refer [def-action run-action]]
             [sysrev.nav :as nav]
             [sysrev.state.ui :refer [get-panel-field]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.util :refer [validate wrap-prevent-default]]))
+            [sysrev.util :refer [validate wrap-prevent-default css]]
+            [sysrev.macros :refer-macros [def-panel]]))
 
 (def ^:private request-panel [:request-password-reset])
 (def ^:private reset-panel [:reset-password])
@@ -60,7 +59,7 @@
     (if success
       {:dispatch-n (list [[:ga-event "auth" "password_reset_success"]
                           [:reset-password/success? true]])
-       :dispatch-later [{:ms 2000 :dispatch [:nav-scroll-top "/login"]}]}
+       :dispatch-later [{:ms 2000 :dispatch [:nav "/login"]}]}
       {:dispatch-n (list [:ga-event "error" "password_reset_failure"]
                          [:reset-password/error (or message "Request failed")])})))
 
@@ -128,7 +127,7 @@
          :<- [:panel-field [:transient :password] reset-panel]
          identity)
 
-(defn reset-password-panel []
+(defn- reset-password-panel []
   (let [reset-code @(subscribe [:reset-password/reset-code])
         email @(subscribe [:reset-password/email])
         submitted? @(subscribe [::reset-submitted?])
@@ -140,11 +139,10 @@
         on-submit (wrap-prevent-default
                    #(when (and (not-empty email)
                                (not-empty password))
-                      (do (dispatch [::reset-submitted? true])
-                          (when (empty? errors)
-                            (dispatch [:action [:auth/reset-password
-                                                {:reset-code reset-code
-                                                 :password password}]])))))
+                      (dispatch [::reset-submitted? true])
+                      (when (empty? errors)
+                        (run-action :auth/reset-password {:reset-code reset-code
+                                                          :password password}))))
         on-password-change #(let [val (-> % .-target .-value)]
                               (dispatch-sync [::password val]))
         error-class #(when (get errors %) "error")
@@ -156,38 +154,35 @@
      [:h3.ui.top.attached.header "Reset Password"]
      [:div.ui.bottom.attached.segment
       (if (nil? email)
-        (when-not (loading/any-loading?)
+        (when-not (data/loading?)
           [:h4 "Invalid reset code"])
         [:form.ui.form {:class form-class :on-submit on-submit
                         :autoComplete "off"}
          [:div.field
           [:label "Email"]
-          [:input.ui.disabled.input
-           {:type "email"
-            :name "email"
-            :value (or email "")
-            :read-only true
-            :autoComplete "off"}]]
+          [:input.ui.disabled.input {:type "email"
+                                     :name "email"
+                                     :value (or email "")
+                                     :read-only true
+                                     :autoComplete "off"}]]
          [:div.field {:class (error-class :password)}
           [:label "Enter new password"]
-          [:input.ui.input
-           {:type "password"
-            :name "password"
-            :value (or password "")
-            :on-change on-password-change
-            :autoComplete "off"}]]
+          [:input.ui.input {:type "password"
+                            :name "password"
+                            :value (or password "")
+                            :on-change on-password-change
+                            :autoComplete "off"}]]
          [error-msg :password]
          [:div.ui.divider]
          [:button.ui.button {:type "submit" :name "submit"} "Submit"]
          (when-let [msg @(subscribe [:reset-password/error])]
            [:div.ui.negative.message msg])
          (when @(subscribe [:reset-password/success?])
-           [:div.ui.green.message
-            "Password reset! Returning to login page..."])
+           [:div.ui.green.message "Password reset! Returning to login page..."])
          (when-let [msg @(subscribe [:reset-password/error])]
            [:div.ui.negative.message msg])])]]))
 
-(defn request-password-reset-panel []
+(defn- request-password-reset-panel []
   (let [email @(subscribe [::request-email])
         submitted? @(subscribe [::request-submitted?])
         errors (when submitted?
@@ -211,19 +206,16 @@
       [:div.field {:class (error-class :email)}
        [:div.ui.left.icon.input
         [:i.user.icon]
-        [:input
-         {:type "email"
-          :name "email"
-          :placeholder "E-mail address"
-          :value email
-          :on-change on-email-change
-          :auto-focus true}]]]
+        [:input {:type "email"
+                 :name "email"
+                 :placeholder "E-mail address"
+                 :value email
+                 :on-change on-email-change
+                 :auto-focus true}]]]
       [error-msg :email]
       [:div.field
-       [:button.ui.fluid.primary.button
-        {:type "submit"
-         :name "submit"
-         :class (if loading? "loading" "")}
+       [:button.ui.fluid.primary.button {:type "submit" :name "submit"
+                                         :class (css [loading? "loading"])}
         "Send Password Reset Link"]]
       [:div.ui.center.aligned.grid.small>div.column
        [:a.medium-weight.small {:href "/login"} "Back to Login"]]
@@ -233,24 +225,22 @@
         [:div.ui.green.message
          "An email has been sent with a link to reset your password."])]]))
 
-(defmethod panel-content request-panel []
-  (fn [_child]
-    [:div.ui.padded.segments.auto-margin
-     {:style {:max-width "500px" :margin-top "10px"}}
-     [:h3.ui.top.attached.header "Request Password Reset"]
-     [:div.ui.bottom.attached.segment
-      [:div.ui.orange.message "You must be logged out before using this."]]]))
+(def-panel :uri "/request-password-reset" :panel request-panel
+  :on-route (dispatch [:set-active-panel [:request-password-reset]])
+  :content [:div.ui.padded.segments.auto-margin
+            {:style {:max-width "500px" :margin-top "10px"}}
+            [:h3.ui.top.attached.header "Request Password Reset"]
+            [:div.ui.bottom.attached.segment
+             [:div.ui.orange.message "You must be logged out before using this."]]]
+  :logged-out-content [request-password-reset-panel])
 
-(defmethod logged-out-content request-panel []
-  [request-password-reset-panel])
-
-(defmethod panel-content reset-panel []
-  (fn [_child]
-    [:div.ui.padded.segments.auto-margin
-     {:style {:max-width "500px" :margin-top "10px"}}
-     [:h3.ui.top.attached.header "Reset Password"]
-     [:div.ui.bottom.attached.segment
-      [:div.ui.orange.message "You must be logged out before using this."]]]))
-
-(defmethod logged-out-content reset-panel []
-  [reset-password-panel])
+(def-panel :uri "/reset-password/:reset-code" :params [reset-code] :panel reset-panel
+  :on-route (do (dispatch [:set-active-panel [:reset-password]])
+                (dispatch [:reset-password/reset-code reset-code])
+                (dispatch [:fetch [:password-reset reset-code]]))
+  :content [:div.ui.padded.segments.auto-margin
+            {:style {:max-width "500px" :margin-top "10px"}}
+            [:h3.ui.top.attached.header "Reset Password"]
+            [:div.ui.bottom.attached.segment
+             [:div.ui.orange.message "You must be logged out before using this."]]]
+  :logged-out-content [reset-password-panel])

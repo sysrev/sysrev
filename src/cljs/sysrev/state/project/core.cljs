@@ -1,5 +1,6 @@
 (ns sysrev.state.project.core
-  (:require [re-frame.core :refer [subscribe reg-sub]]
+  (:require [medley.core :as medley :refer [find-first]]
+            [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :as nav]
             [sysrev.state.project.base :refer [get-project-raw]]
@@ -34,7 +35,7 @@
                       first :url-ids first)]
     (or project-url self-url)))
 ;;
-(defn project-active-url-id [db project-id]
+(defn ^:unused project-active-url-id [db project-id]
   (let [project (get-project-raw db project-id)
         self-projects (get-self-projects db :include-available? true)]
     (project-active-url-id-impl project-id project self-projects)))
@@ -108,16 +109,13 @@
 
 (reg-sub :project/controlled-by?
          (fn [[_ project-id user-id]]
-           [(subscribe [:member/admin? user-id project-id])
+           [(subscribe [:member/admin? false user-id project-id])
             (subscribe [:self/orgs user-id])
             (subscribe [:project/owner project-id])])
          (fn [[admin? orgs project-owner]]
            (let [{:keys [user-id group-id]} project-owner
-                 org-permissions (when group-id
-                                   (->> orgs (filter #(= (:group-id %) group-id))
-                                        first :permissions))]
-             (or
-              ;; user is an admin of this project
-              (and user-id admin?)
-              ;; user is an admin or owner of the org this project belongs to
-              (and group-id (some #{"admin" "owner"} org-permissions))))))
+                 org-permissions (:permissions
+                                  (->> orgs (find-first #(= (:group-id %) group-id))))]
+             ;; user owns project as admin, or admin/owner of org that owns project
+             (or (and user-id admin?)
+                 (and group-id (some #{"admin" "owner"} org-permissions))))))

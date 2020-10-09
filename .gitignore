@@ -187,9 +187,6 @@ fabric.properties
 # Semantic build directory
 resources/public/semantic
 
-# files starting with a dot should be ignored by default
-.*
-
 # files marked local
 *.local.*
 /resources/git-commit
@@ -209,3 +206,9 @@ profiles.clj
 boot-cljsjs-checksums.edn
 client/node_modules
 client/semantic
+
+# files starting with a dot should be ignored by default
+.*
+
+!/.carve_ignore
+/scripts/clj-kondo

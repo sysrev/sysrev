@@ -76,5 +76,5 @@
   (log/info "logging initialized")
   true)
 
-(defonce logging-initialized
+(defonce ^:init-once logging-initialized
   (init-logging))

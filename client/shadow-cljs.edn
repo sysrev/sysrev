@@ -7,7 +7,9 @@
                 :asset-path "/out"
                 :modules {:sysrev {:entries [sysrev.user]
                                    :init-fn sysrev.core/on-jsload}}
-                :devtools {:loader-mode :eval}}
+                :devtools {:loader-mode :eval
+                           :watch-path "/css"
+                           :watch-dir "resources/public/css"}}
           :prod {:target :browser
                  :output-dir "resources/public/out-production"
                  :asset-path "/out"
@@ -19,23 +21,23 @@
                 [commons-io/commons-io "2.7"]
                 [commons-codec "1.14"]
 ;;; CLJ/CLJS libraries
-                [orchestra "2018.12.06-2" #_ "2019.02.06-1"]
-                [org.clojure/tools.logging "0.5.0"]
+                [orchestra "2020.07.12-1"]
+                [org.clojure/tools.logging "1.1.0"]
                 [ch.qos.logback/logback-classic "1.2.3"]
                 [org.slf4j/jul-to-slf4j "1.7.30"]
-                [org.clojure/test.check "0.10.0"]
+                [org.clojure/test.check "1.1.0"]
 ;;; Client libraries (CLJS)
                 [com.cognitect/transit-cljs "0.8.264"]
                 [reagent "0.10.0"]
-                [re-frame "0.12.0"]
-                [day8.re-frame/http-fx "v0.2.0"]
+                [re-frame "1.0.0"]
+                [day8.re-frame/http-fx "0.2.1"]
                 [clj-commons/secretary "1.2.4"]
                 [kibu/pushy "0.3.8"]
                 [cljs-http "0.1.46"]
                 [com.andrewmcveigh/cljs-time "0.5.2"]
                 [medley "1.3.0"]
 ;;; Cider
-                [cider/cider-nrepl "0.25.2"]
+                [cider/cider-nrepl "0.25.3"]
                 [refactor-nrepl "2.5.0"]
 ;;; Needed for CLJ macro compilation (sysrev.util)
                 [clj-time "0.15.2"]

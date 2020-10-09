@@ -63,7 +63,7 @@
     (doseq [project-id (projects-with-resolve)]
       (migrate-project-article-resolve project-id))))
 
-(defn migrate-labels-project-ordering
+(defn ^:migrate migrate-labels-project-ordering
   "Set label.project_ordering values to match legacy label ordering logic.
   Should only be run manually one time to avoid reverting new and
   reordered labels."

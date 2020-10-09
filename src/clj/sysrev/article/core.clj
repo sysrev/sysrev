@@ -11,10 +11,6 @@
 ;; for clj-kondo
 (declare article-to-sql)
 
-(defn merge-article-data-content [article]
-  (merge (dissoc article :content)
-         (:content article)))
-
 (defn-spec article-to-sql map?
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
@@ -111,11 +107,15 @@
 
 (defn article-score [article-id & {:keys [predict-run-id]}]
   (db/with-transaction
-    (let [predict-run-id (or predict-run-id (q/article-latest-predict-run-id article-id))]
-      (:score (q/find-one [:article :a] {:a.article-id article-id} :*
-                          :prepare #(q/with-article-predict-score % predict-run-id))))))
+    (let [predict-run-id (or predict-run-id (-> (q/get-article article-id :project-id)
+                                                (q/project-latest-predict-run-id)))]
+      (q/find-one [:article :a] {:a.article-id article-id
+                                 :lp.predict-run-id predict-run-id
+                                 :lp.stage 1
+                                 :l.name "overall include"}
+                  :lp.val, :join [[[:label-predicts :lp] :a.article-id]
+                                  [[:label :l]           :lp.label-id]]))))
 
-;; TODO: replace with generic interface for querying db entities with added values
 (defn get-article
   "Queries for article data by id, with data from other tables included.
 
@@ -160,26 +160,21 @@
 
 (defn project-prediction-scores
   "Given a project-id, return the prediction scores for all articles"
-  [project-id &
-   {:keys [include-disabled? predict-run-id]
-    :or {include-disabled? false
-         predict-run-id (first (q/find :predict-run {:project-id project-id} :predict-run-id
-                                       :order-by [:create-time :desc] :limit 1))}}]
-  (q/find [:label-predicts :lp] (cond-> {:a.project-id project-id
-                                         :lp.predict-run-id predict-run-id}
-                                  (not include-disabled?) (merge {:a.enabled true}))
-          [:a.article-id :lp.val]
-          :join [[:article :a] :lp.article-id]))
-
-(defn article-ids-to-uuids [article-ids]
-  (->> (partition-all 500 article-ids)
-       (mapv #(q/find :article {:article-id %} :article-uuid))
-       (apply concat)))
+  [project-id & {:keys [include-disabled? predict-run-id]
+                 :or {include-disabled? false}}]
+  (let [predict-run-id
+        (or predict-run-id
+            (first (q/find :predict-run {:project-id project-id} :predict-run-id
+                           :order-by [:create-time :desc] :limit 1)))]
+    (q/find [:label-predicts :lp] (cond-> {:a.project-id project-id
+                                           :lp.predict-run-id predict-run-id}
+                                    (not include-disabled?) (merge {:a.enabled true}))
+            [:a.article-id :lp.val], :join [[:article :a] :lp.article-id])))
 
 ;; FIX: get this PMCID value from somewhere other than raw xml
 (defn article-pmcid [_article-id]
   nil
-  #_ (some->> (qt/get-article _article-id :raw) (re-find #"PMC\d+")))
+  #_ (some->> (q/get-article _article-id :raw) (re-find #"PMC\d+")))
 
 (defn modify-articles-by-id
   "Runs SQL update setting `values` on articles in `article-ids`."

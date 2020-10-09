@@ -1,4 +1,4 @@
-(ns sysrev.test.browser.new
+(ns sysrev.test.browser.new-project
   (:require [clojure.test :refer [is use-fixtures]]
             [sysrev.payment.plans :refer [group-current-plan]]
             [sysrev.payment.stripe :as stripe]
@@ -10,7 +10,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]
             [sysrev.user.core :as user :refer [user-by-email]]
-            [sysrev.util :as util :refer [index-by random-id]]))
+            [sysrev.util :as util]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -23,39 +23,36 @@
       (plans/wait-until-stripe-id (:email test-user))
       (plans/wait-until-plan (:email test-user) stripe/default-plan)
       (nav/log-in (:email test-user))
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is disabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
                         "/descendant::div[contains(@class,'radio') and contains(@class,'disabled')]"))
       ;; signup through 'Pro Accounts' button
       (b/click (xpath "//a[contains(text(),'Pro Accounts')]"))
-      (b/wait-until-displayed plans/choose-pro-button)
       (b/click plans/choose-pro-button)
       ;; update payment method
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (plans/click-use-card :delay 50)
+      (plans/click-use-card)
       (plans/click-upgrade-plan)
         ;;;;;;;;; cut here
       (is (= "Unlimited_User" (plans/user-db-plan (:email test-user))))
       ;; now try to create private project
       (nav/go-route "/")
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is enabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
                         "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       ;; create the private project
-      (b/set-input-text "form#create-project-form div.project-name input" project-name)
+      (b/set-input-text "#create-project .project-name input" project-name)
       (b/click (xpath "//p[contains(text(),'Private')]"
                       "/ancestor::div[contains(@class,'row')]"
                       "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       (b/click (xpath "//button[contains(text(),'Create Project')]"))
       ;; is this project private?
-      (b/exists? (xpath "//i[contains(@class,'lock') and contains(@class,'grey')]"))
-      (b/exists? (xpath "//span[contains(text(),'Private')]"))
-      (b/cleanup-test-user! :email (:email test-user)))
-  :cleanup (b/cleanup-test-user! :email (:email test-user)))
+      (b/exists? "i.grey.lock")
+      (b/exists? (xpath "//span[contains(text(),'Private')]"))))
 
 (deftest-browser group-create-new
   (and (test/db-connected?) (not (test/remote-test?))) test-user
@@ -67,7 +64,7 @@
       (plans/wait-until-plan (:email test-user) stripe/default-plan)
       (nav/log-in (:email test-user))
       (orgs/create-org org-name)
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is disabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
@@ -79,7 +76,7 @@
       (b/click (xpath "//span[contains(text(),'" org-name "')]"))
       ;; update payment method
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (plans/click-use-card :delay 50)
+      (plans/click-use-card)
       (plans/click-upgrade-plan)
       ;;;;;;; cut here
       (is (= "Unlimited_Org" (-> (orgs/user-groups (:email test-user))
@@ -89,19 +86,17 @@
                                  :nickname)))
       ;; now try to create private project
       (b/click "a#org-projects")
-      (b/click "button#new-project")
+      (b/click "#new-project.button")
       ;; private is enabled
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
                         "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       ;; create the private project
-      (b/set-input-text "form#create-project-form div.project-name input" project-name)
+      (b/set-input-text "#create-project .project-name input" project-name)
       (b/click (xpath "//p[contains(text(),'Private')]"
                       "/ancestor::div[contains(@class,'row')]"
                       "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       (b/click (xpath "//button[contains(text(),'Create Project')]"))
       ;; is this project private?
-      (b/exists? (xpath "//i[contains(@class,'lock') and contains(@class,'grey')]"))
-      (b/exists? (xpath "//span[contains(text(),'Private')]"))
-      (b/cleanup-test-user! :email (:email test-user)))
-  :cleanup (b/cleanup-test-user! :email (:email test-user)))
+      (b/exists? "i.grey.lock")
+      (b/exists? (xpath "//span[contains(text(),'Private')]"))))

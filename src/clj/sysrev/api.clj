@@ -4,7 +4,7 @@
             [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
-            [clojure.string :as string]
+            [clojure.string :as str]
             [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
             [clj-time.core :as t]
@@ -34,7 +34,7 @@
             [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.label.define :as ldefine]
-            [sysrev.user.core :as user :refer [get-user user-by-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.group.core :as group]
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
@@ -50,7 +50,7 @@
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer]]
+            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer sum]]
             [venia.core :as venia])
   (:import (java.util UUID)
            (java.util.zip ZipOutputStream ZipEntry)))
@@ -65,7 +65,6 @@
 (def conflict 409)
 ;; server settings
 (def minimum-support-level 100)
-(def max-import-articles (:max-import-articles env))
 (def paywall-grandfather-date "2019-06-09 23:56:00")
 
 (s/def ::success boolean?)
@@ -150,7 +149,7 @@
   the project, disables project instead of deleting it"
   [project-id int?, user-id int?]
   (assert (or (member/member-role? project-id user-id "admin")
-              (in? (get-user user-id :permissions) "admin")))
+              (in? (q/get-user user-id :permissions) "admin")))
   (if (project/project-has-labeled-articles? project-id)
     (project/disable-project! project-id)
     (project/delete-project project-id))
@@ -186,7 +185,7 @@
   (cond user-id   (change-project-owner-to-user project-id user-id)
         group-id  (change-project-owner-to-group project-id group-id)))
 
-(defn transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
+(defn ^:unused transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
   (util/assert-single user-id group-id)
   (with-transaction
     (let [users-projects (->> (user/user-projects owner-user-id [:permissions])
@@ -293,14 +292,6 @@
     {:error {:status not-found
              :message (str "source-id " source-id " does not exists")}}))
 
-(defn delete-source-cursors!
-  "Delete the cursors from a source meta"
-  [source-id]
-  (if (source/source-exists? source-id)
-    {:source-id (source/alter-source-meta source-id #(dissoc % :cursors))}
-    {:error {:status not-found
-             :message (str "source-id " source-id " does not exists")}}))
-
 (defn sysrev-base-url
   "Tries to determine and return the current root url for Sysrev web
   app. Returns default of \"https://sysrev.com\" if no condition
@@ -349,7 +340,7 @@
 (defn update-user-stripe-payment-method!
   "Update the payment method for user-id"
   [user-id payment-method]
-  (let [{:keys [stripe-id]} (get-user user-id)
+  (let [{:keys [stripe-id]} (q/get-user user-id)
         stripe-response (stripe/update-customer-payment-method! stripe-id payment-method)]
     (if (:error stripe-response)
       stripe-response
@@ -532,7 +523,7 @@
 
 (defn user-default-stripe-source [user-id]
   (with-transaction
-    {:default-source (or (some-> (:stripe-id (get-user user-id))
+    {:default-source (or (some-> (q/get-user user-id :stripe-id)
                                  (stripe/get-customer-invoice-default-payment-method))
                          [])}))
 
@@ -657,9 +648,7 @@
         compensation-outstanding (compensation/project-total-owed project-id)
         admin-fees (compensation/project-total-admin-fees project-id)
         current-balance (- available-funds compensation-outstanding admin-fees)
-        pending-funds (->> (funds/pending-funds project-id)
-                           (map :amount)
-                           (apply +))]
+        pending-funds (sum (map :amount (funds/pending-funds project-id)))]
     {:current-balance current-balance
      :admin-fees admin-fees
      :compensation-outstanding compensation-outstanding
@@ -682,7 +671,7 @@
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 (defn pay-user!
   [project-id user-id compensation admin-fee]
-  (let [user (get-user user-id)
+  (let [user (q/get-user user-id)
         total-amount (+ compensation admin-fee)
         {:keys [available-funds]} (calculate-project-funds project-id)]
     (if (> total-amount available-funds)
@@ -730,9 +719,10 @@
   (importance/project-important-terms project-id (or max-terms 20)))
 
 (defn project-concordance [project-id & {:keys [keep-resolved] :or {keep-resolved true}}]
-  (concordance-api/get-concordance project-id :keep-resolved keep-resolved))
+  (concordance-api/project-concordance project-id :keep-resolved keep-resolved))
 
-(defn project-label-count-groups [project-id] (biosource-contgroup/get-label-countgroup project-id))
+(defn project-label-count-groups [project-id]
+  (biosource-contgroup/get-label-countgroup project-id))
 
 (defn project-prediction-histogram [project-id]
   (db/with-project-cache project-id [:prediction-histogram]
@@ -873,19 +863,16 @@
                        (->> (:files (article-pdfs aid))
                             (map-indexed (fn [i art]
                                            (if (= i 0)
-                                                 {:key (:key art) :name (format "%s.pdf" aid)}
-                                                 {:key (:key art) :name (format "%s-%d.pdf" aid i)})))))
+                                             {:key (:key art) :name (format "%s.pdf" aid)}
+                                             {:key (:key art) :name (format "%s-%d.pdf" aid i)})))))
                      articles)
         tmpzip (util/create-tempfile :suffix (format "%d.zip" project-id))]
     (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
       (doseq [f pdfs]
-        (try
-          (let [is (s3-file/get-file-stream (:key f) :pdf)]
-            (.putNextEntry zip (ZipEntry. (str (:name f))))
-            (io/copy is zip)
-            (.close is))
-          (catch Exception _)
-          )))
+        (util/ignore-exceptions
+         (with-open [is (s3-file/get-file-stream (:key f) :pdf)]
+           (.putNextEntry zip (ZipEntry. (str (:name f))))
+           (io/copy is zip)))))
     tmpzip))
 
 (defn dissociate-article-pdf
@@ -1038,7 +1025,7 @@
                                 invitation/invitations-for-user
                                 (filter #(= project-id (:project-id %)))
                                 (filter #(= description (:description %))))
-        email (get-user invitee :email)]
+        email (q/get-user invitee :email)]
     (if (empty? project-invitation)
       (do
         ;; send invitation email
@@ -1193,20 +1180,19 @@
 (defn read-profile-image
   "Return the currently active profile image for user"
   [user-id]
-  (let [{:keys [key filename]} (user-image/user-active-profile-image user-id)]
-    (if key
-      (-> (response/response (s3-file/get-file-stream key :image))
-          (response/header "Content-Disposition"
-                           (format "attachment: filename=\"" filename "\"")))
-      {:error {:status not-found
-               :message "No profile image associated with user"}})))
+  (if-let [{:keys [key filename] :as _x} (user-image/user-active-profile-image user-id)]
+    (-> (response/response (s3-file/get-file-stream key :image))
+        (response/header "Content-Disposition"
+                         (format "attachment: filename=\"%s\"" filename)))
+    {:error {:status not-found
+             :message "No profile image associated with user"}}))
 
 (defn read-profile-image-meta
   "Read the current profile image meta data"
   [user-id]
   {:success true
-   :meta (json/read-json (or (:meta (user-image/user-active-profile-image user-id))
-                             "{}"))})
+   :meta (-> (some-> user-id user-image/user-active-profile-image :meta json/read-json)
+             (or {}))})
 
 (defn create-avatar! [user-id file filename meta]
   (user-image/save-user-avatar-image user-id file filename meta)
@@ -1217,7 +1203,7 @@
         (-> (response/response (s3-file/get-file-stream key :image))
             (response/header "Content-Disposition"
                              (format "attachment: filename=\"%s\"" filename))))
-      (when-let [gravatar-img (user-image/gravatar-image-data (get-user user-id :email))]
+      (when-let [gravatar-img (user-image/gravatar-image-data (q/get-user user-id :email))]
         (-> (response/response gravatar-img)
             (response/header "Content-Disposition"
                              (format "attachment: filename=\"%d-gravatar.jpeg\"" user-id))))
@@ -1242,7 +1228,7 @@
         {:error {:status conflict
                  :message (str "An organization with the name '" org-name "' already exists."
                                " Please try using another name.")}}
-        (string/blank? org-name)
+        (str/blank? org-name)
         {:error {:status bad-request
                  :message (str "Organization names can't be blank!")}}
         :else {:valid true}))
@@ -1254,7 +1240,7 @@
       (with-transaction
         ;; create the group
         (let [new-org-id (group/create-group! org-name)
-              user (get-user user-id)
+              user (q/get-user user-id)
               _ (group/create-group-stripe-customer! new-org-id user)
               stripe-id (group/group-stripe-id new-org-id)]
           ;; set the user as group admin

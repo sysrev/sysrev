@@ -69,8 +69,8 @@
 
 (defn migrate-filestore-table-needed? []
   (and (q/table-exists? :project-document)
-       (zero? (q/table-count :project-document))
-       (try (pos? (q/table-count :filestore))
+       (zero? (q/find-count :project-document {}))
+       (try (pos? (q/find-count :filestore {}))
             (catch Throwable _ false))))
 
 (defn migrate-filestore-table []

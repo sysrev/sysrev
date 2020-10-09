@@ -2,10 +2,10 @@
   :dependencies [[org.clojure/clojure "1.10.1"]
 
 ;;; clojure.spec
-                 [orchestra "2018.12.06-2" #_ "2019.02.06-1"]
+                 [orchestra "2020.07.12-1"]
 
 ;;; Force versions of indirect dependencies
-                 [com.fasterxml.jackson.core/jackson-databind "2.11.1"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.11.2"]
                  [cheshire "5.10.0"]
                  [commons-io/commons-io "2.7"]
                  [commons-codec "1.14"]
@@ -13,12 +13,12 @@
                  [prismatic/schema "1.1.12"]
 
 ;;; Logging
-                 [org.clojure/tools.logging "0.5.0"]
+                 [org.clojure/tools.logging "1.1.0"]
                  [ch.qos.logback/logback-classic "1.2.3"]
                  [org.slf4j/jul-to-slf4j "1.7.30"]
 
 ;;; Libraries
-                 [org.clojure/test.check "0.10.0"]
+                 [org.clojure/test.check "1.1.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  [org.clojure/math.combinatorics "0.1.6"]
                  [crypto-random "1.2.0"]
@@ -26,10 +26,10 @@
                  [eftest "0.5.9"]
 
 ;;; Data formats
-                 [org.clojure/data.json "0.2.7"]
+                 [org.clojure/data.json "1.0.0"]
                  [com.cognitect/transit-clj "1.0.324"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
-                 [org.clojure/data.zip "0.1.3"]
+                 [org.clojure/data.zip "1.0.0"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
 ;;; GraphQL
@@ -38,11 +38,11 @@
 
 ;;; Postgres
                  [org.clojure/java.jdbc "0.7.11"]
-                 [org.postgresql/postgresql "42.2.14"]
+                 [org.postgresql/postgresql "42.2.16"]
                  [joda-time "2.10.6"]
                  [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "2.12.0"]
+                 [hikari-cp "2.13.0"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.8"]
@@ -61,13 +61,13 @@
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.5.0" :exclusions [cheshire]]
                  [ring/ring-mock "0.4.0" :exclusions [cheshire]]
-                 [compojure "1.6.1"]
+                 [compojure "1.6.2"]
 ;;; profiling
                  [criterium "0.4.6"]
 
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication
-                 [clj-http "3.10.1"]
+                 [clj-http "3.10.2"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.3"] ;; email client
                  [amazonica "0.3.152"

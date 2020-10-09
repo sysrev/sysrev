@@ -151,9 +151,7 @@
         _ (user/set-user-permissions user-id ["user" "admin"])
         {:keys [project-id]} (project/create-project "test-check-allow-answers")]
     (try
-      (label/add-label-entry-boolean
-       project-id {:name "include" :question "include?" :short-label "Include"
-                   :inclusion-value true :required true})
+      (label/add-label-overall-include project-id)
       (let [response (webapi-post "import-pmids"
                                   {:api-token api-token
                                    :project-id project-id

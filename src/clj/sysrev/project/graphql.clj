@@ -4,9 +4,7 @@
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [com.walmartlabs.lacinia.executor :as executor]
-            [honeysql.helpers :refer [select from join where]]
             [sysrev.db.queries :as q]
-            [sysrev.db.core :refer [do-query]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :refer [project-labels project-user-ids]]
             [sysrev.graphql.core :refer [with-graphql-auth]]
@@ -31,23 +29,20 @@
 
 (defn- merge-articles [m project-id]
   (assoc m :articles
-         (-> (select :a.enabled
-                     [:a.article_id :id]
-                     [:a.article_uuid :uuid]
-                     [:ad.external_id :datasource_id]
-                     [:ad.datasource-name :datasource-name]
-                     [:ad.title :title])
-             (from [:article :a])
-             (join [:article_data :ad] [:= :ad.article_data_id :a.article_data_id])
-             (where [:= :project_id project-id])
-             do-query)))
-
+         (q/find-article {:project-id project-id} [:a.enabled
+                                                   [:a.article-id :id]
+                                                   [:a.article-uuid :uuid]
+                                                   :ad.title :ad.datasource-name
+                                                   [:ad.external-id :datasource-id]]
+                         :with [:article-data], :include-disabled true)))
 
 (defn process-group-labels
   "Given a project-id, convert :answer keys to the format required by "
   [project-id m]
   (let [definitions (q/find :label {:project-id project-id}
-                            [[:label-id :id] [:value-type :type] [:short-label :name]
+                            [[:label-id :id]
+                             [:value-type :type]
+                             [:short-label :name]
                              :question :required :consensus]
                             :where [:!= :root-label-id-local nil]
                             :index-by :label-id)]
@@ -62,16 +57,21 @@
                                              (get definitions (first answer))))))))))))
 
 (defn- merge-article-labels [m project-id]
-  (let [labels (q/find [:article :a] {:a.project-id project-id}
-                       ;; TODO - `consensus` is label definition, not answer status
-                       [[:l.label-id :id] [:l.value-type :type] [:l.short-label :name]
-                        :l.question :l.required :l.consensus :al.article-id :al.user-id
-                        :al.answer [:al.added-time :created] [:al.updated-time :updated]
-                        [:al.confirm-time :confirmed] [:ar.resolve-time :resolve]]
-                       :join [[[:article-label :al] :a.article-id]
-                              [[:label :l] :al.label-id]]
-                       :left-join [[:article-resolve :ar] [:and [:= :al.user-id :ar.user-id]
-                                                           [:= :a.article-id :ar.article-id]]])
+  (let [labels (q/find-article {:a.project-id project-id}
+                               ;; TODO - `consensus` is label definition, not answer status
+                               [[:l.label-id :id]
+                                [:l.value-type :type]
+                                [:l.short-label :name]
+                                :l.question :l.required :l.consensus
+                                :al.article-id :al.user-id :al.answer
+                                [:al.added-time :created]
+                                [:al.updated-time :updated]
+                                [:al.confirm-time :confirmed]
+                                [:ar.resolve-time :resolve]]
+                               :with [:article-label :label]
+                               :left-join [[:article-resolve :ar]
+                                           [:and [:= :al.user-id :ar.user-id]
+                                            [:= :a.article-id :ar.article-id]]])
         non-group-labels (->> (filter #(not= (:type %) "group") labels)
                               ;; this could cause problems if we ever have
                               ;; non-vector or single value answers
@@ -102,9 +102,8 @@
              (walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) articles)))))
 
 (defn- merge-article-content [{:keys [articles] :as m} ds-api-token]
-  (let [id->external (q/find [:article :a] {:a.article-id (distinct (map :id articles))}
-                             :ad.external-id, :join [[:article-data :ad] :a.article-data-id]
-                             :index-by :article-id)
+  (let [id->external (q/get-article (distinct (map :id articles)) :ad.external-id
+                                    :with [:article-data] :index-by :article-id)
         entities (-> (gquery [[:entities {:ids (vals id->external)}
                                [:id :content]]])
                      (ds-api/run-ds-query :auth-key ds-api-token)
@@ -122,7 +121,8 @@
       (let [selections-seq (executor/selections-seq context)]
         (reset! selections-seq-atom selections-seq)
         (resolve-as
-         (cond-> (q/query-project-by-id id [:date-created [:project-id :id] :name])
+         (cond-> (q/get-project id [[:project-id :id] :name :date-created]
+                                :include-disabled true)
            (some {:Project/labelDefinitions true
                   :Project/groupLabelDefinitions true} selections-seq)
            (merge-label-definitions id)

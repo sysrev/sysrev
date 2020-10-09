@@ -4,7 +4,7 @@
             [clojure.set :as set]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.state.ui :as ui-state]
             [sysrev.state.label :refer [project-overall-label-id]]
@@ -12,7 +12,7 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.util :as util :refer
              [in? map-values css space-join wrap-parens parse-integer parse-number
-              ensure-pred nbsp]]))
+              when-test nbsp]]))
 
 (reg-sub ::inputs
          (fn [[_ context path]]
@@ -234,8 +234,8 @@
 (defn- SelectUserDropdown [_context value on-change multiple?]
   (let [user-ids @(subscribe [:project/member-user-ids nil true])
         self-id @(subscribe [:self/user-id])
-        value (-> (if (= value :self) self-id value)
-                  ((ensure-pred (in? user-ids))))]
+        value (->> (if (= value :self) self-id value)
+                   (when-test (in? user-ids)))]
     [FilterDropdown
      (concat [nil] user-ids)
      #(if (or (nil? %) (= :any %))
@@ -249,7 +249,7 @@
     (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
           source-type @(subscribe [:source/display-type source-id])
           description (or (some-> @(subscribe [:source/display-info source-id])
-                                  (util/string-ellipsis 70 "[.....]"))
+                                  (util/ellipsis-middle 70 "[.....]"))
                           (str source-id))]
       (space-join [(wrap-parens article-count :parens "[]")
                    (wrap-parens source-type :parens "[]")
@@ -727,7 +727,7 @@
                         (al/reload-list context :transition))}
         [:i.arrow.down.icon]]]]]))
 
-(defn ResetReloadForm [context]
+(defn ^:unused ResetReloadForm [context]
   (let [recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
         any-filters? (not-empty @(subscribe [::filters-input context]))
         display @(subscribe [::al/display-options (al/cached context)])
@@ -892,7 +892,7 @@
         options (merge @(subscribe [::al/export-filter-args (al/cached context)])
                        {:separator @(subscribe [::csv-separator])})
         action [:project/generate-export project-id export-type options]
-        running? (loading/action-running? action)
+        running? (action/running? action)
         entry @(subscribe [:project/export-file project-id export-type options])
         {:keys [filename url error]} entry
         {:keys [expand-export]} @(subscribe [::al/display-options context])

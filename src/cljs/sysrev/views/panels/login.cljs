@@ -5,16 +5,14 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
             [sysrev.base :as base :refer [active-route]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
+            [sysrev.action.core :as action]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
-            [sysrev.loading :as loading]
             [sysrev.util :refer [css validate wrap-prevent-default nbsp on-event-value]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]))
 
-(def login-panel [:login])
 (def register-panel [:register])
 
 (def-data :register-project
@@ -266,15 +264,16 @@
                        [:div.ui.warning.message msg])
         form-class (when-not (empty? form-errors) "warning")
         redirect (uri-utils/getParamValue @active-route "redirect")
-        redirect-message (uri-utils/getParamValue @active-route "redirect_message")]
+        redirect-message (uri-utils/getParamValue @active-route "redirect_message")
+        _dark? @(subscribe [:self/dark-theme?])]
     (with-loader (if register-hash
                    [[:register-project register-hash]]
                    []) {}
       [:div
        [:h3 {:style {:text-align "center"}}
         redirect-message]
-       [:div.ui.segment.auto-margin.auth-segment.inverted.center.aligned
-        {:id "login-register-panel"}
+       [:div.ui.center.aligned.segment.auto-margin.auth-segment
+        {:id "login-register-panel" :class (css #_ [_dark? "secondary"])}
         (when register-hash
           [:h4.ui.header
            [:i.grey.list.alternate.outline.icon]
@@ -290,8 +289,10 @@
                                         :register? register?
                                         :project-id project-id
                                         :redirect redirect}])))}
-         [:h1.ui {:style {:margin-top 5 :font-size "48px"}} (if register? "Try Sysrev for Free" "Log In to Sysrev")]
-         (when register? [:h2.ui {:style {:margin-top 5 :font-size "20px"}} "Start your systematic review."])
+         [:h1 {:style {:margin-top 5 :font-size "48px"}}
+          (if register? "Try Sysrev for Free" "Log In to Sysrev")]
+         (when register? [:h2 {:style {:margin-top 5 :font-size "20px"}}
+                          "Start your systematic review."])
 
          [:div.field.email {:class (field-class :email)}
           [:div.ui.left.icon.input
@@ -312,7 +313,7 @@
          [field-error :password]
          [:button.ui.fluid.primary.button
           {:type "submit" :name "submit"
-           :class (css [(and register? (loading/any-action-running? :only :auth/register))
+           :class (css [(and register? (action/running? :auth/register))
                         "loading"])}
           (cond landing?   "Sign Up"
                 register?  "Register"
@@ -371,7 +372,7 @@
              [:div.ui.center.aligned.segment
               {:key [2]}
               (when-not @redirecting?
-                (-> #(nav/nav-scroll-top (project-uri project-id ""))
+                (-> #(nav/nav (project-uri project-id ""))
                     (js/setTimeout 1000))
                 (reset! redirecting? true))
               [:h4 "You are already a member of this project."]
@@ -395,21 +396,33 @@
                {:on-click #(dispatch [:action [:join-project project-id]])}
                "Join Project"]]]))))))
 
-(defmethod logged-out-content login-panel []
-  [LoginRegisterPanel])
+(defn- redirect-root-content []
+  (nav/nav "/")
+  [:div])
 
-(defmethod logged-out-content register-panel []
-  [LoginRegisterPanel])
+(defn- register-logged-in-content []
+  (if (and (nil? @(subscribe [:register/project-id]))
+           (nil? @(subscribe [:register/register-hash])))
+    [redirect-root-content]
+    [join-project-panel]))
 
-(defmethod panel-content login-panel []
-  (fn [_child]
-    (nav/nav-redirect "/" :scroll-top? true)
-    [:div]))
+(def-panel :uri "/login" :panel [:login]
+  :on-route (dispatch [:set-active-panel [:login]])
+  :content [redirect-root-content]
+  :logged-out-content [LoginRegisterPanel])
 
-(defmethod panel-content register-panel []
-  (fn [_child]
-    (if (and (nil? @(subscribe [:register/project-id]))
-             (nil? @(subscribe [:register/register-hash])))
-      (do (nav/nav-redirect "/" :scroll-top? true)
-          [:div])
-      [join-project-panel])))
+(def-panel :uri "/register" :panel [:register]
+  :on-route (dispatch [:set-active-panel [:register]])
+  :content [register-logged-in-content]
+  :logged-out-content [LoginRegisterPanel])
+
+(def-panel :uri "/register/:register-hash" :params [register-hash]
+  :on-route (do (dispatch [:set-active-panel [:register]])
+                (dispatch [:register/register-hash register-hash])))
+
+(def-panel :uri "/register/:register-hash/login" :params [register-hash]
+  :on-route (do (dispatch [:set-active-panel [:register]])
+                (dispatch [:register/register-hash register-hash])
+                (dispatch [:register/login? true])
+                (dispatch [:set-login-redirect-url
+                           (str "/register/" register-hash)])))

@@ -5,7 +5,6 @@
             [sysrev.api :refer [graphql-request]]
             [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
@@ -24,13 +23,14 @@
           :else                          (str x))))
 
 (defn project-labeled-article-ids [project-id]
-  (qt/find-article
+  (q/find-article
    {:a.project-id project-id} :a.article-id
    :where (q/exists [:article-label :al] {:a.project-id project-id
                                           :al.article-id :a.article-id
                                           :l.enabled true}
                     :join [[:label :l] :al.label-id]
-                    :prepare #(q/filter-valid-article-label % true))))
+                    :prepare #(q/filter-valid-article-label % true))
+   :with []))
 
 (defn export-user-answers-csv
   "Returns CSV-printable list of raw user article answers. The first row

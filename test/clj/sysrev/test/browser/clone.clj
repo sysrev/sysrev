@@ -1,6 +1,5 @@
 (ns sysrev.test.browser.clone
   (:require [clj-webdriver.taxi :as taxi]
-            [clojure.java.io :as io]
             [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [sysrev.project.core :as project]
@@ -22,8 +21,8 @@
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(def clone-button (xpath "//button[@id='clone-button']"))
-(def clone-to-user (xpath "//div[@id='clone-to-user']"))
+(def clone-button "button#clone-button")
+(def clone-to-user "div#clone-to-user")
 (def cloned-from (xpath "//span[contains(text(),'cloned from')]"))
 
 (defn- unique-count-span [n]
@@ -31,12 +30,12 @@
 
 (deftest-browser clone-project-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [project-source-name "Sysrev Browser Test (clone-project-happy-path)"
+  [project-name "Sysrev Browser Test (clone-project-happy-path)"
    filename "test-pdf-import.zip"
    src-project-id (atom nil)]
   (do
     (nav/log-in (:email test-user))
-    (nav/new-project project-source-name)
+    (nav/new-project project-name)
     (reset! src-project-id (b/current-project-id))
     ;; import pdfs, check that the PDF count is correct
     ;; disabling this for now, having issues importing
@@ -76,14 +75,13 @@
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (b/click clone-button)
-    (is (b/exists? clone-to-user))
     (b/click clone-to-user)
     ;; this was an actual clone?
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (is (not= @src-project-id (b/current-project-id)))
     ;; check that all of the sources are consistent with the cloned project
-    (b/click (xpath "//a[contains(@class,'manage')]"))
+    (b/click "a.manage")
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     ;; pdfs
@@ -97,81 +95,63 @@
     ;; pmid file
     (is (b/exists? (unique-count-span 7)))
     ;; endnote
-    (is (b/exists? (unique-count-span 3)))
-    :cleanup (b/cleanup-test-user! :email (:email test-user))))
+    (is (b/exists? (unique-count-span 3)))))
 
 (deftest-browser clone-permissions-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [project-source-name "Sysrev Browser Test (clone-permissions-test)"
-   test-user-b (b/create-test-user :email (format "foo+%s@qux.com" (util/random-id))
-                                   :password "foobar")
+  [project-name "Sysrev Browser Test (clone-permissions-test)"
+   test-user-b (b/create-test-user :email "foo@qux.com" :password "foobar")
    src-project-id (atom nil)
-   user-id (-> (:email test-user)
-               (user/user-by-email)
-               :user-id)]
+   user-id (user/user-by-email (:email test-user) :user-id)]
   (do
     (plans/user-subscribe-to-unlimited (:email test-user))
-    (nav/new-project project-source-name)
+    (nav/new-project project-name)
     (reset! src-project-id (b/current-project-id))
     ;; PubMed search input
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
-    (pubmed/search-pubmed "foo bar")
-    (b/click x/import-button-xpath)
-    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
-                                    :timeout 10000 :interval 30)
+    (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; user can clone their project
     (b/exists? clone-button)
     ;; another user can also clone the project
-    (nav/log-in (:email test-user-b)
-                (:password test-user-b))
-    (search/search-for project-source-name)
-    (b/wait-until-exists (xpath (str "//h3[contains(text(),'" project-source-name "')]")))
-    (b/click (xpath (str "//h3[contains(text(),'" project-source-name "')]")))
+    (nav/log-in (:email test-user-b) (:password test-user-b))
+    (search/search-for project-name)
+    (b/click (xpath (str "//h3[contains(text(),'" project-name "')]")))
     (b/exists? clone-button)
     ;; test-user-b joins the project
-    (member/add-project-member @src-project-id
-                               (-> (:email test-user-b)
-                                   (user/user-by-email)
-                                   :user-id))
-    (is (not (:public-access (project/change-project-setting @src-project-id :public-access false))))
+    (member/add-project-member @src-project-id (:user-id test-user-b))
+    (is (not (:public-access (project/change-project-setting
+                              @src-project-id :public-access false))))
     ;; refresh the browser, the clone button should be gone
     (b/init-route (-> (taxi/current-url) b/url->path))
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (is (not (taxi/exists? clone-button))))
-  :cleanup (do (b/cleanup-test-user! :email (:email test-user))
-               (b/cleanup-test-user! :email (:email test-user-b))))
+  :cleanup (b/cleanup-test-user! :email (:email test-user-b)))
 
 (deftest-browser clone-login-redirect
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [project-source-name "Sysrev Browser Test (clone-login-redirect)"
+  [project-name "Sysrev Browser Test (clone-login-redirect)"
    test-user-b {:email (format "foo+%s@qux.com" (util/random-id))
                 :password "foobar"}
-   create-account-div (xpath "//h3[contains(text(),'First, create an account to clone the project to')]")]
+   create-account-div (xpath "//h3[contains(text(),'First, create an account to clone the project')]")]
   ;; first, login create the test project
   (do
     (nav/log-in (:email test-user))
-    (nav/new-project project-source-name)
-    ;; logout
+    (nav/new-project project-name)
     (nav/log-out)
-    ;; search for the project
-    (search/search-for project-source-name)
-    (b/click (xpath (str "//h3[contains(text(),'" project-source-name "')]")))
-    ;;
-    (b/exists? clone-button)
+    (search/search-for project-name)
+    (b/click (xpath (str "//h3[contains(text(),'" project-name "')]")))
     (b/click clone-button)
     ;; redirected to create account
-    (b/wait-until-exists create-account-div)
+    (is (b/exists? create-account-div))
     (b/set-input-text "input[name='email']" (:email test-user-b))
     (b/set-input-text "input[name='password']" (:password test-user-b))
     (b/click "button[name='submit']")
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? clone-to-user))
     (b/click clone-to-user))
-  :cleanup (do (b/cleanup-test-user! :email (:email test-user))
-               (b/cleanup-test-user! :email (:email test-user-b))))
+  :cleanup (b/cleanup-test-user! :email (:email test-user-b)))
 
 (deftest-browser group-label-clone-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
@@ -216,17 +196,15 @@
     (nav/go-project-route "/labels/edit")
     (dlabels/define-group-label group-label-definition)
     ;; make sure the labels are in the correct order
-    (is (= (->> group-label-definition :definition :labels (mapv :short-label))
+    (is (= (mapv :short-label (-> group-label-definition :definition :labels))
            (group-labels/group-sub-short-labels "Group Label")))
     ;; clone this project
     (nav/go-project-route "")
     (b/click clone-button)
-    (is (b/exists? clone-to-user))
     (b/click clone-to-user)
     ;; make sure this is actually a clone
-    (b/exists? (xpath cloned-from))
+    (is (b/exists? (xpath cloned-from)))
     ;; check that the labels are correct
     (nav/go-project-route "/labels/edit")
-    (is (= (->> group-label-definition :definition :labels (mapv :short-label))
-           (group-labels/group-sub-short-labels "Group Label"))))
-  :cleanup (b/cleanup-test-user! :email (:email test-user)))
+    (is (= (mapv :short-label (->> group-label-definition :definition :labels))
+           (group-labels/group-sub-short-labels "Group Label")))))

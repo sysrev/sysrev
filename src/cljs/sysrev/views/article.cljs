@@ -1,5 +1,5 @@
 (ns sysrev.views.article
-  (:require ["react-json-view" :default ReactJson]
+  (:require #_ ["react-json-view" :default ReactJson]
             ["xml2js" :as xml2js]
             ["react-xml-viewer" :as XMLViewer]
             [clojure.string :as str]
@@ -19,8 +19,8 @@
             [sysrev.util :as util :refer [css filter-values nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
-(def RJson (r/adapt-react-class ReactJson))
 (def XMLViewerComponent (r/adapt-react-class XMLViewer))
+
 #_
 (def-data :article/annotations
   :loaded?
@@ -113,7 +113,7 @@
 (defn- WithProjectSourceTooltip [source-id element]
   (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
         source-info (some-> @(subscribe [:source/display-info source-id])
-                            (util/string-ellipsis 150 "[.....]"))]
+                            (util/ellipsis-middle 150 "[.....]"))]
     [ui/FixedTooltipElement element
      [:div
       [:h5.ui.header {:class (css [(seq source-info) "dividing"])}
@@ -251,40 +251,35 @@
             json (r/atom {})
             content @(subscribe [:article/content article-id])
             title article-id
+            source-id (first @(subscribe [:article/sources article-id]))
             cursors (mapv #(mapv keyword %)
-                          (get-in
-                           @(subscribe [:project/sources (first @(subscribe [:article/sources article-id]))])
-                           [:meta :cursors]))]
+                          (get-in @(subscribe [:project/sources source-id])
+                                  [:meta :cursors]))]
         [:div {:id article-id}
          [:h2 title]
          [:br]
          [:div {:id "content"}
           (condp = mimetype
             "application/xml"
-            (do
-              (xml2js/parseString content
-                                  (fn [_err result]
-                                    (reset! json result)))
-              [:div
-               [Checkbox {:as "h4"
-                          :checked @checked?
-                          :on-change #(do (reset! checked? (not @checked?)))
-                          :toggle true
-                          :label "Switch Views"}]
-               (if @checked?
-                 [:div {:style {:white-space "normal"
-                                :overflow "overlay"}}
-                  [XMLViewerComponent {:xml content}]]
-                 [ReactJSONView {:json @json}])])
+            (do (xml2js/parseString content (fn [_err result]
+                                              (reset! json result)))
+                [:div [Checkbox {:as "h4"
+                                 :checked @checked?
+                                 :on-change #(do (reset! checked? (not @checked?)))
+                                 :toggle true
+                                 :label "Switch Views"}]
+                 (if @checked?
+                   [:div {:style {:white-space "normal" :overflow "overlay"}}
+                    [XMLViewerComponent {:xml content}]]
+                   [ReactJSONView {:json @json}])])
             "application/json"
-            (do
-              (reset! json (.parse js/JSON content))
-              [ReactJSONView {:json (if (seq cursors)
-                                      (map-from-cursors (js->clj @json :keywordize-keys true) cursors)
-                                      @json)}])
+            (do (reset! json (.parse js/JSON content))
+                [ReactJSONView {:json (if (seq cursors)
+                                        (map-from-cursors
+                                         (js->clj @json :keywordize-keys true) cursors)
+                                        @json)}])
             "application/pdf"
-            [:div
-             [pdf/ViewBase64PDF {:content content}]]
+            [:div [pdf/ViewBase64PDF {:content content}]]
             content)]]))))
 
 (defn CTDocument [article-id]
@@ -295,14 +290,13 @@
                     :DerivedSection (:DerivedSection ct-json)})
             nctid (get-in json [:ProtocolSection :IdentificationModule :NCTId])
             title (get-in json [:ProtocolSection :IdentificationModule :BriefTitle])
-            _brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
-            ui-theme @(subscribe [:self/ui-theme])
+            ;; brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
+            source-id (first @(subscribe [:article/sources article-id]))
             cursors (mapv #(mapv keyword %)
-                          (get-in
-                           @(subscribe [:project/sources (first @(subscribe [:article/sources article-id]))])
-                           [:meta :cursors]))]
+                          (get-in @(subscribe [:project/sources source-id])
+                                  [:meta :cursors]))]
         [:div {:id nctid}
-         [:h2 title ]
+         [:h2 title]
          [ui/out-link (str "https://clinicaltrials.gov/ct2/show/" nctid)]
          [:br]
          [ReactJSONView (if (seq cursors)
@@ -337,9 +331,9 @@
                 nbsp nbsp [:a {:href (project-uri nil (str "/articles/" article-id))}
                            (str "#" article-id)]]))]]))
 
-(defn ArticleInfo
-  [article-id & {:keys [show-labels? private-view? show-score? context change-labels-button resolving?]
-                 :or {show-score? true}}]
+(defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
+                                        change-labels-button resolving?]
+                                 :or {show-score? true}}]
   (let [full-size? (util/full-size?)
         project-id @(subscribe [:active-project-id])
         status @(subscribe [:article/review-status article-id])
@@ -354,7 +348,8 @@
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
        (list [:div.ui.middle.aligned.header.grid.segment.article-header {:key :article-header}
-              [:div.five.wide.middle.aligned.column>h4.ui.article-info {:data-article-id article-id} "Article Info"]
+              [:div.five.wide.middle.aligned.column>h4.ui.article-info
+               {:data-article-id article-id} "Article Info"]
               [:div.eleven.wide.column.right.aligned
                (when disabled?
                  [:div.ui.basic.label.review-status.orange "Disabled"])
@@ -373,12 +368,11 @@
               ;; if adding new datasource, be sure to disable annotator
               ;; in sysrev.views.main/SidebarColumn
               (condp = datasource-name
-                "ctgov"
-                [CTDocument article-id]
-                "entity"
-                [Entity article-id]
+                "ctgov"  [CTDocument article-id]
+                "entity" [Entity article-id]
                 [ArticleInfoMain article-id :context context])]
              (when-not (= datasource-name "entity")
                ^{:key :article-pdfs} [pdf/PDFs article-id])))
      (when change-labels-button [change-labels-button])
-     (when show-labels? [ArticleLabelsView article-id :self-only? private-view? :resolving? resolving?])]))
+     (when show-labels? [ArticleLabelsView article-id
+                         :self-only? private-view? :resolving? resolving?])]))

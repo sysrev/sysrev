@@ -8,9 +8,7 @@
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer [select from join merge-join where order-by]]
-            [sysrev.config :refer [env]]
-            [sysrev.db.core :as db :refer
-             [do-query with-transaction sql-now]]
+            [sysrev.db.core :as db :refer [do-query with-transaction sql-now]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member]]
@@ -19,7 +17,7 @@
             [sysrev.util :as util :refer [map-values in?]])
   (:import java.util.UUID))
 
-(defn all-users
+(defn ^:repl all-users
   "Returns seq of short info on all users, for interactive use."
   []
   (->> (q/find :web-user {})
@@ -28,9 +26,6 @@
 (defn user-by-email [email & [fields]]
   (q/find-one :web-user {} (or fields :*)
               :where [:= (sql/call :lower :email) (sql/call :lower email)]))
-
-(defn get-user [user-id & args]
-  (apply q/find-one :web-user {:user-id user-id} args))
 
 (defn user-projects
   "Returns sequence of projects for which user-id is a
@@ -92,26 +87,18 @@
              :salt (crypto.random/bytes 16)}))
 
 (defn create-user [email password & {:keys [project-id user-id permissions]
-                                     :or {permissions ["user"]}
-                                     :as opts}]
-  (let [test-email? (and (not (in? #{:prod :test :remote-test} (:profile env)))
-                         (boolean (or (re-find #"\+test.*\@" email)
-                                      (re-find #"\@sysrev\.us$" email)
-                                      (re-find #"\@insilica\.co$" email))))
-        permissions (cond (:permissions opts)  (:permissions opts)
-                          test-email?          ["admin"]
-                          :else                permissions)
-        entry (cond-> {:email email
-                       :pw-encrypted-buddy (encrypt-password password)
-                       :verify-code nil ;; (crypto.random/hex 16)
-                       :permissions (db/to-sql-array "text" permissions)
-                       :date-created (sql-now)
-                       :user-uuid (UUID/randomUUID)
-                       :api-token (generate-api-token)}
-                user-id (assoc :user-id user-id))]
-    (when project-id (assert (q/query-project-by-id project-id [:project-id])))
-    (let [{:keys [user-id] :as user} (q/create :web-user entry, :returning :*)]
-      (when project-id (add-project-member project-id user-id))
+                                     :or {permissions ["user"]}}]
+  (with-transaction
+    (let [user (q/create :web-user (cond-> {:email email
+                                            :pw-encrypted-buddy (encrypt-password password)
+                                            :verify-code nil ;; (crypto.random/hex 16)
+                                            :permissions (db/to-sql-array "text" permissions)
+                                            :date-created (sql-now)
+                                            :user-uuid (UUID/randomUUID)
+                                            :api-token (generate-api-token)}
+                                     user-id (assoc :user-id user-id))
+                         :returning :*)]
+      (when project-id (add-project-member project-id (:user-id user)))
       user)))
 
 (defn set-user-password [email new-password]
@@ -151,15 +138,15 @@
 
 (defn user-password-reset-url
   [user-id & {:keys [url-base] :or {url-base "https://sysrev.com"}}]
-  (when-let [reset-code (get-user user-id :reset-code)]
+  (when-let [reset-code (q/get-user user-id :reset-code)]
     (format "%s/reset-password/%s" url-base reset-code)))
 
 (defn user-settings [user-id]
-  (into {} (get-user user-id :settings)))
+  (into {} (q/get-user user-id :settings)))
 
 (defn change-user-setting [user-id setting new-value]
   (with-transaction
-    (let [cur-settings (get-user user-id :settings)
+    (let [cur-settings (q/get-user user-id :settings)
           new-settings (assoc cur-settings setting new-value)]
       (assert (s/valid? ::su/settings new-settings))
       (q/modify :web-user {:user-id user-id} {:settings (db/to-jsonb new-settings)})
@@ -168,7 +155,7 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [_self?]]
-  (get-user user-id [:user-id :user-uuid :email :verified :permissions :settings]))
+  (q/get-user user-id [:user-id :user-uuid :email :verified :permissions :settings]))
 
 (defn user-self-info
   "Returns a map of values with various user account information.
@@ -268,7 +255,7 @@
   (q/find-one :user-email {:user-id user-id :email email}))
 
 (defn primary-email-verified? [user-id]
-  (when-let [email (get-user user-id :email)]
+  (when-let [email (q/get-user user-id :email)]
     (boolean (q/find-one :user-email {:user-id user-id :email email :principal true}
                          :verified))))
 

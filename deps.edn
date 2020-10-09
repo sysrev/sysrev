@@ -1,0 +1,4 @@
+{:aliases
+ {:carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
+                                       :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
+          :main-opts ["-m" "carve.main"]}}}

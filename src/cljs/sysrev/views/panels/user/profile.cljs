@@ -4,29 +4,29 @@
             [clojure.spec.alpha :as s]
             [ajax.core :refer [GET POST PUT]]
             [reagent.core :as r]
+            [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.loading :as loading]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.state.ui]
             [sysrev.state.nav :refer [user-uri]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select
+             [Segment Header Grid Row Column Icon Image Message Button Select
               Modal ModalContent ModalHeader ModalDescription]]
+            [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.util :as util :refer [parse-integer wrap-prevent-default]]
             [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
 
 ;; for clj-kondo
-(declare panel state panel-get panel-set)
+(declare panel state)
 
-(setup-panel-state panel [:user :profile] {:state-var state
-                                           :get-fn panel-get :set-fn panel-set
-                                           :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :profile]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
-(s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
-                    (instance? reagent.ratom/RCursor %)))
+(s/def ::ratom #(or (instance? ratom/RAtom %)
+                    (instance? ratom/RCursor %)))
 
 (defn get-project-invitations!
   "Get all of the invitations that have been sent by the project for which user-id is the admin of"
@@ -153,11 +153,7 @@
                 [Button {:on-click #(reset! project-id nil)
                          :disabled (or @loading? @retrieving-invitations?)
                          :size "tiny"} "Cancel"]])
-             (when-not (str/blank? @error-message)
-               [Message {:onDismiss #(reset! error-message nil)
-                         :negative true}
-                [MessageHeader "Invitation Error"]
-                @error-message])])))
+             [CursorMessage error-message {:negative true}]])))
       :get-initial-state
       (fn [_this]
         (reset! loading? false)
@@ -290,7 +286,7 @@
                                 :error-handler (fn [_response]
                                                  (reset! loading? false)
                                                  (reset! editing? false))})))
-        user-loading? (loading/item-loading? [:user/info user-id])]
+        user-loading? (data/loading? [:user/info user-id])]
     (when (or mutable? (not (str/blank? introduction)))
       [Segment {:class "introduction"}
        [Header {:as "h4" :dividing true} "Introduction"]
@@ -311,19 +307,17 @@
 
 (defn UserProfile [user-id]
   (let [{:keys [introduction] :as user} @(subscribe [:user/info user-id])
-        error-message @(subscribe [::get [:user user-id :info-error]])
+        info-error (r/cursor state [:user user-id :info-error])
         self? @(subscribe [:user-panel/self?])]
     (dispatch [:require [:user/info user-id]])
-    (if (str/blank? error-message)
-      (when user
-        [:div
-         [ProfileSettings user]
-         [Introduction {:mutable? self?
-                        :introduction introduction
-                        :user-id user-id}]])
-      [Message {:negative true}
-       [MessageHeader "Error Retrieving User"]
-       error-message])))
+    [:div
+     (when (and user (str/blank? @info-error))
+       [:div
+        [ProfileSettings user]
+        [Introduction {:mutable? self?
+                       :introduction introduction
+                       :user-id user-id}]])
+     [CursorMessage info-error {:negative true}]]))
 
 (defn UserProfilePanel []
   (when-let [user-id @(subscribe [:user-panel/user-id])]
@@ -340,7 +334,7 @@
     (when @(subscribe [:user-panel/self?])
       (dispatch [:reload [:user/payments-owed user-id]])
       (dispatch [:reload [:user/payments-paid user-id]])
-      (dispatch [:user/get-invitations!]))
+      (dispatch [:data/load [:user/invitations user-id]]))
     (dispatch [:set-active-panel panel])))
 
 (sr-defroute user-root #"/user/(\d+)$" [user-id]

@@ -1,8 +1,5 @@
-;;
-;; Wrapper interface of https://github.com/weavejester/environ
-;;
-
 (ns sysrev.config
+  "Wrapper interface of https://github.com/weavejester/environ"
   (:require [environ.core :as environ]
             [clojure.java.io :as io]
             [clojure.edn :as edn])
@@ -15,9 +12,7 @@
 
 (defonce ^{:doc "A map of environment variables."
            :dynamic true}
-  env
-  (let [config (read-config-file "config.edn")]
-    (merge
-     config
-     environ/env
-     (some-> (:private-config config) (read-config-file)))))
+  env (let [{:keys [private-config] :as config} (read-config-file "config.edn")]
+        (merge config
+               environ/env
+               (some-> private-config read-config-file))))

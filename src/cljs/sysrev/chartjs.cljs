@@ -1,5 +1,5 @@
-(ns sysrev.charts.chartjs
-  (:require ["chart.js" :refer [Chart]]
+(ns sysrev.chartjs
+  (:require ["chart.js" :as Chart]
             [reagent.core :as r]
             [reagent.dom :refer [dom-node]]))
 
@@ -58,7 +58,7 @@
 (defn bar [{:keys [data options width height] :as props}]
   [chart-component (merge props {:type "bar"})])
 (defn horizontal-bar [{:keys [data options width height] :as props}]
-  [chart-component (merge props {:type "horizontalBar"})])
+  [chart-component (merge props {:type "bar" :options (merge options {:indexAxis :y})})])
 (defn radar [{:keys [data options width height] :as props}]
   [chart-component (merge props {:type "radar"})])
 (defn polar [{:keys [data options width height] :as props}]

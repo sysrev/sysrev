@@ -16,7 +16,8 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
-            [sysrev.test.browser.pubmed :as pm]))
+            [sysrev.test.browser.pubmed :as pm]
+            [sysrev.util :as util :refer [sum]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -76,18 +77,16 @@
 
 (defn user-amount-owed [project-id user-name]
   (let [[user-name] (str/split user-name #"@")]
-    (->> (:amount-owed (api/project-compensation-for-users
-                        project-id (todays-date) (todays-date)))
-         (filter #(= (:name %) user-name))
-         (map #(* (:articles %)
-                  (get-in % [:rate :amount])))
-         (apply +))))
+    (sum (->> (:amount-owed (api/project-compensation-for-users
+                             project-id (todays-date) (todays-date)))
+              (filter #(= (:name %) user-name))
+              (map #(* (:articles %)
+                       (get-in % [:rate :amount])))))))
 
 (defn user-amount-paid [project-name email]
-  (->> (:payments-paid (api/user-payments-paid (user-by-email email :user-id)))
-       (filter #(= (:project-name %) project-name))
-       (map :total-paid)
-       (apply +)))
+  (sum (->> (:payments-paid (api/user-payments-paid (user-by-email email :user-id)))
+            (filter #(= (:project-name %) project-name))
+            (map :total-paid))))
 
 (defn project-payments-owed
   "Given a project name, how much does it owe the user?"
@@ -357,7 +356,7 @@
         (select-compensation-dropdown (:email user1) (-> project1 :amounts (nth 2)))
         (db-review-articles user1 project1)
         (is (= (* (:n-articles user1)
-                  (->> project1 :amounts (take 3) (apply +)))
+                  (sum (->> project1 :amounts (take 3))))
                (user-amount-owed @(:project-id project1) (:email user1))))
         ;; are all the other compensation levels for the other users still consistent?
         (is (= (* (:n-articles user2) (-> project1 :amounts (nth 0)))

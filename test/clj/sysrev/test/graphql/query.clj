@@ -1,9 +1,9 @@
 (ns sysrev.test.graphql.query
-  (:require [clojure.set :as s]
-            [clojure.string :as string]
+  (:require [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is use-fixtures]]
             [clojure.walk :as walk]
-            [honeysql.helpers :as helpers :refer [sset where select from]]
+            [honeysql.helpers :as sqlh :refer [sset where select from]]
             [medley.core :as medley]
             [sysrev.api :as api]
             [sysrev.db.core :as db]
@@ -78,7 +78,7 @@
   "Convert all short-label keys to name"
   [m]
   (walk/postwalk (fn [x] (if (map? x)
-                           (s/rename-keys x {:value-type :type :short-label :name})
+                           (set/rename-keys x {:value-type :type :short-label :name})
                            x))
                  m))
 
@@ -204,7 +204,7 @@
                                      :value-type "categorical",
                                      :required true}})]
       ;; set the user's api key to use that of sysrev's datasource api key
-      (doall (-> (helpers/update :web_user)
+      (doall (-> (sqlh/update :web_user)
                  (sset {:api-token @api-key})
                  (where [:= :user-id user-id])
                  db/do-execute))
@@ -213,11 +213,11 @@
                {:venia/operation {:operation/type :mutation :operation/name "M"}
                 :venia/queries
                 [[:importArticles {:id project-id
-                                   :query (string/escape (venia/graphql-query
-                                                          {:venia/queries
-                                                           [[:entitiesByExternalIds
-                                                             {:dataset 5
-                                                              :externalIds ["513" "682"]} [:id]]]}) {\" "\\\""})}]]})
+                                   :query (str/escape (venia/graphql-query
+                                                       {:venia/queries
+                                                        [[:entitiesByExternalIds
+                                                          {:dataset 5
+                                                           :externalIds ["513" "682"]} [:id]]]}) {\" "\\\""})}]]})
               graphql-request
               (get-in [:data :importArticles])))
       ;; create label definitions
@@ -251,7 +251,7 @@
         ;; check label definitions
         (is (= (->> label-definitions
                     vals
-                    (map #(s/rename-keys % {:value-type :type}))
+                    (map #(set/rename-keys % {:value-type :type}))
                     (filter #(not= (:type %) "group"))
                     short-label->name
                     (map #(select-keys % [:consensus :enabled :name :question :required :type]))
@@ -261,7 +261,7 @@
         ;; check group label definitions
         (is (= (->> label-definitions
                     vals
-                    (map #(s/rename-keys % {:value-type :type}))
+                    (map #(set/rename-keys % {:value-type :type}))
                     (filter #(= (:type %) "group"))
                     short-label->name
                     (map #(select-keys % [:enabled :name :required :type]))
@@ -272,10 +272,10 @@
         ;; check the labels in the group label definitions
         (is (= (->> label-definitions
                     vals
-                    (map #(s/rename-keys % {:value-type :type}))
+                    (map #(set/rename-keys % {:value-type :type}))
                     (filter #(= (:type %) "group"))
                     first :labels vals
-                    (map #(s/rename-keys % {:value-type :type}))
+                    (map #(set/rename-keys % {:value-type :type}))
                     short-label->name
                     (map #(select-keys % [:consensus :enabled :name :question :required :type]))
                     set)

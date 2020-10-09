@@ -11,7 +11,7 @@
   [string]
   (accounting/unformat string))
 
-(defn to-fixed
+(defn ^:unused to-fixed
   "Converts a number to a fixed value string to n decimal places"
   [number n]
   (accounting/toFixed number n))

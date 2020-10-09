@@ -1,19 +1,21 @@
 (ns sysrev.views.review
   (:require ["jquery" :as $]
             ["fomantic-ui"]
+            [clojure.set :as set]
             [clojure.string :as str]
-            [goog.string :as gstr]
             [medley.core :as medley :refer [dissoc-in]]
             [reagent.core :as r]
             [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
-                                   reg-event-db reg-event-fx reg-fx trim-v]]
+                                   reg-event-db reg-event-fx trim-v]]
+            [sysrev.action.core :as action]
+            [sysrev.data.core :as data]
             [sysrev.loading :as loading]
             [sysrev.state.nav :as nav :refer [project-uri]]
             [sysrev.state.label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :as S :refer [Icon Message Select]]
+            [sysrev.views.semantic :as S :refer [Icon Message]]
             [sysrev.util :as util :refer [in? css nbsp]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -116,32 +118,33 @@
   (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)
         input-name (str "label-edit(" dom-class ")")]
     (r/create-class
-      {:component-did-mount ; see https://github.com/mcku/UI-Dropdown/blob/master/dropdown.js for dropdown class options
-       (fn [this]
-         (->> {:duration 125 :action "hide"
-               :onChange (fn [v _t] (dispatch [::add-label-value article-id root-label-id label-id ith v]))}
-              (clj->js) (.dropdown ($ (dom-node this)) )))
-       :reagent-render
-       (fn [[root-label-id label-id ith] article-id]
-         (when (= article-id @(subscribe [:review/editing-id]))
-           (let [required?      @(subscribe [:label/required? root-label-id label-id ith])
-                 all-values     @(subscribe [:label/all-values root-label-id label-id ith])
-                 current-values @(subscribe [:review/active-labels article-id root-label-id label-id ith])
-                 touchscreen?   @(subscribe [:touchscreen?])
-                 unsel-values   (vec (clojure.set/difference (set all-values) (set current-values)))
-
-                 on-deselect    (fn [v] #(dispatch [::remove-label-value article-id root-label-id label-id ith v]))]
-             [(if touchscreen?
-                :div.ui.small.fluid.multiple.selection.dropdown
-                :div.ui.small.fluid.search.selection.dropdown.multiple)
-              {:key [:dropdown dom-class] :class dom-class}
-              (map (fn [v] [:a.ui.label {:key [(str "sel-" label-id "-" v)] :on-click (on-deselect v)}
-                            v [:i.delete.icon]]) current-values)
-              [:input {:name input-name :value (str/join "," current-values) :type "hidden"}]
-              [:i.dropdown.icon]
-              (if (empty? current-values)
-                [:div.default.text "No answer selected" (if required? [:span.default.bold "(required)"])])
-              [:div.menu (map (fn [v] ^{:key [v]} [:div.item {:data-value v} v]) unsel-values)]])))})))
+     {:component-did-mount ; see https://github.com/mcku/UI-Dropdown/blob/master/dropdown.js for dropdown class options
+      (fn [this]
+        (->> {:duration 125 :action "hide"
+              :onChange (fn [v _t] (dispatch [::add-label-value article-id root-label-id label-id ith v]))}
+             (clj->js) (.dropdown ($ (dom-node this)) )))
+      :reagent-render
+      (fn [[root-label-id label-id ith] article-id]
+        (when (= article-id @(subscribe [:review/editing-id]))
+          (let [required?      @(subscribe [:label/required? root-label-id label-id ith])
+                all-values     @(subscribe [:label/all-values root-label-id label-id ith])
+                current-values @(subscribe [:review/active-labels article-id root-label-id label-id ith])
+                touchscreen?   @(subscribe [:touchscreen?])
+                unsel-values   (vec (set/difference (set all-values) (set current-values)))
+                on-deselect    (fn [v] #(dispatch [::remove-label-value
+                                                   article-id root-label-id label-id ith v]))]
+            [(if touchscreen?
+               :div.ui.small.fluid.multiple.selection.dropdown
+               :div.ui.small.fluid.search.selection.dropdown.multiple)
+             {:key [:dropdown dom-class] :class dom-class}
+             (map (fn [v] [:a.ui.label {:key [(str "sel-" label-id "-" v)] :on-click (on-deselect v)}
+                           v [:i.delete.icon]]) current-values)
+             [:input {:name input-name :value (str/join "," current-values) :type "hidden"}]
+             [:i.dropdown.icon]
+             (when (empty? current-values)
+               [:div.default.text "No answer selected"
+                (when required? [:span.default.bold "(required)"])])
+             [:div.menu (map (fn [v] ^{:key [v]} [:div.item {:data-value v} v]) unsel-values)]])))})))
 
 (defn StringLabelInput
   [[root-label-id label-id ith] article-id]
@@ -401,9 +404,8 @@
 
 (defn- review-task-saving? [article-id]
   (and @(subscribe [:review/saving? article-id])
-       (or (loading/any-action-running? :only :review/send-labels)
-           (loading/any-loading? :only :article)
-           (loading/any-loading? :only :review/task))))
+       (or (action/running? :review/send-labels)
+           (data/loading? #{:article :review/task}))))
 
 (defn- review-task-ready-for-action? []
   (and (loading/ajax-status-inactive? 50)
@@ -426,7 +428,7 @@
                     [:review-save article-id]
                     review-task-ready-for-action?
                     (fn []
-                      (when-not (loading/any-action-running? :only :review/send-labels)
+                      (when-not (action/running? :review/send-labels)
                         (dispatch-sync [:review/mark-saving article-id])
                         (sync-article-notes article-id)
                         (dispatch
@@ -472,7 +474,7 @@
         on-review-task? (subscribe [:review/on-review-task?])
         loading-task? (and (not saving?)
                            @on-review-task?
-                           (loading/item-loading? [:review/task project-id]))
+                           (data/loading? [:review/task project-id]))
         on-click (util/wrap-user-event
                   (fn []
                     (util/run-after-condition

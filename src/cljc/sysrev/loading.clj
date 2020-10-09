@@ -2,5 +2,5 @@
 
 ;; stub for compiling sysrev.macros cljc code
 
-(defn item-loading? [_item]
+(defn data-loading? [_query & {:keys [ignore]}]
   true)

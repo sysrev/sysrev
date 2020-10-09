@@ -18,22 +18,39 @@
             [sysrev.payment.plans :as plans]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.test.core :as test :refer [succeeds?]]
-            [sysrev.test.browser.xpath :as xpath :refer [xpath]]
-            [sysrev.util :as util :refer [parse-integer string-ellipsis ignore-exceptions]])
+            [sysrev.test.browser.xpath :as x :refer [xpath]]
+            [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
   (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)))
 
 (defonce ^:dynamic *wd* (atom nil))
 (defonce ^:dynamic *wd-config* (atom nil))
 
+(defn sysrev-url? []
+  (when-let [url (util/ignore-exceptions (taxi/current-url))]
+    (->> ["localhost" "sysrev"] (some #(str/includes? url %)))))
+
 (defn browser-console-logs []
-  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_logs();"))
-       (catch Throwable _
-         (log/warn "unable to read console logs"))))
+  (when (sysrev-url?)
+    (try (not-empty (taxi/execute-script "return sysrev.base.get_console_logs();"))
+         (catch Throwable _
+           (log/warn "unable to read console logs")))))
+
+(defn browser-console-warnings []
+  (when (sysrev-url?)
+    (try (not-empty (taxi/execute-script "return sysrev.base.get_console_warnings();"))
+         (catch Throwable _
+           (log/warn "unable to read console warnings")))))
 
 (defn browser-console-errors []
-  (try (not-empty (taxi/execute-script "return sysrev.base.get_console_errors();"))
-       (catch Throwable _
-         (log/warn "unable to read console errors"))))
+  (when (sysrev-url?)
+    (try (not-empty (taxi/execute-script "return sysrev.base.get_console_errors();"))
+         (catch Throwable _
+           (log/warn "unable to read console errors")))))
+
+(defn assert-browser-console-clean []
+  (assert (empty? (browser-console-errors))   "errors in browser console")
+  (assert (empty? (browser-console-warnings)) "warnings in browser console")
+  nil)
 
 (defn log-console-messages [& [level]]
   (when *driver*
@@ -41,6 +58,9 @@
       (if-let [logs (browser-console-logs)]
         (log/logf level "browser console logs:\n\n%s" logs)
         (log/logp level "browser console logs: (none)"))
+      (if-let [warnings (browser-console-warnings)]
+        (log/logf level "browser console warnings:\n\n%s" warnings)
+        (log/logp level "browser console warnings: (none)"))
       (if-let [errors (browser-console-errors)]
         (log/logf level "browser console errors:\n\n%s" errors)
         (log/logp level "browser console errors: (none)")))))
@@ -55,8 +75,8 @@
      (do (log/info "current windows:")
          (doseq [w# windows#]
            (log/info (str (if (:active w#) "[*]" "[ ]") " "
-                          "(" (string-ellipsis (:url w#) 50 "...") ") "
-                          "\"" (string-ellipsis (:title w#) 40 "...") "\""))))
+                          "(" (ellipsis-middle (:url w#) 50 "...") ") "
+                          "\"" (ellipsis-middle (:title w#) 40 "...") "\""))))
      (log/info "current windows: (none found)")))
 
 (defn visual-webdriver? []
@@ -90,11 +110,15 @@
     (do (when @*wd* (-> (taxi/quit @*wd*) (ignore-exceptions)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments
-                             (concat ["headless"
-                                      "no-sandbox"
-                                      (format "window-size=%d,%d"
-                                              (:width browser-test-window-size)
-                                              (:height browser-test-window-size))])))
+                             (seq ["headless"
+                                   "no-sandbox"
+                                   #_ "disable-gpu"
+                                   #_ "disable-dev-shm-usage"
+                                   #_ "log-level=INFO"
+                                   #_ "readable-timestamp"
+                                   (format "window-size=%d,%d"
+                                           (:width browser-test-window-size)
+                                           (:height browser-test-window-size))])))
                           (ChromeDriver.)
                           (assoc {} :webdriver)
                           (driver/init-driver)
@@ -130,16 +154,6 @@
     (taxi/quit @*wd*)
     (reset! *wd* nil)
     (reset! *wd-config* nil)))
-
-(defonce webdriver-shutdown-hook (atom nil))
-
-(defn ensure-webdriver-shutdown-hook
-  "Ensures that any chromedriver process is killed when JVM exits."
-  []
-  (when-not @webdriver-shutdown-hook
-    (let [runtime (Runtime/getRuntime)]
-      (.addShutdownHook runtime (Thread. #(stop-webdriver)))
-      (reset! webdriver-shutdown-hook true))))
 
 (defn take-screenshot [& [level]]
   (if (standard-webdriver?)
@@ -205,8 +219,7 @@
   interval ms until timeout ms have elapsed, or throws exception on
   timeout."
   [pred & [timeout interval]]
-  (let [remote? (test/remote-test?)
-        timeout (or timeout (if remote? 12500 10000))
+  (let [timeout (or timeout (if (test/remote-test?) 12500 10000))
         interval (or interval web-default-interval)]
     (when-not (pred)
       (Thread/sleep interval)
@@ -231,6 +244,10 @@
   exception on timeout."
   [q & [timeout interval]]
   (wait-until #(displayed-now? q) timeout interval))
+
+(defn displayed?
+  [q & [timeout interval]]
+  (is-soon (displayed-now? q) timeout interval))
 
 (defn is-xpath?
   "Test whether q is taxi query in xpath form."
@@ -327,10 +344,6 @@
         (Thread/sleep char-delay)))
     (Thread/sleep (quot delay 2))))
 
-(defn input-text [q text & {:keys [delay] :as opts}]
-  (util/apply-keyargs set-input-text
-                      q text (merge opts {:clear? false})))
-
 (defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
   (when wait?
     (try (wait-until-exists q timeout interval)
@@ -342,8 +355,16 @@
     (when wait? (wait-until-loading-completes))
     result))
 
+(defn text [q]
+  (wait-until-displayed q)
+  (-> q taxi/element taxi/text))
+
+(defn text-is? [q value]
+  (is-soon (and (displayed-now? q)
+                (= (text q) value))))
+
 (defn click [q & {:keys [if-not-exists delay displayed? external? timeout]
-                  :or {if-not-exists :wait, delay 40}}]
+                  :or {if-not-exists :wait, delay 50}}]
   (letfn [(wait [ms]
             (if external?
               (Thread/sleep (+ ms 25))
@@ -361,7 +382,8 @@
                (log/warnf "got exception clicking %s, trying again..." (pr-str q))
                (wait (+ delay 200))
                (taxi/click q))))
-      (wait delay))))
+      (wait delay)
+      (assert-browser-console-clean))))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -372,12 +394,6 @@
     (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
     (Thread/sleep 20)))
 
-(defn ensure-logged-out []
-  (ignore-exceptions
-   (when (taxi/exists? "a#log-out-link")
-     (click "a#log-out-link" :if-not-exists :skip)
-     (wait-until-loading-completes :pre-wait true))))
-
 (defmacro with-webdriver [& body]
   `(let [visual# (:visual @*wd-config*) ]
      (when visual# (stop-webdriver))
@@ -387,7 +403,7 @@
        (if visual#
          (start-visual-webdriver true)
          (start-webdriver true))
-       (try ~@body (finally (when-not visual# (stop-webdriver)) )))))
+       (try ~@body (finally (when-not visual# (stop-webdriver)))))))
 
 (defmacro deftest-browser [name enable test-user bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)
@@ -395,6 +411,7 @@
     `(deftest ~name
        (when (or ~repl? ~enable)
          (util/with-print-time-elapsed ~name-str
+           (log/infof "")
            (log/infof "[[ %s started ]]" ~name-str)
            (with-webdriver
              (init-route "/" :silent true)
@@ -409,6 +426,7 @@
                            (catch Throwable e#
                              (log/warn "got exception in repl cleanup:" (str e#)))))
                     ~body
+                    (assert-browser-console-clean)
                     (catch Throwable e#
                       (log/error "current-url:" (-> (taxi/current-url) (ignore-exceptions)))
                       (log-console-messages :error)
@@ -464,12 +482,12 @@
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
   (util/assert-single user-id email)
-  (let [email (or email (user/get-user user-id :email))
+  (let [email (or email (q/get-user user-id :email))
         user-id (or user-id (user/user-by-email email :user-id))]
     (when (and email user-id)
       (when projects (delete-test-user-projects! user-id compensations))
       (when groups (delete-test-user-groups! user-id))
-      (when-let [stripe-id (user/get-user user-id :stripe-id)]
+      (when-let [stripe-id (q/get-user user-id :stripe-id)]
         (when-let [{:keys [sub-id]} (plans/user-current-plan user-id)]
           (stripe/delete-subscription! sub-id))
         (user/delete-user-stripe-customer! {:stripe-id stripe-id :user-id user-id}))
@@ -495,6 +513,7 @@
 
 (defn init-route [path & {:keys [silent]}]
   (let [full-url (path->url path)]
+    (assert-browser-console-clean)
     (when-not silent (log/info "loading" full-url))
     (taxi/to full-url)
     (wait-until-loading-completes :pre-wait true :loop 2)
@@ -508,9 +527,6 @@
 ;; if this doesn't do anything, why not take it out? - James
 (defn webdriver-fixture-once [f]
   (f))
-
-(defn reuse-webdriver? []
-  (not (contains? #{false 0 "false" "0"} (:sysrev-reuse-webdriver env))))
 
 (defn webdriver-fixture-each [f]
   (let [local? (= "localhost" (:host (test/get-selenium-config)))
@@ -574,6 +590,7 @@
                           :start-y start-y :offset-y offset-y
                           :x x :y y}))
     (Thread/sleep delay)
+    #_{:clj-kondo/ignore [:invalid-arity]}
     (->actions *driver*
                (move-to-element (taxi/element q) x y)
                (click-and-hold) (move-by-offset offset-x offset-y) (release) (perform))

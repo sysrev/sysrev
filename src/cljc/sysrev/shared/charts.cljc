@@ -40,21 +40,3 @@
 
 (defn palette-lookup [palette i]
   (nth palette (mod i (count palette))))
-
-(defn- short-labels-vector
-  "Given a set of label-counts, get the set of short-labels"
-  [processed-label-counts]
-  ((comp (partial into []) sort set (partial mapv :short-label))
-   processed-label-counts))
-
-(defn processed-label-color-map
-  "Given a set of label-counts, generate a color map"
-  [processed-label-counts]
-  (let [short-labels (short-labels-vector processed-label-counts)
-        ;; need to account for the fact that this fn can handle empty datasets
-        palette (nth paul-tol-colors (-> (dec (count short-labels))
-                                         (max 0)
-                                         (min (dec (count paul-tol-colors)))))
-        n-colors (count palette)]
-    (vec (for [[i label] (map-indexed vector short-labels)]
-           {:short-label label :color (nth palette (mod i n-colors))}))))

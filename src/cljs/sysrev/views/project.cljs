@@ -1,4 +1,5 @@
 (ns sysrev.views.project)
 
-(defn ProjectName [project project-owner]
-  (str (when (seq project-owner) (str (:name project-owner) "/")) (:name project)))
+(defn ProjectName [project-name owner-name]
+  (str (some-> owner-name (str "/"))
+       project-name))

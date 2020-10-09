@@ -28,15 +28,17 @@
                        ["moment" :as moment]
                        ["dropzone" :as Dropzone]
                        ["decamelize" :as decamelize]
-                       [goog.string :as gstring :refer [unescapeEntities]]
-                       [goog.string.format]]))
+                       [cljs-http.client :as http]
+                       [goog.string :as gstr :refer [unescapeEntities]]
+                       [goog.string.format]
+                       [re-frame.core :refer [subscribe reg-event-db reg-fx]]
+                       [sysrev.base :refer [active-route sysrev-hostname]]]))
   #?(:clj (:import [java.util UUID]
                    [java.util.zip GZIPInputStream]
                    [java.math BigInteger]
                    [java.io File ByteArrayOutputStream ByteArrayInputStream]
                    [org.joda.time DateTime]
-                   [java.security MessageDigest]
-                   [org.apache.commons.lang3.exception ExceptionUtils])))
+                   [java.security MessageDigest])))
 
 ;;;
 ;;; CLJ+CLJS code
@@ -45,13 +47,13 @@
 #?(:cljs (defn format
            "Wrapper to provide goog.string/format functionality from this namespace."
            [format-string & args]
-           (apply gstring/format format-string args)))
+           (apply gstr/format format-string args)))
 
-(defn ensure-pred
+(defn when-test
   "Returns `value` if (`pred` `value`) returns logical true, otherwise
   returns nil. With one argument, returns a function using `pred` that
   can be applied to a value."
-  ([pred] #(ensure-pred pred %))
+  ([pred] #(when-test pred %))
   ([pred value] (when (pred value) value)))
 
 (defn assert-pred
@@ -76,11 +78,11 @@
         #?(:clj
            (try (Integer/parseInt s)
                 (catch Throwable _
-                  (try (->> (read-string s) (ensure-pred integer?))
+                  (try (->> (read-string s) (when-test integer?))
                        (catch Throwable _ nil))))
            :cljs
            (->> (js/parseInt s)
-                (ensure-pred #(and (integer? %) (not= % ##NaN) (not (js/isNaN %)))))))))
+                (when-test #(and (integer? %) (not= % ##NaN) (not (js/isNaN %)))))))))
 
 (defn parse-number
   "Reads a number from a string. Returns nil if not a number."
@@ -154,16 +156,12 @@
   ([f m]
    (map-kv f {} m)))
 
-(defn check
+(defn ^:unused check
   "Returns val after running an assertion on (f val).
   If f is not specified, checks that (not (nil? val))."
   [val & [f]]
   (assert ((or f (comp not nil?)) val))
   val)
-
-(defn conform-map [spec x]
-  (and (s/valid? spec x)
-       (apply hash-map (s/conform spec x))))
 
 (defn uuid-str? [s]
   (boolean
@@ -198,10 +196,6 @@
 (defn short-uuid [uuid]
   (last (str/split (str uuid) #"\-")))
 
-(defn integer-project-id? [url-id]
-  (if (re-matches #"^[0-9]+$" url-id)
-    true false))
-
 (defn parse-html-str
   "Convert \"&lt;\" and \"&gt;\" to \"<\" and \">\"."
   [s]
@@ -214,8 +208,8 @@
   [item-count string]
   (when string (cond-> string (not= item-count 1) (str "s"))))
 
-(defn string-ellipsis
-  "Shorten s using ellipsis in the middle when length is >= max-length."
+(defn ellipsis-middle
+  "Shorten string `s` using `ellipsis` in the middle when >= `max-length`."
   [s max-length & [ellipsis]]
   (let [ellipsis (or ellipsis "[...]")]
     (if (< (count s) max-length)
@@ -224,19 +218,21 @@
            " " ellipsis " "
            (subs s (- (count s) (quot max-length 2)))))))
 
+(defn ellipsize
+  "Shorten string `s` by ending with `ellipsis` when > `max-length`."
+  [s max-length & [ellipsis]]
+  (let [ellipsis (or ellipsis "...")]
+    (cond-> s
+      (> (count s) max-length)
+      (-> (subs 0 (- max-length (count ellipsis)))
+          (str ellipsis)))))
+
 (defn ensure-prefix
   "Adds prefix at front of string s if not already present."
   [s prefix]
   (if (str/starts-with? s prefix)
     s
     (str prefix s)))
-
-(defn ensure-suffix
-  "Adds suffix at end of string s if not already present."
-  [s suffix]
-  (if (str/ends-with? s suffix)
-    s
-    (str s suffix)))
 
 (defn random-id
   "Generate a random string id from uppercase/lowercase letters"
@@ -418,11 +414,6 @@
   (->> (xml-find roots path)
        (mapv #(-> % :content first))))
 
-(defn map-to-arglist
-  "Converts a map to a vector of function keyword arguments."
-  [m]
-  (->> m (mapv identity) (apply concat) vec))
-
 (defn today-string
   "Returns string of current date, by default in the form
   YYYYMMDD. Optional time-format value (default :basic-date) may be
@@ -484,6 +475,9 @@
         (sequential? x)                  (vec x)
         :else                            [x]))
 
+(defn sum [xs]
+  (apply + xs))
+
 ;;;
 ;;; CLJ code
 ;;;
@@ -542,9 +536,6 @@
                 n-rand (BigInteger. 1 (crypto.random/bytes size))]
             (int (mod n-rand n)))))
 
-#?(:clj (defn crypto-rand-nth [coll]
-          (nth coll (crypto-rand-int (count coll)))))
-
 ;; see: https://groups.google.com/forum/#!topic/clojure/ORRhWgYd2Dk
 ;;      https://stackoverflow.com/questions/22116257/how-to-get-functions-name-as-string-in-clojure
 #?(:clj (defmacro current-function-name
@@ -563,12 +554,6 @@
                     (integer? t)                      (tc/from-epoch t)
                     (string? t)                       (parse-time-string t))
               (throw (ex-info "to-clj-time: unable to convert value" {:value t})))))
-
-#?(:clj (defn to-epoch
-          "Converts various types to clj-time compatible Unix epoch seconds. See
-  `to-clj-time`."
-          [t]
-          (-> t (to-clj-time) (tc/to-epoch))))
 
 #?(:clj (defn write-time-string
           "Returns :mysql format time string from time value. Compatible with
@@ -625,11 +610,6 @@
           (let [algorithm (MessageDigest/getInstance "SHA-1")
                 raw (.digest algorithm bytes)]
             (format "%x" (BigInteger. 1 raw)))))
-
-#?(:clj (defn string->sha-1-hash
-          "Convert a string into a sha-1 hash"
-          [^String s]
-          (byte-array->sha-1-hash (.getBytes s))))
 
 #?(:clj (defn file->byte-array
           "Convert a file into a byte-array"
@@ -692,20 +672,6 @@
           (let [file (File/createTempFile "sysrev-" suffix)]
             (.deleteOnExit file)
             file)))
-
-#?(:clj (defn ex-summary
-          "Returns string showing type and message from exception."
-          [ex]
-          (str (type ex) " - " (.getMessage ex))))
-
-#?(:clj (defn ex-log-message
-          "Returns a string summarizing exception for logging purposes."
-          [ex]
-          (format "%s\n%s" (str ex) (->> (ExceptionUtils/getStackTrace ex)
-                                         (str/split-lines)
-                                         (filter #(str/includes? % "sysrev"))
-                                         (take 5)
-                                         (str/join "\n")))))
 
 #?(:clj (defn ^:repl rename-flyway-files
           "Handles renaming flyway sql files for formatting. Returns a sequence
@@ -788,9 +754,8 @@
 #?(:cljs (defn scroll-top []
            (. js/window (scrollTo 0 0))
            nil))
-
-#?(:cljs (defn schedule-scroll-top []
-           (scroll-top)))
+#?(:cljs (reg-event-db :scroll-top #(do (scroll-top) (dissoc % :scroll-top))))
+#?(:cljs (reg-fx :scroll-top (fn [_] (scroll-top))))
 
 #?(:cljs (defn viewport-width []
            (-> ($ js/window) (.width))))
@@ -810,12 +775,9 @@
 #?(:cljs (defn annotator-size? []
            (>= (viewport-width) 1100)))
 
-#?(:cljs (defn get-layout-status []
-           [(mobile?) (full-size?) (desktop-size?)]))
-
 #?(:cljs (def nbsp (unescapeEntities "&nbsp;")))
 
-#?(:cljs (defn number-to-word [n]
+#?(:cljs (defn ^:unused number-to-word [n]
            (->> n (nth ["zero" "one" "two" "three" "four" "five" "six"
                         "seven" "eight" "nine" "ten" "eleven" "twelve"
                         "thirteen" "fourteen" "fifteen" "sixteen"]))))
@@ -827,7 +789,7 @@
              (or (some-> url (sp "//") second (sp "/") first (sp ".")
                          (some->> (take-last 2)
                                   (str/join ".")
-                                  (ensure-pred string?)))
+                                  (when-test string?)))
                  url))))
 
 #?(:cljs (defn validate
@@ -858,9 +820,6 @@
                    (pos? days)    (write days "day")
                    (pos? hours)   (write hours "hour")
                    :else          (write minutes "minute")))))
-
-#?(:cljs (defn go-back []
-           (-> js/window .-history (.back))))
 
 #?(:cljs (defn get-dom-elt [selector]
            (-> ($ selector) (.get 0))))
@@ -1157,17 +1116,17 @@
 #?(:cljs (defn log
            "Wrapper to run js/console.log using printf-style formatting."
            [format-string & args]
-           (js/console.log (apply format format-string args))))
+           (js/console.log (apply format format-string args)) nil))
 
 #?(:cljs (defn log-err
            "Wrapper to run js/console.error using printf-style formatting."
            [format-string & args]
-           (js/console.error (apply format format-string args))))
+           (js/console.error (apply format format-string args)) nil))
 
 #?(:cljs (defn log-warn
            "Wrapper to run js/console.error using printf-style formatting."
            [format-string & args]
-           (js/console.warn (apply format format-string args))))
+           (js/console.warn (apply format format-string args)) nil))
 
 #?(:cljs (defn ^:export add-dropzone-file-blob [to-blob base64-image]
            (let [zone (Dropzone/forElement ".dropzone")
@@ -1195,3 +1154,38 @@
            "Converts an integer value of cents to dollars"
            [cents]
            (str (-> cents (/ 100) (.toFixed 2)))))
+
+#?(:cljs (defn round [x]
+           (js/Math.round x)))
+
+#?(:cljs (defn read-sub
+           "Creates a variable-argument function that will dereference
+  re-frame subscription `query-id` with the supplied arguments.
+
+  If an optional `args` sequence is passed, applies the function
+  to those arguments."
+           ([query-id]       (fn [& args]
+                               @(subscribe (vec (concat [query-id] args)))))
+           ([query-id args]  (apply (read-sub query-id) args))))
+
+#?(:cljs (defn get-url-params []
+           (:query-params (http/parse-url @active-route))))
+
+#?(:cljs (defn humanize-url
+           "Returns human-formatted link text based on href value.
+  Displays internal links as \"sysrev.com/...\""
+           [href]
+           (let [p (http/parse-url href)]
+             (cond (empty? (:server-name p))
+                   (str sysrev-hostname
+                        (when-not (= href "/") href))
+
+                   (in? #{:http :https} (:scheme p))
+                   (str (:server-name p)
+                        (some->> (:server-port p) (str ":"))
+                        (if (str/ends-with? (:uri p) "/")
+                          (apply str (butlast (:uri p)))
+                          (:uri p))
+                        (some->> (:query-string p) (str "?")))
+
+                   :else href))))

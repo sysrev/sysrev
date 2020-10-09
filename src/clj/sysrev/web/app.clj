@@ -8,14 +8,14 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :refer [get-user user-by-api-token update-member-access-time]]
+            [sysrev.user.core :refer [user-by-api-token update-member-access-time]]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [project-member]]
             [sysrev.web.build :as build]
             [sysrev.web.index :as index]
             [sysrev.slack :as slack]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
-            [sysrev.util :as util :refer [in? parse-integer ensure-pred]]))
+            [sysrev.util :as util :refer [in? parse-integer when-test]]))
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)
@@ -97,7 +97,7 @@
   "If response result is a map and has keyword key values, merge in
   default {:success true} entry."
   [{:keys [body] :as response}]
-  (let [{:keys [result]} (ensure-pred map? body)]
+  (let [{:keys [result]} (when-test map? body)]
     (if (and (map? result)
              (some keyword? (keys result))
              (not (contains? result :success)))
@@ -153,15 +153,6 @@
                 {:error {:message (.getMessage exception)
                          :stacktrace (with-out-str
                                        (print-cause-trace-custom exception))}}))})
-
-(defn make-web-page-event [request browser-url]
-  {:event-type "page"
-   :logged-in (boolean (current-user-id request))
-   :user-id (current-user-id request)
-   :project-id (active-project request)
-   :skey (:session/key request)
-   :client-ip (request-client-ip request)
-   :browser-url browser-url})
 
 (defn wrap-sysrev-response [handler]
   (fn [request]
@@ -263,10 +254,10 @@
 
          user-id# (current-user-id request#)
          project-id# (active-project request#)
-         valid-project# (some-> project-id# ((ensure-pred integer?)) project/project-exists?)
+         valid-project# (some-> project-id# ((when-test integer?)) project/project-exists?)
          public-project# (and valid-project# (-> (project/project-settings project-id#)
                                                  ((comp true? :public-access))))
-         user# (and user-id# (get-user user-id#))
+         user# (some-> user-id# q/get-user)
          member# (and user-id# valid-project# (project-member project-id# user-id#))
          dev-user?# (in? (:permissions user#) "admin")
          mperms# (:permissions member#)
@@ -313,7 +304,7 @@
                 (api/subscription-lapsed? project-id#)
                 (not dev-user?#))
            {:error {:status 402 :type :project
-                    :message "This action requires an upgraded plan"}}
+                    :message "This request requires an upgraded plan"}}
 
            :else (body-fn#))))
 

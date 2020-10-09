@@ -106,11 +106,6 @@
 
 (reg-sub ::labels #(get-in % [:state :review :labels]))
 
-
-
-(defn review-ui-labels [db article-id]
-  (get-in db [:state :review :labels article-id]))
-
 ;;https://clojuredocs.org/clojure.core/merge
 ;; note: "correct" version converts false->nil
 ;; which isn't what we want!

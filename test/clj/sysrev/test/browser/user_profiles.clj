@@ -22,30 +22,20 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(def user-name-link (xpath "//a[@id='user-name-link']"))
-(def user-profile-tab (xpath "//a[@id='user-profile']"))
-(def activity-values (xpath "//h2[contains(@class,'articles-reviewed' | 'labels-contributed' | 'annotations-contributed')]"))
-(def user-activity-summary-div (xpath "//div[contains(@class,'user-activity-summary')]" activity-values))
 (defn project-activity-summary-headers [project-name]
-  (xpath "//a[contains(text(),'" project-name "')]"
-         "/ancestor::div[contains(@id,'project-')]"
-         "//h2"))
-(def edit-introduction (xpath "//a[@id='edit-introduction']"))
+  (format ".user-project-entry[data-name='%s'] h2" project-name))
 
 ;; avatar
 ;; (def avatar (xpath "//img[contains(@src,'avatar')]"))
 (def avatar (xpath "//div[@data-tooltip='Change Your Avatar']"))
-(def upload-button (xpath "//button[contains(text(),'Upload Profile Image')]"))
 
 (defn private-project-names []
-  (->>
-   (b/get-elements-text (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/a"))
-   (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
+  (->> (b/get-elements-text "#private-projects .user-project-entry .project-link")
+       (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
 
 (defn public-project-names []
-  (->>
-   (b/get-elements-text (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/a"))
-   (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
+  (->> (b/get-elements-text "#public-projects .user-project-entry .project-link")
+       (mapv #(-> (re-find #"(.*)/(.*)" %) (nth 2)))))
 
 (defn user-activity-summary []
   (b/wait-until-displayed "div.user-activity-summary")
@@ -53,12 +43,10 @@
         labels-contributed (parse-integer (taxi/text (taxi/element "h2.labels-contributed")))
         annotations-contributed (if (taxi/exists? "h2.annotations-contributed")
                                   (parse-integer (taxi/text (taxi/element "h2.annotations-contributed")))
-                                  0)
-        ]
+                                  0)]
     {:articles-reviewed articles-reviewed
      :labels-contributed labels-contributed
-     :annotations-contributed annotations-contributed}
-    ))
+     :annotations-contributed annotations-contributed}))
 
 (defn project-activity-summary [project-name]
   (b/wait-until-displayed (project-activity-summary-headers project-name))
@@ -84,7 +72,7 @@
   [public?]
   (let [status-q #(str "button#public-access_" (if % "public" "private"))
         q (status-q public?)]
-    (nav/go-project-route "/settings" :pre-wait-ms 50 :wait-ms 50)
+    (nav/go-project-route "/settings")
     (b/wait-until-exists (-> q b/not-disabled))
     (log/infof "changing project access to %s" (if public? "public" "private"))
     (if (taxi/exists? (-> q b/not-disabled (b/not-class "active")))
@@ -101,7 +89,7 @@
    project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"
    click-project-link #(do (log/infof "loading project %s" (pr-str %))
-                           (b/click (xpath "//a[contains(text(),'" % "')]") :delay 50))]
+                           (b/click (xpath "//a[contains(text(),'" % "')]")))]
   (do #_ (b/start-webdriver true)
       (nav/log-in email)
       ;; subscribe to plans
@@ -112,19 +100,19 @@
       (change-project-public-access false)
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the user profile
-      (b/click user-name-link)
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-name-link")
+      (b/click "#user-projects")
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-1))
       ;; do some work to see if it shows up in the user profile
       (click-project-link project-name-1)
-      (b/click (x/project-menu-item :review) :delay 50)
+      (b/click (x/project-menu-item :review))
       ;; set three article labels
       (dotimes [_ 3]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; go back to profile, check activity
-      (b/click user-name-link)
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-name-link")
+      (b/click "#user-projects")
       ;; is the user's overall activity correct?
       (b/is-soon (= (select-keys (user-activity-summary)
                                  [:articles-reviewed :labels-contributed])
@@ -141,8 +129,8 @@
        {:client-field "primary-title" :semantic-class "foo" :value "bar"
         :offset-x 99})
       ;; return to the profile, the user should have one annotation
-      (b/click user-name-link)
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-name-link")
+      (b/click "#user-projects")
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 3
                                              :labels-contributed 3
@@ -156,8 +144,8 @@
       (change-project-public-access false)
       (pm/import-pubmed-search-via-db "foo bar")
       ;; go to the profile
-      (b/click user-name-link)
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-name-link")
+      (b/click "#user-projects")
       ;; is the project-name listed in the private projects section?
       (b/is-soon (in? (private-project-names) project-name-2))
       ;; do some work to see if it shows up in the user profile
@@ -172,8 +160,8 @@
        {:client-field "primary-title" :semantic-class "foo" :value "bar"
         :offset-x 99})
       ;; go back and check activity
-      (b/click user-name-link)
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-name-link")
+      (b/click "#user-projects")
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 5
                                              :labels-contributed 5
@@ -189,13 +177,12 @@
       ;; make the first project, check that both projects show up in the correct divs
       (click-project-link project-name-1)
       (change-project-public-access true)
-      (b/click user-name-link)
-      (b/click "#user-projects" :delay 50)
+      (b/click "#user-name-link")
+      (b/click "#user-projects")
       (b/is-soon (and (in? (public-project-names) project-name-1)
                       (not (in? (private-project-names) project-name-1))))
       (b/is-soon (and (in? (private-project-names) project-name-2)
-                      (not (in? (public-project-names) project-name-2)))))
-  :cleanup (b/cleanup-test-user! :user-id user-id))
+                      (not (in? (public-project-names) project-name-2))))))
 
 (deftest-browser user-description
   (test/db-connected?) test-user
@@ -207,13 +194,13 @@
     (nav/log-in (:email user1))
     (b/wait-until-loading-completes :pre-wait 50)
     ;; go to the user profile
-    (b/click user-name-link)
-    (b/click user-profile-tab)
+    (b/click "#user-name-link")
+    (b/click "a#user-profile")
     ;; edit introduction
-    (b/click edit-introduction :delay 50)
+    (b/click "a#edit-introduction")
     (b/wait-until-displayed "textarea")
     (b/wait-until-loading-completes :pre-wait 50)
-    (b/set-input-text-per-char "textarea" user-introduction :delay 50)
+    (b/set-input-text-per-char "textarea" user-introduction)
     (markdown/click-save)
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; log in as test user
@@ -228,7 +215,7 @@
     ;; the introduction still reads the same
     (b/is-soon (taxi/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; there is no edit introduction option
-    (b/is-soon (not (taxi/exists? edit-introduction))))
+    (b/is-soon (not (taxi/exists? "a#edit-introduction"))))
   :cleanup (b/cleanup-test-user! :email (:email user1)))
 
 (deftest-browser user-avatar
@@ -237,7 +224,7 @@
   (do (nav/log-in email)
       ;; go to the user profile
       (b/click "#user-name-link")
-      (b/click "#user-profile" :delay 30)
+      (b/click "a#user-profile")
       ;; click the user profile avatar
       (b/click avatar :displayed? true :delay 100)
       ;; "upload" file
@@ -279,7 +266,6 @@
              (user-image/delete-user-avatar-image user-id)))
 
 (def opt-in-toggle (xpath "//input[@id='opt-in-public-reviewer']"))
-(def resend-verification-email (xpath "//button[contains(text(),'Resend Verification Email')]"))
 (def email-verified-label
   (xpath "//div[contains(@class,'label') and contains(@class,'email-verified')]"))
 (def email-unverified-label
@@ -312,21 +298,20 @@
   (Thread/sleep 200))
 
 (defn email-address-count []
-  (count (taxi/find-elements (xpath "//h4[@class='email-entry']"))))
+  (count (taxi/elements "h4.email-entry")))
 
 (defn your-projects-count []
-  (->> (taxi/find-elements (xpath "//div[@id='your-projects']//h4"))
-       (mapv taxi/text)
-       (filter #(not (contains? #{"Your Projects"
-                                  "You don't have any projects yet, create a new one to get started with sysrev!"} %)))
+  (->> (b/get-elements-text "div#your-projects h4")
+       (remove #(contains? #{"Your Projects"
+                             "You don't have any projects yet, create a new one to get started with sysrev!"}
+                           %))
        count))
 
 (deftest-browser verify-email-and-project-invite
   (and (test/db-connected?)
        (not (test/remote-test?))) test-user
   [user1 {:email (str "foo" (util/random-id) "@insilica.co") :password "foobar"}
-   new-email-address (str "bar" (util/random-id) "@insilica.co")
-   user-id (user-by-email (:email user1) :user-id)]
+   new-email-address (str "bar" (util/random-id) "@insilica.co")]
   (do (alter-var-root #'sysrev.sendgrid/send-template-email
                       (constantly (fn [& _] (log/info "No email sent"))))
       (b/create-test-user)
@@ -392,7 +377,7 @@
         ;; log in as foo and check invitation
         (nav/log-in (:email user1) (:password user1))
         ;; confirm we aren't a member of Invitation Test
-        (b/wait-until-exists "button#new-project")
+        (b/wait-until-exists "#new-project.button")
         (is (= 0 (your-projects-count)))
         (b/click "#user-name-link")
         (b/click "#user-settings")

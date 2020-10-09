@@ -108,7 +108,7 @@
            :where (q/not-exists [:article-source :as] {:as.article-id :a.article-id})
            :group-by :project-id)
 
-(defn migrate-article-data
+(defn ^:migrate migrate-article-data
   "Runs migration to update `article` table format by creating
   `article-data` entries and linking to `article`.
 
@@ -138,10 +138,6 @@
                (q/find-count :article {:article-data-id nil}))
     nil))
 
-(defn pubmed-data? [{:keys [datasource-name external-id] :as _article-data}]
-  (boolean (and (= datasource-name "pubmed")
-                (parse-integer external-id))))
-
-(defn delete-unlinked-article-data []
+(defn ^:migrate delete-unlinked-article-data []
   (q/delete [:article-data :ad] {}
             :where (q/not-exists [:article :a] {:a.article-data-id :ad.article-data-id})))

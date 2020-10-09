@@ -49,31 +49,14 @@ function install_flyway () {
   echo "done"
 }
 
-function check_clj_kondo () {
+function install_clj_kondo() {
   set -eu
-  clj-kondo --version > /dev/null ||
-    (echo -en "\nError: clj-kondo binary not found "
-     echo "(https://github.com/borkdude/clj-kondo/blob/master/doc/install.md)"
-     false)
-}
-
-function init_clj_kondo__run () {
-  set -eu
-  echo "Initializing clj-kondo project cache ..."
-  check_clj_kondo
-  prefix-lines init-clj-kondo
-  echo "done"
-}
-
-function init_clj_kondo () {
-  if [ -e "/var/lib/jenkins/jobs/sysrev" ] ; then
-    echo "Skipping init-clj-kondo; Jenkins build environment identified" ; echo
+  if [ -e "$PWD/scripts/clj-kondo" ] ; then
+    echo "clj-kondo already installed to ./scripts/"
   else
-    if [ ! -d '.clj-kondo/.cache' ] ; then
-      time init_clj_kondo__run ; echo
-    else
-      echo "Skipping init-clj-kondo (found existing .clj-kondo/.cache)" ; echo
-    fi
+    echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
+    install-clj-kondo --dir $PWD/scripts > /dev/null
+    echo "done"
   fi
 }
 
@@ -82,5 +65,5 @@ time install_semantic ; echo
 copy_client_semantic ; echo
 time install_client ; echo
 install_flyway ; echo
-init_clj_kondo
+install_clj_kondo ; echo
 echo "You will need to create file vars.sh (see vars.sh.template) and manually add the required private values."

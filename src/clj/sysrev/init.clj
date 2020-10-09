@@ -2,12 +2,10 @@
   (:require [clojure.tools.logging :as log]
             sysrev.logging
             sysrev.stacktrace
-            sysrev.all-entities
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config :refer [env]]
-            [sysrev.web.routes.site :as site]
-            [sysrev.util :as util])
+            [sysrev.web.routes.site :as site])
   (:import [java.net BindException]))
 
 (defn start-db [& [postgres-overrides only-if-new]]

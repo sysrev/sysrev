@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+config="$(cat carve-config.edn)"
+
+clojure -M:carve --opts "$config"

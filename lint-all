@@ -1,0 +1,17 @@
+#!/bin/bash
+set -eu
+
+if [ ! -e "scripts/clj-kondo" ] ; then
+  echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
+  ./scripts/install-clj-kondo --dir $PWD/scripts > /dev/null
+  echo "done"
+fi
+
+./scripts/clj-kondo --lint src/ test/ "$@" ||
+  (set -eu
+   echo
+   echo "!! fix linter warnings or"
+   echo "!! (1) wrap offending form in #_{:clj-kondo/ignore [...]} "
+   echo "!! (2) update .clj-kondo/config.edn"
+   echo
+   exit 1)

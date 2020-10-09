@@ -1,13 +1,9 @@
 (ns sysrev.formats.endnote
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
             [sysrev.util :as util :refer [xml-find xml-find-vector xml-find-vector
                                           map-values parse-integer]]))
-
-(defn parse-endnote-file [fname]
-  (-> fname io/file io/reader dxml/parse))
 
 (defn- document-id-from-url [url]
   (and (string? url)

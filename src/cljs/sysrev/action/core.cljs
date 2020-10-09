@@ -1,13 +1,22 @@
 (ns sysrev.action.core
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
-            [re-frame.core :refer [reg-event-fx trim-v]]
+            [re-frame.core :refer [reg-event-fx trim-v dispatch]]
             [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
-            [sysrev.loading :as loading]))
+            [sysrev.loading :as loading]
+            [sysrev.util :as util :refer [apply-keyargs]]))
 
 (defonce
   ^{:doc "Holds static definitions for server request actions"}
   action-defs (atom {}))
+
+(defn running?
+  "Tests if any AJAX action request matching `query` is currently pending.
+  `ignore` is an optional query value to exclude matching requests."
+  ([]
+   (running? nil))
+  ([query & {:keys [ignore] :as args}]
+   (apply-keyargs #'loading/action-running? query args)))
 
 ;; re-frame db value
 (s/def ::db map?)
@@ -114,3 +123,6 @@
                 (do (js/console.error (str "action error: item = " (pr-str item)
                                            "\nerror: " (pr-str (:error cofx))))
                     {})))))))
+
+(defn run-action [& item]
+  (dispatch [:action (into [] item)]))

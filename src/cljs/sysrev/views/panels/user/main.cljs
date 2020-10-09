@@ -6,12 +6,10 @@
             [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
-(declare panel panel-get panel-set)
+(declare panel)
 
-(setup-panel-state panel [:user] {:get-fn panel-get
-                                  :set-fn panel-set
-                                  :get-sub ::get
-                                  :set-event ::set})
+(setup-panel-state panel [:user]
+                   :get [panel-get ::get] :set [panel-set ::set])
 
 (reg-sub :user/get (fn [db [_ user-id]] (get-in db [:data :users-public user-id])))
 
@@ -45,12 +43,12 @@
         payments-paid @(subscribe [:user/payments-paid])
         invitations @(subscribe [:user/invitations])
         ;; drop the :user from [:user ...], take first keyword
-        active-subpanel (->> @(subscribe [:active-panel]) (drop 1) first)
-        active (fn [panel-key] (css "item" [(= panel-key active-subpanel) "active"]))]
+        active-tab (->> @(subscribe [:active-panel]) (drop 1) first)
+        active (fn [panel-key] (css "item" [(= panel-key active-tab) "active"]))]
     (when self?
       (dispatch [:require [:user/payments-owed self-id]])
       (dispatch [:require [:user/payments-paid self-id]])
-      (dispatch [:user/get-invitations! self-id]))
+      (dispatch [:data/load [:user/invitations self-id]]))
     [:div
      [:nav
       [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached

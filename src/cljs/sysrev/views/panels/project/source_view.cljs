@@ -3,8 +3,7 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.cursors :refer [map-from-cursors prune-cursor]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.loading :as loading]
+            [sysrev.action.core :as action :refer [def-action]]
             [sysrev.views.semantic :refer [Button Icon]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.util :as util :refer [parse-integer css]]))
@@ -22,11 +21,6 @@
   (->> (str/split s #" ")
        (mapv #(or (parse-integer %) (keyword %)))
        prune-cursor))
-
-(defn- cursor->ns
-  "Convert a cursor vector into a namespace string"
-  [m]
-  (str/join " " (for [x m] (-> x symbol str))))
 
 (defn- EditCancelButton [editing-view?]
   [:div {:style {:padding-left "1em"}}
@@ -57,7 +51,7 @@
                      [Button {:size "tiny"
                               :disabled (= @temp-cursors @cursors)
                               :on-click #(dispatch [:action save-action])
-                              :loading (loading/action-running? save-action)}
+                              :loading (action/running? save-action)}
                       "Save"])
                    [Button {:size "tiny"
                             :disabled (empty? @temp-cursors)
@@ -88,8 +82,10 @@
   (let [project-id (subscribe [:active-project-id])
         active-tab (r/atom :edit)
         temp-cursors (r/atom (-> @source :meta :cursors))]
-    (dispatch [:reload [:project-source/sample-article
-                        @project-id (:source-id @source)]])
+    (when (and @(subscribe [:member/admin?])
+               @project-id
+               (:source-id @source))
+      (dispatch [:reload [:project-source/sample-article @project-id (:source-id @source)]]))
     (fn [{:keys [source editing-view?]}]
       (let [{:keys [source-id meta]} @source
             source-name (:source meta)

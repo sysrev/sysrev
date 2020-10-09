@@ -9,10 +9,9 @@
             [sysrev.project.member :as member]
             [sysrev.file.article :as article-file]
             [sysrev.article.core :as article]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
-            [sysrev.biosource.importance :as importance-api]
             [sysrev.util :refer [in? index-by]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
@@ -148,35 +147,18 @@
             do-execute)))))
 
 (defn copy-project-keywords [src-project-id dest-project-id]
-  (let [src-id-to-name
-        (-> (q/select-label-where src-project-id true
-                                  [:label-id :name]
-                                  {:include-disabled? true})
-            (->> do-query
-                 (map (fn [{:keys [label-id name]}]
-                        [label-id name]))
-                 (apply concat)
-                 (apply hash-map)))
-        name-to-dest-id
-        (-> (q/select-label-where dest-project-id true
-                                  [:label-id :name]
-                                  {:include-disabled? true})
-            (->> do-query
-                 (map (fn [{:keys [label-id name]}]
-                        [name label-id]))
-                 (apply concat)
-                 (apply hash-map)))
+  (let [src-id-to-name  (q/find-label {:project-id src-project-id}
+                                      :name, :index-by :label-id, :include-disabled true)
+        name-to-dest-id (q/find-label {:project-id dest-project-id}
+                                      :label-id, :index-by :name, :include-disabled true)
         convert-label-id #(-> % src-id-to-name name-to-dest-id)
-        entries
-        (-> (q/select-project-keywords src-project-id [:*])
-            (->> do-query
-                 (map #(when-let [label-id (convert-label-id (:label-id %))]
-                         (-> (dissoc % :keyword-id :label-id :project-id)
-                             (assoc :label-id label-id
-                                    :project-id dest-project-id)
-                             (update :label-value to-jsonb))))
-                 (remove nil?)
-                 vec))]
+        entries (->> (q/find :project-keyword {:project-id src-project-id})
+                     (map #(when-let [label-id (convert-label-id (:label-id %))]
+                             (-> (dissoc % :keyword-id :label-id :project-id)
+                                 (assoc :label-id label-id
+                                        :project-id dest-project-id)
+                                 (update :label-value to-jsonb))))
+                     (filterv some?))]
     (q/create :project-keyword entries)))
 
 (defn populate-child-project-articles [parent-id child-id article-uuids]
@@ -264,7 +246,7 @@
                               :admin-members-only admin-members-only))
       (if labels
         (copy-project-label-defs src-id dest-id)
-        (labels/add-label-overall-include dest-id))
+        (label/add-label-overall-include dest-id))
       (when labels
         (copy-project-keywords src-id dest-id))
       (when (and labels answers articles)
@@ -299,7 +281,7 @@
                             :admin-members-only admin-members-only)
       (if labels?
         (copy-project-label-defs src-id dest-id)
-        (labels/add-label-overall-include dest-id))
+        (label/add-label-overall-include dest-id))
       (when labels?
         (copy-project-keywords src-id dest-id))
       (when (and labels? answers?)

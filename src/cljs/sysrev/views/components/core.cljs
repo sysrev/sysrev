@@ -6,8 +6,10 @@
             [clojure.string :as str]
             [reagent.core :as r]
             [reagent.dom :refer [dom-node]]
-            [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]))
+            [reagent.ratom :as ratom]
+            [re-frame.core :refer [subscribe]]
+            [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]
+            [sysrev.views.semantic :refer [Message]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -16,13 +18,6 @@
    (dangerous comp nil content))
   ([comp props content]
    [comp (assoc props :dangerouslySetInnerHTML {:__html content})]))
-
-(defn labeled-input [label-text input-elt & [attrs label-attrs]]
-  (let [attrs (or attrs {})
-        label-attrs (or label-attrs {})]
-    [:div.ui.labeled.input attrs
-     [:div.ui.label label-attrs label-text]
-     input-elt]))
 
 (defn wrap-dropdown [_elt & [{:keys [onChange]}]]
   (r/create-class
@@ -59,18 +54,8 @@
       (for [{:keys [action content] :as entry} entries]
         (when entry ^{:key entry}
           [:a.item {:href (when (string? action) action)
-                    :on-click (wrap-user-event
-                               (cond (and (seq? action)
-                                          (= (count action) 2))
-                                     #(dispatch [:navigate
-                                                 (first action) (second action)])
-
-                                     (vector? action)
-                                     #(dispatch [:navigate action])
-
-                                     (string? action) nil
-
-                                     :else action))}
+                    :on-click (when-not (string? action)
+                                (some-> action (wrap-user-event)))}
            content])))]]])
 
 (s/def ::tab-id keyword?)
@@ -106,13 +91,11 @@
     {:style {:min-width width}}
     message]))
 
-(defn primary-tabbed-menu
-  [left-entries right-entries active-tab-id & [menu-class mobile?]]
+(defn primary-tabbed-menu [left-entries right-entries active-tab-id
+                           & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         left-entries (remove nil? left-entries)
         right-entries (remove nil? right-entries)
-        ;; n-tabs (count entries)
-        ;; n-tabs-word (util/num-to-english n-tabs)
         render-entry
         (fn [{:keys [tab-id action content class disabled tooltip] :as entry}]
           (let [active? (= tab-id active-tab-id)
@@ -124,18 +107,8 @@
                                    [class class]
                                    [disabled "disabled"])
                        :href (when (string? action) action)
-                       :on-click
-                       (wrap-user-event
-                        (cond (and (seq? action)
-                                   (= (count action) 2))
-                              #(dispatch [:navigate (first action) (second action)])
-
-                              (vector? action)
-                              #(dispatch [:navigate action])
-
-                              (string? action) nil
-
-                              :else action))}
+                       :on-click (when-not (string? action)
+                                   (some-> action (wrap-user-event)))}
                    content])]
             (if (and disabled tooltip)
               (WrapMenuItemTooltip item tooltip tab-id)
@@ -154,8 +127,8 @@
           (doall (for [entry right-entries]
                    (doall (render-entry entry))))]))]))
 
-(defn secondary-tabbed-menu
-  [left-entries right-entries active-tab-id & [menu-class mobile?]]
+(defn secondary-tabbed-menu [left-entries right-entries active-tab-id
+                             & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         render-entry
         (fn [{:keys [tab-id action content class] :as entry}]
@@ -163,18 +136,8 @@
             [:a {:key tab-id
                  :class (css [(= tab-id active-tab-id) "active"] "item" class)
                  :href (when (string? action) action)
-                 :on-click
-                 (wrap-user-event
-                  (cond (and (seq? action)
-                             (= (count action) 2))
-                        #(dispatch [:navigate (first action) (second action)])
-
-                        (vector? action)
-                        #(dispatch [:navigate action])
-
-                        (string? action) nil
-
-                        :else action))}
+                 :on-click (when-not (string? action)
+                             (some-> action (wrap-user-event)))}
              content]))]
     [:div.ui.secondary.pointing.menu.secondary-menu {:class menu-class}
      (doall (for [entry left-entries]
@@ -201,15 +164,15 @@
                                 [class class] [disabled "disabled"]
                                 (str "tab-" (name tab-id)))
                     :href (when (string? action) action)
-                    :on-click
-                    (let [[a1 a2] (when (and (seq? action) (= 2 (count action)))
-                                    action)]
-                      (wrap-user-event
-                       (cond a1                #(dispatch [:navigate a1 a2])
-                             (vector? action)  #(dispatch [:navigate action])
-                             (string? action)  nil
-                             :else             action)))}
+                    :on-click (when-not (string? action)
+                                (some-> action (wrap-user-event)))}
                 content]))]]))
+
+(defn url-link
+  "Renders a link with human-formatted text based on href value."
+  [href & [props]]
+  [:a (merge props {:href href})
+   (util/humanize-url href)])
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}
@@ -297,32 +260,6 @@
      [:div.ui {:class (bclass false (true? curval))
                :on-click (wrap-user-event #(on-change true))}
       (get icons true)]]))
-
-(defn true-false-nil-tag
-  "UI component for representing an optional boolean value.
-  `value` is one of true, false, nil."
-  [label _value &
-   {:keys [size style show-icon? value color?]
-    :or {size "large", style {}, show-icon? true, color? true}}]
-  (let [vclass (cond
-                 (not color?) ""
-                 (true? value) "green"
-                 (false? value) "orange"
-                 (string? value) value
-                 :else "")
-        iclass (case value
-                 true "add circle icon"
-                 false "minus circle icon"
-                 "question circle icon")]
-    [:div.ui.label
-     {:class (css vclass size)
-      :style style}
-     (str label " ")
-     (when (and iclass show-icon?)
-       [:i {:class iclass
-            :aria-hidden true
-            :style {:margin-left "0.25em"
-                    :margin-right "0"}}])]))
 
 (defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
   [:i.circle.question.mark.icon {:class (css "grey" size class)
@@ -446,13 +383,10 @@
      (not (nil? default-value)) (merge {:default-value default-value})
      (and (nil? default-value)
           (not (nil? value)))
-     (merge {:value (if (in? [cljs.core/Atom
-                              reagent.ratom/RAtom
-                              reagent.ratom/RCursor
-                              reagent.ratom/Reaction]
-                             (type value))
-                      @value
-                      value)})
+     (merge {:value (cond-> value
+                      (in? [cljs.core/Atom ratom/RAtom ratom/RCursor ratom/Reaction]
+                           (type value))
+                      (deref))})
      (not (nil? placeholder)) (merge {:placeholder placeholder})
      (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
      (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
@@ -591,20 +525,19 @@
                                    (merge opts))))
                   (.on "error" (fn [file msg _]
                                  (js/console.log (str "Upload error [" file "]: " msg))
-                                 (reset! error-msg (get (re-find #"message\",\"(.*)?\"" msg) 1))
+                                 (reset! error-msg (-> (re-find #"message\",\"(.*)?\"" msg)
+                                                       (get 1)))
                                  true))
                   (.on "success" on-success)))]
       (r/create-class
-       {:reagent-render (fn [childer upload-url on-success text class style {:keys [post-error-text]}]
-                          [:div
-                           [childer id upload-url error-msg text class style]
-                           (if (not (nil? @error-msg))
-                           [:div.ui {:style {:text-align "center" :margin-top "1em"}}
-                            [:i.ui.red.exclamation.icon]
-                            [:span @error-msg]
-                            [:br]
-                            [:span post-error-text]
-                            ])])
+       {:reagent-render
+        (fn [childer upload-url _on-success text class style {:keys [post-error-text]}]
+          [:div [childer id upload-url error-msg text class style]
+           (when @error-msg
+             [:div {:style {:text-align "center" :margin-top "1em"}}
+              [:i.ui.red.exclamation.icon]
+              [:span @error-msg] [:br]
+              [:span post-error-text]])])
         :component-did-mount #(init-dropzone)
         :display-name "upload-container"}))))
 
@@ -706,3 +639,8 @@
                                    (:style props)
                                    {:min-width width :max-width width})})
              tooltip-content]))))
+
+(defn CursorMessage [cursor & [props]]
+  (when (seq @cursor)
+    [Message (merge props {:on-dismiss #(reset! cursor nil)})
+     (str @cursor)]))

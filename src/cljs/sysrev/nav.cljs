@@ -1,78 +1,47 @@
 (ns sysrev.nav
-  (:require [clojure.string :as str]
-            [goog.uri.utils :as uri-utils]
-            [secretary.core :as secretary]
-            [pushy.core :as pushy]
-            [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
-            [cljs-http.client :as hc]
+  (:require [pushy.core :as pushy]
+            [re-frame.core :refer [reg-event-fx reg-fx]]
+            [cljs-http.client :as http]
             [sysrev.base :refer [history]]
             [sysrev.shared.text :refer [uri-title]]
             [sysrev.util :refer [scroll-top]]))
 
-(defn force-dispatch [uri]
-  (secretary/dispatch! uri))
-
-(defn make-url [route & [params]]
-  (let [hash (hc/generate-query-string params)]
-    (if (empty? hash)
-      route
-      (str route "?" hash))))
+(defn make-url [url & [params]]
+  (let [params-str (not-empty (http/generate-query-string params))]
+    (cond-> url
+      params-str (str "?" params-str))))
 
 (defn current-url-base []
-  (str js/window.location.protocol
-       "//"
-       js/window.location.host))
+  (str js/window.location.protocol "//" js/window.location.host))
 
-(defn nav-reload [route]
+(defn load-url [url & {:keys [absolute] :or {absolute false}}]
   (set! js/window.location.href
-        (str (current-url-base) route)))
+        (cond->> url
+          (not absolute) (str (current-url-base)))))
 
-(defn load-url [url]
-  (set! js/window.location.href url))
+(reg-fx :load-url (fn [[url & {:keys [absolute] :or {absolute false}}]]
+                    (load-url url :absolute absolute)))
+
+(reg-event-fx :load-url (fn [_ [_ url & {:keys [absolute] :or {absolute false}}]]
+                          {:load-url [url :absolute absolute]}))
 
 (defn nav
-  "Change the current route."
-  [route & {:keys [params]}]
-  (scroll-top)
-  (pushy/set-token! history (make-url route params))
+  "Change the current url. If `redirect` is true, replace current entry in
+  HTML5 history stack. If `top` is true (default), scroll to page top."
+  [url & {:keys [params top redirect]
+          :or {top true redirect false}}]
+  ((if redirect pushy/replace-token! pushy/set-token!)
+   history (make-url url params))
+  (when top (scroll-top))
   nil)
 
-(defn nav-redirect
-  "Change the current route and replace its entry in HTML5 history stack."
-  [route & {:keys [params scroll-top?]}]
-  (pushy/replace-token! history (make-url route params))
-  (when scroll-top? (scroll-top)))
+(reg-fx :nav (fn [[url & {:keys [params top redirect]
+                          :or {top true redirect false}}]]
+               (nav url :params params :top top :redirect redirect)))
 
-(defn nav-scroll-top
-  "Change the current route then scroll to top of page."
-  [route & {:keys [params]}]
-  (pushy/set-token! history (make-url route params))
-  (scroll-top))
-
-(reg-event-db :schedule-scroll-top #(assoc % :scroll-top true))
-
-(reg-event-db :scroll-top #(do (scroll-top) (dissoc % :scroll-top)))
-
-(reg-fx :nav (fn [url] (nav url)))
-
-(reg-fx :nav-redirect (fn [url] (nav-redirect url)))
-
-(reg-fx :nav-scroll-top (fn [url]
-                          (let [uri (uri-utils/getPath url)
-                                params (-> url
-                                           uri-utils/getQueryData
-                                           (cljs-http.client/parse-query-params))]
-                            (nav-scroll-top uri :params params))))
-
-(reg-fx :nav-reload (fn [url] (nav-reload url)))
-
-(reg-fx :scroll-top (fn [_] (scroll-top)))
-
-(reg-event-fx :nav-redirect (fn [_ [_ url]] {:nav-redirect url}))
-
-(reg-event-fx :nav-scroll-top (fn [_ [_ url]] {:nav-scroll-top url}))
-
-(reg-event-fx :nav-reload (fn [_ [_ url]] {:nav-reload url}))
+(reg-event-fx :nav (fn [_ [_ url & {:keys [params top redirect]
+                                    :or {top true redirect false}}]]
+                     {:nav [url :params params :top top :redirect redirect]}))
 
 (defn- reload-page []
   (-> js/window .-location (.reload true)))
@@ -87,21 +56,11 @@
 (defn ^:export set-token [path]
   (pushy/set-token! history path))
 
-#_
-(defn ^:export eval-form [form-transit]
-  (let [form ]))
-
-(defn get-url-params []
-  (let [s js/window.location.search
-        query (if (and (string? s)
-                       (str/starts-with? s "?"))
-                (subs s 1)
-                s)]
-    (hc/parse-query-params query)))
-
 (defn set-page-title [title]
   (let [uri js/window.location.pathname]
-  (set! (-> js/document .-title)
-        (if (string? title) title (uri-title uri)))))
+    (set! (-> js/document .-title)
+          (if (string? title) title (uri-title uri))
+          #_ (cond-> "Sysrev"
+               (string? title) (str " - " title)))))
 
 (reg-fx :set-page-title set-page-title)

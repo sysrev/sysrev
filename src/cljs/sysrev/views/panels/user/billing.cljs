@@ -1,20 +1,21 @@
 (ns sysrev.views.panels.user.billing
   (:require [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
+            [sysrev.action.core :refer [run-action]]
+            [sysrev.data.core :refer [load-data]]
             [sysrev.nav :as nav]
-            [sysrev.stripe :refer [pro-plans StripeCardInfo]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.stripe :as stripe]
             [sysrev.views.semantic :refer
              [Segment Grid Row Column Button Icon Loader Header ListUI ListItem]]
-            [sysrev.util :as util :refer [in? css parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute]]))
+            [sysrev.util :as util :refer [css parse-integer]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel)
 
 (setup-panel-state panel [:user :billing])
 
-(defn DefaultSource [{:keys [default-source]}]
+(defn DefaultSource [default-source]
   [:div.bold
    [Icon {:name "credit card"}]
    (if (seq default-source)
@@ -39,13 +40,13 @@
             [Column {:width 8} [Loader {:active true
                                         :inline "centered"}]]
             (not @show-payment-form?)
-            [Column {:width 8} [DefaultSource {:default-source @default-source}]]
+            [Column {:width 8} [DefaultSource @default-source]]
             @show-payment-form?
             [Column {:width 8}
-             [StripeCardInfo {:add-payment-fn
-                              (fn [payload]
-                                (swap! show-payment-form? not)
-                                (change-source-fn payload))}]])
+             [stripe/StripeCardInfo
+              {:add-payment-fn (fn [payload]
+                                 (swap! show-payment-form? not)
+                                 (change-source-fn payload))}]])
           [Column {:width 6 :align "right"}
            [Button {:on-click #(swap! show-payment-form? not)}
             (cond @show-payment-form? [:div "Stop Editing Payment Information"]
@@ -56,7 +57,7 @@
 (defn Plan [{:keys [plans-url current-plan]}]
   (let [basic? (= (:nickname current-plan) "Basic")
         {:keys [nickname interval]} current-plan
-        unlimited? (in? pro-plans nickname)
+        unlimited? (stripe/pro? nickname)
         mobile? (util/mobile?)]
     (if (nil? nickname)
       [Grid
@@ -97,19 +98,17 @@
       [ListItem [Plan {:plans-url "/user/plans"
                        :current-plan @(subscribe [:user/current-plan])}]]
       [ListItem
-       [PaymentSource {:default-source (subscribe [:user/default-source user-id])
-                       :change-source-fn (fn [payload] (dispatch [:action [:stripe/add-payment-user user-id payload]]))}]]]]))
+       [PaymentSource
+        {:default-source (subscribe [:user/default-source user-id])
+         :change-source-fn (fn [payload]
+                             (run-action :stripe/add-payment-user user-id payload))}]]]]))
 
-(defmethod panel-content panel []
-  (fn [_child] [UserBilling]))
-
-(defmethod logged-out-content panel []
-  (logged-out-content :logged-out))
-
-(sr-defroute user-billing "/user/:user-id/billing" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (when (= user-id @(subscribe [:self/user-id]))
-                 (dispatch [:data/load [:user/default-source user-id]])
-                 (dispatch [:data/load [:user/current-plan user-id]]))
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/billing" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (when (= user-id @(subscribe [:self/user-id]))
+                (load-data :user/default-source user-id)
+                (load-data :user/current-plan user-id))
+              (dispatch [:set-active-panel panel]))
+  :content [UserBilling]
+  :require-login true)

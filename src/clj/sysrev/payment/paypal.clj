@@ -1,5 +1,5 @@
 (ns sysrev.payment.paypal
-  (:require [clj-http.client :as client]
+  (:require [clj-http.client :as http]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
             [clj-time.format :as f]
@@ -35,13 +35,13 @@
 (defonce current-access-token (atom nil))
 
 (defn get-access-token []
-  (-> (client/post (str (paypal-url) "/v1/oauth2/token")
-                   {:headers {"Accept" "application/json"
-                              "Accept-Language" "en_US"}
-                    :basic-auth [(paypal-client-id) (paypal-secret)]
-                    :form-params {"grant_type" "client_credentials"}
-                    :as :json
-                    :throw-exceptions false})
+  (-> (http/post (str (paypal-url) "/v1/oauth2/token")
+                 {:headers {"Accept" "application/json"
+                            "Accept-Language" "en_US"}
+                  :basic-auth [(paypal-client-id) (paypal-secret)]
+                  :form-params {"grant_type" "client_credentials"}
+                  :as :json
+                  :throw-exceptions false})
       :body))
 
 (defmacro paypal-oauth-request
@@ -76,17 +76,17 @@
 (defn send-payout!
   "Send a payout to a user"
   [user amount]
-  (client/post (str (paypal-url) "/v1/payments/payouts")
-               {:content-type :json
-                :headers (default-headers (:access_token @current-access-token))
-                :form-params {:sender_batch_header
-                              {:sender_batch_id (str (gensym 1))
-                               :email_subject "You've been paid by InSilica"
-                               :email_message "Thank you for your work on sysrev.com, we've sent your payment!"}
-                              :items [(payout-item user amount)]}
-                :throw-exceptions false
-                :as :json
-                :coerce :always}))
+  (http/post (str (paypal-url) "/v1/payments/payouts")
+             {:content-type :json
+              :headers (default-headers (:access_token @current-access-token))
+              :form-params {:sender_batch_header
+                            {:sender_batch_id (str (gensym 1))
+                             :email_subject "You've been paid by InSilica"
+                             :email_message "Thank you for your work on sysrev.com, we've sent your payment!"}
+                            :items [(payout-item user amount)]}
+              :throw-exceptions false
+              :as :json
+              :coerce :always}))
 
 (defn date->paypal-start-date
   [date]
@@ -106,20 +106,20 @@
       c/to-epoch))
 
 ;; this won't show direct deposits
-(defn get-transactions
+(defn ^:repl get-transactions
   "Get the transactions for the account from start-date to end-date in the format of YYYY-MM-dd"
   [& {:keys [start-date end-date]
       :or {start-date "2018-01-01" end-date "2018-05-11"}}]
-  (client/get (str (paypal-url) "/v1/reporting/transactions")
-              {:content-type :json
-               :headers (default-headers (:access_token @current-access-token))
-               :query-params {"start_date" (date->paypal-start-date start-date)
-                              "end_date" (date->paypal-end-date end-date)}
-               :throw-exceptions false
-               :as :json
-               :coerce :always}))
+  (http/get (str (paypal-url) "/v1/reporting/transactions")
+            {:content-type :json
+             :headers (default-headers (:access_token @current-access-token))
+             :query-params {"start_date" (date->paypal-start-date start-date)
+                            "end_date" (date->paypal-end-date end-date)}
+             :throw-exceptions false
+             :as :json
+             :coerce :always}))
 
-(defn get-transactions-max
+(defn ^:repl get-transactions-max
   []
   (let [today (f/unparse (f/formatter :year-month-day) (t/now))
         thirty-one-days-ago (-> (t/now) (t/minus (t/days 31))
@@ -144,20 +144,20 @@
 ;; https://developer.paypal.com/docs/api/payments/v1/#payment_get
 (defn get-payment
   [payment-id]
-  (client/get (str (paypal-url) "/v1/payments/payment/" payment-id)
-              {:content-type :json
-               :headers (default-headers (:access_token @current-access-token))
-               :as :json
-               :coerce :always}))
+  (http/get (str (paypal-url) "/v1/payments/payment/" payment-id)
+            {:content-type :json
+             :headers (default-headers (:access_token @current-access-token))
+             :as :json
+             :coerce :always}))
 
 (defn get-order
   [order-id]
-  (client/get (str (paypal-url) "/v2/checkout/orders/" order-id)
-              {:content-type :json
-               :headers (default-headers (:access_token @current-access-token))
-               :throw-exceptions false
-               :as :json
-               :coerce :always}))
+  (http/get (str (paypal-url) "/v2/checkout/orders/" order-id)
+            {:content-type :json
+             :headers (default-headers (:access_token @current-access-token))
+             :throw-exceptions false
+             :as :json
+             :coerce :always}))
 
 (defn process-order
   [order-resp]

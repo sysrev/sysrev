@@ -3,14 +3,14 @@
             [clojure.test :refer [is use-fixtures]]
             [clojure.java.io :as io]
             [clj-webdriver.taxi :as taxi]
+            [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.db.query-types :as qt]
+            [sysrev.source.import :as import]
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.test.browser.xpath :refer [xpath]]
-            [sysrev.source.import :as import]))
+            [sysrev.test.browser.xpath :refer [xpath]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -126,8 +126,8 @@
 
             ;; below should be replaced by article search
             ;; text once that is completed
-            article-id (qt/find-article-1 {:a.project-id project-id :ad.title title}
-                                          :a.article-id)
+            article-id (q/find-article-1 {:a.project-id project-id :ad.title title}
+                                         :a.article-id)
             {:keys [authors abstract primary-title secondary-title
                     date]} (ds-api/get-article-content article-id)]
         (is (b/exists? (xpath "//span[text()='" primary-title "']")))

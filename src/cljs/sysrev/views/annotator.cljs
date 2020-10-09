@@ -212,7 +212,7 @@
        [:div.ui.small.basic.label.selection-label
         {:class (css [new? "new-annotation"])}
         (pr-str (str (when (string? selection)
-                       (util/string-ellipsis
+                       (util/ellipsis-middle
                         selection 400 (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))))]]
       [:div.field.semantic-class
        [:label "Semantic Class"]
@@ -282,7 +282,7 @@
                         [:i.red.circle.times.icon]
                         (when full-width? "Delete")]]])]]))
 
-(defn AddAnnotation
+(defn ^:unused AddAnnotation
   "Render absolute-positioned \"Add Annotation\" button
   within AnnotationCapture container."
   [{:keys [class] :as context}]

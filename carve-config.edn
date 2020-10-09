@@ -1,0 +1,16 @@
+{:paths ["src" "test"]
+ :api-namespaces [;; clj
+                  sysrev.cassandra
+                  sysrev.user
+                  sysrev.shared.keywords
+                  ;; cljs
+                  sysrev.annotation
+                  sysrev.chartjs
+                  sysrev.core
+                  sysrev.views.html
+                  sysrev.views.reagent-json-view
+                  sysrev.views.semantic]
+ :carve-ignore-file ".carve_ignore"
+ :interactive? true
+ :aggressive? true
+ :dry-run? true}

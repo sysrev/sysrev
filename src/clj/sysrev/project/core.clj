@@ -12,7 +12,6 @@
             [sysrev.db.core :as db :refer
              [do-query with-transaction with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.util :as util :refer
              [map-values filter-values index-by opt-keys]])
@@ -26,10 +25,10 @@
 (def default-project-settings {:second-review-prob 0.5
                                :public-access true})
 
-(defn all-project-ids []
+(defn ^:repl all-project-ids []
   (q/find :project {} :project-id, :order-by :project-id))
 
-(defn all-projects
+(defn ^:repl all-projects
   "Returns seq of short info on all projects, for interactive use."
   []
   (q/find [:project :p] {}
@@ -135,13 +134,13 @@
   [project-id int? &
    [include-disabled] (s/cat :include-disabled (s/? (s/nilable boolean?)))]
   (with-project-cache project-id [:labels :consensus include-disabled]
-    (qt/find-label {:project-id project-id :consensus true} :label-id
-                   :include-disabled include-disabled)))
+    (q/find-label {:project-id project-id :consensus true} :label-id
+                  :include-disabled include-disabled)))
 
 (defn-spec project-overall-label-id (s/nilable ::sl/label-id)
   [project-id int?]
   (with-project-cache project-id [:labels :overall-label-id]
-    (qt/find-label-1 {:project-id project-id :name "overall include"} :label-id)))
+    (q/find-label-1 {:project-id project-id :name "overall include"} :label-id)))
 
 (defn-spec delete-member-labels-notes nil?
   "Deletes all labels and notes saved in `project-id` by `user-id`."
@@ -177,9 +176,9 @@
   "Returns map of `project-keyword` entries for a project."
   [project-id int?]
   (with-project-cache project-id [:keywords :all]
-    (->> (do-query (q/select-project-keywords project-id [:*]))
-         (map (fn [kw] (assoc kw :toks (->> (str/split (:value kw) #" ")
-                                            (mapv canonical-keyword)))))
+    (->> (q/find :project-keyword {:project-id project-id} :*)
+         (map #(assoc % :toks (->> (str/split (:value %) #" ")
+                                   (mapv canonical-keyword))))
          (index-by :keyword-id))))
 
 (defn-spec add-project-note ::snt/project-note
@@ -218,11 +217,9 @@
   (q/find :project-member {:project-id project-id} :user-id :return return))
 
 (defn project-id-from-register-hash [register-hash]
-  (-> (q/select-project-where true [:project-id :project-uuid])
-      (->> do-query
-           (filter (fn [{:keys [project-id project-uuid]}]
-                     (= register-hash (util/short-uuid project-uuid))))
-           first :project-id)))
+  (->> (q/find :project {} [:project-id :project-uuid])
+       (filter #(= register-hash (-> % :project-uuid util/short-uuid)))
+       first :project-id))
 
 (defn-spec project-exists? boolean?
   "Does a project with project-id exist?"
@@ -250,16 +247,6 @@
          (index-by :user-id)
          (map-values #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
 
-(defn project-pmids [project-id]
-  (->> (q/find [:article :a] {:a.project-id project-id
-                              :ad.datasource-name "pubmed"
-                              :a.enabled true}
-               :ad.external-id
-               :join [[:article-data :ad] :a.article-data-id]
-               :where [:!= :ad.external-id nil])
-       (map util/parse-number)
-       (remove nil?) distinct vec))
-
 (defn project-url-ids [project-id]
   (vec (q/find :project-url-id {:project-id project-id} [:url-id :user-id :date-created]
                :order-by [:date-created :desc])))
@@ -268,20 +255,12 @@
   (or (util/parse-integer url-id)
       (first (q/find :project-url-id {:url-id url-id} :project-id))))
 
-(defn add-project-url-id
+(defn ^:unused add-project-url-id
   "Adds a project-url-id entry (custom URL)"
   [project-id url-id & {:keys [user-id]}]
   (db/with-clear-project-cache project-id
     (q/delete :project-url-id {:project-id project-id :url-id url-id})
     (q/create :project-url-id {:project-id project-id :url-id url-id :user-id user-id})))
-
-(defn all-public-projects []
-  (-> (select :project-id :name :settings)
-      (from :project)
-      (where [:= :enabled true])
-      (->> do-query
-           (filter #(-> % :settings :public-access true?))
-           (mapv #(select-keys % [:project-id :name])))))
 
 (defn delete-all-projects-with-name [project-name]
   (q/delete :project {:name (not-empty project-name)}))
@@ -338,13 +317,32 @@
              (q/find-one [:project-group :pg] {:project-id project-id}
                          [:g.group-id :g.group-name]
                          :join [[:groups :g] :pg.group-id])]
-      {:group-id group-id, :name group-name}
+      {:group-id group-id :name group-name}
       (when-let [{:keys [user-id email] :as _owner}
                  (q/find-one [:project-member :pm] {:pm.project-id project-id
                                                     "owner" :%any.pm.permissions}
                              [:u.user-id :u.email]
                              :join [[:web-user :u] :pm.user-id])]
-        {:user-id user-id, :name (-> email (str/split #"@") first)}))))
+        {:user-id user-id :name (-> email (str/split #"@") first)}))))
+
+(defn all-project-owners []
+  (with-transaction
+    (merge (->> (q/find [:project-member :pm] {"owner" :%any.pm.permissions}
+                        [:u.user-id :u.email]
+                        :join [[:web-user :u] :pm.user-id], :index-by :project-id)
+                (map-values #(-> (assoc % :name (-> (:email %) (str/split #"@") first))
+                                 (dissoc :email))))
+           (q/find [:project-group :pg] {}
+                   [:g.group-id [:g.group-name :name]]
+                   :join [[:groups :g] :pg.group-id], :index-by :project-id))))
+
+(defn all-public-projects []
+  (with-transaction
+    (let [owners (all-project-owners)]
+      (->> (q/find-project {} [:project-id :name :settings])
+           (filter #(-> % :settings :public-access true?))
+           (map #(dissoc % :settings))
+           (map #(assoc % :owner (get owners (:project-id %))))))))
 
 (defn last-active
   "When was the last time an article-label was updated for project-id?"

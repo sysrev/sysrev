@@ -86,7 +86,7 @@
                              (select-keys _response [:status :body]))
                   (ds-api/create-ris-file {:file (make-corrected-ris-file file)
                                            :filename filename})))
-            {:keys [hash error reason]} body]
+            {:keys [hash error #_ reason]} body]
         (if (not= status 200)
           (do (log-slack-custom [(format "*RIS file import failed*:\n```%s```"
                                          (util/pp-str {:project-id project-id

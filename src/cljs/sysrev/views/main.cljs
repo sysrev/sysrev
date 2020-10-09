@@ -1,7 +1,7 @@
 (ns sysrev.views.main
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.base :as base]
+            [sysrev.data.core :as data]
             [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]
             [sysrev.dnd :as dnd]
@@ -10,15 +10,18 @@
             [sysrev.views.base :refer
              [panel-content logged-out-content render-panel-tree]]
             [sysrev.views.panels.login]
+            [sysrev.views.panels.landing-pages.root]
             [sysrev.views.panels.landing-pages.lit-review]
             [sysrev.views.panels.landing-pages.data-extraction]
             [sysrev.views.panels.landing-pages.managed-review]
             [sysrev.views.panels.landing-pages.systematic-review]
-            [sysrev.views.panels.root]
-            [sysrev.views.panels.orgs]
+            [sysrev.views.panels.create-org]
             [sysrev.views.panels.org.main]
             [sysrev.views.panels.org.plans]
             [sysrev.views.panels.org.payment]
+            [sysrev.views.panels.org.billing]
+            [sysrev.views.panels.org.projects]
+            [sysrev.views.panels.org.users]
             [sysrev.views.panels.password-reset]
             [sysrev.views.panels.pubmed]
             [sysrev.views.panels.pricing]
@@ -28,14 +31,14 @@
             [sysrev.views.panels.project.add-articles]
             [sysrev.views.panels.project.main]
             [sysrev.views.panels.project.overview]
-            [sysrev.views.panels.project.articles :as project-articles]
+            [sysrev.views.panels.project.articles]
             [sysrev.views.panels.project.analytics]
             [sysrev.views.panels.project.analytics.concordance]
             [sysrev.views.panels.project.analytics.labels]
             [sysrev.views.panels.project.analytics.feedback]
-            [sysrev.views.panels.project.single-article :as single-article]
+            [sysrev.views.panels.project.single-article]
             [sysrev.views.panels.project.define-labels]
-            [sysrev.views.panels.project.new]
+            [sysrev.views.panels.create-project]
             [sysrev.views.panels.project.settings]
             [sysrev.views.panels.project.export-data]
             [sysrev.views.panels.project.review]
@@ -57,7 +60,7 @@
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :as review]
-            [sysrev.views.search.core]
+            [sysrev.views.panels.search]
             [sysrev.util :as util :refer [css]]
             [sysrev.shared.components :refer [loading-content]]))
 
@@ -97,11 +100,6 @@
                           pdf-key         (merge {:class "pdf" :pdf-key pdf-key})
                           (nil? pdf-key)  (merge {:class "abstract"}))]
         [annotator/AnnotationMenu ann-context "abstract"]))}))
-
-(defn get-article-list-context []
-  (let [panel @(subscribe [:active-panel])]
-    (cond (= panel project-articles/panel)  (project-articles/get-context)
-          (= panel single-article/panel)    (single-article/get-context))))
 
 (defn SidebarColumn []
   (let [article-id @(subscribe [:visible-article-id])
@@ -174,10 +172,10 @@
         [:div#main-content {:class (css [(review/display-sidebar?) "annotator"]
                                         [landing? "landing"]
                                         [(or (not @(subscribe [:data/ready?]))
-                                             (loading/any-loading?
-                                              :ignore (into loading/ignore-data-names
-                                                            [:pdf/open-access-available?
-                                                             :pdf/article-pdfs])))
+                                             (data/loading?
+                                              nil :ignore (into loading/ignore-data-names
+                                                                #{:pdf/open-access-available?
+                                                                  :pdf/article-pdfs})))
                                          "loading"])}
          [header-menu]
          [:div.panel-content {:class (css [(not landing?) "ui container"])}

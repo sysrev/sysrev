@@ -6,11 +6,19 @@
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
             [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
-            [sysrev.util :as util :refer [in? dissoc-in]]))
+            [sysrev.util :as util :refer [in? dissoc-in apply-keyargs]]))
 
 (defonce
   ^{:doc "Holds static definitions for data items fetched from server"}
   data-defs (atom {}))
+
+(defn loading?
+  "Tests if any AJAX data request matching `query` is currently pending.
+  `ignore` is an optional query value to exclude matching requests."
+  ([]
+   (loading? nil))
+  ([query & {:keys [ignore] :as args}]
+   (apply-keyargs #'loading/data-loading? query args)))
 
 ;; re-frame db value
 (s/def ::db map?)
@@ -26,8 +34,9 @@
 (s/def ::db-item-args (s/cat :db ::db :args (s/* ::item-arg)))
 
 ;; def-data arguments
-(doseq [arg [::loaded? ::uri ::process ::prereqs ::content ::on-error]]
+(doseq [arg [::loaded? ::process ::prereqs ::content ::on-error]]
   (s/def arg ifn?))
+(s/def ::uri (s/or :fn fn? :string string?))
 (s/def ::method keyword?)
 (s/def ::content-type string?)
 
@@ -37,6 +46,7 @@
   Required parameters:
 
   `:uri` - fn taking `::item-args`, returns url string for request.
+  `:uri` can also be passed as a string value.
 
   `:loaded?` - fn taking `::db-item-args`, returns boolean indicating
   whether item is already loaded. Should check db for the presence of
@@ -90,7 +100,8 @@
   (when on-error (s/assert ::on-error on-error))
   (when method (s/assert ::method method))
   (swap! data-defs assoc name
-         (merge fields {:prereqs prereqs :method method})))
+         (-> (merge fields {:prereqs prereqs :method method})
+             (update :uri #(if (string? %) (constantly %) %)))))
 
 ;; Gets raw list of data requirements
 (defn- get-needed-raw [db] (get db :needed []))
@@ -198,7 +209,7 @@
                        :as entry} (get @data-defs name)
                       elapsed-millis (- (js/Date.now) @last-fetch-millis)]
                   (assert entry (str "def-data not found - " (pr-str name)))
-                  (when-not (loading/item-loading? item)
+                  (when-not (loading? item)
                     (cond (loading/item-spammed? item)
                           {:data-failed item}
 
@@ -250,16 +261,19 @@
             (when-let [entry (get @data-defs name)]
               (if-let [process (:on-error entry)]
                 (apply process [cofx args result])
-                (do (js/console.error (str "data error: item = " (pr-str item)
-                                           "\nerror: " (pr-str (:error cofx))))
-                    {})))))))
+                (let [{:keys [error]} cofx
+                      {:keys [#_ type message]} error]
+                  (cond (= message "This request requires an upgraded plan") nil
+                        :else (util/log-err "data error: item = %s\nerror: %s"
+                                            (pr-str item) (pr-str error)))
+                  {})))))))
 
 ;; Reload data item from server if already loaded.
 (reg-event-fx :reload [trim-v]
               (fn [{:keys [db]} [item]]
                 (when (and (or (have-item? db item)
                                (loading/item-failed? item))
-                           (not (loading/item-loading? item)))
+                           (not (loading? item)))
                   {:dispatch [:fetch item]})))
 
 ;; Dispatch both `:require` and `:reload`
@@ -272,7 +286,7 @@
                                 missing (get-missing-items db)]
                             (when (and item (in? missing item)
                                        (not (loading/item-failed? item))
-                                       (not (loading/item-loading? item)))
+                                       (not (loading? item)))
                               (dispatch [:fetch item])))
                          5)))
 
@@ -282,7 +296,7 @@
                 {:dispatch-n
                  (->> (get-missing-items db)
                       (remove #(loading/item-failed? %))
-                      (remove #(loading/item-loading? %))
+                      (remove #(loading? %))
                       (mapv (fn [item] [:fetch item])))}))
 
 (reg-fx :fetch-missing
@@ -293,5 +307,18 @@
             (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 10))))
 
 (defn init-data []
-  (dispatch [:ui/load-default-panels])
   (dispatch [:fetch [:identity]]))
+
+(defn fetch [& item]
+  (dispatch [:fetch (into [] item)]))
+
+(defn require-data [& item]
+  (dispatch [:require (into [] item)]))
+
+(defn reload [& item]
+  (dispatch [:reload (into [] item)]))
+
+(defn load-data [& item]
+  (dispatch [:data/load (into [] item)]))
+
+

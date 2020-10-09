@@ -5,7 +5,6 @@
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
-            [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member]]
             [sysrev.export.core :as export]
             [sysrev.test.core :as test]
@@ -14,7 +13,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review-articles]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.util :as util :refer [in? ensure-pred css ignore-exceptions]]))
+            [sysrev.util :as util :refer [in? when-test css ignore-exceptions]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -71,7 +70,7 @@
   (mapv (fn [form-el]
           (letfn [(find-el [q]
                     (some->> (taxi/find-elements-under form-el {:css q})
-                             (ensure-pred #(<= (count %) 1))
+                             (when-test #(<= (count %) 1))
                              first))
                   (find-input-value [parent-q]
                     (or (ignore-exceptions
@@ -121,11 +120,11 @@
       (b/set-input-text input-q semantic-class) ; enter value into text input
       ;; otherwise have dropdown menu
       (taxi/element dd-menu-q)
-      (do (b/click dd-menu-q :delay 50) ; click dropdown input to expand menu
+      (do (b/click dd-menu-q) ; click dropdown input to expand menu
           (if (taxi/element dd-item-q) ; check if the value we want is already in the list
-            (b/click dd-item-q :delay 50) ; value found, click to select
+            (b/click dd-item-q) ; value found, click to select
             ;; menu doesn't have this value
-            (do (b/click dd-menu-q :delay 50) ; collapse dropdown menu
+            (do (b/click dd-menu-q) ; collapse dropdown menu
                 (b/click semantic-class-new-button) ; click button to add a new value
                 (b/set-input-text input-q semantic-class) ; enter the new value into text input
                 )))
@@ -141,7 +140,7 @@
                                  (dissoc :annotation)))
                        (filter #(= (select-keys % match-fields)
                                    (select-keys check-values match-fields)))
-                       (ensure-pred #(= 1 (count %)))
+                       (when-test #(= 1 (count %)))
                        first)]
     (is entry "no matching annotation found")
     (when entry
@@ -235,62 +234,7 @@
         elts (taxi/find-elements {:css q})]
     (cond (empty? elts)        (log/warn "no annotation entry found" q)
           (> (count elts) 1)   (log/warn "matched multiple annotation entries" q)
-          :else                (b/click (css q ".ui.button.delete-annotation") :delay 50))))
-
-(deftest-browser annotation-text
-  ;; disabled; covered by annotator-interface test
-  (and false (test/db-connected?)) test-user
-  [project-name "Browser Test (annotation-text)"
-   ann-defs
-   [{:client-field "primary-title"
-     :selection
-     "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"
-     :semantic-class "foo"
-     :value "bar"
-     :offset-x 682}]
-   [ann1] ann-defs
-   project-id (atom nil)]
-  (do (nav/log-in (:email test-user))
-      (nav/new-project project-name)
-      (reset! project-id (b/current-project-id))
-      (pm/import-pubmed-search-via-db "foo bar enthalpic mesoporous")
-;;;; start annotating articles
-      ;; review the single article result
-      (b/click (x/project-menu-item :review))
-      (b/wait-until-exists "div#project_review")
-      (review-articles/set-article-answers
-       [(merge review-articles/include-label-definition {:value true})])
-      (b/wait-until-exists ".no-review-articles")
-      ;; select one article and annotate it
-      (nav/go-project-route "/articles" :wait-ms 100)
-      (b/click "a.article-title")
-      (annotate-article ann1)
-      ;;check the annotation
-      (let [{:keys [user-id]} test-user
-            project-id (review-articles/get-user-project-id user-id)
-            article-id (first (project/project-article-ids project-id))
-            {:keys [annotations]} (api/article-user-annotations article-id)
-            annotation (first annotations)
-            annotations-csv (rest (export/export-annotations-csv project-id))
-            [csv-row] annotations-csv]
-        (is (= (count annotations) 1))
-        (is (= (:semantic-class ann1) (:semantic-class annotation)))
-        (is (= (:value ann1) (:annotation annotation)))
-        (is (= (get-in annotation [:context :text-context :field]) "primary-title"))
-        (is (= (get-in annotation [:context :client-field]) "primary-title"))
-        (is (= 0 (get-in annotation [:context :start-offset])))
-        (is (= 94 (get-in annotation [:context :end-offset])))
-        ;; do we have highlights?
-        (is (= (:selection ann1) (taxi/text (taxi/element "span.annotated-text"))))
-        ;; check annotations csv export
-        (is (= 1 (count annotations-csv)))
-        (is (in? csv-row (:value ann1)))
-        (is (in? csv-row (:semantic-class ann1)))
-        (is (in? csv-row "primary-title"))
-        (is (in? csv-row "0"))
-        (is (in? csv-row "94"))
-        (is (= annotations-csv (-> (csv/write-csv annotations-csv)
-                                   (csv/parse-csv :strict true)))))))
+          :else                (b/click (css q ".ui.button.delete-annotation")))))
 
 (deftest-browser annotator-interface
   (test/db-connected?) test-user
@@ -430,28 +374,29 @@
       ;; bind updated map for ann1
       (let [ann1 (assoc ann1 :value "value1-changed")]
         ;; check that article view was updated after edit
-        (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
+        (b/is-soon (= (set (article-view-annotations))
+                      (set [ann1 ann2 ann3])) 2000 30)
         ;; check for correct sidebar view entries
         (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
         ;; check for correct db values on edited annotation
-        (check-db-annotation
-         @project-id [:selection]
-         (merge ann1-def ann1 {:user-id (:user-id user1)}))
+        (check-db-annotation @project-id [:selection]
+                             (merge ann1-def ann1 {:user-id (:user-id user1)}))
         ;; now try editing semantic-class value
         (edit-annotation ann1 {:semantic-class "class1-changed"})
         (let [ann1 (assoc ann1 :semantic-class "class1-changed")]
           ;; check correct values for everything again
-          (b/is-soon (= (set (article-view-annotations)) (set [ann1 ann2 ann3])) 2000 30)
+          (b/is-soon (= (set (article-view-annotations))
+                        (set [ann1 ann2 ann3])) 2000 30)
           (is (= (set (sidebar-annotations)) (set [ann1 ann2])))
-          (check-db-annotation
-           @project-id [:selection]
-           (merge ann1-def ann1 {:user-id (:user-id user1)}))
+          (check-db-annotation @project-id [:selection]
+                               (merge ann1-def ann1 {:user-id (:user-id user1)}))
           (check-annotations-csv @project-id)
           (is (= 3 (count (api/project-annotations @project-id))))
           ;; delete an annotation
           (delete-annotation ann1)
           ;; check that deleted annotation is removed everywhere
-          (b/is-soon (= (set (article-view-annotations)) (set [ann2 ann3])) 2000 30)
+          (b/is-soon (= (set (article-view-annotations))
+                        (set [ann2 ann3])) 2000 30)
           (check-highlights [ann2 ann3])
           (is (= (sidebar-annotations) [ann2]))
           (is (= 2 (count (api/project-annotations @project-id))))

@@ -12,7 +12,6 @@
             [sysrev.db.core :as db :refer
              [with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.query-types :as qt]
             [sysrev.user.core :as user]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
@@ -21,7 +20,7 @@
             [sysrev.project.article-list :as alist]
             [sysrev.group.core :as group]
             [sysrev.article.core :as article]
-            [sysrev.label.core :as labels]
+            [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.article.assignment :as assign]
             [sysrev.source.core :as source]
@@ -38,8 +37,7 @@
             [sysrev.slack :as slack]
             [sysrev.util :as util :refer [parse-integer]]
             [ring.util.io :as ring-io])
-  (:import (java.io File)
-           (java.util.zip ZipOutputStream ZipEntry ZipInputStream)))
+  (:import (java.io File)))
 
 ;; for clj-kondo
 (declare project-routes dr finalize-routes)
@@ -76,12 +74,12 @@
   (let [[article user-labels user-notes article-pdfs
          [consensus resolve resolve-labels]]
         (pvalues (article/get-article article-id)
-                 (labels/article-user-labels-map article-id)
+                 (label/article-user-labels-map article-id)
                  (article/article-user-notes-map project-id article-id)
                  (api/article-pdfs article-id)
-                 (list (labels/article-consensus-status project-id article-id)
-                       (labels/article-resolved-status project-id article-id)
-                       (labels/article-resolved-labels project-id article-id)))]
+                 (list (label/article-consensus-status project-id article-id)
+                       (label/article-resolved-status project-id article-id)
+                       (label/article-resolved-labels project-id article-id)))]
     {:article (merge (prepare-article-response article)
                      {:pdfs (:files article-pdfs)}
                      {:review-status consensus}
@@ -111,7 +109,7 @@
                     (project/project-labels project-id true)
                     (project/project-keywords project-id)
                     (project/project-notes project-id)
-                    (labels/project-members-info project-id)
+                    (label/project-members-info project-id)
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
                     (try (project/project-url-ids project-id)
@@ -122,9 +120,9 @@
                     (project/get-project-owner project-id)
                     (api/project-owner-plan project-id)
                     (api/subscription-lapsed? project-id)]
-                   [(labels/query-public-article-labels project-id)
-                    (pvalues nil #_ (labels/project-article-status-counts project-id)
-                             (labels/query-progress-over-time project-id 30))]
+                   [(label/query-public-article-labels project-id)
+                    (pvalues nil #_ (label/project-article-status-counts project-id)
+                             (label/query-progress-over-time project-id 30))]
                    [(project/project-article-count project-id)
                     (source/project-sources project-id)]
                    (parent-project-info project-id))]
@@ -305,8 +303,8 @@
 ;;; Overview Charts data
 ;;;
 (dr (GET "/api/review-status" request
-      (with-authorize request {:allow-public true}
-        (labels/project-article-status-counts (active-project request)))))
+         (with-authorize request {:allow-public true}
+           (label/project-article-status-counts (active-project request)))))
 
 (dr (GET "/api/important-terms-text" request
       (with-authorize request {:allow-public true}
@@ -395,10 +393,10 @@
           (with-authorize request {:roles ["member"]}
             (let [user-id (current-user-id request)
                   project-id (active-project request)
-                  before-count (labels/count-reviewed-articles project-id)
+                  before-count (label/count-reviewed-articles project-id)
                   {:keys [article-id label-values confirm? change? resolve?]
                    :as body} (-> request :body)
-                  duplicate-save? (and (labels/user-article-confirmed? user-id article-id)
+                  duplicate-save? (and (label/user-article-confirmed? user-id article-id)
                                        (not change?)
                                        (not resolve?))]
               (record-user-project-interaction request)
@@ -413,7 +411,7 @@
                                                 :confirm? confirm?
                                                 :change? change?
                                                 :resolve? resolve?))
-              (let [after-count (labels/count-reviewed-articles project-id)]
+              (let [after-count (label/count-reviewed-articles project-id)]
                 (when (and (> after-count before-count)
                            (not= 0 after-count)
                            (= 0 (mod after-count 15)))
@@ -667,7 +665,7 @@
                   filename-project (str "P" project-id)
                   filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
                   filename-date (util/today-string "MMdd")
-                  filename (str (->> [filename-base filename-project filename-date (if (= export-type :group-label-csv)  (str "Group-Label-" (-> label-id labels/get-label :short-label)) filename-articles)]
+                  filename (str (->> [filename-base filename-project filename-date (if (= export-type :group-label-csv)  (str "Group-Label-" (-> label-id label/get-label :short-label)) filename-articles)]
                                      (str/join "_"))
                                 "." filename-ext)]
               {:entry (-> (select-keys entry [:download-id :export-type :added-time])
@@ -711,18 +709,18 @@
 (dr (GET "/api/user-support-subscriptions" request
          (with-authorize request {:logged-in true}
            (api/user-support-subscriptions
-            (user/get-user (current-user-id request))))))
+            (q/get-user (current-user-id request))))))
 
 (dr (GET "/api/current-support" request
          (with-authorize request {:logged-in true}
            (api/user-project-support-level
-            (user/get-user (current-user-id request))
+            (q/get-user (current-user-id request))
             (active-project request)))))
 
 (dr (POST "/api/cancel-project-support" request
           (with-authorize request {:logged-in true}
             (api/cancel-user-project-support
-             (user/get-user (current-user-id request))
+             (q/get-user (current-user-id request))
              (active-project request)))))
 
 ;;;
@@ -775,7 +773,7 @@
                   {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
                                           (filter #(= key (str (:key %))))
                                           first)]
-              (if (not= (qt/get-article article-id :project-id)
+              (if (not= (q/get-article article-id :project-id)
                         (active-project request))
                 {:error {:status api/not-found
                          :message (str "Article " article-id " not found in project")}}
@@ -839,10 +837,11 @@
                pdf-key (-> request :params :pdf-key)]
            (api/article-pdf-user-annotations article-id pdf-key))))
 
-#_(dr (GET "/api/annotations/:article-id" request
-           (with-authorize request {:allow-public true}
-             (let [article-id (-> request :params :article-id parse-integer)]
-               (api/article-abstract-annotations article-id)))))
+;; unused
+(dr (GET "/api/annotations/:article-id" request
+         (with-authorize request {:allow-public true}
+           (let [article-id (-> request :params :article-id parse-integer)]
+             (api/article-abstract-annotations article-id)))))
 
 ;;;
 ;;; Funding and compensation

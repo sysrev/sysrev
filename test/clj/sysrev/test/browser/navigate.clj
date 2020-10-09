@@ -16,15 +16,18 @@
           (not= current (b/path->url path))
           (do (when-not silent
                 (log/info "navigating to" path))
+              (b/assert-browser-console-clean)
               (when pre-wait-ms
                 (b/wait-until-loading-completes :pre-wait pre-wait-ms))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or (some-> wait-ms (quot 2))
                                                             25)
-                                              :loop 2)))
+                                              :loop 2)
+              (b/assert-browser-console-clean)))
     nil))
 
-(defn go-project-route [suburi & {:keys [project-id wait-ms pre-wait-ms silent]}]
+(defn go-project-route [suburi & {:keys [project-id wait-ms pre-wait-ms silent]
+                                  :or {wait-ms 50 pre-wait-ms 30}}]
   (let [project-id (or project-id (b/current-project-id))
         current (b/url->path (taxi/current-url))
         ;; TODO: use server-side lookup to get project base url
@@ -33,8 +36,8 @@
         review? (= suburi "/review")]
     (assert (integer? project-id))
     (go-route (str base-uri suburi)
-              :wait-ms (or wait-ms (cond review? 200))
-              :pre-wait-ms (or pre-wait-ms (cond review? 200))
+              :wait-ms (cond review? 200 :else wait-ms)
+              :pre-wait-ms (cond review? 200 :else pre-wait-ms)
               :silent silent)
     ;; this is a hack for the occasional times that /articles
     ;; doesn't load the first time it is clicked
@@ -75,7 +78,7 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-exists "button#new-project")
+    (b/wait-until-exists "#new-project.button")
     (b/wait-until-loading-completes :pre-wait true :loop 2)
     #_ (log/info "register successful")))
 
@@ -86,8 +89,8 @@
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
   (go-route "/" :silent true)
-  (b/click "button#new-project")
-  (b/set-input-text "form#create-project-form div.project-name input" project-name)
+  (b/click "#new-project.button")
+  (b/set-input-text "#create-project div.project-name input" project-name)
   (b/click (xpath "//button[contains(text(),'Create Project')]"))
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
@@ -98,13 +101,13 @@
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
   (go-route "/" :silent true)
-  (b/click (x/project-title-value name) :delay 50)
+  (b/click (x/project-title-value name))
   (b/wait-until-loading-completes :pre-wait true :loop 2))
 
 (defn delete-current-project []
   (when (b/current-project-id nil 1000)
     (log/info "deleting current project")
-    (go-project-route "/settings" :silent true :wait-ms 50)
+    (go-project-route "/settings" :silent true)
     (b/click (xpath "//button[contains(text(),'Project...')]"))
     (b/click (xpath "//button[text()='Confirm']"))
     (b/wait-until-loading-completes :pre-wait true)))

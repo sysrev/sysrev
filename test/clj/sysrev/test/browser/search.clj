@@ -15,11 +15,6 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(def metasyntactic-variables
-  ["foo" "bar" "baz" "qux" "quux" "corge" "grault" "garply" "waldo" "fred" "plugh" "xyzzy" "thud"])
-
-(def capitalized-metasyntactic-variables (mapv str/capitalize metasyntactic-variables))
-
 (def search-bar "#search-sysrev-bar")
 (def search-bar-form "#search-sysrev-form")
 (def projects-count-label "#search-results-projects-count")

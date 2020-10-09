@@ -3,21 +3,18 @@
             [orchestra.core :refer-macros [defn-spec]]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch reg-fx]]
-            [sysrev.util :as util :refer [in? apply-keyargs now-ms]
-             :refer-macros [opt-keys]]))
+            [sysrev.util :as util :refer [apply-keyargs now-ms]]))
 
 ;; for clj-kondo
-(declare item-loading? any-loading? item-failed? item-spammed?
-         action-running? any-action-running? ajax-status ajax-action-status
-         data-sent data-returned action-sent action-returned)
+(declare item-failed? item-spammed?
+         ajax-status ajax-action-status
+         data-sent action-sent
+         data-returned action-returned)
 
 (defonce ^:private ajax-db (r/atom {}))
 
 (s/def ::item-name keyword?)
 (s/def ::item (s/and vector?, #(pos? (count %)), #(s/valid? ::item-name (first %))))
-
-(s/def ::only ::item-name)
-(s/def ::ignore (s/coll-of ::item-name))
 
 (s/def ::time-ms int?)
 
@@ -27,37 +24,36 @@
 
 (defonce ^:private ajax-data-counts (r/cursor ajax-db [:ajax :data]))
 
-(defn- data-sent-count [item]
-  (r/cursor ajax-data-counts [:sent item]))
-
-(defn- data-returned-count [item]
-  (r/cursor ajax-data-counts [:returned item]))
-
-(defn-spec item-loading? boolean?
-  "Tests if an AJAX data request for `item` is currently pending."
-  [item ::item]
-  (> (or @(data-sent-count item) 0)
-     (or @(data-returned-count item) 0)))
+(defn- item-match? [query item]
+  (cond (nil? query)         true
+        (boolean? query)     query
+        (sequential? query)  (= item query)
+        (keyword? query)     (= (first item) query)
+        (fn? query)          (boolean (query item))
+        (coll? query)        (some #(item-match? % item) query)))
 
 (defn- any-pending-impl
   "Tests for pending AJAX requests based on history from `counts`."
-  [counts & {:keys [only ignore]}]
+  [counts query & {:keys [ignore]}]
   (->>
    ;; get sequence of all requested items
    (keys (get-in counts [:sent]))
-   ;; ignore items except where name equals `only` (if specified)
-   (filter #(or (nil? only) (= (first %) only)))
-   ;; ignore items where name is present in `ignore` (if specified)
-   (filter #(not (in? ignore (first %))))
+   ;; filter to items matching `query`
+   (filter #(item-match? query %))
+   ;; if `ignore` is specified, remove matching items
+   (remove #(and (some? ignore) (item-match? ignore %)))
    ;; test if any item has more requests started than finished
    (some #(> (get-in counts [:sent %] 0)
              (get-in counts [:returned %] 0)))
    boolean))
 
-(defn-spec any-loading? boolean?
-  "Tests if any AJAX data request is currently pending."
-  [& {:keys [only ignore] :as opts} (opt-keys ::only ::ignore)]
-  (apply-keyargs any-pending-impl @ajax-data-counts opts))
+(defn- data-loading?
+  "Tests if any AJAX data request matching `query` is currently pending.
+  `ignore` is an optional query value to exclude matching requests."
+  ([]
+   (data-loading? nil))
+  ([query & {:keys [ignore] :as args}]
+   (apply-keyargs any-pending-impl @ajax-data-counts query args)))
 
 (defn-spec item-failed? boolean?
   "Tests if most recent AJAX data request for `item` returned an
@@ -97,39 +93,30 @@
 
 (defonce ^:private ajax-action-counts (r/cursor ajax-db [:ajax :action]))
 
-(defn- action-sent-count [item]
-  (r/cursor ajax-action-counts [:sent item]))
-
-(defn- action-returned-count [item]
-  (r/cursor ajax-action-counts [:returned item]))
-
-(defn-spec action-running? boolean?
-  "Tests if an AJAX action request for `item` is currently pending."
-  [item ::item]
-  (> (or @(action-sent-count item) 0)
-     (or @(action-returned-count item) 0)))
-
-(defn-spec any-action-running? boolean?
-  "Tests if any AJAX action request is currently pending."
-  [& {:keys [only ignore] :as opts} (opt-keys ::only ::ignore)]
-  (apply-keyargs any-pending-impl @ajax-action-counts opts))
+(defn action-running?
+  "Tests if any AJAX action request matching `query` is currently pending.
+  `ignore` is an optional query value to exclude matching requests."
+  ([]
+   (action-running? nil))
+  ([query & {:keys [ignore] :as args}]
+   (apply-keyargs any-pending-impl @ajax-action-counts query args)))
 
 ;;;
 ;;; Loading indicator
 ;;;
 
-(def ignore-data-names [:article/annotations
-                        :project/sources
-                        :project/important-terms-text
-                        :pdf/open-access-available?])
+(def ignore-data-names #{:article/annotations
+                         :project/sources
+                         :project/important-terms-text
+                         :pdf/open-access-available?})
 
-(def ignore-action-names [:sources/delete])
+(def ignore-action-names #{:sources/delete})
 
 (defn- any-data-for-indicator? []
-  (any-loading? :ignore ignore-data-names))
+  (data-loading? nil :ignore ignore-data-names))
 
 (defn- any-action-for-indicator? []
-  (any-action-running? :ignore ignore-action-names))
+  (action-running? nil :ignore ignore-action-names))
 
 (defn- any-loading-for-indicator?
   "Tests for any pending AJAX requests that should trigger display of

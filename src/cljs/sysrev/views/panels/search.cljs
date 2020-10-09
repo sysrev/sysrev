@@ -1,23 +1,18 @@
-(ns sysrev.views.search.core
+(ns sysrev.views.panels.search
   (:require [clojure.string :as str]
             [ajax.core :refer [GET]]
             [goog.uri.utils :as uri-utils]
             [reagent.core :as r]
+            [re-frame.core :refer [dispatch]]
             [sysrev.base :refer [active-route]]
             [sysrev.markdown :as markdown]
-            [sysrev.nav :refer [nav-scroll-top make-url]]
+            [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri user-uri]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.user.profile :refer [ProfileAvatar]]
             [sysrev.views.semantic :refer
              [Form Input Loader Divider Grid Row Column Menu MenuItem Label Pagination]]
-            [sysrev.macros :refer-macros [setup-panel-state]]
-            [sysrev.util :as util]))
-
-;; for clj-kondo
-(declare panel)
-
-(setup-panel-state panel [:search])
+            [sysrev.util :as util]
+            [sysrev.macros :refer-macros [def-panel]]))
 
 (def state (r/atom {:search-results {}
                     :search-value ""}))
@@ -26,9 +21,9 @@
   "Create a url for search term q of optional type"
   [q & {:keys [type]
         :or {type "projects"}}]
-  (make-url "/search" {:q q
-                       :p 1
-                       :type type}))
+  (nav/make-url "/search" {:q q
+                           :p 1
+                           :type type}))
 
 (defn site-search [q p]
   (let [search-results (r/cursor state [:search-results])
@@ -63,9 +58,9 @@
                              (if (str/blank? @search-value)
                                (reset! search-value "")
                                (do (site-search @search-value 1)
-                                   (nav-scroll-top "/search" :params {:q @search-value
-                                                                      :p 1
-                                                                      :type "projects"}))))}
+                                   (nav/nav "/search" :params {:q @search-value
+                                                               :p 1
+                                                               :type "projects"}))))}
           [Input {:id "search-sysrev-bar"
                   :size "small"
                   :placeholder "Search Sysrev"
@@ -136,21 +131,21 @@
                   :fluid true}
             [MenuItem {:name "Projects"
                        :active (= active :projects)
-                       :on-click #(nav-scroll-top "/search" :params {:q q :p 1 :type "projects"})
+                       :on-click #(nav/nav "/search" :params {:q q :p 1 :type "projects"})
                        :color "orange"}
              "Projects"
              [Label {:size "mini"
                      :id "search-results-projects-count"} @projects-count]]
             [MenuItem {:name "Users"
                        :active (= active :users)
-                       :on-click #(nav-scroll-top "/search" :params {:q q :p 1 :type "users"})
+                       :on-click #(nav/nav "/search" :params {:q q :p 1 :type "users"})
                        :color "orange"}
              "Users"
              [Label {:size "mini"
                      :id "search-results-users-count"} @users-count]]
             [MenuItem {:name "Orgs"
                        :active (= active :orgs)
-                       :on-click #(nav-scroll-top "/search" :params {:q q :p 1 :type "orgs"})
+                       :on-click #(nav/nav "/search" :params {:q q :p 1 :type "orgs"})
                        :color "orange"}
              "Orgs"
              [Label {:size "mini"
@@ -174,19 +169,17 @@
                              [:h3 "Error: No such key"])))
                    (when (> count 10)
                      [Pagination
-                      {:default-active-page 1
-                       :total-pages (+ (quot count page-size)
+                      {:total-pages (+ (quot count page-size)
                                        (if (> (rem count page-size) 0)
                                          1 0))
-                       :active-page p
+                       :active-page (or p 1)
                        :on-page-change
                        (fn [_event data]
                          (let [{:keys [activePage]} (js->clj data :keywordize-keys true)]
                            (site-search q activePage)
-                           (nav-scroll-top
-                            "/search" :params {:q q
-                                               :p activePage
-                                               :type (clj->js active)})))}])]
+                           (nav/nav "/search" :params {:q q
+                                                       :p activePage
+                                                       :type (clj->js active)})))}])]
                   [:div [:h3 (str "We couldn't find anything in "
                                   (condp = active
                                     :projects "Public Projects"
@@ -200,8 +193,11 @@
                             [:a {:href (search-url "genes")} "\"genes\""]]])])))]]]]))
     :component-did-mount (fn [_this] (site-search q p))}))
 
-(defmethod panel-content [:search] []
-  (fn [_child]
-    [SearchResults {:q (uri-utils/getParamValue @active-route "q")
-                    :p (uri-utils/getParamValue @active-route "p")
-                    :type (uri-utils/getParamValue @active-route "type")}]))
+(defn- Panel []
+  [SearchResults {:q (uri-utils/getParamValue @active-route "q")
+                  :p (uri-utils/getParamValue @active-route "p")
+                  :type (uri-utils/getParamValue @active-route "type")}])
+
+(def-panel :uri "/search" :panel [:search]
+  :on-route (dispatch [:set-active-panel [:search]])
+  :content [Panel])

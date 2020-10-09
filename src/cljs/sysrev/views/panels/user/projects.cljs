@@ -2,22 +2,21 @@
   (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.state.ui]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :refer [ConfirmationDialog]]
-            [sysrev.views.panels.project.new :refer [NewProjectButton]]
+            [sysrev.views.panels.create-project :refer [NewProjectButton]]
             [sysrev.views.project :refer [ProjectName]]
             [sysrev.views.semantic :refer
              [Segment Header Grid Row Column Divider Button]]
-            [sysrev.util :as util :refer [condensed-number parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state sr-defroute with-loader]]))
+            [sysrev.util :as util :refer [condensed-number parse-integer sum]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
 (declare panel state panel-get panel-set)
 
-(setup-panel-state panel [:user :projects] {:state-var state
-                                            :get-fn panel-get :set-fn panel-set
-                                            :get-sub ::get :set-event ::set})
+(setup-panel-state panel [:user :projects]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-data :user/projects
   :loaded? (fn [db user-id] (-> (get-in db [:data :user-projects])
@@ -26,8 +25,7 @@
   :process (fn [{:keys [db]} [user-id] {:keys [projects]}]
              {:db (assoc-in db [:data :user-projects user-id] projects)})
   :on-error (fn [{:keys [db error]} [_] _]
-              (js/console.error (pr-str error))
-              {}))
+              (util/log-err (pr-str error))))
 
 (reg-sub :user/projects (fn [db [_ user-id]] (get-in db [:data :user-projects user-id])))
 
@@ -79,7 +77,7 @@
 
 (defn- UserActivitySummary [projects]
   (let [item-totals (apply merge (->> [:articles :labels :annotations]
-                                      (map (fn [k] {k (apply + (map k projects))}))))]
+                                      (map (fn [k] {k (sum (map k projects))}))))]
     (when (some pos? (vals item-totals))
       [Segment {:class "user-activity-summary"}
        [UserActivityContent {:articles (item-totals :articles)
@@ -88,12 +86,11 @@
 
 (defn- UserProject [{:keys [name project-id articles labels annotations settings project-owner]
                      :or {articles 0, labels 0, annotations 0}}]
-  [:div {:id (str "project-" project-id)
-         :class "user-project-entry"
+  [:div {:class "user-project-entry" :data-id project-id :data-name name
          :style {:margin-bottom "1em" :font-size "110%"}}
-   [:a {:href (project-uri project-id)
+   [:a {:class "project-link" :href (project-uri project-id)
         :style {:margin-bottom "0.5em" :display "inline-block"}}
-    [ProjectName {:name name} project-owner]]
+    [ProjectName name (:name project-owner)]]
    (when (and
           ;; user page is for logged in user
           ;; TODO: is this checking that the user is a project admin?
@@ -109,7 +106,7 @@
                          :count-font-size "1em"}]
    [Divider]])
 
-(defn- UserProjectsList [{:keys [user-id]}]
+(defn- UserProjectsList [user-id]
   (with-loader [[:user/projects user-id]] {}
     (let [projects @(subscribe [:user/projects user-id])
           {:keys [public private]}
@@ -138,20 +135,18 @@
              (doall (for [project (sort sort-activity private)] ^{:key (:project-id project)}
                       [UserProject project]))]])]))))
 
-(defn UserProjects [user-id]
+(defn- UserProjects [user-id]
   (with-loader [[:user/projects user-id]] {}
     (let [projects @(subscribe [:user/projects user-id])]
       [:div
        [:div {:style {:margin-bottom "1em"}}
         [NewProjectButton]]
        [UserActivitySummary projects]
-       [UserProjectsList {:user-id user-id}]])))
+       [UserProjectsList user-id]])))
 
-(defmethod panel-content panel []
-  (fn [_child] [UserProjects @(subscribe [:user-panel/user-id])]))
-
-(sr-defroute user-projects "/user/:user-id/projects" [user-id]
-             (let [user-id (parse-integer user-id)]
-               (dispatch [:user-panel/set-user-id user-id])
-               (dispatch [:data/load [:user/projects user-id]])
-               (dispatch [:set-active-panel panel])))
+(def-panel :uri "/user/:user-id/projects" :params [user-id] :panel panel
+  :on-route (let [user-id (parse-integer user-id)]
+              (dispatch [:user-panel/set-user-id user-id])
+              (dispatch [:data/load [:user/projects user-id]])
+              (dispatch [:set-active-panel panel]))
+  :content [UserProjects @(subscribe [:user-panel/user-id])])

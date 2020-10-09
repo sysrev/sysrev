@@ -1,24 +1,22 @@
 (ns sysrev.views.charts
-  (:require [sysrev.charts.chartjs :as chartjs]
+  (:require [sysrev.chartjs :as chartjs]
             [re-frame.core :refer [subscribe]]
             [sysrev.util :as util]))
 
 (defn on-graph-hover [items-clickable?]
-  (fn [event elts]
+  (fn [^js event elts]
     (when (not= (.-type event) "click")
       (let [cursor (if (not items-clickable?) "default"
                        ;; set cursor to pointer if over a clickable item,
                        ;; otherwise reset cursor to default
-                       (let [elts (-> elts js->clj)
-                             idx (when (and (coll? elts) (not-empty elts))
-                                   (-> elts first (aget "_index")))]
-                         (if (and (integer? idx) (>= idx 0))
-                           "pointer" "default")))]
-        (set! (-> event .-target .-style .-cursor) cursor)))))
+                       (if (and (pos-int? (.-length elts))
+                                (nat-int? (-> elts (aget 0) .-index)))
+                         "pointer" "default"))]
+        (set! (-> event .-native .-target .-style .-cursor) cursor)))))
 
 (defn on-legend-hover []
-  (fn [event _item]
-    (set! (-> event .-target .-style .-cursor) "pointer")))
+  (fn [^js event _item]
+    (set! (-> event .-native .-target .-style .-cursor) "pointer")))
 
 (defn graph-text-color []
   (if (= "Dark" (:ui-theme @(subscribe [:self/settings])))
@@ -34,10 +32,10 @@
   "'Open Sans', 'Lato', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif")
 
 (defn graph-font-settings [& {:keys [alternate]}]
-  {:fontColor (graph-text-color)
-   :fontFamily (if alternate (graph-font-family-alternate)
-                   (graph-font-family))
-   :fontSize (if (util/mobile?) 12 13)})
+  {:font {:color (graph-text-color)
+          :family (if alternate (graph-font-family-alternate)
+                      (graph-font-family))
+          :size (if (util/mobile?) 12 13)}})
 
 (defn tooltip-font-settings [& {:keys [alternate]}]
   (let [family (if alternate (graph-font-family-alternate)
@@ -53,9 +51,9 @@
                        mobile?        0
                        :else          1000)]
     (merge-with merge
-                {:animation {:duration duration}
-                 :responsiveAnimationDuration duration
-                 :hover {:animationDuration (if mobile? 0 300)}
+                {:animation {:active (if mobile? 0 300)
+                             :resize duration
+                             :duration duration}
                  :legend {:onHover (on-legend-hover)}
                  :onHover (on-graph-hover items-clickable?)
                  :tooltips (tooltip-font-settings)}
@@ -86,8 +84,7 @@
   (let [font (graph-font-settings)
         datasets (get-datasets ynames yss colors)
         max-length (if (util/mobile?) 22 28)
-        xlabels-short (->> xlabels (mapv #(if (<= (count %) max-length)
-                                            % (str (subs % 0 (- max-length 2)) "..."))))
+        xlabels-short (->> xlabels (mapv #(util/ellipsize % max-length)))
         data {:labels xlabels-short
               :datasets (->> datasets (map #(merge % {:borderWidth 1})))}
         options (merge-with
@@ -95,28 +92,29 @@
                    (if (or (map? x1) (map? x2))
                      (merge x1 x2) x2))
                  (wrap-default-options
-                  {:scales
-                   {:xAxes [{:stacked true
-                             :ticks (merge font {:display display-ticks})
-                             :gridLines {:drawTicks (if display-ticks true false)
-                                         :zeroLineWidth (if display-ticks 0 1)
-                                         :color (graph-border-color)}
-                             :type (if log-scale "logarithmic" "linear")
-                             :scaleLabel (cond-> font
-                                           x-label-string
-                                           (merge {:display true
-                                                   :labelString x-label-string}))}]
-                    :yAxes [{:stacked true
-                             :ticks (merge font {:padding 7})
-                             :gridLines {:drawTicks false
-                                         :color (graph-border-color)}}]}
+                  {:scales {:x (cond-> {:stacked true
+                                        :ticks (merge font {:display display-ticks})
+                                        :gridLines {:drawTicks (if display-ticks true false)
+                                                    :zeroLineWidth (if display-ticks 0 1)
+                                                    :color (graph-border-color)}
+                                        :scaleLabel (cond-> font
+                                                      x-label-string
+                                                      (merge {:display true
+                                                              :labelString x-label-string}))}
+                                 log-scale (merge {:type "logarithmic"}))
+                            :y {;; :scaleLabel font
+                                :stacked true
+                                :ticks (merge font {:padding 7})
+                                :gridLines {:drawTicks false
+                                            :color (graph-border-color)}}}
                    :legend {:labels font}
-                   :tooltips {:callbacks
+                   :tooltips {:mode "y"
+                              :callbacks
                               {:label
                                (fn [item _data]
-                                 (let [idx (.-datasetIndex item)
+                                 (let [idx ^js (.-datasetIndex item)
                                        label (nth ynames idx)
-                                       value (.-xLabel item)
+                                       value ^js (.-formattedValue item)
                                        value-str (if (and (number? value) (not (integer? value)))
                                                    (/ (js/Math.round (* 100 value)) 100.0)
                                                    value)]
@@ -124,11 +122,10 @@
                    :onClick
                    (when on-click
                      (fn [_e elts]
-                       (let [elts (-> elts js->clj)]
-                         (when (and (coll? elts) (not-empty elts))
-                           (when-let [idx (-> elts first (aget "_index"))]
-                             (on-click idx))))))}
-                  :items-clickable? (if on-click true false))
+                       (when-let [idx (and (pos-int? (.-length elts))
+                                           (-> elts (aget 0) .-index))]
+                         (on-click idx))))}
+                  :items-clickable? (boolean on-click))
                  options)]
     [chartjs/horizontal-bar {:data data :height height :options options}]))
 
@@ -145,9 +142,8 @@
                  {:legend {:display false}
                   :onClick (when on-click
                              (fn [_e elts]
-                               (let [elts (-> elts js->clj)]
-                                 (when (and (coll? elts) (not-empty elts))
-                                   (when-let [idx (-> elts first (aget "_index"))]
-                                     (on-click idx))))))}
+                               (when (pos-int? (.-length elts))
+                                 (when-let [idx (-> elts (aget 0) .-index)]
+                                   (on-click idx)))))}
                  :items-clickable? (boolean on-click))]
     [chartjs/doughnut {:data data :options options :height 245}]))

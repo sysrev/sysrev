@@ -1,11 +1,12 @@
 (ns sysrev.views.group-label
   (:require [clojure.set :refer [rename-keys]]
-            [clojure.string :as string]
-            [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
+            [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
-            [sysrev.util :as util]
-            [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow TableBody TableHeaderCell TableCell Input Popup]]))
+            [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
+            [sysrev.util :as util :refer [parse-integer]]
+            [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
+                                           TableBody TableHeaderCell TableCell Input Popup]]))
 
 (def group-label-preview-div "group-label-preview")
 
@@ -29,7 +30,7 @@
   "Increment the key values of m starting at n"
   [m n]
   (medley/map-keys
-   #(let [ith (sysrev.util/parse-integer %)]
+   #(let [ith (parse-integer %)]
       (if (>= ith n)
         (str (inc ith))
         (str ith)))
@@ -42,7 +43,7 @@
                       labels-cursor [:state :review :labels article-id label-id :labels]
                       labels (get-in db labels-cursor)
                       labels-count (-> instances :labels keys count)
-                      ith-integer (sysrev.util/parse-integer ith)
+                      ith-integer (parse-integer ith)
                       duplicate-row (or (-> instances (get-in [:labels ith])) {})]
                   (if ith
                     (-> db
@@ -163,7 +164,7 @@
         valid? (if (= value-type "string")
                  ;; we're only checking the validity of strings
                  (or @(subscribe [:label/valid-string-value? root-label-id label-id answer])
-                     (clojure.string/blank? answer))
+                     (str/blank? answer))
                  true)]
     [:div {:class (when color (str color "-text"))
            :style {:text-align "center"}}
@@ -176,7 +177,7 @@
        (empty? values)
        "—"
        :else
-       (string/join ", " values))]))
+       (str/join ", " values))]))
 
 (defn LabelInput
   [{:keys [article-id root-label-id label-id ith]}]
@@ -210,7 +211,7 @@
     ;; handle validity checking of string values
     (if (= value-type "string")
       (let [valid? (or @(subscribe [:label/valid-string-value? root-label-id label-id @answer])
-                       (clojure.string/blank? @answer))]
+                       (str/blank? @answer))]
         (if valid?
           (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith])
           (dispatch [:review/create-invalid-label article-id root-label-id label-id ith]))
@@ -264,8 +265,10 @@
                           :label-id label-id
                           :ith ith}])])
       :component-will-unmount (fn [_this]
-                                (dispatch [:review/delete-missing-label article-id root-label-id label-id ith])
-                                (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith]))})))
+                                (dispatch [:review/delete-missing-label
+                                           article-id root-label-id label-id ith])
+                                (dispatch [:review/delete-invalid-label
+                                           article-id root-label-id label-id ith]))})))
 
 (defn GroupLabelPopup [{:keys [category required? question examples]}]
   (let [criteria? (= category "inclusion criteria")]
@@ -386,7 +389,7 @@
                                                 :ith (str ith)
                                                 :position {:row i :col j}}]) labels)])
                   ;; convert all iths to integers in order to get proper sorting
-                  (->> (:labels @answers) keys (map util/parse-integer) sort)))]]))
+                  (->> (:labels @answers) keys (map parse-integer) sort)))]]))
     :get-initial-state
     (fn [_]
       (let [answers (subscribe [:review/active-labels article-id "na" group-label-id])

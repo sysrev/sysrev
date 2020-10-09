@@ -1,12 +1,10 @@
-;;;
-;;; Customized stacktrace output
-;;;
-
 (ns sysrev.stacktrace
+  "Customized stacktrace output"
   (:require [clojure.string :as str]
             [clojure.stacktrace :as stack]
-            [clojure.test :refer [*stack-trace-depth* *testing-contexts* inc-report-counter
-                                  report testing-contexts-str testing-vars-str with-test-out]]
+            [clojure.test :refer [*stack-trace-depth* *testing-contexts*
+                                  inc-report-counter report testing-contexts-str
+                                  testing-vars-str with-test-out]]
             [clojure.test.junit :as junit]))
 
 (defn- boring-element?

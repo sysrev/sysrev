@@ -6,8 +6,9 @@
             [re-frame.db :refer [app-db]]
             [secretary.core :refer [defroute]]
             [sysrev.loading]
-            #?(:cljs [sysrev.state.ui])
-            [sysrev.util :refer [map-values ensure-pred]]))
+            #?@(:cljs [[sysrev.state.ui]
+                       [sysrev.views.base]])
+            [sysrev.util :refer [when-test]]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]
@@ -35,7 +36,7 @@
          min-height# (:min-height options#)
          class# (:class options#)
          require# (get options# :require true)
-         loading# (some #(sysrev.loading/item-loading? %) reqs#)
+         loading# (sysrev.loading/data-loading? (set reqs#))
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
          content-form# ~content-form
          dimmer-active# (and dimmer# (or loading#
@@ -71,73 +72,64 @@
 
               :else [:div])])))
 
+#_[project-id @(subscribe [:active-project-id])
+   article-values (->> @(subscribe [:article/labels article-id user-id])
+                       (map-values :answer))
+   active-values @(subscribe [:review/active-labels article-id])
+   user-status @(subscribe [:article/user-status article-id user-id])
+   unconfirmed? (or (= user-status :unconfirmed)
+                    (= user-status :none))
+   resolving? @(subscribe [:review/resolving?])
+   article-loading? (sysrev.loading/data-loading? [:article project-id article-id])
+   send-labels? (and unconfirmed?
+                     (not resolving?)
+                     (not article-loading?)
+                     (not= active-values article-values))]
+;; not sure this should occur here anymore, labels should
+;; be manually saved and this causes errors in the console
+#_(when send-labels?
+    (dispatch [:action [:review/send-labels
+                        project-id {:article-id article-id
+                                    :label-values active-values
+                                    :confirm? false :resolve? false :change? false}]]))
+
 (defn go-route-sync-data [route-fn]
   (if-let [article-id @(subscribe [:review/editing-id])]
     (let [user-id @(subscribe [:self/user-id])
-          ;; project-id @(subscribe [:active-project-id])
-          ;; article-values (->> @(subscribe [:article/labels article-id user-id])
-          ;;                     (map-values :answer))
-          ;; active-values @(subscribe [:review/active-labels article-id])
-          ;; user-status @(subscribe [:article/user-status article-id user-id])
-          ;; unconfirmed? (or (= user-status :unconfirmed)
-          ;;                  (= user-status :none))
-          ;; resolving? @(subscribe [:review/resolving?])
-          ;; article-loading? (sysrev.loading/item-loading? [:article project-id article-id])
-          #_ send-labels? #_ (and unconfirmed?
-                                  (not resolving?)
-                                  (not article-loading?)
-                                  (not= active-values article-values))
           sync-notes? (not @(subscribe [:review/all-notes-synced? article-id]))
           ui-notes @(subscribe [:review/ui-notes article-id])
           article-notes @(subscribe [:article/notes article-id user-id])]
-      ;; not sure this should occur here anymore, labels should
-      ;; be manually saved and this causes errors in the console
-      #_(when send-labels?
-          (dispatch [:action [:review/send-labels
-                              project-id {:article-id article-id
-                                          :label-values active-values
-                                          :confirm? false :resolve? false :change? false}]]))
       (when sync-notes?
         (dispatch [:review/sync-article-notes article-id ui-notes article-notes]))
-      (if (or #_send-labels? sync-notes?)
-        #?(:cljs (js/setTimeout route-fn 30)
+      (if sync-notes?
+        #?(:cljs (js/setTimeout route-fn 50)
            :clj (route-fn))
         (route-fn))
       (dispatch [:review/reset-saving]))
     (route-fn)))
 
-(defmacro defroute-app-id
-  [name uri params app-id & body]
-  `(when (= ~app-id @(subscribe [:app-id]))
-     (defroute ~name ~uri ~params
-       ~@body)))
-
 (defmacro sr-defroute
   [name uri params & body]
-  `(when (= :main @(subscribe [:app-id]))
-     (defroute ~name ~uri ~params
-       (let [clear-text# true]
-         (letfn [(route-fn# []
-                   (go-route-sync-data
-                    #(do (dispatch [:set-active-panel nil])
-                         (dispatch [:set-active-project-url nil])
-                         (when clear-text# (sysrev.util/clear-text-selection))
-                         ~@body
-                         (when clear-text# (sysrev.util/clear-text-selection-soon)))))
-                 (route-fn-when-ready# []
-                   (if (sysrev.loading/ajax-status-inactive?)
-                     (route-fn#)
-                     (js/setTimeout route-fn-when-ready# 10)))]
-           #_ (route-fn#)
-           (route-fn-when-ready#)
-           #_ (js/setTimeout route-fn-when-ready# 10))))))
-
-(defn lookup-project-url [url-id]
-  @(subscribe [:lookup-project-url url-id]))
+  `(defroute ~@(when name [name]) ~uri ~params
+     (let [clear-text# true]
+       (letfn [(route-fn# []
+                 (go-route-sync-data
+                  #(do (dispatch [:set-active-panel nil])
+                       (dispatch [:set-active-project-url nil])
+                       (when clear-text# (sysrev.util/clear-text-selection))
+                       ~@body
+                       (when clear-text# (sysrev.util/clear-text-selection-soon)))))
+               (route-fn-when-ready# []
+                 (if (sysrev.loading/ajax-status-inactive?)
+                   (route-fn#)
+                   (js/setTimeout route-fn-when-ready# 10)))]
+         (route-fn-when-ready#)
+         #_ (route-fn#)
+         #_ (js/setTimeout route-fn-when-ready# 10)))))
 
 (defmacro sr-defroute-project--impl
   [owner-key name uri _suburi params & body]
-  `(defroute ~name ~uri ~params
+  `(defroute ~@(when name [name]) ~uri ~params
      (let [clear-text# true
            project-url-id# ~(if owner-key (second params) (first params))
            owner-url-id# ~(when (and owner-key (first params))
@@ -150,10 +142,10 @@
                (route-fn# []
                  (let [cur-id# @(subscribe [:active-project-url])
                        full-id# @(subscribe [:lookup-project-url url-id#])
-                       project-id# (or (ensure-pred #(= :loading %) full-id#)
-                                       (some->> (ensure-pred map? full-id#)
+                       project-id# (or (when-test #(= :loading %) full-id#)
+                                       (some->> (when-test map? full-id#)
                                                 :project-id
-                                                (ensure-pred integer?))
+                                                (when-test integer?))
                                        :not-found)]
                    (dispatch [:set-active-project-url url-id#])
                    (cond
@@ -227,48 +219,87 @@
   `panel-var` must be a symbol (usually `panel`) providing a var name
   to define as the `path` value.
 
-  `state-var` (optional) should be a symbol (usually `state`)
+  `state` (optional) should be a symbol (usually literal `state`)
   providing a var name to define as a reagent cursor into the panel
   state within the re-frame app-db.
 
-  `get-fn` and `set-fn` (optional) should be symbols that will be
-  used to define re-frame compatible functions (operating on the
-  app-db map value) for interacting with panel state.
+  `get` should be a vector of [`get-fn` `get-sub`].
 
-  `get-sub` and `set-event` (optional) should be keywords (usually
-  namespace-local, prefixed with `::`) that will be used to define a
-  re-frame `reg-sub` and `reg-event-db` for interacting with panel
-  state."
-  [panel-var path & [{:keys [state-var get-fn set-fn get-sub set-event]}]]
-  ;; TODO: check that all these argument values are valid
-  (assert (and (vector? path) (every? keyword? path) (not-empty path)))
-  (assert (symbol? panel-var))
-  (assert (or (nil? state-var) (symbol? state-var)))
-  (assert (or (nil? get-fn) (symbol? get-fn)))
-  (assert (or (nil? set-fn) (symbol? set-fn)))
-  (assert (or (nil? get-sub) (keyword? get-sub)))
-  (assert (or (nil? set-event) (keyword? set-event)))
-  `(do
-     ;; define var with panel key vector
-     (def ~panel-var ~path)
-     ;; define cursor to provide direct access to panel state map
-     ~(when state-var
-        `(defonce ~state-var (r/cursor app-db [:state :panels ~panel-var])))
-     ;; define function for reading panel state from db value
-     ~(when get-fn
-        `(defn ~get-fn [db# & [path#]]
-           (sysrev.state.ui/get-panel-field db# path# ~panel-var)))
-     ;; define function for updating db value to set panel state
-     ~(when set-fn
-        `(defn ~set-fn [db# path# val#]
-           (sysrev.state.ui/set-panel-field db# path# val# ~panel-var)))
-     ;; define re-frame sub for reading panel state.
-     ;; behavior should be equivalent to :panel-field.
-     ~(when get-sub
-        `(reg-sub ~get-sub (fn [db# [_# path#]]
-                             (~get-fn db# path#))))
-     ;; define re-frame event for setting panel state.
-     ;; behavior should be equivalent to :set-panel-field.
-     ~(when set-event
-        `(reg-event-db ~set-event (fn [db# [_# path# val#]]
-                                    (~set-fn db# path# val#))))))
+  `get-fn` provides a symbol to define a re-frame compatible function,
+  operating on the app-db map value, for reading panel state.
+
+  `get-sub` provides a keyword (usually `::get`) to define a
+  re-frame `reg-sub` for reading panel state.
+
+  `set` should be a vector of [`set-fn` `set-event`].
+
+  `set-fn` provides a symbol to define a re-frame compatible function,
+  operating on the app-db map value, for changing panel state.
+
+  `set-event` provides a keyword (usually `::set`) to define a
+  re-frame `reg-event-db` for changing panel state."
+  [panel-var path & {:keys [state get set]}]
+  (let [[get-fn get-sub] get
+        [set-fn set-event] set]
+    ;; TODO: check that all these argument values are valid
+    (assert (and (vector? path) (every? keyword? path) (not-empty path)))
+    (assert (symbol? panel-var))
+    (assert (or (nil? state) (symbol? state)))
+    (assert (or (nil? get-fn) (symbol? get-fn)))
+    (assert (or (nil? set-fn) (symbol? set-fn)))
+    (assert (or (nil? get-sub) (keyword? get-sub)))
+    (assert (or (nil? set-event) (keyword? set-event)))
+    `(do
+       ;; define var with panel key vector
+       (def ~panel-var ~path)
+       ;; define cursor to provide direct access to panel state map
+       ~(when state
+          `(defonce ~state (r/cursor app-db [:state :panels ~panel-var])))
+       ;; define function for reading panel state from db value
+       ~(when get-fn
+          `(defn ~get-fn [db# & [path#]]
+             (sysrev.state.ui/get-panel-field db# path# ~panel-var)))
+       ;; define function for updating db value to set panel state
+       ~(when set-fn
+          `(defn ~set-fn [db# path# val#]
+             (sysrev.state.ui/set-panel-field db# path# val# ~panel-var)))
+       ;; define re-frame sub for reading panel state.
+       ;; behavior should be equivalent to :panel-field.
+       ~(when get-sub
+          `(reg-sub ~get-sub (fn [db# [_# path#]]
+                               (~get-fn db# path#))))
+       ;; define re-frame event for setting panel state.
+       ;; behavior should be equivalent to :set-panel-field.
+       ~(when set-event
+          `(reg-event-db ~set-event (fn [db# [_# path# val#]]
+                                      (~set-fn db# path# val#)))))))
+
+(defmacro def-panel [& {:keys [project? uri params name on-route
+                               panel content require-login logged-out-content]
+                        :or {params [] require-login false}}]
+  (assert (or (nil? name) (symbol? name)) "name argument should be a symbol")
+  (assert (some? uri) "uri argument is required")
+  (when (some? panel)
+    (assert (some? content) "content argument is required with panel"))
+  (when (or content logged-out-content)
+    (assert (some? panel) "panel must be provided with content"))
+  (when (and (nil? content) (nil? logged-out-content))
+    (assert (nil? panel) "panel should not be provided without content"))
+  `(list ~(if project?
+            `(sr-defroute-project ~name ~uri ~params ~on-route)
+            `(sr-defroute ~name ~uri ~params ~on-route))
+         ~(when (some? panel)
+            `(assert (and (vector? ~panel) (every? keyword? ~panel))
+                     "panel must be a vector of keywords"))
+         ~(when (some? panel)
+            `(defmethod sysrev.views.base/panel-content ~panel []
+               ~(if (= 'fn (first content))
+                  content
+                  `(fn [_child#] ~content))))
+         ~(when (some? panel)
+            (let [logged-out-content (if require-login
+                                       `(sysrev.views.base/logged-out-content :logged-out)
+                                       logged-out-content)]
+              (when logged-out-content
+                `(defmethod sysrev.views.base/logged-out-content ~panel []
+                   ~logged-out-content))))))

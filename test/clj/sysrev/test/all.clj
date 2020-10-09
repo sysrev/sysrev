@@ -1,8 +1,6 @@
 (ns sysrev.test.all
   (:require sysrev.test.core
             sysrev.test.import
-            sysrev.test.db.project
-            sysrev.test.db.labels
             sysrev.test.api
             sysrev.test.browser.core
             sysrev.test.browser.analytics
@@ -11,7 +9,7 @@
             sysrev.test.browser.group-labels
             sysrev.test.browser.simple
             sysrev.test.browser.sources
-            sysrev.test.browser.new
+            sysrev.test.browser.new-project
             sysrev.test.browser.orgs
             sysrev.test.browser.plans
             sysrev.test.browser.project-articles

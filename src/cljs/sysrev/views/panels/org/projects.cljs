@@ -1,69 +1,59 @@
 (ns sysrev.views.panels.org.projects
   (:require ["moment" :as moment]
             [clojure.string :as str]
-            [ajax.core :refer [GET]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe reg-event-fx reg-sub reg-event-db trim-v dispatch]]
+            [re-frame.core :refer [subscribe reg-sub dispatch]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.panels.project.new :refer [NewProjectButton]]
+            [sysrev.views.components.core :refer [CursorMessage]]
+            [sysrev.views.panels.create-project :refer [NewProjectButton]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
-            [sysrev.views.semantic :refer
-             [Message MessageHeader Icon Loader Table TableHeader TableHeaderCell
-              TableBody TableRow TableCell]]
-            [sysrev.util :refer [index-by]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.views.panels.org.main :as org]
+            [sysrev.views.semantic :refer [Message Icon Loader Table TableHeader
+                                           TableHeaderCell TableBody TableRow TableCell]]
+            [sysrev.util :as util :refer [index-by]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:org :projects] {:state-var state})
+(setup-panel-state panel [:org :projects]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
-(reg-sub :org/projects
-         (fn [db [_ org-id]]
-           (get-in db [:org org-id :projects])))
+(def-data :org/projects
+  :loaded?  (fn [db org-id]
+              (-> (get-in db [:org org-id])
+                  (contains? :projects)))
+  :uri      (fn [org-id] (str "/api/org/" org-id "/projects"))
+  :process  (fn [{:keys [db]} [org-id] {:keys [projects]}]
+              (let [user-projects (index-by :project-id @(subscribe [:self/projects]))
+                    member-of? #(get-in user-projects [% :member?])]
+                {:db (-> (assoc-in db [:org org-id :projects]
+                                   (for [p projects]
+                                     (assoc p :member? (member-of? (:project-id p)))))
+                         (panel-set :get-projects-error nil))}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:db (panel-set db :get-projects-error (:message error))}))
 
-(reg-event-db :org/set-projects! [trim-v]
-              (fn [db [org-id projects]]
-                (assoc-in db [:org org-id :projects] projects)))
+(reg-sub  :org/projects
+          (fn [db [_ org-id]]
+            (get-in db [:org org-id :projects])))
 
-(defn get-org-projects! [org-id]
-  (let [retrieving? (r/cursor state [:retrieving-projects?])
-        error-msg (r/cursor state [:retrieving-projects-error])]
-    (reset! retrieving? true)
-    (GET (str "/api/org/" org-id "/projects")
-         {:header {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [{:keys [result]}]
-                     (let [user-projects (index-by :project-id @(subscribe [:self/projects]))
-                           member-of? #(get-in user-projects [% :member?])]
-                       (reset! retrieving? false)
-                       (dispatch [:org/set-projects! org-id (map #(assoc % :member? (member-of? (:project-id %)))
-                                                                 (:projects result))])))
-          :error-handler (fn [{:keys [error]}]
-                           (reset! retrieving? false)
-                           (reset! error-msg (:message error)))})))
-
-(reg-event-fx :org/get-projects! [trim-v]
-              (fn [_ [org-id]]
-                (get-org-projects! org-id)
-                {}))
-
-(defn OrgProject [{:keys [name project-id settings member-count admins last-active]}]
-  (let [project-owner @(subscribe [:project/owner project-id])
-        org-id (-> project-owner vals first)]
-    [TableRow {:id (str "project-" project-id)
-               :class "org-project-entry"}
+(defn- OrgProject [{:keys [name project-id settings member-count admins last-active]}]
+  (let [{:keys [group-id]} @(subscribe [:project/owner project-id])]
+    [TableRow {:id (str "project-" project-id) :class "org-project-entry"}
      [TableCell
-      [:a {:href (project-uri project-id)
-           :style {:display "inline-block"}} name]
+      [:a.inline-block {:href (project-uri project-id)} name]
       (when (and
              ;; user has proper perms for this project
-             (some #{"admin" "owner"} @(subscribe [:self/org-permissions org-id]))
+             (some #{"admin" "owner"} @(subscribe [:self/org-permissions group-id]))
              ;; this project is not public
              (not (:public-access settings))
              ;; the subscription has lapsed
              @(subscribe [:project/subscription-lapsed? project-id]))
-        [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]])]
+        [:div {:style {:margin-bottom "0.5em"}}
+         [MakePublic {:project-id project-id}]])]
      [TableCell {:text-align "center"}
       (or (some-> last-active (moment.) (.fromNow)) "never")]
      [TableCell {:text-align "center"}
@@ -76,94 +66,59 @@
       [:a {:href (str (project-uri project-id) "/settings")}
        [Icon {:name "setting"}]]]]))
 
-(defn OrgProjectList [_projects]
-  (let [;; {:keys [public private]}
-        ;; (-> (group-by #(if (get-in % [:settings :public-access]) :public :private) projects)
-        ;;     ;; because we need to exclude anything that doesn't explicitly have a settings keyword
-        ;;     ;; non-public project summaries are given, but without identifying profile information
-        ;;     (update :private #(filter :settings %)))
-        column (r/atom :name)
+(defn- OrgProjectList [_projects]
+  (let [column (r/atom :name)
         direction (r/atom true)
         sort-fn (fn [name]
                   (reset! column name)
                   (swap! direction not))]
     (fn [projects]
       (if (seq projects)
-        [:div.projects
-         [:div {:id "projects"}
-          [Table {:sortable true}
-           [TableHeader
-            [TableRow
-             [TableHeaderCell {:onClick #(sort-fn :name)
-                               :sorted (when (= @column :name)
-                                         (if @direction
-                                           "ascending"
-                                           "descending"))} "Project Name"]
-             [TableHeaderCell {:onClick #(sort-fn :last-active)
-                               :sorted (when (= @column :last-active)
-                                         (if @direction
-                                           "ascending"
-                                           "descending"))
-                               :text-align "center"} "Last Active"]
-             [TableHeaderCell {:text-align "center"
-                               #_ :on-click #_ (sort-fn :admins)
-                               #_ :sorted #_ (when (= @column :admins)
-                                               (if @direction "ascending" "descending"))
-                               } "Administrators"]
-             [TableHeaderCell {:text-align "center"
-                               :onClick #(sort-fn :member-count)
-                               :sorted (when (= @column :member-count)
-                                         (if @direction
-                                           "ascending"
-                                           "descending")) } "Team Size"]
-             [TableHeaderCell {:text-align "center"} "Settings"]]]
-           [TableBody
-            (doall (for [project (cond->> projects
-                                   true (sort-by @column)
-                                   (and (not= @column :last-active)
-                                        (not @direction)) (reverse)
-                                   (and (= @column :last-active)
-                                        @direction) (reverse))]
-                     ^{:key (:project-id project)}
-                     [OrgProject project]))]]
-          #_[Grid
-             (doall (for [project projects]
-                      ^{:key (:project-id project)}
-                      [OrgProject project]))]]
-         #_(when (seq public)
-             [Segment
-              [Header {:as "h4" :dividing true :style {:font-size "120%"}}
-               "Public Projects"]
-              [:div {:id "public-projects"}
-               (doall (for [project public]
-                        ^{:key (:project-id project)}
-                        [OrgProject project]))]])
-         #_(when (seq private)
-             [Segment
-              [Header {:as "h4" :dividing true :style {:font-size "120%"}}
-               "Private Projects"]
-              [:div {:id "private-projects"}
-               (doall (for [project #_(sort sort-activity private) private]
-                        ^{:key (:project-id project)}
-                        [OrgProject project]))]])]
+        (let [sorted #(when (= @column %)
+                        (if @direction "ascending" "descending"))]
+          [:div.projects
+           [:div {:id "projects"}
+            [Table {:sortable true}
+             [TableHeader
+              [TableRow
+               [TableHeaderCell {:onClick #(sort-fn :name)
+                                 :sorted (sorted :name)} "Project Name"]
+               [TableHeaderCell {:text-align "center"
+                                 :onClick #(sort-fn :last-active)
+                                 :sorted (sorted :last-active)} "Last Active"]
+               [TableHeaderCell {:text-align "center"
+                                 #_ :on-click #_ (sort-fn :admins)
+                                 #_ :sorted #_ (sorted :admins)} "Administrators"]
+               [TableHeaderCell {:text-align "center"
+                                 :onClick #(sort-fn :member-count)
+                                 :sorted (sorted :member-count)} "Team Size"]
+               [TableHeaderCell {:text-align "center"} "Settings"]]]
+             [TableBody
+              (doall (for [project (cond-> (sort-by @column projects)
+                                     (case (boolean @direction)
+                                       true  (= @column :last-active)
+                                       false (not= @column :last-active))
+                                     (reverse))]
+                       ^{:key (:project-id project)}
+                       [OrgProject project]))]]]])
         [Message [:h4 "This organization doesn't have any public projects"]]))))
 
-(defn OrgProjects [{:keys [org-id]}]
-  (let [error (r/cursor state [:retrieving-projects-error])]
-    (r/create-class
-     {:reagent-render
-      (fn [_]
-        (let [retrieving? (:retrieving-projects? @state)]
-          [:div
-           (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
-             [:div {:style {:margin-bottom "1rem"}}
-              [NewProjectButton {:project-owner org-id}]])
-           (when-not retrieving?
-             [OrgProjectList @(subscribe [:org/projects org-id])])
-           (when (seq @error)
-             [Message {:negative true :onDismiss #(reset! error "")}
-              [MessageHeader {:as "h4"} "Get Group Projects error"]
-              @error])
-           (when retrieving?
-             [Loader {:active true :inline "centered"}])]))
-      :component-did-mount #(dispatch [:org/get-projects! org-id])})))
+(defn OrgProjects [org-id]
+  (let [error (r/cursor state [:get-projects-error])
+        loading? (data/loading? :org/projects)]
+    [:div
+     (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
+       [:div {:style {:margin-bottom "1rem"}}
+        [NewProjectButton {:project-owner org-id}]])
+     (when-not loading?
+       [OrgProjectList @(subscribe [:org/projects org-id])])
+     [CursorMessage error {:negative true}]
+     (when loading?
+       [Loader {:active true :inline "centered"}])]))
+
+(def-panel :uri "/org/:org-id/projects" :params [org-id] :panel panel
+  :on-route (let [org-id (util/parse-integer org-id)]
+              (org/on-navigate-org org-id panel)
+              (dispatch [:data/load [:org/projects org-id]]))
+  :content (when-let [org-id @(subscribe [::org/org-id])]
+             [OrgProjects org-id]))

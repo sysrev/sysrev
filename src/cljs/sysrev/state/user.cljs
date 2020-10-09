@@ -33,30 +33,18 @@
          (fn [[_ user-id]] (subscribe [::user user-id]))
          #(:permissions %))
 
-(reg-sub :user/admin?
+(reg-sub :user/dev?
          (fn [[_ user-id]] (subscribe [:user/permissions user-id]))
          #(boolean (in? % "admin")))
 
 (reg-sub :user/visible?
-         (fn [[_ user-id _include-self-admin?]]
+         (fn [[_ user-id _include-self-dev?]]
            [(subscribe [:self/user-id])
-            (subscribe [:user/admin? user-id])])
-         (fn [[self-id admin?] [_ user-id include-self-admin?]]
-           (or (not admin?)
-               (and include-self-admin? (= user-id self-id)))))
+            (subscribe [:user/dev? user-id])])
+         (fn [[self-id dev?] [_ user-id include-self-dev?]]
+           (or (not dev?)
+               (and include-self-dev? (= user-id self-id)))))
 
 (reg-sub :user/project-ids
          (fn [[_ user-id]] (subscribe [::user user-id]))
          #(:projects %))
-
-;; Hacky detection of real (not browser test) admin users based on email
-(reg-sub :user/actual-admin?
-         (fn [[_ user-id]]
-           [(subscribe [:user/admin? user-id])
-            (subscribe [:user/email user-id])])
-         (fn [[admin? email]]
-           (and admin? email
-                (not (or (str/includes? email "browser")
-                         (str/includes? email "test")))
-                (or (str/includes? email "insilica.co")
-                    (str/includes? email "tomluec")))))

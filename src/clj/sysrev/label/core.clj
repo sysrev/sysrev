@@ -14,7 +14,8 @@
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.util :as util :refer [in? map-values index-by or-default sanitize-uuids]]))
+            [sysrev.util :as util :refer [in? map-values index-by or-default sanitize-uuids
+                                          sum]]))
 
 ;; for clj-kondo
 (declare user-article-confirmed?)
@@ -67,7 +68,7 @@
                 (= name "overall include")  (assoc :consensus true))))
   true)
 
-(defn add-label-entry-boolean
+(defn- add-label-entry-boolean
   "Creates an entry for a boolean label definition.
 
   `name` `question` `short-label` are strings describing the label.
@@ -90,72 +91,6 @@
                                                       "extra" "inclusion criteria"))
                       :definition (when-not (nil? inclusion-value)
                                     {:inclusion-values [inclusion-value]})})))
-
-;; this is used in tests only
-(defn add-label-entry-categorical
-  "Creates an entry for a categorical label definition.
-
-  `name` `question` `short-label` are strings describing the label.
-
-  `all-values` are the values from which to choose from
-
-  `inclusion-values` should be a sequence of the values that are acceptable
-  for inclusion. If `inclusion-values` is empty, answers for this label
-  are treated as having no relationship to inclusion. If `inclusion-values` is
-  not empty, answers are treated as implying inclusion if any of the answer
-  values is present in `inclusion-values`; non-empty answers for which none of
-  the values is present in `inclusion-values` are treated as implying
-  exclusion.
-
-  `custom-category` is optional, unless specified the label category will be
-  determined from the value of `inclusion-value`."
-  [project-id
-   {:keys [name question short-label all-values inclusion-values required consensus
-           multi? custom-category] :as entry-values}]
-  (assert (sequential? all-values))
-  (assert (sequential? inclusion-values))
-  (add-label-entry
-   project-id (merge (->> [:name :question :short-label :required :consensus]
-                          (select-keys entry-values))
-                     {:value-type "categorical"
-                      :category (or custom-category (if (empty? inclusion-values)
-                                                      "extra" "inclusion criteria"))
-                      :definition {:all-values all-values
-                                   :inclusion-values inclusion-values
-                                   :multi? (boolean multi?)}})))
-;; this is used in tests only
-(defn add-label-entry-string
-  "Creates an entry for a string label definition. Value is provided by user
-  in a text input field.
-
-  `name` `question` `short-label` are strings describing the label.
-  `max-length` is a required integer.
-  `regex` is an optional vector of strings to require that answers must match
-  one of the regex values.
-  `entity` is an optional string to identify what the value represents.
-  `examples` is an optional list of example strings to indicate to users
-  the required format.
-
-  `required` is `true` or `false` to determine if this label must be set for an  article
-
-  `multi?` if true allows multiple string values in answer."
-  [project-id
-   {:keys [name question short-label required consensus custom-category max-length regex
-           entity examples multi?] :as entry-values}]
-  (assert (= (type multi?) Boolean))
-  (assert (integer? max-length))
-  (assert (or (nil? regex) (and (coll? regex) (every? string? regex))))
-  (assert (or (nil? examples) (and (coll? examples) (every? string? examples))))
-  (assert ((some-fn nil? string?) entity))
-  (add-label-entry
-   project-id (merge (->> [:name :question :short-label :required :consensus]
-                          (select-keys entry-values))
-                     {:value-type "string"
-                      :category (or custom-category "extra")
-                      :definition (cond-> {:multi? multi? :max-length max-length}
-                                    regex     (assoc :regex regex)
-                                    entity    (assoc :entity entity)
-                                    examples  (assoc :examples examples))})))
 
 (defn add-label-overall-include [project-id]
   (add-label-entry-boolean
@@ -247,7 +182,6 @@
                          (and (keyword? %) (util/parse-integer (name %)))
                          (name)))))
 
-;; TODO: move into article entity
 (defn article-user-labels-map [article-id]
   (-> (q/select-article-by-id article-id [:al.* :l.enabled])
       (q/join-article-labels)
@@ -304,10 +238,10 @@
 
 (defn query-progress-over-time [project-id n-days]
   (with-project-cache project-id [:public-labels :progress n-days]
-    (let [#_ completed #_ nil
-          labeled (for [x (vals (query-public-article-labels project-id))]
-                    {:updated-time (:updated-time x)
-                     :users (count (->> (vals (:labels x)) (apply concat) (map :user-id) distinct))})
+    (let [labeled (for [{:keys [labels updated-time]}
+                        (vals (query-public-article-labels project-id))]
+                    {:updated-time updated-time
+                     :users (count (->> (vals labels) flatten (map :user-id) distinct))})
           now (tc/to-epoch (t/now))
           day-seconds (* 60 60 24)
           tformat (tf/formatters :year-month-day)]
@@ -315,8 +249,7 @@
              (let [day-epoch (- now (* day-idx day-seconds))
                    before-day? #(< (:updated-time %) day-epoch)]
                {:day (tf/unparse tformat (tc/from-long (* 1000 day-epoch)))
-                #_ :completed #_ (->> completed (filter before-day?) count)
-                :labeled (->> labeled (filter before-day?) (map :users) (apply +))}))))))
+                :labeled (->> labeled (filter before-day?) (map :users) sum)}))))))
 
 (defn- article-current-resolve-entry
   "Returns most recently created article_resolve entry for article. By
@@ -449,25 +382,6 @@
       (->> (-> (article-user-labels-map article-id)
                (get (:user-id resolve)))
            (map-values :answer)))))
-
-(defn project-included-articles [project-id]
-  (let [articles (query-public-article-labels project-id)
-        overall-id (project/project-overall-label-id project-id)]
-    (when overall-id
-      (util/filter-values (fn [{:keys [article-id] :as article}]
-                            (let [labels (get-in article [:labels overall-id])
-                                  group-status (article-consensus-status
-                                                project-id article-id
-                                                :articles articles :overall-id overall-id)
-                                  inclusion-status
-                                  (case group-status
-                                    :conflict nil
-                                    :resolved (-> (article-resolved-labels project-id article-id)
-                                                  (get overall-id))
-                                    (->> labels (map :inclusion) first))]
-                              (and (in? [:consistent :resolved] group-status)
-                                   (true? inclusion-status))))
-                          articles))))
 
 (defn project-user-inclusions [project-id]
   (with-project-cache project-id [:label-values :confirmed :user-inclusions]

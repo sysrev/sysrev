@@ -2,6 +2,7 @@
   (:require [clojure.tools.logging :as log]
             [compojure.core :refer [GET POST]]
             [ring.util.response :as response]
+            [sysrev.db.queries :as q]
             [sysrev.api :as api]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.mail.core :refer [send-email]]
@@ -83,8 +84,8 @@
                       (log/warn (.getMessage e))
                       nil))
                user (when user-info (user-by-email email))
-               {_verified :verified :or {_verified false}} user
-               _success (not-empty user)
+               ;; {verified :verified :or {verified false}} user
+               ;; _success (not-empty user)
                session-identity (select-keys user [:user-id :user-uuid :email])]
            (with-meta (response/redirect base-url)
              {:session (assoc session :identity session-identity)}))))
@@ -167,7 +168,7 @@
 
 (defn send-password-reset-email [user-id & {:keys [url-base]
                                             :or {url-base "https://sysrev.com"}}]
-  (let [email (user/get-user user-id :email)]
+  (let [email (q/get-user user-id :email)]
     (user/create-password-reset-code user-id)
     (send-email
      email "Sysrev Password Reset Requested"
