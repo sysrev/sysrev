@@ -74,17 +74,19 @@ node {
       try {
         sh './jenkins/test'
       } catch (exc) {
-        sh 'cat target/junit.xml'
+        sh 'cat target/junit.xml || true'
         sendSlackMsg ('Tests failed (attempt 1 of 2) ...')
         try {
           sh './jenkins/test'
         } catch (exc2) {
-          sh 'cat target/junit.xml'
+          sh 'cat target/junit.xml || true'
           currentBuild.result = 'UNSTABLE'
           sendSlackMsg ('Tests failed (attempt 2 of 2)')
         }
       } finally {
-        junit 'target/junit.xml'
+        try { junit 'target/junit.xml'
+        } catch (exc2) { echo "!!! target/junit.xml not found" }
+
         if (currentBuild.result != 'UNSTABLE') {
           currentBuild.result = 'SUCCESS'
           if (branch == 'staging' ||
@@ -128,9 +130,10 @@ node {
               currentBuild.result = 'SUCCESS'
             } catch (exc) {
               currentBuild.result = 'UNSTABLE'
-              sh 'cat target/junit.xml'
+              sh 'cat target/junit.xml || true'
             } finally {
-              junit 'target/junit.xml'
+              try { junit 'target/junit.xml'
+              } catch (exc2) { echo "!!! target/junit.xml not found" }
             }
           }
         } catch (exc) {
@@ -202,7 +205,7 @@ node {
   }
   stage('PostDeployTest') {
     if (branch == 'production' ||
-				branch == 'staging') {
+        branch == 'staging') {
       if (currentBuild.result == 'SUCCESS') {
         echo 'Running tests against deploy host...'
         try {
@@ -217,9 +220,10 @@ node {
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
           sendSlackMsg ('PostDeployTest failed')
-          sh 'cat target/junit.xml'
+          sh 'cat target/junit.xml || true'
         } finally {
-          junit 'target/junit.xml'
+          try { junit 'target/junit.xml'
+          } catch (exc2) { echo "!!! target/junit.xml not found" }
         }
       }
     }

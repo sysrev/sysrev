@@ -7,4 +7,11 @@ if [ ! -e "scripts/clj-kondo" ] ; then
   echo "done"
 fi
 
-./scripts/clj-kondo --lint src/ test/ "$@"
+./scripts/clj-kondo --lint src/ test/ "$@" ||
+  (set -eu
+   echo
+   echo "!! fix linter warnings or"
+   echo "!! (1) wrap offending form in #_{:clj-kondo/ignore [...]} "
+   echo "!! (2) update .clj-kondo/config.edn"
+   echo
+   exit 1)

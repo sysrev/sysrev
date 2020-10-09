@@ -1,10 +1,10 @@
 #!/bin/bash
 set -eux
 
+./lint-all
+
 rm -rf ./target
 
 rm -f target/junit.xml
-
-./lint-all
 
 lein with-profile +jenkins eftest
