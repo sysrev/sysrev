@@ -201,10 +201,7 @@
     (reset! project-id (b/current-project-id))
     ;; PubMed search input
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
-    (pubmed/search-pubmed "foo bar")
-    (b/click x/import-button-xpath)
-    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
-                                    :timeout 10000 :interval 30)
+    (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")
@@ -326,10 +323,7 @@
     (log/info "Testing Group Label editor error handling")
     ;; add some article so we can label them
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
-    (pubmed/search-pubmed "foo bar")
-    (b/click x/import-button-xpath)
-    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
-                                    :timeout 10000 :interval 30)
+    (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; label editing
     (nav/go-project-route "/labels/edit")
@@ -477,10 +471,7 @@
     (reset! project-id (b/current-project-id))
     ;; PubMed search input
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
-    (pubmed/search-pubmed "foo bar")
-    (b/click x/import-button-xpath)
-    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
-                                    :timeout 10000 :interval 30)
+    (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")

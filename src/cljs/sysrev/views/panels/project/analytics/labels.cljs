@@ -318,7 +318,7 @@
 
 (defn- StepReviewType [step-count]
   (let [article-type @(subscribe [::article-type-selection])]
-    [:div
+    [:div {:style {:margin-top "1em"}}
      [StepTitle step-count "Filter By Concordance Type"]
      [SetSubscriptionButton ::article-type-selection "Single" "Single"]
      [SetSubscriptionButton ::article-type-selection "Concordant" "Concordant"]

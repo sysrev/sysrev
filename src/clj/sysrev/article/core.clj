@@ -107,9 +107,14 @@
 
 (defn article-score [article-id & {:keys [predict-run-id]}]
   (db/with-transaction
-    (let [predict-run-id (or predict-run-id (q/article-latest-predict-run-id article-id))]
-      (:score (q/find-one [:article :a] {:a.article-id article-id} :*
-                          :prepare #(q/with-article-predict-score % predict-run-id))))))
+    (let [predict-run-id (or predict-run-id (-> (q/get-article article-id :project-id)
+                                                (q/project-latest-predict-run-id)))]
+      (q/find-one [:article :a] {:a.article-id article-id
+                                 :lp.predict-run-id predict-run-id
+                                 :lp.stage 1
+                                 :l.name "overall include"}
+                  :lp.val, :join [[[:label-predicts :lp] :a.article-id]
+                                  [[:label :l]           :lp.label-id]]))))
 
 (defn get-article
   "Queries for article data by id, with data from other tables included.

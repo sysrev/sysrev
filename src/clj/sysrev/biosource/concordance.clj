@@ -10,13 +10,13 @@
 (def concordance-route (str api-host "service/run/concordance-2/concordance"))
 
 (defn project-concordance-inputs [project-id keep-resolved]
-  (->> (q/find [:article-label :al] {:project-id project-id
-                                     :l.value-type "boolean"}
-               [:l.label-id :al.user-id :article-id :answer]
-               :join [[:label :l] :al.label-id]
-               :where (when-not keep-resolved
-                        (q/not-exists [:article-resolve :ars]
-                                      {:ars.article-id :al.article-id})))
+  (->> (q/find-article-label
+        {:a.project-id project-id :l.value-type "boolean"}
+        [:l.label-id :al.user-id :al.article-id :answer], :with [:label :article]
+        :where (when-not keep-resolved
+                 (q/not-exists [:article-resolve :ars]
+                               {:ars.article-id :al.article-id}))
+        :filter-valid true :confirmed true)
        (map #(update % :answer str))
        (map #(rename-keys % {:article-id :article, :answer :value}))))
 

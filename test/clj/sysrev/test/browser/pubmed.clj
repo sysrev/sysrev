@@ -135,7 +135,7 @@
     (b/init-route (str "/p/" project-id "/add-articles") :silent true)))
 
 (def test-search-pmids
-  {"foo bar" [25706626 25215519 23790141 22716928 19505094 9656183]
+  {"foo bar" [32891636 25706626 25215519 23790141 22716928 19505094 9656183]
    "foo bar enthalpic mesoporous" [25215519]})
 
 (defn import-pubmed-search-via-db

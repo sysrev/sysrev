@@ -4,8 +4,7 @@
             [orchestra.core :refer [defn-spec]]
             [clojure.string :as str]
             [honeysql.helpers :as sqlh :refer [select from where merge-where values sset
-                                               join merge-join merge-left-join collify
-                                               merge-select]]
+                                               join merge-join merge-left-join collify]]
             [honeysql-postgres.helpers :as sqlh-pg]
             [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
             [sysrev.util :as util :refer [in? map-values apply-keyargs when-test
@@ -800,9 +799,8 @@
 (defn-spec filter-admin-user map?
   [m map?, admin? (s/nilable boolean?)]
   (cond-> m
-    (true? admin?) (filter-user-permission "admin")
-    (false? admin?) (filter-user-permission "admin" true)
-    (nil? admin?) (identity)))
+    (true? admin?)  (filter-user-permission "admin")
+    (false? admin?) (filter-user-permission "admin" true)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; -- User queries
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -822,31 +820,12 @@
                             [:= :lp.stage nil] ; no left-join match
                             [:= :lp.stage 1]]))))
 
-(defn with-article-predict-score [m predict-run-id]
-  (if-not predict-run-id m
-          (-> m
-              (join-article-predict-values predict-run-id)
-              (merge-left-join [:label :l]
-                               [:= :l.label-id :lp.label-id])
-              (merge-where [:or
-                            [:= :l.name nil] ; no left-join match
-                            [:= :l.name "overall include"]])
-              (merge-select [:lp.val :score]))))
-
 (defn project-latest-predict-run-id
   "Gets the most recent predict-run ID for a project."
   [project-id]
   (db/with-project-cache project-id [:predict :latest-predict-run-id]
     (first (find :predict-run {:project-id project-id} :predict-run-id
                  :order-by [:create-time :desc] :limit 1))))
-
-(defn article-latest-predict-run-id
-  "Gets the most recent predict-run ID for the project of an article."
-  [article-id]
-  (first (find-article {:a.article-id article-id} :pr.predict-run-id
-                       :include-disabled true
-                       :with [:project :predict-run]
-                       :order-by [:pr.create-time :desc] :limit 1)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; -- Label prediction queries
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

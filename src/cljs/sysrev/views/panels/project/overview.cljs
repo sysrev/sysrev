@@ -311,11 +311,10 @@
       (when (seq processed-label-counts)
         (let [font (charts/graph-font-settings)
               filtered-color? #(contains? @color-filter %)
-              color-filter-fn
-              (fn [items]
-                (filterv #(not (filtered-color? (:color %))) items))
-              entries (->> processed-label-counts
-                           color-filter-fn)
+              color-filter-fn #(remove (comp filtered-color? :color) %)
+              entries (->> (color-filter-fn processed-label-counts)
+                           (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
+                                      (:label-id %))))
               max-length (if (util/mobile?) 22 28)
               labels (->> entries
                           (mapv :value)
@@ -325,9 +324,7 @@
               counts (->> processed-label-counts
                           color-filter-fn
                           (mapv :count))
-              background-colors (->>  processed-label-counts
-                                      color-filter-fn
-                                      (mapv :color))
+              background-colors (mapv :color entries)
               short-label->label-uuid
               (fn [short-label]
                 @(subscribe [:label/id-from-short-label short-label]))

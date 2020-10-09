@@ -3,6 +3,7 @@
             [sysrev.data.core :refer [def-data reload]]
             [sysrev.chartjs :as chartjs]
             [sysrev.views.semantic :as S :refer [Grid Row Column Checkbox Button]]
+            [sysrev.views.components.core :refer [url-link]]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.analytics.common :refer [beta-message]]
             [sysrev.util :as util :refer [format sum round]]
@@ -94,10 +95,10 @@
 
 ;;; EVENTS & SUBSCRIPTIONS
 (def-data :project/concordance
+  :uri     "/api/concordance"
   :loaded? (fn [db project-id _]
              (-> (get-in db [:data :project project-id])
                  (contains? :concordance)))
-  :uri (constantly "/api/concordance")
   :content (fn [project-id {:keys [keep-resolved] :or {keep-resolved true}}]
              {:project-id project-id :keep-resolved keep-resolved})
   :prereqs (fn [project-id _] [[:project project-id]])
@@ -142,8 +143,8 @@
 (reg-event-fx ::keep-resolved-articles
               (fn [{:keys [db]} [_ project-id keep-resolved]]
                 {:db (assoc db ::keep-resolved-articles keep-resolved)
-                 :dispatch [:reload [:project/concordance project-id
-                                     {:keep-resolved (boolean keep-resolved)}]]}))
+                 :dispatch [:fetch [:project/concordance project-id
+                                    {:keep-resolved (boolean keep-resolved)}]]}))
 
 (reg-sub ::keep-resolved-articles #(get-default % ::keep-resolved-articles true))
 
@@ -223,24 +224,25 @@
                :on-click #(dispatch [click-set-event val])}
        (get labels i)])))
 
-(defn ArticleFilters [project-id]
-  [:div.ui.segments
-   [:div.ui.segment
-    [:span [:b "Keep Resolved Articles?"]]
-    [Checkbox {:id        "ignore-resolved?"
-               :as        "span"
-               :style     {:margin-top "0.0rem" :margin-left "10px" }
-               :checked   @(subscribe [::keep-resolved-articles])
-               :on-change #(dispatch [::keep-resolved-articles project-id true])
-               :radio     true
-               :label     "Keep"}]
-    [Checkbox {:id        "keep-resolved?"
-               :as        "span"
-               :style     {:margin-top "0.0rem" :margin-left "10px" }
-               :checked   (not @(subscribe [::keep-resolved-articles]))
-               :on-change #(dispatch [::keep-resolved-articles project-id false])
-               :radio     true
-               :label     "Remove"}]]])
+(defn ArticleFilters []
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div.ui.segments
+     [:div.ui.segment
+      [:span [:b "Keep Resolved Articles?"]]
+      [Checkbox {:id        "ignore-resolved?"
+                 :as        "span"
+                 :style     {:margin-top "0.0rem" :margin-left "10px" }
+                 :checked   @(subscribe [::keep-resolved-articles])
+                 :on-change #(dispatch [::keep-resolved-articles project-id true])
+                 :radio     true
+                 :label     "Keep"}]
+      [Checkbox {:id        "keep-resolved?"
+                 :as        "span"
+                 :style     {:margin-top "0.0rem" :margin-left "10px" }
+                 :checked   (not @(subscribe [::keep-resolved-articles]))
+                 :on-change #(dispatch [::keep-resolved-articles project-id false])
+                 :radio     true
+                 :label     "Remove"}]]]))
 
 ;;; STEP 1
 (defn- ConcordanceDescription []
@@ -249,8 +251,9 @@
    [:p "Track label difficulty by comparing the number of articles where all 2+ users agree (concordant) vs articles where 1+ users disagree (discordant)"]
    [:p "Only boolean labels with 1+ double reviewed articles are shown."]])
 
-(defn- LabelConcordance [{:keys [label] :as _concordance-data}]
-  (let [conc-data    (->> (sort-by :count > label)
+(defn- LabelConcordance []
+  (let [{:keys [label]} @(subscribe [:project/concordance])
+        conc-data    (->> (sort-by :count > label)
                           (filter (comp pos? :count)))
         label-ids    (mapv :label-id conc-data)
         label-names  (for [{:keys [label-id]} conc-data]
@@ -270,7 +273,7 @@
                    [{:label "concordant" :data concordance :backgroundColor blue}
                     {:label "discordant" :data discordance :backgroundColor red}])
                  (mapv #(merge % {:maxBarThickness 15 :stack "1"})))
-        options (-> {:legend  {:display true, :labels {:font {:color (inv-color)}}}
+        options (-> {:legend  {:display true :labels {:font {:color (inv-color)}}}
                      :scales  {:y (label-axis label-names)}
                      :onClick (on-click-chart label-ids ::set-concordance-label-selection)
                      :tooltips {:mode "y"}}
@@ -289,8 +292,9 @@
        :options options}]]))
 
 ;;; STEP 2
-(defn- UserConcordanceDescription [{:keys [label] :as _concordance-data} ]
-  (let [label-ids (vec (distinct (map :label-id (sort-by :count > label))))
+(defn- UserConcordanceDescription []
+  (let [{:keys [label]} @(subscribe [:project/concordance])
+        label-ids (vec (distinct (map :label-id (sort-by :count > label))))
         label-names (vec (distinct (for [label-id label-ids]
                                      @(subscribe [:label/display "na" (uuid label-id)]))))]
     [:div [:h3 "Step 2 - User Performance"]
@@ -302,9 +306,9 @@
                     ::set-concordance-label-selection)]]))
 
 ;; todo - onClick should take you to discordant/concordant articles
-(defn- UserConcordance [concordance-data]
+(defn- UserConcordance []
   (let [selected-labels @(subscribe [::concordance-label-selection])
-        conc-data     (->> (:user_label concordance-data)
+        conc-data     (->> (:user_label @(subscribe [:project/concordance]))
                            (sort-by :count >)
                            (filter #(contains? selected-labels (:label-id %))))
         user-ids      (mapv :user-id conc-data)
@@ -347,8 +351,9 @@
        :options options}]]))
 
 ;;; STEP 3
-(defn- UserLabelSpecificDescription [{:keys [label user_label] :as _concordance-data}]
-  (let [label-ids       (vec (distinct (map :label-id (sort-by :count > label))))
+(defn- UserLabelSpecificDescription []
+  (let [{:keys [label user_label]} @(subscribe [:project/concordance])
+        label-ids       (vec (distinct (map :label-id (sort-by :count > label))))
         label-names     (vec (for [label-id label-ids]
                                @(subscribe [:label/display "na" (uuid label-id)])))
         selected-label  @(subscribe [::concordance-label-selection])
@@ -381,8 +386,9 @@
           (empty? selected-user)         [:span "Select a user"]
           (empty? selected-label)        [:span "Select a label"])))
 
-(defn- UserLabelSpecificConcordance [{:keys [user_user_label] :as _concordance-data}]
-  (let [selected-user   @(subscribe [::concordance-user-selection])
+(defn- UserLabelSpecificConcordance []
+  (let [{:keys [user_user_label]} @(subscribe [:project/concordance])
+        selected-user   @(subscribe [::concordance-user-selection])
         selected-label  @(subscribe [::concordance-label-selection])
         uul-data        (->> (sort-by :count > user_user_label)
                              (filter #(and (contains? selected-label (:label-id %))
@@ -442,51 +448,52 @@
    [:p "Invite a friend with the invite link on the overview page and get reviewing!"]
    [beta-message]])
 
-(defn- MainView [concordance-data]
-  (let [mean-conc       (* 100 (measure-overall-concordance concordance-data))
-        selected-label  @(subscribe [::concordance-label-selection])
-        selected-user   @(subscribe [::concordance-user-selection])]
-    [Grid {:stackable true :divided "vertically"}
+(defn- MainView []
+  (let [concordance-data  @(subscribe [:project/concordance])
+        mean-conc         (* 100 (measure-overall-concordance concordance-data))
+        selected-label    @(subscribe [::concordance-label-selection])
+        selected-user     @(subscribe [::concordance-user-selection])]
+    [Grid {:stackable true :divided "vertically"
+           :class "concordance"}
      [Row
       [Column {:width 8}
-       [:h2 {:id "overall-concordance"} (format "Concordance %.1f%%" mean-conc)]
+       [:h2 {:id "overall-concordance"}
+        (format "Concordance %.1f%%" mean-conc)]
        (cond
-         (> mean-conc 98) [:p {:style {:color (:bright-green colors)}}
+         (> mean-conc 98) [:p {:style {:margin-bottom 0 :color (:bright-green colors)}}
                            "Great job! Your project is highly concordant."]
-         (> mean-conc 90) [:p {:style {:color (:bright-orange colors)}}
+         (> mean-conc 90) [:p {:style {:margin-bottom 0 :color (:bright-orange colors)}}
                            "Some discordance in your labels. Make sure reviewers understand tasks."]
-         :else            [:p {:style {:color (:red colors)}}
+         :else            [:p {:style {:margin-bottom 0 :color (:red colors)}}
                            "Significant discordance. Reviewers may not understand some tasks."])
        [beta-message]
-       [:p "User concordance tracks how often users agree with each other."]
-     [:p "Learn more at "
-      #_ [:a {:href "https://blog.sysrev.com/analytics"} "blog.sysrev.com/analytics."]
-      [:a {:href "https://blog.sysrev.com/concordance"} "blog.sysrev.com/concordance"]
-      "."]]
+       [:p "User concordance tracks how often users agree with each other." [:br]
+        "Learn more at "
+        [url-link "https://blog.sysrev.com/concordance"] "."]]
       [Column {:width 8 :text-align "center" :vertical-align "middle"}
        [:h3 [:a {:href "https://www.youtube.com/watch?v=HmQhiVNtB2s"}
              "Youtube Demo Video"]]]]
      [Row
       [Column {:width 6}  [:h3 "Article Filters"]
-       "Restrict concordance analysis to articles that match filters."]
+       [:p "Restrict concordance analysis to articles that match filters."]]
       [Column {:width 10} [ArticleFilters]]]
      [Row
       [Column {:width 6}  [ConcordanceDescription]]
-      [Column {:width 10} [LabelConcordance concordance-data]]]
+      [Column {:width 10} [LabelConcordance]]]
      [Row
-      [Column {:width 6}  [UserConcordanceDescription concordance-data]]
+      [Column {:width 6}  [UserConcordanceDescription]]
       (if (empty? selected-label)
         [Column {:width 10 :text-align "center" :vertical-align "middle"}
          [:div>span "Select a label"]]
         [Column {:width 10}
-         [UserConcordance concordance-data]])]
+         [UserConcordance]])]
      [Row
-      [Column {:width 6} [UserLabelSpecificDescription concordance-data]]
+      [Column {:width 6} [UserLabelSpecificDescription]]
       (if (or (empty? selected-label) (empty? selected-user) )
         [Column {:width 10 :text-align "center" :vertical-align "middle"}
          [UserLabelSpecificEmpty]]
         [Column {:width 10}
-         [UserLabelSpecificConcordance concordance-data]])]]))
+         [UserLabelSpecificConcordance]])]]))
 
 (defn- OverallConcordance []
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -494,7 +501,7 @@
       (let [{:keys [label] :as cdata} @(subscribe [:project/concordance])]
         (cond (contains? cdata :error)          [BrokenServiceView]
               (zero? (sum (map :count label)))  [NoDataView]
-              :else                             [MainView cdata])))))
+              :else                             [MainView])))))
 
 (def-panel :project? true :panel panel
   :uri "/analytics/concordance" :params [project-id] :name analytics-concordance

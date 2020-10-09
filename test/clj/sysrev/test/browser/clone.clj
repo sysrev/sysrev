@@ -109,10 +109,7 @@
     (reset! src-project-id (b/current-project-id))
     ;; PubMed search input
     (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
-    (pubmed/search-pubmed "foo bar")
-    (b/click x/import-button-xpath)
-    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
-                                    :timeout 10000 :interval 30)
+    (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; user can clone their project
     (b/exists? clone-button)

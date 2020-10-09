@@ -15,6 +15,7 @@
         sysrev.datasource.core
         sysrev.datasource.api
         sysrev.project.core
+        sysrev.project.charts
         sysrev.project.member
         sysrev.project.description
         sysrev.project.clone
