@@ -207,14 +207,14 @@
                 (let [[name & args] item
                       {:keys [uri content content-type method]
                        :as entry} (get @data-defs name)
-                      elapsed-millis (- (js/Date.now) @last-fetch-millis)]
+                      #_ elapsed-millis #_ (- (js/Date.now) @last-fetch-millis)]
                   (assert entry (str "def-data not found - " (pr-str name)))
                   (when-not (loading? item)
                     (cond (loading/item-spammed? item)
                           {:data-failed item}
 
-                          (< elapsed-millis 10)
-                          {:dispatch-later [{:dispatch [:fetch item] :ms (- 15 elapsed-millis)}]}
+                          #_ (< elapsed-millis 10)
+                          #_ {:dispatch-later [{:dispatch [:fetch item] :ms (- 15 elapsed-millis)}]}
 
                           (not (loading/ajax-action-inactive?))
                           {:dispatch-later [{:dispatch [:fetch item] :ms 10}]}
