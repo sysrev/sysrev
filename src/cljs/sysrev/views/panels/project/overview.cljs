@@ -89,14 +89,13 @@
                               (scount [:resolved false])) ")")]]]]]))
 
 (def-data :project/review-status
-  :loaded? (fn [db project-id]
-             (-> (get-in db [:data :project project-id :stats])
-                 (contains? :status-counts)))
-  :uri (fn [_] "/api/review-status")
-  :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:project project-id]])
-  :process (fn [{:keys [db]} [project-id] result]
-             {:db (assoc-in db [:data :project project-id :stats :status-counts] result)})
+  :uri      "/api/review-status"
+  :loaded?  (fn [db project-id]
+              (-> (get-in db [:data :project project-id :stats])
+                  (contains? :status-counts)))
+  :content  (fn [project-id] {:project-id project-id})
+  :process  (fn [{:keys [db]} [project-id] result]
+              {:db (assoc-in db [:data :project project-id :stats :status-counts] result)})
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:db (assoc-in db [:data :project project-id :stats :status-counts] {:error error})}))
 
@@ -118,8 +117,7 @@
       [:div.project-summary
        [:div.ui.segment
         [:h4.ui.dividing.header "Review Status"]
-        (with-loader [#_ [:project project-id]
-                      [:project/review-status project-id]] {:dimmer :fixed}
+        (with-loader [[:project/review-status project-id]] {:dimmer :fixed}
           [:div
            [:h4.ui.center.aligned.header
             (str reviewed " articles reviewed of " total " total")]
@@ -278,8 +276,7 @@
 
 (defn- KeyTerms []
   (let [project-id @(subscribe [:active-project-id])]
-    (with-loader
-      [[:project/important-terms-text project-id]] {}
+    (with-loader [[:project/important-terms-text project-id]] {}
       (let [terms-res @(subscribe [:project/important-terms-text])
             {:keys [terms]} terms-res]
         (when (not-empty terms)
@@ -497,13 +494,16 @@
 (def-panel :project? true :panel panel
   :uri "" :params [project-id] :name project
   :on-route (let [prev-panel @(subscribe [:active-panel])
-                  diff-panel (and prev-panel (not= panel prev-panel))
                   all-items [[:project project-id]
+                             [:project/review-status project-id]
                              [:project/markdown-description project-id {:panel panel}]
                              [:project/label-counts project-id]
                              [:project/important-terms-text project-id]
                              [:project/prediction-histograms project-id]]]
-              (dispatch [:set-active-panel panel])
-              (when diff-panel
-                (doseq [item all-items] (dispatch [:reload item]))))
+              ;; avoid reloading data on project url redirect
+              (when (and prev-panel (not= panel prev-panel))
+                (doseq [item all-items] (dispatch [:reload item])))
+              (when (not= panel prev-panel)
+                ;; slight delay to reduce intermediate rendering during data load
+                (js/setTimeout #(dispatch [:set-active-panel panel]) 20)))
   :content (fn [child] [Panel child]))

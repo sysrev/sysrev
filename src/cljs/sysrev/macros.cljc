@@ -7,7 +7,8 @@
             [secretary.core :refer [defroute]]
             [sysrev.loading]
             #?@(:cljs [[sysrev.state.ui]
-                       [sysrev.views.base]])
+                       [sysrev.views.base]
+                       [sysrev.data.core]])
             [sysrev.util :refer [when-test]]))
 
 (defmacro with-mount-hook [on-mount]
@@ -36,7 +37,7 @@
          min-height# (:min-height options#)
          class# (:class options#)
          require# (get options# :require true)
-         loading# (sysrev.loading/data-loading? (set reqs#))
+         loading# (sysrev.data.core/loading? (set reqs#))
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
          content-form# ~content-form
          dimmer-active# (and dimmer# (or loading#

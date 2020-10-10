@@ -11,7 +11,12 @@
 
 (defn- load-project [db {:keys [project-id] :as project}]
   (update-in db [:data :project project-id]
-             #(merge % project)))
+             ;; avoid wiping out data from :project/review-status
+             (fn [current]
+               (merge current project
+                      (when-let [stats (not-empty (merge (:stats current)
+                                                         (:stats project)))]
+                        {:stats stats})))))
 
 (def-data :public-projects
   :uri     "/api/public-projects"
