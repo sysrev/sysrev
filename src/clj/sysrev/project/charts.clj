@@ -30,15 +30,17 @@
                 :order-by [:count :asc]))
 
 (defn process-label-counts [project-id]
-  (let [ordered-counts (->> (concat (count-categorical-vals project-id)
-                                    (count-boolean-vals project-id))
-                            (remove #(nil? (:value %)))
-                            (group-by :label-id)
-                            (sort-by (fn [[_ v]] (sum (map :count v))))
-                            (mapcat (fn [[_ v]] v))
-                            (reverse))
-        all-label-ids  (distinct (map :label-id ordered-counts))
-        palette        (get-color-palette (count all-label-ids))]
-    (for [{:keys [label-id] :as x} ordered-counts]
-      (let [label-index (.indexOf all-label-ids label-id)]
-        (merge x {:color (palette-lookup palette label-index)})))))
+  (db/with-project-cache project-id [:charts-label-counts]
+    (db/with-transaction
+      (let [ordered-counts (->> (concat (count-categorical-vals project-id)
+                                        (count-boolean-vals project-id))
+                                (remove #(nil? (:value %)))
+                                (group-by :label-id)
+                                (sort-by (fn [[_ v]] (sum (map :count v))))
+                                (mapcat (fn [[_ v]] v))
+                                (reverse))
+            all-label-ids  (distinct (map :label-id ordered-counts))
+            palette        (get-color-palette (count all-label-ids))]
+        (for [{:keys [label-id] :as x} ordered-counts]
+          (let [label-index (.indexOf all-label-ids label-id)]
+            (merge x {:color (palette-lookup palette label-index)})))))))
