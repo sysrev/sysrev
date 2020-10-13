@@ -12,9 +12,9 @@
     [:div.landing-page.landing-public
      [IntroSegment
       {:titles-1 ["Review Literature for Free."]
-       :titles-2 ["Make a Team."
-                  "Upload Citations."
-                  "Extract Answers."]
+       :titles-2 ["Collaborate With Ease."
+                  "Share Your Work With Open Access Projects."
+                  "Save Time & Quickly Extract Answers."]
        :register "Try for Free"}
       {:projects "Reviews"
        :articles "Documents Reviewed"
