@@ -52,7 +52,9 @@
                           (panel-set :error-message nil)
                           (panel-set :redirecting? true)
                           (load-user-current-plan plan))
-                  :dispatch [:load-url nav-url]})))
+                  :dispatch-n (list
+                                [:load-url nav-url]
+                                [:ga-event "stripe" "plan_subscribe" (:nickname plan)])})))
   :on-error (fn [{:keys [db error]} _ _]
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"
