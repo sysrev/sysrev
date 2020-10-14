@@ -1,6 +1,6 @@
 (ns sysrev.nav
   (:require [pushy.core :as pushy]
-            [re-frame.core :refer [reg-event-fx reg-fx]]
+            [re-frame.core :refer [reg-event-fx reg-fx subscribe]]
             [cljs-http.client :as http]
             [sysrev.base :refer [history]]
             [sysrev.shared.text :refer [uri-title]]
@@ -57,10 +57,12 @@
   (pushy/set-token! history path))
 
 (defn set-page-title [title]
-  (let [uri js/window.location.pathname]
+  (let [uri js/window.location.pathname
+        project-id @(subscribe [:active-project-id])
+        project-name @(subscribe [:project/name project-id])]
     (set! (-> js/document .-title)
-          (if (string? title) title (uri-title uri))
-          #_ (cond-> "Sysrev"
-               (string? title) (str " - " title)))))
+          (cond project-name project-name
+                (string? title) title
+                :else (uri-title uri)))))
 
 (reg-fx :set-page-title set-page-title)

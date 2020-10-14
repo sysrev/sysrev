@@ -10,6 +10,7 @@
             [sysrev.payment.stripe :refer [stripe-public-key stripe-client-id]]
             [sysrev.shared.text :as text]
             [sysrev.shared.components :refer [loading-content]]
+            [sysrev.project.core :as project]
             [sysrev.util :refer [today-string]]))
 
 (defonce web-asset-path (atom "/out"))
@@ -55,6 +56,19 @@
 ;;; to get sri from unpkg:
 ;;; see: https://github.com/unpkg/unpkg.com/issues/48
 ;;; https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js?meta
+
+(defn title [uri]
+  (let [project-url? (clojure.string/includes? uri "/p/")]
+    (cond
+      (= uri "/") (str "Built for data miners | Sysrev")
+      (= uri "/lit-review") (str "Free Literature Review | Sysrev")
+      (= uri "/data-extraction") (str "Advanced Data Extraction | Sysrev")
+      (= uri "/systematic-review") (str "Modern Systematic Review | Sysrev")
+      (= uri "/managed-review") (str "Expert Data Extraction | Sysrev")
+      (= uri "/register") "Start Your Free Trial | Sysrev"
+      project-url? (-> (re-find #"/p/([0-9]+)",uri) last Integer/parseInt
+                       project/project-settings :name) ;TODO add an authentication check for private projects
+      :else (str "Sysrev"))))
 
 (defn index [& [request maintainence-msg]]
   (page/html5
