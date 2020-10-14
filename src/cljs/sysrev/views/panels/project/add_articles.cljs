@@ -12,7 +12,7 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :refer [EditJSONView]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
+            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button Dropdown Divider]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
                                           sr-defroute-project]]))
@@ -23,7 +23,8 @@
 (setup-panel-state panel [:project :project :add-articles]
                    :state state :get [panel-get] :set [panel-set])
 
-(reg-sub :add-articles/import-tab #(or (panel-get % :import-tab) :zip-file))
+;; this sets the default tab
+(reg-sub :add-articles/import-tab #(or (panel-get % :import-tab) :pdfs))
 
 (reg-event-db :add-articles/import-tab [trim-v]
               (fn [db [tab-id]]
@@ -398,21 +399,17 @@
                     [:div.ui.small.active.loader]]))]]]))))
 
 (defn ProjectSourcesList []
-  (let [sources @(subscribe [:project/sources])
-        article-count (:total @(subscribe [:project/article-counts]))]
-    [:div#project-sources
-     (if (empty? sources)
-       [:h4.ui.block.header (if (pos-int? article-count)
-                              "No article sources added yet"
-                              "No articles imported yet")]
+  (let [sources @(subscribe [:project/sources])]
+    (when-not (empty? sources)
+      [:div#project-sources
        [:div
-        [:h4.ui.large.block.header "Article Sources"]
+        [:h3 {:style {:margin-top "0"}} "Article Sources"]
         [:div.project-sources-list
          (doall (for [source (sort-by (fn [{:keys [source-id enabled]}]
                                         [(not enabled) (- source-id)])
                                       sources)]
                   ^{:key (:source-id source)}
-                  [ArticleSource source]))]])]))
+                  [ArticleSource source]))]]])))
 
 (defn EnableCTNotice []
   [:div.ui.segment.import-upload
@@ -431,44 +428,39 @@
          :target "_blank"} " contact us"]"."]])
 
 (defn ImportArticlesView []
-  (let [active-tab @(subscribe [:add-articles/import-tab])
+  (let [active-tab (subscribe [:add-articles/import-tab])
         set-tab #(dispatch-sync [:add-articles/import-tab %])
-        full-size? (util/full-size?)]
+        sources @(subscribe [:project/sources])]
     [:div#import-articles {:style {:margin-bottom "1em"}}
-     [:h4.ui.large.block.header "Import Articles"
-      [:span {:style {:font-size "0.9em"}}
-       [:a {:href "https://www.youtube.com/watch?v=dHISlGOm7A8&t=15"
-            :target "_blank"
-            :style {:margin-left "0.25em"}}
-        [Icon {:name "video camera"}]]]]
-     [:div.ui.segments
-      [:div.ui.attached.segment.import-menu
-       [ui/tabbed-panel-menu [{:tab-id :zip-file
-                               :content "PDF Files"
-                               :action #(set-tab :zip-file)}
-                              {:tab-id :ris-file
-                               :content "RIS / RefMan"
-                               :action #(set-tab :ris-file)}
-                              {:tab-id :pubmed
-                               :content (if full-size? "PubMed Search" "PubMed")
-                               :action #(set-tab :pubmed)}
-                              {:tab-id :ctgov
-                               :content [:div "ClinicalTrials.gov"
-                                         [:sup {:style {:color "red"}} " beta"]]
-                               :action #(set-tab :ctgov)}
-                              {:tab-id :pmid
-                               :content "PMIDs"
-                               :action #(set-tab :pmid)}
-                              {:tab-id :endnote
-                               :content (if full-size? "EndNote XML" "EndNote")
-                               :action #(set-tab :endnote)}]
-        active-tab "import-source-tabs"]]
-      [:div.ui.attached.secondary.segment
-       (case active-tab
+     (when (empty? sources)
+       [:h4.ui.header
+        [:p "Your project " [:span {:style {:color "red"}} "requires documents"] " before you begin working on it."]])
+     [:div
+      [:div [:h4.ui.header {:style {:display "inline-block"
+                                    :padding-right "1em"}} "Datasource"]
+       [Dropdown {:id "select-datasource-dropdown"
+                  :selection true
+                  :options [{:value :pdfs
+                             :text "PDF files"}
+                            {:text "PubMed Search"
+                             :value :pubmed}
+                            {:value :ris-file
+                             :text "RIS / RefMan"}
+                            {:value :ctgov
+                             :text "ClinicalTrials.gov"}
+                            {:value :pmid
+                             :text "PMIDs"}
+                            {:value :endnote
+                             :text "EndNote XML"}]
+                  :value @active-tab
+                  :on-change (fn [_event data]
+                               (set-tab (keyword (.-value data))))}]]
+      [:div.ui.top.attached.secondary.segment
+       (case @active-tab
          :pubmed    [pubmed/SearchBar]
          :pmid      [ImportPMIDsView]
          :endnote   [ImportEndNoteView]
-         :zip-file  [ImportPDFZipsView]
+         :pdfs      [ImportPDFZipsView]
          :ris-file  [ImportRISView]
          :ctgov (if (and (= js/window.location.hostname "sysrev.com")
                          (not (some #{@(subscribe [:user/email])}
@@ -481,14 +473,26 @@
                                       "g.callegaro@lacdr.leidenuniv.nl"})))
                   [EnableCTNotice]
                   [ctgov/SearchBar]))]
-      (case active-tab
+      (case @active-tab
         :pubmed [pubmed/SearchActions (any-source-processing?)]
         :ctgov  [ctgov/SearchActions (any-source-processing?)]
         nil)]
-     (case active-tab
+     (case @active-tab
        :pubmed [pubmed/SearchResultsContainer]
        :ctgov  [ctgov/SearchResultsContainer]
        nil)]))
+
+(defn DocumentImport []
+  (let [view-import-button? (r/atom true)
+        sources @(subscribe [:project/sources])]
+    (fn []
+      (if (and (empty? sources) @view-import-button?)
+        [Button {:id "enable-import"
+                 :size "small"
+                 :positive true
+                 :on-click #(reset! view-import-button? false)}
+         "Import Documents"]
+        [ImportArticlesView]))))
 
 (defn ProjectSourcesPanel []
   (let [project-id @(subscribe [:active-project-id])
@@ -498,10 +502,11 @@
     (with-loader [(when (and project? (not lapsed?))
                     [:project/sources project-id])] {}
       [:div
-       (when admin? [ImportArticlesView])
+       (when admin? [DocumentImport])
        [ReadOnlyMessage "Managing sources is restricted to project administrators."
         (r/cursor state [:read-only-message-closed?])]
-       [ProjectSourcesList]])))
+       (when-not (empty? @(subscribe [:project/sources]))
+         [ProjectSourcesList])])))
 
 (def-panel :project? true :panel panel
   :uri "/add-articles" :params [project-id] :name add-articles

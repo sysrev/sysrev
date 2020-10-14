@@ -31,6 +31,7 @@
       (nav/go-project-route "/add-articles")
 ;;; add sources
       ;; create a new source
+      (b/click "#enable-import")
       (pm/add-articles-from-search-term query1)
       (nav/go-project-route "/add-articles")
       (when false
@@ -116,7 +117,8 @@
    title "Long Short-Term Memory"]
   (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
-      (b/click (xpath "//a[contains(text(),'RIS / RefMan')]"))
+      (b/click "#enable-import")
+      (b/select-datasource "RIS / RefMan")
       (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
       (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
       (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'10')]")))

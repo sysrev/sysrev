@@ -52,12 +52,12 @@
                                  (filter #(some #{"owner" "admin"} (:permissions %))
                                          @(subscribe [:user/orgs user-id]))]
                              {:text group-name :value group-id})))]
-    [:div {:style {:margin-top "0.5em"}}
-     [Dropdown {:fluid true
-                :options options
-                :value (or @project-owner "current-user")
-                :on-change (fn [_event data]
-                             (reset! project-owner (.-value data)))}]]))
+    [Dropdown {:fluid true
+               :selection true
+               :options options
+               :value (or @project-owner "current-user")
+               :on-change (fn [_event data]
+                            (reset! project-owner (.-value data)))}]))
 
 (defn- CreateProject []
   (let [user-id @(subscribe [:self/user-id])
@@ -83,15 +83,18 @@
        [:p "A project contains articles that are labeled by reviewers."]]
       [Divider]
       [Grid {:class "owner-name-form" :doubling true}
-       [Row
-        [Column {:width (if (util/mobile?) 6 3)}   [:p "Owner"]]
-        [Column {:width (if (util/mobile?) 10 5)}  [:p "Project Name"]]]
+       [Row {:style {:padding-bottom "0"}}
+        [Column {:width (if (util/mobile?) 6 3)}   [:b "Owner " [:sup {:style {:color "red"
+                                                                               :font-size "1em"}} "*"]]]
+        [Column {:width (if (util/mobile?) 10 5)}  [:b "Project Name " [:sup {:style {:color "red"
+                                                                                      :font-size "1em"}} "*"]]]]
        [Row [Column {:width (if (util/mobile?) 6 3)}
              [OwnerDropdown]]
         [Column {:text-align "left" :width (if (util/mobile?) 10 5)}
          [Input {:placeholder "Project Name"
                  :class "project-name"
                  :fluid true
+                 :autoFocus true
                  :on-change (util/on-event-value #(reset! project-name %))}]]]]
       [Divider]
       [Grid {:class "public-or-private" :doubling true}

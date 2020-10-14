@@ -45,30 +45,31 @@
     (b/init-route (-> (taxi/current-url) b/url->path))
     #_(is (= 4 (project/project-article-pdf-count (b/current-project-id))))
     ;; import RIS file, check the RIS file citations is correct
-    (b/click (xpath "//a[contains(text(),'RIS / RefMan')]"))
+    (b/click "#enable-import")
+    (b/select-datasource "RIS / RefMan")
     (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
     (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
     (is (b/exists? (unique-count-span 10)))
     ;; PubMed search input
-    (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
+    (b/select-datasource "PubMed Search")
     (pubmed/search-pubmed "foo bar")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (is (b/exists? (unique-count-span 7)))
     ;; Import Clinical Trials
-    (b/click "a.tab-ctgov")
+    (b/select-datasource "ClinicalTrials.gov")
     (ctgov/search-ctgov "foo olive")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (is (b/exists? (unique-count-span 2)))
     ;; Import from PMIDs file
-    (b/click "a.tab-pmid")
+    (b/select-datasource "PMIDs")
     (b/dropzone-upload "test-files/pubmed_result.txt")
     (is (b/exists? (unique-count-span 7)))
     ;; import Endnote file
-    (b/click "a.tab-endnote")
+    (b/select-datasource "EndNote XML")
     (b/dropzone-upload "test-files/Endnote_3_citations.xml")
     (is (b/exists? (unique-count-span 3)))
     ;; When this project is cloned, everything is copied over correctly
@@ -108,7 +109,8 @@
     (nav/new-project project-name)
     (reset! src-project-id (b/current-project-id))
     ;; PubMed search input
-    (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
+    (b/click "#enable-import")
+    (b/select-datasource "PubMed Search")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; user can clone their project

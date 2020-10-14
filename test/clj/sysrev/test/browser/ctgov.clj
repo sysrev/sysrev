@@ -44,7 +44,8 @@
    article-title-element (xpath "//h2[contains(text(),'" article-title "')]")]
   (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
-      (b/click "a.tab-ctgov")
+      (b/click "#enable-import")
+      (b/select-datasource "ClinicalTrials.gov")
       (search-ctgov search-term)
       (log/info "importing clinical trials from search")
       (b/click x/import-button-xpath)

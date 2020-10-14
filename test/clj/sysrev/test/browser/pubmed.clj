@@ -22,7 +22,7 @@
   [query]
   (log/info "running PubMed search:" (pr-str query))
   (when-not (taxi/exists? pubmed-search-input)
-    (b/click "a.tab-pubmed"))
+    (b/select-datasource "PubMed Search"))
   (b/wait-until-exists pubmed-search-input)
   (Thread/sleep 20)
   (b/click ".ui.button.close-search" :if-not-exists :skip)

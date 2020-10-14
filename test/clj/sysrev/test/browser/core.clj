@@ -138,9 +138,9 @@
     @*wd*
     (do (when @*wd* (-> (taxi/quit @*wd*) (ignore-exceptions)))
         (reset! *wd* (->> (doto (ChromeOptions.)
-                            (.addArguments [(format "window-size=%d,%d"
-                                                    (:width browser-test-window-size)
-                                                    (:height browser-test-window-size))]))
+                            (.addArguments (concat[(format "window-size=%d,%d"
+                                                           (:width browser-test-window-size)
+                                                           (:height browser-test-window-size))])))
                           (ChromeDriver.)
                           (assoc {} :webdriver)
                           (driver/init-driver)
@@ -619,3 +619,10 @@
                          (str "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e}); c.name='" (fs/base-name filename) "'; return c} "
                               (format "return sysrev.util.add_dropzone_file_blob(base64toBlob, '%s');" base64-file)))]
     (taxi/execute-script upload-blob-js)))
+
+(defn select-datasource [datasource-name]
+  (let [dropdown-field (xpath "//span[contains(text(),'" datasource-name "')]")]
+    (click "#select-datasource-dropdown")
+    (wait-until-displayed dropdown-field)
+    (click dropdown-field)
+    (wait-until-exists (xpath "//div[@id='select-datasource-dropdown']/div[contains(text(),'" datasource-name "')]"))))

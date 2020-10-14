@@ -200,7 +200,8 @@
     (nav/new-project project-name)
     (reset! project-id (b/current-project-id))
     ;; PubMed search input
-    (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
+    (b/click "#enable-import")
+    (b/select-datasource "PubMed Search")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; create new labels
@@ -322,7 +323,8 @@
     (reset! project-id (b/current-project-id))
     (log/info "Testing Group Label editor error handling")
     ;; add some article so we can label them
-    (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
+    (b/click "#enable-import")
+    (b/select-datasource "PubMed Search")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; label editing
@@ -470,7 +472,8 @@
     (nav/new-project project-name)
     (reset! project-id (b/current-project-id))
     ;; PubMed search input
-    (b/click (xpath "//a[contains(text(),'PubMed Search')]"))
+    (b/click "#enable-import")
+    (b/select-datasource "PubMed Search")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; create new labels

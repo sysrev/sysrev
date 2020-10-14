@@ -223,6 +223,7 @@
         show-results? (r/cursor state [:show-results?])]
     (when (and n-results @show-results?)
       [:div.ui.attached.segment.middle.aligned.stackable.grid
+       {:style {:border-bottom-width "0"}}
        [:div.eight.wide.column.results-header
         [ImportArticlesButton disable-import?]]
        [:div.eight.wide.column.results-header.results-buttons
@@ -245,7 +246,7 @@
        (when (and (not-empty @current-search-term)
                   @page-number)
          (dispatch [:require [:pubmed-search @current-search-term @page-number]]))
-       [:div.ui.segments.pubmed-articles
+       [:div.ui.bottom.attached.segment.pubmed-articles
         {:style (when-not have-entries? {:min-height "800px"})}
         [SearchResultArticlesPager]
         (if have-entries?
@@ -263,7 +264,7 @@
         page-number (subscribe [::page-number])
         search-results @(subscribe [:pubmed/search-term-result current-search-term])]
     (cond import-error
-          [:div.ui.segment.search-results-container.margin
+          [:div.ui.bottom.attached.segment.search-results-container.margin
            [:div.ui.error.message (str import-error)]
            [:div
             "Not getting results when you would expect to see them? "
@@ -279,6 +280,6 @@
           (and (= (get-in search-results [:count]) 0)
                (not (data/loading?
                      [:pubmed-search current-search-term @page-number])))
-          [:div.ui.segment.search-results-container.margin
+          [:div.ui.bottom.attached.segment.search-results-container.margin
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))

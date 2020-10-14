@@ -204,6 +204,7 @@
         show-results? (r/cursor state [:show-results?])]
     (when (and n-results @show-results?)
       [:div.ui.attached.segment.middle.aligned.stackable.grid
+       {:style {:border-bottom-width "0"}}
        [:div.eight.wide.column.results-header
         [ImportArticlesButton disable-import?]]
        [:div.eight.wide.column.results-header.results-buttons
@@ -223,7 +224,7 @@
       [:div.ctgov-search-results
        (when (and @page-number (not-empty @current-search-term))
          (dispatch [:require [:ctgov-search @current-search-term @page-number]]))
-       [:div.ui.segments.ctgov-articles
+       [:div.ui.bottom.attached.segment.ctgov-articles
         {:style (if have-entries? {} {:min-height "800px"})}
         [SearchResultArticlesPager]
         (if have-entries?
@@ -251,7 +252,7 @@
         search-results (subscribe [:ctgov/search-term-result
                                    @current-search-term])]
     (cond @import-error
-          [:div.ui.segment.search-results-container.margin
+          [:div.ui.segment.bottom.attached.search-results-container.margin
            [:div.ui.error.message
             (str @import-error)]]
           ;; search input form is empty
@@ -263,6 +264,6 @@
                (= (get-in @search-results [:count]) 0)
                (not (data/loading?
                      [:ctgov-search @current-search-term @page-number])))
-          [:div.ui.segment.search-results-container.margin
+          [:div.ui.segment.bottom.attached.search-results-container.margin
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
