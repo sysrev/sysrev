@@ -41,3 +41,22 @@ docker run -it --rm --name sysrev-pg-clone \
 ```
 
 12. You can now use this db from the sysrev repl.  
+
+## Overwrite existing database
+To overwrite an exisint database starting from step 10 above:
+
+10. copy the pdump file into the container  
+`> docker cp ./backup.pgdumpc sysrev-pg-clone:/backup.pgdumpc`
+
+11. drop existing database  
+`docker exec sysrev-pg-clone dropdb -h localhost -U postgres sysrev` 
+
+12. create sysrev database  
+`docker exec sysrev-pg-clone createdb -h localhost -U postgres -T template0 sysrev`
+
+13. restore database  
+```
+> docker exec sysrev-pg-clone pg_restore \
+	 -d sysrev -1 -U postgres --format=custom \
+	 --disable-triggers backup.pgdumpc
+```
