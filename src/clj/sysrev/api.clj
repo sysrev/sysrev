@@ -49,6 +49,7 @@
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
+            [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
             [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer sum]]
             [venia.core :as venia])
@@ -308,6 +309,32 @@
      email "Verify Your Email"
      (format "Verify your email by clicking <a href='%s'>here</a>." url))
     {:success true}))
+
+(defn send-welcome-email [email]
+  (sendgrid/send-html-email
+    email "Welcome to SysRev!"
+    (str "Hi, <br>
+    I'm TJ and I am here to help you get the most out of your projects at SysRev.com.<br>
+    <br>
+    <b>Getting Started</b><br>
+    SysRev provides videos and blog posts to help you get started.
+    The SysRev youtube channel has a " (shared/make-link :getting-started-video "getting started video")
+    " and " (shared/make-link :getting-started-topic "blog.sysrev.com") " gives a few short tutorials.
+    <br><br>
+    <b>Big Projects</b><br>
+    In a SysRev managed review, SysRev experts will help set up, manage, and analyze your large projects.
+    The mangiferin project ("(shared/make-link :mangiferin-part-one "blog post")") is a demo
+    of the analytics and administrative tasks that SysRev can help with in a managed review.
+    To start a managed review just email me with a project description or apply at "
+    (shared/make-link :managed-review-landing "sysrev.com/managed-review")"<br>
+    <br>
+    Thank you for using SysRev, please reply here or email me at TJ@sysrev.com with any questions.<br>
+    From,<br>
+    TJ<br>
+    Director of Managed Review - SysRev.com<br>"
+         (shared/make-link :youtube "Youtube Channel") "<br>"
+         (shared/make-link :twitter "Twitter @sysrev1") "<br>"
+         (shared/make-link :blog "blog.sysrev.com") "<br>")))
 
 (defn register-user!
   "Register a user and add them as a stripe customer"
@@ -1083,6 +1110,8 @@
           (when (= 1 (count (->> (user/get-user-emails user-id)
                                  (filter :verified))))
             (user/set-primary-email! user-id email))
+          ;;provide a welcome email
+          (send-welcome-email email)
           {:success true})
       :else
       {:error {:status internal-server-error
