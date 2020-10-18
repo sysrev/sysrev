@@ -177,7 +177,7 @@
           (b/click ".ui.button.cancel-edit" :if-not-exists :skip)))
     (b/click-drag-element q
                           :start-x start-x :offset-x offset-x
-                          :start-y (+ 2 (or start-y 0)) :offset-y offset-y)
+                          :start-y (+ 5 (or start-y 0)) :offset-y offset-y)
     (let [new-ann (first (sidebar-annotations))
           new-sel (:selection new-ann)
           len-diff (Math/abs (- (count new-sel) (count selection)))]
