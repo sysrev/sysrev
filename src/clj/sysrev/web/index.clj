@@ -4,7 +4,6 @@
             [sitemap.core :refer [generate-sitemap]]
             [sysrev.config :refer [env]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
             [sysrev.web.build :as build]
             [sysrev.payment.paypal :refer [paypal-env paypal-client-id]]
             [sysrev.payment.stripe :refer [stripe-public-key stripe-client-id]]
