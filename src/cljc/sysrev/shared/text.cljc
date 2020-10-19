@@ -39,6 +39,8 @@
 
         :youtube "https://www.youtube.com/channel/UCoUbMAvxBSZpOlqKjOkxNzQ"
         :getting-started-video "https://youtu.be/dHISlGOm7A8"
+        :analytics "https://youtu.be/FgxJ4zTVUn4"
+        :analytics-embed "https://www.youtube.com/embed/FgxJ4zTVUn4"
 
        } keyword))
 

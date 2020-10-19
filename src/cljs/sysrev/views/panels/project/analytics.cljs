@@ -2,7 +2,8 @@
   (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.core :refer [reload]]
             [sysrev.stripe :as stripe]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
+            [sysrev.shared.text :as shared]))
 
 ;; for clj-kondo
 (declare panel)
@@ -19,7 +20,7 @@
   [:div {:style {:height "50vh" :margin-top "1em"}}
    [:iframe {:width "100%" :height "100%"
              :frameborder "0" :allowfullscreen "true"
-             :src "https://www.youtube.com/embed/HmQhiVNtB2s"
+             :src (shared/links :analytics-embed)
              :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"}]])
 
 (defn- NotAdminDescription []

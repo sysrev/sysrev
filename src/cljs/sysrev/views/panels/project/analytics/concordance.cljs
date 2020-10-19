@@ -471,7 +471,7 @@
         "Learn more at "
         [url-link "https://blog.sysrev.com/concordance"] "."]]
       [Column {:width 8 :text-align "center" :vertical-align "middle"}
-       [:h3 [:a {:href "https://www.youtube.com/watch?v=HmQhiVNtB2s"}
+       [:h3 [:a {:href (sysrev.shared.text/links :analytics)}
              "Youtube Demo Video"]]]]
      [Row
       [Column {:width 6}  [:h3 "Article Filters"]
