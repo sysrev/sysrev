@@ -26,6 +26,8 @@
 ;TODO maybe redo the introduction video
 (defn links [keyword]
   (get {
+        :sysrev.com "https://sysrev.com"
+        :welcome-invite-link "https://sysrev.com/register/d7cef14c4b7a"
         :twitter "https://twitter.com/sysrev1"
 
 
@@ -41,6 +43,7 @@
         :getting-started-video "https://youtu.be/dHISlGOm7A8"
         :analytics "https://youtu.be/FgxJ4zTVUn4"
         :analytics-embed "https://www.youtube.com/embed/FgxJ4zTVUn4"
+
 
        } keyword))
 

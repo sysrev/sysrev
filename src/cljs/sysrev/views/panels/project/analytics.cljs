@@ -59,6 +59,7 @@
        ;; superusers like the insilica team can always see analytics
        superuser?             child
        (= project-id 21696)   [:div [DemoMessage] child]
+       (= project-id 40169)   [:div [DemoMessage] child]
        (not admin?)           [NotAdminDescription]
        ;; project admins of paid plan projects can see analytics
        (and admin? (stripe/pro? project-plan))  child

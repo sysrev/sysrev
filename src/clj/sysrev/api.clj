@@ -314,21 +314,22 @@
   (sendgrid/send-html-email
     email "Welcome to SysRev!"
     (str "Hi, <br>
-    I'm TJ and I am here to help you get the most out of your projects at SysRev.com.<br>
+    Thank you for joining SysRev!<br>
     <br>
-    <b>Getting Started</b><br>
-    SysRev provides videos and blog posts to help you get started.
-    The SysRev youtube channel has a " (shared/make-link :getting-started-video "getting started video")
-    " and " (shared/make-link :getting-started-topic "blog.sysrev.com") " gives a few short tutorials.
+    To create your first project, just log in at " (shared/make-link :sysrev.com  "sysrev.com") " and click the big green <b>New</b> button.<br>
+    Once you create a project, you can import documents and invite friends to help you review.<br>
+    Try joining the \"Welcome to SysRev\" project with this " (shared/make-link :welcome-invite-link "invite link") " and see what it is like to be a SysRev 'reviewer'.<br>
+    <br>
+    Learn more at the SysRev youtube channel, which has videos like the " (shared/make-link :getting-started-video "getting started guide")
+    ", and " (shared/make-link :getting-started-topic "blog.sysrev.com") " which gives a few short tutorials.
     <br><br>
-    <b>Big Projects</b><br>
-    In a SysRev managed review, SysRev experts will help set up, manage, and analyze your large projects.
-    The mangiferin project ("(shared/make-link :mangiferin-part-one "blog post")") is a demo
-    of the analytics and administrative tasks that SysRev can help with in a managed review.
-    To start a managed review just email me with a project description or apply at "
+    <b>Managed Reviews</b><br>
+    SysRev can be hired to help set up, manage, and analyze your large projects.
+    Check out our mangiferin project ("(shared/make-link :mangiferin-part-one "blog post")") for an example managed review.
+    To learn more about managed reviews, just reply to this message with questions, or submit a project description at "
     (shared/make-link :managed-review-landing "sysrev.com/managed-review")"<br>
     <br>
-    Thank you for using SysRev, please reply here or email me at TJ@sysrev.com with any questions.<br>
+    Thank you for using SysRev, please email me at TJ@sysrev.com with any questions.<br>
     From,<br>
     TJ<br>
     Director of Managed Review - SysRev.com<br>"
