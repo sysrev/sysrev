@@ -7,6 +7,7 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.analytics.common :refer [beta-message]]
             [sysrev.util :as util :refer [format sum round]]
+            [sysrev.shared.text :as shared]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -471,7 +472,7 @@
         "Learn more at "
         [url-link "https://blog.sysrev.com/concordance"] "."]]
       [Column {:width 8 :text-align "center" :vertical-align "middle"}
-       [:h3 [:a {:href (sysrev.shared.text/links :analytics)}
+       [:h3 [:a {:href (shared/links :analytics)}
              "Youtube Demo Video"]]]]
      [Row
       [Column {:width 6}  [:h3 "Article Filters"]
