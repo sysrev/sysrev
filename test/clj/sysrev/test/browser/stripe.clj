@@ -52,7 +52,7 @@
                                  (nth (get-stripe-frame-names) 0))}))
   ;;(taxi/click cardnumber-input)
   ;; clear anything that could be in the form
-  (taxi/clear cardnumber-input)
+  (b/clear cardnumber-input)
   ;;(b/backspace-clear 20 cardnumber-input)
   ;; set the input
   (b/set-input-text-per-char cardnumber-input cc-number)

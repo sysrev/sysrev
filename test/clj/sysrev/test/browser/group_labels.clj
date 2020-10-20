@@ -56,7 +56,7 @@
               (taxi/send-keys "input#search-sysrev-bar" org.openqa.selenium.Keys/TAB))
           (= value-type "categorical")
           (do (b/click col)
-              (taxi/clear (xpath col "//input"))
+              (b/clear (xpath col "//input"))
               (doall (map (fn [v]
                             (b/set-input-text-per-char (xpath col "//input") (str v))
                             (taxi/send-keys (xpath col "//input")

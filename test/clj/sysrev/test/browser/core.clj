@@ -324,10 +324,18 @@
     (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
+(defn clear [q]
+  (wait-until-displayed q)
+  (try (taxi/clear q)
+       (catch Throwable _
+         (log/info "taxi/clear failed, trying again after delay...")
+         (Thread/sleep 100)
+         (taxi/clear q))))
+
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 40 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
-    (when clear? (taxi/clear q))
+    (when clear? (clear q))
     (Thread/sleep (quot delay 2))
     (taxi/input-text q text)
     (Thread/sleep (quot delay 2))))
@@ -336,7 +344,7 @@
                                          :or {delay 40 char-delay 30 clear? true}}]
   (let [q (not-disabled q)]
     (wait-until-displayed q)
-    (when clear? (taxi/clear q))
+    (when clear? (clear q))
     (Thread/sleep (quot delay 2))
     (let [e (taxi/element q)]
       (doseq [c text]

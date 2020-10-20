@@ -53,8 +53,7 @@
       ;; delete the markdown, make sure we are back at stage one
       (b/click edit-icon)
       ;; clear the text area
-      (b/wait-until-displayed input)
-      (taxi/clear input)
+      (b/clear input)
       (Thread/sleep 25)
       (taxi/send-keys input org.openqa.selenium.Keys/ENTER)
       (Thread/sleep 25)
