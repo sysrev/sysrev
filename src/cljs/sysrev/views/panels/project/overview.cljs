@@ -305,14 +305,15 @@
              {:db (assoc-in db [:data :project project-id :label-counts]
                             data)}))
 
-(defn- LabelCountChart [_label-ids _processed-label-counts]
+(defn- LabelCountChart []
   (let [color-filter (r/atom #{})]
-    (fn [label-ids processed-label-counts]
-      (when (seq processed-label-counts)
-        (let [font (charts/graph-font-settings)
+    (fn []
+      (when-let [label-counts (not-empty @(subscribe [:project/label-counts]))]
+        (let [label-ids @(subscribe [:project/label-ids])
+              font (charts/graph-font-settings)
               filtered-color? #(contains? @color-filter %)
               color-filter-fn #(remove (comp filtered-color? :color) %)
-              entries (->> (color-filter-fn processed-label-counts)
+              entries (->> (color-filter-fn label-counts)
                            (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
                                       (:label-id %))))
               max-length (if (util/mobile?) 22 28)
@@ -321,17 +322,12 @@
                           (mapv str)
                           (mapv #(if (<= (count %) max-length)
                                    % (str (subs % 0 (- max-length 2)) "..."))))
-              counts (->> processed-label-counts
-                          color-filter-fn
-                          (mapv :count))
+              counts (mapv :count entries)
               background-colors (mapv :color entries)
-              short-label->label-uuid
-              (fn [short-label]
-                @(subscribe [:label/id-from-short-label short-label]))
               legend-labels
-              (->> (map (fn [[_ v]] (first v)) (group-by :label-id processed-label-counts))
+              (->> (map (fn [[_ v]] (first v)) (group-by :label-id label-counts))
                    (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
-                              (short-label->label-uuid (:short-label %))))
+                              (:label-id %)))
                    (mapv (fn [{:keys [short-label color]}]
                            {:text short-label
                             :hidden (filtered-color? color)
@@ -401,9 +397,7 @@
 (defn- LabelCounts []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project/label-counts project-id]] {}
-      (let [label-ids @(subscribe [:project/label-ids])
-            processed-label-counts @(subscribe [:project/label-counts project-id])]
-        [LabelCountChart label-ids processed-label-counts]))))
+      [LabelCountChart])))
 
 (reg-sub ::prediction-histograms
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))

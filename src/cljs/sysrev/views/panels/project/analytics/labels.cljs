@@ -121,11 +121,13 @@
                   (sort-by second >)))))
 
 (reg-sub ::combined-label-counts
-         :<- [:project/label-counts] :<- [::filter-label-counts]
-         (fn [[chart-counts filtered-counts]]
-           (for [{:keys [label-id value] :as row} chart-counts]
-             (let [key {:label (str label-id) :answer (str value)}]
-               (merge row (get filtered-counts key {:articles 0 :answers 0}))))))
+         :<- [:project/label-ids] :<- [:project/label-counts] :<- [::filter-label-counts]
+         (fn [[label-ids chart-counts filtered-counts]]
+           (->> (for [{:keys [label-id value] :as row} chart-counts]
+                  (let [key {:label (str label-id) :answer (str value)}]
+                    (merge row (get filtered-counts key {:articles 0 :answers 0}))))
+                (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
+                           (:label-id %))))))
 
 (reg-sub ::overall-counts
          :<- [::user-counts] :<- [::combined-label-counts] :<- [:project/article-counts]
@@ -225,8 +227,11 @@
                               :answer (str value) :raw-answer value}
                       :curset @(subscribe [::filter-answers])}]))))))
 
-(defn- LabelCountChart [label-ids combined count-type]
-  (let [font           (charts/graph-font-settings)
+(defn- LabelCountChart []
+  (let [label-ids      @(subscribe [:project/label-ids])
+        combined       @(subscribe [::combined-label-counts])
+        count-type     @(subscribe [::count-type])
+        font           (charts/graph-font-settings)
         max-length     (if (util/mobile?) 16 22)
         counts         (mapv (condp #(contains? %2 %1) count-type
                                "Count Every Answer" :answers
@@ -257,10 +262,7 @@
 (defn- LabelCounts []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project/label-counts project-id]] {}
-      (let [label-ids @(subscribe [:project/label-ids])
-            processed-label-counts @(subscribe [::combined-label-counts])
-            count-type @(subscribe [::count-type])]
-        [LabelCountChart label-ids processed-label-counts count-type]))))
+      [LabelCountChart])))
 
 ;;; CONTROLS
 (defn- Header []
