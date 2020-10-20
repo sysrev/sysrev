@@ -22,7 +22,8 @@
            :unused-namespace {:exclude [clojure.tools.logging
                                         sysrev.util
                                         medley.core]}
-           :unused-referred-var {:exclude {clojure.test [is deftest testing]}}
+           :unused-referred-var {:exclude {clojure.test [is deftest testing]
+                                           re-frame.core [dispatch subscribe]}}
            :consistent-alias {:aliases {
 ;;; clojure api namespaces
                                         clojure.data.json              json

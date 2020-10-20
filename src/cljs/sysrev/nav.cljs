@@ -3,7 +3,7 @@
             [re-frame.core :refer [reg-event-fx reg-fx subscribe]]
             [cljs-http.client :as http]
             [sysrev.base :refer [history]]
-            [sysrev.shared.text :refer [uri-title]]
+            [sysrev.shared.text :as text]
             [sysrev.util :refer [scroll-top]]))
 
 (defn make-url [url & [params]]
@@ -44,7 +44,7 @@
                      {:nav [url :params params :top top :redirect redirect]}))
 
 (defn- reload-page []
-  (-> js/window .-location (.reload true)))
+  (. js/window.location (reload true)))
 
 (reg-fx :reload-page
         (fn [[reload? delay-ms]]
@@ -57,12 +57,8 @@
   (pushy/set-token! history path))
 
 (defn set-page-title [title]
-  (let [uri js/window.location.pathname
-        project-id @(subscribe [:active-project-id])
-        project-name @(subscribe [:project/name project-id])]
-    (set! (-> js/document .-title)
-          (cond project-name project-name
-                (string? title) title
-                :else (uri-title uri)))))
+  (set! js/document.title (if (string? title)
+                            (str title " | Sysrev")
+                            (text/uri-title js/window.location.pathname))))
 
 (reg-fx :set-page-title set-page-title)

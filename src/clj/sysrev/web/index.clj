@@ -10,7 +10,7 @@
             [sysrev.shared.text :as text]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.project.core :as project]
-            [sysrev.util :refer [today-string]]))
+            [sysrev.util :as util :refer [today-string]]))
 
 (defonce web-asset-path (atom "/out"))
 
@@ -56,27 +56,14 @@
 ;;; see: https://github.com/unpkg/unpkg.com/issues/48
 ;;; https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js?meta
 
-(defn title [uri]
-  (let [project-url? (clojure.string/includes? uri "/p/")]
-    (cond
-      (= uri "/") (str "Built for data miners | Sysrev")
-      (= uri "/lit-review") (str "Free Literature Review | Sysrev")
-      (= uri "/data-extraction") (str "Advanced Data Extraction | Sysrev")
-      (= uri "/systematic-review") (str "Modern Systematic Review | Sysrev")
-      (= uri "/managed-review") (str "Expert Data Extraction | Sysrev")
-      (= uri "/register") "Start Your Free Trial | Sysrev"
-      project-url? (-> (re-find #"/p/([0-9]+)",uri) last Integer/parseInt
-                       project/project-settings :name) ;TODO add an authentication check for private projects
-      :else (str "Sysrev"))))
-
 (defn index [& [request maintainence-msg]]
   (page/html5
    [:head
-    [:title (sysrev.shared.text/uri-title (:uri request))]
+    [:title (text/uri-title (:uri request))]
     [:meta {:charset "utf-8"}]
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
-    [:meta {:name "Description" :content (sysrev.shared.text/uri-meta-description (:uri request))}]
+    [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
     #_ [:meta {:name "google-signin-scope" :content "profile email"}]
     #_ [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
     #_ [:script {:src "https://apis.google.com/js/platform.js"
@@ -118,7 +105,7 @@
 (defn not-found [& [request]]
   (page/html5
    [:head
-    [:title (sysrev.shared.text/uri-title (:uri request))]
+    [:title (text/uri-title (:uri request))]
     [:meta {:charset "utf-8"}]
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
