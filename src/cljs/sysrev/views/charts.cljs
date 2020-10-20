@@ -125,7 +125,8 @@
                        (when-let [idx (and (pos-int? (.-length elts))
                                            (-> elts (aget 0) .-index))]
                          (on-click idx))))}
-                  :items-clickable? (boolean on-click))
+                  :items-clickable? (boolean on-click)
+                  :animate? false)
                  options)]
     [chartjs/horizontal-bar {:data data :height height :options options}]))
 
@@ -145,5 +146,6 @@
                                (when (pos-int? (.-length elts))
                                  (when-let [idx (-> elts (aget 0) .-index)]
                                    (on-click idx)))))}
-                 :items-clickable? (boolean on-click))]
+                 :items-clickable? (boolean on-click)
+                 :animate? false)]
     [chartjs/doughnut {:data data :options options :height 245}]))

@@ -117,11 +117,9 @@
     (when-not unlimited-reviews
       [:div.project-summary
        [:div.ui.segment
-        [:h4.ui.dividing.header
-         "Review Status"]
+        [:h4.ui.dividing.header "Review Status"]
         (with-loader [#_ [:project project-id]
-                      [:project/review-status project-id]]
-          {:dimmer :fixed}
+                      [:project/review-status project-id]] {:dimmer :fixed}
           [:div
            [:h4.ui.center.aligned.header
             (str reviewed " articles reviewed of " total " total")]
@@ -228,7 +226,8 @@
                            :scaleLabel (->> {:display true
                                              :labelString "User Articles Labeled"
                                              :fontSize 14}
-                                            (merge font))}}})]
+                                            (merge font))}}}
+             :animate? false)]
         [:div.ui.segment
          [:h4.ui.dividing.header "Recent Progress"]
          (with-loader [[:project project-id]] {:dimmer :fixed}
