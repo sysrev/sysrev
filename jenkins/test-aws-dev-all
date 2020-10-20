@@ -1,8 +1,6 @@
 #!/bin/bash
 set -eux
 
-./lint-all
-
 rm -rf ./target
 
 SYSREV_FULL_TESTS=1

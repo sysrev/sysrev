@@ -8,3 +8,5 @@ for profile in ${profiles[@]}; do
     scp "$remote":/data/deployment/sysrev/config/$profile/config.local.edn ./config/$profile/
 done
 scp -r "$remote":/data/deployment/sysrev/resources . && true
+
+./lint-all

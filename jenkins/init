@@ -6,3 +6,7 @@ for profile in ${profiles[@]}; do
   cp /data/deployment/sysrev/config/$profile/config.local.edn ./config/$profile/
 done
 cp /data/deployment/sysrev/resources/* ./resources/ && true
+
+echo "Checking for linter warnings"
+
+./lint-all
