@@ -65,7 +65,7 @@
                                     :timeout 10000 :interval 30)
     (is (b/exists? (unique-count-span 2)))
     ;; Import from PMIDs file
-    (b/select-datasource "PMIDs")
+    (b/select-datasource "PMID file")
     (b/dropzone-upload "test-files/pubmed_result.txt")
     (is (b/exists? (unique-count-span 7)))
     ;; import Endnote file

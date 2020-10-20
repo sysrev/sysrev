@@ -362,6 +362,11 @@
                   {:keys [tempfile filename]} (get-in request [:params :file])]
               (api/import-articles-from-pdf-zip-file project-id tempfile filename)))))
 
+(dr (POST "/api/import-articles/pdfs/:project-id" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)]
+              (api/import-articles-from-pdfs project-id (:multipart-params request))))))
+
 (dr (POST "/api/import-articles/ris/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)

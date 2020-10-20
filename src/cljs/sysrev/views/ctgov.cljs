@@ -186,7 +186,9 @@
                            (dispatch [:require [:ctgov-search @current-search-term 1]]))]
     [:form {:id "search-bar"
             :class "ctgov-search"
-            :on-submit (wrap-prevent-default fetch-results)}
+            :on-submit (wrap-prevent-default fetch-results)
+            :style {:margin-top "1em"
+                    :margin-bottom "1em"}}
      [:div.ui.fluid.left.icon.action.input
       [:input {:type "text"
                :placeholder "Search ClinicalTrials.gov..."
@@ -203,7 +205,7 @@
         n-results (get-in search-results [:count])
         show-results? (r/cursor state [:show-results?])]
     (when (and n-results @show-results?)
-      [:div.ui.attached.segment.middle.aligned.stackable.grid
+      [:div.ui.top.attached.segment.aligned.stackable.grid
        {:style {:border-bottom-width "0"}}
        [:div.eight.wide.column.results-header
         [ImportArticlesButton disable-import?]]

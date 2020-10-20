@@ -11,6 +11,7 @@
             [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :refer [EditJSONView]]
+            [sysrev.views.uppy :refer [Dashboard]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button Dropdown Divider]]
             [sysrev.util :as util :refer [css]]
@@ -24,7 +25,7 @@
                    :state state :get [panel-get] :set [panel-set])
 
 ;; this sets the default tab
-(reg-sub :add-articles/import-tab #(or (panel-get % :import-tab) :pdfs))
+(reg-sub :add-articles/import-tab #(or (panel-get % :import-tab) nil))
 
 (reg-event-db :add-articles/import-tab [trim-v]
               (fn [db [tab-id]]
@@ -105,6 +106,18 @@
       "Upload Text File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
+
+(defn ImportPDFsView []
+  (let [project-id @(subscribe [:active-project-id])
+        csrf-token @(subscribe [:csrf-token])]
+    [:div {:style {:margin-left "auto"
+                   :margin-right "auto"
+                   :margin-top "1em"
+                   :max-width "600px"}}
+     [Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
+                 :csrf-token csrf-token
+                 :on-complete #(dispatch [:reload [:project/sources project-id]])
+                 :project-id project-id}]]))
 
 (defn ImportPDFZipsView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -286,10 +299,8 @@
        (fn []
          (reset! polling-sources? false)
          (dispatch [:reload [:project project-id]])
-         (when (and first-source? (not browser-test?))
-           (dispatch [:data/after-load [:project project-id] :poll-source-redirect
-                      #(when (some-> @article-counts :total pos?)
-                         (nav/nav (project-uri project-id "/articles")))])))
+         (when (and first-source? #_(not browser-test?))
+           (dispatch [:data/after-load [:project project-id] :poll-source-redirect])))
        600))
     nil))
 
@@ -427,57 +438,81 @@
               " Please let me know how I can enable this feature. Thanks!")
          :target "_blank"} " contact us"]"."]])
 
+(defn DatasourceIcon
+  [{:keys [text value name]}]
+  (let [active? (= @(subscribe [:add-articles/import-tab]) value)]
+    [:div {:on-click #(dispatch-sync [:add-articles/import-tab value])
+           :class (cond-> "datasource-item"
+                    active? (str " active"))
+           :style {:display "inline-block"
+                   :text-align "center"
+                   :margin "0 1em 0 1em"}}
+     [:div {:style {:flex "0 0 120px"
+                    :cursor "pointer"}}
+      [Icon {:name name
+             :size "big"}]
+      [:p {:style {:margin-top "1em"} } text]]]))
+
+(defn DatasourceIconList [options]
+  [:div {:style {:margin-top "2em"}}
+   (for [option options]
+     ^{:key (:value option)}
+     [DatasourceIcon option])])
+
 (defn ImportArticlesView []
   (let [active-tab (subscribe [:add-articles/import-tab])
-        set-tab #(dispatch-sync [:add-articles/import-tab %])
         sources @(subscribe [:project/sources])]
     [:div#import-articles {:style {:margin-bottom "1em"}}
      (when (empty? sources)
        [:h4.ui.header
-        [:p "Your project " [:span {:style {:color "red"}} "requires documents"] " before you begin working on it."]])
+        [:p "Your project " [:span {:style {:color "red"}} "requires articles"] " before you can begin working on it."]])
      [:div
-      [:div [:h4.ui.header {:style {:display "inline-block"
-                                    :padding-right "1em"}} "Datasource"]
-       [Dropdown {:id "select-datasource-dropdown"
-                  :selection true
-                  :options [{:value :pdfs
-                             :text "PDF files"}
-                            {:text "PubMed Search"
-                             :value :pubmed}
-                            {:value :ris-file
-                             :text "RIS / RefMan"}
-                            {:value :ctgov
-                             :text "ClinicalTrials.gov"}
-                            {:value :pmid
-                             :text "PMIDs"}
-                            {:value :endnote
-                             :text "EndNote XML"}]
-                  :value @active-tab
-                  :on-change (fn [_event data]
-                               (set-tab (keyword (.-value data))))}]]
-      [:div.ui.top.attached.secondary.segment
-       (case @active-tab
-         :pubmed    [pubmed/SearchBar]
-         :pmid      [ImportPMIDsView]
-         :endnote   [ImportEndNoteView]
-         :pdfs      [ImportPDFZipsView]
-         :ris-file  [ImportRISView]
-         :ctgov (if (and (= js/window.location.hostname "sysrev.com")
-                         (not (some #{@(subscribe [:user/email])}
-                                    #{"amarluniwal@gmail.com"
-                                      "geoffreyweiner@gmail.com"
-                                      "james@insilica.co"
-                                      "tom@insilica.co"
-                                      "jeff@insilica.co"
-                                      "tj@insilica.co"
-                                      "g.callegaro@lacdr.leidenuniv.nl"})))
-                  [EnableCTNotice]
-                  [ctgov/SearchBar]))]
-      (case @active-tab
+      [DatasourceIconList [{:value :pdfs
+                            :text "PDF files"
+                            :name "file pdf outline"}
+                           {:value :pdf-zip
+                            :text "PDF.zip"
+                            :name "file archive"}
+                           {:text "PubMed Search"
+                            :value :pubmed
+                            :name "search"}
+                           {:value :pmid
+                            :text "PMID file"
+                            :name "file outline"}
+                           {:value :ris-file
+                            :text "RIS / RefMan"
+                            :name "file outline"}
+                           {:value :endnote
+                            :text "EndNote XML"
+                            :name "file code outline"}
+                           {:value :ctgov
+                            :text "ClinicalTrials.gov"
+                            :name "syringe"}]]
+      (when @active-tab
+        (condp =  @active-tab
+          :pubmed    [pubmed/SearchBar]
+          :pmid      [ImportPMIDsView]
+          :endnote   [ImportEndNoteView]
+          :pdfs      [ImportPDFsView]
+          :pdf-zip   [ImportPDFZipsView]
+          :ris-file  [ImportRISView]
+          :ctgov (if (and (= js/window.location.hostname "sysrev.com")
+                          (not (some #{@(subscribe [:user/email])}
+                                     #{"amarluniwal@gmail.com"
+                                       "geoffreyweiner@gmail.com"
+                                       "james@insilica.co"
+                                       "tom@insilica.co"
+                                       "jeff@insilica.co"
+                                       "tj@insilica.co"
+                                       "g.callegaro@lacdr.leidenuniv.nl"})))
+                   [EnableCTNotice]
+                   [ctgov/SearchBar])
+          nil))
+      (condp =  @active-tab
         :pubmed [pubmed/SearchActions (any-source-processing?)]
         :ctgov  [ctgov/SearchActions (any-source-processing?)]
         nil)]
-     (case @active-tab
+     (condp =  @active-tab
        :pubmed [pubmed/SearchResultsContainer]
        :ctgov  [ctgov/SearchResultsContainer]
        nil)]))
@@ -490,7 +525,8 @@
         [Button {:id "enable-import"
                  :size "small"
                  :positive true
-                 :on-click #(reset! view-import-button? false)}
+                 :on-click #(do (reset! view-import-button? false)
+                                (dispatch-sync [:add-articles/import-tab nil]))}
          "Import Documents"]
         [ImportArticlesView]))))
 

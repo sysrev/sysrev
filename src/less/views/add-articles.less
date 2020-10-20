@@ -1,0 +1,18 @@
+.datasource-item:hover {
+    color: @darkestText;
+}
+.datasource-item:hover .icon {
+    transform: scale(1.5);
+}
+
+.datasource-item .icon {
+    transition: opacity 0.2s, color 0.2s, transform 0.2s;
+}
+.datasource-item.active .icon {
+    transform: scale(1.5);
+    color: @blue;
+}
+
+.datasource-item.active {
+    color: @blue;
+}

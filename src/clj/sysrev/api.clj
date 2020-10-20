@@ -233,6 +233,10 @@
   (wrap-import-api #(import/import-pdf-zip project-id % options)
                    {:file file :filename filename}))
 
+(defn import-articles-from-pdfs [project-id multipart-params & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-pdfs project-id % options)
+                   {:files (get multipart-params "files[]")}))
+
 (defn import-articles-from-ris-file
   "Import articles from a RIS file."
   [project-id file filename & {:keys [threads] :as options}]

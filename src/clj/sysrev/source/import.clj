@@ -4,6 +4,7 @@
             sysrev.source.pmid
             sysrev.source.endnote
             sysrev.source.pdf-zip
+            sysrev.source.pdfs
             sysrev.source.extra
             sysrev.source.ris
             sysrev.source.ctgov
@@ -29,6 +30,10 @@
 (defn import-article-text-manual
   [project-id {:keys [articles] :as input} & [{:as options}]]
   (import-source :api-text-manual project-id input options))
+
+(defn import-pdfs
+  [project-id {:keys [files]} & [{:as options}]]
+  (import-source :pdfs project-id files options))
 
 (defn import-pdf-zip
   [project-id {:keys [file filename] :as input} & [{:as options}]]

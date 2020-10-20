@@ -621,8 +621,7 @@
     (taxi/execute-script upload-blob-js)))
 
 (defn select-datasource [datasource-name]
-  (let [dropdown-field (xpath "//span[contains(text(),'" datasource-name "')]")]
-    (click "#select-datasource-dropdown")
-    (wait-until-displayed dropdown-field)
-    (click dropdown-field)
-    (wait-until-exists (xpath "//div[@id='select-datasource-dropdown']/div[contains(text(),'" datasource-name "')]"))))
+  (let [datasource-item (xpath "//div[contains(@class,'datasource-item')]//p[contains(text(),'" datasource-name "')]")]
+    (wait-until-displayed datasource-item)
+    (click datasource-item)
+    (wait-until-exists (xpath "//div[contains(@class,'datasource-item') and contains(@class,'active')]//p[contains(text(),'" datasource-name "')]"))))

@@ -201,7 +201,9 @@
              (reset! import-error nil)
              (dispatch [:require [:pubmed-search @current-search-term 1]]))]
     [:form {:on-submit (wrap-prevent-default fetch-results)
-            :id "search-bar"}
+            :id "search-bar"
+            :style {:margin-top "1em"
+                    :margin-bottom "1em"}}
      [:div.ui.fluid.left.icon.action.input
       [:input {:type "text"
                :placeholder "PubMed Search..."
@@ -222,7 +224,7 @@
         n-results (get-in search-results [:count])
         show-results? (r/cursor state [:show-results?])]
     (when (and n-results @show-results?)
-      [:div.ui.attached.segment.middle.aligned.stackable.grid
+      [:div.ui.top.attached.segment.aligned.stackable.grid
        {:style {:border-bottom-width "0"}}
        [:div.eight.wide.column.results-header
         [ImportArticlesButton disable-import?]]
