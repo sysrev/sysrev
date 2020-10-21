@@ -438,6 +438,12 @@
               " Please let me know how I can enable this feature. Thanks!")
          :target "_blank"} " contact us"]"."]])
 
+(defn CustomDatasource []
+  [:div.ui.segment {:style {:margin-left "auto"
+                            :margin-right "auto"
+                            :max-width "600px"}}
+   [:b "Need to review something else? " [:a {:href "/managed-review"} "Talk to us"] " about integrating unique datasources including JSON, XML, and more."]])
+
 (defn DatasourceIcon
   [{:keys [text value name]}]
   (let [active? (= @(subscribe [:add-articles/import-tab]) value)]
@@ -446,7 +452,7 @@
                     active? (str " active"))
            :style {:display "inline-block"
                    :text-align "center"
-                   :margin "0 1em 0 1em"}}
+                   :margin "1em 1em 0 1em"}}
      [:div {:style {:flex "0 0 120px"
                     :cursor "pointer"}}
       [Icon {:name name
@@ -454,7 +460,7 @@
       [:p {:style {:margin-top "1em"} } text]]]))
 
 (defn DatasourceIconList [options]
-  [:div {:style {:margin-top "2em"}}
+  [:div
    (for [option options]
      ^{:key (:value option)}
      [DatasourceIcon option])])
@@ -472,8 +478,8 @@
                             :name "file pdf outline"}
                            {:value :pdf-zip
                             :text "PDF.zip"
-                            :name "file archive"}
-                           {:text "PubMed Search"
+                            :name "file archive outline"}
+                           {:text "PubMed"
                             :value :pubmed
                             :name "search"}
                            {:value :pmid
@@ -481,13 +487,16 @@
                             :name "file outline"}
                            {:value :ris-file
                             :text "RIS / RefMan"
-                            :name "file outline"}
+                            :name "file alternate outline"}
                            {:value :endnote
                             :text "EndNote XML"
                             :name "file code outline"}
                            {:value :ctgov
-                            :text "ClinicalTrials.gov"
-                            :name "syringe"}]]
+                            :text "ClinicalTrials (beta)"
+                            :name "hospital outline"}
+                           {:value :custom
+                            :text "Custom Datasource"
+                            :name "database"}]]
       (when @active-tab
         (condp =  @active-tab
           :pubmed    [pubmed/SearchBar]
@@ -507,6 +516,7 @@
                                        "g.callegaro@lacdr.leidenuniv.nl"})))
                    [EnableCTNotice]
                    [ctgov/SearchBar])
+          :custom [CustomDatasource]
           nil))
       (condp =  @active-tab
         :pubmed [pubmed/SearchActions (any-source-processing?)]

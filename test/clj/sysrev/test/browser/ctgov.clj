@@ -45,7 +45,7 @@
   (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
       (b/click "#enable-import")
-      (b/select-datasource "ClinicalTrials.gov")
+      (b/select-datasource "ClinicalTrials (beta)")
       (search-ctgov search-term)
       (log/info "importing clinical trials from search")
       (b/click x/import-button-xpath)

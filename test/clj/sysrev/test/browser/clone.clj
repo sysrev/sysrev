@@ -51,14 +51,14 @@
     (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
     (is (b/exists? (unique-count-span 10)))
     ;; PubMed search input
-    (b/select-datasource "PubMed Search")
+    (b/select-datasource "PubMed")
     (pubmed/search-pubmed "foo bar")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (is (b/exists? (unique-count-span 7)))
     ;; Import Clinical Trials
-    (b/select-datasource "ClinicalTrials.gov")
+    (b/select-datasource "ClinicalTrials (beta)")
     (ctgov/search-ctgov "foo olive")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
@@ -110,7 +110,7 @@
     (reset! src-project-id (b/current-project-id))
     ;; PubMed search input
     (b/click "#enable-import")
-    (b/select-datasource "PubMed Search")
+    (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
     ;; user can clone their project

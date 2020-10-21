@@ -625,3 +625,14 @@
     (wait-until-displayed datasource-item)
     (click datasource-item)
     (wait-until-exists (xpath "//div[contains(@class,'datasource-item') and contains(@class,'active')]//p[contains(text(),'" datasource-name "')]"))))
+
+(defn uppy-attach-files [coll]
+  "Given a coll of file names in the resources dir, attach the files to uppy file element"
+  (taxi/send-keys "input[name='files[]']"
+                  (clojure.string/join "\n"
+                                       (mapv #(-> % io/resource .getFile java.net.URLDecoder/decode)
+                                             ;; if a single string, just convert to a coll
+                                             (if (string? coll)
+                                               [coll]
+                                               coll))))
+  nil)

@@ -140,3 +140,23 @@
           (is (b/exists? (xpath "//span[contains(text(),'" excerpt "')]")))
           (is (= [abstract] (b/get-elements-text
                              (xpath "//span[contains(text(),'" excerpt "')]"))))))))
+
+(deftest-browser pdf-files
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [files (map #(str "test-files/test-pdf-import/" %)
+              (.list (io/file "resources/test-files/test-pdf-import")))]
+  (do (nav/log-in (:email test-user))
+      (nav/new-project "pdf files test")
+      (b/click "#enable-import")
+      (b/select-datasource "PDF files")
+      (b/wait-until-exists (xpath "//button[contains(text(),'browse files')]"))
+      (b/uppy-attach-files files)
+      (b/wait-until-exists (xpath "//button[contains(text(),'Upload')]"))
+      (b/click (xpath "//button[contains(text(),'Upload')]"))
+      (b/wait-until-exists (xpath "//div[contains(@class,'delete-button')]"))
+      ;;(b/init-route (-> (taxi/current-url) b/url->path))
+      (nav/go-project-route "/articles" :wait-ms 100)
+      (b/click "a.column.article-title" :displayed? true :delay 200)
+      (b/is-soon (taxi/exists? "div.pdf-container div.page div.canvasWrapper"))
+      (b/click ".ui.menu > .item.articles" :delay 100)
+      (b/is-soon (taxi/exists? "a.column.article-title"))))
