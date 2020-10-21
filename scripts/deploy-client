@@ -35,6 +35,7 @@ cp -R ./semantic ./tmp
 # favicon and image files
 cp ./favicon.ico ./tmp
 cp ./*.png ./tmp
+cp -R ./images/ ./tmp/
 cp ./manifest.json ./tmp
 
 # crawler config files
