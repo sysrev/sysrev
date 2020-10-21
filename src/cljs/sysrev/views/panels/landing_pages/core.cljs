@@ -70,10 +70,10 @@
       [:h5 {:style {:margin-bottom 0}} "live updates"]
       [GlobalStatsReport stats-titles]])])
 
-(defn ReviewCard [{:keys [href img header description extra] :as _card}]
+(defn ReviewCard [{:keys [href img img-alt header description extra] :as _card}]
   [:div.ui.raised.card (when href {:on-click #(nav/nav href)
                                    :style {:cursor "pointer"}})
-   (when img [:div.image [:img {:src img}]])
+   (when img [:div.image [:img {:src img :alt img-alt}]])
    [:div.content
     (when header       [:a.header (when href {:href href}) header])
     (when href         [:div.meta [url-link href]])

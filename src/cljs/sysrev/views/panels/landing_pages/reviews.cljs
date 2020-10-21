@@ -5,7 +5,8 @@
 (defn GeneHunterReview []
   [ReviewCard
    {:href "/p/3144"
-    :header "Gene Hunter" :img "/genehunter.png"
+    :header "Gene Hunter" :img "/images/genehunter.jpg"
+    :img-alt "Extraction of gene names from medical abstracts"
     :description
     [:p "Gene Hunter extracted gene names from medical abstracts to create a "
      [:b "named entity recognition"] " model. Learn more at "
@@ -17,7 +18,8 @@
 (defn SDSReview []
   [ReviewCard
    {:href "/p/4047"
-    :header "Safety Data Sheet Extraction" :img "/sds.png"
+    :header "Safety Data Sheet Extraction" :img "/images/sds.jpg"
+    :img-alt "safety data sheet extraction"
     :description
     [:p "SDS PDFs lock important chemical information into pdfs. "
      "Sysrev was used to extract that data into spreadsheets. Learn more at "
@@ -30,7 +32,8 @@
 (defn MangiferinReview []
   [ReviewCard
    {:href "/p/21696"
-    :header "Extracting Mangiferin Effects" :img "/mangiferin-clustering.png"
+    :header "Extracting Mangiferin Effects" :img "/images/mangiferin-clustering.jpg"
+    :img-alt "managed review example"
     :description
     [:p "An extraction of mangiferin (a mango extract) effects from publications. R and "
      [:a {:href "https://github.com/sysrev/RSysrev"} "RSysrev"]
@@ -43,7 +46,8 @@
 (defn EntogemReview []
   [ReviewCard
    {:href "/p/16612"
-    :header "EntoGEM" :img "/entogem.png"
+    :header "EntoGEM" :img "/images/entogem.jpg"
+    :img-alt "EntoGEM insect population review"
     :description
     [:p "EntoGEM is a community-driven project that aims to compile evidence about
         global insect population and biodiversity status and trends. "
@@ -55,7 +59,8 @@
 (defn FireAustralianReview []
   [ReviewCard
    {:href "/p/24557"
-    :header "Fire & Australian Invertebrates" :img "/bushfires.png"
+    :header "Fire & Australian Invertebrates" :img "/images/bushfires.jpg"
+    :img-alt "Review of inverterbrate response to australian bushfires"
     :description
     [:p "Established in response to catastrophic bushfires in Australia,
         this project seeks to understand how invertebrates respond to fire events."]
@@ -66,7 +71,8 @@
 (defn CancerHallmarkReview []
   [ReviewCard
    {:href "/p/3588"
-    :header "Cancer Hallmark Mapping" :img "/tumur.png"
+    :header "Cancer Hallmark Mapping" :img "/images/tumur.jpg"
+    :img-alt "National Toxicology Program Cancer Hallmarks Review"
     :description
     [:p "The aim of this project is to identify novel assays and biomarkers
          that map to the hallmarks of cancer and the key characteristics of carcinogens"]
@@ -77,7 +83,8 @@
 (defn CovidKidneyReview []
   [ReviewCard
    {:href "/p/29506"
-    :header "COVID-19 Kidney Disease" :img "/ckd-covid.png"
+    :header "COVID-19 Kidney Disease" :img "/images/ckd-covid.jpg"
+    :img-alt "review of COVID-19 and chronic kidney disease"
     :description
     [:p "A multinational team used Sysrev to assess the clinical characteristics and the risk
          factors associated with SARS CoV2 in patients with Chronic Kidney Disease."]
@@ -88,7 +95,8 @@
 (defn VitaminCCancerReview []
   [ReviewCard
    {:href "/p/6737"
-    :header "Vitamin C Cancer Trials" :img "/vitc.png"
+    :header "Vitamin C Cancer Trials" :img "/images/vitc.jpg"
+    :img-alt "review of ascorbate in cancer trials at clinicaltrials.gov"
     :description
     [:p "A systematic review of clinicaltrials.gov measuring drugs and dosing in ascorbate cancer trials. "
      [:a {:href "https://scholar.google.com/scholar?cluster=16503083734790425316&hl=en&oi=scholarr"}
