@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.project.add-articles
-  (:require [clojure.string :as str]
-            [cljs-time.core :as t]
+  (:require [cljs-time.core :as t]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub reg-event-db trim-v]]
             [sysrev.action.core :as action :refer [def-action run-action]]
@@ -13,7 +12,7 @@
             [sysrev.views.panels.project.source-view :refer [EditJSONView]]
             [sysrev.views.uppy :refer [Dashboard]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button Dropdown Divider]]
+            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
                                           sr-defroute-project]]))
@@ -282,8 +281,6 @@
     (reset! polling-sources? true)
     (dispatch [:fetch [:project/sources project-id]])
     (let [sources (subscribe [:project/sources])
-          article-counts (subscribe [:project/article-counts])
-          browser-test? (some-> @(subscribe [:user/display]) (str/includes? "browser+test"))
           first-source? (empty? (->> @sources (remove #(-> % :meta :importing-articles?))))
           source-updating?
           (fn [source-id]
