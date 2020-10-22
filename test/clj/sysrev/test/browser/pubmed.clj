@@ -109,6 +109,9 @@
 
 (defn add-articles-from-search-term [search-term]
   (nav/go-project-route "/add-articles" :wait-ms 75)
+  (when (taxi/exists? "#enable-import")
+    (b/click "#enable-import")
+    (b/wait-until-exists ".datasource-item"))
   (let [initial-count (get-source-count)]
     (search-pubmed search-term)
     (log/info "importing articles from search")
