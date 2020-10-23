@@ -115,7 +115,8 @@
                    :max-width "600px"}}
      [Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
                  :csrf-token csrf-token
-                 :on-complete #(dispatch [:reload [:project/sources project-id]])
+                 :on-complete #(do (dispatch [:reload [:project project-id]])
+                                   (dispatch [:reload [:project/sources project-id]]))
                  :project-id project-id}]]))
 
 (defn ImportPDFZipsView []

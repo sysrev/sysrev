@@ -234,8 +234,11 @@
                    {:file file :filename filename}))
 
 (defn import-articles-from-pdfs [project-id multipart-params & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pdfs project-id % options)
-                   {:files (get multipart-params "files[]")}))
+  (let [files (get multipart-params "files[]")]
+    (wrap-import-api #(import/import-pdfs project-id % options)
+                     {:files (if (map? files)
+                               [files]
+                               files)})))
 
 (defn import-articles-from-ris-file
   "Import articles from a RIS file."
