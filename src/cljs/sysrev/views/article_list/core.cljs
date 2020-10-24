@@ -170,6 +170,7 @@
                 self-only (filterv #(= (:user-id %) self-id)))
         labels (cond->> labels
                  self-only (filterv #(= (:user-id %) self-id))
+                 @(subscribe [:self/blinded?]) (filterv #(= (:user-id %) self-id))
                  (not show-unconfirmed) (filterv #(not (in? [0 nil] (:confirm-time %)))))
         consensus-labels (->> labels (filterv #(not (in? [0 nil] (:confirm-time %)))))
         overall-labels (->> consensus-labels (filter #(= (:label-id %) overall-id)))
