@@ -412,7 +412,6 @@
     (when-not (empty? sources)
       [:div#project-sources
        [:div
-        [:h3 {:style {:margin-top "0"}} "Article Sources"]
         [:div.project-sources-list
          (doall (for [source (sort-by (fn [{:keys [source-id enabled]}]
                                         [(not enabled) (- source-id)])
