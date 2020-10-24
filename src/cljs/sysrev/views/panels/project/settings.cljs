@@ -178,6 +178,7 @@
                               :else           value)
     :public-access      (boolean value)
     :unlimited-reviews  (boolean value)
+    :blind-reviewers    (boolean value)
     nil))
 
 (defn- render-setting [skey]
@@ -295,6 +296,18 @@
                   :label "Allow Unlimited Reviews"
                   :entries unlimited-reviews-buttons}])
 
+(defn- BlindReviewersField []
+  [SettingsField {:setting :blind-reviewers
+                  :label "Hide label answers"
+                  :entries   [{:key :false
+                               :label [:span "No"]
+                               :value false
+                               :tooltip "User answers visible in article list and in individual articles"}
+                              {:key :true
+                               :label [:span "Yes"]
+                               :value true
+                               :tooltip "User answers hidden everywhere except to administrators"}]}])
+
 (defn ProjectNameField []
   (let [skey :project-name
         admin? (admin?)
@@ -386,11 +399,10 @@
         [:div.ui.segment.project-options
          [:h4.ui.dividing.header "Options"]
          [:div.ui.form {:class (if valid? "" "warning")}
-          [:div.two.fields
            [PublicAccessField project-id]
-           [DoubleReviewPriorityField]]
-          [:div.two.fields
-           [UnlimitedReviewsField]]]
+           [DoubleReviewPriorityField]
+           [UnlimitedReviewsField]
+           [BlindReviewersField]]
          (when (admin?)
            [:div
             [:div.ui.divider]

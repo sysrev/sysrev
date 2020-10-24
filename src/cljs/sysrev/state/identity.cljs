@@ -137,6 +137,13 @@
          :<- [:self/ui-theme]
          #(= % "Dark"))
 
+;a user is blinded if the active project has the :blind-reviewers setting and the user is not an admin
+(reg-sub :self/blinded?
+         :<- [:member/admin?]
+         :<- [:project/settings]
+         (fn [[is-admin? project-settings] _]
+           (and (not is-admin?) (:blind-reviewers project-settings))))
+
 (def-action :user/change-settings
   :uri (fn [_] "/api/change-user-settings")
   :content (fn [changes] {:changes changes})
