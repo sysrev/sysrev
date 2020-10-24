@@ -115,11 +115,12 @@
 (defn ArticleContent [context article-id]
   (let [editing? @(subscribe [:article-list/editing? context article-id])
         {:keys [self-only]} @(subscribe [::al/display-options (al/cached context)])
+        blinded? @(subscribe [:self/blinded?])
         resolving? @(subscribe [:review/resolving?])]
     [:div {:style {:width "100%"}}
      [ArticleInfo article-id
       :show-labels? true
-      :private-view? self-only
+      :private-view? (or blinded? self-only)
       :context :article-list
       :change-labels-button (fn [] [ChangeLabelsButton context article-id])
       :resolving? resolving?]
