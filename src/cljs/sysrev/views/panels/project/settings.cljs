@@ -296,17 +296,38 @@
                   :label "Allow Unlimited Reviews"
                   :entries unlimited-reviews-buttons}])
 
-(defn- BlindReviewersField []
-  [SettingsField {:setting :blind-reviewers
-                  :label "Hide label answers"
-                  :entries   [{:key :false
-                               :label [:span "No"]
-                               :value false
-                               :tooltip "User answers visible in article list and in individual articles"}
-                              {:key :true
-                               :label [:span "Yes"]
-                               :value true
-                               :tooltip "User answers hidden everywhere except to administrators"}]}])
+(defn- BlindReviewersField [project-id]
+  (let [self-id @(subscribe [:self/user-id])
+        project-owner @(subscribe [:project/owner project-id])
+        owner-type (-> project-owner keys first)
+        owner-id (-> project-owner vals first)
+        project-plan @(subscribe [:project/plan project-id])
+        project-url @(subscribe [:project/uri project-id])]
+    [SettingsField {:setting :blind-reviewers
+                    :label "Label blinding"
+                    :disabled? (and (= project-plan "Basic")
+                                    (not @(subscribe [:user/dev?]))
+                                    @(subscribe [:project/public-access? project-id]))
+                    :entries   [{:key :false
+                                 :label [:span "No"]
+                                 :value false
+                                 :tooltip "User answers visible in article list and in individual articles"}
+                                {:key :true
+                                 :label [:span "Yes"]
+                                 :value true
+                                 :tooltip "User answers hidden everywhere except to administrators"}]}
+     (when (and (= project-plan "Basic")
+                @(subscribe [:project/controlled-by? project-id self-id]))
+       (fn []
+         [:p [:a {:href (nav/make-url (if (= owner-type :user-id)
+                                        "/user/plans"
+                                        (str "/org/" owner-id "/plans"))
+                                      {:on_subscribe_uri
+                                       (str project-url "/settings")})}
+              "Upgrade"] (str " " (if (= owner-type :user-id)
+                                    "your"
+                                    "the organization's")
+                              " plan to enable label blinding. Label blinding hides answers from non-admin reviewers.")]))]))
 
 (defn ProjectNameField []
   (let [skey :project-name
@@ -402,7 +423,7 @@
            [PublicAccessField project-id]
            [DoubleReviewPriorityField]
            [UnlimitedReviewsField]
-           [BlindReviewersField]]
+           [BlindReviewersField project-id]]
          (when (admin?)
            [:div
             [:div.ui.divider]
