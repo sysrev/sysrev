@@ -109,6 +109,7 @@
 
 (defn add-articles-from-search-term [search-term]
   (nav/go-project-route "/add-articles" :wait-ms 75)
+  (b/click "#enable-import")
   (when (taxi/exists? "#enable-import")
     (b/click "#enable-import")
     (b/wait-until-exists ".datasource-item"))

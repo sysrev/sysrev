@@ -45,36 +45,54 @@
     (b/init-route (-> (taxi/current-url) b/url->path))
     #_(is (= 4 (project/project-article-pdf-count (b/current-project-id))))
     ;; import RIS file, check the RIS file citations is correct
+    (log/info "starting import")
     (b/click "#enable-import")
     (b/select-datasource "RIS / RefMan")
     (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
     (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
     (is (b/exists? (unique-count-span 10)))
     ;; PubMed search input
+    (log/info "starting pubmed import")
+    (b/click "#enable-import")
     (b/select-datasource "PubMed")
+    (log/info "selected pubmed data source")
     (pubmed/search-pubmed "foo bar")
+    (log/info "clicking pubmed import button")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (is (b/exists? (unique-count-span 7)))
     ;; Import Clinical Trials
+    (log/info "importing from clinicaltrials")
+    (b/click "#enable-import")
     (b/select-datasource "ClinicalTrials (beta)")
     (ctgov/search-ctgov "foo olive")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
     (is (b/exists? (unique-count-span 2)))
+
     ;; Import from PMIDs file
+    (log/info "importing from PMIDS")
+    (b/click "#enable-import")
     (b/select-datasource "PMID file")
     (b/dropzone-upload "test-files/pubmed_result.txt")
+    (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
+                                    :timeout 10000 :interval 30)
     (is (b/exists? (unique-count-span 7)))
+
     ;; import Endnote file
+    (log/info "importing from ENDNOTE")
+    (b/click "#enable-import")
     (b/select-datasource "EndNote XML")
     (b/dropzone-upload "test-files/Endnote_3_citations.xml")
     (is (b/exists? (unique-count-span 3)))
+
+    (log/info "done importing")
     ;; When this project is cloned, everything is copied over correctly
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
+    (log/info "starting clone")
     (b/click clone-button)
     (b/click clone-to-user)
     ;; this was an actual clone?

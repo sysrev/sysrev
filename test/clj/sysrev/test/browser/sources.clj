@@ -10,6 +10,7 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
+            [clojure.tools.logging :as log]
             [sysrev.test.browser.xpath :refer [xpath]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
@@ -30,18 +31,25 @@
       (assert (integer? @project-id))
       (nav/go-project-route "/add-articles")
 ;;; add sources
+      (log/info "adding sources")
       ;; create a new source
+      (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
+                                      :timeout 10000 :interval 30)
       (b/click "#enable-import")
+      (log/info "adding articles from query1")
       (pm/add-articles-from-search-term query1)
       (nav/go-project-route "/add-articles")
       (when false
         ;; add articles from second search term
+        (b/click "#enable-import")
         (pm/add-articles-from-search-term query2)
         (nav/go-project-route "/add-articles")
         ;; check that there is no overlap
         (is (and (empty? (:overlap-maps (pm/search-term-articles-summary query1)))
                  (empty? (:overlap-maps (pm/search-term-articles-summary query2))))))
       ;; add articles from third search term
+      (log/info "adding articles from query3")
+      (b/click "#enable-import")
       (pm/add-articles-from-search-term query3)
       (nav/go-project-route "/add-articles")
       ;; query3 has no unique article or reviewed articles, only one
@@ -50,6 +58,8 @@
               #_ :overlap-maps #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
              (pm/search-term-articles-summary query3)))
       ;; add articles from fourth search term
+      (log/info "adding articles from query4")
+      (b/click "#enable-import")
       (pm/add-articles-from-search-term query4)
       (nav/go-project-route "/add-articles")
       ;; query1 has 5 unique articles, 0 reviewed articles, 7 total
