@@ -1,12 +1,11 @@
 (ns sysrev.test.browser.blinding
   (:require [clj-webdriver.taxi :as taxi]
-            [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.test.core :as test :refer [default-fixture]]
+            [sysrev.test.core :as test]
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.source.import :as import]
             [sysrev.project.member :refer [add-project-member]]

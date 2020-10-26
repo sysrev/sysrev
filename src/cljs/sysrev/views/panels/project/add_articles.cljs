@@ -12,7 +12,7 @@
             [sysrev.views.panels.project.source-view :refer [EditJSONView]]
             [sysrev.views.uppy :refer [Dashboard]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button Segment Message]]
+            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
                                           sr-defroute-project]]))
