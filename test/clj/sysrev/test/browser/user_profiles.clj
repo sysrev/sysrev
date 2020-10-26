@@ -83,6 +83,22 @@
                              (taxi/attribute (status-q false) "class")]))
           (b/take-screenshot :warn)))))
 
+(defn change-project-label-blinding
+  "Change label blinding setting for current project."
+  [blinding?]
+  (let [status-q #(str "button#blind-reviewers_" (if % "true" "false"))
+        q (status-q blinding?)]
+    (nav/go-project-route "/settings")
+    (b/wait-until-exists (-> q b/not-disabled))
+    (log/infof "changing label blinding to %s" (if blinding? "true" "false"))
+    (if (taxi/exists? (-> q b/not-disabled (b/not-class "active")))
+      (do (b/click q)
+          (b/click "div.project-options button.save-changes"))
+      (do (log/warn "change-label-blinding: already set to" (str blinding? "?")
+                    (pr-str [(taxi/attribute (status-q true) "class")
+                             (taxi/attribute (status-q false) "class")]))
+          (b/take-screenshot :warn)))))
+
 (deftest-browser correct-project-activity
   (test/db-connected?) test-user
   [{:keys [user-id email]} test-user

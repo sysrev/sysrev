@@ -24,6 +24,7 @@
             sysrev.test.browser.ctgov
             sysrev.test.browser.json-viewer
             sysrev.test.browser.clone
+            sysrev.test.browser.blinding
             sysrev.test.graphql.query
             sysrev.test.web.routes.api.handlers
             sysrev.test.web.routes.project))
