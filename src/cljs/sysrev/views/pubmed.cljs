@@ -159,9 +159,10 @@
         n-results (get-in search-results [:count])]
     [:div.ui.fluid.left.labeled.button.search-results
      {:on-click
-      #(do (dispatch [:action [:project/import-articles-from-search
-                               @project-id @current-search-term "PubMed"]])
-           (reset! state {}))}
+      #(do
+         (dispatch [:action [:project/import-articles-from-search @project-id @current-search-term "PubMed"]])
+         (dispatch [:sysrev.views.panels.project.add-articles/set-show-new-source true])
+         (reset! state {}))}
      [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
      [:button.ui.blue.button

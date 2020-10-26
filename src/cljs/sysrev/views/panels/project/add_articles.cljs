@@ -12,7 +12,7 @@
             [sysrev.views.panels.project.source-view :refer [EditJSONView]]
             [sysrev.views.uppy :refer [Dashboard]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
+            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button Segment Message]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
                                           sr-defroute-project]]))
@@ -29,6 +29,15 @@
 (reg-event-db :add-articles/import-tab [trim-v]
               (fn [db [tab-id]]
                 (panel-set db :import-tab tab-id)))
+
+(defn- get-default [db key default-val]
+  (as-> (get db key) x
+        (if (nil? x) default-val x)))
+
+
+(reg-event-db ::set-show-new-source [trim-v] (fn [db [value]] (assoc db ::show-new-source value)))
+
+(reg-sub ::show-new-source  #(get-default % ::show-new-source true))
 
 (def-action :sources/toggle-source
   :uri (fn [] "/api/toggle-source")
@@ -68,22 +77,22 @@
 
 (defn ImportEndNoteView []
   (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui.segment.import-upload
-     [:h5
-      "Upload an EndNote XML export file."]
+    [:div.ui
      [:h5
       "To create from EndNote, go to File > Export,"
       " and under \"Save file as type\" select \"XML\"."]
      [ui/UploadButton
       (str "/api/import-articles/endnote-xml/" project-id)
-      #(dispatch [:reload [:project/sources project-id]])
+      (fn []
+        (dispatch [:reload [:project/sources project-id]])
+        (dispatch [::set-show-new-source true]))
       "Upload XML File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
 
 (defn ImportPMIDsView []
   (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui.segment.import-upload
+    [:div
      [:h5
       "Upload a plain text file containing a list of PubMed IDs (one per line)."
       [Popup {:hoverable true
@@ -101,7 +110,9 @@
            :target "_blank"} [Icon {:name "video camera"}]]]
      [ui/UploadButton
       (str "/api/import-articles/pmid-file/" project-id)
-      #(dispatch [:reload [:project/sources project-id]])
+      (fn []
+        (dispatch [::set-show-new-source true])
+        (dispatch [:reload [:project/sources project-id]]))
       "Upload Text File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
@@ -112,22 +123,23 @@
     [:div {:style {:margin-left "auto"
                    :margin-right "auto"
                    :margin-top "1em"
-                   :max-width "600px"}}
+                   }}
      [Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
                  :csrf-token csrf-token
                  :on-complete #(do (dispatch [:reload [:project project-id]])
-                                   (dispatch [:reload [:project/sources project-id]]))
+                                   (dispatch [:reload [:project/sources project-id]])
+                                   (dispatch [::set-show-new-source true])
+                                   )
                  :project-id project-id}]]))
 
 (defn ImportPDFZipsView []
   (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui.segment.import-upload
-     [:h5
-      "Upload a zip file containing PDFs."
-      " An article entry will be created for each PDF."]
+    [:div
      [ui/UploadButton
       (str "/api/import-articles/pdf-zip/" project-id)
-      #(dispatch [:reload [:project/sources project-id]])
+      (fn []
+        (dispatch [:reload [:project/sources project-id]])
+        (dispatch [::set-show-new-source true]))
       "Upload Zip File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
@@ -135,8 +147,8 @@
 
 (defn ImportRISView []
   (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui.segment.import-upload
-     [:h5 "RIS / RefMan"
+    [:div.ui
+     [:h3 "2. Import an RIS / RefMan file"
       [Popup {:hoverable true
               :trigger (r/as-element [Icon {:name "question circle"}])
               :content (r/as-element
@@ -151,13 +163,12 @@
                          [:b "Note: Make sure to include abstracts when exporting files!"]])}]
       [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw"
            :target "_blank"} [Icon {:name "video camera"}]]]
-     [:p "Having difficulties importing your RIS file? We recommend using the free, cross-platform tool " [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] " to convert your RIS file to a sysrev compatible version. "
-      "We've made a "
-      [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw" :target "_blank"} "quick video tutorial"]
-      " describing the process. Please make sure your RIS file is under 7mb. You can upload multiple files."]
+     [:p "Having difficulties? We recommend using the free citation manager " [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] ". "]
      [ui/UploadButton
       (str "/api/import-articles/ris/" project-id)
-      #(dispatch [:reload [:project/sources project-id]])
+      (fn []
+        (dispatch [:reload [:project/sources project-id]])
+        (dispatch [::set-show-new-source true]))
       "Upload RIS file..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
@@ -457,19 +468,16 @@
       [:p {:style {:margin-top "1em"} } text]]]))
 
 (defn DatasourceIconList [options]
-  [:div
+  [:div {:style {:padding-bottom 20}}
    (for [option options]
      ^{:key (:value option)}
      [DatasourceIcon option])])
 
 (defn ImportArticlesView []
-  (let [active-tab (subscribe [:add-articles/import-tab])
-        sources @(subscribe [:project/sources])]
+  (let [active-tab (subscribe [:add-articles/import-tab])]
     [:div#import-articles {:style {:margin-bottom "1em"}}
-     (when (empty? sources)
-       [:h4.ui.header
-        [:p "Your project " [:span {:style {:color "red"}} "requires articles"] " before you can begin working on it."]])
      [:div
+      [:h3 "1. Select a document source"]
       [DatasourceIconList [{:value :pdfs
                             :text "PDF files"
                             :name "file pdf outline"}
@@ -496,11 +504,12 @@
                             :name "database"}]]
       (when @active-tab
         (condp =  @active-tab
-          :pubmed    [pubmed/SearchBar]
-          :pmid      [ImportPMIDsView]
-          :endnote   [ImportEndNoteView]
-          :pdfs      [ImportPDFsView]
-          :pdf-zip   [ImportPDFZipsView]
+          :pubmed    [:div [:h3 "2. Search pubmed to review medical abstracts"] [pubmed/SearchBar]]
+          :pmid      [:div [:h3 "2. Upload a file with pubmed ids (one per line)"] [ImportPMIDsView]]
+          :endnote   [:div [:h3 "2. Upload an Endnote XML file export"] [ImportEndNoteView]]
+          :pdfs      [:div [:h3 "2. Import PDF files"] [ImportPDFsView]]
+          :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs. An article entry will be created for each PDF."]
+                      [ImportPDFZipsView]]
           :ris-file  [ImportRISView]
           :ctgov (if (and (= js/window.location.hostname "sysrev.com")
                           (not (some #{@(subscribe [:user/email])}
@@ -512,7 +521,9 @@
                                        "tj@insilica.co"
                                        "g.callegaro@lacdr.leidenuniv.nl"})))
                    [EnableCTNotice]
-                   [ctgov/SearchBar])
+                   [:div
+                    [:h3 "2. Search and import clinicaltrials.gov documents."]
+                    [ctgov/SearchBar]])
           :custom [CustomDatasource]
           nil))
       (condp =  @active-tab
@@ -524,18 +535,39 @@
        :ctgov  [ctgov/SearchResultsContainer]
        nil)]))
 
+
 (defn DocumentImport []
-  (let [view-import-button? (r/atom true)
-        sources @(subscribe [:project/sources])]
+  (let [view-import-button? (subscribe [::show-new-source])
+        sources (subscribe [:project/sources])]
     (fn []
-      (if (and (empty? sources) @view-import-button?)
-        [Button {:id "enable-import"
-                 :size "small"
-                 :positive true
-                 :on-click #(do (reset! view-import-button? false)
+      [:div {:style {:padding-bottom 10}}
+       [Button {
+                :style {:display "inline"}
+                :id "enable-import"
+                :disabled (not @view-import-button?)
+                :positive true
+                :size "huge"
+                :on-click (fn []
+                            (dispatch [::set-show-new-source false])
+                            (dispatch-sync [:add-articles/import-tab nil]))}
+        "Add Documents "]
+       (cond (empty? @sources) [:h3 {:style {:display "inline"}} " Add documents to get started."])
+       (when (not @view-import-button?)
+         [:div.ui.segment.raised
+          [:div
+           [Button {
+                    :style {:float "right"}
+                    :id "enable-import"
+                    :color "red"
+                    :size "small"
+                    :on-click (fn []
+                                (dispatch [::set-show-new-source true])
                                 (dispatch-sync [:add-articles/import-tab nil]))}
-         "Import Documents"]
-        [ImportArticlesView]))))
+            "dismiss"]
+           [:h1 {:style {:padding-top 0 :margin-top 0}} "Adding Documents"]
+           [ImportArticlesView]]])
+       ])))
+
 
 (defn ProjectSourcesPanel []
   (let [project-id @(subscribe [:active-project-id])
