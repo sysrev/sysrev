@@ -539,35 +539,30 @@
 (defn DocumentImport []
   (let [view-import-button? (subscribe [::show-new-source])
         sources (subscribe [:project/sources])]
-    (fn []
-      [:div {:style {:padding-bottom 10}}
-       [Button {
-                :style {:display "inline"}
-                :id "enable-import"
-                :disabled (not @view-import-button?)
-                :positive true
-                :size "huge"
-                :on-click (fn []
-                            (dispatch [::set-show-new-source false])
-                            (dispatch-sync [:add-articles/import-tab nil]))}
-        "Add Documents "]
-       (cond (empty? @sources) [:h3 {:style {:display "inline"}} " Add documents to get started."])
-       (when (not @view-import-button?)
-         [:div.ui.segment.raised
-          [:div
-           [Button {
-                    :style {:float "right"}
-                    :id "enable-import"
-                    :color "red"
-                    :size "small"
-                    :on-click (fn []
-                                (dispatch [::set-show-new-source true])
-                                (dispatch-sync [:add-articles/import-tab nil]))}
-            "dismiss"]
-           [:h1 {:style {:padding-top 0 :margin-top 0}} "Adding Documents"]
-           [ImportArticlesView]]])
-       ])))
-
+    [:div {:style {:padding-bottom 10}}
+     [Button {:id "enable-import"
+              :style {:display "inline"}
+              :disabled (not @view-import-button?)
+              :size "huge" :positive true
+              :on-click (fn []
+                          (dispatch [::set-show-new-source false])
+                          (dispatch-sync [:add-articles/import-tab nil]))}
+      "Add Documents"]
+     (when (empty? @sources)
+       [:h3.inline {:style {:margin-left "0.75rem"}}
+        "Add documents to get started."])
+     (when (not @view-import-button?)
+       [:div.ui.segment.raised
+        [:div
+         [Button {:id "enable-import-dismiss"
+                  :style {:float "right"}
+                  :size "small" :color "red"
+                  :on-click (fn []
+                              (dispatch [::set-show-new-source true])
+                              (dispatch-sync [:add-articles/import-tab nil]))}
+          "dismiss"]
+         [:h1 {:style {:padding-top 0 :margin-top 0}} "Adding Documents"]
+         [ImportArticlesView]]])]))
 
 (defn ProjectSourcesPanel []
   (let [project-id @(subscribe [:active-project-id])
