@@ -329,7 +329,7 @@
   (with-transaction
     (merge (->> (q/find [:project-member :pm] {"owner" :%any.pm.permissions}
                         [:u.user-id :u.email]
-                        :join [[:web-user :u] :pm.user-id], :index-by :project-id)
+                        :join [[:web-user :u] :pm.user-id], :index-by :project-id :limit 1)
                 (map-values #(-> (assoc % :name (-> (:email %) (str/split #"@") first))
                                  (dissoc :email))))
            (q/find [:project-group :pg] {}

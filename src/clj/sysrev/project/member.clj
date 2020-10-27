@@ -1,5 +1,6 @@
 (ns sysrev.project.member
   (:require [clojure.spec.alpha :as s]
+            [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
@@ -30,7 +31,9 @@
    (opt-keys ::sp/permissions)]
   (db/with-clear-project-cache project-id
     (q/create :project-member {:project-id project-id, :user-id user-id
-                               :permissions (db/to-sql-array "text" permissions)})
+                               :permissions (db/to-sql-array "text" permissions)}
+              :prepare #(upsert % (-> (on-conflict :project-id :user-id)
+                                      (do-update-set :permissions))))
     ;; set their compensation to the project default
     (when-let [comp-id (compensation/get-default-project-compensation project-id)]
       (compensation/start-compensation-period-for-user! comp-id user-id))

@@ -195,7 +195,17 @@
                     :on-change #(reset! new-role "owner")}]]
         [:p {:style {:margin-top "0" :margin-left "1.5rem"}}
          "Has full administrative access to the entire organization. "
+         "Can update payment information. "
          "Can add, remove, and edit users and projects."]
+        [FormGroup
+         [Checkbox {:label "Admin"
+                    :as "h4", :radio true, :style {:display "block"}
+                    :checked (= @new-role "admin")
+                    :on-change #(reset! new-role "admin")}]]
+        [:p {:style {:margin-top "0" :margin-left "1.5rem"}}
+         "Has full administrative access to all organization projects. "
+         "Can update payment information. "
+         "Can add, remove, and edit projects."]
         [FormGroup
          [Checkbox {:label "Member"
                     :as "h4", :radio true, :style {:display "block"}
@@ -219,8 +229,8 @@
       [:p (some #{"admin" "owner" "member"} permissions)]]
      [TableCell
       (when (and
-             ;; only admins and owners can change group permissions
-             @(subscribe [:org/owner-or-admin? org-id true])
+             ;; only owners can change user permissions
+             (some #{"owner"} @(subscribe [:org/permissions org-id]))
              ;; don't allow changing of perms when self is the owner
              (not (and (= self-id user-id)
                        @(subscribe [:org/owner? org-id false]))))
@@ -253,7 +263,7 @@
   (when-let [org-id @(subscribe [::org/org-id])]
     (with-loader [[:org/users org-id]] {}
       [:div
-       (when @(subscribe [:org/owner-or-admin? org-id true])
+       (when (some #{"owner"} @(subscribe [:org/permissions org-id]))
          [AddModal org-id])
        [ChangeRoleModal org-id]
        [RemoveModal org-id]

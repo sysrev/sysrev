@@ -50,16 +50,16 @@
                    (-> (group/group-id->name org-id)
                        (api/users-in-group))))
             (POST "/user" request
-                  (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
+                  (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
                     (let [user-id (get-in request [:body :user-id])]
                       (api/set-user-group! user-id (group/group-id->name org-id) true))))
             (PUT "/user" request
-                 (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
+                 (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
                    (let [user-id (get-in request [:body :user-id])
                          permissions (get-in request [:body :permissions])]
                      (api/set-user-group-permissions! user-id org-id permissions))))
             (DELETE "/user" request
-                    (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
+                    (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
                       (let [user-id (get-in request [:body :user-id])]
                         (api/set-user-group! user-id (group/group-id->name org-id) false))))
             (POST "/project" request

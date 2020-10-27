@@ -124,6 +124,22 @@
                                             :value public-access}])
       {:project (select-keys project [:project-id :name])})))
 
+(defn sync-project-owners!
+  "Given a project-id and org-id, sync the permissions of each member with the project"
+  [project-id org-id]
+  (db/with-clear-project-cache project-id
+    (let [users-in-group (group/read-users-in-group (group/group-id->name org-id))]
+      (doall (for [user users-in-group]
+               (let [org-perms (:permissions user)
+                     perms (cond (in? org-perms "owner")
+                                 ["member" "admin"]
+                                 (in? org-perms "admin")
+                                 ["member" "admin"]
+                                 (in? org-perms "member")
+                                 ["member"])]
+                 (member/add-project-member project-id (:user-id user)
+                                            :permissions perms)))))))
+
 (defn-spec create-project-for-org! (req-un ::project)
   "Create a new project for org-id using project-name and insert a
   minimum label, returning the project in a response map"
@@ -133,13 +149,7 @@
       (label/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (group/create-project-group! project-id group-id)
-      (member/add-project-member project-id user-id
-                                 ;; NOT owner, create-project-group!
-                                 ;; makes the group the owner of this project
-                                 ;; group projects shouldn't have
-                                 ;; a project_member entry with
-                                 ;; an "owner" permission
-                                 :permissions ["member" "admin"])
+      (sync-project-owners! project-id group-id)
       (change-project-settings project-id [{:setting :public-access
                                             :value public-access}])
       {:project (select-keys project [:project-id :name])})))
@@ -156,7 +166,7 @@
     (project/delete-project project-id))
   {:project-id project-id})
 
-(defn remove-current-owner [project-id]
+(defn ^:api remove-current-owner [project-id]
   (db/with-clear-project-cache project-id
     (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
       (cond user-id   (member/set-member-permissions project-id user-id ["member" "admin"])
@@ -169,7 +179,7 @@
       (member/set-member-permissions project-id user-id ["member" "admin" "owner"])
       (member/add-project-member project-id user-id :permissions ["member" "admin" "owner"]))))
 
-(defn change-project-owner-to-group [project-id group-id]
+(defn ^:api change-project-owner-to-group [project-id group-id]
   (db/with-clear-project-cache project-id
     (remove-current-owner project-id)
     ;; set project as owned by group
@@ -181,7 +191,7 @@
         ;; FIX: this breaks ownership logic? owned by user and group?
         (member/add-project-member project-id user-id :permissions ["member" "admin" "owner"])))))
 
-(defn change-project-owner [project-id & {:keys [user-id group-id]}]
+(defn ^:api change-project-owner [project-id & {:keys [user-id group-id]}]
   (util/assert-single user-id group-id)
   (cond user-id   (change-project-owner-to-user project-id user-id)
         group-id  (change-project-owner-to-group project-id group-id)))
@@ -1020,15 +1030,33 @@
 (defn user-in-group-name? [user-id group-name]
   {:enabled (boolean (:enabled (group/read-user-group-name user-id group-name)))})
 
-(defn set-user-group! [user-id group-name enabled]
-  (with-transaction
-    (if-let [user-group-id (:id (group/read-user-group-name user-id group-name))]
-      (group/set-user-group-enabled! user-group-id enabled)
-      (group/add-user-to-group! user-id (group/group-name->id group-name)))
-    ;; change any existing permissions to default permission of "member"
-    (let [user-group (group/read-user-group-name user-id group-name)]
-      (group/set-user-group-permissions! (:id user-group) ["member"])
-      {:enabled (:enabled user-group)})))
+(defn sync-all-group-projects! [org-id]
+  (let [group-projects (group/group-projects org-id :private-projects? true)]
+    (doall (for [project group-projects]
+             (sync-project-owners! (:project-id project) org-id)))))
+
+(defn remove-member-from-all-group-projects! [org-id user-id]
+  (let [group-projects (group/group-projects org-id :private-projects? true)]
+    (doall (for [project group-projects]
+             (member/remove-project-member (:project-id project) user-id)))))
+
+(defn set-user-group!
+  "Set the membership in a group as determined as determined by enabled"
+  [user-id group-name enabled]
+  (let [group-id (group/group-name->id group-name)]
+    (with-transaction
+      (if-let [user-group-id (:id (group/read-user-group-name user-id group-name))]
+        (group/set-user-group-enabled! user-group-id enabled)
+        (group/add-user-to-group! user-id group-id))
+      ;; if enabled is true, sync the perms
+      (if enabled
+        (sync-all-group-projects! group-id)
+        ;; ... otherwise, disable all of the member perms for the user
+        (remove-member-from-all-group-projects! group-id user-id))
+      ;; change any existing permissions to default permission of "member"
+      (let [user-group (group/read-user-group-name user-id group-name)]
+        (group/set-user-group-permissions! (:id user-group) ["member"])
+        {:enabled (:enabled user-group)}))))
 
 (defn users-in-group [group-name]
   {:users (group/read-users-in-group group-name)})
@@ -1280,7 +1308,7 @@
               user (q/get-user user-id)
               _ (group/create-group-stripe-customer! new-org-id user)
               stripe-id (group/group-stripe-id new-org-id)]
-          ;; set the user as group admin
+          ;; set the user as group owner
           (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
           (stripe/create-subscription-org! new-org-id stripe-id)
           {:success true, :id new-org-id})))))
@@ -1312,7 +1340,9 @@
   (with-transaction
     (if-let [user-group-id (:id (group/read-user-group-name
                                  user-id (group/group-id->name org-id)))]
-      {:group-perm-id (group/set-user-group-permissions! user-group-id permissions)}
+      (let [group-perm-id (group/set-user-group-permissions! user-group-id permissions)]
+        (sync-all-group-projects! org-id)
+        {:group-perm-id group-perm-id})
       {:error {:message (str "user-id: " user-id " is not part of org-id: " org-id)}})))
 
 (defn group-projects [group-id & {:keys [private-projects?]}]
@@ -1406,14 +1436,7 @@
       (let [dest-project-id (clone-project src-project-id)]
         ;; add the project to the group
         (group/create-project-group! dest-project-id org-id)
-        ;; add this user as a member, admin of project
-        (member/add-project-member dest-project-id user-id
-                                   ;; NOT owner, create-project-group!
-                                   ;; makes the group the owner of this project
-                                   ;; group projects shouldn't have
-                                   ;; a project_member entry with
-                                   ;; an "owner" permission
-                                   :permissions ["member" "admin"])
+        (sync-project-owners! dest-project-id org-id)
         {:dest-project-id dest-project-id}))
     {:error {:status forbidden
              :message "You don't have permission to clone that project"}}))
