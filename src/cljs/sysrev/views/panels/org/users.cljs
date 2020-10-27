@@ -115,13 +115,16 @@
          [Search
           {:id "org-search-users-input"
            :placeholder "Search for users by username"
+           :auto-focus true
            :loading (data/loading? :user-search)
            :on-result-select
            (fn [_e value]
              (let [{:keys [result]} (js->clj value :keywordize-keys true)
                    {:keys [user-id username]} result]
                (reset! current-user-id user-id)
-               (reset! search-value username)))
+               (reset! search-value username)
+               (when (seq username)
+                 (load-data :user-search username))))
            :on-search-change
            (fn [_e value]
              (let [input-value (.-value value)]
