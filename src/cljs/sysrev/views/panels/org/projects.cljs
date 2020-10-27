@@ -47,7 +47,7 @@
       [:a.inline-block {:href (project-uri project-id)} name]
       (when (and
              ;; user has proper perms for this project
-             (some #{"admin" "owner"} @(subscribe [:self/org-permissions group-id]))
+             @(subscribe [:org/owner-or-admin? group-id true])
              ;; this project is not public
              (not (:public-access settings))
              ;; the subscription has lapsed
@@ -107,7 +107,7 @@
   (let [error (r/cursor state [:get-projects-error])
         loading? (data/loading? :org/projects)]
     [:div
-     (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
+     (when @(subscribe [:org/owner-or-admin? org-id false])
        [:div {:style {:margin-bottom "1rem"}}
         [NewProjectButton {:project-owner org-id}]])
      (when-not loading?

@@ -2,6 +2,7 @@
   (:require [compojure.coercions :refer [as-int]]
             [compojure.core :refer [POST GET PUT DELETE defroutes context]]
             [sysrev.api :as api]
+            [sysrev.db.queries :as q]
             [sysrev.group.core :as group]
             [sysrev.web.app :refer [current-user-id with-authorize]]))
 
@@ -14,10 +15,13 @@
   (fn [request]
     (boolean
      (let [user-id (current-user-id request)
+           dev-user? (and user-id (->> (q/get-user user-id :permissions)
+                                       (some #{"admin"})))
            group-name (group/group-id->name org-id)]
-       (and (group/user-active-in-group? user-id group-name)
-            ;; test if they have the correct permissions
-            (some (set permissions) (group/user-group-permission user-id org-id)))))))
+       (or dev-user? ; always treat sysrev dev users as having full access
+           (and (group/user-active-in-group? user-id group-name)
+                ;; test if they have the correct permissions
+                (some (set permissions) (group/user-group-permission user-id org-id))))))))
 
 (defroutes org-routes
   (context

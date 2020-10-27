@@ -207,8 +207,7 @@
         [CursorMessage error {:negative true}]]]]]))
 
 (defn- UserRow [{:keys [user-id username permissions]} org-id]
-  (let [self-id @(subscribe [:self/user-id])
-        self-permissions @(subscribe [:org/permissions org-id])]
+  (let [self-id @(subscribe [:self/user-id])]
     [TableRow
      [TableCell
       [Avatar {:user-id user-id}]
@@ -218,10 +217,10 @@
      [TableCell
       (when (and
              ;; only admins and owners can change group permissions
-             (some #{"admin" "owner"} self-permissions)
+             @(subscribe [:org/owner-or-admin? org-id true])
              ;; don't allow changing of perms when self is the owner
              (not (and (= self-id user-id)
-                       (some #{"owner"} self-permissions))))
+                       @(subscribe [:org/owner? org-id false]))))
         [S/Dropdown {:button true, :icon "cog", :select-on-blur false
                      :class-name "icon change-org-user"}
          [S/DropdownMenu
@@ -251,7 +250,7 @@
   (when-let [org-id @(subscribe [::org/org-id])]
     (with-loader [[:org/users org-id]] {}
       [:div
-       (when (some #{"owner" "admin"} @(subscribe [:org/permissions org-id]))
+       (when @(subscribe [:org/owner-or-admin? org-id true])
          [AddModal org-id])
        [ChangeRoleModal org-id]
        [RemoveModal org-id]

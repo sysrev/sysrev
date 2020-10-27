@@ -41,6 +41,29 @@
          (fn [[_ org-id]] (subscribe [::org org-id]))
          #(:permissions %))
 
+(reg-sub :org/owner?
+         (fn [[_ org-id _match-dev?]]
+           [(subscribe [:org/permissions org-id])
+            (subscribe [:user/dev?])])
+         (fn [[permissions dev?] [_ _ match-dev? _]]
+           (boolean (or (some #{"owner"} permissions)
+                        (and match-dev? dev?)))))
+
+(reg-sub :org/admin?
+         (fn [[_ org-id _match-dev?]]
+           [(subscribe [:org/permissions org-id])
+            (subscribe [:user/dev?])])
+         (fn [[permissions dev?] [_ _ match-dev? _]]
+           (boolean (or (some #{"admin"} permissions)
+                        (and match-dev? dev?)))))
+
+(reg-sub :org/owner-or-admin?
+         (fn [[_ org-id match-dev?]]
+           [(subscribe [:org/owner? org-id match-dev?])
+            (subscribe [:org/admin? org-id match-dev?])])
+         (fn [[owner? admin?]]
+           (or owner? admin?)))
+
 (defn- OrgContent [org-id child]
   (let [uri-fn #(str "/org/" org-id "/" %)
         active-panel @(subscribe [:active-panel])
