@@ -1,6 +1,7 @@
 (ns sysrev.test.browser.blinding
-  (:require [clj-webdriver.taxi :as taxi]
+  (:require [clojure.test :refer [use-fixtures]]
             [clojure.tools.logging :as log]
+            [clj-webdriver.taxi :as taxi]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.plans :as plans]
@@ -11,14 +12,18 @@
             [sysrev.project.member :refer [add-project-member]]
             [sysrev.test.browser.user-profiles :refer [change-project-label-blinding]]))
 
+(use-fixtures :once test/default-fixture b/webdriver-fixture-once)
+(use-fixtures :each b/webdriver-fixture-each)
+
 (deftest-browser label-blinding
-                 (and (test/db-connected?) (not (test/remote-test?))) test-user
-                 [test-users (mapv #(b/create-test-user :email %) (mapv #(str "user" % "@fake.com") [1 2]))
-                  [user1 user2] test-users
-                  project-name "Sysrev Browser Test (label blinding)"
-                  click-project-link #(do (log/infof "loading project %s" (pr-str %))
-                                          (b/click (xpath "//a[contains(text(),'" % "')]")))
-                  project-id (atom nil)]
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [test-users (mapv #(b/create-test-user :email %)
+                    (mapv #(str "user" % "@fake.com") [1 2]))
+   [user1 user2] test-users
+   project-name "Sysrev Browser Test (label blinding)"
+   click-project-link #(do (log/infof "loading project %s" (pr-str %))
+                           (b/click (xpath "//a[contains(text(),'" % "')]")))
+   project-id (atom nil)]
   (do
     (nav/log-in (:email user1))
     ;; subscribe to plans
@@ -29,8 +34,8 @@
     ;; set the project setting for label blinding to true
     (change-project-label-blinding true)
     (import/import-pmid-vector
-      @project-id {:pmids [25706626 25215519 23790141]}
-      {:use-future? false})
+     @project-id {:pmids [25706626 25215519 23790141]}
+     {:use-future? false})
     ;; do some work
     (click-project-link project-name)
     (b/click (x/project-menu-item :review))
