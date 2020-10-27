@@ -64,7 +64,5 @@
     ;; go to an article
     (b/click "div.article-list-article")
     ;; check that no article labels are visible
-    (assert (not (taxi/exists? ".article-labels-view")))
-    (taxi/take-screenshot :file "/tmp/tom.png")
-    ))
+    (assert (not (taxi/exists? ".article-labels-view")))))
 
