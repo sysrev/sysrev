@@ -65,6 +65,63 @@ div.ui.grid.list-pager {
     }
 }
 
+.ui.button.button-radio {
+    margin: 2px;
+    padding: 6px 8px;
+    padding-top: 7px;
+    > span { min-height: 14px; }
+    > .ui.checkbox {
+        vertical-align: middle;
+        min-width: 14px !important;
+        min-height: 14px !important;
+        margin: 0 !important;
+        margin-right: 4px !important;
+        padding-top: 1px;
+
+        > input {
+            width: 12px !important;
+            height: 12px !important;
+        }
+        > label {
+            height: 12px !important;
+        }
+        > label::before {
+            width: 12px !important;
+            height: 12px !important;
+            top: -1px !important;
+        }
+        > label::after {
+            width: 12px !important;
+            height: 12px !important;
+            top: -1px !important;
+        }
+    }
+    > .ui.checkbox:not([class*='radio']) {
+        min-width: 15px !important;
+        min-height: 15px !important;
+        > input {
+            width: 14px !important;
+            height: 14px !important;
+        }
+        > label {
+            height: 14px !important;
+        }
+        > label::before {
+            width: 14px !important;
+            height: 14px !important;
+            top: -1px !important;
+        }
+        > label::after {
+            width: 14px !important;
+            height: 14px !important;
+            top: -1px !important;
+        }
+        input:checked~label:after {
+            font-size: 10px !important;
+        }
+    }
+}
+
 @media only screen and (max-width: 767px) {
     div.dropzone {
         .ui.button.upload-button {

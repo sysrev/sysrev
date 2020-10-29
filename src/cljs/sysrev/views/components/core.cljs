@@ -9,7 +9,7 @@
             [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe]]
             [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]
-            [sysrev.views.semantic :refer [Message]]))
+            [sysrev.views.semantic :refer [Message Button Radio Checkbox]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -644,3 +644,23 @@
   (when (seq @cursor)
     [Message (merge props {:on-dismiss #(reset! cursor nil)})
      (str @cursor)]))
+
+(defn- RadioCheckboxButton [{:keys [active? on-click text title type]}]
+  (let [dark? @(subscribe [:self/dark-theme?])]
+    [Button (cond-> {:class (css "button-radio"
+                                 [(= type "checkbox") "button-checkbox"])
+                     :size "mini"
+                     :primary active?
+                     :secondary (and (not active?) dark?)
+                     :on-click on-click}
+              title (assoc :title title))
+     [(case (or type "radio")
+        "radio"    Radio
+        "checkbox" Checkbox) {:checked active?}]
+     [:span text]]))
+
+(defn RadioButton [{:keys [active? on-click text title] :as options}]
+  [RadioCheckboxButton (merge options {:type "radio"})])
+
+(defn CheckboxButton [{:keys [active? on-click text title] :as options}]
+  [RadioCheckboxButton (merge options {:type "checkbox"})])

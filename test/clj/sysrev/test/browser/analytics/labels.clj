@@ -29,6 +29,6 @@
       (nav/log-in (:email test-user))
       (nav/open-project project-name)
       (nav/go-project-route "/analytics/labels")
-      (b/text-is? "h4#answer-count" "7 articles with 14 answers total"))
+      (b/text-is? "p#answer-count" "7 articles with 14 answers total"))
   :cleanup (doseq [{:keys [email]} [test-user user-2]]
              (b/cleanup-test-user! :email email)))

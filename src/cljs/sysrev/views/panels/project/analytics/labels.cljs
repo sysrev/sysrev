@@ -3,10 +3,11 @@
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
             [sysrev.data.core :refer [def-data reload]]
             [sysrev.chartjs :as chartjs]
-            [sysrev.views.semantic :refer [Grid Row Column Button]]
+            [sysrev.views.semantic :refer [Grid Column Button]]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :refer [load-settings-and-navigate]]
-            [sysrev.views.panels.project.analytics.common :refer [beta-message]]
+            [sysrev.views.panels.project.analytics.common :refer [BetaMessage]]
             [sysrev.util :as util :refer [format round ellipsize sum]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
@@ -21,17 +22,18 @@
     (if (nil? x) default-val x)))
 
 (defn- SetSubscriptionButton [sub-evt-name label value &
-                              {:keys [color title txt-col]}]
+                              {:keys [color title txt-col type]}]
   (let [curset @(subscribe [sub-evt-name])]
-    [Button {:size "mini" :primary (contains? curset value)
-             :style {:margin "2px" :margin-left "0px"
-                     :color txt-col :background-color color}
-             :title title
-             :on-click #(dispatch [sub-evt-name {:value value :curset curset}])}
-     label]))
+    [(case (or type "radio")
+       "radio"    ui/RadioButton
+       "checkbox" ui/CheckboxButton)
+     {:text label
+      :title title
+      :active? (contains? curset value)
+      :on-click #(dispatch [sub-evt-name {:value value :curset curset}])}]))
 
 (defn- ButtonArray [labels values sub-evt-name &
-                    {:keys [colors titles txt-col]}]
+                    {:keys [colors titles txt-col type]}]
   [:div.inline
    (for [i (range (count labels))]
      (let [label   (some-> labels (get i))
@@ -40,7 +42,7 @@
            title   (some-> titles (get i))
            txt-col (some-> txt-col (get i))] ^{:key (str i value)}
        [SetSubscriptionButton sub-evt-name label value
-        :color color :title title :txt-col txt-col]))])
+        :color color :title title :txt-col txt-col :type type]))])
 
 ;;; STATISTICS EVENTS / SUBSCRIPTIONS
 (def-data :project/analytics-counts
@@ -269,37 +271,46 @@
   (let [{:keys [sampled]} @(subscribe [:project/analytics-counts])
         {:keys [users answers reviewed-articles filtered-answers]}
         @(subscribe [::overall-counts])]
-    [:div
+    [:div.ui.segment
      [:h2 {:style {:margin-bottom "0em"}} (str "Label Counts")]
-     [:h4 {:id "answer-count" :style {:margin "0"}}
-      (str reviewed-articles " articles with " answers " answers total")]
-     (when sampled
-       [:span.bold "This is a large project. A random sample was taken to keep analytics fast. "])
-     (if (> answers 0)
-       [:div
-        [beta-message]
-        [:div {:style {:text-align "center" :margin-top "0.5em"}}
-         [:p.bold (format "%s selected users with %s filtered answers"
-                          users filtered-answers)]]]
-       [:span "Label count analytics helps you understand label answer distributions.
-     Get started reviewing to view some charts. " [beta-message]])]))
 
-(defn- StepTitle [n content]
+     (if (> answers 0)
+       [:div {:style {:text-align "center" :margin "0.5em 0"}}
+        [:p.bold {:id "answer-count" :style {:margin "0.25em"}}
+         (when reviewed-articles (str reviewed-articles " articles with "))
+         (str answers " answers total")]
+        [:p.bold (format "%s selected users with %s filtered answers"
+                         users filtered-answers)]]
+       [:span "Label count analytics helps you understand label answer distributions.
+     Get started reviewing to view some charts."])
+     (when sampled
+       [:div.ui.message
+        [:div.header "This is a large project."]
+        [:div.content "A random sample was taken to keep analytics fast. "]])
+     [:div {:style {:margin-bottom "-0.5em"}}
+      [BetaMessage]]]))
+
+(defn- StepTitle [n title-content]
   [:h5 {:style {:margin-bottom "0px"}}
-   (format "%d. " n) content])
+   (format "%d. " n) title-content])
+
+(defn- StepSegment [n title content]
+  [:div.ui.segment.concordance
+   [StepTitle n title]
+   content])
 
 (defn- StepCountMethod [step-count]
-  [:div {:style {:margin-top "1em"}}
-   [StepTitle step-count "Select Counting Method"]
-   [SetSubscriptionButton ::count-type "Every Answer" "Count Every Answer"
-    :title "Count all answers on each article. An article included by two reviewers adds 2 to the include bar."]
-   [SetSubscriptionButton ::count-type "Once Per Article" "Once Per Article"
-    :title "Count answers once per article. An article included by 2 reviewers adds 1 to the include bar."]
-   [:div {:style {:margin-left "1em" :margin-top "0.5em"}}
-    [:span "X-axis counts "
-     (if (contains? @(subscribe [::count-type]) "Count Every Answer")
-       "all occurrences of a given answer"
-       "number of articles w/ given answer")]]])
+  [StepSegment step-count "Select Counting Method"
+   [:div
+    [SetSubscriptionButton ::count-type "User Answers" "Count Every Answer"
+     :title "Count all answers on each article. An article included by two reviewers adds 2 to the include bar."]
+    [SetSubscriptionButton ::count-type "Articles" "Once Per Article"
+     :title "Count answers once per article. An article included by 2 reviewers adds 1 to the include bar."]
+    [:div {:style {:margin-top "0.5em"}}
+     [:span "Counts "
+      (if (contains? @(subscribe [::count-type]) "Count Every Answer")
+        "each occurrence of the given user answer."
+        "articles containing the given user answer.")]]]])
 
 (reg-event-db ::scale-type (set-event ::scale-type true))
 (reg-sub ::scale-type #(::scale-type %))
@@ -311,7 +322,7 @@
    [SetSubscriptionButton ::scale-type "Raw Count" "Raw Count"]
    [SetSubscriptionButton ::scale-type "Raw Percent" "Raw Percent"]
    [SetSubscriptionButton ::scale-type "Label Percent" "Label Percent"]
-   [:div {:style {:margin-left "1em" :margin-top "0.5em"}}
+   [:div {:style {:margin-top "0.5em"}}
     (condp #(contains? %2 %1) @(subscribe [::scale-type])
       "Raw Count"      "Chart bars scaled to the filtered answer count."
       "Raw Percent"    "Chart bars scaled to the percent of all counted answers."
@@ -320,22 +331,25 @@
 
 (defn- StepReviewType [step-count]
   (let [article-type @(subscribe [::article-type-selection])]
-    [:div {:style {:margin-top "1em"}}
-     [StepTitle step-count "Filter By Concordance Type"]
-     [SetSubscriptionButton ::article-type-selection "Single" "Single"]
-     [SetSubscriptionButton ::article-type-selection "Concordant" "Concordant"]
-     [SetSubscriptionButton ::article-type-selection "Discordant" "Discordant"]
-     [:div {:style {:margin-left "1em" :margin-top "0.5em"}}
-      (case article-type
-        #{"Single" "Concordant"}      "Count answers with 1+ agreeing users."
-        #{"Single" "Discordant"}      "Count answers w/ 1 reviewer, or 2+ disagreeing reviewers."
-        #{"Concordant" "Discordant"}  "Count answers with 2+ reviewers"
-        #{"Single"}                   "Count answers with exactly one reviewer."
-        #{"Concordant"}               "Count answers w/ 2+ reviewers who all agree."
-        #{"Discordant"}               "Count answers with 2+ disagreeing reviewers."
-        (if (= 3 (count article-type))
-          "Count all article answers."
-          "Filter answers by their article concordance."))]]))
+    [StepSegment step-count "Filter By Concordance Type"
+     [:div
+      [SetSubscriptionButton ::article-type-selection
+       "Single" "Single" :type "checkbox"]
+      [SetSubscriptionButton ::article-type-selection
+       "Concordant" "Concordant" :type "checkbox"]
+      [SetSubscriptionButton ::article-type-selection
+       "Discordant" "Discordant" :type "checkbox"]
+      [:div {:style {:margin-top "0.5em"}}
+       (case article-type
+         #{"Single" "Concordant"}      "Count answers with 1+ agreeing users."
+         #{"Single" "Discordant"}      "Count answers with 1 reviewer, or 2+ disagreeing reviewers."
+         #{"Concordant" "Discordant"}  "Count answers with 2+ reviewers"
+         #{"Single"}                   "Count answers with exactly one reviewer."
+         #{"Concordant"}               "Count answers with 2+ reviewers who all agree."
+         #{"Discordant"}               "Count answers with 2+ disagreeing reviewers."
+         (if (= 3 (count article-type))
+           "Count all article answers."
+           "Filter answers by their article concordance."))]]]))
 
 #_
 (defn- user-counts-with-zeros []
@@ -361,55 +375,58 @@
         usernames      (mapv (fn [uuid] @(subscribe [:user/display uuid])) users)
         max-count      (reduce max (map :count user-counts))
         colors         (mapv (fn [{:keys [user count]}]
-                               (when-not (contains? selected-users user)
-                                 (format "rgba(84, 152, 169, %f)"
-                                         (max 0.2 (* 0.8 (/ count max-count))))))
+                               (when-not (contains? (set selected-users) user)
+                                 (format "rgba(98, 148, 175, %.2f)"
+                                         (max 0.15 (* 0.7 (/ count max-count))))))
                              user-counts)
         titles         (mapv #(str (:count %) " answers") user-counts)
         inv-color      (if @(subscribe [:self/dark-theme?]) "white" "#282828")
         txt-col        (mapv #(if (contains? selected-users (:user %))
                                 "white" inv-color)
                              user-counts)]
-    [:div {:style {:margin-top "1em"}}
-     [StepTitle step-count "Filter By User"]
-     [ButtonArray usernames users ::filter-users
-      :colors colors :titles titles :txt-col txt-col]
-     [Button {:size "mini" :style {:margin "2px" :margin-left "0px"}
-              :primary (empty? selected-users)
-              :on-click #(dispatch [::filter-users {:value #{} :curset #{}}])}
-      "Clear Users"]
-     [Button {:size "mini" :style {:margin "2px" :margin-left "0px"}
-              :primary (empty? (set/difference (set users) selected-users))
-              :on-click #(dispatch [::filter-users {:value (set users) :curset #{}}])}
-      "All Users"]
-     [:div {:style {:margin-left "0.5em" :margin-top "0.5em"}}
-      (condp = (count selected-users)
-        0  "Count all answers w/ no user content filtering."
-        1  (str "Only count answers from "
-                @(subscribe [:user/display (first selected-users)]))
-        (count users)  "Count answers from all users"
-        "Count answers from all selected users")]]))
+    [StepSegment step-count "Filter By User"
+     [:div
+      [ButtonArray usernames users ::filter-users
+       :colors colors :titles titles :txt-col txt-col :type "checkbox"]
+      [:div
+       [Button {:size "mini" :style {:margin "2px" :margin-left "0px"}
+                :primary (empty? selected-users)
+                :on-click #(dispatch [::filter-users {:value #{} :curset #{}}])}
+        "Select None"]
+       [Button {:size "mini" :style {:margin "2px" :margin-left "0px"}
+                :primary (empty? (set/difference (set users) selected-users))
+                :on-click #(dispatch [::filter-users {:value (set users) :curset #{}}])}
+        "Select All"]]
+      [:div {:style {:margin-top "0.5em"}}
+       (condp = (count selected-users)
+         0  "Select one or more users to show answer counts."
+         1  (str "Only count answers from "
+                 @(subscribe [:user/display (first selected-users)]))
+         (count users) "Count answers from all users."
+         "Count answers from all selected users.")]]]))
 
 (defn- StepLabelFilter [step-count]
   (let [current-filters @(subscribe [::filter-answers])]
-    [:div {:style {:margin-top "1em"}}
-     [StepTitle step-count "Filter By Label Answer"]
-     [:div (for [{:keys [label-id name answer] :as value} current-filters]
-             (let [event [::filter-answers {:value value :curset current-filters}]]
-               ^{:key (str label-id "-" answer)}
-               [Button {:size "mini" :primary true
-                        :style {:margin "2px" :margin-left "0px"}
-                        :on-click #(dispatch event)}
-                (format "%s = %s" name answer)]))]
-     [:div {:style {:margin-left "1em" :margin-top "0.5em"}}
-      (condp = (count current-filters)
-        0 [:div
-           [:p "Count all articles regardless of answer content."]
-           [:p "Click bar on chart to add filter."]]
-        1 (let [{:keys [name answer]} (first current-filters)]
-            [:p "Count all articles w/ 1+ " [:span.bold (str name " = " answer)]
-             " answer from any user. Click button to deselect filter."])
-        [:p "Include articles w/ 1+ answer for each filter."])]]))
+    [StepSegment step-count "Filter By Label Answer"
+     [:div
+      [:div (for [{:keys [label-id name answer] :as value} current-filters]
+              (let [event [::filter-answers {:value value :curset current-filters}]]
+                ^{:key (str label-id "-" answer)}
+                [Button {:size "mini" :primary true
+                         :style {:margin "2px" :margin-left "0px"}
+                         :on-click #(dispatch event)}
+                 (format "%s = %s" name answer)]))]
+      [:div {:style {:margin-top "0.5em"}}
+       (condp = (count current-filters)
+         0 [:div
+            [:p {:style {:margin "0.5em 0"}}
+             "Count all articles regardless of answer content."]
+            [:p {:style {:margin "0.5em 0"}}
+             "Click bar on chart to add filter."]]
+         1 (let [{:keys [name answer]} (first current-filters)]
+             [:p "Count all articles w/ 1+ " [:span.bold (str name " = " answer)]
+              " answer from any user. Click button to deselect filter."])
+         [:p "Include articles w/ 1+ answer for each filter."])]]]))
 
 (defn- goto-articles-page [user-ids label-values]
   (load-settings-and-navigate
@@ -426,25 +443,23 @@
                          {:label-id (uuid label-id) :value raw-answer})
         users @(subscribe [::filter-users])
         on-click #(goto-articles-page users answer-filters)]
-    [:div {:style {:margin-top "1em"}}
-     [StepTitle step-count
-      [:a {:href "#" :on-click (util/wrap-prevent-default on-click)}
-       "Go To Articles " [:i.arrow.right.icon]]]
-     [:div {:style {:margin-left "1em"}}
-      [:span "Open articles with label-answer and user filters."]]]))
+    [StepSegment step-count [:a {:href "#" :on-click (util/wrap-prevent-default on-click)}
+                             "Go To Articles " [:i.arrow.right.icon]]
+     [:div {:style {:margin-top "0.5em"}}
+      "Open articles with label-answer and user filters."]]))
 
 (defn- StepRescale [step-count]
-  [:div {:style {:margin-top "1em"}}
-   [StepTitle step-count "Select Scale"]
-   [SetSubscriptionButton ::x-axis-selection "Dynamic" "Dynamic"]
-   [SetSubscriptionButton ::x-axis-selection "Static" "Static"]
-   [:div {:style {:margin-left "1em" :margin-top "0.5em"}}
-    (if (contains? @(subscribe [::x-axis-selection]) "Static")
-      "X-axis does not resize. Useful to compare filters"
-      "X-axis resizes on filter. Useful to compare bar size")]])
+  [StepSegment step-count "Select Scale"
+   [:div
+    [SetSubscriptionButton ::x-axis-selection "Dynamic" "Dynamic"]
+    [SetSubscriptionButton ::x-axis-selection "Static" "Static"]
+    [:div {:style {:margin-top "0.5em"}}
+     (if (contains? @(subscribe [::x-axis-selection]) "Static")
+       "Chart scale remains fixed. Useful to compare filters."
+       "Chart scale adjusts to match content. Useful to compare bar size.")]]])
 
 (defn- LabelCountControl []
-  [:div
+  [:div.ui.segments
    [Header]
    [StepCountMethod 1]
    [StepRescale 2]
@@ -456,18 +471,19 @@
 (defn- BrokenServiceView []
   [:div
    [:p "The label count analytics service is currently down. We are working to bring it back."]
-   [beta-message]])
+   [BetaMessage]])
 
 (defn- NoDataView []
   [:div {:id "no-data-concordance"}
    [:p "To view label data, you need to review some boolean or categorical labels."]
-   [beta-message]])
+   [BetaMessage]])
 
 (defn- MainView []
-  [Grid {:stackable true :divided "vertically"}
-   [Row
-    [Column {:width 6}  [LabelCountControl]]
-    [Column {:width 10} [LabelCounts]]]])
+  [Grid {:stackable true :style {:margin "-0.5em"}}
+   [Column {:width 7 :style {:padding "0.5em"}}
+    [LabelCountControl]]
+   [Column {:width 9 :style {:padding "0.5em"}}
+    [:div.ui.segments>div.ui.segment [LabelCounts]]]])
 
 ;; TODO: Fix dispatch calls in unconditional render code
 (defn- LabelCountView []
@@ -487,5 +503,4 @@
   :uri "/analytics/labels" :params [project-id] :name analytics-labels
   :on-route (do (reload :project project-id)
                 (dispatch [:set-active-panel panel]))
-  :content (fn [child]
-             [:div.ui.segment [LabelCountView] child]))
+  :content [LabelCountView])

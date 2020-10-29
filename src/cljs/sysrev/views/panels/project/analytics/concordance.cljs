@@ -2,10 +2,10 @@
   (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx]]
             [sysrev.data.core :refer [def-data reload]]
             [sysrev.chartjs :as chartjs]
-            [sysrev.views.semantic :as S :refer [Grid Row Column Checkbox Button]]
-            [sysrev.views.components.core :refer [url-link]]
+            [sysrev.views.semantic :as S :refer [Grid Column Checkbox]]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.charts :as charts]
-            [sysrev.views.panels.project.analytics.common :refer [beta-message]]
+            [sysrev.views.panels.project.analytics.common :refer [BetaMessage]]
             [sysrev.util :as util :refer [format sum round]]
             [sysrev.shared.text :as shared]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
@@ -212,23 +212,21 @@
     (when-let [idx (and (pos-int? (.-length elts))
                         (-> elts (aget 0) .-index))]
       (when (and (nat-int? idx) (< idx (count labels)))
-        (js/console.log "on-click-chart:" (pr-str [set-event (nth labels idx)]))
         (dispatch [set-event (nth labels idx)])))))
 
 (defn- make-buttons [prefix labels values selected-labels click-set-event]
   (for [i (range (count labels))]
-    (let [val (get values i)]
+    (let [val (get values i)
+          active? (contains? selected-labels val)]
       ^{:key (str prefix val)}
-      [Button {:size "mini", :style {:margin "2px"}
-               :primary (contains? selected-labels val)
-               :secondary (not (contains? selected-labels val))
-               :on-click #(dispatch [click-set-event val])}
-       (get labels i)])))
+      [ui/RadioButton {:text (get labels i)
+                       :active? active?
+                       :on-click #(dispatch [click-set-event val])}])))
 
 (defn ArticleFilters []
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.segments
-     [:div.ui.segment
+     [:div.ui.secondary.segment
       [:span [:b "Keep Resolved Articles?"]]
       [Checkbox {:id        "ignore-resolved?"
                  :as        "span"
@@ -280,7 +278,7 @@
                      :tooltips {:mode "y"}}
                     (merge-x-scale :axis-type (if show-counts :count :concordance)
                                    :max-val (when show-counts max-count))
-                    (charts/wrap-default-options :animate? true
+                    (charts/wrap-default-options :animate? false
                                                  :items-clickable? true))]
     [:div
      [:h5 "Concordant Articles by Label"]
@@ -301,7 +299,8 @@
     [:div [:h3 "Step 2 - User Performance"]
      [:p "Discover which users have the best performance on the selected label."
       " Select a label below, or click a bar in Step 1"]
-     [:div [:h5 "Select Label:"]
+     [:div [:h5 {:style {:margin-bottom "0.5em"}}
+            "Select Label:"]
       (make-buttons "step2_sel_" label-names label-ids
                     @(subscribe [::concordance-label-selection])
                     ::set-concordance-label-selection)]]))
@@ -338,7 +337,7 @@
                                          :max-val (when show-counts
                                                     (reduce max counts)))
                           (charts/wrap-default-options :items-clickable? true
-                                                       :animate? true))]
+                                                       :animate? false))]
     [:div
      [:h5 "User Concordant Articles on "
       [:span {:style {:color (:select-blue colors)}}
@@ -375,9 +374,11 @@
      [:p "Select a label and a user below to discover user-user pairs are most concordant and discordant. "
       "Tracking concordance against your most trusted users can help discover difficult tasks or low performance reviewers."]
      [:div {:style {:padding-top "10px"}}
-      [:h5 "Select Label:"] lbl-buttons]
+      [:h5 {:style {:margin-bottom "0.5em"}} "Select Label:"]
+      lbl-buttons]
      [:div {:style {:padding-top "10px"}}
-      [:h5 "Select User:"] usr-buttons]]))
+      [:h5 {:style {:margin-bottom "0.5em"}} "Select User:"]
+      usr-buttons]]))
 
 (defn- UserLabelSpecificEmpty []
   (let [selected-user   @(subscribe [::concordance-user-selection])
@@ -412,16 +413,17 @@
         con-perc-ds     {:label "concordant" :backgroundColor blue :data concordance}
         dis-perc-ds     {:label "discordant" :backgroundColor red  :data discordance}
         show-counts     @(subscribe [::show-counts-step-3])
-        dss             (->> (if show-counts
-                               [con-count-ds dis-count-ds]
-                               [con-perc-ds dis-perc-ds])
-                             (mapv #(merge % {:maxBarThickness 15 :stack "1"})))
-        options         (-> {:legend {:display true :labels {:font {:color (inv-color)}}}
+        dss             (mapv #(merge % {:maxBarThickness 15 :stack "1"})
+                              (if show-counts
+                                [con-count-ds dis-count-ds]
+                                [con-perc-ds dis-perc-ds]))
+        options         (-> {:legend {:display true
+                                      :labels {:font {:color (inv-color)}}}
                              :scales {:y (label-axis user-names)}
                              :onClick (on-click-chart user-ids ::set-concordance-user-selection)}
                             (merge-x-scale :axis-type (if show-counts :count :concordance)
                                            :max-val (when show-counts max-count))
-                            (charts/wrap-default-options :animate? true
+                            (charts/wrap-default-options :animate? false
                                                          :items-clickable? true))]
     [:div
      [:h5 "User Concordant Articles"
@@ -440,61 +442,67 @@
 ;;; PAGE DEFINITION
 (defn- BrokenServiceView []
   [:div [:p "The concordance analytics service is currently down. We are working to bring it back."]
-   [beta-message]])
+   [BetaMessage]])
 
 (defn- NoDataView []
   [:div {:id "no-data-concordance"}
    [:p "To view concordance data, you need 2+ users to review boolean labels on the same article at least once."]
    [:p "Set the 'Article Review Priority' to 'balanced' or 'full' under manage -> settings to guarantee overlaps."]
    [:p "Invite a friend with the invite link on the overview page and get reviewing!"]
-   [beta-message]])
+   [BetaMessage]])
 
 (defn- MainView []
   (let [concordance-data  @(subscribe [:project/concordance])
         mean-conc         (* 100 (measure-overall-concordance concordance-data))
         selected-label    @(subscribe [::concordance-label-selection])
-        selected-user     @(subscribe [::concordance-user-selection])]
-    [Grid {:stackable true :divided "vertically"
-           :class "concordance"}
-     [Row
-      [Column {:width 8}
-       [:h2 {:id "overall-concordance"}
-        (format "Concordance %.1f%%" mean-conc)]
+        selected-user     @(subscribe [::concordance-user-selection])
+        segment           (fn [left-column right-column]
+                            [Grid {:stackable true
+                                   :class "segment concordance"
+                                   :style {:margin-top 0}}
+                             left-column
+                             right-column])
+        [lwidth rwidth] [7 9]]
+    [:div.ui.segments.concordance
+     [segment
+      [Column {:width lwidth}
+       [:h2 {:id "overall-concordance"} (format "Concordance %.1f%%" mean-conc)]
        (cond
-         (> mean-conc 98) [:p {:style {:margin-bottom 0 :color (:bright-green colors)}}
-                           "Great job! Your project is highly concordant."]
-         (> mean-conc 90) [:p {:style {:margin-bottom 0 :color (:bright-orange colors)}}
-                           "Some discordance in your labels. Make sure reviewers understand tasks."]
-         :else            [:p {:style {:margin-bottom 0 :color (:red colors)}}
-                           "Significant discordance. Reviewers may not understand some tasks."])
-       [beta-message]
+         (> mean-conc 98)
+         [:div.ui.success.message
+          [:div.content "Great job! Your project is highly concordant."]]
+         (> mean-conc 90)
+         [:div.ui.warning.message
+          [:div.content "Some discordance in your labels. Make sure reviewers understand tasks."]]
+         :else
+         [:div.ui.negative.message
+          [:div.content "Significant discordance. Reviewers may not understand some tasks."]])
+       [BetaMessage]
        [:p "User concordance tracks how often users agree with each other." [:br]
-        "Learn more at "
-        [url-link "https://blog.sysrev.com/concordance"] "."]]
-      [Column {:width 8 :text-align "center" :vertical-align "middle"}
-       [:h3 [:a {:href (shared/links :analytics)}
-             "Youtube Demo Video"]]]]
-     [Row
-      [Column {:width 6}  [:h3 "Article Filters"]
+        "Learn more at " [ui/url-link "https://blog.sysrev.com/concordance"] "."]]
+      [Column {:width rwidth :text-align "center" :vertical-align "middle"}
+       [:h3 [:a {:href (shared/links :analytics)} "Youtube Demo Video"]]] ]
+     [segment
+      [Column {:width lwidth} [:h3 "Article Filters"]
        [:p "Restrict concordance analysis to articles that match filters."]]
-      [Column {:width 10} [ArticleFilters]]]
-     [Row
-      [Column {:width 6}  [ConcordanceDescription]]
-      [Column {:width 10} [LabelConcordance]]]
-     [Row
-      [Column {:width 6}  [UserConcordanceDescription]]
+      [Column {:width rwidth} [ArticleFilters]]]
+     [segment
+      [Column {:width lwidth} [ConcordanceDescription]]
+      [Column {:width rwidth} [LabelConcordance]]]
+     [segment
+      [Column {:width lwidth} [UserConcordanceDescription]]
       (if (empty? selected-label)
-        [Column {:width 10 :text-align "center" :vertical-align "middle"}
-         [:div>span "Select a label"]]
-        [Column {:width 10}
-         [UserConcordance]])]
-     [Row
-      [Column {:width 6} [UserLabelSpecificDescription]]
+        [Column {:width rwidth
+                 :text-align "center"
+                 :vertical-align "middle"} "Select a label"]
+        [Column {:width rwidth} [UserConcordance]])]
+     [segment
+      [Column {:width lwidth} [UserLabelSpecificDescription]]
       (if (or (empty? selected-label) (empty? selected-user) )
-        [Column {:width 10 :text-align "center" :vertical-align "middle"}
-         [UserLabelSpecificEmpty]]
-        [Column {:width 10}
-         [UserLabelSpecificConcordance]])]]))
+        [Column {:width rwidth
+                 :text-align "center"
+                 :vertical-align "middle"} [UserLabelSpecificEmpty]]
+        [Column {:width rwidth} [UserLabelSpecificConcordance]])]]))
 
 (defn- OverallConcordance []
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -510,6 +518,4 @@
                 (dispatch [:set-active-panel panel])
                 (dispatch [::set-concordance-label-selection nil])
                 (dispatch [::set-concordance-user-selection nil]))
-  :content (fn [child]
-             [:div.ui.aligned.segment
-              [OverallConcordance] child]))
+  :content [OverallConcordance])
