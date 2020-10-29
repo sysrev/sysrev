@@ -1,84 +1,40 @@
 (ns sysrev.web.routes.auth
   (:require [clojure.tools.logging :as log]
+            [clj-http.client :as http]
             [compojure.core :refer [GET POST]]
             [ring.util.response :as response]
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
+            [sysrev.auth.google :as google]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.mail.core :refer [send-email]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.web.app :as web :refer [with-authorize]]
-            [sysrev.config :refer [env]])
-  (:import com.google.api.client.http.javanet.NetHttpTransport
-           com.google.api.client.json.jackson2.JacksonFactory
-           #_ com.google.api.client.auth.oauth2.TokenResponseException
-           (com.google.api.client.googleapis.auth.oauth2
-            #_ GoogleTokenResponse #_ GoogleCredential
-            GoogleAuthorizationCodeRequestUrl
-            GoogleAuthorizationCodeTokenRequest)
-           (com.google.api.client.googleapis.auth.oauth2
-            #_ GoogleIdToken #_ GoogleIdTokenVerifier
-            GoogleIdTokenVerifier$Builder #_ GoogleIdToken$Payload)))
+            [sysrev.config :refer [env]]
+            [sysrev.util :as util]))
 
 ;; for clj-kondo
 (declare auth-routes dr finalize-routes)
 
 (declare send-password-reset-email)
 
-(defonce google-oauth-client-id-server
-  "663198182926-l4p6ac774titl403dhr2q3ij00u1qlhl.apps.googleusercontent.com")
-
-(defn google-redirect-url [base-url]
-  (str base-url "/api/auth/login/google"))
-
-(defn get-google-oauth-url [base-url]
-  (-> (GoogleAuthorizationCodeRequestUrl.
-       google-oauth-client-id-server
-       (google-redirect-url base-url)
-       ["openid" "email" "profile"])
-      (.build)))
-
-(defn google-client-secret [] (:google-client-secret env))
-
-(defn parse-google-id-token [id-token-str]
-  (let [verifier (-> (GoogleIdTokenVerifier$Builder.
-                      (NetHttpTransport.)
-                      (JacksonFactory.))
-                     (.setAudience [google-oauth-client-id-server])
-                     (.build))
-        id-token (-> verifier (.verify id-token-str))]
-    (when id-token
-      (let [payload (.getPayload id-token)]
-        {:google-user-id (.getSubject payload)
-         :email (.getEmail payload)
-         :name (.get payload "name")}))))
-
-(defn get-google-user-info [base-url auth-code]
-  (let [response (-> (GoogleAuthorizationCodeTokenRequest.
-                      (NetHttpTransport.)
-                      (JacksonFactory.)
-                      google-oauth-client-id-server
-                      (google-client-secret)
-                      auth-code
-                      (google-redirect-url base-url))
-                     (.execute))
-        id-token-str (.getIdToken response)]
-    (parse-google-id-token id-token-str)))
-
 (setup-local-routes {:routes auth-routes
                      :define dr
                      :finalize finalize-routes})
 
 (dr (GET "/api/auth/google-oauth-url" request
-         (let [{:keys [base-url]} (:params request)]
-           {:result (get-google-oauth-url base-url)})))
+         (let [{:keys [params]} request
+               {:keys [base-url register]} params]
+           {:result (google/get-google-oauth-url
+                     base-url (= register "true"))})))
 
 (dr (GET "/api/auth/login/google" request
          (let [{:keys [params scheme server-name session]} request
+               ;; _ (log/info "request: "(util/pp-str request))
                {:keys [code]} params
                base-url (str (name scheme) "://" server-name)
                {:keys [email #_ google-user-id] :as user-info}
-               (try (get-google-user-info base-url code)
+               (try (google/get-google-user-info base-url code false)
                     (catch Throwable e
                       (log/warn "get-google-user-info login failure")
                       (log/warn (.getMessage e))
@@ -86,8 +42,15 @@
                user (when user-info (user-by-email email))
                ;; {verified :verified :or {verified false}} user
                ;; _success (not-empty user)
-               session-identity (select-keys user [:user-id :user-uuid :email])]
-           (with-meta (response/redirect base-url)
+               session-identity (select-keys user [:user-id :user-uuid :email])
+               do-redirect (fn [& [rpath rparams]]
+                             (response/redirect
+                              (str base-url rpath
+                                   (some->> rparams http/generate-query-string (str "?")))))]
+           (with-meta (cond user             (do-redirect)
+                            (nil? user-info) (do-redirect "/login" {:auth-error "google-login"})
+                            :else            (do-redirect "/login" {:auth-error "sysrev-login"
+                                                                    :auth-email email}))
              {:session (assoc session :identity session-identity)}))))
 
 (dr (POST "/api/auth/login" request
@@ -115,6 +78,35 @@
 (dr (POST "/api/auth/register" request
           (let [{:keys [email password project-id]} (:body request)]
             (api/register-user! email password project-id))))
+
+(dr (GET "/api/auth/register/google" request
+         (let [{:keys [params scheme server-name session]} request
+               {:keys [code]} params
+               base-url (str (name scheme) "://" server-name)
+               {:keys [email #_ google-user-id] :as user-info}
+               (try (google/get-google-user-info base-url code true)
+                    (catch Throwable e
+                      (log/warn "get-google-user-info register failure")
+                      (log/warn (.getMessage e))
+                      nil))
+               {:keys [success] :as result} (some-> email (api/register-user! nil nil))
+               user (when success (some-> email user-by-email))
+               do-redirect (fn [& [rpath rparams]]
+                             (response/redirect
+                              (str base-url rpath
+                                   (some->> rparams http/generate-query-string (str "?")))))
+               response (cond user             (do-redirect)
+                              (nil? user-info) (do-redirect "/register"
+                                                            {:auth-error "google-signup"})
+                              (not success)    (do-redirect "/register"
+                                                            {:auth-error (:message result)})
+                              :else            (do-redirect "/register"
+                                                            {:auth-error "sysrev-signup"}))]
+           (if user
+             (with-meta response
+               {:session (assoc session :identity
+                                (select-keys user [:user-id :user-uuid :email]))})
+             response))))
 
 (dr (GET "/api/auth/identity" request
          (let [{:keys [session]} request

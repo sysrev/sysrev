@@ -90,13 +90,14 @@
                                      :or {permissions ["user"]}}]
   (with-transaction
     (let [user (q/create :web-user (cond-> {:email email
-                                            :pw-encrypted-buddy (encrypt-password password)
                                             :verify-code nil ;; (crypto.random/hex 16)
                                             :permissions (db/to-sql-array "text" permissions)
                                             :date-created (sql-now)
                                             :user-uuid (UUID/randomUUID)
                                             :api-token (generate-api-token)}
-                                     user-id (assoc :user-id user-id))
+                                     user-id (assoc :user-id user-id)
+                                     password (assoc :pw-encrypted-buddy
+                                                     (encrypt-password password)))
                          :returning :*)]
       (when project-id (add-project-member project-id (:user-id user)))
       user)))

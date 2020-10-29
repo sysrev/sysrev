@@ -163,13 +163,13 @@
   (assert ((or f (comp not nil?)) val))
   val)
 
-(defn uuid-str? [s]
+(defn- uuid-str? [s]
   (boolean
    (and (string? s)
         (re-matches
          #"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" s))))
 
-(defn uuid-from-string [x]
+(defn- uuid-from-string [x]
   #?(:clj (UUID/fromString x)
      :cljs (uuid x)))
 
@@ -178,10 +178,9 @@
   or returns nil if value cannot be converted to uuid."
   [x]
   (if (uuid? x) x
-      (when (or (string? x) (symbol? x) (keyword? x))
-        (let [n (name x)]
-          (when (uuid-str? n)
-            (uuid-from-string n))))))
+      (when (and (some #(% x) #{string? symbol? keyword?})
+                 (uuid-str? (name x)))
+        (uuid-from-string (name x)))))
 
 (defn sanitize-uuids
   "Traverse `coll` and convert all uuid-like strings and keywords to uuid (java.util.UUID)."
@@ -194,7 +193,7 @@
       (get n)))
 
 (defn short-uuid [uuid]
-  (last (str/split (str uuid) #"\-")))
+  (-> (str uuid) (str/split #"\-") last))
 
 (defn parse-html-str
   "Convert \"&lt;\" and \"&gt;\" to \"<\" and \">\"."
@@ -230,9 +229,9 @@
 (defn ensure-prefix
   "Adds prefix at front of string s if not already present."
   [s prefix]
-  (if (str/starts-with? s prefix)
-    s
-    (str prefix s)))
+  (cond->> s
+    (not (str/starts-with? s prefix))
+    (str prefix)))
 
 (defn random-id
   "Generate a random string id from uppercase/lowercase letters"
@@ -758,10 +757,10 @@
 #?(:cljs (reg-fx :scroll-top (fn [_] (scroll-top))))
 
 #?(:cljs (defn viewport-width []
-           (-> ($ js/window) (.width))))
+           (. ($ js/window) (width))))
 
 #?(:cljs (defn viewport-height []
-           (-> ($ js/window) (.height))))
+           (. ($ js/window) (height))))
 
 #?(:cljs (defn mobile? []
            (< (viewport-width) 768)))
@@ -785,12 +784,9 @@
 #?(:cljs (defn url-domain
            "Gets the example.com part of a url"
            [url]
-           (let [sp str/split]
-             (or (some-> url (sp "//") second (sp "/") first (sp ".")
-                         (some->> (take-last 2)
-                                  (str/join ".")
-                                  (when-test string?)))
-                 url))))
+           (-> (some-> url http/parse-url :server-name (str/split #"\.")
+                       (some->> (take-last 2) seq (str/join ".")))
+               (or url))))
 
 #?(:cljs (defn validate
            "Validate takes a map, and a map of validator/error message pairs, and
@@ -826,26 +822,26 @@
 
 #?(:cljs (defn dom-elt-visible? [selector]
            (when-let [el (get-dom-elt selector)]
-             (let [width  (or (-> js/window .-innerWidth)
+             (let [rect   (. el (getBoundingClientRect))
+                   width  (or (-> js/window .-innerWidth)
                               (-> js/document .-documentElement .-clientWidth))
                    height (or (-> js/window .-innerHeight)
-                              (-> js/document .-documentElement .-clientHeight))
-                   rect (-> el (.getBoundingClientRect))]
+                              (-> js/document .-documentElement .-clientHeight))]
                (and (>= (.-top rect) 0)
                     (>= (.-left rect) 0)
                     (<= (.-bottom rect) height)
                     (<= (.-right rect) width))))))
 
 #?(:cljs (defn scroll-to-dom-elt [selector]
-           (when-let [el (get-dom-elt selector)]
-             (-> el (.scrollIntoView true)))))
+           (some-> (get-dom-elt selector)
+                   (.scrollIntoView true))))
 
 #?(:cljs (defn ensure-dom-elt-visible
            "Scrolls to the position of DOM element if it is not currently visible."
            [selector]
            (when (false? (dom-elt-visible? selector))
              (scroll-to-dom-elt selector)
-             (-> js/window (.scrollBy 0 -10)))))
+             (. js/window (scrollBy 0 -10)))))
 
 #?(:cljs (defn ensure-dom-elt-visible-soon
            "Runs `ensure-dom-elt-visible` using js/setTimeout at multiple delay times."
@@ -904,9 +900,9 @@
            (-> event .-target .-value)))
 
 #?(:cljs (defn input-focused? []
-           (let [el js/document.activeElement]
-             (when (and el (or (.is ($ el) "input")
-                               (.is ($ el) "textarea")))
+           (when-let [el js/document.activeElement]
+             (when (or (.is ($ el) "input")
+                       (.is ($ el) "textarea"))
                el))))
 
 ;; https://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript
@@ -1124,7 +1120,7 @@
            (js/console.error (apply format format-string args)) nil))
 
 #?(:cljs (defn log-warn
-           "Wrapper to run js/console.error using printf-style formatting."
+           "Wrapper to run js/console.warn using printf-style formatting."
            [format-string & args]
            (js/console.warn (apply format format-string args)) nil))
 

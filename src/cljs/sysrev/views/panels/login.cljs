@@ -10,7 +10,8 @@
             [sysrev.action.core :as action]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
-            [sysrev.util :refer [css validate wrap-prevent-default nbsp on-event-value]]
+            [sysrev.views.semantic :as S]
+            [sysrev.util :as util :refer [css validate wrap-prevent-default nbsp on-event-value]]
             [sysrev.macros :refer-macros [with-loader def-panel]]))
 
 (def register-panel [:register])
@@ -30,17 +31,17 @@
 
 ;; TODO: change this to def-action, doesn't using loaded concept
 (def-data :nav-google-login
-  :loaded? false
-  :uri (fn [] "/api/auth/google-oauth-url")
-  :prereqs (fn [] nil)
-  :content (fn [] {:base-url (nav/current-url-base)})
-  :process
-  (fn [_ _ oauth-url]
-    (when (string? oauth-url)
-      (nav/load-url oauth-url))))
+  :uri      "/api/auth/google-oauth-url"
+  :loaded?  false
+  :content  (fn [register?]
+              {:base-url (nav/current-url-base)
+               :register (if register? "true" "false")})
+  :process  (fn [_ _ oauth-url]
+              (when (string? oauth-url)
+                (nav/load-url oauth-url :absolute true))))
 
-(defn nav-google-login []
-  (dispatch [:fetch [:nav-google-login]]))
+(defn nav-google-login [register?]
+  (dispatch [:fetch [:nav-google-login register?]]))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]
@@ -246,11 +247,32 @@
                                          {:data-onsuccess "on-google-sign-in"}]]
                                        [:div]))}))
 
-(defn GoogleLogInButton []
-  [:a.ui.fluid.button {:href "#"
-                       :on-click nav-google-login
-                       :style {:margin-top "0.5em"}}
-   "Log in with Google"])
+(defn- GoogleLogInImage [img-type]
+  (let [theme (if @(subscribe [:self/dark-theme?])
+                "dark" "light")]
+    [S/Image {:class (str "basic label "
+                          "google-" img-type " "
+                          "google-" theme)
+              :src (str "/images/google_signin/btn_google_" "dark" "_"
+                        img-type "_ios.svg")}]))
+
+(defn GoogleLogInButton [{:keys [type] :or {type "login"}}]
+  [S/Button {:id (if (= type "login")
+                   "google-login-button"
+                   "google-signup-button")
+             :as "div"
+             :on-click (wrap-prevent-default
+                        #(nav-google-login (= type "register")))
+             :label-position "left"
+             :style {:margin-top "0.5em"
+                     :width "50%" :margin-left "auto" :margin-right "auto"}}
+   [GoogleLogInImage "normal"]
+   [GoogleLogInImage "focus"]
+   [GoogleLogInImage "pressed"]
+   [S/Button {:primary true}
+    (if (= type "login")
+      "Sign in with Google"
+      "Sign up with Google")]])
 
 (defn LoginRegisterPanel []
   (let [landing? @(subscribe [:landing-page?])
@@ -317,12 +339,27 @@
                         "loading"])}
           (cond landing?   "Sign Up"
                 register?  "Register"
-                :else      "Login")]
+                :else      "Log in")]
          (when-let [err @(subscribe [::login-error-msg])]
            [:div.ui.negative.message err])
          (when (not= js/window.location.host "sysrev.com")
-           [GoogleLogInButton])
-         #_ [GoogleSignInButton]]
+           [:div [:div.ui.divider]
+            [GoogleLogInButton {:type (if register? "register" "login")}]])
+         (let [{:keys [auth-error auth-email]} (util/get-url-params)]
+           (when auth-error
+             [:div.ui.negative.message
+              [:div.content
+               (case auth-error
+                 "sysrev-login"  (str "Account for "
+                                      (if auth-email auth-email "Google login")
+                                      " not found")
+                 "google-login"  (str "Google login was unsuccessful")
+                 "sysrev-signup" (str "Failed to create new account")
+                 "google-signup" (str "Google signup was unsuccessful")
+                 (if (string? auth-error)
+                   auth-error
+                   "An unexpected error occurred"))]]))]
+        [:div.ui.divider {:style {:margin-top "0.25em"}}]
         (cond landing?   nil
               register?  [:div.ui.center.aligned.grid
                           [:div.column

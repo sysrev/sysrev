@@ -2,7 +2,7 @@
   :dependencies [[org.clojure/clojure "1.10.1"]
 
 ;;; clojure.spec
-                 [orchestra "2020.07.12-1"]
+                 [orchestra "2020.09.18-1"]
 
 ;;; Force versions of indirect dependencies
                  [com.fasterxml.jackson.core/jackson-databind "2.11.2"]
@@ -75,8 +75,7 @@
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
-                 ;; =1.23.0 because version conflict in latest
-                 ;; (1.30.2 breaks selenium)
+                 ;; =1.23.0 because version conflict in latest (1.30.2 breaks selenium)
                  [com.google.api-client/google-api-client "1.23.0"]
                  [environ "1.2.0"]
                  [bouncer "1.0.1"] ;; validation

@@ -60,7 +60,7 @@
     (go-route "/" :silent true)
     (log-out :silent true)
     (go-route "/login" :silent true)
-    (b/wait-until-displayed (xpath "//button[contains(text(),'Login')]"))
+    (b/wait-until-displayed (xpath "//button[contains(text(),'Log in')]"))
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")

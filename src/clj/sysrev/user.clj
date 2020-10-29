@@ -43,6 +43,7 @@
         sysrev.biosource.annotations
         sysrev.biosource.duplicates
         sysrev.slack
+        sysrev.auth.google
         sysrev.web.core
         sysrev.web.session
         sysrev.web.index
