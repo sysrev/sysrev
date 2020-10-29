@@ -3,7 +3,7 @@
             [reagent.core :as r]
             [sysrev.chartjs :as chartjs]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
-            [sysrev.data.core :refer [def-data]]
+            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
@@ -11,7 +11,7 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
-            [sysrev.util :as util :refer [wrap-user-event]]
+            [sysrev.util :as util :refer [css wrap-user-event]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -112,12 +112,17 @@
                 :dim-orange "rgba(242,113,28,0.35)"
                 :red "rgba(230,30,30,0.6)"
                 :blue "rgba(30,100,230,0.5)"
-                :purple "rgba(146,29,252,0.5)"}]
+                :purple "rgba(146,29,252,0.5)"}
+        item [:project/review-status project-id]
+        have? @(subscribe [:have? item])
+        loading? (data/loading? item)]
     (when-not unlimited-reviews
       [:div.project-summary
        [:div.ui.segment
-        [:h4.ui.dividing.header "Review Status"]
-        (with-loader [[:project/review-status project-id]] {:dimmer :fixed}
+        [:div.ui.inverted.dimmer {:class (css [loading? "active"])}
+         [:div.ui.loader]]
+        [:h4.ui.header {:class (css [have? "dividing"])} "Review Status"]
+        (with-loader [item] {}
           [:div
            [:h4.ui.center.aligned.header
             (str reviewed " articles reviewed of " total " total")]
@@ -224,8 +229,7 @@
                            :scaleLabel (->> {:display true
                                              :labelString "User Articles Labeled"
                                              :fontSize 14}
-                                            (merge font))}}}
-             :animate? false)]
+                                            (merge font))}}})]
         [:div.ui.segment
          [:h4.ui.dividing.header "Recent Progress"]
          (with-loader [[:project project-id]] {:dimmer :fixed}
@@ -376,7 +380,6 @@
                                               (-> elts (aget 0) .-index))]
                             (let [{:keys [label-id value]} (nth entries idx)]
                               (articles/load-label-value-settings label-id value))))}
-                       :animate? false
                        :items-clickable? true)
               height (* 2 (+ 40
                              (* 10 (Math/round (/ (inc (count label-ids)) 3)))

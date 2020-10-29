@@ -46,14 +46,13 @@
 
 (defn wrap-default-options [options & {:keys [animate? items-clickable?]
                                        :or {animate? true items-clickable? false}}]
-  (let [mobile? (util/mobile?)
-        duration (cond (not animate?) 0
-                       mobile?        0
-                       :else          1000)]
+  (let [animate? (if (util/mobile?) false animate?)]
     (merge-with merge
-                {:animation {:active (if mobile? 0 300)
-                             :resize duration
-                             :duration duration}
+                {:animation {:duration (cond (not animate?)   0
+                                             (int? animate?)  animate?
+                                             :else            850)
+                             :active {:duration (if animate? 300 0)}
+                             :resize {:duration 0}}
                  :legend {:onHover (on-legend-hover)}
                  :onHover (on-graph-hover items-clickable?)
                  :tooltips (tooltip-font-settings)}
@@ -125,8 +124,7 @@
                        (when-let [idx (and (pos-int? (.-length elts))
                                            (-> elts (aget 0) .-index))]
                          (on-click idx))))}
-                  :items-clickable? (boolean on-click)
-                  :animate? false)
+                  :items-clickable? (boolean on-click))
                  options)]
     [chartjs/horizontal-bar {:data data :height height :options options}]))
 
@@ -146,6 +144,5 @@
                                (when (pos-int? (.-length elts))
                                  (when-let [idx (-> elts (aget 0) .-index)]
                                    (on-click idx)))))}
-                 :items-clickable? (boolean on-click)
-                 :animate? false)]
+                 :items-clickable? (boolean on-click))]
     [chartjs/doughnut {:data data :options options :height 245}]))

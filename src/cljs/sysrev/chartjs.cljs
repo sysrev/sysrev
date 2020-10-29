@@ -1,7 +1,9 @@
 (ns sysrev.chartjs
   (:require ["chart.js" :as Chart]
+            [clojure.walk :as walk]
             [reagent.core :as r]
-            [reagent.dom :refer [dom-node]]))
+            [reagent.dom :refer [dom-node]]
+            [sysrev.util :as util]))
 
 ;; React component implementation based on core functionality from:
 ;; https://github.com/jerairrest/react-chartjs-2/blob/master/src/index.js
@@ -16,27 +18,28 @@
                                               :maintainAspectRatio false}
                                              options)})))))
 
+(defn- chart-equality-inputs
+  "Converts chart component props to a map that can be used for an
+  equality test to determine if the reagent component needs to be
+  updated.
+
+  This is needed to ensure the map contains no function values, which
+  will test as unequal whenever a parent component is updated and
+  generates new anonymous function references."
+  [chart-props]
+  (walk/postwalk #(when-not (fn? %) %) chart-props))
+
 (defn- chart-component [{:keys [type data options width height]}]
   (let [ref (atom nil)]
     (r/create-class
-     {:constructor
-      (fn [this _props]
-        (swap! (r/state-atom this) assoc :chart-instance nil))
-      :component-did-mount
-      (fn [this]
-        (render-chart this))
-      :component-did-update
-      (fn [this]
-        (let [{:keys [chart-instance]} (r/state this)]
-          (some-> chart-instance (.destroy))
-          (render-chart this)))
-      :should-component-update
-      (fn [_this old-argv new-argv]
-        (not= old-argv new-argv))
-      :component-will-unmount
-      (fn [this]
-        (let [{:keys [chart-instance]} (r/state this)]
-          (some-> chart-instance (.destroy))))
+     {:constructor              #(swap! (r/state-atom %) assoc :chart-instance nil)
+      :component-did-mount      #(render-chart %)
+      :component-did-update     #(do (some-> (r/state %) :chart-instance (.destroy))
+                                     (render-chart %))
+      :component-will-unmount   #(some-> (r/state %) :chart-instance (.destroy))
+      :should-component-update  (fn [_this [_ old-props] [_ new-props]]
+                                  (not= (chart-equality-inputs old-props)
+                                        (chart-equality-inputs new-props)))
       :render
       (fn [this]
         (let [{:keys [width height]} (r/props this)]

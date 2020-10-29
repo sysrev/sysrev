@@ -8,6 +8,7 @@
             [cognitect.transit :as transit]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
+            ["chart.js" :as Chart]
             ["pdfjs-dist" :as pdfjs]
             ["pdfjs-dist/web/pdf_viewer" :as pdfjsViewer]
             ["jquery" :as $]
