@@ -413,14 +413,14 @@
 (defn- PredictionHistogramChart []
   (let [font (charts/graph-font-settings)
         prediction-histograms @(subscribe [::prediction-histograms])
-        labels (into [] (->> (vals prediction-histograms)
-                             (map :score) (distinct) (sort)))
+        chart-labels (->> (vals prediction-histograms)
+                          flatten (map :score) distinct sort vec)
         histograms-data (fn [k]
-                          (let [histogram (get prediction-histograms k)]
-                            {k (let [score->count (zipmap (mapv :score histogram)
-                                                          (mapv :count histogram))]
-                                 (mapv #(or (get score->count %) 0)
-                                       labels))}))
+                          (let [histogram (get prediction-histograms k)
+                                score->count (zipmap (mapv :score histogram)
+                                                     (mapv :count histogram))]
+                            (mapv #(or (get score->count %) 0)
+                                  chart-labels)))
         include-data    (histograms-data :reviewed-include-histogram)
         exclude-data    (histograms-data :reviewed-exclude-histogram)
         unreviewed-data (histograms-data :unreviewed-histogram)
@@ -428,27 +428,21 @@
                           (some pos? include-data)
                           (conj {:label "Reviewed - Include"
                                  :data include-data
-                                 #_ (mapv (partial * 2)
-                                          (into [] (range 1 (inc (count labels)))))
                                  :backgroundColor (:green colors)})
                           (some pos? exclude-data)
                           (conj {:label "Reviewed - Exclude"
                                  :data exclude-data
-                                 #_ (mapv (partial * 1)
-                                          (into [] (range 1 (inc (count labels)))))
                                  :backgroundColor (:red colors)})
                           (some pos? unreviewed-data)
                           (conj {:label "Unreviewed"
                                  :data unreviewed-data
-                                 #_ (mapv (partial * 3)
-                                          (into [] (range 1 (inc (count labels)))))
                                  :backgroundColor (:orange colors)}))]
     (when (seq datasets)
       [:div.ui.segment
        [:h4.ui.dividing.header "Prediction Histograms"]
        [unpad-chart [0.5 0.6]
         [chartjs/bar
-         {:data {:labels labels
+         {:data {:labels chart-labels
                  :datasets (->> datasets (mapv #(merge % {:borderWidth 0})))}
           :options (charts/wrap-default-options
                     {:scales (util/map-values

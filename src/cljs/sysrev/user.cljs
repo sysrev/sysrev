@@ -17,7 +17,8 @@
             sysrev.ajax
             sysrev.nav
             sysrev.state.all
-            sysrev.data.core
+            [sysrev.action.core :as action]
+            [sysrev.data.core :as data]
             sysrev.loading
             sysrev.views.main
             sysrev.shared.keywords
@@ -36,7 +37,6 @@
   (import-vars 'sysrev.util)
   (import-vars 'sysrev.state.core)
   (import-vars 'sysrev.state.ui)
-  (import-vars 'sysrev.data.core)
   (import-vars 'sysrev.views.base)
   (import-vars 'sysrev.views.main)
   (import-vars 'sysrev.shared.keywords)
