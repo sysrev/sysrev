@@ -23,16 +23,20 @@
                      :finalize finalize-routes})
 
 (dr (GET "/api/auth/google-oauth-url" request
+         #_ (log/infof "auth/google-oauth-url:\n%s" (util/pp-str request))
          (let [{:keys [params]} request
-               {:keys [base-url register]} params]
-           {:result (google/get-google-oauth-url
-                     base-url (= register "true"))})))
+               {:keys [base-url register]} params
+               url (google/get-google-oauth-url base-url (= register "true"))]
+           #_ (log/infof "auth/google-oauth-url: %s" url)
+           (-> {:body {:result url}}
+               (response/set-cookie "_baseurl" base-url
+                                    {:same-site :lax, :domain ""})))))
 
 (dr (GET "/api/auth/login/google" request
-         (let [{:keys [params scheme server-name session]} request
-               ;; _ (log/info "request: "(util/pp-str request))
+         #_ (log/infof "auth/login/google:\n%s" (util/pp-str request))
+         (let [{:keys [params session cookies]} request
                {:keys [code]} params
-               base-url (str (name scheme) "://" server-name)
+               base-url (get-in cookies ["_baseurl" :value])
                {:keys [email #_ google-user-id] :as user-info}
                (try (google/get-google-user-info base-url code false)
                     (catch Throwable e
@@ -43,14 +47,16 @@
                ;; {verified :verified :or {verified false}} user
                ;; _success (not-empty user)
                session-identity (select-keys user [:user-id :user-uuid :email])
-               do-redirect (fn [& [rpath rparams]]
-                             (response/redirect
+               get-redirect (fn [& [rpath rparams]]
                               (str base-url rpath
-                                   (some->> rparams http/generate-query-string (str "?")))))]
-           (with-meta (cond user             (do-redirect)
-                            (nil? user-info) (do-redirect "/login" {:auth-error "google-login"})
-                            :else            (do-redirect "/login" {:auth-error "sysrev-login"
-                                                                    :auth-email email}))
+                                   (some->> rparams http/generate-query-string (str "?"))))
+               url (cond user             (get-redirect)
+                         (nil? user-info) (get-redirect "/login" {:auth-error "google-login"})
+                         :else            (get-redirect "/login" {:auth-error "sysrev-login"
+                                                                  :auth-email email}))]
+           #_ (log/infof "auth/login/google: base-url=%s" base-url)
+           #_ (log/infof "auth/login/google: %s" url)
+           (with-meta (response/redirect url)
              {:session (assoc session :identity session-identity)}))))
 
 (dr (POST "/api/auth/login" request
@@ -80,9 +86,10 @@
             (api/register-user! email password project-id))))
 
 (dr (GET "/api/auth/register/google" request
-         (let [{:keys [params scheme server-name session]} request
+         #_ (log/infof "auth/register/google:\n%s" (util/pp-str request))
+         (let [{:keys [params session cookies]} request
                {:keys [code]} params
-               base-url (str (name scheme) "://" server-name)
+               base-url (get-in cookies ["_baseurl" :value])
                {:keys [email #_ google-user-id] :as user-info}
                (try (google/get-google-user-info base-url code true)
                     (catch Throwable e
@@ -91,22 +98,23 @@
                       nil))
                {:keys [success] :as result} (some-> email (api/register-user! nil nil))
                user (when success (some-> email user-by-email))
-               do-redirect (fn [& [rpath rparams]]
-                             (response/redirect
+               get-redirect (fn [& [rpath rparams]]
                               (str base-url rpath
-                                   (some->> rparams http/generate-query-string (str "?")))))
-               response (cond user             (do-redirect)
-                              (nil? user-info) (do-redirect "/register"
-                                                            {:auth-error "google-signup"})
-                              (not success)    (do-redirect "/register"
-                                                            {:auth-error (:message result)})
-                              :else            (do-redirect "/register"
-                                                            {:auth-error "sysrev-signup"}))]
+                                   (some->> rparams http/generate-query-string (str "?"))))
+               url (cond user             (get-redirect)
+                         (nil? user-info) (get-redirect "/register"
+                                                        {:auth-error "google-signup"})
+                         (not success)    (get-redirect "/register"
+                                                        {:auth-error (:message result)})
+                         :else            (get-redirect "/register"
+                                                        {:auth-error "sysrev-signup"}))]
+           #_ (log/infof "auth/register/google: base-url=%s" base-url)
+           #_ (log/infof "auth/register/google: %s" url)
            (if user
-             (with-meta response
+             (with-meta (response/redirect url)
                {:session (assoc session :identity
                                 (select-keys user [:user-id :user-uuid :email]))})
-             response))))
+             (response/redirect url)))))
 
 (dr (GET "/api/auth/identity" request
          (let [{:keys [session]} request
