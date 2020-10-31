@@ -46,7 +46,7 @@
 
 (defn wrap-default-options [options & {:keys [animate? items-clickable?]
                                        :or {animate? true items-clickable? false}}]
-  (let [animate? (if (util/mobile?) false animate?)]
+  (let [animate? animate? #_ (if (util/mobile?) false animate?)]
     (merge-with merge
                 {:animation {:duration (cond (not animate?)   0
                                              (int? animate?)  animate?
