@@ -161,12 +161,7 @@
        [:div.ui.container>div.ui.middle.aligned.stackable.grid
         [:div.left.aligned.six.wide.column copyright-notice]
         [:div.right.aligned.ten.wide.column
-         [:div.wrapper contact-email sysrev-links "|" site-terms]]])
-     ;LINKEDIN TRACKING TODO this could be cleaner...
-     [:script {:type "text/javascript"} "_linkedin_partner_id = \"2703428\"; window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || []; window._linkedin_data_partner_ids.push(_linkedin_partner_id);"]
-     [:script {:type "text/javascript"} "(function(){var s = document.getElementsByTagName(\"script\")[0]; var b = document.createElement(\"script\"); b.type = \"text/javascript\";b.async = true; b.src = \"https://snap.licdn.com/li.lms-analytics/insight.min.js\"; s.parentNode.insertBefore(b, s);})();"]
-     [:noscript [:img {:height "1" :width "1" :style "display:none;" :alt ""
-                       :src "https://px.ads.linkedin.com/collect/?pid=2703428&fmt=gif"}]]]))
+         [:div.wrapper contact-email sysrev-links "|" site-terms]]])]))
 
 (defn main-content []
   (let [landing? @(subscribe [:landing-page?])]
