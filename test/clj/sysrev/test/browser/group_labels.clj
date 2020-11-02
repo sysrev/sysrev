@@ -200,7 +200,6 @@
     (nav/new-project project-name)
     (reset! project-id (b/current-project-id))
     ;; PubMed search input
-    (b/click "#enable-import")
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
@@ -323,7 +322,6 @@
     (reset! project-id (b/current-project-id))
     (log/info "Testing Group Label editor error handling")
     ;; add some article so we can label them
-    (b/click "#enable-import")
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))
@@ -472,7 +470,6 @@
     (nav/new-project project-name)
     (reset! project-id (b/current-project-id))
     ;; PubMed search input
-    (b/click "#enable-import")
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))

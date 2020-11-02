@@ -46,14 +46,12 @@
     #_(is (= 4 (project/project-article-pdf-count (b/current-project-id))))
     ;; import RIS file, check the RIS file citations is correct
     (log/info "starting import")
-    (b/click "#enable-import")
     (b/select-datasource "RIS / RefMan")
     (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
     (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
     (is (b/exists? (unique-count-span 10)))
     ;; PubMed search input
     (log/info "starting pubmed import")
-    (b/click "#enable-import")
     (b/select-datasource "PubMed")
     (log/info "selected pubmed data source")
     (pubmed/search-pubmed "foo bar")
@@ -64,7 +62,6 @@
     (is (b/exists? (unique-count-span 7)))
     ;; Import Clinical Trials
     (log/info "importing from clinicaltrials")
-    (b/click "#enable-import")
     (b/select-datasource "ClinicalTrials (beta)")
     (ctgov/search-ctgov "foo olive")
     (b/click x/import-button-xpath)
@@ -74,7 +71,6 @@
 
     ;; Import from PMIDs file
     (log/info "importing from PMIDS")
-    (b/click "#enable-import")
     (b/select-datasource "PMID file")
     (b/dropzone-upload "test-files/pubmed_result.txt")
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
@@ -83,7 +79,6 @@
 
     ;; import Endnote file
     (log/info "importing from ENDNOTE")
-    (b/click "#enable-import")
     (b/select-datasource "EndNote XML")
     (b/dropzone-upload "test-files/Endnote_3_citations.xml")
     (is (b/exists? (unique-count-span 3)))
@@ -127,7 +122,6 @@
     (nav/new-project project-name)
     (reset! src-project-id (b/current-project-id))
     ;; PubMed search input
-    (b/click "#enable-import")
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
     (is (b/exists? (unique-count-span 7)))

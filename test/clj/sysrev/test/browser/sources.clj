@@ -123,7 +123,6 @@
    title "Long Short-Term Memory"]
   (do (nav/log-in (:email test-user))
       (nav/new-project project-name)
-      (b/click "#enable-import")
       (b/select-datasource "RIS / RefMan")
       (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
       (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
@@ -153,7 +152,6 @@
               (.list (io/file "resources/test-files/test-pdf-import")))]
   (do (nav/log-in (:email test-user))
       (nav/new-project "pdf files test")
-      (b/click "#enable-import")
       (b/select-datasource "PDF files")
       (b/wait-until-exists (xpath "//button[contains(text(),'browse files')]"))
       (b/uppy-attach-files files)

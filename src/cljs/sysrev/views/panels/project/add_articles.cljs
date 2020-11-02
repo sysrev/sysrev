@@ -21,7 +21,7 @@
 (declare panel state)
 
 (setup-panel-state panel [:project :project :add-articles]
-                   :state state :get [panel-get] :set [panel-set])
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 ;; this sets the default tab
 (reg-sub :add-articles/import-tab #(or (panel-get % :import-tab) nil))
@@ -30,14 +30,18 @@
               (fn [db [tab-id]]
                 (panel-set db :import-tab tab-id)))
 
-(defn- get-default [db key default-val]
-  (as-> (get db key) x
-        (if (nil? x) default-val x)))
+(reg-event-db ::add-documents-visible [trim-v]
+              (fn [db [value]] (panel-set db :add-documents-visible value)))
 
-
-(reg-event-db ::set-show-new-source [trim-v] (fn [db [value]] (assoc db ::show-new-source value)))
-
-(reg-sub ::show-new-source  #(get-default % ::show-new-source true))
+(reg-sub ::add-documents-visible
+         (fn [[_ project-id]]
+           [(subscribe [::get [:add-documents-visible]])
+            (subscribe [:have? [:project/sources project-id]])
+            (subscribe [:project/sources])])
+         (fn [[visible have-sources? sources]]
+           (cond (some? visible)                       visible
+                 (and have-sources? (empty? sources))  true
+                 :else                                 false)))
 
 (def-action :sources/toggle-source
   :uri (fn [] "/api/toggle-source")
@@ -85,7 +89,7 @@
       (str "/api/import-articles/endnote-xml/" project-id)
       (fn []
         (dispatch [:reload [:project/sources project-id]])
-        (dispatch [::set-show-new-source true]))
+        (dispatch [::add-documents-visible false]))
       "Upload XML File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
@@ -111,8 +115,8 @@
      [ui/UploadButton
       (str "/api/import-articles/pmid-file/" project-id)
       (fn []
-        (dispatch [::set-show-new-source true])
-        (dispatch [:reload [:project/sources project-id]]))
+        (dispatch [:reload [:project/sources project-id]])
+        (dispatch [::add-documents-visible false]))
       "Upload Text File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
@@ -128,8 +132,7 @@
                  :csrf-token csrf-token
                  :on-complete #(do (dispatch [:reload [:project project-id]])
                                    (dispatch [:reload [:project/sources project-id]])
-                                   (dispatch [::set-show-new-source true])
-                                   )
+                                   (dispatch [::add-documents-visible false]))
                  :project-id project-id}]]))
 
 (defn ImportPDFZipsView []
@@ -139,7 +142,7 @@
       (str "/api/import-articles/pdf-zip/" project-id)
       (fn []
         (dispatch [:reload [:project/sources project-id]])
-        (dispatch [::set-show-new-source true]))
+        (dispatch [::add-documents-visible false]))
       "Upload Zip File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
@@ -168,7 +171,7 @@
       (str "/api/import-articles/ris/" project-id)
       (fn []
         (dispatch [:reload [:project/sources project-id]])
-        (dispatch [::set-show-new-source true]))
+        (dispatch [::add-documents-visible false]))
       "Upload RIS file..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
@@ -537,28 +540,29 @@
 
 
 (defn DocumentImport []
-  (let [view-import-button? (subscribe [::show-new-source])
-        sources (subscribe [:project/sources])]
+  (let [project-id @(subscribe [:active-project-id])
+        visible? @(subscribe [::add-documents-visible project-id])
+        sources @(subscribe [:project/sources])]
     [:div {:style {:padding-bottom 10}}
      [Button {:id "enable-import"
               :style {:display "inline"}
-              :disabled (not @view-import-button?)
+              :disabled visible?
               :size "huge" :positive true
               :on-click (fn []
-                          (dispatch [::set-show-new-source false])
+                          (dispatch [::add-documents-visible true])
                           (dispatch-sync [:add-articles/import-tab nil]))}
       "Add Documents"]
-     (when (empty? @sources)
+     (when (empty? sources)
        [:h3.inline {:style {:margin-left "0.75rem"}}
         "Add documents to get started."])
-     (when (not @view-import-button?)
+     (when visible?
        [:div.ui.segment.raised
         [:div
          [Button {:id "enable-import-dismiss"
                   :style {:float "right"}
                   :size "small" :color "red"
                   :on-click (fn []
-                              (dispatch [::set-show-new-source true])
+                              (dispatch [::add-documents-visible false])
                               (dispatch-sync [:add-articles/import-tab nil]))}
           "dismiss"]
          [:h1 {:style {:padding-top 0 :margin-top 0}} "Adding Documents"]

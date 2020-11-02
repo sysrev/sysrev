@@ -621,6 +621,9 @@
     (taxi/execute-script upload-blob-js)))
 
 (defn select-datasource [datasource-name]
+  (wait-until-displayed "#enable-import")
+  (when (taxi/exists? (not-disabled "#enable-import"))
+    (click "#enable-import"))
   (let [datasource-item (xpath "//div[contains(@class,'datasource-item')]//p[contains(text(),'" datasource-name "')]")]
     (wait-until-displayed datasource-item)
     (click datasource-item)
