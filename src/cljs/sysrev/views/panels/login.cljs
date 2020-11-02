@@ -264,12 +264,11 @@
              :on-click (wrap-prevent-default
                         #(nav-google-login (= type "register")))
              :label-position "left"
-             :style {:margin-top "0.5em"
-                     :width "50%" :margin-left "auto" :margin-right "auto"}}
+             :style {:margin-top "0.5em" :margin-left "auto" :margin-right "auto"}}
    [GoogleLogInImage "normal"]
    [GoogleLogInImage "focus"]
    [GoogleLogInImage "pressed"]
-   [S/Button {:primary true}
+   [S/Button {:primary true :fluid true}
     (if (= type "login")
       "Sign in with Google"
       "Sign up with Google")]])
@@ -342,9 +341,8 @@
                 :else      "Log in")]
          (when-let [err @(subscribe [::login-error-msg])]
            [:div.ui.negative.message err])
-         (when (not= js/window.location.host "sysrev.com")
-           [:div [:div.ui.divider]
-            [GoogleLogInButton {:type (if register? "register" "login")}]])
+         [:div [:div.ui.divider]
+          [GoogleLogInButton {:type (if register? "register" "login")}]]
          (let [{:keys [auth-error auth-email]} (util/get-url-params)]
            (when auth-error
              [:div.ui.negative.message
