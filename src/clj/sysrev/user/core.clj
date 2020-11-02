@@ -86,18 +86,21 @@
              :iterations 6
              :salt (crypto.random/bytes 16)}))
 
-(defn create-user [email password & {:keys [project-id user-id permissions]
+(defn create-user [email password & {:keys [project-id user-id permissions google-user-id]
                                      :or {permissions ["user"]}}]
   (with-transaction
     (let [user (q/create :web-user (cond-> {:email email
                                             :verify-code nil ;; (crypto.random/hex 16)
                                             :permissions (db/to-sql-array "text" permissions)
-                                            :date-created (sql-now)
+                                            :date-created :%now
                                             :user-uuid (UUID/randomUUID)
                                             :api-token (generate-api-token)}
                                      user-id (assoc :user-id user-id)
                                      password (assoc :pw-encrypted-buddy
-                                                     (encrypt-password password)))
+                                                     (encrypt-password password))
+                                     google-user-id (assoc :google-user-id google-user-id
+                                                           :registered-from "google"
+                                                           :date-google-login :%now))
                          :returning :*)]
       (when project-id (add-project-member project-id (:user-id user)))
       user)))

@@ -356,12 +356,14 @@
 
 (defn register-user!
   "Register a user and add them as a stripe customer"
-  [email password project-id]
+  [email password & {:keys [project-id google-user-id]}]
   (assert (string? email))
   (with-transaction
     (let [user (user-by-email email)
           db-result (when-not user
-                      (try (user/create-user email password :project-id project-id)
+                      (try (user/create-user email password
+                                             :project-id project-id
+                                             :google-user-id google-user-id)
                            true
                            (catch Throwable e e)))]
       (cond user

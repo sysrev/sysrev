@@ -37,13 +37,13 @@
          (let [{:keys [params session cookies]} request
                {:keys [code]} params
                base-url (get-in cookies ["_baseurl" :value])
-               {:keys [email #_ google-user-id] :as user-info}
+               {:keys [email google-user-id] :as user-info}
                (try (google/get-google-user-info base-url code false)
                     (catch Throwable e
                       (log/warn "get-google-user-info login failure")
                       (log/warn (.getMessage e))
                       nil))
-               user (when user-info (user-by-email email))
+               {:keys [user-id] :as user} (when user-info (user-by-email email))
                ;; {verified :verified :or {verified false}} user
                ;; _success (not-empty user)
                session-identity (select-keys user [:user-id :user-uuid :email])
@@ -55,7 +55,13 @@
                          :else            (get-redirect "/login" {:auth-error "sysrev-login"
                                                                   :auth-email email}))]
            #_ (log/infof "auth/login/google: base-url=%s" base-url)
+           #_ (log/infof "auth/login/google: user-info=%s" (util/pp-str user-info))
            #_ (log/infof "auth/login/google: %s" url)
+           (when (and user (some-> (not-empty google-user-id)
+                                   (not= (:google-user-id user))))
+             (q/modify :web-user {:user-id user-id} {:google-user-id google-user-id}))
+           (when (and user (nil? (:date-google-login user)))
+             (q/modify :web-user {:user-id user-id} {:date-google-login :%now}))
            (with-meta (response/redirect url)
              {:session (assoc session :identity session-identity)}))))
 
@@ -83,20 +89,22 @@
 
 (dr (POST "/api/auth/register" request
           (let [{:keys [email password project-id]} (:body request)]
-            (api/register-user! email password project-id))))
+            (api/register-user! email password :project-id project-id))))
 
 (dr (GET "/api/auth/register/google" request
          #_ (log/infof "auth/register/google:\n%s" (util/pp-str request))
          (let [{:keys [params session cookies]} request
                {:keys [code]} params
                base-url (get-in cookies ["_baseurl" :value])
-               {:keys [email #_ google-user-id] :as user-info}
+               {:keys [email google-user-id] :as user-info}
                (try (google/get-google-user-info base-url code true)
                     (catch Throwable e
                       (log/warn "get-google-user-info register failure")
                       (log/warn (.getMessage e))
                       nil))
-               {:keys [success] :as result} (some-> email (api/register-user! nil nil))
+               {:keys [success] :as result} (when email
+                                              (api/register-user!
+                                               email nil :google-user-id google-user-id))
                user (when success (some-> email user-by-email))
                get-redirect (fn [& [rpath rparams]]
                               (str base-url rpath
