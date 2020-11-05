@@ -301,3 +301,35 @@
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
     (is (= "Unlimited_User" (get-db-plan))))
   :cleanup (b/cleanup-test-user! :email email))
+
+(deftest-browser subscribe-to-unlimited-annual-through-pricing-no-account
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [email (format "baz+%s@example.com" (util/random-id))
+   password "bazqux"
+   get-test-user #(user-by-email email)
+   get-customer #(get-user-customer email)
+   get-db-plan #(user-db-plan email)]
+  (do
+    (nav/go-route "/pricing")
+    (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
+    (b/wait-until-displayed choose-pro-button)
+    (b/click choose-pro-button)
+    ;; register
+    (b/wait-until-displayed create-account)
+    (b/set-input-text "input[name='email']" email)
+    (b/set-input-text "input[name='password']" password)
+    (b/click "button[name='submit']")
+    ;; upgrade plan
+    (b/wait-until-displayed upgrade-plan)
+    (is (= "Basic" (get-db-plan)))
+    ;; pay yearly
+    (b/click (xpath "//label[contains(text(),'Pay Yearly')]"))
+    (b/wait-until-displayed (xpath "//h3[contains(text(),'$120.00 / year')]"))
+    ;; update payment method
+    (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
+    (click-use-card)
+    (click-upgrade-plan)
+    ;; we have an unlimited plan
+    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+    (is (= "Unlimited_User_Annual" (get-db-plan))))
+  :cleanup (b/cleanup-test-user! :email email))

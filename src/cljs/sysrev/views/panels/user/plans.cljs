@@ -183,7 +183,8 @@
         show-payment-form? (r/atom false)
         changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
     (fn [available-plans]
-      (when-not (nil? @available-plans)
+      (when (and (not (nil? @available-plans))
+                 (nil? @new-plan ))
         (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_User") @available-plans)))
       (if (empty? @available-plans)
         [Loader {:active true
