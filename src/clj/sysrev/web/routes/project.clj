@@ -508,6 +508,12 @@
               (set-project-description! project-id markdown)
               {:project-description markdown}))))
 
+(dr (POST "/api/send-project-invites" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  {:keys [emails invite-url]} (-> request :body)]
+              (api/send-bulk-invitations project-id emails invite-url)))))
+
 ;;;
 ;;; Project sources
 ;;;

@@ -3,6 +3,7 @@
             [reagent.core :as r]
             [sysrev.chartjs :as chartjs]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
+            [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data :refer [def-data]]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
             [sysrev.nav :as nav]
@@ -11,6 +12,7 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
+            [sysrev.views.semantic :refer [TextArea Button]]
             [sysrev.util :as util :refer [css wrap-user-event]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
@@ -156,6 +158,42 @@
              [:div.column.pie-chart-help
               [LabelStatusHelpColumn colors]]]]])]])))
 
+(def email-regex
+  #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
+
+(defn txt->emails [txt]
+  (re-seq email-regex txt))
+
+(def-action :project/send-invites
+  :uri (fn [_ _] "/api/send-project-invites")
+  :content (fn [project-id invite-url emails-txt]
+             (let [emails (txt->emails emails-txt)]
+               {:project-id project-id
+                :invite-url invite-url
+                :emails emails}))
+  :process (fn [_ [_] {:keys [success]}]
+             (when success
+               {:dispatch-n
+                (list )})))
+
+(defn- InviteEmailsCmp []
+  (let [project-id @(subscribe [:active-project-id])
+        invite-url @(subscribe [:project/invite-url])
+        emails-txt (r/atom "")]
+    (fn []
+      (let [email-count (count (txt->emails @emails-txt))]
+        [:div.ui.form
+         [:div.field
+          [:textarea#invite-emails {:style {:width "100%"}
+                                    :on-change (util/wrap-prevent-default
+                                                 #(reset! emails-txt (-> % .-target .-value)))}]]
+         [Button {:primary true
+                  :on-click #(dispatch [:action [:project/send-invites project-id invite-url @emails-txt]])}
+          "Send Invites"]
+         (if (> email-count 0)
+           [:span {:style {:margin-left "10px"}}
+            email-count " email(s) recognized."])]))))
+
 (defn- MemberActivityChart []
   (let [project-id @(subscribe [:active-project-id])
         visible-user-ids (->> @(subscribe [:project/member-user-ids])
@@ -189,7 +227,13 @@
         [:div.ui.fluid.action.input
          [:input#invite-url.ui.input {:readOnly true
                                       :value invite-url}]
-         [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])]]))
+         [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])
+      
+      (if invite?
+        [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
+         "Send invitation emails"])
+      (if invite?
+        [InviteEmailsCmp])]]))
 
 (defn- RecentProgressChart []
   (let [project-id @(subscribe [:active-project-id])
