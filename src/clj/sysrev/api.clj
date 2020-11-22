@@ -354,6 +354,16 @@
          (shared/make-link :twitter "Twitter @sysrev1") "<br>"
          (shared/make-link :blog "blog.sysrev.com") "<br>")))
 
+
+(defn send-project-invites [email link]
+  #_(let [verify-code (user/email-verify-code user-id email)
+        url (str (sysrev-base-url) "/user/" user-id "/email/" verify-code)]
+    (sendgrid/send-template-email
+     email "Verify Your Email"
+     (format "Verify your email by clicking <a href='%s'>here</a>." url))
+    {:success true})
+  {:success false})
+
 (defn register-user!
   "Register a user and add them as a stripe customer"
   [email password & {:keys [project-id google-user-id]}]
@@ -1491,3 +1501,16 @@
       (format "%s - MANAGED REVIEW REQUEST " name)
       (format "Name %s email %s\n%s." name email description))
     {:success true}))
+
+(defn send-bulk-invitations
+  "Send an invitation email in bulk"
+  [project-id emails invite-url]
+  (let [responses (->> emails
+                       (pmap (fn [email]
+                               (log/info "Sending email to " email)
+                               (sendgrid/send-template-email
+                                 email (str "You've been invited to " project-name " as a reviewer")
+                                 (str "You've been invited to <b>" project-name
+                                      "</b> as a reviewer. You can view the invitation <a href='" invite-url "'>here</a>.")))))
+        success? (->> responses) (map :success) (every? true?)]
+    {:success success?}))
