@@ -7,6 +7,7 @@
  :server
  {:port 4061}
  :max-import-articles 100000
+ :max-bulk-invitations 2
  :e-util-api-key "***REMOVED***"
  :profile :dev
  :private-config "config.local.edn"}

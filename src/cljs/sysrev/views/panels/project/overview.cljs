@@ -17,9 +17,10 @@
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
-(declare panel)
+(declare panel state)
 
-(setup-panel-state panel [:project :project :overview])
+(setup-panel-state panel [:project :project :overview]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def colors {:grey "rgba(160,160,160,0.5)"
              :green "rgba(33,186,69,0.55)"
@@ -158,41 +159,51 @@
              [:div.column.pie-chart-help
               [LabelStatusHelpColumn colors]]]]])]])))
 
-(def email-regex
-  #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
-
 (defn txt->emails [txt]
-  (re-seq email-regex txt))
+  (if (string? txt)
+    (re-seq util/email-regex txt)))
 
 (def-action :project/send-invites
   :uri (fn [_ _] "/api/send-project-invites")
-  :content (fn [project-id invite-url emails-txt]
+  :content (fn [project-id emails-txt]
              (let [emails (txt->emails emails-txt)]
                {:project-id project-id
-                :invite-url invite-url
                 :emails emails}))
-  :process (fn [_ [_] {:keys [success]}]
-             (when success
-               {:dispatch-n
-                (list )})))
+  :process (fn [_ [_] {:keys [success message] :as result}]
+             (if success
+               {:dispatch-n [[::set [:invite-emails :emails-txt] ""]
+                             [:toast {:class "success" :message message}]]}))
+  :on-error (fn [{:keys [db error]} [project-id] _]
+              {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (defn- InviteEmailsCmp []
   (let [project-id @(subscribe [:active-project-id])
-        invite-url @(subscribe [:project/invite-url])
-        emails-txt (r/atom "")]
+        emails-txt (r/cursor state [:invite-emails :emails-txt])]
     (fn []
-      (let [email-count (count (txt->emails @emails-txt))]
-        [:div.ui.form
+      (let [emails (txt->emails @emails-txt)
+            email-count (count emails)
+            unique-count (count (set emails))
+            running? (action/running? :project/send-invites)]
+        [:form.ui.form {:on-submit (util/wrap-prevent-default
+                                     #(dispatch [:action [:project/send-invites project-id @emails-txt]]))}
          [:div.field
           [:textarea#invite-emails {:style {:width "100%"}
+                                    :value @emails-txt
+                                    :required true
+                                    :placeholder "john@example.com, bob@example.net"
                                     :on-change (util/wrap-prevent-default
                                                  #(reset! emails-txt (-> % .-target .-value)))}]]
          [Button {:primary true
-                  :on-click #(dispatch [:action [:project/send-invites project-id invite-url @emails-txt]])}
+                  :disabled (or running? (zero? unique-count))
+                  :type "submit"}
           "Send Invites"]
          (if (> email-count 0)
            [:span {:style {:margin-left "10px"}}
-            email-count " email(s) recognized."])]))))
+            (case email-count
+              1 "1 email recognized"
+              (str email-count " emails recognized"))
+            (if (> email-count unique-count)
+              (str " (" unique-count " unique)"))])]))))
 
 (defn- MemberActivityChart []
   (let [project-id @(subscribe [:active-project-id])
