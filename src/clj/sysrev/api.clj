@@ -354,16 +354,6 @@
          (shared/make-link :twitter "Twitter @sysrev1") "<br>"
          (shared/make-link :blog "blog.sysrev.com") "<br>")))
 
-
-(defn send-project-invites [email link]
-  #_(let [verify-code (user/email-verify-code user-id email)
-        url (str (sysrev-base-url) "/user/" user-id "/email/" verify-code)]
-    (sendgrid/send-template-email
-     email "Verify Your Email"
-     (format "Verify your email by clicking <a href='%s'>here</a>." url))
-    {:success true})
-  {:success false})
-
 (defn register-user!
   "Register a user and add them as a stripe customer"
   [email password & {:keys [project-id google-user-id]}]
@@ -1503,14 +1493,24 @@
     {:success true}))
 
 (defn send-bulk-invitations
-  "Send an invitation email in bulk"
-  [project-id emails invite-url]
-  (let [responses (->> emails
+  "Send invitation emails in bulk"
+  [project-id emails]
+  (let [project (q/find-one :project {:project-id project-id})
+        project-name (:name project)
+        project-hash (some-> project :project-uuid util/short-uuid)
+        invite-url (str (sysrev-base-url) "/register/" project-hash)
+        responses (->> emails
+                       (filter util/email?)
+                       set ; remove duplicates
                        (pmap (fn [email]
-                               (log/info "Sending email to " email)
                                (sendgrid/send-template-email
                                  email (str "You've been invited to " project-name " as a reviewer")
                                  (str "You've been invited to <b>" project-name
                                       "</b> as a reviewer. You can view the invitation <a href='" invite-url "'>here</a>.")))))
-        success? (->> responses) (map :success) (every? true?)]
-    {:success success?}))
+        response-count (count responses)
+        failure-count (->> responses (filter (comp not :success)) count)
+        success? (zero? failure-count)]
+    {:success success?
+     :message (if success?
+                (str response-count " invitation(s) successfully sent!")
+                (str failure-count " out of " (count responses) " invitation(s) failed to be sent"))}))

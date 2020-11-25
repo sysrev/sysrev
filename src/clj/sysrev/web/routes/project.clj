@@ -6,6 +6,7 @@
             [compojure.core :refer [GET POST PUT]]
             [ring.util.response :as response]
             [sysrev.api :as api]
+            [sysrev.config :refer [env]]
             [sysrev.web.app :as web :refer [with-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.datasource.api :as ds-api]
@@ -510,9 +511,26 @@
 
 (dr (POST "/api/send-project-invites" request
           (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [emails invite-url]} (-> request :body)]
-              (api/send-bulk-invitations project-id emails invite-url)))))
+            (let [max-bulk-invitations (:max-bulk-invitations env)
+                  project-id (active-project request)
+                  {:keys [emails]} (-> request :body)
+                  unique-emails (set emails)
+                  unique-emails-count (count unique-emails)]
+              (Thread/sleep 1000)
+              (cond
+                (zero? unique-emails-count)
+                {:error {:status api/bad-request
+                         :message (str "At least 1 email is required")}}
+                (> unique-emails-count max-bulk-invitations)
+                {:error {:status api/bad-request
+                         :message (str "Maximum emails allowed are " max-bulk-invitations)}}
+
+                :else
+                (let [response (api/send-bulk-invitations project-id unique-emails)]
+                  (if (:success response)
+                    response
+                    {:error {:status api/bad-request
+                             :message (:message response)}})))))))
 
 ;;;
 ;;; Project sources

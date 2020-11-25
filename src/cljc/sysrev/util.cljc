@@ -170,6 +170,15 @@
         (re-matches
          #"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" s))))
 
+
+(def email-regex
+  #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
+
+(defn email? [s]
+  (boolean
+   (and (string? s)
+        (re-matches email-regex s))))
+
 (defn- uuid-from-string [x]
   #?(:clj (UUID/fromString x)
      :cljs (uuid x)))
