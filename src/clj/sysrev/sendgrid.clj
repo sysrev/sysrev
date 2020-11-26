@@ -1,5 +1,6 @@
 (ns sysrev.sendgrid
   (:require [clj-http.client :as http]
+            [clojure.tools.logging :as log]
             [sysrev.config :refer [env]]))
 
 (def sendgrid-api-key (env :sendgrid-api-key))
@@ -39,14 +40,18 @@
 ;; If, in your sendgrid template, you had e.g., "Hi %name%"
 (defn- send-email
   [to from subject payload & {:keys [substitutions]}]
-  (request "mail/send"
-           (merge {:personalizations [{:to [{:email to}]
-                                       :subject subject
-                                       :substitutions substitutions}]
-                   :from {:email from
-                          :name "SysRev"}
-                   :asm {:group_id sendgrid-asm-group-id}}
-                  payload)))
+  (let [request-params (merge {:personalizations [{:to [{:email to}]
+                                                   :subject subject
+                                                   :substitutions substitutions}]
+                               :from {:email from
+                                      :name "SysRev"}
+                               :asm {:group_id sendgrid-asm-group-id}}
+                              payload)]
+    (if (:mock-email env)
+      (do
+        (log/debug "Would have emailed:" request-params)
+        {:success true})
+      (request "mail/send" request-params))))
 
 (defn ^:unused send-text-email
   [to subject message
