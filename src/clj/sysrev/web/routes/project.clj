@@ -516,7 +516,6 @@
                   {:keys [emails]} (-> request :body)
                   unique-emails (set emails)
                   unique-emails-count (count unique-emails)]
-              (Thread/sleep 1000)
               (cond
                 (zero? unique-emails-count)
                 {:error {:status api/bad-request

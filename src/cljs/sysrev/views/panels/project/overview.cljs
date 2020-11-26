@@ -161,7 +161,9 @@
 
 (defn txt->emails [txt]
   (if (string? txt)
-    (re-seq util/email-regex txt)))
+    (->> (str/split txt #"[ ,\n]")
+         (map str/trim)
+         (filter util/email?))))
 
 (def-action :project/send-invites
   :uri (fn [_ _] "/api/send-project-invites")
@@ -184,16 +186,19 @@
             email-count (count emails)
             unique-count (count (set emails))
             running? (action/running? :project/send-invites)]
-        [:form.ui.form {:on-submit (util/wrap-prevent-default
-                                     #(dispatch [:action [:project/send-invites project-id @emails-txt]]))}
+        [:form.ui.form.bulk-invites-form
+         {:on-submit (util/wrap-prevent-default
+                       #(dispatch [:action [:project/send-invites project-id @emails-txt]]))}
          [:div.field
-          [:textarea#invite-emails {:style {:width "100%"}
-                                    :value @emails-txt
-                                    :required true
-                                    :placeholder "john@example.com, bob@example.net"
-                                    :on-change (util/wrap-prevent-default
-                                                 #(reset! emails-txt (-> % .-target .-value)))}]]
+          [:textarea#bulk-invite-emails
+           {:style {:width "100%"}
+            :value @emails-txt
+            :required true
+            :placeholder "Input a list of emails separated by comma, newlines or spaces."
+            :on-change (util/wrap-prevent-default
+                         #(reset! emails-txt (-> % .-target .-value)))}]]
          [Button {:primary true
+                  :id "send-bulk-invites-button"
                   :disabled (or running? (zero? unique-count))
                   :type "submit"}
           "Send Invites"]

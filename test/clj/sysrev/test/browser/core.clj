@@ -273,6 +273,8 @@
   [q]
   (not-class q "disabled"))
 
+(def is-disabled (comp not not-disabled))
+
 (defn not-loading
   "If taxi query q is CSS form, add restriction against \"loading\" class."
   [q]
