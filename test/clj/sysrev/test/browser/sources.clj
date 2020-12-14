@@ -7,7 +7,7 @@
             [sysrev.datasource.api :as ds-api]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test :refer [default-fixture]]
-            [sysrev.test.browser.core :as b :refer [deftest-browser]]
+            [sysrev.test.browser.core :as b :refer [deftest-browser is*]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
             [clojure.tools.logging :as log]
@@ -15,6 +15,9 @@
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
+
+(defn- unique-count-span [n]
+  (format "span.unique-count[data-count='%d']" n))
 
 (deftest-browser import-pubmed-sources
   true test-user
@@ -43,59 +46,60 @@
         (pm/add-articles-from-search-term query2)
         (nav/go-project-route "/add-articles")
         ;; check that there is no overlap
-        (is (and (empty? (:overlap-maps (pm/search-term-articles-summary query1)))
-                 (empty? (:overlap-maps (pm/search-term-articles-summary query2))))))
+        (is* (and (empty? (:overlap-maps (pm/search-term-articles-summary query1)))
+                  (empty? (:overlap-maps (pm/search-term-articles-summary query2))))))
       ;; add articles from third search term
       (log/info "adding articles from query3")
       (pm/add-articles-from-search-term query3)
       (nav/go-project-route "/add-articles")
       ;; query3 has no unique article or reviewed articles, only one
       ;; article and one overlap with "foo bar"
-      (is (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
-              #_ :overlap-maps #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
-             (pm/search-term-articles-summary query3)))
+      (is* (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
+               #_ :overlap-maps
+               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
+              (pm/search-term-articles-summary query3)))
       ;; add articles from fourth search term
       (log/info "adding articles from query4")
       (pm/add-articles-from-search-term query4)
       (nav/go-project-route "/add-articles")
-      ;; query1 has 5 unique articles, 0 reviewed articles, 7 total
+      ;; query1 has 5 unique articles, 0 reviewed articles, 8 total
       ;; articles, and have two overalaps
-      (is (= (pm/search-term-articles-summary query1)
-             {:unique-articles 5, :reviewed-articles 0, :total-articles 7,
-              #_ :overlap-maps
-              #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}
-                       {:overlap 1, :source "PubMed Search \"foo bar Jones\""}])}))
+      (is* (= {:unique-articles 6, :reviewed-articles 0, :total-articles 8,
+               #_ :overlap-maps
+               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}
+                        {:overlap 1, :source "PubMed Search \"foo bar Jones\""}])}
+              (pm/search-term-articles-summary query1)))
 
 ;;; delete sources
       (pm/delete-search-term-source query4)
       (pm/check-source-count 2)
       ;; article summaries are correct
-      (is (= (pm/search-term-articles-summary query1)
-             {:unique-articles 6, :reviewed-articles 0, :total-articles 7,
-              #_ :overlap-maps
-              #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}))
-      (is (= (pm/search-term-articles-summary query3)
-             {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
-              #_ :overlap-maps
-              #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}))
+      (is* (= {:unique-articles 7, :reviewed-articles 0, :total-articles 8,
+               #_ :overlap-maps
+               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}
+              (pm/search-term-articles-summary query1)))
+      (is* (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
+               #_ :overlap-maps
+               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
+              (pm/search-term-articles-summary query3)))
       (when false
         (pm/delete-search-term-source query2)
         (pm/check-source-count 2)
         ;; article summaries are correct
-        (is (= (pm/search-term-articles-summary query1)
-               {:unique-articles 6, :reviewed-articles 0, :total-articles 7,
-                #_ :overlap-maps
-                #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}))
-        (is (= (pm/search-term-articles-summary query3)
-               {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
-                #_ :overlap-maps
-                #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])})))
+        (is* (= {:unique-articles 6, :reviewed-articles 0, :total-articles 8,
+                 #_ :overlap-maps
+                 #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}
+                (pm/search-term-articles-summary query1)))
+        (is* (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
+                 #_ :overlap-maps
+                 #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
+                (pm/search-term-articles-summary query3))))
       (pm/delete-search-term-source query3)
       (pm/check-source-count 1)
       ;; article summaries are correct
-      (is (empty? (:overlap-maps (pm/search-term-articles-summary query1))))
-      (is (= (pm/search-term-articles-summary query1)
-             {:unique-articles 7, :reviewed-articles 0, :total-articles 7}))
+      (is* (empty? (:overlap-maps (pm/search-term-articles-summary query1))))
+      (is* (= {:unique-articles 8, :reviewed-articles 0, :total-articles 8}
+              (pm/search-term-articles-summary query1)))
       (pm/delete-search-term-source query1)
       (pm/check-source-count 0))
   :cleanup (do (nav/delete-current-project)
@@ -126,7 +130,7 @@
       (b/select-datasource "RIS / RefMan")
       (b/dropzone-upload "test-files/IEEE_Xplore_Citation_Download_LSTM_top_10.ris")
       (b/wait-until-exists (xpath "//div[contains(@class,'source-type') and contains(text(),'RIS file')]"))
-      (is (b/exists? (xpath "//span[@class='unique-count' and contains(text(),'10')]")))
+      (b/exists? (unique-count-span 10))
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click (xpath "//div[contains(@class,'article-title') and text()='" title "']"))
       (let [project-id (b/current-project-id)
@@ -143,8 +147,8 @@
         (is (b/exists? (xpath "//h5[text()='" (str/join ", " authors) "']")))
         (let [excerpt "Learning to store information over extended time intervals"]
           (is (b/exists? (xpath "//span[contains(text(),'" excerpt "')]")))
-          (is (= [abstract] (b/get-elements-text
-                             (xpath "//span[contains(text(),'" excerpt "')]"))))))))
+          (is* (= [abstract] (b/get-elements-text
+                              (xpath "//span[contains(text(),'" excerpt "')]"))))))))
 
 (deftest-browser pdf-files
   (and (test/db-connected?) (not (test/remote-test?))) test-user

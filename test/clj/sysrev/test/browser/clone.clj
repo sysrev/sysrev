@@ -59,7 +59,7 @@
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
     ;; Import Clinical Trials
     (log/info "importing from clinicaltrials")
     (b/select-datasource "ClinicalTrials (beta)")
@@ -75,7 +75,7 @@
     (b/dropzone-upload "test-files/pubmed_result.txt")
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
 
     ;; import Endnote file
     (log/info "importing from ENDNOTE")
@@ -103,11 +103,11 @@
     ;; RIS
     (is (b/exists? (unique-count-span 10)))
     ;; PubMed search
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
     ;; ctgov
     (is (b/exists? (unique-count-span 2)))
     ;; pmid file
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
     ;; endnote
     (is (b/exists? (unique-count-span 3)))))
 
@@ -124,7 +124,7 @@
     ;; PubMed search input
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
     ;; user can clone their project
     (b/exists? clone-button)
     ;; another user can also clone the project

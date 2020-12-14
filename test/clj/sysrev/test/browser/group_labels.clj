@@ -202,7 +202,7 @@
     ;; PubMed search input
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")
     (nav/go-project-route "/labels/edit")
@@ -324,7 +324,7 @@
     ;; add some article so we can label them
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
     ;; label editing
     (nav/go-project-route "/labels/edit")
     (b/click dlabels/add-group-label-button)
@@ -472,7 +472,7 @@
     ;; PubMed search input
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 7)))
+    (is (b/exists? (unique-count-span 8)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")
     (nav/go-project-route "/labels/edit")
@@ -574,23 +574,26 @@
     (nav/go-project-route "/labels/edit")
     (dlabels/define-group-label group-label-definition)
     ;; order is correct
-    (is (= (group-sub-short-labels "Foo") ["Alpha" "Bravo" "Charlie"]))
+    (is (= ["Alpha" "Bravo" "Charlie"] (group-sub-short-labels "Foo")))
     ;; add another label
     (b/click (edit-group-label-button "Foo"))
-    (b/click (xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add String Label')]"))
-    (dlabels/set-label-definition (xpath "(//div[contains(@class,'define-group-label')]"
-                                         "//form[contains(@class,'define-label')])[" 4 "]")
-                                  {:value-type "string"
-                                   :short-label "Delta"
-                                   :question "Is this a Delta?"
-                                   :required true})
+    (b/click (xpath (group-label-edit-form "Foo")
+                    "//button[contains(text(),'Add String Label')]"))
+    (dlabels/set-label-definition
+     (xpath "(//div[contains(@class,'define-group-label')]"
+            "//form[contains(@class,'define-label')])[" 4 "]")
+     {:value-type "string"
+      :short-label "Delta"
+      :question "Is this a Delta?"
+      :required true})
     (b/click dlabels/save-button)
-    (is (= (group-sub-short-labels "Foo") ["Alpha" "Bravo" "Charlie" "Delta"]))
+    (is (= ["Alpha" "Bravo" "Charlie" "Delta"] (group-sub-short-labels "Foo")))
     ;; add another label
     (b/click (edit-group-label-button "Foo"))
-    (b/click (xpath (group-label-edit-form "Foo") "//button[contains(text(),'Add Boolean Label')]"))
-    (is (= (group-label-edit-form-sub-labels "Foo")
-           ["Alpha" "Bravo" "Charlie" "Delta" ""]))))
+    (b/click (xpath (group-label-edit-form "Foo")
+                    "//button[contains(text(),'Add Boolean Label')]"))
+    (is (= ["Alpha" "Bravo" "Charlie" "Delta" ""]
+           (group-label-edit-form-sub-labels "Foo")))))
 
 (defn check-status
   [n-full n-conflict n-resolved]

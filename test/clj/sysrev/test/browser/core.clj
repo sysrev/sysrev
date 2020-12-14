@@ -27,7 +27,7 @@
 
 (defn sysrev-url? []
   (when-let [url (util/ignore-exceptions (taxi/current-url))]
-    (->> ["localhost" "sysrev"] (some #(str/includes? url %)))))
+    (some #(str/includes? url %) #{"localhost" "sysrev"})))
 
 (defn browser-console-logs []
   (when (sysrev-url?)
@@ -107,7 +107,7 @@
 (defn start-webdriver [& [restart?]]
   (if (and @*wd* (not restart?))
     @*wd*
-    (do (when @*wd* (-> (taxi/quit @*wd*) (ignore-exceptions)))
+    (do (when @*wd* (ignore-exceptions (taxi/quit @*wd*)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments
                              (seq ["headless"
@@ -136,7 +136,7 @@
   [& [restart?]]
   (if (and @*wd* (not restart?))
     @*wd*
-    (do (when @*wd* (-> (taxi/quit @*wd*) (ignore-exceptions)))
+    (do (when @*wd* (ignore-exceptions (taxi/quit @*wd*)))
         (reset! *wd* (->> (doto (ChromeOptions.)
                             (.addArguments (concat[(format "window-size=%d,%d"
                                                            (:width browser-test-window-size)
@@ -175,7 +175,7 @@
                             (user/user-by-email email)
                             (q/find-one :web-user {:user-id user-id}))]
       (when stripe-id
-        (-> (stripe/delete-customer! user) (ignore-exceptions)))
+        (ignore-exceptions (stripe/delete-customer! user)))
       (when user-id
         (q/delete :compensation-user-period {:user-id user-id}))
       (if email
@@ -225,13 +225,19 @@
       (Thread/sleep interval)
       (taxi/wait-until (fn [& _] (pred)) timeout interval))))
 
+(defmacro is*
+  "Runs (is pred-form), then on failure runs (assert pred-form)."
+  [pred-form]
+  `(or (is ~pred-form)
+       (assert ~pred-form)))
+
 (defmacro is-soon
-  "Runs (is pred-form) after attempting to wait for pred-form to
+  "Runs (is* pred-form) after attempting to wait for pred-form to
   evaluate as logical true."
   [pred-form & [timeout interval]]
   `(do (or (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
            (take-screenshot :error))
-       (is ~pred-form)))
+       (is* ~pred-form)))
 
 (defn wait-until-exists
   "Waits until an element matching q exists, or throws exception on
@@ -436,7 +442,7 @@
                     ~body
                     (assert-browser-console-clean)
                     (catch Throwable e#
-                      (log/error "current-url:" (-> (taxi/current-url) (ignore-exceptions)))
+                      (log/error "current-url:" (ignore-exceptions (taxi/current-url)))
                       (log-console-messages :error)
                       (take-screenshot :error)
                       (throw e#))
