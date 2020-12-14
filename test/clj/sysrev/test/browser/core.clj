@@ -20,7 +20,8 @@
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
-  (:import (org.openqa.selenium.chrome ChromeOptions ChromeDriver)))
+  (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
+           [java.net URI URLDecoder]))
 
 (defonce ^:dynamic *wd* (atom nil))
 (defonce ^:dynamic *wd-config* (atom nil))
@@ -210,8 +211,15 @@
   (succeeds? (do (apply wait-fn args) true)))
 
 (def web-default-interval
-  (or (some-> (:sr-interval env) util/parse-integer)
-      20))
+  (-> (some-> (:sr-interval env) util/parse-integer)
+      (or 20)))
+
+(def delay-offset
+  (-> (some-> (:sr-delay-offset env) util/parse-integer)
+      (or 0)))
+
+(defn make-delay [ms]
+  (max 5 (+ ms delay-offset)))
 
 (defn wait-until
   "Wrapper for taxi/wait-until with default values for timeout and
@@ -294,12 +302,13 @@
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 30)."
   [& [duration]]
-  (< (ajax-activity-duration) (- (or duration 30))))
+  (< (ajax-activity-duration) (- (make-delay (or duration 30)))))
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
   (dotimes [_ (or loop 1)]
-    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
+    (when pre-wait (Thread/sleep (make-delay
+                                  (if (integer? pre-wait) pre-wait 25))))
     (wait-until #(and (ajax-inactive? inactive-ms)
                       (every? (complement taxi/exists?)
                               [(not-class "div.ui.loader.active"
@@ -339,7 +348,8 @@
          (taxi/clear q))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 40 clear? true}}]
-  (let [q (not-disabled q)]
+  (let [delay (make-delay delay)
+        q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (clear q))
     (Thread/sleep (quot delay 2))
@@ -348,7 +358,8 @@
 
 (defn set-input-text-per-char [q text & {:keys [delay char-delay clear?]
                                          :or {delay 40 char-delay 30 clear? true}}]
-  (let [q (not-disabled q)]
+  (let [delay (make-delay delay)
+        q (not-disabled q)]
     (wait-until-displayed q)
     (when clear? (clear q))
     (Thread/sleep (quot delay 2))
@@ -385,7 +396,8 @@
               (wait-until-loading-completes :pre-wait ms :timeout timeout)))]
     ;; auto-exclude "disabled" class when q is css
     (let [q (if external? q
-                (-> q (not-disabled) (not-loading)))]
+                (-> q (not-disabled) (not-loading)))
+          delay (make-delay delay)]
       (when (= if-not-exists :wait)
         (if displayed?
           (is-soon (displayed-now? q))
@@ -406,7 +418,7 @@
   (wait-until-displayed input-element)
   (dotimes [_ length]
     (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-    (Thread/sleep 20)))
+    (Thread/sleep (make-delay 20))))
 
 (defmacro with-webdriver [& body]
   `(let [visual# (:visual @*wd-config*) ]
@@ -447,9 +459,10 @@
                       (take-screenshot :error)
                       (throw e#))
                     (finally
-                      (try (wait-until-loading-completes :pre-wait 50 :timeout 1500)
+                      (try (wait-until-loading-completes
+                            :pre-wait 50 :timeout 1500)
                            (catch Throwable e2#
-                             (log/info "test cleanup - wait-until-loading-completes timed out")))
+                             (log/info "test cleanup - wait timed out")))
                       (let [failed# (and (instance? clojure.lang.IDeref *report-counters*)
                                          (map? @*report-counters*)
                                          (or (pos? (:fail @*report-counters*))
@@ -492,7 +505,8 @@
     (group/delete-group! group-id)))
 
 (defn cleanup-test-user!
-  "Deletes a test user by user-id or email, along with other entities the user is associated with."
+  "Deletes a test user by user-id or email, along with other entities
+  the user is associated with."
   [& {:keys [user-id email projects compensations groups]
       :or {projects true, compensations true, groups false}}]
   (util/assert-single user-id email)
@@ -510,7 +524,7 @@
 (defn url->path
   "Returns relative path component of URL string."
   [uri]
-  (.getPath (java.net.URI. uri)))
+  (.getPath (URI. uri)))
 
 (defn path->url
   "Returns full URL from relative path string, based on test config."
@@ -581,7 +595,8 @@
 (defn click-drag-element [q & {:keys [start-x offset-x start-y offset-y delay]
                                :or {start-x 0 offset-x 0 start-y 0 offset-y 0
                                     delay 40}}]
-  (let [start-x (or start-x 0)
+  (let [delay (make-delay delay)
+        start-x (or start-x 0)
         offset-x (or offset-x 0)
         start-y (or start-y 0)
         offset-y (or offset-y 0)
@@ -612,9 +627,8 @@
 
 (defn check-for-error-message [error-message]
   (exists?
-   (xpath
-    "//div[contains(@class,'negative') and contains(@class,'message') and contains(text(),\""
-    error-message "\")]")))
+   (xpath "//div[contains(@class,'negative') and contains(@class,'message') "
+          "      and contains(text(),\"" error-message "\")]")))
 
 ;; http://blog.fermium.io/how-to-send-files-to-a-dropzone-js-element-in-selenium/
 (defn dropzone-upload
@@ -630,19 +644,20 @@
   (wait-until-displayed "#enable-import")
   (when (taxi/exists? (not-disabled "#enable-import"))
     (click "#enable-import"))
-  (let [datasource-item (xpath "//div[contains(@class,'datasource-item')]//p[contains(text(),'" datasource-name "')]")]
+  (let [datasource-item (xpath "//div[contains(@class,'datasource-item')]"
+                               "//p[contains(text(),'" datasource-name "')]")]
     (wait-until-displayed datasource-item)
     (click datasource-item)
-    (wait-until-exists (xpath "//div[contains(@class,'datasource-item') and contains(@class,'active')]//p[contains(text(),'" datasource-name "')]"))))
+    (wait-until-exists (xpath "//div[contains(@class,'datasource-item')"
+                              "      and contains(@class,'active')]"
+                              "//p[contains(text(),'" datasource-name "')]"))))
 
 (defn uppy-attach-files
-  "Given a coll of file names in the resources dir, attach the files to uppy file element"
+  "Given a coll of file names in the resources dir, attach the files to
+  uppy file element."
   [coll]
   (taxi/send-keys "input[name='files[]']"
-                  (clojure.string/join "\n"
-                                       (mapv #(-> % io/resource .getFile java.net.URLDecoder/decode)
-                                             ;; if a single string, just convert to a coll
-                                             (if (string? coll)
-                                               [coll]
-                                               coll))))
+                  (->> (for [s (util/ensure-vector coll)]
+                         (-> s io/resource .getFile URLDecoder/decode))
+                       (str/join "\n")))
   nil)

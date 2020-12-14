@@ -9,6 +9,7 @@ export DATASOURCE_AUTH_KEY=
 
 ## Optional
 # export DATASOURCE_HOST="http://hostname:port"
-# export SYSREV_REUSE_WEBDRIVER=0
 # export SYSREV_SLACK_ERRORS="<webhook token>"
 ## (take from: https://api.slack.com/apps/AMLU7D7Q9/incoming-webhooks?success=1)
+# export SR_INTERVAL=25       # selenium condition test interval
+# export SR_DELAY_OFFSET=10   # adjust ms delays in browser tests
