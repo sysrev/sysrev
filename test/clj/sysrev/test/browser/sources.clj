@@ -1,8 +1,10 @@
 (ns sysrev.test.browser.sources
-  (:require [clojure.string :as str]
-            [clojure.test :refer [is use-fixtures]]
+  (:require [clojure.test :refer [is use-fixtures]]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clj-webdriver.taxi :as taxi]
+            [me.raynes.fs :as fs]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
             [sysrev.source.import :as import]
@@ -10,13 +12,12 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser is*]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
-            [clojure.tools.logging :as log]
             [sysrev.test.browser.xpath :refer [xpath]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(defn- unique-count-span [n]
+(defn unique-count-span [n]
   (format "span.unique-count[data-count='%d']" n))
 
 (deftest-browser import-pubmed-sources
@@ -26,79 +27,75 @@
    query2 "grault"
    query3 "foo bar Aung"
    query4 "foo bar Jones"
-   project-id (atom nil)]
+   project-id (atom nil)
+   foo-bar-count (count (pm/test-search-pmids "foo bar"))]
   (do (nav/log-in (:email test-user))
 ;;; create a project
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
-      (nav/go-project-route "/add-articles")
 ;;; add sources
-      (log/info "adding sources")
-      ;; create a new source
+      (nav/go-project-route "/add-articles")
       (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                       :timeout 10000 :interval 30)
       (log/info "adding articles from query1")
       (pm/add-articles-from-search-term query1)
       (nav/go-project-route "/add-articles")
       (when false
-        ;; add articles from second search term
         (pm/add-articles-from-search-term query2)
         (nav/go-project-route "/add-articles")
         ;; check that there is no overlap
         (is* (and (empty? (:overlap-maps (pm/search-term-articles-summary query1)))
                   (empty? (:overlap-maps (pm/search-term-articles-summary query2))))))
-      ;; add articles from third search term
       (log/info "adding articles from query3")
       (pm/add-articles-from-search-term query3)
       (nav/go-project-route "/add-articles")
-      ;; query3 has no unique article or reviewed articles, only one
-      ;; article and one overlap with "foo bar"
-      (is* (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
+      (is* (= {:unique-articles 0 :reviewed-articles 0 :total-articles 1
                #_ :overlap-maps
-               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
+               #_ (set [{:overlap 1 :source "PubMed Search \"foo bar\""}])}
               (pm/search-term-articles-summary query3)))
-      ;; add articles from fourth search term
       (log/info "adding articles from query4")
       (pm/add-articles-from-search-term query4)
       (nav/go-project-route "/add-articles")
-      ;; query1 has 5 unique articles, 0 reviewed articles, 8 total
-      ;; articles, and have two overalaps
-      (is* (= {:unique-articles 6, :reviewed-articles 0, :total-articles 8,
+      (is* (= {:unique-articles (- foo-bar-count 2) :reviewed-articles 0
+               :total-articles foo-bar-count
                #_ :overlap-maps
-               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}
-                        {:overlap 1, :source "PubMed Search \"foo bar Jones\""}])}
+               #_ (set [{:overlap 1 :source "PubMed Search \"foo bar Aung\""}
+                        {:overlap 1 :source "PubMed Search \"foo bar Jones\""}])}
               (pm/search-term-articles-summary query1)))
 
 ;;; delete sources
       (pm/delete-search-term-source query4)
       (pm/check-source-count 2)
       ;; article summaries are correct
-      (is* (= {:unique-articles 7, :reviewed-articles 0, :total-articles 8,
+      (is* (= {:unique-articles (- foo-bar-count 1) :reviewed-articles 0
+               :total-articles foo-bar-count
                #_ :overlap-maps
-               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}
+               #_ (set [{:overlap 1 :source "PubMed Search \"foo bar Aung\""}])}
               (pm/search-term-articles-summary query1)))
-      (is* (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
+      (is* (= {:unique-articles 0 :reviewed-articles 0 :total-articles 1
                #_ :overlap-maps
-               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
+               #_ (set [{:overlap 1 :source "PubMed Search \"foo bar\""}])}
               (pm/search-term-articles-summary query3)))
       (when false
         (pm/delete-search-term-source query2)
         (pm/check-source-count 2)
         ;; article summaries are correct
-        (is* (= {:unique-articles 6, :reviewed-articles 0, :total-articles 8,
+        (is* (= {:unique-articles (- foo-bar-count 2) :reviewed-articles 0
+                 :total-articles foo-bar-count
                  #_ :overlap-maps
-                 #_ (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}
+                 #_ (set [{:overlap 1 :source "PubMed Search \"foo bar Aung\""}])}
                 (pm/search-term-articles-summary query1)))
-        (is* (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
+        (is* (= {:unique-articles 0 :reviewed-articles 0 :total-articles 1
                  #_ :overlap-maps
-                 #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
+                 #_ (set [{:overlap 1 :source "PubMed Search \"foo bar\""}])}
                 (pm/search-term-articles-summary query3))))
       (pm/delete-search-term-source query3)
       (pm/check-source-count 1)
       ;; article summaries are correct
       (is* (empty? (:overlap-maps (pm/search-term-articles-summary query1))))
-      (is* (= {:unique-articles 8, :reviewed-articles 0, :total-articles 8}
+      (is* (= {:unique-articles foo-bar-count :reviewed-articles 0
+               :total-articles foo-bar-count}
               (pm/search-term-articles-summary query1)))
       (pm/delete-search-term-source query1)
       (pm/check-source-count 0))
@@ -152,8 +149,9 @@
 
 (deftest-browser pdf-files
   (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [files (map #(str "test-files/test-pdf-import/" %)
-              (.list (io/file "resources/test-files/test-pdf-import")))]
+  [res-path "test-files/test-pdf-import"
+   files (for [f (fs/list-dir (io/resource res-path))]
+           (str res-path "/" (fs/base-name f)))]
   (do (nav/log-in (:email test-user))
       (nav/new-project "pdf files test")
       (b/select-datasource "PDF files")
@@ -161,10 +159,10 @@
       (b/uppy-attach-files files)
       (b/wait-until-exists (xpath "//button[contains(text(),'Upload')]"))
       (b/click (xpath "//button[contains(text(),'Upload')]"))
-      (b/wait-until-exists (xpath "//div[contains(@class,'delete-button')]"))
+      (b/wait-until-exists "div.delete-button")
       ;;(b/init-route (-> (taxi/current-url) b/url->path))
       (nav/go-project-route "/articles" :wait-ms 100)
       (b/click "a.column.article-title" :displayed? true :delay 200)
-      (b/is-soon (taxi/exists? "div.pdf-container div.page div.canvasWrapper"))
+      (b/exists? "div.pdf-container div.page div.canvasWrapper")
       (b/click ".ui.menu > .item.articles" :delay 100)
-      (b/is-soon (taxi/exists? "a.column.article-title"))))
+      (b/exists? "a.column.article-title")))

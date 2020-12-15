@@ -16,19 +16,21 @@
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "label count test"
    include-label #(merge ra/include-label-definition {:value %})
-   user-2 (b/create-test-user :email "zoom@zoomers.com" :password "choochoo")]
+   user-2 (b/create-test-user :email "zoom@zoomers.com" :password "choochoo")
+   n-articles (count (pm/test-search-pmids "foo bar"))]
   (do (nav/log-in (:email test-user))
       (plans/user-subscribe-to-unlimited (:email test-user))
       (nav/new-project project-name)
       (add-project-member (b/current-project-id) (:user-id user-2))
       (pm/import-pubmed-search-via-db "foo bar")
-      (dotimes [_ 8] (ra/set-article-answers [(include-label true)]))
+      (dotimes [_ n-articles] (ra/set-article-answers [(include-label true)]))
       (nav/log-in (:email user-2) (:password user-2))
       (nav/open-project project-name)
-      (dotimes [_ 8] (ra/set-article-answers [(include-label true)]))
+      (dotimes [_ n-articles] (ra/set-article-answers [(include-label true)]))
       (nav/log-in (:email test-user))
       (nav/open-project project-name)
       (nav/go-project-route "/analytics/labels")
-      (b/text-is? "p#answer-count" "8 articles with 16 answers total"))
+      (b/text-is? "p#answer-count" (format "%d articles with %d answers total"
+                                           n-articles (* 2 n-articles))))
   :cleanup (doseq [{:keys [email]} [test-user user-2]]
              (b/cleanup-test-user! :email email)))

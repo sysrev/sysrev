@@ -24,13 +24,11 @@
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
+            [sysrev.test.browser.sources :refer [unique-count-span]]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
-
-(defn- unique-count-span [n]
-  (format "span.unique-count[data-count='%d']" n))
 
 (defn group-label-div-with-name [short-label]
   (xpath "//div[contains(@id,'group-label-input-') and contains(text(),'" short-label "')]"))
@@ -168,6 +166,7 @@
    project-id (atom nil)
    {:keys [user-id email]} test-user
    include-label-value true
+   pm-count (count (pubmed/test-search-pmids "foo bar"))
    group-label-definition {:value-type "group"
                            :short-label "Group Label"
                            :definition
@@ -202,7 +201,7 @@
     ;; PubMed search input
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span pm-count)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")
     (nav/go-project-route "/labels/edit")
@@ -276,6 +275,7 @@
   [project-name "SysRev Browser Test (group-labels-error-handling-test)"
    {:keys [user-id email]} test-user
    project-id (atom nil)
+   pm-count (count (pubmed/test-search-pmids "foo bar"))
    no-display "Display name must be provided"
    sub-label-required "Group label must include at least one sub label"
    question-required "Question text must be provided"
@@ -324,7 +324,7 @@
     ;; add some article so we can label them
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span pm-count)))
     ;; label editing
     (nav/go-project-route "/labels/edit")
     (b/click dlabels/add-group-label-button)
@@ -434,6 +434,7 @@
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (group-labels-in-depth)"
    project-id (atom nil)
+   pm-count (count (pubmed/test-search-pmids "foo bar"))
    include-label-value true
    invalid-value "Invalid"
    group-label-definition {:value-type "group"
@@ -472,7 +473,7 @@
     ;; PubMed search input
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span pm-count)))
     ;; create new labels
     (log/info "Creating Group Label Definitions")
     (nav/go-project-route "/labels/edit")

@@ -14,6 +14,7 @@
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.pubmed :as pubmed]
             [sysrev.test.browser.search :as search]
+            [sysrev.test.browser.sources :refer [unique-count-span]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.util :as util]))
@@ -25,14 +26,12 @@
 (def clone-to-user "div#clone-to-user")
 (def cloned-from (xpath "//span[contains(text(),'cloned from')]"))
 
-(defn- unique-count-span [n]
-  (format "span.unique-count[data-count='%d']" n))
-
 (deftest-browser clone-project-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "Sysrev Browser Test (clone-project-happy-path)"
    filename "test-pdf-import.zip"
-   src-project-id (atom nil)]
+   src-project-id (atom nil)
+   pm-count (count (pubmed/test-search-pmids "foo bar"))]
   (do
     (nav/log-in (:email test-user))
     (nav/new-project project-name)
@@ -59,7 +58,7 @@
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span pm-count)))
     ;; Import Clinical Trials
     (log/info "importing from clinicaltrials")
     (b/select-datasource "ClinicalTrials (beta)")
@@ -75,7 +74,7 @@
     (b/dropzone-upload "test-files/pubmed_result.txt")
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span 7)))
 
     ;; import Endnote file
     (log/info "importing from ENDNOTE")
@@ -103,11 +102,11 @@
     ;; RIS
     (is (b/exists? (unique-count-span 10)))
     ;; PubMed search
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span pm-count)))
     ;; ctgov
     (is (b/exists? (unique-count-span 2)))
     ;; pmid file
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span 7)))
     ;; endnote
     (is (b/exists? (unique-count-span 3)))))
 
@@ -116,7 +115,8 @@
   [project-name "Sysrev Browser Test (clone-permissions-test)"
    test-user-b (b/create-test-user :email "foo@qux.com" :password "foobar")
    src-project-id (atom nil)
-   user-id (user/user-by-email (:email test-user) :user-id)]
+   user-id (user/user-by-email (:email test-user) :user-id)
+   pm-count (count (pubmed/test-search-pmids "foo bar"))]
   (do
     (plans/user-subscribe-to-unlimited (:email test-user))
     (nav/new-project project-name)
@@ -124,7 +124,7 @@
     ;; PubMed search input
     (b/select-datasource "PubMed")
     (pubmed/import-pubmed-search-via-db "foo bar")
-    (is (b/exists? (unique-count-span 8)))
+    (is (b/exists? (unique-count-span pm-count)))
     ;; user can clone their project
     (b/exists? clone-button)
     ;; another user can also clone the project
