@@ -285,9 +285,9 @@
      opts]))
 
 (defn- LabelValueDropdown [_context label-id value on-change include-nil?]
-  (let [boolean? (= "boolean" @(subscribe [:label/value-type label-id]))
-        categorical? (= "categorical" @(subscribe [:label/value-type label-id]))
-        all-values @(subscribe [:label/all-values label-id])
+  (let [boolean? (= "boolean" @(subscribe [:label/value-type nil label-id]))
+        categorical? (= "categorical" @(subscribe [:label/value-type nil label-id]))
+        all-values @(subscribe [:label/all-values nil label-id])
         entries (cond->> (cond boolean?      [nil true false]
                                categorical?  (concat [nil] all-values)
                                :else         nil)
@@ -541,7 +541,7 @@
                             (false? confirmed)  "unconfirmed"
                             :else               nil)
         label-str (if (nil? label-id) (space-join ["any" confirmed-str "label"])
-                      (space-join [confirmed-str (-> @(subscribe [:label/display "na" label-id])
+                      (space-join [confirmed-str (-> @(subscribe [:label/display nil label-id])
                                                      pr-str wrap-parens)]))
         inclusion-str (case inclusion
                         true   "with positive inclusion"
@@ -573,8 +573,9 @@
   (let [{:keys [label-id label-value direction score]} value]
     (space-join ["has prediction score" (case direction  :above ">", :below "<", "(??)")
                  (some-> score (* 10) int (/ 10.0) (str "%")) "for"
-                 (wrap-parens (space-join [(-> @(subscribe [:label/display "na" label-id]) pr-str)
-                                           "=" (pr-str label-value)]))])))
+                 (wrap-parens
+                  (space-join [(pr-str @(subscribe [:label/display nil label-id]))
+                               "=" (pr-str label-value)]))])))
 
 (defn- FilterDescribeElement
   [context filter-idx]

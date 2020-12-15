@@ -123,7 +123,8 @@
            [(subscribe [:self/user-id])
             (subscribe [::labels])
             (subscribe [:article/labels article-id])])
-         (fn [[user-id ui-labels article-labels] [_ article-id root-label-id label-id ith]]
+         (fn [[user-id ui-labels article-labels]
+              [_ article-id root-label-id label-id ith]]
            (let [ui-vals (get-in ui-labels [article-id] {})
                  article-vals (->> (get-in article-labels [user-id] {})
                                    (map-values :answer))

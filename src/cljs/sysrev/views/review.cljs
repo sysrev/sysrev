@@ -20,13 +20,11 @@
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn set-label-value [db article-id root-label-id label-id ith label-value]
-  (cond
-    ;; not a group label
-    (= root-label-id "na")
+  (if (= root-label-id "na") ; not a group label
     (assoc-in db [:state :review :labels article-id label-id]
               label-value)
-    :else
-    (assoc-in db [:state :review :labels article-id root-label-id :labels ith label-id] label-value)))
+    (assoc-in db [:state :review :labels article-id root-label-id :labels ith label-id]
+              label-value)))
 
 (reg-event-db :review/set-label-value [trim-v]
               (fn [db [article-id root-label-id label-id ith label-value]]
@@ -35,20 +33,26 @@
 ;; Adds a value to an active label answer vector
 (reg-event-db ::add-label-value [trim-v]
               (fn [db [article-id root-label-id label-id ith label-value]]
-                (let [current-values (if (= root-label-id "na")
-                                       (get @(subscribe [:review/active-labels article-id]) label-id)
-                                       (get-in @(subscribe [:review/active-labels article-id]) [root-label-id :labels ith label-id]))]
+                (let [current-values
+                      (if (= root-label-id "na")
+                        (get @(subscribe [:review/active-labels article-id]) label-id)
+                        (get-in @(subscribe [:review/active-labels article-id])
+                                [root-label-id :labels ith label-id]))]
                   (set-label-value db article-id root-label-id label-id ith
-                                   (-> current-values (concat [label-value]) distinct vec)))))
+                                   (-> (concat current-values [label-value])
+                                       distinct vec)))))
 
 ;; Removes a value from an active label answer vector
 (reg-event-db ::remove-label-value [trim-v]
               (fn [db [article-id root-label-id label-id ith label-value]]
-                (let [current-values (if (= root-label-id "na")
-                                       (get @(subscribe [:review/active-labels article-id]) label-id)
-                                       (get-in @(subscribe [:review/active-labels article-id]) [root-label-id :labels ith label-id]))]
+                (let [current-values
+                      (if (= root-label-id "na")
+                        (get @(subscribe [:review/active-labels article-id]) label-id)
+                        (get-in @(subscribe [:review/active-labels article-id])
+                                [root-label-id :labels ith label-id]))]
                   (set-label-value db article-id root-label-id label-id ith
-                                   (->> current-values (remove (partial = label-value)) vec)))))
+                                   (vec (->> current-values
+                                             (remove (partial = label-value))))))))
 
 (reg-event-db ::remove-string-value [trim-v]
               (fn [db [article-id root-label-id label-id ith value-idx curvals]]
@@ -71,19 +75,24 @@
               (fn [{:keys [db]} [article-id root-label-id label-id ith label-value]]
                 (let [{:keys [value-type]} (get-label-raw db label-id)]
                   (condp = value-type
-                    "boolean"      {:db (set-label-value db article-id root-label-id label-id ith label-value)}
-                    "categorical"  {::add-label-value [article-id root-label-id label-id ith label-value]}))))
+                    "boolean"
+                    {:db (set-label-value db article-id root-label-id
+                                          label-id ith label-value)}
+                    "categorical"
+                    {::add-label-value [article-id root-label-id
+                                        label-id ith label-value]}))))
 
 ;; missing labels
-(reg-event-db :review/create-missing-label
-              [trim-v]
+(reg-event-db :review/create-missing-label [trim-v]
               (fn [db [article-id root-label-id label-id ith]]
-                (assoc-in db [:state :review :missing-labels article-id root-label-id label-id ith] true)))
+                (assoc-in db [:state :review :missing-labels
+                              article-id root-label-id label-id ith]
+                          true)))
 
-(reg-event-db :review/delete-missing-label
-              [trim-v]
+(reg-event-db :review/delete-missing-label [trim-v]
               (fn [db [article-id root-label-id label-id ith]]
-                (dissoc-in db [:state :review :missing-labels article-id root-label-id label-id ith])))
+                (dissoc-in db [:state :review :missing-labels
+                               article-id root-label-id label-id ith])))
 
 ;; we don't care if it is a group label or not, we are just going to check
 ;; overall for missing labels
@@ -92,59 +101,72 @@
            (get-in db [:state :review :missing-labels article-id])))
 
 ;; invalid labels
-(reg-event-db :review/create-invalid-label
-              [trim-v]
+(reg-event-db :review/create-invalid-label [trim-v]
               (fn [db [article-id root-label-id label-id ith]]
-                (assoc-in db [:state :review :invalid-labels article-id root-label-id label-id ith] true)))
+                (assoc-in db [:state :review :invalid-labels
+                              article-id root-label-id label-id ith]
+                          true)))
 
-(reg-event-db :review/delete-invalid-label
-              [trim-v]
+(reg-event-db :review/delete-invalid-label [trim-v]
               (fn [db [article-id root-label-id label-id ith]]
-                (dissoc-in db [:state :review :invalid-labels article-id root-label-id label-id ith])))
+                (dissoc-in db [:state :review :invalid-labels
+                               article-id root-label-id label-id ith])))
 
 (reg-sub :review/invalid-labels
          (fn [db [_ article-id]]
            (get-in db [:state :review :invalid-labels article-id])))
 
-(defn BooleanLabelInput
-  [[root-label-id label-id ith] article-id]
-  (let [answer (subscribe [:review/active-labels article-id root-label-id label-id ith])]
+(defn BooleanLabelInput [[root-label-id label-id ith] article-id]
+  (let [answer (subscribe [:review/active-labels
+                           article-id root-label-id label-id ith])]
     [ui/three-state-selection
-     {:set-answer! #(dispatch [:review/set-label-value article-id root-label-id label-id ith %])
+     {:set-answer! #(dispatch [:review/set-label-value
+                               article-id root-label-id label-id ith %])
       :value answer}]))
 
-(defn CategoricalLabelInput
-  [[root-label-id label-id ith] article-id]
+(defn CategoricalLabelInput [[root-label-id label-id ith] article-id]
   (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)
         input-name (str "label-edit(" dom-class ")")]
     (r/create-class
-     {:component-did-mount ; see https://github.com/mcku/UI-Dropdown/blob/master/dropdown.js for dropdown class options
+     {;; see https://github.com/mcku/UI-Dropdown/blob/master/dropdown.js
+      ;; for dropdown class options
+      :component-did-mount
       (fn [this]
         (->> {:duration 125 :action "hide"
-              :onChange (fn [v _t] (dispatch [::add-label-value article-id root-label-id label-id ith v]))}
-             (clj->js) (.dropdown ($ (dom-node this)) )))
+              :onChange (fn [v _t] (dispatch [::add-label-value
+                                              article-id root-label-id label-id ith v]))}
+             (clj->js) (.dropdown ($ (dom-node this)))))
       :reagent-render
       (fn [[root-label-id label-id ith] article-id]
         (when (= article-id @(subscribe [:review/editing-id]))
-          (let [required?      @(subscribe [:label/required? root-label-id label-id ith])
-                all-values     @(subscribe [:label/all-values root-label-id label-id ith])
-                current-values @(subscribe [:review/active-labels article-id root-label-id label-id ith])
+          (let [required?      @(subscribe [:label/required? root-label-id label-id])
+                all-values     @(subscribe [:label/all-values root-label-id label-id])
+                current-values @(subscribe [:review/active-labels
+                                            article-id root-label-id label-id ith])
                 touchscreen?   @(subscribe [:touchscreen?])
-                unsel-values   (vec (set/difference (set all-values) (set current-values)))
+                unsel-values   (vec (set/difference (set all-values)
+                                                    (set current-values)))
                 on-deselect    (fn [v] #(dispatch [::remove-label-value
-                                                   article-id root-label-id label-id ith v]))]
+                                                   article-id root-label-id label-id
+                                                   ith v]))]
             [(if touchscreen?
                :div.ui.small.fluid.multiple.selection.dropdown
                :div.ui.small.fluid.search.selection.dropdown.multiple)
              {:key [:dropdown dom-class] :class dom-class}
-             (map (fn [v] [:a.ui.label {:key [(str "sel-" label-id "-" v)] :on-click (on-deselect v)}
-                           v [:i.delete.icon]]) current-values)
-             [:input {:name input-name :value (str/join "," current-values) :type "hidden"}]
+             (map (fn [v] [:a.ui.label {:key [(str "sel-" label-id "-" v)]
+                                        :on-click (on-deselect v)}
+                           v [:i.delete.icon]])
+                  current-values)
+             [:input {:name input-name
+                      :value (str/join "," current-values)
+                      :type "hidden"}]
              [:i.dropdown.icon]
              (when (empty? current-values)
                [:div.default.text "No answer selected"
                 (when required? [:span.default.bold "(required)"])])
-             [:div.menu (map (fn [v] ^{:key [v]} [:div.item {:data-value v} v]) unsel-values)]])))})))
+             [:div.menu (map (fn [v] ^{:key [v]}
+                               [:div.item {:data-value v} v])
+                             unsel-values)]])))})))
 
 (defn StringLabelInput
   [[root-label-id label-id ith] article-id]
@@ -153,20 +175,23 @@
     (r/create-class
      {:reagent-render
       (fn [[root-label-id label-id ith] article-id]
-        (let [curvals (or (not-empty @(subscribe [:review/active-labels article-id root-label-id label-id ith]))
+        (let [curvals (or (not-empty @(subscribe [:review/active-labels
+                                                  article-id root-label-id label-id ith]))
                           [""])
               nvals (count curvals)]
           (when (= article-id @(subscribe [:review/editing-id]))
             [:div.inner
              (doall
               (->>
-               (or (not-empty @(subscribe [:review/active-labels article-id root-label-id label-id ith]))
+               (or (not-empty @(subscribe [:review/active-labels
+                                           article-id root-label-id label-id ith]))
                    [""])
                (map-indexed
                 (fn [i val]
                   (let [left-action? true
                         right-action? (and multi? (= i (dec nvals)))
-                        valid? @(subscribe [:label/valid-string-value? root-label-id label-id val])
+                        valid? @(subscribe [:label/valid-string-value?
+                                            root-label-id label-id val])
                         focus-elt (fn [value-idx]
                                     #(js/setTimeout
                                       (fn []
@@ -179,15 +204,18 @@
                         can-add? (and right-action? (not-empty val))
                         add-next (when can-add?
                                    #(do (dispatch-sync [::extend-string-answer
-                                                        article-id root-label-id label-id ith curvals])
+                                                        article-id root-label-id label-id
+                                                        ith curvals])
                                         (focus-next)))
                         add-next-handler (util/wrap-user-event add-next
                                                                :prevent-default true
                                                                :stop-propagation true
                                                                :timeout false)
                         can-delete? (not (and (= i 0) (= nvals 1) (empty? val)))
-                        delete-current #(do (dispatch-sync [::remove-string-value
-                                                            article-id root-label-id label-id ith i curvals])
+                        delete-current #(do (dispatch-sync
+                                             [::remove-string-value
+                                              article-id root-label-id label-id
+                                              ith i curvals])
                                             (focus-prev))]
                     ^{:key [root-label-id label-id ith i]}
                     [:div.ui.small.form.string-label
@@ -207,33 +235,43 @@
                        [:input {:type "text"
                                 :class (class-for-idx i)
                                 :value val
-                                :on-change (util/on-event-value
-                                            #(dispatch-sync [::set-string-value
-                                                             article-id root-label-id label-id ith i % curvals]))
-                                :on-key-down #(cond (= "Enter" (.-key %))
-                                                    (if add-next (add-next) (focus-next))
-                                                    (and (in? ["Backspace" "Delete" "Del"] (.-key %))
-                                                         (empty? val) can-delete?)
-                                                    (delete-current)
-                                                    :else true)}]
+                                :on-change
+                                (util/on-event-value
+                                 #(dispatch-sync [::set-string-value
+                                                  article-id root-label-id label-id
+                                                  ith i % curvals]))
+                                :on-key-down
+                                #(cond (= "Enter" (.-key %))
+                                       (if add-next (add-next) (focus-next))
+                                       (and (in? ["Backspace" "Delete" "Del"] (.-key %))
+                                            (empty? val) can-delete?)
+                                       (delete-current)
+                                       :else true)}]
                        (when right-action?
-                         [:div.ui.icon.button.input-row {:class (css [(not can-add?) "disabled"])
-                                                         :on-click add-next-handler}
+                         [:div.ui.icon.button.input-row
+                          {:class (css [(not can-add?) "disabled"])
+                           :on-click add-next-handler}
                           [:i.plus.icon]])]]
                      (when (and (not valid?)
-                                (not (clojure.string/blank? val)))
-                       (dispatch [:review/create-invalid-label article-id root-label-id label-id ith])
+                                (not (str/blank? val)))
+                       (dispatch [:review/create-invalid-label
+                                  article-id root-label-id label-id ith])
                        [Message {:color "red"} "Invalid Value"])
                      ;; check that the labels are no longer invalid, clear if they're not
-                     (when (if-let [validated-vals (->> curvals
-                                                        (filter (comp not clojure.string/blank?))
-                                                        (map (fn [val] @(subscribe [:label/valid-string-value? root-label-id label-id val]))))]
+                     (when (if-let [validated-vals
+                                    (->> curvals
+                                         (filter (comp not str/blank?))
+                                         (map (fn [val]
+                                                @(subscribe [:label/valid-string-value?
+                                                             root-label-id label-id val]))))]
                              (every? true? validated-vals)
                              true)
                        ;; when every value is valid, clear out invalid label setting for this label
-                       (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith]))])))))])))
+                       (dispatch [:review/delete-invalid-label
+                                  article-id root-label-id label-id ith]))])))))])))
       :component-will-unmount (fn [_]
-                                (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith]))})))
+                                (dispatch [:review/delete-invalid-label
+                                           article-id root-label-id label-id ith]))})))
 
 (defn- inclusion-tag [article-id root-label-id label-id ith]
   (let [criteria? @(subscribe [:label/inclusion-criteria? root-label-id label-id])
@@ -275,9 +313,8 @@
                                  [:div.ui.small.green.label (str ex)])
                                examples))]])]]]))
 
-(defn GroupLabelInput
-  [label-id article-id]
-  (let [label-name @(subscribe [:label/display "na" label-id "na"])
+(defn GroupLabelInput [label-id article-id]
+  (let [label-name @(subscribe [:label/display "na" label-id])
         active-group-label (subscribe [:group-label/active-group-label])
         answers (subscribe [:review/active-labels article-id "na" label-id])]
     [:div {:id (str "group-label-input-" label-id)
@@ -296,7 +333,9 @@
                          (dispatch [:group-label/set-active-group-label label-id])
                          (dispatch [:group-label/set-active-group-label nil])))}
      label-name [:div {:style {:float "right"
-                               :padding-right "0.5em"}} (str (count (:labels @answers)) (util/pluralize (count (:labels @answers)) " Row"))]]))
+                               :padding-right "0.5em"}}
+                 (str (count (:labels @answers)) " "
+                      (util/pluralize (count (:labels @answers)) "Row"))]]))
 
 (reg-sub ::label-css-class
          (fn [[_ article-id label-id]]
@@ -314,10 +353,10 @@
 
 ;; Component for label column in inputs grid
 (defn- LabelColumn [article-id label-id row-position n-cols label-position]
-  (let [value-type @(subscribe [:label/value-type "na" label-id "na"])
+  (let [value-type @(subscribe [:label/value-type "na" label-id])
         label-css-class @(subscribe [::label-css-class article-id label-id])
-        label-string @(subscribe [:label/display "na" label-id "na"])
-        question @(subscribe [:label/question "na" label-id "na"])
+        label-string @(subscribe [:label/display "na" label-id])
+        question @(subscribe [:label/question "na" label-id])
         on-click-help (util/wrap-user-event #(do nil) :timeout false)
         answer (subscribe [:review/active-labels article-id "na" label-id "na"])]
     [:div.ui.column.label-edit {:class label-css-class}
@@ -351,10 +390,11 @@
                           (= row-position :right)  "top right"
                           :else                    "top center"))
         :distanceAway 5}]
-      [label-help-popup {:category @(subscribe [:label/category "na" label-id "na"])
-                         :required @(subscribe [:label/required? "na" label-id "na"])
-                         :question @(subscribe [:label/question "na" label-id "na"])
-                         :definition {:examples @(subscribe [:label/examples "na" label-id "na"])}}]
+      [label-help-popup {:category @(subscribe [:label/category "na" label-id])
+                         :required @(subscribe [:label/required? "na" label-id])
+                         :question @(subscribe [:label/question "na" label-id])
+                         :definition {:examples @(subscribe [:label/examples
+                                                             "na" label-id])}}]
       [:div.ui.row.label-edit-value {:class (condp = value-type
                                               "boolean"      "boolean"
                                               "categorical"  "category"
@@ -540,12 +580,15 @@
                            row-position (cond (= i 0)            :left
                                               (= i (dec n-cols)) :right
                                               :else              :middle)
-                           label-position (->> label-ids (take-while #(not= % label-id)) count)]
-                       (if (= "group" @(subscribe [:label/value-type "na" label-id "na"]))
+                           label-position (count (take-while #(not= % label-id)
+                                                             label-ids))]
+                       (if (= "group" @(subscribe [:label/value-type "na" label-id]))
                          ^{:key {:article-label [article-id label-id]}}
-                         [GroupLabelColumn article-id label-id row-position n-cols label-position]
+                         [GroupLabelColumn
+                          article-id label-id row-position n-cols label-position]
                          ^{:key {:article-label [article-id label-id]}}
-                         [LabelColumn article-id label-id row-position n-cols label-position]))))
+                         [LabelColumn
+                          article-id label-id row-position n-cols label-position]))))
             (when (< (count row) n-cols) [:div.column])])))
 
 (defn LabelsColumns [article-id & {:keys [n-cols class] :or {class "segment"}}]

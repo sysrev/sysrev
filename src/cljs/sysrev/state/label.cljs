@@ -1,6 +1,7 @@
 (ns sysrev.state.label
   (:require [clojure.string :as str]
             [re-frame.core :refer [subscribe reg-sub]]
+            [medley.core :refer [find-first]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.util :refer [in?]]))
@@ -17,17 +18,15 @@
   (get (project-labels db project-id) label-id))
 
 (reg-sub ::label
-         (fn [[_ _ _ _ project-id]]
-           (subscribe [::labels project-id]))
+         (fn [[_ _ _ project-id]] (subscribe [::labels project-id]))
          (fn [labels [_ root-label-id label-id _]]
-           (if (= root-label-id "na")
+           (if (contains? #{nil "na"} root-label-id)
              (get labels label-id)
              (get-in labels [root-label-id :labels label-id]))))
 
 (defn project-overall-label-id [db & [project-id]]
-  (->> (vals (project-labels db project-id))
-       (filter #(= (:name %) "overall include"))
-       first :label-id))
+  (:label-id (find-first #(= "overall include" (:name %))
+                         (vals (project-labels db project-id)))))
 
 (reg-sub :project/labels-raw
          (fn [db [_ project-id]] (project-labels db project-id)))
@@ -51,11 +50,9 @@
 
 (reg-sub :project/overall-label-id
          (fn [[_ project-id]] (subscribe [::labels project-id]))
-         (fn [labels] (->> (keys labels)
-                           (filter (fn [label-id]
-                                     (let [{:keys [name]} (get labels label-id)]
-                                       (= name "overall include"))))
-                           first)))
+         (fn [labels]
+           (->> (keys labels)
+                (find-first #(= "overall include" (get-in labels [% :name]))))))
 
 (defn from-label-local-id [db & [project-id]]
   (let [labels (project-labels db project-id)]
@@ -72,41 +69,48 @@
 (reg-sub :label/id-from-short-label
          (fn [[_ _ project-id]] (subscribe [::labels project-id]))
          (fn [labels [_ short-label _]]
-           (:label-id (->> (vals labels) (filter #(= (:short-label %) short-label)) first))))
+           (:label-id (find-first #(= short-label (:short-label %))
+                                  (vals labels)))))
 
 (reg-sub :label/required?
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::label root-label-id label-id project-id]))
-         (fn [label] (:required label)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(:required %))
 
 (reg-sub :label/name
-         (fn [[_ label-id project-id]] (subscribe [::label label-id project-id]))
-         (fn [label] (:name label)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(:name %))
 
 (reg-sub :label/display
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::label root-label-id label-id project-id]))
-         (fn [label] (or (:short-label label) (:name label))))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(or (:short-label %) (:name %)))
 
 (reg-sub ::definition
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::label root-label-id label-id project-id]))
-         (fn [label] (:definition label)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(:definition %))
 
 (reg-sub :label/question
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::label root-label-id label-id project-id]))
-         (fn [label] (:question label)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(:question %))
 
 (reg-sub :label/value-type
          (fn [[_ root-label-id label-id _project-id]]
            (subscribe [::label root-label-id label-id]))
-         (fn [label]
-           (:value-type label)))
+         #(:value-type %))
 
 (reg-sub :label/category
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::label root-label-id label-id project-id]))
-         (fn [label] (:category label)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(:category %))
 
 (reg-sub :label/labels
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::label root-label-id label-id project-id]))
-         (fn [label] (:labels label)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(:labels %))
 
 (reg-sub :label/inclusion-criteria?
          (fn [[_ root-label-id label-id project-id]] (subscribe [:label/category root-label-id label-id project-id]))
@@ -123,20 +127,24 @@
              nil)))
 
 (reg-sub :label/inclusion-values
-         (fn [[_ label-id project-id]] (subscribe [::definition label-id project-id]))
-         (fn [definition] (:inclusion-values definition)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::definition root-label-id label-id project-id]))
+         #(:inclusion-values %))
 
 (reg-sub :label/examples
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::definition root-label-id label-id project-id]))
-         (fn [definition] (:examples definition)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::definition root-label-id label-id project-id]))
+         #(:examples %))
 
 (reg-sub :label/enabled?
-         (fn [[_ root-label-id label-id _project-id]] (subscribe [::label root-label-id label-id]))
-         (fn [label] (:enabled label)))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
+         #(:enabled %))
 
 (reg-sub :label/multi?
-         (fn [[_ root-label-id label-id project-id]] (subscribe [::definition root-label-id label-id project-id]))
-         (fn [definition] (boolean (:multi? definition))))
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::definition root-label-id label-id project-id]))
+         #(boolean (:multi? %)))
 
 (reg-sub :label/valid-string-value?
          (fn [[_ root-label-id label-id _val project-id]]
@@ -151,7 +159,8 @@
                                  (some #(re-matches (re-pattern %) val) regex))))))))
 
 (reg-sub :label/non-empty-answer?
-         (fn [[_ root-label-id label-id _answer project-id]] (subscribe [::label root-label-id label-id project-id]))
+         (fn [[_ root-label-id label-id _answer project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
          (fn [label [_ _ _ answer _]]
            (let [{:keys [value-type]} label]
              (case value-type
@@ -161,7 +170,8 @@
                nil))))
 
 (reg-sub :label/answer-inclusion
-         (fn [[_ root-label-id label-id _answer project-id]] (subscribe [::label root-label-id label-id project-id]))
+         (fn [[_ root-label-id label-id _answer project-id]]
+           (subscribe [::label root-label-id label-id project-id]))
          (fn [label [_ _ _ answer _]]
            (let [{:keys [definition value-type]} label
                  ivals (:inclusion-values definition)]

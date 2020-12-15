@@ -41,7 +41,7 @@
 
 (defn GroupLabelAnswerTag [{:keys [group-label-id answers indexed?]
                             :or {indexed? false}}]
-  (let [labels (->> (vals @(subscribe [:label/labels "na" group-label-id "na"]))
+  (let [labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                     (sort-by :project-ordering <)
                     (filter :enabled))
         label-name @(subscribe [:label/display "na" group-label-id])]

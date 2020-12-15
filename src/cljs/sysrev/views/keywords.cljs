@@ -31,7 +31,7 @@
     (if (nil? kw)
       [(dangerous :span (if (empty? text) nbsp text))]
       (let [has-value? ((comp not nil?) label-value)
-            label-name @(subscribe [:label/name label-id])
+            label-name @(subscribe [:label/name nil label-id])
             enabled? @(subscribe [:label/enabled? "na" label-id])
             class (cond (= category "include")
                         (str "ui keyword include-label green basic "

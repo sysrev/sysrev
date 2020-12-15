@@ -20,7 +20,7 @@
   (when-not (taxi/exists? ctgov-search-input)
     (b/click "a.tab-ctgov"))
   (b/wait-until-displayed ctgov-search-input)
-  (Thread/sleep 20)
+  (Thread/sleep 30)
   (b/click ".ui.button.close-search" :if-not-exists :skip)
   (b/set-input-text ctgov-search-input query)
   (taxi/submit "form#search-bar.ctgov-search")
