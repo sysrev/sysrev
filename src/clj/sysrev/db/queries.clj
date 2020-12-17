@@ -87,12 +87,24 @@
   "Returns updated honeysql map based on `m`, merging a where clause
   generated from `match-by` map."
   [m match-by]
-  (merge-where m (or (some->> (seq (for [[field match-value] (seq match-by)]
-                                     (if (or (sequential? match-value)
-                                             (sql-select-map? match-value))
-                                       [:in field match-value]
-                                       [:= field match-value])))
-                              (apply vector :and))
+  (merge-where m (or (some->>
+                      (seq (for [[field match-value] (seq match-by)]
+                             (cond
+                               ;; honeysql query map
+                               ;; - match on subquery values
+                               (sql-select-map? match-value)
+                               [:in field match-value]
+                               ;; sequence of values
+                               ;; - match on values with IN clause
+                               ;; - match nothing if sequence is empty
+                               ;;   (needed to avoid SQL syntax error)
+                               (sequential? match-value)
+                               (if (seq match-value)
+                                 [:in field match-value]
+                                 false)
+                               ;; single value
+                               :else [:= field match-value])))
+                      (apply vector :and))
                      true)))
 
 (defn- read-named-id [id]
@@ -537,7 +549,11 @@
       (when (symbol? id-field)
         `(defn ~(symbol (str "get-" table-name))
            ([~id-field & [~-fields & {:keys [~-with ~@custom-opts] :as ~-opts}]]
-            (apply-keyargs (if (sequential? ~id-field) ~find-name ~find-name-1)
+            (assert (or (sequential? ~id-field)
+                        (not (coll? ~id-field)))
+                    ~(format "%s must be either a single value or sequential"
+                             (name id-field)))
+            (apply-keyargs (if (coll? ~id-field) ~find-name ~find-name-1)
                            {~(keyword (format "%s.%s" (name alias) (name id-field)))
                             ~id-field}
                            (or ~-fields ~table-dot-*)

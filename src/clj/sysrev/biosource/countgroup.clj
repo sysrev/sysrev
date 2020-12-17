@@ -19,7 +19,7 @@
   (q/find-count [:article-label :al] {:project-id project-id}
                 :join [[:label :l] :al.label-id]))
 
-(defn get-request-body [project-id sample-fraction]
+(defn- get-request-body [project-id sample-fraction]
   (-> (q/find [:article-label :al] {:project-id project-id
                                     :value-type ["boolean" "categorical"]}
               [:article-id :user-id :al.label-id :answer]

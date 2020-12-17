@@ -30,7 +30,7 @@
   (try (log-slack blocks-text notify-text)
        (catch Throwable e
          (log/warnf "log-slack exception: %s"
-                    (with-out-str (print-cause-trace-custom e 12))))))
+                    (with-out-str (print-cause-trace-custom e 20))))))
 
 (defn log-slack-custom [blocks-text notify-text & {:keys [force]}]
   (when (or force (= :prod (:profile env)))
@@ -48,8 +48,10 @@
 (defn log-slack-request-exception [request e & {:keys [force]}]
   (when (or force (= :prod (:profile env)))
     (try (log-slack
-          [(format "*Request*:\n```%s```" (pp-str (request-info request)))
-           (format "*Exception*:\n```%s```" (with-out-str (print-cause-trace-custom e 12)))]
+          [(format "*Request*:\n```%s```"
+                   (pp-str (request-info request)))
+           (format "*Exception*:\n```%s```"
+                   (with-out-str (print-cause-trace-custom e 20)))]
           (str (if-let [route (:compojure/route request)]
                  (str route " => ") "")
                (.getMessage e)))

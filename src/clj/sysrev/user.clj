@@ -42,6 +42,8 @@
         sysrev.biosource.importance
         sysrev.biosource.annotations
         sysrev.biosource.duplicates
+        sysrev.biosource.concordance
+        sysrev.biosource.countgroup
         sysrev.slack
         sysrev.auth.google
         sysrev.web.core

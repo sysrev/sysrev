@@ -28,4 +28,7 @@
           {:keys [body]} (http/post concordance-route
                                     {:content-type "application/json"
                                      :body (json/write-str input)})]
-      (json/read-str body :key-fn keyword))))
+      (try (json/read-str body :key-fn keyword)
+           (catch Throwable _
+             (throw (ex-info "Error parsing JSON string"
+                             {:value body})))))))
