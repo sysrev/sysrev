@@ -32,6 +32,7 @@
             [sysrev.views.panels.project.main]
             [sysrev.views.panels.project.overview]
             [sysrev.views.panels.project.articles]
+            [sysrev.views.panels.project.users]
             [sysrev.views.panels.project.analytics]
             [sysrev.views.panels.project.analytics.concordance]
             [sysrev.views.panels.project.analytics.labels]

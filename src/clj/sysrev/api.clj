@@ -36,6 +36,7 @@
             [sysrev.label.define :as ldefine]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.group.core :as group]
+            [sysrev.gengroup.core :as gengroup]
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.article :as article-file]
@@ -1514,3 +1515,18 @@
      :message (if success?
                 (str response-count " invitation(s) successfully sent!")
                 (str failure-count " out of " (count responses) " invitation(s) failed to be sent"))}))
+
+
+(defn create-project-member-gengroup [project-id gengroup-name gengroup-description]
+  (cond (gengroup/read-project-member-gengroups project-id :gengroup-name gengroup-name)
+        {:error {:status conflict
+                 :message (str "A group with the name '" gengroup-name "' already exists for this project."
+                               " Please try using another name.")}}
+        :else (let []
+                (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
+                {:success true})))
+
+(defn project-members [project-id]
+  (let [members (member/project-members)]
+    {:success true :members members}))
+

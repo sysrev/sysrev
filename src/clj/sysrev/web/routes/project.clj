@@ -19,6 +19,7 @@
             [sysrev.project.description
              :refer [read-project-description set-project-description!]]
             [sysrev.project.article-list :as alist]
+            [sysrev.gengroup.core :as gengroup]
             [sysrev.group.core :as group]
             [sysrev.article.core :as article]
             [sysrev.label.core :as label]
@@ -104,7 +105,8 @@
             url-ids files owner plan subscription-lapsed?]
            [_ [_status-counts progress]]
            [articles sources]
-           parent-project-info]
+           parent-project-info
+           gengroups]
           (pvalues [(q/query-project-by-id project-id [:*])
                     (project/project-users-info project-id)
                     (project/project-labels project-id true)
@@ -126,7 +128,8 @@
                              (label/query-progress-over-time project-id 30))]
                    [(project/project-article-count project-id)
                     (source/project-sources project-id)]
-                   (parent-project-info project-id))]
+                   (parent-project-info project-id)
+                   (gengroup/read-project-member-gengroups project-id))]
       {:project {:project-id project-id
                  :name (:name fields)
                  :project-uuid (:project-uuid fields)
@@ -145,7 +148,8 @@
                  :owner owner
                  :plan plan
                  :subscription-lapsed? subscription-lapsed?
-                 :parent-project parent-project-info}
+                 :parent-project parent-project-info
+                 :gengroups gengroups}
        :users users})))
 
 ;;;
@@ -199,6 +203,20 @@
                         :message (format "Project (%s) not found" project-id)}}
                (do (record-user-project-interaction request)
                    (project-info project-id)))))))
+
+(dr (GET "/api/project-members" request
+         (with-authorize request {:allow-public true
+                                  :bypass-subscription-lapsed? true}
+           (let [project-id (active-project request)
+                 valid-project
+                 (and (integer? project-id)
+                      (project/project-exists? project-id :include-disabled? false))]
+             (assert (integer? project-id))
+             (if (not valid-project)
+               {:error {:status 404
+                        :type :not-found
+                        :message (format "Project (%s) not found" project-id)}}
+               (member/project-members project-id))))))
 
 (dr (POST "/api/join-project" request
           (with-authorize request {:logged-in true}

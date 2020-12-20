@@ -104,6 +104,15 @@
            :action (project-uri project-id "/articles")
            :disabled (not ready?)
            :tooltip not-ready-msg}
+          {:tab-id [:project :users]
+           :class "users"
+           :content [:span
+                     (when-not mobile?
+                       [:span [:i.users.icon] " "])
+                     "Users"]
+           :action (project-uri project-id "/users")
+           :disabled (not ready?)
+           :tooltip not-ready-msg}
           {:tab-id [:project :analytics]
            :class "analytics"
            :content [:div

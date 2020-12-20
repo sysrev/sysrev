@@ -52,3 +52,27 @@
     (q/modify :project-member {:project-id project-id :user-id user-id}
               {:permissions (db/to-sql-array "text" permissions)}
               :returning [:user-id :permissions])))
+
+(defn project-members [project-id]
+  (->>
+    (q/find [:project-member :pm] {:pm.project-id project-id}
+            [:pm.membership-id :wu.email [:g.name :gengroup-name] [:g.gengroup-id :gengroup-id]]
+            :join [[[:web-user :wu] :pm.user-id]]
+            :left-join [[[:project-member-gengroup-member :pmgm] [:and
+                                                                  [:= :pmgm.project-id :pm.project-id]
+                                                                  [:= :pmgm.membership-id :pm.membership-id]
+                                                                  ]]
+                        [[:gengroup :g] :pmgm.gengroup-id]])
+
+    ;; TODO: fix this poor man's SQL group-by
+    (group-by :membership-id)
+    (map (fn [[membership-id items]]
+           (let [gengroups (->> items
+                                (filter :gengroup-id )
+                                (map #(select-keys % [:gengroup-name :gengroup-id]))
+                                vec)]
+             (-> (first items)
+                 (dissoc :gengroup-name)
+                 (dissoc :gengroup-id)
+                 (assoc :gengroups gengroups)))))))
+
