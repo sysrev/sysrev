@@ -119,3 +119,8 @@
              ;; user owns project as admin, or admin/owner of org that owns project
              (or (and user-id admin?)
                  (and group-id (some #{"admin" "owner"} org-permissions))))))
+
+(reg-sub :project/gengroups
+         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
+         #(:gengroups %))
+

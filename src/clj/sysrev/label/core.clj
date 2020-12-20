@@ -450,12 +450,40 @@
 
 (defn project-members-info [project-id]
   (with-project-cache project-id [:members-info]
-    (let [users (-> (q/select-project-members
-                     project-id [:u.* [:m.permissions :project-permissions]])
-                    (->> do-query (index-by :user-id)))
+    (let [
+          ;; _ (println (q/select-project-members
+          ;;            project-id [:u.* [:m.permissions :project-permissions]]))
+          users (-> (->>
+                      (q/find [:project-member :pm] {:pm.project-id project-id}
+                              [:u.*
+                               :pm.membership-id
+                               [:pm.permissions :project-permissions]
+                               [:g.name :gengroup-name]
+                               [:g.gengroup-id :gengroup-id]]
+                              :join [[[:web-user :u] :pm.user-id]]
+                              :left-join [[[:project-member-gengroup-member :pmgm] [:and
+                                                                                    [:= :pmgm.project-id :pm.project-id]
+                                                                                    [:= :pmgm.membership-id :pm.membership-id]
+                                                                                    ]]
+                                          [[:gengroup :g] :pmgm.gengroup-id]])
+
+                      ;; TODO: fix this poor man's SQL group-by
+                      (group-by :user-id)
+                      (map (fn [[user-id items]]
+                             (let [gengroups (->> items
+                                                  (filter :gengroup-id )
+                                                  (map #(select-keys % [:gengroup-name :gengroup-id]))
+                                                  vec)]
+                               (-> (first items)
+                                   (dissoc :gengroup-name)
+                                   (dissoc :gengroup-id)
+                                   (assoc :gengroups gengroups)))))
+                      (index-by :user-id)))
           inclusions (project-user-inclusions project-id)]
-      (map-values (fn [{:keys [user-id project-permissions]}]
-                    {:permissions project-permissions
+      (map-values (fn [{:keys [user-id membership-id project-permissions gengroups]}]
+                    {:membership-id membership-id
+                     :permissions project-permissions
+                     :gengroups gengroups
                      :articles (get inclusions user-id)})
                   users))))
 
