@@ -2,7 +2,6 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [orchestra.core :refer [defn-spec]]
-            [clojure.data.json :as json]
             [clj-http.client :as http]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
@@ -47,7 +46,7 @@
              {:headers (if (seq auth-key)
                          (auth-header :auth-key auth-key)
                          (auth-header))
-              :body (json/write-str {:query query})
+              :body (util/write-json {:query query})
               :content-type :application/json
               :as :json, :coerce :always, :throw-exceptions false}))
 
@@ -109,7 +108,7 @@
   (->> (query-api {:name :clinicalTrialEntities
                    :args {:nctids nctids}
                    :fields (concat [:nctid] (or fields [:json]))})
-       (map (fn [entry] (update entry :json #(json/read-str % :key-fn keyword))))
+       (map (fn [entry] (update entry :json util/read-json)))
        (index-by :nctid)))
 
 (defn fetch-entities

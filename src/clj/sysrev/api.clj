@@ -51,8 +51,8 @@
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer sum]]
-            [venia.core :as venia])
+            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer
+                                          sum]])
   (:import (java.util UUID)
            (java.util.zip ZipOutputStream ZipEntry)))
 
@@ -1444,7 +1444,8 @@
              :message "You don't have permission to clone that project"}}))
 
 (defn graphql-request
-  "Make a request against out own GraphQL API, using our own dev key. This allows for internal use of GraphQL"
+  "Make a request against out own GraphQL API, using our own dev
+  key. This allows for internal use of GraphQL"
   [query]
   (let [body (-> (mock/request :post "/graphql")
                  (mock/header "Authorization" (str "Bearer " (ds-api/ds-auth-key)))
@@ -1455,23 +1456,27 @@
          (catch Exception _
            body))))
 
-(defn project-json
-  "Given a project-id, return the resulting JSON"
-  [project-id]
-  (let [resp (graphql-request
-              (venia/graphql-query
-               {:venia/queries
-                [[:project {:id project-id}
-                  [:name :id :date_created
-                   [:labelDefinitions [:consensus :enabled :name :question :required :type]]
-                   [:groupLabelDefinitions [:enabled :name :question :required :type [:labels [:consensus :enabled :name :question :required :type]]]]
-                   [:articles [:datasource_id :enabled :id :uuid
-                               [:groupLabels [[:answer
-                                               [:id :answer :name :question :required :type]]
-                                              :confirmed :consensus :created :id :name :question :required :updated :type
-                                              [:reviewer [:id :name]]]]
-                               [:labels [:answer :confirmed :consensus :created :id :name :question :required :updated :type
-                                         [:reviewer [:id :name]]]]]]]]]}))]
+(defn project-json [project-id]
+  (let [req [[:project {:id project-id}
+              [:name :id :date_created
+               [:labelDefinitions
+                [:consensus :enabled :name :question :required :type]]
+               [:groupLabelDefinitions
+                [:enabled :name :question :required :type
+                 [:labels [:consensus :enabled :name :question :required :type]]]]
+               [:articles
+                [:datasource_id :enabled :id :uuid
+                 [:groupLabels
+                  [[:answer
+                    [:id :answer :name :question :required :type]]
+                   :confirmed :consensus :created :id :name :question
+                   :required :updated :type
+                   [:reviewer [:id :name]]]]
+                 [:labels
+                  [:answer :confirmed :consensus :created :id :name :question
+                   :required :updated :type
+                   [:reviewer [:id :name]]]]]]]]]
+        resp (graphql-request (util/gquery req))]
     (if (:errors resp)
       {:status internal-server-error
        :errors (:errors resp)}

@@ -1,6 +1,5 @@
 (ns sysrev.payment.stripe
-  (:require [clojure.data.json :as json]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
             [clojure.walk :as walk]
             [clj-http.client :as http]
             [sysrev.config :refer [env]]
@@ -189,7 +188,7 @@
     (if (= status 200)
       ;; success
       (let [{:keys [id created customer quantity status] :as body-map}
-            (json/read-str body :key-fn keyword)]
+            (util/read-json body)]
         (db-plans/upsert-support! {:id id
                                    :project-id project-id
                                    :user-id user-id
@@ -199,7 +198,7 @@
                                    :created (some-> created util/to-clj-time)})
         body-map)
       ;; unknown error
-      {:status status :body (json/read-str body :key-fn keyword)})))
+      {:status status :body (util/read-json body)})))
 
 (defn get-subscription [sub-id]
   (stripe-get (str "/subscriptions/" sub-id)))
@@ -227,7 +226,7 @@
     (if (= status 200)
       ;; everything is ok, cancel this subscription
       (let [{:keys [id created customer quantity status]}
-            (json/read-str body :key-fn keyword)]
+            (util/read-json body)]
         (db-plans/upsert-support! {:id id
                                    :project-id project-id
                                    :user-id user-id
@@ -236,7 +235,7 @@
                                    :status status
                                    :created (some-> created util/to-clj-time)}))
       ;; there is an error, report it
-      (:error (json/read-str body :key-fn keyword)))))
+      (:error (util/read-json body)))))
 
 (defn ^:unused support-project-once!
   "Make a one-time contribution to a project for amount"

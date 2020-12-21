@@ -74,7 +74,7 @@
                               {"project_id" project-id
                                "feature" (str label-id)
                                "documents" (mapv #(get article-texts %) article-ids)})})
-           :body (json/read-str :key-fn keyword) :articles)
+           :body util/read-json :articles)
        (map-indexed (fn [i {:keys [prediction probability]}]
                       {:article-id (nth article-ids i)
                        :value (if (true? prediction)

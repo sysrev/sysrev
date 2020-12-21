@@ -4,7 +4,8 @@
             [clj-http.client :as http]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.biosource.core :refer [api-host]]))
+            [sysrev.biosource.core :refer [api-host]]
+            [sysrev.util :as util]))
 
 ;; https://api.insilica.co/service/run/concordance/concordance
 (def concordance-route (str api-host "service/run/concordance-2/concordance"))
@@ -28,7 +29,4 @@
           {:keys [body]} (http/post concordance-route
                                     {:content-type "application/json"
                                      :body (json/write-str input)})]
-      (try (json/read-str body :key-fn keyword)
-           (catch Throwable _
-             (throw (ex-info "Error parsing JSON string"
-                             {:value body})))))))
+      (util/read-json body))))

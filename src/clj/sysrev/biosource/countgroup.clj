@@ -2,7 +2,8 @@
   (:require [clojure.data.json :as json]
             [clj-http.client :as http]
             [sysrev.db.queries :as q]
-            [sysrev.biosource.core :refer [api-host]]))
+            [sysrev.biosource.core :refer [api-host]]
+            [sysrev.util :as util]))
 
 ;https://api.insilica.co/service/run/concordance/concordance
 (def countgroup-route (str api-host "service/run/countgroup/countgroup"))
@@ -34,8 +35,9 @@
   {:answers [[user label answer] ...] :art-count 10}"
   [project-id]
   (let [sample-fraction (min 1.0 (/ 20000.0 (project-answer-count project-id)))]
-    (-> (http/post countgroup-route {:content-type "application/json"
-                                     :body (get-request-body project-id sample-fraction)})
+    (-> (http/post countgroup-route
+                   {:content-type "application/json"
+                    :body (get-request-body project-id sample-fraction)})
         :body
-        (json/read-str :key-fn keyword)
+        (util/read-json)
         (merge {:sampled (< sample-fraction 1.0)}))))

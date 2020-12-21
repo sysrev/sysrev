@@ -1,13 +1,13 @@
 (ns sysrev.test.web.routes.api.handlers
   (:require [clojure.test :refer [deftest is use-fixtures]]
-            [clojure.data.json :as json]
             [ring.mock.request :as mock]
             [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.api :as api]
             [sysrev.project.core :as project]
             [sysrev.web.core :refer [sysrev-handler]]
-            [sysrev.user.core :as user]))
+            [sysrev.user.core :as user]
+            [sysrev.util :as util]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
@@ -18,19 +18,15 @@
         api-token (-> (handler
                        (-> (mock/request :get "/web-api/get-api-token")
                            (mock/query-string {:email email :password b/test-password})))
-                      :body
-                      (json/read-str :key-fn keyword)
-                      :result
-                      :api-token)
+                      :body util/read-json :result :api-token)
         create-project-response
         (-> (handler
              (->  (mock/request :post "/web-api/create-project")
-                  (mock/body (json/write-str
+                  (mock/body (util/write-json
                               {:project-name "The taming of the foo"
                                :api-token api-token}))
                   (mock/header "Content-Type" "application/json")))
-            :body
-            (json/read-str :key-fn keyword))
+            :body util/read-json)
         new-project-id (get-in create-project-response [:result :project :project-id])]
     ;; create a project for this user
     (is (get-in create-project-response [:result :success]))
@@ -52,19 +48,15 @@
                          (-> (mock/request :get "/web-api/get-api-token")
                              (mock/query-string {:email (:email test-user)
                                                  :password (:password test-user)})))
-                        :body
-                        (json/read-str :key-fn keyword)
-                        :result
-                        :api-token)
+                        :body util/read-json :result :api-token)
           create-project-response
           (-> (handler
                (->  (mock/request :post "/web-api/create-project")
-                    (mock/body (json/write-str
+                    (mock/body (util/write-json
                                 {:project-name "Baz Qux Research"
                                  :api-token api-token}))
                     (mock/header "Content-Type" "application/json")))
-              :body
-              (json/read-str :key-fn keyword))
+              :body util/read-json)
           project-id (get-in create-project-response [:result :project :project-id])]
       ;; was the project created?
       (is (get-in create-project-response [:result :success]))
@@ -73,7 +65,7 @@
       ;; transfer project to foo
       (-> (handler
            (-> (mock/request :post "/web-api/transfer-project")
-               (mock/body (json/write-str
+               (mock/body (util/write-json
                            {:project-id project-id
                             :user-id (:user-id user-foo)
                             :api-token api-token})))))
@@ -87,7 +79,7 @@
       ;; transfer the project to this org
       (-> (handler
            (-> (mock/request :post "/web-api/transfer-project")
-               (mock/body (json/write-str
+               (mock/body (util/write-json
                            {:project-id project-id
                             :group-id group-id
                             :api-token api-token})))))

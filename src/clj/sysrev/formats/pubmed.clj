@@ -41,7 +41,7 @@
                                    "retstart" retstart
                                    "api_key" e-util-api-key}})
          :body
-         (json/read-str :key-fn keyword)))
+         util/read-json))
    :fname "get-search-query"))
 
 (defn get-search-query-response

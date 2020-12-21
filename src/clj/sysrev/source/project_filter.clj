@@ -1,6 +1,5 @@
 (ns sysrev.source.project-filter
   (:require [clojure.walk :as walk]
-            [clojure.data.json :as json]
             [clojure.tools.logging :as log]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [ring.util.codec :as ring-codec]
@@ -19,7 +18,7 @@
         (-> (ring-codec/form-decode s)
             (walk/keywordize-keys)
             (select-keys [:filters :text-search])
-            (update-in [:filters] #(json/read-str % :key-fn keyword))
+            (update-in [:filters] util/read-json)
             (util/sanitize-uuids))
         ;; keywords are used as values, but converted to strings in url
         filters (walk/postwalk (fn [x] (if (string? x)

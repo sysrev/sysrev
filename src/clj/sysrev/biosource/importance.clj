@@ -7,7 +7,8 @@
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [project-article-count]]
             [sysrev.biosource.core :refer [api-host]]
-            [sysrev.datasource.api :as ds-api]))
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.util :as util]))
 
 (defn- project-sample-article-ids [project-id]
   (let [n-articles (project-article-count project-id)]
@@ -39,7 +40,7 @@
                  (< (count text) 5)
                  {:error ["not enough text to build important terms"]}
                  :else
-                 (try {:terms (->> (json/read-str body :key-fn keyword)
+                 (try {:terms (->> (util/read-json body)
                                    (filter #(> (:count %) min-count))
                                    (sort-by :tfidf >)
                                    (take max-terms))}

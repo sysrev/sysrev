@@ -1,33 +1,29 @@
 (ns sysrev.biosource.duplicates
   (:require [clojure.string :as str]
             [clj-http.client :as http]
-            [clojure.data.json :as json]
             [clojure.tools.logging :as log]
-            [honeysql.helpers :as sqlh :refer [select from where insert-into values delete-from]]
-            [sysrev.db.core :as db :refer [do-query do-execute]]
+            [honeysql.helpers :as sqlh :refer [select from where insert-into
+                                               values delete-from]]
+            [sysrev.db.core :as db :refer [do-execute]]
             [sysrev.db.queries :as q]
+            [sysrev.biosource.core :refer [api-host]]
             [sysrev.source.core :as source]
-            [sysrev.util :refer [in?]]
-            [sysrev.biosource.core :refer [api-host]]))
+            [sysrev.util :as util :refer [in?]]))
 
 (def flag-name "auto-duplicate")
 
 (defn get-project-duplicates [project-id]
-  (let [request
-        (->> (q/select-project-articles
-              project-id [:a.article-id :a.primary-title :a.abstract])
-             do-query
-             (mapv (fn [{:keys [article-id primary-title abstract]}]
-                     {:id article-id
-                      :text (str/join "\n" [(or primary-title "")
-                                            (or abstract "")])})))
-        response
-        (-> (http/post (str api-host "sysrev/deduplication")
-                       {:content-type "application/json"
-                        :body (json/write-str request)})
-            :body
-            (json/read-str :key-fn keyword))]
-    response))
+  (let [request (->>
+                 (q/find-article {:project-id project-id}
+                                 [:a.article-id :ad.primary-title :ad.abstract])
+                 (mapv (fn [{:keys [article-id primary-title abstract]}]
+                         {:id article-id
+                          :text (str/join "\n" [(or primary-title "")
+                                                (or abstract "")])})))
+        response (http/post (str api-host "sysrev/deduplication")
+                            {:content-type "application/json"
+                             :body (util/write-json request)})]
+    (util/read-json (:body response))))
 
 (defn merge-duplicate-pairs [duplicates]
   (let [all-pairs (->> duplicates (map (fn [{:keys [idA idB]}] [idA idB])))

@@ -13,6 +13,7 @@
                        [cljs-time.coerce :as tc]
                        [cljs-time.format :as tf]])
             #?@(:clj  [[clojure.main :refer [demunge]]
+                       [clojure.data.json :as json]
                        [clojure.java.shell :refer [sh]]
                        [clojure.java.io :as io]
                        [clojure.pprint :as pp]
@@ -327,6 +328,30 @@
                (transit/read))
      :cljs (-> (transit/reader :json)
                (transit/read s))))
+
+#?(:clj  (defn write-json [x & [_pretty?]]
+           (json/write-str x))
+   :cljs (defn write-json [x & [pretty?]]
+           (cond-> (clj->js x)
+             pretty?        (js/JSON.stringify nil 2)
+             (not pretty?)  (js/JSON.stringify))))
+
+#?(:clj  (defn read-json
+           "Parses a JSON string and on failure throws an exception reporting the
+  invalid string input."
+           [s & {:keys [keywords]
+                 :or {keywords true}}]
+           (try (if keywords
+                  (json/read-str s :key-fn keyword)
+                  (json/read-str s))
+                (catch Throwable e
+                  (throw (ex-info "Error parsing JSON string"
+                                  {:string s} e)))))
+   :cljs (defn read-json [s & {:keys [keywords]
+                               :or {keywords true}}]
+           (if keywords
+             (js->clj (js/JSON.parse s) :keywordize-keys true)
+             (js->clj (js/JSON.parse s)))))
 
 ;; Slightly modified from clojure.core/group-by
 (defn index-by
@@ -1057,13 +1082,7 @@
                 js/window.location.search
                 js/window.location.hash)))
 
-#?(:cljs (defn write-json [x & [pretty?]]
-           (cond-> (clj->js x)
-             pretty?        (js/JSON.stringify nil 2)
-             (not pretty?)  (js/JSON.stringify))))
 
-#?(:cljs (defn read-json [s]
-           (js->clj (js/JSON.parse s) :keywordize-keys true)))
 
 #?(:cljs (defn parse-css-px [px-str]
            (parse-integer (second (re-matches #"(\d+)px" px-str)))))
