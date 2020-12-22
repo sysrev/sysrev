@@ -2,7 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
             [honeysql.helpers :as sqlh]
-            [sysrev.db.core :as db :refer [with-transaction]]
+            [sysrev.db.core :as db :refer [with-transaction with-clear-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.util :as util :refer [index-by]]))
 
@@ -21,30 +21,39 @@
   (q/delete :gengroup {:gengroup-id gengroup-id}))
 
 (defn create-project-member-gengroup! [project-id gengroup-name gengroup-description]
-  (with-transaction
+  (with-clear-project-cache project-id
     (let [gengroup-id (create-gengroup! gengroup-name gengroup-description)]
       (q/create :project-member-gengroup {:project-id project-id :gengroup-id gengroup-id}
                 :returning :id))))
 
+(defn update-project-member-gengroup! [project-id gengroup-name gengroup-description]
+  (with-clear-project-cache project-id
+    (let []
+      (update-gengroup! project-id gengroup-name gengroup-description))))
+
 (defn delete-project-member-gengroup! [project-id gengroup-id]
-  (with-transaction
+  (with-clear-project-cache project-id
     (q/delete :project-member-gengroup {:project-id project-id :gengroup-id gengroup-id}) 
     (delete-gengroup! gengroup-id)))
 
-(defn read-project-member-gengroups [project-id & {:keys [gengroup-name]}]
-  (let [extra {:g.name gengroup-name}
+(defn read-project-member-gengroups [project-id & {:keys [gengroup-name gengroup-id]}]
+  (let [extra {:g.name gengroup-name
+               :g.gengroup-id gengroup-id}
         query (into {:pmg.project-id project-id}
                     ;filter nil values
-                    (filter second extra))]
+                    (filter val extra))]
     (q/find [:project-member-gengroup :pmg] query
-            [:pmg.project-id :g.name :g.description]
-            :join [[:gengroup :g] :pmg.gengroup-id])))
+            [:pmg.gengroup-id :g.name :g.description]
+            :join [[:gengroup :g] :pmg.gengroup-id]
+            :order-by :g.gengroup-id)))
 
 (defn project-member-gengroup-add [project-id gengroup-id membership-id]
-  (q/create :project-member-gengroup-member {:project-id project-id :gengroup-id gengroup-id :membership-id membership-id}))
+  (with-clear-project-cache project-id
+    (q/create :project-member-gengroup-member {:project-id project-id :gengroup-id gengroup-id :membership-id membership-id}) ))
 
 (defn project-member-gengroup-remove [project-id gengroup-id membership-id]
-  (q/delete :project-member-gengroup-member {:project-id project-id :gengroup-id gengroup-id :membership-id membership-id}))
+  (with-clear-project-cache project-id
+    (q/delete :project-member-gengroup-member {:project-id project-id :gengroup-id gengroup-id :membership-id membership-id})))
 
 ;(create-project-member-gengroup! 42884 "English" "This is for the english language")
 

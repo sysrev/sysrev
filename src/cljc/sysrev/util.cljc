@@ -1194,3 +1194,18 @@
                         (some->> (:query-string p) (str "?")))
 
                    :else href))))
+
+(defn data-matches? [s1 s2]
+  (and s1 s2 (str/includes? (str/lower-case s1) (str/lower-case s2))))
+
+(defn data-filter [items fns text]
+  (filter
+    (fn [item]
+      (some
+        (fn [f]
+          (let [v (f item)]
+            (data-matches? (str v) (str text))))
+        fns))
+    items))
+
+

@@ -480,8 +480,9 @@
                                    (assoc :gengroups gengroups)))))
                       (index-by :user-id)))
           inclusions (project-user-inclusions project-id)]
-      (map-values (fn [{:keys [user-id membership-id project-permissions gengroups]}]
-                    {:membership-id membership-id
+      (map-values (fn [{:keys [user-id membership-id project-permissions gengroups email]}]
+                    {:email email
+                     :membership-id membership-id
                      :permissions project-permissions
                      :gengroups gengroups
                      :articles (get inclusions user-id)})

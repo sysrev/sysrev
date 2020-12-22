@@ -1521,7 +1521,4 @@
                 (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
                 {:success true})))
 
-(defn project-members [project-id]
-  (let [members (member/project-members)]
-    {:success true :members members}))
 
