@@ -204,20 +204,6 @@
                (do (record-user-project-interaction request)
                    (project-info project-id)))))))
 
-(dr (GET "/api/project-members" request
-         (with-authorize request {:allow-public true
-                                  :bypass-subscription-lapsed? true}
-           (let [project-id (active-project request)
-                 valid-project
-                 (and (integer? project-id)
-                      (project/project-exists? project-id :include-disabled? false))]
-             (assert (integer? project-id))
-             (if (not valid-project)
-               {:error {:status 404
-                        :type :not-found
-                        :message (format "Project (%s) not found" project-id)}}
-               (member/project-members project-id))))))
-
 (dr (POST "/api/join-project" request
           (with-authorize request {:logged-in true}
             (let [project-id (active-project request)
@@ -250,6 +236,51 @@
             (let [project-id (active-project request)
                   user-id (current-user-id request)]
               (api/delete-project! project-id user-id)))))
+
+(dr (POST "/api/create-gengroup" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  user-id (current-user-id request)
+                  {:keys [gengroup-name gengroup-description]} (:body request)]
+              (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
+              {:success true
+               :message "Group created."}))))
+
+(dr (POST "/api/update-gengroup" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  user-id (current-user-id request)
+                  {:keys [gengroup-id gengroup-name gengroup-description]} (:body request)]
+              (gengroup/update-gengroup! gengroup-id gengroup-name gengroup-description)
+              {:success true
+               :message "Group updated."}))))
+
+(dr (POST "/api/delete-gengroup" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  user-id (current-user-id request)
+                  {:keys [member-id gengroup-id]} (:body request)]
+              (gengroup/delete-project-member-gengroup! project-id gengroup-id)
+              {:success true
+               :message "Group deleted."}))))
+
+(dr (POST "/api/add-member-to-gengroup" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  user-id (current-user-id request)
+                  {:keys [gengroup-id membership-id]} (:body request)]
+              (gengroup/project-member-gengroup-add project-id gengroup-id membership-id)
+              {:success true
+               :message "Member added to group"}))))
+
+(dr (POST "/api/remove-member-from-gengroup" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  user-id (current-user-id request)
+                  {:keys [gengroup-id membership-id]} (:body request)]
+              (gengroup/project-member-gengroup-remove project-id gengroup-id membership-id)
+              {:success true
+               :message "Member removed from group"}))))
 
 (dr (GET "/api/lookup-project-url" request
          (with-authorize request {}
