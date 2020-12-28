@@ -37,7 +37,7 @@
              (let [emails (txt->emails emails-txt)]
                {:project-id project-id
                 :emails emails}))
-  :process (fn [_ [_] {:keys [success message] :as result}]
+  :process (fn [_ [project-id emails-txt] {:keys [success message] :as result}]
              (if success
                {:dispatch-n [[::set [:invite-emails :emails-txt] ""]
                              [:toast {:class "success" :message message}]]}))
@@ -53,8 +53,9 @@
                 :gengroup-description (:description gengroup)}))
   :process (fn [{:keys [db]} [project-id gengroup] {:keys [success message] :as result}]
              (if success
-               {:dispatch-n [[::set [:gengroup-modal (:gengroup-id gengroup) :open] true]
-                             [:toast {:class "success" :message message}]]}))
+               {:dispatch-n [[::set [:gengroup-modal :new :open] false]
+                             [:toast {:class "success" :message message}]
+                             [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
@@ -68,8 +69,9 @@
                 :gengroup-description (:description gengroup)}))
   :process (fn [{:keys [db]} [project-id gengroup] {:keys [success message] :as result}]
              (if success
-               {:dispatch-n [[::set [:gengroup-modal #_(:gengroup-id gengroup) :open] true]
-                             [:toast {:class "success" :message message}]]}))
+               {:dispatch-n [[::set [:gengroup-modal (:gengroup-id gengroup) :open] false]
+                             [:toast {:class "success" :message message}]
+                             [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
@@ -81,8 +83,8 @@
                 :gengroup-id gengroup-id}))
   :process (fn [{:keys [db]} [project-id gengroup-id] {:keys [success message] :as result}]
              (if success
-               {:dispatch-n [[::set [:gengroup-modal #_(:gengroup-id gengroup) :open] true]
-                             [:toast {:class "success" :message message}]]}))
+               {:dispatch-n [[:toast {:class "success" :message message}]
+                             [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
@@ -93,9 +95,10 @@
                {:project-id project-id
                 :gengroup-id gengroup-id
                 :membership-id membership-id}))
-  :process (fn [_ [_] {:keys [success message] :as result}]
+  :process (fn [_ [project-id gengroup-id membership-id] {:keys [success message] :as result}]
              (if success
-               {:dispatch-n [[:toast {:class "success" :message message}]]}))
+               {:dispatch-n [[:toast {:class "success" :message message}]
+                             [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
@@ -106,15 +109,13 @@
                {:project-id project-id
                 :gengroup-id gengroup-id
                 :membership-id membership-id}))
-  :process (fn [_ [_] {:keys [success message] :as result}]
+  :process (fn [_ [project-id gengroup-id membership-id] {:keys [success message] :as result}]
              (if success
-               {:dispatch-n [[:toast {:class "success" :message message}]]}))
+               {:dispatch-n [[:toast {:class "success" :message message}]
+                             [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
-
-
- 
 (defn- InviteEmailsCmp []
   (let [project-id @(subscribe [:active-project-id])
         emails-txt (r/cursor state [:invite-emails :emails-txt])]
@@ -192,7 +193,9 @@
                                  (dispatch [:action [:project/add-member-to-gengroup
                                                      @project-id
                                                      (:gengroup-id @current-gengroup)
-                                                     (:membership-id member-info)]]))]
+                                                     (:membership-id member-info)]])
+                                 (reset! current-gengroup nil)
+                                 (reset! group-search-value nil))]
     (fn [user-id member-info]
       (let [username @(subscribe [:user/display user-id])
             gengroup-ids-set (->> member-info :gengroups (map :gengroup-id) set)]
@@ -246,7 +249,8 @@
                                  (:name gengroup)])))
               :results (->> (util/data-filter @gengroups [:name] @group-search-value)
                             (filter #(not (contains? gengroup-ids-set (:gengroup-id %))))
-                            (clj->js))   
+                            (map #(assoc % :title (:name %)))
+                            (clj->js))
               :value (or @group-search-value "")
               :input (r/as-element
                        [Input {:placeholder "Search groups"
@@ -513,12 +517,7 @@
 (def-panel :project? true :panel panel
   :uri "/users" :params [project-id] :name project
   :on-route (let [prev-panel @(subscribe [:active-panel])
-                  all-items [[:project project-id]
-                             [:project/review-status project-id]
-                             [:project/markdown-description project-id {:panel panel}]
-                             [:project/label-counts project-id]
-                             [:project/important-terms-text project-id]
-                             [:project/prediction-histograms project-id]]]
+                  all-items [[:project project-id]]]
               ;; avoid reloading data on project url redirect
               (when (and prev-panel (not= panel prev-panel))
                 (doseq [item all-items] (dispatch [:reload item])))

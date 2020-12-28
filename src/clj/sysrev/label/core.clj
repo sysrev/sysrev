@@ -450,10 +450,7 @@
 
 (defn project-members-info [project-id]
   (with-project-cache project-id [:members-info]
-    (let [
-          ;; _ (println (q/select-project-members
-          ;;            project-id [:u.* [:m.permissions :project-permissions]]))
-          users (-> (->>
+    (let [users (-> (->>
                       (q/find [:project-member :pm] {:pm.project-id project-id}
                               [:u.*
                                :pm.membership-id
@@ -463,11 +460,9 @@
                               :join [[[:web-user :u] :pm.user-id]]
                               :left-join [[[:project-member-gengroup-member :pmgm] [:and
                                                                                     [:= :pmgm.project-id :pm.project-id]
-                                                                                    [:= :pmgm.membership-id :pm.membership-id]
-                                                                                    ]]
+                                                                                    [:= :pmgm.membership-id :pm.membership-id]]]
                                           [[:gengroup :g] :pmgm.gengroup-id]])
 
-                      ;; TODO: fix this poor man's SQL group-by
                       (group-by :user-id)
                       (map (fn [[user-id items]]
                              (let [gengroups (->> items
