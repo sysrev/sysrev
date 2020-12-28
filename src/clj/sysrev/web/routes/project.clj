@@ -251,7 +251,7 @@
             (let [project-id (active-project request)
                   user-id (current-user-id request)
                   {:keys [gengroup-id gengroup-name gengroup-description]} (:body request)]
-              (gengroup/update-gengroup! gengroup-id gengroup-name gengroup-description)
+              (gengroup/update-project-member-gengroup! project-id gengroup-id gengroup-name gengroup-description)
               {:success true
                :message "Group updated."}))))
 
