@@ -1517,7 +1517,7 @@
         {:error {:status conflict
                  :message (str "A group with the name '" gengroup-name "' already exists for this project."
                                " Please try using another name.")}}
-        :else (let []
+        :else (do
                 (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
                 {:success true})))
 

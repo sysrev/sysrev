@@ -2,9 +2,7 @@
   (:require [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
-            [clj-webdriver.taxi :as taxi]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
-            [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.core :refer [default-fixture]]
@@ -51,7 +49,7 @@
       (nav/new-project "Send Bulk Invites Test")
       (pm/import-pubmed-search-via-db "foo bar")
       ;; project description
-      (b/click "#project a.item.overview")
+      (b/click "#project a.item.users")
       (b/wait-until-loading-completes :pre-wait 50 :loop 2)
       ;; enter emails
       (b/wait-until-displayed input)
@@ -81,7 +79,7 @@
       (nav/new-project "Send Bulk Invites Test")
       (pm/import-pubmed-search-via-db "foo bar")
       ;; project description
-      (b/click "#project a.item.overview")
+      (b/click "#project a.item.users")
       (b/wait-until-loading-completes :pre-wait 50 :loop 2)
       ;; enter emails
       (b/wait-until-displayed input)
@@ -105,7 +103,7 @@
       (nav/new-project "Send Bulk Invites Test")
       (pm/import-pubmed-search-via-db "foo bar")
       ;; project description
-      (b/click "#project a.item.overview")
+      (b/click "#project a.item.users")
       (b/wait-until-loading-completes :pre-wait 50 :loop 2)
       ;; enter emails
       (b/wait-until-displayed input)

@@ -22,6 +22,3 @@ CREATE TABLE project_member_gengroup_member (
   PRIMARY KEY (project_id, gengroup_id, membership_id)
 );
 
-DROP TABLE project_member_gengroup_member;
-DROP TABLE project_member_gengroup;
-DROP TABLE gengroup;

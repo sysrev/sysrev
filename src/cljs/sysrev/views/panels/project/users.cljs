@@ -1,22 +1,19 @@
 (ns sysrev.views.panels.project.users
   (:require [clojure.string :as str]
             [reagent.core :as r]
-            [sysrev.chartjs :as chartjs]
-            [re-frame.core :refer [subscribe reg-sub dispatch]]
+            [re-frame.core :refer [subscribe dispatch]]
             [sysrev.action.core :as action :refer [def-action]]
-            [sysrev.data.core :as data :refer [def-data]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.components.core :as ui]
             [sysrev.state.project.members :as members]
-            [sysrev.views.charts :as charts]
             [sysrev.views.semantic :as S :refer
              [Table TableBody TableRow TableHeader TableHeaderCell TableCell Search Button
-              Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
-              Input FormField TextArea Label]]
+              Modal ModalHeader ModalContent ModalDescription Form
+              Input FormField TextArea]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.util :as util :refer [css wrap-user-event]]
+            [sysrev.util :as util]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -26,7 +23,7 @@
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (defn txt->emails [txt]
-  (if (string? txt)
+  (when (string? txt)
     (->> (str/split txt #"[ ,\n]")
          (map str/trim)
          (filter util/email?))))
@@ -37,83 +34,79 @@
              (let [emails (txt->emails emails-txt)]
                {:project-id project-id
                 :emails emails}))
-  :process (fn [_ [project-id emails-txt] {:keys [success message] :as result}]
-             (if success
+  :process (fn [_ _ {:keys [success message]}]
+             (when success
                {:dispatch-n [[::set [:invite-emails :emails-txt] ""]
                              [:toast {:class "success" :message message}]]}))
-  :on-error (fn [{:keys [db error]} [project-id] _]
+  :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (def-action :project/create-member-gengroup
   :uri (fn [_ _] "/api/create-gengroup")
   :content (fn [project-id gengroup]
-             (let []
-               {:project-id project-id
-                :gengroup-name (:name gengroup)
-                :gengroup-description (:description gengroup)}))
-  :process (fn [{:keys [db]} [project-id gengroup] {:keys [success message] :as result}]
-             (if success
+             {:project-id project-id
+              :gengroup-name (:name gengroup)
+              :gengroup-description (:description gengroup)})
+  :process (fn [{:keys [db]} [project-id _] {:keys [success message]}]
+             (when success
                {:dispatch-n [[::set [:gengroup-modal :new :open] false]
                              [:toast {:class "success" :message message}]
                              [:reload [:project project-id]]]}))
-  :on-error (fn [{:keys [db error]} [project-id] _]
+  :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (def-action :project/update-member-gengroup
   :uri (fn [_ _] "/api/update-gengroup")
   :content (fn [project-id gengroup]
-             (let []
-               {:project-id project-id
-                :gengroup-id (:gengroup-id gengroup)
-                :gengroup-name (:name gengroup)
-                :gengroup-description (:description gengroup)}))
-  :process (fn [{:keys [db]} [project-id gengroup] {:keys [success message] :as result}]
-             (if success
+             {:project-id project-id
+              :gengroup-id (:gengroup-id gengroup)
+              :gengroup-name (:name gengroup)
+              :gengroup-description (:description gengroup)})
+  :process (fn [{:keys [db]} [project-id gengroup] {:keys [success message]}]
+             (when success
                {:dispatch-n [[::set [:gengroup-modal (:gengroup-id gengroup) :open] false]
                              [:toast {:class "success" :message message}]
                              [:reload [:project project-id]]]}))
-  :on-error (fn [{:keys [db error]} [project-id] _]
+  :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (def-action :project/delete-member-gengroup
   :uri (fn [_ _] "/api/delete-gengroup")
   :content (fn [project-id gengroup-id]
-             (let []
-               {:project-id project-id
-                :gengroup-id gengroup-id}))
-  :process (fn [{:keys [db]} [project-id gengroup-id] {:keys [success message] :as result}]
-             (if success
+             {:project-id project-id
+              :gengroup-id gengroup-id})
+  :process (fn [{:keys [db]} [project-id gengroup-id] {:keys [success message]}]
+             (when success
                {:dispatch-n [[:toast {:class "success" :message message}]
+                             [::set [:delete-gengroup-modal gengroup-id :open] false]
                              [:reload [:project project-id]]]}))
-  :on-error (fn [{:keys [db error]} [project-id] _]
+  :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (def-action :project/add-member-to-gengroup
   :uri (fn [_ _] "/api/add-member-to-gengroup")
   :content (fn [project-id gengroup-id membership-id]
-             (let []
-               {:project-id project-id
-                :gengroup-id gengroup-id
-                :membership-id membership-id}))
-  :process (fn [_ [project-id gengroup-id membership-id] {:keys [success message] :as result}]
-             (if success
+             {:project-id project-id
+              :gengroup-id gengroup-id
+              :membership-id membership-id})
+  :process (fn [_ [project-id _ _] {:keys [success message]}]
+             (when success
                {:dispatch-n [[:toast {:class "success" :message message}]
                              [:reload [:project project-id]]]}))
-  :on-error (fn [{:keys [db error]} [project-id] _]
+  :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (def-action :project/remove-member-from-gengroup
   :uri (fn [_ _] "/api/remove-member-from-gengroup")
   :content (fn [project-id gengroup-id membership-id]
-             (let []
-               {:project-id project-id
-                :gengroup-id gengroup-id
-                :membership-id membership-id}))
-  :process (fn [_ [project-id gengroup-id membership-id] {:keys [success message] :as result}]
-             (if success
+             {:project-id project-id
+              :gengroup-id gengroup-id
+              :membership-id membership-id})
+  :process (fn [_ [project-id _ _] {:keys [success message]}]
+             (when success
                {:dispatch-n [[:toast {:class "success" :message message}]
                              [:reload [:project project-id]]]}))
-  :on-error (fn [{:keys [db error]} [project-id] _]
+  :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (defn- InviteEmailsCmp []
@@ -141,27 +134,16 @@
                   :disabled (or running? (zero? unique-count))
                   :type "submit"}
           "Send Invites"]
-         (if (> email-count 0)
+         (when (> email-count 0)
            [:span {:style {:margin-left "10px"}}
             (case email-count
               1 "1 email recognized"
               (str email-count " emails recognized"))
-            (if (> email-count unique-count)
+            (when (> email-count unique-count)
               (str " (" unique-count " unique)"))])]))))
 
 (defn- InviteUsersBox []
-  (let [project-id @(subscribe [:active-project-id])
-        visible-user-ids (->> @(subscribe [:project/member-user-ids])
-                              (sort-by #(deref (subscribe [:member/article-count %])) >))
-        user-names (->> visible-user-ids
-                        (mapv #(deref (subscribe [:user/display %]))))
-        includes   (->> visible-user-ids
-                        (mapv #(deref (subscribe [:member/include-count %]))))
-        excludes   (->> visible-user-ids
-                        (mapv #(deref (subscribe [:member/exclude-count %]))))
-        yss [includes excludes]
-        ynames ["Include" "Exclude"]
-        invite-url @(subscribe [:project/invite-url])
+  (let [invite-url @(subscribe [:project/invite-url])
         invite? (and invite-url (or @(subscribe [:self/member?])
                                     @(subscribe [:user/dev?])))]
     [:div.ui.segment
@@ -174,21 +156,19 @@
                                      :value invite-url}]
         [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])
 
-     (if invite?
+     (when invite?
        [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
         "Send invitation emails"])
-     (if invite?
-       [InviteEmailsCmp])]
-    ))
+     (when invite?
+       [InviteEmailsCmp])]))
 
 (defn- UserModal [user-id member-info]
-  (let [modal-state-path [:gengroup-modal user-id]
+  (let [modal-state-path [:user-modal user-id]
         modal-open (r/cursor state (concat modal-state-path [:open]))
         project-id (subscribe [:active-project-id])
         gengroups (subscribe [:project/gengroups])
         current-gengroup (r/cursor state (concat modal-state-path [:user-modal :current-gengroup]))
         group-search-value (r/cursor state (concat modal-state-path [:user-modal :group-search-value]))
-        error (r/cursor state (concat modal-state-path [:user-modal :error]))
         add-member-to-gengroup (fn []
                                  (dispatch [:action [:project/add-member-to-gengroup
                                                      @project-id
@@ -201,7 +181,8 @@
             gengroup-ids-set (->> member-info :gengroups (map :gengroup-id) set)]
         [Modal {:trigger (r/as-element
                            [Button {:on-click #(dispatch [::set modal-state-path {:open true}])
-                                    :class "icon"}
+                                    :data-member-username username
+                                    :class "manage-member-btn icon"}
                             [:i.cog.icon]])
                 :class "tiny"
                 :open @modal-open
@@ -228,7 +209,7 @@
                                                   (:gengroup-id gengroup)
                                                   (:membership-id member-info)]])}]])]]
             [Search
-             {:id "search-groups-input"
+             {:id "search-gengroups-input"
               :placeholder "Search for groups"
               :minCharacters 0
               :on-result-select
@@ -255,7 +236,7 @@
               :input (r/as-element
                        [Input {:placeholder "Search groups"
                                :action (r/as-element
-                                         [Button {:id "submit-add-member" :class "invite-member"
+                                         [Button {:id "add-gengroup-btn"
                                                   :positive true
                                                   :on-click #(add-member-to-gengroup)
                                                   :disabled (nil? @current-gengroup)}
@@ -268,8 +249,7 @@
              "OK"]]]]]))))
 
 (defn- UserRow [user-id {:keys [permissions gengroups] :as member-info}]
-  (let [self-id @(subscribe [:self/user-id])
-        max-gengroups-shown 2
+  (let [max-gengroups-shown 2
         gengroups-count (count gengroups)
         username @(subscribe [:user/display user-id])
         admin? @(subscribe [:user/project-admin?])]
@@ -278,16 +258,12 @@
       (:username member-info)
       [Avatar {:user-id user-id}]
       [UserPublicProfileLink {:user-id user-id :display-name username}]]
-     ;; [TableCell
-     ;;  [:div
-     ;;   (for [permission permissions]
-     ;;     [:div.ui.small.label permission]) ]]
      [TableCell
       [:div
        (doall
          (for [gengroup (take max-gengroups-shown gengroups)] ^{:key (:gengroup-id gengroup)}
            [:div.ui.small.teal.label (:gengroup-name gengroup)]))
-       (if (> gengroups-count max-gengroups-shown)
+       (when (> gengroups-count max-gengroups-shown)
          [:span.ui.small.grey.text
           (str " and " (- gengroups-count max-gengroups-shown) " more")])]]
      [TableCell
@@ -301,13 +277,12 @@
         items-per-page 10
         members (subscribe [::members/members])]
     (fn []
-      (if @members
+      (when @members
         (let [filtered-members (util/data-filter @members [#(-> % val :email)] @members-search)
               paginated-members (->> filtered-members (drop (* @offset items-per-page)) (take items-per-page))]
           [:div
            [:div {:style {:margin-bottom "10px"}}
             [:div.ui.fluid.left.icon.input
-             ; {:class (css [(not synced?) "loading"])}
              [:input
               {:id "user-search"
                :type "text"
@@ -349,12 +324,12 @@
         modal-open (r/cursor state (concat modal-state-path [:open]))
         project-id @(subscribe [:active-project-id])
         gengroup-name (r/cursor state (concat modal-state-path [:form-data :name]))
-        gengroup-description (r/cursor state (concat modal-state-path [:form-data :description]))
-        error (r/cursor state (concat modal-state-path [:form-error]))]
-    (fn [gengroup icon]
+        gengroup-description (r/cursor state (concat modal-state-path [:form-data :description]))]
+    (fn []
       [Modal {:trigger (r/as-element
                          [Button {:on-click #(dispatch [::set modal-state-path {:open true
                                                                                 :form-data {}}])
+                                  :id "new-gengroup-btn"
                                   :class "ui small positive"}
                           [:i.icon.plus] " New"])
               :class "tiny"
@@ -364,37 +339,35 @@
        [ModalHeader "New group"]
        [ModalContent
         [ModalDescription
-         [Form {:id "invite-member-form"
-                :on-submit (util/wrap-prevent-default
+         [Form {:on-submit (util/wrap-prevent-default
                              #(dispatch [:action [:project/create-member-gengroup project-id {:name @gengroup-name
                                                                                                 :description @gengroup-description}]]))}
           [FormField
            [:label "Group name"]
            [Input {:id "gengroup-name-input"
-                   :default-value (:name gengroup)
                    :required true
                    :on-change (util/on-event-value #(reset! gengroup-name %))}]]
           [FormField
            [:label "Group description"]
            [TextArea {:label "Group name"
                       :id "gengroup-description-input"
-                      :default-value (:description gengroup)
                       :on-change (util/on-event-value #(reset! gengroup-description %))}]]
-          [Button {:primary true}
-           "Save"]]]]])))
+          [Button {:primary true
+                   :id "create-gengroup-btn"}
+           "Create"]]]]])))
 
 (defn- GengroupModal [gengroup]
   (let [modal-state-path [:gengroup-modal (:gengroup-id gengroup)]
         modal-open (r/cursor state (concat modal-state-path [:open]))
         project-id @(subscribe [:active-project-id])
         gengroup-name (r/cursor state (concat modal-state-path [:form-data :name]))
-        gengroup-description (r/cursor state (concat modal-state-path [:form-data :description]))
-        error (r/cursor state (concat modal-state-path [:form-error]))]
+        gengroup-description (r/cursor state (concat modal-state-path [:form-data :description]))]
     (fn [gengroup]
       [Modal {:trigger (r/as-element
                          [Button {:on-click #(dispatch [::set modal-state-path {:open true
                                                                                 :form-data gengroup}])
-                                  :class "icon"}
+                                  :data-gengroup-name (:name gengroup)
+                                  :class "edit-gengroup-btn icon"}
                           [:i.icon.cog]])
               :class "tiny"
               :open @modal-open
@@ -403,8 +376,7 @@
        [ModalHeader "Edit group"]
        [ModalContent
         [ModalDescription
-         [Form {:id "invite-member-form"
-                :on-submit (util/wrap-prevent-default
+         [Form {:on-submit (util/wrap-prevent-default
                              #(dispatch [:action [:project/update-member-gengroup project-id {:gengroup-id (:gengroup-id gengroup)
                                                                                               :name @gengroup-name
                                                                                               :description @gengroup-description}]]))}
@@ -420,59 +392,56 @@
                       :id "gengroup-description-input"
                       :default-value (:description gengroup)
                       :on-change (util/on-event-value #(reset! gengroup-description %))}]]
-          [Button {:primary true}
+          [Button {:primary true
+                   :id "save-gengroup-btn"}
            "Save"]]]]])))
 
-(defn- GengroupDeleteButton [gengroup]
-  (let [project-id @(subscribe [:active-project-id])]
-    [Button {:primary true
-             :class "icon orange" 
-             :on-click (fn []
-                         (if (js/confirm "Are you sure you want to delete this group?")
-                           (dispatch [:action [:project/delete-member-gengroup project-id (:gengroup-id gengroup)]])))}
-     [:i.icon.trash]]))
+(defn- DeleteGengroupModal [gengroup]
+  (let [modal-state-path [:delete-gengroup-modal (:gengroup-id gengroup)]
+        project-id @(subscribe [:active-project-id])
+        modal-open (r/cursor state (concat modal-state-path [:open]))]
+    (fn [gengroup]
+      [Modal {:trigger (r/as-element
+                         [Button {:primary true
+                                  :class "icon orange delete-gengroup-btn" 
+                                  :data-gengroup-name (:name gengroup)
+                                  :on-click #(dispatch [::set modal-state-path {:open true
+                                                                                :form-data gengroup}])}
+                          [:i.icon.trash]])
+              :class "tiny"
+              :open @modal-open
+              :on-open #(reset! modal-open true)
+              :on-close #(reset! modal-open false)}
+       [ModalHeader "Delete group confirmation"]
+       [ModalContent
+        [ModalDescription
+         [:p "Are you sure you want to delete group '" [:b (:name gengroup)]"'?"]
+         [Button
+          "Cancel"]
+         [Button {:class "orange"
+                  :on-click #(dispatch [:action [:project/delete-member-gengroup project-id (:gengroup-id gengroup)]])
+                  :id "delete-gengroup-confirmation-btn"}
+          "Yes, Delete"]]]])))
 
-(defn- GengroupRow [gengroup org-id]
-  (let [self-id @(subscribe [:self/user-id])
-        admin? @(subscribe [:user/project-admin?])]
+(defn- GengroupRow [gengroup]
+  (let [admin? @(subscribe [:user/project-admin?])]
     [TableRow
      [TableCell
-      (:name gengroup)]
-     
+      [:span {:class "gengroup-name-cell"}
+       (:name gengroup)]]
      [TableCell
-      [:span.ui.text.grey (:description gengroup)]]
+      [:span.ui.text.grey {:class "gengroup-description-cell"}
+       (:description gengroup)]]
      [TableCell
       [:div.ui.icon.buttons
       (when admin?
         [GengroupModal gengroup])
       " "
       (when admin?
-        [GengroupDeleteButton gengroup])]]]))
+        [DeleteGengroupModal gengroup])]]]))
 
-(defn- GengroupSearchInput [context]
-  (let [;input (subscribe [::inputs context [:text-search]])
-        ;set-input #(dispatch-sync [::al/set context [:inputs :text-search] %])
-        ;curval @(subscribe [::al/get context [:text-search]])
-        ;synced? (or (nil? @input) (= @input curval))
-        ]
-    [:div.ui.fluid.left.icon.input
-    ; {:class (css [(not synced?) "loading"])}
-     [:input
-      {:id "group-search"
-       :type "text"
-       ;; :value (or @input curval)
-       :placeholder "Search groups"
-       :on-change println #_(util/on-event-value
-                   #(do (set-input %)
-                        (-> (fn [] (let [value (not-empty %)
-                                         later-value (if (empty? @input) nil @input)]
-                                     (when (= value later-value)
-                                       (dispatch-sync [::set-text-search context value]))))
-                            (js/setTimeout 1000))))}]
-     [:i.search.icon]]))
-
-(defn- GengroupsTable [org-id]
-  (when-let [gengroups @(subscribe [:project/gengroups])]
+(defn- GengroupsTable []
+  (let [gengroups @(subscribe [:project/gengroups])]
     [:div
      [NewGengroupModal]
      
@@ -485,7 +454,7 @@
       [TableBody
        (doall
          (for [gengroup gengroups] ^{:key (:gengroup-id gengroup)}
-           [GengroupRow gengroup org-id]))]]]))
+           [GengroupRow gengroup]))]]]))
 
 (defn- GengroupsSegment []
   [:div.ui.segment
@@ -496,8 +465,7 @@
 
 (defn- ProjectOverviewContent []
   (when-let [project-id @(subscribe [:active-project-id])]
-    (with-loader [[:project project-id]
-                  [:project/markdown-description project-id {:panel panel}]] {}
+    (with-loader [[:project project-id]] {}
       [:div.overview-content
        [:div.ui.two.column.stackable.grid.project-overview
         [:div.column
