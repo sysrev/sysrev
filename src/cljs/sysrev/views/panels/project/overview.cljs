@@ -12,7 +12,7 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
-            [sysrev.views.semantic :refer [TextArea Button]]
+            [sysrev.views.semantic :refer [Button]]
             [sysrev.util :as util :refer [css wrap-user-event]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
@@ -160,7 +160,7 @@
               [LabelStatusHelpColumn colors]]]]])]])))
 
 (defn txt->emails [txt]
-  (if (string? txt)
+  (when (string? txt)
     (->> (str/split txt #"[ ,\n]")
          (map str/trim)
          (filter util/email?))))
@@ -171,11 +171,11 @@
              (let [emails (txt->emails emails-txt)]
                {:project-id project-id
                 :emails emails}))
-  :process (fn [_ [_] {:keys [success message] :as result}]
-             (if success
+  :process (fn [_ [_] {:keys [success message]}]
+             (when success
                {:dispatch-n [[::set [:invite-emails :emails-txt] ""]
                              [:toast {:class "success" :message message}]]}))
-  :on-error (fn [{:keys [db error]} [project-id] _]
+  :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (defn- InviteEmailsCmp []
@@ -202,12 +202,12 @@
                   :disabled (or running? (zero? unique-count))
                   :type "submit"}
           "Send Invites"]
-         (if (> email-count 0)
+         (when (> email-count 0)
            [:span {:style {:margin-left "10px"}}
             (case email-count
               1 "1 email recognized"
               (str email-count " emails recognized"))
-            (if (> email-count unique-count)
+            (when (> email-count unique-count)
               (str " (" unique-count " unique)"))])]))))
 
 (defn- MemberActivityChart []
@@ -245,10 +245,10 @@
                                       :value invite-url}]
          [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])
       
-      (if invite?
+      (when invite?
         [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
          "Send invitation emails"])
-      (if invite?
+      (when invite?
         [InviteEmailsCmp])]]))
 
 (defn- RecentProgressChart []

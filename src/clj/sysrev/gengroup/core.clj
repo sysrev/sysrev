@@ -1,10 +1,7 @@
 (ns sysrev.gengroup.core
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
-            [honeysql.helpers :as sqlh]
-            [sysrev.db.core :as db :refer [with-transaction clear-project-cache with-clear-project-cache]]
+  (:require [sysrev.db.core :as db :refer [with-transaction clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.util :as util :refer [index-by]]))
+            [sysrev.util :as util]))
 
 (defn create-gengroup! [gengroup-name gengroup-description]
   (q/create :gengroup {:name gengroup-name :description gengroup-description}
@@ -29,7 +26,7 @@
 
 (defn update-project-member-gengroup! [project-id gengroup-id gengroup-name gengroup-description]
   (with-transaction
-    (let []
+    (do
       (update-gengroup! gengroup-id gengroup-name gengroup-description)
       (clear-project-cache project-id))))
 
@@ -59,13 +56,3 @@
   (with-transaction
     (q/delete :project-member-gengroup-member {:project-id project-id :gengroup-id gengroup-id :membership-id membership-id})
     (clear-project-cache project-id)))
-
-;(create-project-member-gengroup! 42884 "English" "This is for the english language")
-
-;(read-project-member-gengroups 42884 :gengroup-name "test")
-
-;(project-member-gengroup-add 42884 3 45083)
-
-;(project-member-gengroup-remove 42884 2 45083)
-
-;(update-gengroup! 4 "test3" "")

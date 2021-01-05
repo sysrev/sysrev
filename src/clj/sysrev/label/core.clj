@@ -464,9 +464,9 @@
                                           [[:gengroup :g] :pmgm.gengroup-id]])
 
                       (group-by :user-id)
-                      (map (fn [[user-id items]]
+                      (map (fn [[_ items]]
                              (let [gengroups (->> items
-                                                  (filter :gengroup-id )
+                                                  (filter :gengroup-id)
                                                   (map #(select-keys % [:gengroup-name :gengroup-id]))
                                                   vec)]
                                (-> (first items)

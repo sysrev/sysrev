@@ -128,9 +128,8 @@
 (reg-event-fx
   :toast
   (fn [_ [_ opts]]
-    (let []
-      (-> ($ "body") (.toast (clj->js opts)))
-      {})))
+    (-> ($ "body") (.toast (clj->js opts)))
+    {}))
 
 (defn run-action [& item]
   (dispatch [:action (into [] item)]))
