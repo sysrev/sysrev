@@ -13,15 +13,16 @@
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-action :project/generate-export
-  :uri (fn [project-id export-type _]
-         (str "/api/generate-project-export/" project-id "/" (name export-type)))
-  :content (fn [_ _ options]
-             (merge options {}))
-  :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry]}]
-             {:db (assoc-in db [:data :project-exports [project-id export-type options]] entry)})
-  :on-error (fn [{:keys [db error]} [project-id export-type options] _]
-              {:db (assoc-in db [:data :project-exports [project-id export-type options]]
-                             {:error error})}))
+            :uri (fn [project-id export-type _]
+                   (str "/api/generate-project-export/" project-id "/" (name export-type)))
+            :content (fn [_ _ options]
+                       (merge options {}))
+            :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry]}]
+                       {:db (assoc-in db [:data :project-exports [project-id export-type options]] entry)})
+            :on-error (fn [{:keys [db error]} [project-id export-type options] _]
+                        {:db (assoc-in db [:data :project-exports [project-id export-type options]]
+                                       {:error error})})
+            :timeout (* 10 60 1000))
 
 (reg-sub :project/export-file
          (fn [db [_ project-id export-type options]]

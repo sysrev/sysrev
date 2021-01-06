@@ -62,14 +62,16 @@
 
   `:method` - keyword value for HTTP method (default :post)
 
+  `:timeout` - seconds until ajax call times out. defaults to 2 minutes.
+
   `:content-type` - string value for HTTP Content-Type header
 
   `:on-error` - Similar to `:process` but called on HTTP error
   status. cofx value includes an `:error` key, which is taken from
   the `:error` field of the server response."
   [name ::item-name &
-   {:keys [uri content process on-error method content-type]
-    :or {method :post}
+   {:keys [uri content process on-error method content-type timeout]
+    :or {method :post timeout (* 2 60 1000)}
     :as fields}
    (s/? (s/keys* :req-un [::uri ::process]
                  :opt-un [::content ::on-error ::method ::content-type]))]
@@ -81,14 +83,14 @@
   (when on-error (s/assert ::on-error on-error))
   (when method (s/assert ::method method))
   (swap! action-defs assoc name
-         (merge fields {:method method})))
+         (merge fields {:method method :timeout timeout})))
 
 ;; Runs an AJAX action specified by `item`
 (reg-event-fx
  :action [trim-v]
  (fn [{:keys [db]} [item]]
    (let [[name & args] item
-         {:keys [uri content content-type method]
+         {:keys [uri content content-type method timeout]
           :as entry} (get @action-defs name)
          content-val (some-> content (apply args))]
      (assert entry (str "def-action not found - " (pr-str name)))
@@ -99,7 +101,8 @@
                      :uri (apply uri args)
                      :on-success [::on-success item]
                      :on-failure [::on-failure item]
-                     :content-type (or content-type "application/transit+json")}
+                     :content-type (or content-type "application/transit+json")
+                     :timeout timeout}
               content-val (assoc :content content-val)))
            (merge {:action-sent item}))
        {:dispatch-later [{:dispatch [:action item] :ms 10}]}))))

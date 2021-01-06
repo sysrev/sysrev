@@ -113,7 +113,7 @@
                    (fx-handler db event)))))
 
 (defn-spec run-ajax map?
-  [{:keys [db method uri content on-success on-failure action-params content-type]}
+  [{:keys [db method uri content on-success on-failure action-params content-type timeout] :or {timeout (* 2 60 1000)}}
    (s/keys :req-un [::method ::uri ::on-success]
            :opt-un [::content ::on-failure ::action-params])]
   (let [csrf-token (get-csrf-token db)
