@@ -110,7 +110,7 @@
       ;; test emails
       (b/set-input-text input (str/join (first valid-separators) emails) :delay 50)
       (b/click send-button)
-      (b/wait-until-displayed failure-notification)
+      (b/wait-until-displayed failure-notification 20000)
       (b/click failure-notification :delay 100))
   :cleanup (do
              (nav/delete-current-project)
