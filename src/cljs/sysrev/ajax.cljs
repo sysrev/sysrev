@@ -121,7 +121,7 @@
     {:http-xhrio
      {:method method
       :uri uri
-      :timeout (* 2 60 1000)
+      :timeout timeout
       :format (condp = content-type
                 "application/json" (ajax/json-request-format)
                 "application/transit+json" (ajax/transit-request-format)
