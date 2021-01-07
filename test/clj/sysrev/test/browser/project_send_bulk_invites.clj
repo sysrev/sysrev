@@ -98,7 +98,8 @@
    test-user (if (= (:profile env) :dev)
                (b/create-test-user)
                test-user)
-   emails (take (inc max-bulk-invitations) valid-emails)]
+   emails (->> (range 0 (inc max-bulk-invitations))
+               (map #(str "email" % "@example.com")))]
   (do (nav/log-in (:email test-user))
       (nav/new-project "Send Bulk Invites Test")
       (pm/import-pubmed-search-via-db "foo bar")

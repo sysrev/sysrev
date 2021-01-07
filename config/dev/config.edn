@@ -7,7 +7,7 @@
  :server
  {:port 4061}
  :max-import-articles 100000
- :max-bulk-invitations 2
+ :max-bulk-invitations 100
  :mock-email true
  :e-util-api-key "***REMOVED***"
  :profile :dev
