@@ -68,7 +68,7 @@
               ^{:key (str group-label-id "-" ith "-row-" label-id "-cell")}
               [TableCell
                [ValueDisplay group-label-id label-id
-                (get-in answers [ith label-id])]])])]]])))
+                (get-in answers [ith (-> label-id str keyword)])]])])]]])))
 
 (defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
   (let [all-label-ids (->> @(subscribe [:project/label-ids])

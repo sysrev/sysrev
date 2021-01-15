@@ -99,7 +99,8 @@
               [:project/article-list-count project-id (dissoc args :n-count :n-offset)]])
   :process
   (fn [{:keys [db]} [project-id args] result]
-    (doseq [panel [[:project :project :articles]]]
+    (doseq [panel [[:project :project :articles]
+                   [:project :project :articles-data]]]
       (let [context {:panel panel}
             action @(subscribe [::al/get context [:recent-nav-action]])]
         (js/setTimeout
