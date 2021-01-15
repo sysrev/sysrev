@@ -4,7 +4,6 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.test.browser.define-labels :as define]
             [sysrev.project.article-list :refer
              [article-ids-from-title-search-local
               article-ids-from-content-search-local]]
