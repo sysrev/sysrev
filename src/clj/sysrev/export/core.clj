@@ -63,7 +63,7 @@
                               (group-by #(vector (:article-id %) (:user-id %)))
                               (map-values first)))]
       (concat
-       [(concat ["Article ID" "User Name" "Resolve?"]
+       [(concat ["Article ID" "Article Title" "User Name" "Resolve?"]
                 (map :short-label all-labels)
                 ["User Note" "Title" "Journal" "Authors"])]
        (for [user-article (cond->> user-answers
@@ -81,7 +81,7 @@
                                                            first :answer))))
                all-authors (str/join "; " (map str authors))]
            (mapv (partial stringify-csv-value separator)
-                 (concat [article-id user-name (if (true? resolved?) true nil)]
+                 (concat [article-id primary-title user-name (if (true? resolved?) true nil)]
                          label-answers
                          [user-note primary-title secondary-title all-authors]))))))))
 
