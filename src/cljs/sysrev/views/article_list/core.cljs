@@ -308,7 +308,8 @@
                             (let [answer (some #(when (= (:label-id %) (get-in column [:label :label-id])) %)
                                                answers)]
                               [:td {:key (:key column)}
-                               ((:get-fn column) answer)])))])
+                               [:div.label-value
+                                ((:get-fn column) answer)]])))])
                      answers))))
            articles))]]]))
 
