@@ -39,8 +39,14 @@
 
 (def valid-separators [" " "," "\n"])
 
-(deftest-browser test-valid-emails
-  (test/db-connected?) test-user []
+#_(deftest-browser test-valid-emails
+  true test-user
+  [input "#bulk-invite-emails"
+   success-notification ".ui.toast.success"
+   send-button "#send-bulk-invites-button"
+   test-user (if (= (:profile env) :dev)
+               (b/create-test-user)
+               test-user)]
   (do (nav/log-in (:email test-user))
       (nav/new-project "Send Bulk Invites Test (1)")
       (pm/import-pubmed-search-via-db "foo bar")
