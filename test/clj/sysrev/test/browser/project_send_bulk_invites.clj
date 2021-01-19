@@ -60,6 +60,7 @@
           (do
             (b/set-input-text input (str/join separator emails) :delay 50)
             (b/click send-button)
+            (sysrev.test.browser.core/take-screenshot)
             (b/wait-until-displayed success-notification)
             (b/click success-notification :delay 100)))))
   :cleanup (do
