@@ -47,19 +47,19 @@
       ;; project description
       (b/click (x/project-menu-item :users) :delay 200)
       ;; test emails
-      (doseq [separator valid-separators]
-        (doseq [emails (partition 3 valid-emails)]
-          (log/infof "entering emails: %s" (str/join separator emails))
-          (b/set-input-text "#bulk-invite-emails" (str/join separator emails))
-          (log/info "checking status")
-          (b/text-is? ".bulk-invites-form .ui.label.emails-status"
-                      (format "%d emails" (count emails)))
-          (log/info "submitting emails")
-          (b/click "#send-bulk-invites-button" :delay 200)
-          (b/wait-until-loading-completes :pre-wait 200 :loop 2)
-          (b/is-soon (empty? (taxi/value "#bulk-invite-emails"))))))
-  :cleanup (do (nav/delete-current-project)
-               (nav/log-out)))
+      (doall
+        (for [separator valid-separators
+              emails (partition 3 valid-emails)]
+          (do
+            (b/set-input-text input (str/join separator emails) :delay 50)
+            (b/click send-button)
+            (sysrev.test.browser.core/take-screenshot)
+            (b/wait-until-displayed success-notification)
+            (b/click success-notification :delay 100)))))
+  :cleanup (do
+             (nav/delete-current-project)
+             (nav/log-out)))
+
 
 (deftest-browser test-invalid-emails
   (test/db-connected?) test-user []
