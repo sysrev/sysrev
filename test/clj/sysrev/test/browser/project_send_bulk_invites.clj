@@ -59,8 +59,7 @@
               emails (partition 3 valid-emails)]
           (do
             (b/set-input-text input (str/join separator emails) :delay 50)
-            (b/click send-button)
-            (sysrev.test.browser.core/take-screenshot)
+            (b/click send-button :delay 150)
             (b/wait-until-displayed success-notification)
             (b/click success-notification :delay 100)))))
   :cleanup (do
