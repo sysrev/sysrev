@@ -1127,6 +1127,13 @@
   [user-id]
   {:addresses (user/get-user-emails user-id)})
 
+(defn change-datasource-email! [user-id]
+  (let [sysrev-user (clojure.set/rename-keys (user/user-by-id user-id)
+                                             {:api-token :api-key})
+        datasource-account (ds-api/read-account sysrev-user)]
+    (when-not (:errors datasource-account)
+      (ds-api/change-account-email! sysrev-user))))
+
 (defn verify-user-email! [user-id code]
   ;; does the code match the one associated with user?
   (let [{:keys [verify-code verified email]} (user/user-email-status user-id code)]
@@ -1148,7 +1155,8 @@
           ;; set this as primary when the user doesn't have any other verified email addresses
           (when (= 1 (count (->> (user/get-user-emails user-id)
                                  (filter :verified))))
-            (user/set-primary-email! user-id email))
+            (user/set-primary-email! user-id email)
+            (change-datasource-email! user-id))
           ;;provide a welcome email
           (send-welcome-email email)
           {:success true})
@@ -1217,6 +1225,7 @@
                :message "This email address has not been verified. Only verified email addresses can be set as primary"}}
       (:verified current-email-entry)
       (do (user/set-primary-email! user-id email)
+          (change-datasource-email! user-id)
           {:success true})
       :else
       {:error {:status internal-server-error
@@ -1451,7 +1460,7 @@
   (let [body (-> (mock/request :post "/graphql")
                  (mock/header "Authorization" (str "Bearer " (ds-api/ds-auth-key)))
                  (mock/json-body {:query query})
-                 ((graphql-handler (sysrev-schema)))
+                 ((graphql-handler @sysrev-schema))
                  :body)]
     (try (json/read-str body :key-fn keyword)
          (catch Exception _
@@ -1525,5 +1534,32 @@
         :else (do
                 (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
                 {:success true})))
+
+(defn toggle-developer-account!
+  [user-id enabled?]
+  (let [sysrev-user (clojure.set/rename-keys (user/user-by-id user-id)
+                                             {:api-token :api-key})
+        datasource-account (ds-api/read-account sysrev-user)]
+    (if (:errors datasource-account)
+      ;; the account does not exist
+      (let [{:keys [pw-encrypted-buddy email api-token]} (user/user-by-id user-id)]
+        (ds-api/create-account! {:email email :password pw-encrypted-buddy :api-key api-token})
+        (user/change-user-setting user-id :dev-account-enabled? enabled?)
+        (ds-api/toggle-account-enabled! sysrev-user enabled?))
+      ;; the account already exists
+      (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
+          (ds-api/toggle-account-enabled! sysrev-user enabled?)))))
+
+(defn datasource-account-enabled?
+  [user-id]
+  (:dev-account-enabled? (user/user-settings user-id)))
+
+(defn change-datasource-password! [user-id]
+  (let [sysrev-user (clojure.set/rename-keys (user/user-by-id user-id)
+                                             {:api-token :api-key
+                                              :pw-encrypted-buddy :password})
+        datasource-account (ds-api/read-account sysrev-user)]
+    (when-not (:errors datasource-account)
+      (ds-api/change-account-password! sysrev-user))))
 
 

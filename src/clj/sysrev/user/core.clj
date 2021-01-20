@@ -1,20 +1,25 @@
 (ns sysrev.user.core
-  (:require [clojure.string :as str]
-            [clojure.spec.alpha :as s]
+  (:require [buddy.core.codecs :as codecs]
             [buddy.core.hash :as hash]
-            [buddy.core.codecs :as codecs]
             buddy.hashers
-            crypto.random
             [clj-time.coerce :as tc]
+            [clojure.set :refer [rename-keys]]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            crypto.random
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [select from join merge-join where order-by]]
-            [sysrev.db.core :as db :refer [do-query with-transaction sql-now]]
+            [honeysql.helpers
+             :as
+             sqlh
+             :refer
+             [from join merge-join order-by select where]]
+            [sysrev.db.core :as db :refer [do-query sql-now with-transaction]]
             [sysrev.db.queries :as q]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member]]
             [sysrev.shared.spec.users :as su]
-            [sysrev.payment.stripe :as stripe]
-            [sysrev.util :as util :refer [map-values in?]])
+            [sysrev.util :as util :refer [in? map-values]])
   (:import java.util.UUID))
 
 (defn ^:repl all-users
@@ -71,6 +76,9 @@
 
 (defn user-by-api-token [api-token]
   (q/find-one :web-user {:api-token api-token}))
+
+(defn user-by-id [user-id]
+  (q/find-one :web-user {:user-id user-id}))
 
 (defn generate-api-token []
   (->> (crypto.random/bytes 16)
@@ -159,7 +167,8 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [_self?]]
-  (q/get-user user-id [:user-id :user-uuid :email :verified :permissions :settings]))
+  (-> (q/get-user user-id [:user-id :user-uuid :email :verified :permissions :settings :api-token])
+      (rename-keys {:api-token :api-key})))
 
 (defn user-self-info
   "Returns a map of values with various user account information.

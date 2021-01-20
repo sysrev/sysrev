@@ -4,7 +4,7 @@
             [sysrev.util :refer [in?]]))
 
 (def all-user-settings
-  [:ui-theme])
+  [:ui-theme :dev-account-enabled?])
 
 (s/def ::user-id ::sc/sql-serial-id)
 (s/def ::email string?)

@@ -3,5 +3,5 @@
             [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]))
 
 (defroutes graphql-routes
-  (GET "/graphql" request ((graphql-handler (sysrev-schema)) request))
-  (POST"/graphql" request ((graphql-handler (sysrev-schema)) request)))
+  (GET "/graphql" request ((graphql-handler @sysrev-schema) request))
+  (POST"/graphql" request ((graphql-handler @sysrev-schema) request)))

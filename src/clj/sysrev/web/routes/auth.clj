@@ -1,17 +1,16 @@
 (ns sysrev.web.routes.auth
-  (:require [clojure.tools.logging :as log]
-            [clj-http.client :as http]
+  (:require [clj-http.client :as http]
+            [clojure.tools.logging :as log]
             [compojure.core :refer [GET POST]]
             [ring.util.response :as response]
-            [sysrev.db.queries :as q]
             [sysrev.api :as api]
             [sysrev.auth.google :as google]
-            [sysrev.user.core :as user :refer [user-by-email]]
-            [sysrev.mail.core :refer [send-email]]
-            [sysrev.web.routes.core :refer [setup-local-routes]]
-            [sysrev.web.app :as web :refer [with-authorize]]
             [sysrev.config :refer [env]]
-            [sysrev.util :as util]))
+            [sysrev.db.queries :as q]
+            [sysrev.mail.core :refer [send-email]]
+            [sysrev.user.core :as user :refer [user-by-email]]
+            [sysrev.web.app :as web :refer [with-authorize]]
+            [sysrev.web.routes.core :refer [setup-local-routes]]))
 
 ;; for clj-kondo
 (declare auth-routes dr finalize-routes)
@@ -132,7 +131,8 @@
              (-> (merge {:identity (user/user-identity-info user-id true)}
                         (user/user-self-info user-id)
                         {:orgs (:orgs (api/read-orgs user-id))})
-                 (assoc-in [:identity :verified] verified))
+                 (assoc-in [:identity :verified] verified)
+                 (assoc-in [:identity :dev-account-enabled?] (api/datasource-account-enabled? user-id)))
              {:identity {:settings (:settings session)}}))))
 
 (dr (POST "/api/auth/change-session-settings" request
@@ -159,6 +159,7 @@
                 {:keys [email user-id]} (user/user-by-reset-code reset-code)]
             (assert user-id "No user account found for reset code")
             (user/set-user-password email password)
+            (api/change-datasource-password! user-id)
             (user/clear-password-reset-code user-id)
             {:success true})))
 

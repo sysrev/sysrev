@@ -1,13 +1,25 @@
 (ns sysrev.datasource.api
-  (:require [clojure.spec.alpha :as s]
+  (:require [clj-http.client :as http]
+            [clojure.data.json :as json]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [orchestra.core :refer [defn-spec]]
-            [clj-http.client :as http]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.util :as util :refer [assert-pred map-keys parse-integer
-                                          req-un opt-keys gquery url-join index-by]])
+            [sysrev.util
+             :as
+             util
+             :refer
+             [assert-pred
+              gquery
+              index-by
+              map-keys
+              opt-keys
+              parse-integer
+              req-un
+              url-join]]
+            [venia.core :as venia])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
 ;; for clj-kondo
@@ -232,3 +244,69 @@
   [{:keys [filename hash]}]
   (:body (http/get (url-join (ds-host) "entity" hash filename)
                    {:as :stream, :headers (auth-header)})))
+
+;; note sure why we are using a non-standard way of generating
+;; graphql queries that also doesn't handle mutations
+(defn graphql-query [query & {:keys [host auth-key]}]
+  (let [body (-> (http/post (str (ds-host) "/graphql")
+                            {:headers (auth-header)
+                             :body (json/write-str {:query query})
+                             :content-type :application/json
+                             :throw-exceptions false
+                             :as :json
+                             :coerce :always})
+                 :body)]
+    body))
+
+
+(defn read-account [{:keys [api-key]}]
+  (graphql-query (venia/graphql-query
+                  {:venia/queries
+                   [[:account {:apiKey api-key}
+                     [:email :apiKey :enabled :password]]]})))
+
+(defn create-account! [{:keys [email api-key password]}]
+  (graphql-query
+   (venia/graphql-query
+    {:venia/operation {:operation/type :mutation
+                       :operation/name "M"}
+     :venia/queries [[:createAccount {:email email
+                                      :apiKey api-key
+                                      :password password}
+                      [:email :apiKey :enabled]]]})))
+
+(defn toggle-account-enabled! [{:keys [api-key]} enabled?]
+  (graphql-query
+   (venia/graphql-query
+    {:venia/operation {:operation/type :mutation
+                       :operation/name "M"}
+     :venia/queries [[:updateAccount {:apiKey api-key
+                                      :enabled enabled?}
+                      [:email :apiKey :enabled]]]})))
+
+(defn change-account-password! [{:keys [api-key password]}]
+  (graphql-query
+   (venia/graphql-query
+    {:venia/operation {:operation/type :mutation
+                       :operation/name "M"}
+     :venia/queries [[:updateAccount {:apiKey api-key
+                                      :password password}
+                      [:email :apiKey :enabled]]]})))
+
+(defn change-account-email! [{:keys [api-key email]}]
+  (graphql-query
+   (venia/graphql-query
+    {:venia/operation {:operation/type :mutation
+                       :operation/name "M"}
+     :venia/queries [[:updateAccount {:apiKey api-key
+                                      :email email}
+                      [:email :apiKey :enabled]]]})))
+
+;; note: only for testing purposes
+;; ONLY DISABLE ACCOUNT, NEVER DELETE THEM
+(defn delete-account! [{:keys [email]}]
+  (graphql-query
+   (venia/graphql-query
+    {:venia/operation {:operation/type :mutation
+                       :operation/name "M"}
+     :venia/queries [[:deleteAccount {:email email}]]})))
