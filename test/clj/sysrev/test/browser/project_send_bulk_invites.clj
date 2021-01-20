@@ -37,7 +37,7 @@
 
 (def valid-separators [" " "," "\n"])
 
-#_(deftest-browser test-valid-emails
+(deftest-browser test-valid-emails
   true test-user
   [input "#bulk-invite-emails"
    success-notification ".ui.toast.success"
