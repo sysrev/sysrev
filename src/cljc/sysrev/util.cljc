@@ -217,6 +217,12 @@
   [item-count string]
   (when string (cond-> string (not= item-count 1) (str "s"))))
 
+(defn pluralized-count
+  "Returns string of '`item-count` `string`(s)', pluralizing
+  `string` based on `item-count`."
+  [item-count string]
+  (str item-count " " (pluralize item-count string)))
+
 (defn ellipsis-middle
   "Shorten string `s` using `ellipsis` in the middle when >= `max-length`."
   [s max-length & [ellipsis]]

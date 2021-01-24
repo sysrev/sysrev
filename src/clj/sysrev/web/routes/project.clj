@@ -567,7 +567,6 @@
                 (> unique-emails-count max-bulk-invitations)
                 {:error {:status api/bad-request
                          :message (str "Maximum emails allowed are " max-bulk-invitations)}}
-
                 :else
                 (let [response (api/send-bulk-invitations project-id unique-emails)]
                   (if (:success response)

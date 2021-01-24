@@ -101,7 +101,7 @@
   (when method (s/assert ::method method))
   (swap! data-defs assoc name
          (-> (merge fields {:prereqs prereqs :method method})
-             (update :uri #(if (string? %) (constantly %) %)))))
+             (update :uri #(cond-> % (string? %) (constantly))))))
 
 ;; Gets raw list of data requirements
 (defn- get-needed-raw [db] (get db :needed []))
@@ -214,7 +214,8 @@
                           {:data-failed item}
 
                           #_ (< elapsed-millis 10)
-                          #_ {:dispatch-later [{:dispatch [:fetch item] :ms (- 15 elapsed-millis)}]}
+                          #_ {:dispatch-later [{:dispatch [:fetch item]
+                                                :ms (- 15 elapsed-millis)}]}
 
                           (not (loading/ajax-action-inactive?))
                           {:dispatch-later [{:dispatch [:fetch item] :ms 10}]}

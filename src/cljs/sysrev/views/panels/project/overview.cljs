@@ -3,7 +3,6 @@
             [reagent.core :as r]
             [sysrev.chartjs :as chartjs]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
-            [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data :refer [def-data]]
             [sysrev.views.panels.project.description :refer [ProjectDescription]]
             [sysrev.nav :as nav]
@@ -12,8 +11,8 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
-            [sysrev.views.semantic :refer [Button]]
-            [sysrev.util :as util :refer [css wrap-user-event]]
+            [sysrev.views.email-invite :refer [InviteEmails]]
+            [sysrev.util :as util :refer [css wrap-user-event format]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -159,57 +158,6 @@
              [:div.column.pie-chart-help
               [LabelStatusHelpColumn colors]]]]])]])))
 
-(defn txt->emails [txt]
-  (when (string? txt)
-    (->> (str/split txt #"[ ,\n]")
-         (map str/trim)
-         (filter util/email?))))
-
-(def-action :project/send-invites
-  :uri (fn [_ _] "/api/send-project-invites")
-  :content (fn [project-id emails-txt]
-             (let [emails (txt->emails emails-txt)]
-               {:project-id project-id
-                :emails emails}))
-  :process (fn [_ [_] {:keys [success message]}]
-             (when success
-               {:dispatch-n [[::set [:invite-emails :emails-txt] ""]
-                             [:toast {:class "success" :message message}]]}))
-  :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
-
-(defn- InviteEmailsCmp []
-  (let [project-id @(subscribe [:active-project-id])
-        emails-txt (r/cursor state [:invite-emails :emails-txt])]
-    (fn []
-      (let [emails (txt->emails @emails-txt)
-            email-count (count emails)
-            unique-count (count (set emails))
-            running? (action/running? :project/send-invites)]
-        [:form.ui.form.bulk-invites-form
-         {:on-submit (util/wrap-prevent-default
-                       #(dispatch [:action [:project/send-invites project-id @emails-txt]]))}
-         [:div.field
-          [:textarea#bulk-invite-emails
-           {:style {:width "100%"}
-            :value @emails-txt
-            :required true
-            :placeholder "Input a list of emails separated by comma, newlines or spaces."
-            :on-change (util/wrap-prevent-default
-                         #(reset! emails-txt (-> % .-target .-value)))}]]
-         [Button {:primary true
-                  :id "send-bulk-invites-button"
-                  :disabled (or running? (zero? unique-count))
-                  :type "submit"}
-          "Send Invites"]
-         (when (> email-count 0)
-           [:span {:style {:margin-left "10px"}}
-            (case email-count
-              1 "1 email recognized"
-              (str email-count " emails recognized"))
-            (when (> email-count unique-count)
-              (str " (" unique-count " unique)"))])]))))
-
 (defn- MemberActivityChart []
   (let [project-id @(subscribe [:active-project-id])
         visible-user-ids (->> @(subscribe [:project/member-user-ids])
@@ -237,19 +185,16 @@
           :on-click #(articles/load-member-label-settings
                       (nth visible-user-ids %))]])
       (when invite?
-        [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
-         "Invite others to join"])
-      (when invite?
-        [:div.ui.fluid.action.input
-         [:input#invite-url.ui.input {:readOnly true
-                                      :value invite-url}]
-         [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])
-      
-      (when invite?
-        [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
-         "Send invitation emails"])
-      (when invite?
-        [InviteEmailsCmp])]]))
+        (list
+         ^{:key :i1} [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
+                      "Invite others to join"]
+         ^{:key :i2} [:div.ui.fluid.action.input
+                      [:input#invite-url.ui.input {:readOnly true
+                                                   :value invite-url}]
+                      [ui/ClipboardButton "#invite-url" "Copy Invite Link"]]
+         ^{:key :i3} [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
+                      "Send invitation emails"]
+         ^{:key :i4} [InviteEmails]))]]))
 
 (defn- RecentProgressChart []
   (let [project-id @(subscribe [:active-project-id])
@@ -298,29 +243,29 @@
             [chartjs/line {:data data :options options :height 275}]])]))))
 
 (defn- LabelPredictionsInfo []
-  (when (not-empty @(subscribe [:project/predict]))
+  (when (seq @(subscribe [:project/predict]))
     (let [updated @(subscribe [:predict/update-time])
           labeled @(subscribe [:predict/labeled-count])
           total @(subscribe [:predict/article-count])]
       [:div.ui.segment
-       [:h4.ui.dividing.header
-        "Label Predictions"]
-       [:p "Last updated: " (str updated)]
-       [:p "Trained from " (str labeled)
-        " labeled articles; " (str total)
-        " article predictions loaded"]])))
+       [:h4.ui.dividing.header "Label Predictions"]
+       [:p (format "Last updated: %s" updated)]
+       [:p (format "Trained from %s labeled articles: %s article predictions loaded"
+                   labeled total)]])))
 
 (def-data :project/important-terms-text
-  :loaded? (fn [db project-id]
-             (-> (get-in db [:data :project project-id])
-                 (contains? :important-terms-text)))
-  :uri (fn [_] "/api/important-terms-text")
-  :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:project project-id]])
-  :process (fn [{:keys [db]} [project-id] result]
-             {:db (assoc-in db [:data :project project-id :important-terms-text] result)})
+  :loaded?  (fn [db project-id]
+              (-> (get-in db [:data :project project-id])
+                  (contains? :important-terms-text)))
+  :uri      "/api/important-terms-text"
+  :content  (fn [project-id] {:project-id project-id})
+  :prereqs  (fn [project-id] [[:project project-id]])
+  :process  (fn [{:keys [db]} [project-id] result]
+              {:db (assoc-in db [:data :project project-id :important-terms-text]
+                             result)})
   :on-error (fn [{:keys [db error]} [project-id] _]
-              {:db (assoc-in db [:data :project project-id :important-terms-text] {:error error})}))
+              {:db (assoc-in db [:data :project project-id :important-terms-text]
+                             {:error error})}))
 
 (reg-sub :project/important-terms-text
          (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
@@ -358,7 +303,7 @@
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])
                  (contains? :label-counts)))
-  :uri (fn [] "/api/charts/label-count-data")
+  :uri     "/api/charts/label-count-data"
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id] {:keys [data]}]

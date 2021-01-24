@@ -42,7 +42,7 @@
     true (assoc :status http-code
                 :body {:error {:type etype
                                :message emessage}})
-    #_ exception false (assoc-in [:body :error :exception] (str exception))))
+    exception (assoc-in [:body :error :exception] (str exception))))
 
 (defn not-found-response [request]
   (-> (r/response (index/not-found request))

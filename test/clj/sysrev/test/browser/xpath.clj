@@ -46,7 +46,7 @@
          "//a[contains(text(),'Labels')]"))
 
 (defn project-menu-item [item-class]
-  (str ".ui.menu.project-menu > .item." (name item-class)))
+  (str ".ui.menu.project-menu a.item." (name item-class)))
 
 (def import-button-xpath
   (xpath "//button[contains(@class,'button') and contains(text(),'Import')]"))

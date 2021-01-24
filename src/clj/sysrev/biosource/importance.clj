@@ -36,9 +36,10 @@
                           {:content-type "application/json"
                            :body (json/write-str text)})]
            (cond (str/ends-with? body "Connection refused")
-                 {:error ["importance service is temporarily down"]}
+                 {:error {:message "importance service is temporarily down"}}
                  (< (count text) 5)
-                 {:error ["not enough text to build important terms"]}
+                 {:terms nil}
+                 #_ {:error {:message "not enough text to build important terms"}}
                  :else
                  (try {:terms (->> (util/read-json body)
                                    (filter #(> (:count %) min-count))
