@@ -353,9 +353,9 @@
            (try (if keywords
                   (json/read-str s :key-fn keyword)
                   (json/read-str s))
-                (catch Throwable e
+                (catch Throwable _
                   (throw (ex-info "Error parsing JSON string"
-                                  {:string s} e)))))
+                                  {:string s})))))
    :cljs (defn read-json [s & {:keys [keywords]
                                :or {keywords true}}]
            (if keywords

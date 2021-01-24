@@ -311,7 +311,7 @@
        (fn []
          (reset! polling-sources? false)
          (dispatch [:reload [:project project-id]])
-         (when (and first-source? #_(not browser-test?))
+         (when first-source?
            (dispatch [:data/after-load [:project project-id] :poll-source-redirect])))
        600))
     nil))
@@ -403,7 +403,7 @@
                    {:key :buttons
                     :class (if (util/desktop-size?) "two wide" "three wide")}
                    [ToggleArticleSource source-id enabled]
-                   (when (and (<= labeled-article-count 0))
+                   (when (zero? labeled-article-count)
                      [DeleteArticleSource source-id])
                    ;; should include any JSON / XML sources
                    ;; TODO: Fix this so CT.gov uses regular article content

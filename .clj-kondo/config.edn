@@ -1,4 +1,6 @@
 {:linters {:use {:level :off}
+           ;; :unresolved-var doesn't work with defn-spec or similar
+           :unresolved-var {:level :off}
            :unresolved-symbol {:exclude
                                [ ;; ignore unresolved symbols inside these macro forms
                                 (sysrev.db.queries/def-find-type nil)
