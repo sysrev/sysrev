@@ -97,7 +97,7 @@
 (defn project-unlimited-access? [project-id]
   (with-transaction
     (or (project-grandfathered? project-id)
-        (contains? #{"Unlimited_Org" "Unlimited_User"} (project-owner-plan project-id)))))
+        (contains? #{"Unlimited_Org" "Unlimited_User" "Unlimited_User_Annual" "Unlimited_Org_Annual"} (project-owner-plan project-id)))))
 
 (defn change-project-settings [project-id changes]
   (with-transaction
