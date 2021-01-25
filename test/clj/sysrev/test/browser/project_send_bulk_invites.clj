@@ -2,7 +2,6 @@
   (:require [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
-            [clj-webdriver.taxi :as taxi]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
