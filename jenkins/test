@@ -5,4 +5,4 @@ rm -rf ./target
 
 rm -f target/junit.xml
 
-lein with-profile +jenkins test
+lein with-profile +jenkins eftest
