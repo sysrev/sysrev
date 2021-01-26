@@ -431,7 +431,7 @@
        child])))
 
 (def-panel :project? true :panel panel
-  :uri "/users" :params [project-id] :name project
+  :uri "/users" :params [project-id] :name users
   :on-route (let [prev-panel @(subscribe [:active-panel])
                   all-items [[:project project-id]]]
               ;; avoid reloading data on project url redirect

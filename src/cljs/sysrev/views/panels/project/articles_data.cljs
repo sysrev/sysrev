@@ -1,7 +1,6 @@
-(ns sysrev.views.panels.project.articles
-  (:require [reagent.ratom :refer [reaction]]
-            [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-sub-raw reg-event-fx trim-v reg-fx]]
+(ns sysrev.views.panels.project.articles-data
+  (:require [re-frame.core :refer
+             [subscribe dispatch reg-sub reg-event-fx trim-v reg-fx]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.core :refer [ArticleListPanel]]
@@ -12,25 +11,26 @@
 ;; for clj-kondo
 (declare panel)
 
-(setup-panel-state panel [:project :project :articles])
+(setup-panel-state panel [:project :project :articles-data])
 
 (defn- get-context-from-db [db]
   (let [project-id (active-project-id db)]
     {:panel panel
-     :base-uri (project-uri project-id "/articles")
+     :base-uri (project-uri project-id "/data")
      :article-base-uri (project-uri project-id "/article")
      :defaults {:filters []}}))
 
-(reg-sub ::article-list-context
+(reg-sub ::article-data-context
          :<- [:project/uri]
          (fn [project-uri]
            {:panel panel
-            :base-uri (str project-uri "/articles")
+            :base-uri (str project-uri "/data")
             :article-base-uri (str project-uri "/article")
-            :defaults {:filters []}}))
+            :defaults {:filters []
+                       :display {:show-labels true}}}))
 
 (defn get-context []
-  @(subscribe [::article-list-context]))
+  @(subscribe [::article-data-context]))
 
 (reg-sub :project-articles/article-id
          :<- [:active-panel]
@@ -38,29 +38,6 @@
          (fn [[active-panel article-id]]
            (when (= active-panel panel)
              article-id)))
-
-(reg-sub-raw :project-articles/editing?
-             (fn [_]
-               (reaction
-                (let [context (get-context)
-                      article-id @(subscribe [:article-list/article-id context])
-                      active-panel @(subscribe [:active-panel])]
-                  (when (= active-panel panel)
-                    @(subscribe [:article-list/editing? context article-id]))))))
-
-(reg-sub-raw :project-articles/resolving?
-             (fn [_]
-               (reaction
-                (let [context (get-context)
-                      article-id @(subscribe [:article-list/article-id context])
-                      active-panel @(subscribe [:active-panel])]
-                  (when (= active-panel panel)
-                    @(subscribe [:article-list/resolving? context article-id]))))))
-
-(reg-event-fx :project-articles/hide-article [trim-v]
-              (fn [{:keys [db]}]
-                {:dispatch [:article-list/set-active-article
-                            (get-context-from-db db) nil]}))
 
 (defn load-settings-and-navigate
   "Loads article list settings and navigates to the page from another panel,
@@ -77,7 +54,8 @@
   [& {:keys [status inclusion]}]
   (load-settings-and-navigate
    {:filters [{:consensus {:status status, :inclusion inclusion}}]
-    :display {:show-inclusion true}
+    :display {:show-inclusion true
+              :show-labels true}
     :sort-by :content-updated
     :sort-dir :desc}))
 
@@ -122,7 +100,7 @@
   overview page, and navigates to articles page."
   [user-id]
   (let [display {:show-inclusion true
-                 :show-labels false
+                 :show-labels true
                  :show-notes false}
         filters [{:consensus {:status nil
                               :inclusion nil}}
@@ -140,7 +118,7 @@
   and navigates to articles page."
   [label-id value]
   (let [display {:show-inclusion true
-                 :show-labels false
+                 :show-labels true
                  :show-notes false}
         filters [{:has-label {:label-id label-id
                               :users nil
@@ -178,12 +156,12 @@
 (defn- Panel [child]
   (when @(subscribe [:active-project-id])
     [:div.project-content
-     [ArticleListPanel (get-context) {:display-mode :list}]
+     [ArticleListPanel (get-context) {:display-mode :data}]
      child]))
 
 (def-panel :project? true :panel panel
-  :uri "/articles" :params [project-id] :name articles
-  :on-route (let [panel [:project :project :articles]
+  :uri "/data" :params [project-id] :name articles-data
+  :on-route (let [panel [:project :project :articles-data]
                   context (get-context)
                   active-panel @(subscribe [:active-panel])
                   panel-changed? (not= panel active-panel)

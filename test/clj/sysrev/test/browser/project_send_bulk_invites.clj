@@ -2,7 +2,6 @@
   (:require [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
-            [clj-webdriver.taxi :as taxi]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
@@ -40,26 +39,31 @@
 (def valid-separators [" " "," "\n"])
 
 (deftest-browser test-valid-emails
-  (test/db-connected?) test-user []
+  true test-user
+  [input "#bulk-invite-emails"
+   success-notification ".ui.toast.success"
+   send-button "#send-bulk-invites-button"
+   test-user (if (= (:profile env) :dev)
+               (b/create-test-user)
+               test-user)]
   (do (nav/log-in (:email test-user))
       (nav/new-project "Send Bulk Invites Test (1)")
       (pm/import-pubmed-search-via-db "foo bar")
       ;; project description
       (b/click (x/project-menu-item :users) :delay 200)
       ;; test emails
-      (doseq [separator valid-separators]
-        (doseq [emails (partition 3 valid-emails)]
-          (log/infof "entering emails: %s" (str/join separator emails))
-          (b/set-input-text "#bulk-invite-emails" (str/join separator emails))
-          (log/info "checking status")
-          (b/text-is? ".bulk-invites-form .ui.label.emails-status"
-                      (format "%d emails" (count emails)))
-          (log/info "submitting emails")
-          (b/click "#send-bulk-invites-button" :delay 200)
-          (b/wait-until-loading-completes :pre-wait 200 :loop 2)
-          (b/is-soon (empty? (taxi/value "#bulk-invite-emails"))))))
-  :cleanup (do (nav/delete-current-project)
-               (nav/log-out)))
+      (doall
+        (for [separator valid-separators
+              emails (partition 3 valid-emails)]
+          (do
+            (b/set-input-text input (str/join separator emails) :delay 50)
+            (b/click send-button :delay 150)
+            (b/wait-until-displayed success-notification)
+            (b/click success-notification :delay 100)))))
+  :cleanup (do
+             (nav/delete-current-project)
+             (nav/log-out)))
+
 
 (deftest-browser test-invalid-emails
   (test/db-connected?) test-user []
