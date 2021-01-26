@@ -263,13 +263,15 @@
         columns (concat article-columns
                         (when show-labels user-columns)
                         (when show-labels label-columns))]
-    [:div
+    [:div.overflow-x-auto
      [:table.ui.very.compact.table.articles-data-table
       [:thead
        [:tr
         (doall
           (for [column columns] ^{:key (:key column)}
-            [:th (:display column)]))] ]
+            [:th {:class (when (keyword? (:key column))
+                           (name (:key column)))}
+             (:display column)]))]]
       [:tbody
        (doall
          (mapcat
@@ -281,7 +283,7 @@
                    [:tr {:key (str (:article-id article))}
                     (doall
                       (for [column article-columns] ^{:key (:key column)}
-                        [:td
+                        [:td {:class (name (:key column))}
                          ((:get-fn column) article)]))
                     (when show-labels
                       (doall
