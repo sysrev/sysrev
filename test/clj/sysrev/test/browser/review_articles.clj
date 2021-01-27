@@ -413,7 +413,7 @@
                          (b/displayed-now? ".no-review-articles"))))))
 
 (deftest-browser test-articles-data
-  true test-user
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-id (atom nil)
    labels [{:value-type "boolean"
             :short-label "Include"
