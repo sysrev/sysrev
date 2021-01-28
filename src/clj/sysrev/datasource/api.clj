@@ -258,7 +258,6 @@
                  :body)]
     body))
 
-
 (defn read-account [{:keys [api-key]}]
   (graphql-query (venia/graphql-query
                   {:venia/queries

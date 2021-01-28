@@ -1,7 +1,7 @@
 (ns sysrev.payment.stripe
-  (:require [clojure.tools.logging :as log]
+  (:require [clj-http.client :as http]
+            [clojure.tools.logging :as log]
             [clojure.walk :as walk]
-            [clj-http.client :as http]
             [sysrev.config :refer [env]]
             [sysrev.payment.plans :as db-plans]
             [sysrev.project.funds :as funds]
@@ -326,3 +326,10 @@
 ;; "You can't delete invoices created by subscriptions."
 (defn ^:unused delete-invoice! [invoice-id]
   (stripe-delete (str "/invoices/" invoice-id)))
+
+(def user-pro-plans #{"Unlimited_User" "Unlimited_User_Annual"})
+(def org-pro-plans  #{"Unlimited_Org" "Unlimited_Org_Annual"})
+
+(defn user-has-pro? [user-id]
+  (let [user-current-plan (db-plans/user-current-plan user-id)]
+    (contains? user-pro-plans (:nickname user-current-plan))))

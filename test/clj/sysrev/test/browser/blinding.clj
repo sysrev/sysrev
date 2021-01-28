@@ -69,5 +69,7 @@
     ;; go to an article
     (b/click "div.article-list-article")
     ;; check that no article labels are visible
-    (assert (not (taxi/exists? ".article-labels-view")))))
+    (assert (not (taxi/exists? ".article-labels-view")))
+    :cleanup (doseq [{:keys [email]} test-users]
+               (b/cleanup-test-user! :email email))))
 

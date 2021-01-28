@@ -10,6 +10,7 @@
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [me.raynes.fs :as fs]
+            [medley.core :as medley]
             [ring.mock.request :as mock]
             [ring.util.response :as response]
             [sysrev.cache :refer [db-memo]]
@@ -429,12 +430,17 @@
     (let [{:keys [sub-id]} (plans/user-current-plan user-id)
           plan-id (:id plan)
           sub-item-id (stripe/get-subscription-item sub-id)
-          sub-resp (stripe/update-subscription-item! {:id sub-item-id :plan-id plan-id })]
+          sub-resp (stripe/update-subscription-item! {:id sub-item-id :plan-id plan-id})]
       (if (:error sub-resp)
         (update sub-resp :error #(merge % {:status not-found}))
         (do (plans/add-user-to-plan! user-id plan-id sub-id)
             (doseq [{:keys [project-id]} (user/user-owned-projects user-id)]
               (db/clear-project-cache project-id))
+            (when (and (= (:nickname plan) "Basic")
+                       (:dev-account-enabled? (user/user-settings user-id)))
+              (user/change-user-setting user-id :dev-account-enabled? false)
+              (ds-api/toggle-account-enabled! (clojure.set/rename-keys (user/user-by-id user-id)
+                                                                       {:api-token :api-key}) false))
             {:stripe-body sub-resp :plan (plans/user-current-plan user-id)})))))
 
 (defn subscribe-org-to-plan [group-id plan]
@@ -1497,9 +1503,9 @@
         email       (:email (:body request))
         description (:description (:body request))]
     (sendgrid/send-template-email
-      "info@insilica.co"
-      (format "%s - MANAGED REVIEW REQUEST " name)
-      (format "Name %s email %s\n%s." name email description))
+     "info@insilica.co"
+     (format "%s - MANAGED REVIEW REQUEST " name)
+     (format "Name %s email %s\n%s." name email description))
     {:success true}))
 
 (defn send-bulk-invitations
@@ -1514,9 +1520,9 @@
                        set ; remove duplicates
                        (pmap (fn [email]
                                (sendgrid/send-template-email
-                                 email (str "You've been invited to " project-name " as a reviewer")
-                                 (str "You've been invited to <b>" project-name
-                                      "</b> as a reviewer. You can view the invitation <a href='" invite-url "'>here</a>.")))))
+                                email (str "You've been invited to " project-name " as a reviewer")
+                                (str "You've been invited to <b>" project-name
+                                     "</b> as a reviewer. You can view the invitation <a href='" invite-url "'>here</a>.")))))
         response-count (count responses)
         failure-count (->> responses (filter (comp not :success)) count)
         success? (zero? failure-count)]
@@ -1540,15 +1546,19 @@
   (let [sysrev-user (clojure.set/rename-keys (user/user-by-id user-id)
                                              {:api-token :api-key})
         datasource-account (ds-api/read-account sysrev-user)]
-    (if (:errors datasource-account)
-      ;; the account does not exist
-      (let [{:keys [pw-encrypted-buddy email api-token]} (user/user-by-id user-id)]
-        (ds-api/create-account! {:email email :password pw-encrypted-buddy :api-key api-token})
-        (user/change-user-setting user-id :dev-account-enabled? enabled?)
-        (ds-api/toggle-account-enabled! sysrev-user enabled?))
-      ;; the account already exists
-      (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
-          (ds-api/toggle-account-enabled! sysrev-user enabled?)))))
+    (cond (not (stripe/user-has-pro? user-id))
+          (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
+              {:error {:status forbidden
+                       :message "User does not have a Pro account subscription. Upgrade your account to enable API access"}})
+          (medley/find-first #(= (:message %) "Account Does Not Exist") (:errors datasource-account))
+          ;; the account does not exist
+          (let [{:keys [pw-encrypted-buddy email api-token]} (user/user-by-id user-id)]
+            (ds-api/create-account! {:email email :password pw-encrypted-buddy :api-key api-token})
+            (user/change-user-setting user-id :dev-account-enabled? enabled?)
+            (ds-api/toggle-account-enabled! sysrev-user enabled?))
+          :else
+          (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
+              (ds-api/toggle-account-enabled! sysrev-user enabled?)))))
 
 (defn datasource-account-enabled?
   [user-id]

@@ -4,6 +4,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.views.semantic :as S :refer
              [Segment Header Grid Column Radio Message]]
+            [sysrev.stripe :as stripe]
             [sysrev.views.components.core :refer [selection-dropdown CursorMessage]]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
@@ -204,7 +205,7 @@
 (defn EnableDevAccount []
   (let [enabled? (subscribe [:user/dev-account-enabled?])
         loading? (r/atom true)
-        subscribed? false
+        plan (subscribe [:user/current-plan])
         user-id @(subscribe [:self/user-id])
         error-message (r/atom "")
         toggle-dev-account! (fn [enabled?]
@@ -217,15 +218,13 @@
                                                (dispatch [:fetch [:identity]]))
                                     :error-handler (fn [error-response]
                                                      (reset! loading? false)
-                                                     (reset! error-message (str "There was an error " (get-in error-response [:response :error :message]))))}))]
+                                                     (dispatch [:fetch [:identity]])
+                                                     (reset! error-message (str "There was an error: " (get-in error-response [:response :error :message]))))}))]
     (r/create-class
      {:reagent-render
       (fn []
         [Segment
          [Header {:as "h4" :dividing true} "Enable Developer Account"]
-         (when (and (not subscribed?)
-                    (not @enabled?))
-           [:p "Developer Accounts can only be activated by paid subscribers"])
          (when @enabled?
            [:div
             [:p "API Key: " [:b @(subscribe [:user/api-key])]]
@@ -233,12 +232,18 @@
          (when (not @enabled?)
            [:div
             [:p "A developer account allows full access to SysRev and Datasource, the underlying data backend. Create your own custom datasources and import them using the SysRev and Datasource GraphQL interface."]])
-         [:p "In addition to the SysRev and Datasource GraphQL interface, we provide an " [:a {:href "https://github.com/sysrev/RSysrev" :target "_blank"} "R library"] "."]
+         [:div
+          [:br]
+          [:p "In addition to the SysRev and Datasource GraphQL interface, we provide an " [:a {:href "https://github.com/sysrev/RSysrev" :target "_blank"} "R library"] "."]
+          [:br]]
+         (when (and (not (stripe/pro? (:nickname @plan)))
+                    (not @enabled?))
+           [:p [:b "Developer Accounts can only be activated by paid subscribers"]])
          [Radio {:toggle true
                  :id "enable-dev-account"
                  :label "Developer Account"
                  :checked @enabled?
-                 :disabled false ;;(or false @loading?)
+                 :disabled (not (stripe/pro? (:nickname @plan)))
                  :on-click (fn [_e] (toggle-dev-account! enabled?))}]
          [CursorMessage error-message {:negative true}]])
       :get-initial-state (fn [_this]

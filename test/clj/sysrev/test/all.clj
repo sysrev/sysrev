@@ -2,6 +2,7 @@
   (:require sysrev.test.core
             sysrev.test.import
             sysrev.test.api
+            sysrev.test.etaoin.dev-settings
             sysrev.test.browser.core
             sysrev.test.browser.analytics
             sysrev.test.browser.analytics.labels
