@@ -5,7 +5,8 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.test.core :refer [default-fixture]]
+            [sysrev.test.browser.xpath :as x]
+            [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.config :refer [env]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
@@ -46,20 +47,17 @@
                (b/create-test-user)
                test-user)]
   (do (nav/log-in (:email test-user))
-      (nav/new-project "Send Bulk Invites Test")
+      (nav/new-project "Send Bulk Invites Test (1)")
       (pm/import-pubmed-search-via-db "foo bar")
       ;; project description
-      (b/click "#project a.item.users")
-      (b/wait-until-loading-completes :pre-wait 50 :loop 2)
-      ;; enter emails
-      (b/wait-until-displayed input)
+      (b/click (x/project-menu-item :users) :delay 200)
       ;; test emails
       (doall
         (for [separator valid-separators
               emails (partition 3 valid-emails)]
           (do
             (b/set-input-text input (str/join separator emails) :delay 50)
-            (b/click send-button)
+            (b/click send-button :delay 150)
             (b/wait-until-displayed success-notification)
             (b/click success-notification :delay 100)))))
   :cleanup (do
@@ -68,56 +66,35 @@
 
 
 (deftest-browser test-invalid-emails
-  true test-user
-  [input "#bulk-invite-emails"
-   success-notification ".ui.toast.success"
-   send-button "#send-bulk-invites-button"
-   test-user (if (= (:profile env) :dev)
-               (b/create-test-user)
-               test-user)]
+  (test/db-connected?) test-user []
   (do (nav/log-in (:email test-user))
-      (nav/new-project "Send Bulk Invites Test")
+      (nav/new-project "Send Bulk Invites Test (2)")
       (pm/import-pubmed-search-via-db "foo bar")
-      ;; project description
-      (b/click "#project a.item.users")
-      (b/wait-until-loading-completes :pre-wait 50 :loop 2)
-      ;; enter emails
-      (b/wait-until-displayed input)
-      ;; test emails
-      (b/set-input-text input (str/join (first valid-separators) invalid-emails) :delay 50)
-      (b/is-disabled send-button))
-  :cleanup (do
-             (nav/delete-current-project)
-             (nav/log-out)))
+      (b/click (x/project-menu-item :users) :delay 200)
+      (log/info "entering emails")
+      (b/set-input-text "#bulk-invite-emails"
+                        (str/join (first valid-separators) invalid-emails))
+      (log/info "checking result")
+      (b/displayed? "#send-bulk-invites-button.disabled")
+      (b/text-is? ".bulk-invites-form .ui.label.emails-status" "0 emails"))
+  :cleanup (do (nav/delete-current-project)
+               (nav/log-out)))
 
 (deftest-browser test-max-emails
-  true test-user
-  [input "#bulk-invite-emails"
-   failure-notification ".ui.toast.error"
-   send-button "#send-bulk-invites-button"
-   test-user (if (= (:profile env) :dev)
-               (b/create-test-user)
-               test-user)
+  (test/db-connected?) test-user
+  [ ;; one more than max allowed
    emails (->> (range 0 (inc max-bulk-invitations))
                (map #(str "email" % "@example.com")))]
   (do (nav/log-in (:email test-user))
-      (nav/new-project "Send Bulk Invites Test")
+      (nav/new-project "Send Bulk Invites Test (3)")
       (pm/import-pubmed-search-via-db "foo bar")
-      ;; project description
-      (b/click "#project a.item.users")
-      (b/wait-until-loading-completes :pre-wait 50 :loop 2)
-      ;; enter emails
-      (b/wait-until-displayed input)
-      ;; test emails
-      (b/set-input-text input (str/join (first valid-separators) emails) :delay 50)
-      (b/click send-button)
-      (b/wait-until-displayed failure-notification 20000)
-      (b/click failure-notification :delay 100))
-  :cleanup (do
-             (nav/delete-current-project)
-             (nav/log-out)))
-
-
-
-
-
+      (b/click (x/project-menu-item :users) :delay 200)
+      (log/infof "entering %d emails" (count emails))
+      (b/set-input-text "#bulk-invite-emails"
+                        (str/join (first valid-separators) emails))
+      (log/info "submitting emails")
+      (b/click "#send-bulk-invites-button" :delay 200)
+      (log/info "waiting for error notification")
+      (b/wait-until-displayed ".ui.toast.error"))
+  :cleanup (do (nav/delete-current-project)
+               (nav/log-out)))

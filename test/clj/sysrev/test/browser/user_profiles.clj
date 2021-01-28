@@ -328,9 +328,7 @@
        (not (test/remote-test?))) test-user
   [user1 {:email (str "foo" (util/random-id) "@insilica.co") :password "foobar"}
    new-email-address (str "bar" (util/random-id) "@insilica.co")]
-  (do (alter-var-root #'sysrev.sendgrid/send-template-email
-                      (constantly (fn [& _] (log/info "No email sent"))))
-      (b/create-test-user)
+  (do (b/create-test-user)
       (nav/register-user (:email user1) (:password user1))
       ;; the user can't be listed as a public reviewer
       (b/click "#user-name-link")

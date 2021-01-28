@@ -287,8 +287,6 @@
   [q]
   (not-class q "disabled"))
 
-(def is-disabled (comp not not-disabled))
-
 (defn not-loading
   "If taxi query q is CSS form, add restriction against \"loading\" class."
   [q]
@@ -435,7 +433,19 @@
 
 (defmacro deftest-browser [name enable test-user bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)
-        repl? (= :dev (:profile env))]
+        repl? (= :dev (:profile env))
+        ;; try to avoid exceptions in `cleanup` block
+        ;; toast element can block position of "Log Out" button
+        wait-for-toasts `(do (Thread/sleep 200)
+                             (util/ignore-exceptions
+                              (b/wait-until
+                               (or (util/ignore-exceptions
+                                    (not (displayed-now? ".ui.toast")))
+                                   (util/ignore-exceptions
+                                    (b/click ".ui.toast")
+                                    true))
+                               3000))
+                             (Thread/sleep 100))]
     `(deftest ~name
        (when (or ~repl? ~enable)
          (util/with-print-time-elapsed ~name-str
@@ -449,7 +459,8 @@
                                  :password test-password})
                    ~@bindings]
                (try (when ~repl?
-                      (try ~cleanup
+                      (try ~wait-for-toasts
+                           ~cleanup
                            (create-test-user :email (:email ~test-user) :literal true)
                            (catch Throwable e#
                              (log/warn "got exception in repl cleanup:" (str e#)))))
@@ -473,7 +484,8 @@
                                   (not-empty (browser-console-errors)))
                           (log-console-messages (if failed# :error :info))))
                       (when-not ~repl?
-                        (try ~cleanup
+                        (try ~wait-for-toasts
+                             ~cleanup
                              (catch Throwable e#
                                (log/warnf "exception in test cleanup:\n%s"
                                           (with-out-str (print-cause-trace-custom e#)))))

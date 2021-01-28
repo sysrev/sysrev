@@ -13,11 +13,9 @@
   [_ project-id files {:as options}]
   (let [filenames (map :filename files)
         source-meta (make-source-meta :pdfs {:filenames filenames})
-        pdf-to-article (fn [{:keys [filename tempfile] :as entry}]
-                         (println "entry: " entry)
+        pdf-to-article (fn [{:keys [filename tempfile] :as _entry}]
                          {:filename (fs/base-name filename)
-                          :file-byte-array (-> tempfile
-                                               (util/slurp-bytes))})
+                          :file-byte-array (util/slurp-bytes tempfile)})
         impl {:types {:article-type "file" :article-subtype "pdf"}
               :get-article-refs (constantly files)
               :get-articles #(map pdf-to-article %)

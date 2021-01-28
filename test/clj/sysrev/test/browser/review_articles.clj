@@ -411,3 +411,51 @@
       (randomly-set-article-labels label-definitions)
       (b/wait-until #(or (b/displayed-now? ".ui.button.save-labels.disabled")
                          (b/displayed-now? ".no-review-articles"))))))
+
+(deftest-browser test-articles-data
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  [project-id (atom nil)
+   labels [{:value-type "boolean"
+            :short-label "Include"
+            :required true}
+           {:value-type "categorical"
+            :question "Which numbers?"
+            :short-label "Numbers"
+            :required true
+            :consensus false
+            :definition {:all-values ["CategoryValue1" "CategoryValue2" "CategoryValue3"]
+                         :inclusion-values []}}
+           {:value-type "string"
+            :short-label "Text"
+            :question "Enter some text"
+            :required false
+            :definition {:max-length 100}}]
+   [_ label1 label2] labels
+   [name0 name1 name2] (map :short-label labels)]
+  (do (nav/log-in (:email test-user))
+      (nav/new-project "test-articles-data test")
+      (reset! project-id (b/current-project-id))
+      (assert (integer? @project-id))
+      (pm/import-pubmed-search-via-db "foo bar")
+      ;;; create new labels
+      (nav/go-project-route "/labels/edit")
+      (define/define-label label1)
+      (is (b/exists? (x/match-text "span" name1)))
+      (define/define-label label2)
+      (is (b/exists? (x/match-text "span" name2)))
+      ;;;; review an article
+      (nav/go-project-route "")
+      (b/click (x/project-menu-item :review))
+      (b/click x/review-labels-tab)
+      (b/wait-until-loading-completes :pre-wait 50 :loop 2)
+      (log/info "testing categorical component")
+      (set-boolean-value name0 true)
+      (add-categorical-value name1 "CategoryValue1")
+      (add-string-value name2 "StringValue1")
+      (b/click ".button.save-labels" :displayed? true)
+      (nav/go-project-route "/data")
+      (b/wait-until-loading-completes :pre-wait 50 :loop 2)
+      (b/wait-until-displayed (xpath (format "//div[contains(@class,'label-value') and text()='%s']" "true")))
+      (b/wait-until-displayed (xpath (format "//div[contains(@class,'label-value') and text()='%s']" "StringValue1")))
+      (b/wait-until-displayed (xpath (format "//div[contains(@class,'label-value') and text()='%s']" "CategoryValue1"))))
+  :cleanup (nav/delete-current-project))

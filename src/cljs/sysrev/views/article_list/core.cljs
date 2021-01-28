@@ -2,6 +2,7 @@
   (:require [reagent.ratom :refer [reaction]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
+            [clojure.string :as str]
             [sysrev.data.core :as data]
             [sysrev.views.article :refer [ArticleInfo]]
             [sysrev.views.review :as review]
@@ -204,50 +205,130 @@
       (when (and full-size? labels?)
         [:div.article-labels [ArticleLabelsNotes context article full-size?]])]]))
 
-(defn- ArticleListContent [context]
+(defn- ArticleListContentRows [context articles]
   (let [{:keys [recent-article active-article]}
         @(subscribe [::al/get (al/cached context)])
         {:keys [show-labels show-notes]}
         @(subscribe [::al/display-options (al/cached context)])
         project-id @(subscribe [:active-project-id])
-        articles @(al/sub-articles (al/cached context))
+        full-size? (util/full-size?)]
+    [:div
+     (doall
+       (->> articles
+            (map-indexed
+              (fn [i {:keys [article-id labels notes] :as article}]
+                (let [recent? (= article-id recent-article)
+                      active? (= article-id active-article)
+                      have? @(subscribe [:have? [:article project-id article-id]])
+                      loading? (data/loading? [:article project-id article-id])
+                      labels? (or show-labels show-notes)
+                      first? (= i 0)
+                      last? (= i (dec (count articles)))]
+                  (doall
+                    (list
+                      [:div.ui.middle.aligned.grid.segment.article-list-article
+                       {:key [:list-row article-id]
+                        :class (css [recent? "active"] [active? "expanded"] [labels? "with-labels"]
+                                    [first? "first"] [last? "last"])}
+                       [:div.ui.inverted.dimmer {:class (css [loading? "active"])}
+                        [:div.ui.loader]]
+                       [ArticleListEntry (al/cached context) article full-size?]]
+                      (when active?
+                        [:div.ui.middle.aligned.grid.segment.article-list-full-article
+                         {:key [:article-row article-id]
+                          :class (css [recent? "active"] [loading? "article-loading"])}
+                         (when (and loading? (not have?))
+                           [:div.ui.active.inverted.dimmer>div.ui.loader])
+                         [ArticleContent (al/cached context) article-id]]))))))))]))
+
+(defn- ArticleListContentDataTable [context articles]
+  (let [{:keys [show-labels show-notes]}
+        @(subscribe [::al/display-options (al/cached context)])
+        labels @(subscribe [:project/labels-raw])
+        label->type #(deref (subscribe [:label/value-type "na" (:label-id %)]))
+        article-columns (filter some?
+                                [{:key :id :display "Article ID" :get-fn :article-id}
+                                 {:key :title :display "Title" :get-fn :primary-title}
+                                 (when show-notes
+                                   {:key :notes :display "Notes" :get-fn :notes})]) 
+        user-columns [{:key :user :display "User" :get-fn #(deref (subscribe [:user/display %]))}]
+        label-columns (map (fn [label]
+                             {:key (:label-id label) :display (:short-label label)
+                              :label label
+                              :get-fn (fn [{:keys [label-id answer]}]
+                                        (if (vector? answer)
+                                          (str/join ", " answer)
+                                          (str answer)))})
+                           (remove #(= "group" (label->type %)) (vals labels)))
+        columns (concat article-columns
+                        (when show-labels user-columns)
+                        (when show-labels label-columns))]
+    [:div.overflow-x-auto
+     [:table.ui.very.compact.table.articles-data-table
+      [:thead
+       [:tr
+        (doall
+          (for [column columns] ^{:key (:key column)}
+            [:th {:class (when (keyword? (:key column))
+                           (name (:key column)))}
+             (:display column)]))]]
+      [:tbody
+       (doall
+         (mapcat
+           (fn [article]
+             (let [article-labels (remove #(= "group" (label->type %)) (:labels article))
+                   answers (group-by :user-id article-labels)]
+               (if (or (not show-labels) (empty? answers))
+                 (list
+                   [:tr {:key (str (:article-id article))}
+                    (doall
+                      (for [column article-columns] ^{:key (:key column)}
+                        [:td {:class (name (:key column))}
+                         ((:get-fn column) article)]))
+                    (when show-labels
+                      (doall
+                        (for [column user-columns] ^{:key (:key column)}
+                          [:td])))
+                    (when show-labels
+                      (doall
+                        (for [column label-columns] ^{:key (:key column)}
+                          [:td])))])
+                   (map-indexed
+                     (fn [idx [user-id answers]]
+                       [:tr {:key (str idx "-" (:article-id article) "-" user-id)}
+                        (doall
+                          (for [column article-columns] ^{:key (:key column)}
+                            [:td {:class (name (:key column))}
+                             (when (zero? idx)
+                               ((:get-fn column) article))]))
+                        (doall
+                          (for [column user-columns] ^{:key (:key column)}
+                            [:td {:class (name (:key column))}
+                             ((:get-fn column) user-id)]))
+                        (doall
+                          (for [column label-columns]
+                            (let [answer (some #(when (= (:label-id %) (get-in column [:label :label-id])) %)
+                                               answers)]
+                              [:td {:key (:key column)}
+                               [:div.label-value
+                                ((:get-fn column) answer)]])))])
+                     answers))))
+           articles))]]]))
+
+(defn- ArticleListContent [context options]
+  (let [articles @(al/sub-articles (al/cached context))
         recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
         list-loading? (or (= recent-nav-action :refresh)
-                          (= recent-nav-action :transition))
-        full-size? (util/full-size?)]
+                          (= recent-nav-action :transition))]
     [:div.ui.segments.article-list-segments
      [:div.ui.dimmer {:class (css [list-loading? "active"])}
       [:div.ui.loader]]
-     (doall
-      (concat
-       (list ^{:key :article-nav-header}
-             [ArticleListNavHeader context])
-       (->> articles
-            (map-indexed
-             (fn [i {:keys [article-id labels notes] :as article}]
-               (let [recent? (= article-id recent-article)
-                     active? (= article-id active-article)
-                     have? @(subscribe [:have? [:article project-id article-id]])
-                     loading? (data/loading? [:article project-id article-id])
-                     labels? (or show-labels show-notes)
-                     first? (= i 0)
-                     last? (= i (dec (count articles)))]
-                 (doall
-                  (list
-                   [:div.ui.middle.aligned.grid.segment.article-list-article
-                    {:key [:list-row article-id]
-                     :class (css [recent? "active"] [active? "expanded"] [labels? "with-labels"]
-                                 [first? "first"] [last? "last"])}
-                    [:div.ui.inverted.dimmer {:class (css [loading? "active"])}
-                     [:div.ui.loader]]
-                    [ArticleListEntry (al/cached context) article full-size?]]
-                   (when active?
-                     [:div.ui.middle.aligned.grid.segment.article-list-full-article
-                      {:key [:article-row article-id]
-                       :class (css [recent? "active"] [loading? "article-loading"])}
-                      (when (and loading? (not have?))
-                        [:div.ui.active.inverted.dimmer>div.ui.loader])
-                      [ArticleContent (al/cached context) article-id]])))))))))]))
+     [ArticleListNavHeader context]
+     (case (:display-mode options)
+       :data [ArticleListContentDataTable context articles]
+
+       ;else
+       [ArticleListContentRows context articles])]))
 
 (defn- ArticleListExpandedEntry [context article]
   (let [base-context (al/no-cache context)
@@ -287,7 +368,7 @@
          context {:article-id active-article
                   :primary-title title})]])))
 
-(defn- MultiArticlePanel [context]
+(defn- MultiArticlePanel [context options]
   (let [expanded? @(subscribe [::al/display-options (al/cached context) :expand-filters])
         count-item (subscribe [::al/count-query (al/cached context)])
         data-item (subscribe [::al/articles-query (al/cached context)])]
@@ -303,11 +384,11 @@
           [:div.column.content-column {:class (css [expanded? "eleven" :else "fifteen"] "wide")}
            [:div.ui.form [:div.field>div.fields>div.sixteen.wide.field
                           [f/TextSearchInput context]]]
-           [ArticleListContent context]]]
+           [ArticleListContent context options]]]
          [:div
           ;; FIX: add filters interface for mobile/tablet
           #_ [f/ArticleListFiltersRow context]
-          [ArticleListContent context]]))]))
+          [ArticleListContent context options]]))]))
 
 (defn- require-all-data [context]
   (when (and (not (al/have-data? context))
@@ -319,13 +400,13 @@
     (dispatch [:require @(subscribe [::al/count-query (al/cached context)])])
     (dispatch [:require @(subscribe [::al/articles-query (al/cached context)])])))
 
-(defn ArticleListPanel [context]
+(defn ArticleListPanel [context options]
   (let [single-article? @(subscribe [::al/get (al/cached context) [:single-article?]])]
     [:div.article-list-toplevel
      (require-all-data context)
      (if single-article?
        [SingleArticlePanel context]
-       [MultiArticlePanel context])]))
+       [MultiArticlePanel context options])]))
 
 ;; Gets id of article currently being individually displayed
 (reg-sub :article-list/article-id

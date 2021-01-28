@@ -1,10 +1,7 @@
 (ns sysrev.views.panels.project.users
-  (:require [clojure.string :as str]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.action.core :as action :refer [def-action]]
-            [sysrev.nav :as nav]
-            [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.components.core :as ui]
             [sysrev.state.project.members :as members]
@@ -13,6 +10,7 @@
               Modal ModalHeader ModalContent ModalDescription Form
               Input FormField TextArea]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
+            [sysrev.views.email-invite :refer [InviteEmails]]
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
@@ -21,25 +19,6 @@
 
 (setup-panel-state panel [:project :project :users]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
-
-(defn txt->emails [txt]
-  (when (string? txt)
-    (->> (str/split txt #"[ ,\n]")
-         (map str/trim)
-         (filter util/email?))))
-
-(def-action :project/send-invites
-  :uri (fn [_ _] "/api/send-project-invites")
-  :content (fn [project-id emails-txt]
-             (let [emails (txt->emails emails-txt)]
-               {:project-id project-id
-                :emails emails}))
-  :process (fn [_ _ {:keys [success message]}]
-             (when success
-               {:dispatch-n [[::set [:invite-emails :emails-txt] ""]
-                             [:toast {:class "success" :message message}]]}))
-  :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
 (def-action :project/create-member-gengroup
   :uri (fn [_ _] "/api/create-gengroup")
@@ -109,58 +88,19 @@
   :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error" :message (:message error)}]}))
 
-(defn- InviteEmailsCmp []
-  (let [project-id @(subscribe [:active-project-id])
-        emails-txt (r/cursor state [:invite-emails :emails-txt])]
-    (fn []
-      (let [emails (txt->emails @emails-txt)
-            email-count (count emails)
-            unique-count (count (set emails))
-            running? (action/running? :project/send-invites)]
-        [:form.ui.form.bulk-invites-form
-         {:on-submit (util/wrap-prevent-default
-                       #(dispatch [:action [:project/send-invites project-id @emails-txt]]))}
-         [:div.field
-          [:textarea#bulk-invite-emails
-           {:style {:width "100%"}
-            :value @emails-txt
-            :required true
-            :rows 3
-            :placeholder "Input a list of emails separated by comma, newlines or spaces."
-            :on-change (util/wrap-prevent-default
-                         #(reset! emails-txt (-> % .-target .-value)))}]]
-         [Button {:primary true
-                  :id "send-bulk-invites-button"
-                  :disabled (or running? (zero? unique-count))
-                  :type "submit"}
-          "Send Invites"]
-         (when (> email-count 0)
-           [:span {:style {:margin-left "10px"}}
-            (case email-count
-              1 "1 email recognized"
-              (str email-count " emails recognized"))
-            (when (> email-count unique-count)
-              (str " (" unique-count " unique)"))])]))))
-
 (defn- InviteUsersBox []
-  (let [invite-url @(subscribe [:project/invite-url])
-        invite? (and invite-url (or @(subscribe [:self/member?])
-                                    @(subscribe [:user/dev?])))]
-    [:div.ui.segment
-     (when invite?
-       [:h4.ui.dividing.header 
-        "Invite others to join"])
-     (when invite?
+  (when-let [invite-url @(subscribe [:project/invite-url])]
+    (when (or @(subscribe [:self/member?])
+              @(subscribe [:user/dev?]))
+      [:div.ui.segment
+       [:h4.ui.dividing.header "Invite others to join"]
        [:div.ui.fluid.action.input
-        [:input#invite-url.ui.input {:readOnly true
+        [:input#invite-url.ui.input {:read-only true
                                      :value invite-url}]
-        [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])
-
-     (when invite?
+        [ui/ClipboardButton "#invite-url" "Copy Invite Link"]]
        [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
-        "Send invitation emails"])
-     (when invite?
-       [InviteEmailsCmp])]))
+        "Send invitation emails"]
+       [InviteEmails]])))
 
 (defn- UserModal [user-id member-info]
   (let [modal-state-path [:user-modal user-id]
@@ -180,10 +120,10 @@
       (let [username @(subscribe [:user/display user-id])
             gengroup-ids-set (->> member-info :gengroups (map :gengroup-id) set)]
         [Modal {:trigger (r/as-element
-                           [Button {:on-click #(dispatch [::set modal-state-path {:open true}])
-                                    :data-member-username username
-                                    :class "manage-member-btn icon"}
-                            [:i.cog.icon]])
+                          [Button {:on-click #(dispatch [::set modal-state-path {:open true}])
+                                   :data-member-username username
+                                   :class "manage-member-btn icon"}
+                           [:i.cog.icon]])
                 :class "tiny"
                 :open @modal-open
                 :on-open #(reset! modal-open true)
@@ -234,14 +174,14 @@
                             (clj->js))
               :value (or @group-search-value "")
               :input (r/as-element
-                       [Input {:placeholder "Search groups"
-                               :action (r/as-element
-                                         [Button {:id "add-gengroup-btn"
-                                                  :positive true
-                                                  :on-click #(add-member-to-gengroup)
-                                                  :disabled (nil? @current-gengroup)}
-                                          "Add"])}])}]
-            
+                      [Input {:placeholder "Search groups"
+                              :action (r/as-element
+                                       [Button {:id "add-gengroup-btn"
+                                                :positive true
+                                                :on-click #(add-member-to-gengroup)
+                                                :disabled (nil? @current-gengroup)}
+                                        "Add"])}])}]
+
             [:div.ui.hidden.divider]
             [Button {:primary true
                      :style {:margin-top "10px"}
@@ -261,8 +201,9 @@
      [TableCell
       [:div
        (doall
-         (for [gengroup (take max-gengroups-shown gengroups)] ^{:key (:gengroup-id gengroup)}
-           [:div.ui.small.teal.label (:gengroup-name gengroup)]))
+        (for [gengroup (take max-gengroups-shown gengroups)]
+          ^{:key (:gengroup-id gengroup)}
+          [:div.ui.small.teal.label (:gengroup-name gengroup)]))
        (when (> gengroups-count max-gengroups-shown)
          [:span.ui.small.grey.text
           (str " and " (- gengroups-count max-gengroups-shown) " more")])]]
@@ -278,8 +219,11 @@
         members (subscribe [::members/members])]
     (fn []
       (when @members
-        (let [filtered-members (util/data-filter @members [#(-> % val :email)] @members-search)
-              paginated-members (->> filtered-members (drop (* @offset items-per-page)) (take items-per-page))]
+        (let [filtered-members (util/data-filter @members [#(-> % val :email)]
+                                                 @members-search)
+              paginated-members (->> filtered-members
+                                     (drop (* @offset items-per-page))
+                                     (take items-per-page))]
           [:div
            [:div {:style {:margin-bottom "10px"}}
             [:div.ui.fluid.left.icon.input
@@ -300,8 +244,8 @@
                [TableHeaderCell "Actions"]]]
              [TableBody
               (doall
-                (for [[user-id member-info] paginated-members] ^{:key user-id}
-                  [UserRow user-id member-info]))]]
+               (for [[user-id member-info] paginated-members] ^{:key user-id}
+                 [UserRow user-id member-info]))]]
 
             [:div.ui.segment
              [ListPager
@@ -315,7 +259,7 @@
 
 (defn- UsersSegment []
   [:div.ui.segment
-   [:h4.ui.dividing.header 
+   [:h4.ui.dividing.header
     "Project Members"]
    [UsersTable]])
 
@@ -327,11 +271,10 @@
         gengroup-description (r/cursor state (concat modal-state-path [:form-data :description]))]
     (fn []
       [Modal {:trigger (r/as-element
-                         [Button {:on-click #(dispatch [::set modal-state-path {:open true
-                                                                                :form-data {}}])
-                                  :id "new-gengroup-btn"
-                                  :class "ui small positive"}
-                          [:i.icon.plus] " New"])
+                        [Button {:id "new-gengroup-btn" :class "ui small positive"
+                                 :on-click #(dispatch [::set modal-state-path
+                                                       {:open true :form-data {}}])}
+                         [:i.icon.plus] " New"])
               :class "tiny"
               :open @modal-open
               :on-open #(reset! modal-open true)
@@ -340,8 +283,9 @@
        [ModalContent
         [ModalDescription
          [Form {:on-submit (util/wrap-prevent-default
-                             #(dispatch [:action [:project/create-member-gengroup project-id {:name @gengroup-name
-                                                                                                :description @gengroup-description}]]))}
+                            #(dispatch [:action [:project/create-member-gengroup project-id
+                                                 {:name @gengroup-name
+                                                  :description @gengroup-description}]]))}
           [FormField
            [:label "Group name"]
            [Input {:id "gengroup-name-input"
@@ -361,14 +305,15 @@
         modal-open (r/cursor state (concat modal-state-path [:open]))
         project-id @(subscribe [:active-project-id])
         gengroup-name (r/cursor state (concat modal-state-path [:form-data :name]))
-        gengroup-description (r/cursor state (concat modal-state-path [:form-data :description]))]
+        gengroup-description (r/cursor state (concat modal-state-path
+                                                     [:form-data :description]))]
     (fn [gengroup]
       [Modal {:trigger (r/as-element
-                         [Button {:on-click #(dispatch [::set modal-state-path {:open true
-                                                                                :form-data gengroup}])
-                                  :data-gengroup-name (:name gengroup)
-                                  :class "edit-gengroup-btn icon"}
-                          [:i.icon.cog]])
+                        [Button {:on-click #(dispatch [::set modal-state-path
+                                                       {:open true :form-data gengroup}])
+                                 :data-gengroup-name (:name gengroup)
+                                 :class "edit-gengroup-btn icon"}
+                         [:i.icon.cog]])
               :class "tiny"
               :open @modal-open
               :on-open #(reset! modal-open true)
@@ -377,9 +322,10 @@
        [ModalContent
         [ModalDescription
          [Form {:on-submit (util/wrap-prevent-default
-                             #(dispatch [:action [:project/update-member-gengroup project-id {:gengroup-id (:gengroup-id gengroup)
-                                                                                              :name @gengroup-name
-                                                                                              :description @gengroup-description}]]))}
+                            #(dispatch [:action [:project/update-member-gengroup project-id
+                                                 {:gengroup-id (:gengroup-id gengroup)
+                                                  :name @gengroup-name
+                                                  :description @gengroup-description}]]))}
           [FormField
            [:label "Group name"]
            [Input {:id "gengroup-name-input"
@@ -402,12 +348,13 @@
         modal-open (r/cursor state (concat modal-state-path [:open]))]
     (fn [gengroup]
       [Modal {:trigger (r/as-element
-                         [Button {:primary true
-                                  :class "icon orange delete-gengroup-btn" 
-                                  :data-gengroup-name (:name gengroup)
-                                  :on-click #(dispatch [::set modal-state-path {:open true
-                                                                                :form-data gengroup}])}
-                          [:i.icon.trash]])
+                        [Button {:primary true
+                                 :class "icon orange delete-gengroup-btn"
+                                 :data-gengroup-name (:name gengroup)
+                                 :on-click #(dispatch [::set modal-state-path
+                                                       {:open true
+                                                        :form-data gengroup}])}
+                         [:i.icon.trash]])
               :class "tiny"
               :open @modal-open
               :on-open #(reset! modal-open true)
@@ -419,7 +366,8 @@
          [Button
           "Cancel"]
          [Button {:class "orange"
-                  :on-click #(dispatch [:action [:project/delete-member-gengroup project-id (:gengroup-id gengroup)]])
+                  :on-click #(dispatch [:action [:project/delete-member-gengroup
+                                                 project-id (:gengroup-id gengroup)]])
                   :id "delete-gengroup-confirmation-btn"}
           "Yes, Delete"]]]])))
 
@@ -444,7 +392,6 @@
   (let [gengroups @(subscribe [:project/gengroups])]
     [:div
      [NewGengroupModal]
-     
      [Table {:id "gengroups-table" :basic true}
       [TableHeader
        [TableRow
@@ -453,37 +400,42 @@
         [TableHeaderCell "Actions"]]]
       [TableBody
        (doall
-         (for [gengroup gengroups] ^{:key (:gengroup-id gengroup)}
-           [GengroupRow gengroup]))]]]))
+        (for [gengroup gengroups] ^{:key (:gengroup-id gengroup)}
+          [GengroupRow gengroup]))]]]))
 
 (defn- GengroupsSegment []
   [:div.ui.segment
    [:h4.ui.dividing.header
     "Project Groups"]
-   
    [GengroupsTable]])
 
 (defn- ProjectOverviewContent []
-  (when-let [project-id @(subscribe [:active-project-id])]
-    (with-loader [[:project project-id]] {}
-      [:div.overview-content
-       [:div.ui.two.column.stackable.grid.project-overview
-        [:div.column
-         [UsersSegment]]
-        [:div.column
-         [InviteUsersBox]
-         [GengroupsSegment]]]])))
+  (let [project-id @(subscribe [:active-project-id])
+        user-id @(subscribe [:self/user-id])
+        project-admin? @(subscribe [:project/controlled-by? project-id user-id])]
+    (when-let [project-id @(subscribe [:active-project-id])]
+      (with-loader [[:project project-id]] {}
+        [:div.overview-content
+         (if project-admin?
+           ;; project admin view
+           [:div.ui.two.column.stackable.grid.project-overview
+            [:div.column
+             [UsersSegment]]
+            [:div.column
+             [InviteUsersBox]
+             [GengroupsSegment]]]
+           ;; reviewer view
+           [:div.ui.one.column.stackable.grid.project-overview
+            [:div.column
+             [UsersSegment]]])]))))
 
 (defn- Panel [child]
-  (when-let [project-id @(subscribe [:active-project-id])]
-    (if (false? @(subscribe [:project/has-articles?]))
-      [:div (nav/nav (project-uri project-id "/add-articles") :redirect true)]
-      [:div.project-content
-       [ProjectOverviewContent]
-       child])))
+  [:div.project-content
+   [ProjectOverviewContent]
+   child])
 
 (def-panel :project? true :panel panel
-  :uri "/users" :params [project-id] :name project
+  :uri "/users" :params [project-id] :name users
   :on-route (let [prev-panel @(subscribe [:active-panel])
                   all-items [[:project project-id]]]
               ;; avoid reloading data on project url redirect

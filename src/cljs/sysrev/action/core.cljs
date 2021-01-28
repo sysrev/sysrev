@@ -31,9 +31,10 @@
 ;; item value formats
 (s/def ::item-args (s/coll-of ::item-arg))
 
-;; def-data arguments
-(doseq [arg [::uri ::content ::process ::on-error]]
+;; def-action arguments
+(doseq [arg [::content ::process ::on-error]]
   (s/def arg ifn?))
+(s/def ::uri (s/or :fn fn? :string string?))
 (s/def ::method keyword?)
 (s/def ::content-type string?)
 
@@ -45,6 +46,7 @@
   Required parameters:
 
   `:uri` - fn taking `::item-args`, returns url string for request.
+  `:uri` can also be passed as a string value.
 
   `:process` - (fn [cofx item-args result] ...)
   * `cofx` is normal re-frame cofx map for reg-event-fx
@@ -83,7 +85,8 @@
   (when on-error (s/assert ::on-error on-error))
   (when method (s/assert ::method method))
   (swap! action-defs assoc name
-         (merge fields {:method method :timeout timeout})))
+         (-> (merge fields {:method method :timeout timeout})
+             (update :uri #(cond-> % (string? %) (constantly))))))
 
 ;; Runs an AJAX action specified by `item`
 (reg-event-fx
@@ -128,11 +131,10 @@
                                            "\nerror: " (pr-str (:error cofx))))
                     {})))))))
 
-(reg-event-fx
-  :toast
-  (fn [_ [_ opts]]
-    (-> ($ "body") (.toast (clj->js opts)))
-    {}))
+(reg-event-fx :toast
+              (fn [_ [_ opts]]
+                (-> ($ "body") (.toast (clj->js opts)))
+                {}))
 
 (defn run-action [& item]
   (dispatch [:action (into [] item)]))
