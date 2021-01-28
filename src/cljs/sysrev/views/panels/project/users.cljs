@@ -2,8 +2,6 @@
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.action.core :as action :refer [def-action]]
-            [sysrev.nav :as nav]
-            [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.components.core :as ui]
             [sysrev.state.project.members :as members]
@@ -412,23 +410,29 @@
    [GengroupsTable]])
 
 (defn- ProjectOverviewContent []
-  (when-let [project-id @(subscribe [:active-project-id])]
-    (with-loader [[:project project-id]] {}
-      [:div.overview-content
-       [:div.ui.two.column.stackable.grid.project-overview
-        [:div.column
-         [UsersSegment]]
-        [:div.column
-         [InviteUsersBox]
-         [GengroupsSegment]]]])))
+  (let [project-id @(subscribe [:active-project-id])
+        user-id @(subscribe [:self/user-id])
+        project-admin? @(subscribe [:project/controlled-by? project-id user-id])]
+    (when-let [project-id @(subscribe [:active-project-id])]
+      (with-loader [[:project project-id]] {}
+        [:div.overview-content
+         (if project-admin?
+           ;; project admin view
+           [:div.ui.two.column.stackable.grid.project-overview
+            [:div.column
+             [UsersSegment]]
+            [:div.column
+             [InviteUsersBox]
+             [GengroupsSegment]]]
+           ;; reviewer view
+           [:div.ui.one.column.stackable.grid.project-overview
+            [:div.column
+             [UsersSegment]]])]))))
 
 (defn- Panel [child]
-  (when-let [project-id @(subscribe [:active-project-id])]
-    (if (false? @(subscribe [:project/has-articles?]))
-      [:div (nav/nav (project-uri project-id "/add-articles") :redirect true)]
-      [:div.project-content
-       [ProjectOverviewContent]
-       child])))
+  [:div.project-content
+   [ProjectOverviewContent]
+   child])
 
 (def-panel :project? true :panel panel
   :uri "/users" :params [project-id] :name users
