@@ -37,8 +37,9 @@
 
 
 (defn login [{:keys [email password]}]
-  (etaoin/go @*driver* (:url (get-selenium-config)))
-  (etaoin/click @*driver* {:css "#log-in-link"})
+  (go @*driver* "/login")
+  (click @*driver* {:css "#log-in-link"})
+  (etaoin/wait-exists @*driver* :login-email-input)
   (etaoin/fill-multi @*driver* {:login-email-input email
                                 :login-password-input password})
   (etaoin/click @*driver* "//button[contains(text(),'Log in')]"))

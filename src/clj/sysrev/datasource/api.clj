@@ -245,11 +245,10 @@
   (:body (http/get (url-join (ds-host) "entity" hash filename)
                    {:as :stream, :headers (auth-header)})))
 
-;; note sure why we are using a non-standard way of generating
-;; graphql queries that also doesn't handle mutations
-(defn graphql-query [query & {:keys [host auth-key]}]
+(defn graphql-query [query & {:keys [host api-key]
+                              :or {api-key (ds-auth-key)}}]
   (let [body (-> (http/post (str (ds-host) "/graphql")
-                            {:headers (auth-header)
+                            {:headers (auth-header :auth-key api-key)
                              :body (json/write-str {:query query})
                              :content-type :application/json
                              :throw-exceptions false

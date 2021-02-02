@@ -8,10 +8,14 @@
              etaoin
              :refer
              [format-date get-logs get-pwd get-source join-path screenshot]]
+            [sysrev.test.browser.core :refer [cleanup-test-user!]]
+            [sysrev.user.core :refer [all-users]]
             [sysrev.test.core :refer [get-selenium-config remote-test?]])
   (:import java.util.Date))
 
 (defonce ^:dynamic *driver* (atom {}))
+(defonce ^:dynamic *cleanup-users* (atom {}))
+
 (def root-url (subs (:url (get-selenium-config)) 0 (- (count (:url (get-selenium-config))) 1)))
 
 (defn setup-visual-chromedriver!
@@ -29,13 +33,22 @@
   (etaoin/wait-enabled driver query)
   (etaoin/click driver query))
 
+(defn fill [driver query string]
+  (etaoin/with-wait-timeout 15
+    (etaoin/wait-absent driver {:css "div.ui.loader.active"}))
+  (etaoin/wait-exists driver query)
+  (etaoin/fill driver query string))
+
+;; used for local debug purposes
+(defn take-screenshot []
+  (etaoin/screenshot @*driver* (str "./" (gensym) ".png")))
+
 (defn- dump-logs
   [logs filename & [opt]]
   (generate-stream
    logs
    (io/writer filename)
    (merge {:pretty true} opt)))
-
 
 (defn postmortem-handler
   "Based on etaoin postmortem handler, but using a different logging level"
@@ -84,13 +97,21 @@
        (postmortem-handler ~driver ~opt)
        (throw e#))))
 
-(defmacro deftest-etaoin [name body]
+(defmacro deftest-etaoin
+  "A macro for creating an etaoin browser test. Used in tandem with etaoin-fixture. A dynamic atom var of type vector, *cleanup-users*,  is used to cleanup tests users. Populate it within these tests with a `(swap! *cleanup-users* conj user)`"
+  [name body]
   `(deftest ~name
-     (with-postmortem @*driver* {:dir "/tmp/sysrev/etaoin"}
-       (etaoin/with-wait-timeout 5         
-         ~body))))
+     (binding [*cleanup-users* (atom [])]
+       (try
+         (with-postmortem @*driver* {:dir "/tmp/sysrev/etaoin"}
+           (etaoin/with-wait-timeout 5
+             ~body))
+         (finally
+           (doall
+            (mapv #(cleanup-test-user! :email (:email %) :groups true) @*cleanup-users*)))))))
 
 (defn etaoin-fixture
+  "A fixture for running browser tests with etaoin. Used in tandem with deftest-etaoin."
   [f]
   (if-not (remote-test?)
     (binding [*driver* (atom (etaoin/chrome {:headless true}))]
