@@ -22,8 +22,9 @@
 
 (deftest-etaoin happy-path-enable
   (let [user (account/create-account)
-        _ (swap! *cleanup-users* conj user)
+        user-id (:user-id (user-by-email (:email user)))
         api-key (-> user :email user-by-email :api-token)]
+    (swap! *cleanup-users* conj {:user-id user-id})
     (click @*driver* :user-name-link)
     (click @*driver* :user-settings)
     ;; user can't enable their dev account
@@ -64,7 +65,11 @@
 
 (deftest-etaoin account-mutation-tests
   (let [user (account/create-account)
-        api-key (-> user :email user-by-email :api-token)]
+        api-key (-> user :email user-by-email :api-token)
+        new-email (-> (str/split (:email user) #"@") first (str "+alpha@example.com"))
+        user-id (:user-id (user-by-email (:email user)))]
+    ;; change the email
+    (swap! *cleanup-users* conj {:user-id user-id})
     ;; change plan and enable dev account
     (account/change-user-plan)
     (click @*driver* :user-name-link)
@@ -104,46 +109,42 @@
     (click @*driver* :user-name-link)
     (click @*driver* :user-email)
     (click @*driver* "//button[contains(text(),'Add a New')]")
-    (let [new-email (-> (str/split (:email user) #"@") first (str "+alpha@example.com"))
-          user-id (:user-id (user-by-email (:email user)))]
-      ;; change the email
-      (swap! *cleanup-users* conj {:email new-email})
-      (fill @*driver* :new-email-address new-email)
-      (click @*driver* :new-email-address-submit)
-      (etaoin/wait-exists @*driver* (str "//div[contains(@class,'email-unverified') and contains(@class,'label')]/parent::h4[contains(text(),'" new-email "')]"))
-      ;; verify the email
-      (let [verify-code (->> user-id get-user-emails (medley/find-first #(= new-email (:email %))) :verify-code)]
-        (go @*driver* (str "/user/" user-id "/email/" verify-code))
-        (etaoin/wait-exists @*driver* (str "//div[contains(@class,'blue') and contains(@class,'label')]/parent::h4[contains(text(),'" new-email "')]"))
-        (is (etaoin/exists? @*driver* (str "//div[contains(@class,'blue') and contains(@class,'label')]/parent::h4[contains(text(),'" new-email "')]"))))
-      ;; login to datasource with new email and password
-      (let [{:keys [password]} user
-            login-resp (http/post (str datasource-url "/login")
-                                  {:form-params {:email new-email
-                                                 :password (str/reverse password)}})]
-        (is (get-in login-resp [:cookies "token" :value])))
-      ;; disable pro account
-      (account/change-user-plan)
-      ;; make sure sysrev graphql access is disabled
-      (is (= "user does not have a have pro account"
-             (-> (graphql-request (venia/graphql-query {:venia/queries [[:__schema [[:mutationType [[:fields [:name]]]]]]]})
-                                  :api-key api-key)
-                 :resolved_value
-                 :data
-                 first
-                 :message)))
-      ;; make sure user can't use datasource graphql
-      (is (= "api-token is not enabled or authorized for this transaction"
-             (-> (graphql-query (venia/graphql-query
-                                 {:venia/queries [[:__schema [[:mutationType [[:fields [:name]]]]]]]})
+    (fill @*driver* :new-email-address new-email)
+    (click @*driver* :new-email-address-submit)
+    (etaoin/wait-exists @*driver* (str "//div[contains(@class,'email-unverified') and contains(@class,'label')]/parent::h4[contains(text(),'" new-email "')]"))
+    ;; verify the email
+    (let [verify-code (->> user-id get-user-emails (medley/find-first #(= new-email (:email %))) :verify-code)]
+      (go @*driver* (str "/user/" user-id "/email/" verify-code))
+      (etaoin/wait-exists @*driver* (str "//div[contains(@class,'blue') and contains(@class,'label')]/parent::h4[contains(text(),'" new-email "')]"))
+      (is (etaoin/exists? @*driver* (str "//div[contains(@class,'blue') and contains(@class,'label')]/parent::h4[contains(text(),'" new-email "')]"))))
+    ;; login to datasource with new email and password
+    (let [{:keys [password]} user
+          login-resp (http/post (str datasource-url "/login")
+                                {:form-params {:email new-email
+                                               :password (str/reverse password)}})]
+      (is (get-in login-resp [:cookies "token" :value])))
+    ;; disable pro account
+    (account/change-user-plan)
+    ;; make sure sysrev graphql access is disabled
+    (is (= "user does not have a have pro account"
+           (-> (graphql-request (venia/graphql-query {:venia/queries [[:__schema [[:mutationType [[:fields [:name]]]]]]]})
                                 :api-key api-key)
-                 :data
-                 first
-                 :message)))
-      ;; make sure user can't login to datasource
-      (let [{:keys [password]} user
-            login-resp (http/post (str datasource-url "/login")
-                                  {:form-params {:email new-email
-                                                 :password (str/reverse password)}})]
-        (is (= "Account is not enabled"
-               (-> login-resp (get-in [:headers "Location"]) (str/split #"error=") second)))))))
+               :resolved_value
+               :data
+               first
+               :message)))
+    ;; make sure user can't use datasource graphql
+    (is (= "api-token is not enabled or authorized for this transaction"
+           (-> (graphql-query (venia/graphql-query
+                               {:venia/queries [[:__schema [[:mutationType [[:fields [:name]]]]]]]})
+                              :api-key api-key)
+               :data
+               first
+               :message)))
+    ;; make sure user can't login to datasource
+    (let [{:keys [password]} user
+          login-resp (http/post (str datasource-url "/login")
+                                {:form-params {:email new-email
+                                               :password (str/reverse password)}})]
+      (is (= "Account is not enabled"
+             (-> login-resp (get-in [:headers "Location"]) (str/split #"error=") second))))))

@@ -4,6 +4,7 @@
             [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.api :as api]
+            [sysrev.group.core :as group]
             [sysrev.project.core :as project]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.user.core :as user]
@@ -84,4 +85,6 @@
                             :group-id group-id
                             :api-token api-token})))))
       ;; the org is now the owner of the project
-      (is (= group-id (:group-id (project/get-project-owner project-id)))))))
+      (is (= group-id (:group-id (project/get-project-owner project-id))))
+      ;; delete the group
+      (group/delete-group! group-id))))

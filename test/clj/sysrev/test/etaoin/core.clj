@@ -97,7 +97,7 @@
        (throw e#))))
 
 (defmacro deftest-etaoin
-  "A macro for creating an etaoin browser test. Used in tandem with etaoin-fixture. A dynamic atom var of type vector, *cleanup-users*,  is used to cleanup tests users. Populate it within these tests with a `(swap! *cleanup-users* conj user)`"
+  "A macro for creating an etaoin browser test. Used in tandem with etaoin-fixture. A dynamic atom var of type vector, *cleanup-users*,  is used to cleanup tests users. Populate it within the body of deftest-etaoin. e.g. `(swap! *cleanup-users* conj {:user-id user-id)`"
   [name body]
   `(deftest ~name
      (binding [*cleanup-users* (atom [])]
@@ -107,7 +107,7 @@
              ~body))
          (finally
            (doall
-            (mapv #(cleanup-test-user! :email (:email %) :groups true) @*cleanup-users*)))))))
+            (mapv #(cleanup-test-user! :user-id (:user-id %) :groups true) @*cleanup-users*)))))))
 
 (defn etaoin-fixture
   "A fixture for running browser tests with etaoin. Used in tandem with deftest-etaoin."
