@@ -9,7 +9,6 @@
              :refer
              [format-date get-logs get-pwd get-source join-path screenshot]]
             [sysrev.test.browser.core :refer [cleanup-test-user!]]
-            [sysrev.user.core :refer [all-users]]
             [sysrev.test.core :refer [get-selenium-config remote-test?]])
   (:import java.util.Date))
 

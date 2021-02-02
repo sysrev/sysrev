@@ -4,17 +4,14 @@
             [clojure.test :refer [is use-fixtures]]
             [etaoin.api :as etaoin]
             [medley.core :as medley]
-            [sysrev.datasource.api
-             :refer
-             [delete-account! graphql-query read-account]]
-            [sysrev.test.browser.core :refer [delete-test-user cleanup-test-user!]]
+            [sysrev.datasource.api :refer [graphql-query read-account]]
             [sysrev.test.core :refer [default-fixture]]
             [sysrev.test.etaoin.account :as account]
             [sysrev.test.etaoin.core
              :as
              etaoin-core
              :refer
-             [*driver* *cleanup-users* click deftest-etaoin etaoin-fixture fill go]]
+             [*cleanup-users* *driver* click deftest-etaoin etaoin-fixture fill go]]
             [sysrev.test.graphql.core :refer [graphql-request]]
             [sysrev.user.core :refer [get-user-emails user-by-email]]
             [venia.core :as venia]))

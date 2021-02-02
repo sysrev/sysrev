@@ -4,7 +4,6 @@
             [clojure.tools.logging :as log]
             [etaoin.api :as etaoin]
             [etaoin.keys :refer [backspace with-alt]]
-            [sysrev.test.core :refer [get-selenium-config]]
             [sysrev.test.etaoin.core :refer [*driver* click go]]
             [sysrev.util :as util]))
 
