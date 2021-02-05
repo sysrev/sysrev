@@ -212,7 +212,7 @@
         @(subscribe [::al/display-options (al/cached context)])
         project-id @(subscribe [:active-project-id])
         full-size? (util/full-size?)]
-    [:div
+    [:<>
      (doall
        (->> articles
             (map-indexed
