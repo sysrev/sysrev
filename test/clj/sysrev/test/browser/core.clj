@@ -22,6 +22,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
+           [org.openqa.selenium.remote UnreachableBrowserException]
            [java.net URI URLDecoder]))
 
 (defonce ^:dynamic *wd* (atom nil))
@@ -153,7 +154,9 @@
 
 (defn stop-webdriver []
   (when @*wd*
-    (taxi/quit @*wd*)
+    (try (taxi/quit @*wd*)
+         (catch UnreachableBrowserException e
+           (log/warnf "exception in stop-webdriver: %s" (.getMessage e))))
     (reset! *wd* nil)
     (reset! *wd-config* nil)))
 
@@ -245,7 +248,7 @@
   evaluate as logical true."
   [pred-form & [timeout interval]]
   `(do (or (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
-           (take-screenshot :error))
+           (when *wd* (take-screenshot :error)))
        (is* ~pred-form)))
 
 (defn wait-until-exists
@@ -305,6 +308,11 @@
   [& [duration]]
   (< (ajax-activity-duration) (- (make-delay (or duration 30)))))
 
+(def loader-elements-css
+  [(-> "div.ui.loader.active" (not-class "loading-indicator"))
+   "div.ui.dimmer.active > .ui.loader"
+   ".ui.button.loading"])
+
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
   (dotimes [_ (or loop 1)]
@@ -312,10 +320,7 @@
                                   (if (integer? pre-wait) pre-wait 25))))
     (wait-until #(and (ajax-inactive? inactive-ms)
                       (every? (complement taxi/exists?)
-                              [(not-class "div.ui.loader.active"
-                                          "loading-indicator")
-                               "div.ui.dimmer.active > .ui.loader"
-                               ".ui.button.loading"]))
+                              loader-elements-css))
                 timeout interval)))
 
 (defn current-project-id

@@ -154,11 +154,12 @@
                                     @current-search-term])
         n-results (get-in search-results [:count])]
     [:div.ui.fluid.left.labeled.button.search-results
-     {:on-click #(do
-                   (dispatch [:action [:project/import-trials-from-search
+     {:on-click #(do (dispatch [:action [:project/import-trials-from-search
                                          @project-id @current-search-term]])
-                   (dispatch [:sysrev.views.panels.project.add-articles/set-show-new-source true])
-                   (reset! state {}))}
+                     (dispatch [(keyword 'sysrev.views.panels.project.add-articles
+                                         :add-documents-visible)
+                                false])
+                     (reset! state {}))}
      [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
      [:button.ui.blue.button

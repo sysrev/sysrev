@@ -89,11 +89,12 @@
 (defn- AddModal [org-id]
   (let [modal-open      (r/cursor state [:add-user :open])
         search-value    (r/cursor state [:add-user :search-value])
-        current-user-id (r/cursor state [:add-user :user-id])
+        user-id-select  (r/cursor state [:add-user :user-id])
         error           (r/cursor state [:add-user :error])
-        search-results  (subscribe [::user-search-results @search-value org-id])
-        user-id-match   (fn [] (:user-id (find-first #(= (:username %) @search-value)
-                                                     @search-results)))]
+        search-results  @(subscribe [::user-search-results @search-value org-id])
+        user-id-match   (:user-id (find-first #(= (:username %) @search-value)
+                                              search-results))
+        user-id-active  (or @user-id-select user-id-match)]
     [Modal {:trigger (r/as-element
                       [Button {:id "add-member-button"
                                :on-click #(dispatch [::set [:add-user] {:open true}])
@@ -107,10 +108,8 @@
       [ModalDescription
        [Form {:id "invite-member-form"
               :on-submit (fn [_e]
-                           (let [user-id (user-id-match)]
-                             (reset! current-user-id user-id)
-                             (when user-id
-                               (run-action :org/add-user org-id user-id))))}
+                           (when user-id-active
+                             (run-action :org/add-user org-id user-id-active)))}
         [:div
          [Search
           {:id "org-search-users-input"
@@ -121,15 +120,15 @@
            (fn [_e value]
              (let [{:keys [result]} (js->clj value :keywordize-keys true)
                    {:keys [user-id username]} result]
-               (reset! current-user-id user-id)
+               (reset! user-id-select user-id)
                (reset! search-value username)
                (when (seq username)
                  (load-data :user-search username))))
            :on-search-change
            (fn [_e value]
              (let [input-value (.-value value)]
+               (reset! user-id-select nil)
                (reset! search-value input-value)
-               (reset! current-user-id (user-id-match))
                (when (seq input-value)
                  (load-data :user-search input-value))))
            :result-renderer
@@ -138,14 +137,14 @@
                (r/as-element [:div {:style {:display "flex"}}
                               [Avatar {:user-id user-id}]
                               [:p username]])))
-           :results @search-results
+           :results search-results
            :value (or @search-value "")
            :input (r/as-element
                    [Input {:placeholder "Search for users by username"
                            :action (r/as-element
                                     [Button {:id "submit-add-member" :class "invite-member"
                                              :positive true
-                                             :disabled (nil? @current-user-id)}
+                                             :disabled (nil? user-id-active)}
                                      "Add Member"])}])}]]
         [CursorMessage error {:negative true}]]]]]))
 

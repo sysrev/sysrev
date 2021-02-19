@@ -4,13 +4,11 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [orchestra.core :refer [defn-spec]]
+            [venia.core :as venia]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.util
-             :as
-             util
-             :refer
+            [sysrev.util :as util :refer
              [assert-pred
               gquery
               index-by
@@ -18,8 +16,7 @@
               opt-keys
               parse-integer
               req-un
-              url-join]]
-            [venia.core :as venia])
+              url-join]])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
 ;; for clj-kondo
@@ -247,21 +244,17 @@
 
 (defn graphql-query [query & {:keys [host api-key]
                               :or {api-key (ds-auth-key)}}]
-  (let [body (-> (http/post (str (ds-host) "/graphql")
-                            {:headers (auth-header :auth-key api-key)
-                             :body (json/write-str {:query query})
-                             :content-type :application/json
-                             :throw-exceptions false
-                             :as :json
-                             :coerce :always})
-                 :body)]
-    body))
+  (:body (http/post (str (ds-host) "/graphql")
+                    {:headers (auth-header :auth-key api-key)
+                     :body (json/write-str {:query (gquery query)})
+                     :content-type :application/json
+                     :throw-exceptions false
+                     :as :json
+                     :coerce :always})))
 
 (defn read-account [{:keys [api-key]}]
-  (graphql-query (venia/graphql-query
-                  {:venia/queries
-                   [[:account {:apiKey api-key}
-                     [:email :apiKey :enabled :password]]]})))
+  (graphql-query [[:account {:apiKey api-key}
+                   [:email :apiKey :enabled :password]]]))
 
 (defn create-account! [{:keys [email api-key password]}]
   (graphql-query

@@ -3,26 +3,27 @@
             ["pdfjs-dist" :as pdfjs]
             ["react-pdf" :refer [Document Page]]
             [reagent.core :as r]
-            ["pdfjs-dist/web/pdf_viewer"
-             :refer [PDFPageView DefaultTextLayerFactory DefaultAnnotationLayerFactory]]
-            [goog.dom :as dom]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
+             [subscribe dispatch reg-sub reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
             [sysrev.state.article :as article]
             [sysrev.views.components.core :refer [UploadButton]]
-            [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :refer [Checkbox Pagination]]
             [sysrev.util :as util :refer [wrap-user-event parse-integer css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
-;; `npm install react-pdf` will install the version of pdfjs that it requires, check in node_modules/pdfjs-dist/package.json to set this
-(def pdfjs-dist-version "2.1.266")
-;; TODO: load this locally somehow
+;;; `npm install react-pdf` will install the version of pdfjs-dist that it requires
+;;; - check in node_modules/pdfjs-dist/package.json to set this
+#_ (let [pdfjs-dist-version "2.5.207"]
+     (set! pdfjs/GlobalWorkerOptions.workerSrc
+           (util/format "https://unpkg.com/pdfjs-dist@%s/build/pdf.worker.min.js"
+                        pdfjs-dist-version)))
+
+;;; this should exist in resources/public/js/
 (set! pdfjs/GlobalWorkerOptions.workerSrc
-      (str "https://unpkg.com/pdfjs-dist@" pdfjs-dist-version "/build/pdf.worker.min.js"))
+      "/js/pdfjs-dist/build/pdf.worker.min.js")
 
 (def view :pdf)
 
@@ -117,152 +118,10 @@
 ;; this was ultimately based off of
 ;; https://github.com/mozilla/pdf.js/blob/master/examples/components/pageviewer.js
 
-(defn render-page [context pdf num]
-  (-> (.getPage pdf num)
-      (.then
-       (fn [page]
-         (let [{:keys [container-id]} @(subscribe [::get context])
-               container (and container-id
-                              (js/document.getElementById container-id))]
-           (if-not container
-             (dispatch-sync [::set context [:page-rendering] false])
-             (let [ ;; Try to auto-adjust PDF size to containing element.
-                   cwidth (.width ($ container))
-                   ;; this should be 1.0? but result is too big.
-                   pwidth (.-width (.getViewport page (clj->js {:scale 1.35})))
-                   scale (/ cwidth pwidth)]
-               ;; remove any previous divs
-               (dom/removeChildren container)
-               (let [pdf-page-view
-                     (PDFPageView.
-                      (clj->js {:container container
-                                :id num
-                                :scale scale
-                                :defaultViewport (.getViewport page (clj->js {:scale scale}))
-                                :textLayerFactory (DefaultTextLayerFactory.)
-                                :annotationLayerFactory (DefaultAnnotationLayerFactory.)}))]
-                 (.setPdfPage pdf-page-view page)
-                 (.draw pdf-page-view))
-               (let [{:keys [page-queue]} @(subscribe [::get context])]
-                 (dispatch-sync [::set context [:page-queue] (drop 1 page-queue)]))
-               (let [{:keys [page-queue]} @(subscribe [::get context])]
-                 (if (not-empty page-queue)
-                   (render-page context pdf (first page-queue))
-                   (dispatch-sync [::set context [:page-rendering] false]))))))))))
-
-(defn queue-render-page
-  "Renders page, or queues it to render next if a page is currently rendering."
-  [context pdf num]
-  (let [{:keys [page-rendering page-queue]} @(subscribe [::get context])]
-    (dispatch-sync [::set context [:page-queue] (concat page-queue [num])])
-    (when-not page-rendering
-      (dispatch-sync [::set context [:page-rendering] true])
-      (js/setTimeout #(render-page context pdf num) 25))))
-
-(defn PDFContent [{:keys [pdf-url]}]
-  (let [container-id (util/random-id)
-        project-id @(subscribe [:active-project-id])
-        before-update
-        (fn [pdf-url]
-          (let [context (get-ann-context pdf-url project-id)]
-            (dispatch-sync [::set context [:container-id] container-id])
-            (dispatch-sync [::set context [:pdf-updating] true])
-            ;; PDF annotations not currently supported
-            #_ (dispatch [:require (annotator/annotator-data-item context)])
-            #_ (dispatch [:reload (annotator/annotator-data-item context)])))
-        render-pdf
-        (fn [context pdf]
-          (let [page-num @(subscribe [::page-num context])]
-            (dispatch-sync [::set context [:pdf-doc] pdf])
-            (dispatch-sync [::set context [:page-count] (.-numPages pdf)])
-            (queue-render-page context pdf page-num)))
-        after-update
-        (fn [pdf-url]
-          (let [context (get-ann-context pdf-url project-id)
-                cached-pdf @(subscribe [::pdf-cache pdf-url])]
-            (if cached-pdf
-              (do (render-pdf context cached-pdf)
-                  (dispatch-sync [::set context [:pdf-updating] false]))
-              (-> (.getDocument pdfjs pdf-url)
-                  (.promise.then
-                   (fn [pdf]
-                     (dispatch-sync [::pdf-cache pdf-url pdf])
-                     (render-pdf context pdf)
-                     (dispatch-sync [::set context [:pdf-updating] false])))))))]
-    (r/create-class
-     {:constructor
-      (fn [this _props]
-        (let [{:keys [pdf-url]} (r/props this)]
-          (some-> pdf-url before-update)))
-      :component-did-mount
-      (fn [this] (some-> this r/props :pdf-url after-update))
-      :component-did-update
-      (fn [this old-argv]
-        (let [old-pdf-url (-> old-argv second :pdf-url)
-              new-pdf-url (some-> this r/props :pdf-url)]
-          (when (and new-pdf-url old-pdf-url
-                     (not= new-pdf-url old-pdf-url))
-            (before-update new-pdf-url)))
-        (let [old-pdf-url (-> old-argv second :pdf-url)
-              new-pdf-url (some-> this r/props :pdf-url)]
-          (when (and new-pdf-url old-pdf-url
-                     (not= new-pdf-url old-pdf-url))
-            (after-update new-pdf-url))))
-      :render
-      (fn [this]
-        (let [{:keys [pdf-url]} (r/props this)
-              context (get-ann-context pdf-url project-id)
-              {:keys [page-rendering pdf-updating]} @(subscribe [::get context])]
-          [:div.view-pdf {:class (css [page-rendering "rendering"]
-                                      [pdf-updating "updating"])}
-           [:div.ui.grid.view-pdf-main
-            [:div.sixteen.wide.column.pdf-content
-             [:div.pdf-container {:id container-id}]
-             ;; if annotations are ever capturable in a pdf
-             ;; enable them here
-             #_ [annotator/AnnotationCapture context
-                 [:div.pdf-container {:id container-id}]]]]]))})))
-
-(defn ViewPDF [{:keys [pdf-url entry] :as args}]
-  (when pdf-url
-    (let [context (get-ann-context pdf-url)
-          {:keys [pdf-doc page-count]} @(subscribe [::get context])
-          page-num @(subscribe [::page-num context])
-          panel @(subscribe [:active-panel])]
-      [:div.ui.segments.view-pdf-wrapper
-       [:div.ui.attached.two.column.grid.segment
-        [:div.column
-         [:h4 (:filename entry)]]
-        [:div.right.aligned.column
-         [ListPager {:panel panel
-                     :instance-key [pdf-url]
-                     :offset (dec page-num)
-                     :total-count (or page-count 1)
-                     :items-per-page 1
-                     :item-name-string ""
-                     :set-offset #(do (dispatch-sync [::set context [:page-num] (inc %)])
-                                      (queue-render-page context pdf-doc (inc %)))
-                     :loading? nil}]         ]]
-       [:div.ui.center.aligned.attached.segment.pdf-content-wrapper
-        [PDFContent args]]
-       [:div.ui.attached.two.column.grid.segment
-        [:div.column
-         [:h4 (:filename entry)]]
-        [:div.right.aligned.column
-         [ListPager {:panel panel
-                     :instance-key [pdf-url]
-                     :offset (dec page-num)
-                     :total-count (or page-count 1)
-                     :items-per-page 1
-                     :item-name-string ""
-                     :set-offset #(do (dispatch-sync [::set context [:page-num] (inc %)])
-                                      (queue-render-page context pdf-doc (inc %)))
-                     :loading? nil}]]]])))
-
 (defn view-open-access-pdf-url [article-id key]
   (str "/api/open-access/" article-id "/view/" key))
 
-(defn OpenAccessPDF [article-id]
+(defn ArticlePdfEntryOpenAccess [article-id]
   (when @(subscribe [:article/open-access-available? article-id])
     [:div.field>div.fields
      [:div
@@ -277,7 +136,7 @@
 (defn view-s3-pdf-url [project-id article-id key _filename]
   (str "/api/files/" project-id "/article/" article-id "/view/" key))
 
-(defn S3PDF [{:keys [article-id key filename]}]
+(defn ArticlePdfEntryS3 [{:keys [article-id key filename]}]
   (let [confirming? (r/atom false)]
     (fn [{:keys [article-id key filename]}]
       (let [project-id @(subscribe [:active-project-id])]
@@ -311,17 +170,18 @@
                {:on-click (wrap-user-event #(reset! confirming? false))}
                "No"]]]])]))))
 
-(defn ArticlePDFs [article-id]
+(defn ArticlePdfListS3 [article-id]
   (when-let [pdfs (seq (->> @(subscribe [:article/pdfs article-id])
                             (remove :open-access?)))]
-    [:div (doall (map-indexed (fn [i file-map] ^{:key i}
-                                [:div.field>div.fields>div
-                                 [S3PDF {:article-id article-id
+    [:div (doall (map-indexed
+                  (fn [i file-map] ^{:key i}
+                    [:div.field>div.fields>div
+                     [ArticlePdfEntryS3 {:article-id article-id
                                          :key (:key file-map)
                                          :filename (:filename file-map)}]])
-                              pdfs))]))
+                  pdfs))]))
 
-(defn PDFs [article-id]
+(defn ArticlePdfListFull [article-id]
   (when article-id
     (when-let [project-id @(subscribe [:active-project-id])]
       (with-loader [[:article project-id article-id]
@@ -348,11 +208,11 @@
              [:div.left.aligned
               {:class (css [full-size? "twelve" :else "eleven"] "wide column")}
               [:div {:class (css "ui" [full-size? "small" :else "tiny"] "form")}
-               [OpenAccessPDF article-id]
+               [ArticlePdfEntryOpenAccess article-id]
                ;; need better permissions for PDFs, for now, simple don't allow
                ;; people who aren't logged in to view PDFs
                (when logged-in?
-                 [ArticlePDFs article-id])]]
+                 [ArticlePdfListS3 article-id])]]
              (when logged-in?
                [:div.right.aligned
                 {:class (css [full-size? "four" :else "five"] "wide column")}
@@ -373,77 +233,85 @@
 ;; In the above issue, the author notes that this
 ;; should be fixed in later releases.
 
-(def checked? (r/atom false))
+(defonce checked? (r/atom false))
 
 (defn PDFPage [{:keys [page-number num-pages width]}]
   (when @num-pages
-    (let [pager
-          (fn [& [props]]
-            (when-not @checked?
-              [Pagination
-               (merge {:style (merge {:float "right"} (:style props))
-                       :total-pages @num-pages
-                       :active-page @page-number
-                       :on-page-change
-                       (fn [_ data]
-                         (reset! page-number
-                                 (:activePage (js->clj data :keywordize-keys true))))}
-                      (dissoc props :style))]))]
-      [:div {:id "pdf-page-container"}
-       [:div {:id "top-toolbar"
-              :style {:padding "0px, auto" :margin-bottom "1rem"}}
-        [Checkbox {:as "h4"
-                   :style {:margin-top "0.75rem"}
-                   :checked @checked?
-                   :on-change #(reset! checked? (not @checked?))
-                   :toggle true
-                   :label "Single Page"}]
+    (letfn [(pager [& [props]]
+              (when-not @checked?
+                [Pagination
+                 (merge {:style (merge {:float "right"} (:style props))
+                         :total-pages @num-pages
+                         :active-page @page-number
+                         :on-page-change (fn [_ data]
+                                           (reset! page-number (.-activePage data)))}
+                        (dissoc props :style))]))
+            (single-page-checkbox [& [props]]
+              [Checkbox {:label "Single Page" :as "h4" :toggle true
+                         :style (merge {} (:style props))
+                         :checked @checked?
+                         :on-change #(swap! checked? not)}])]
+      [:div.pdf-page-container
+       [:div.pdf-top-toolbar {:style {:padding "0px, auto"
+                                      :margin-bottom "1rem"}}
+        [single-page-checkbox {:style {:margin-top "0.75rem"}}]
         [pager]
         [:div {:style {:clear "both"}}]]
-       [:div {:id "pdf-page"}
+       [:div.pdf-page
         (if @checked?
-          (doall (for [i (range 1 (+ @num-pages 1))] ^{:key (str "page-" i)}
+          (doall (for [i (range 1 (inc @num-pages))] ^{:key (str "page-" i)}
                    [RPage {:pageNumber i :width @width}]))
           [RPage {:pageNumber @page-number :width @width}])]
-       [:div {:id "bottom-toolbar"}
-        [Checkbox {:as "h4"
-                   :checked @checked?
-                   :on-change #(reset! checked? (not @checked?))
-                   :toggle true
-                   :label "Single Page"
-                   :style {:margin-top "1.75rem"}}]
+       [:div.pdf-bottom-toolbar
+        [single-page-checkbox {:style {:margin-top "1.75rem"}}]
         [pager {:style {:margin-top "1rem"}}]
         [:div {:style {:clear "both"}}]]])))
 
 (defn ViewBase64PDF [{:keys [content]}]
-  (let [content (r/atom (util/base64->uint8 content))
-        container-id "view-base-64-pdf"
+  (let [dom-id (str "pdf-view-" (util/random-id))
+        get-content-data (memoize util/base64->uint8)
         width (r/atom nil)
         num-pages (r/atom nil)
         page-number (r/atom nil)]
     (r/create-class
-     {:render
-      (fn [_]
-        [:div {:id container-id}
-         [RDocument {:file {:data @content}
+     {:reagent-render
+      (fn [{:keys [content]}]
+        [:div.pdf-view {:id dom-id}
+         [RDocument {:file {:data (get-content-data content)}
                      :on-load-success (fn [pdf]
                                         (reset! num-pages (.-numPages pdf))
                                         (reset! page-number 1))}
           [PDFPage {:page-number page-number
                     :num-pages num-pages
                     :width width}]]])
-      :component-will-receive-props
-      (fn [_ new-argv]
-        (let [new-content (-> new-argv second :content)]
-          (reset! page-number 1)
-          (reset! content (util/base64->uint8 new-content))))
       :component-did-mount
       (fn [_]
-        (let [new-width (-> (js/document.getElementById container-id)
-                            $
-                            .width)]
-          (reset! num-pages nil)
-          (reset! width new-width)))
-      :component-will-unmount
+        (reset! width (-> ($ (str "#" dom-id)) (.width))))
+      :component-did-update
+      (fn [this [_ old-props]]
+        (when (not= (:content (r/props this)) (:content old-props))
+          (reset! page-number 1)))})))
+
+(defn ViewReactPDF [{:keys [url filename]}]
+  (let [dom-id (str "pdf-view-" (util/random-id))
+        width (r/atom nil)
+        num-pages (r/atom nil)
+        page-number (r/atom nil)]
+    (r/create-class
+     {:reagent-render
+      (fn [{:keys [url filename]}]
+        [:div.pdf-view {:id dom-id}
+         [RDocument {:file {:url url}
+                     :on-load-success (fn [pdf]
+                                        (reset! num-pages (.-numPages pdf))
+                                        (reset! page-number 1))}
+          [PDFPage {:page-number page-number
+                    :num-pages num-pages
+                    :width width}]]])
+      :component-did-mount
       (fn [_]
-        (reset! num-pages nil))})))
+        (reset! width (-> ($ (str "#" dom-id)) (.width))))
+      :component-did-update
+      (fn [this [_ old-props]]
+        (when (not= (:url (r/props this)) (:url old-props))
+          (reset! page-number 1)))})))

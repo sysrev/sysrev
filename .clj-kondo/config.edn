@@ -80,6 +80,8 @@
                                         clj-webdriver.taxi             taxi
                                         sysrev.test.core               test
                                         sysrev.test.browser.core       b
+                                        sysrev.test.etaoin.core        e
+                                        etaoin.api                     ea
                                         sysrev.test.browser.navigate   nav
                                         sysrev.test.browser.xpath      x}}}
  :output {:exclude-files ["src/clj/sysrev/user.clj"

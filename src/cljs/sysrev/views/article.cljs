@@ -227,7 +227,7 @@
            [:h5.header {:style {:margin-top "0px"}} (display-author-names 5 authors)])
          ;; show pdf
          (if visible-url
-           [pdf/ViewPDF {:pdf-url visible-url :entry pdf}]
+           [pdf/ViewReactPDF {:url visible-url :filename (:filename pdf)}]
            (when (seq abstract)
              (if annotator?
                [ArticleAnnotatedField article-id "abstract" abstract
@@ -244,7 +244,8 @@
           [:div.four.wide.right.aligned.middle.aligned.column
            [ArticleSourceLinks article-id]]]]))))
 
-(def checked? (r/atom false))
+(defonce checked? (r/atom false))
+
 (defn Entity [article-id]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
@@ -281,6 +282,7 @@
                                         @json)}])
             "application/pdf"
             [:div [pdf/ViewBase64PDF {:content content}]]
+            ;; default
             content)]]))))
 
 (defn CTDocument [article-id]
@@ -427,7 +429,7 @@
                 "entity" [Entity article-id]
                 [ArticleInfoMain article-id :context context])]
              (when-not (= datasource-name "entity")
-               ^{:key :article-pdfs} [pdf/PDFs article-id])))
+               ^{:key :article-pdfs} [pdf/ArticlePdfListFull article-id])))
      (when change-labels-button [change-labels-button])
      (when show-labels? [ArticleLabelsView article-id
                          :self-only? private-view? :resolving? resolving?])]))

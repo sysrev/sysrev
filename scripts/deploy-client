@@ -42,6 +42,12 @@ cp ./manifest.json ./tmp
 cp ./robots.txt.* ./tmp
 cp ./sitemap.* ./tmp
 
+# pdfjs (pdf.worker.min.js for react-pdf)
+pdfjs_src="${dir}/client/node_modules/pdfjs-dist/build"
+pdfjs_dest="./tmp/js/pdfjs-dist/build"
+mkdir -p $pdfjs_dest
+cp -r $pdfjs_src/* $pdfjs_dest/
+
 cd tmp
 tar -czf $dir/deploy/client.tgz *
 cd ..

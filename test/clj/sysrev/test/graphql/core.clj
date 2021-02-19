@@ -2,7 +2,8 @@
   (:require [clojure.data.json :as json]
             [ring.mock.request :as mock]
             [sysrev.datasource.api :refer [ds-auth-key]]
-            [sysrev.web.core :refer [sysrev-handler]]))
+            [sysrev.web.core :refer [sysrev-handler]]
+            [sysrev.util :as util]))
 
 (defonce api-key (atom nil))
 
@@ -12,7 +13,7 @@
   (let [app (sysrev-handler)
         body (-> (app (-> (mock/request :post "/graphql")
                           (mock/header "Authorization" (str "Bearer " api-key))
-                          (mock/json-body {:query query})))
+                          (mock/json-body {:query (util/gquery query)})))
                  :body)]
     (try (json/read-str body :key-fn keyword)
          (catch Exception _

@@ -9,8 +9,8 @@
             [sysrev.views.ctgov :as ctgov]
             [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.panels.project.source-view :refer [EditJSONView]]
-            [sysrev.views.uppy :refer [Dashboard]]
+            [sysrev.views.panels.project.source-view :as source-view]
+            [sysrev.views.uppy :as uppy]
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util :refer [css]]
@@ -122,18 +122,13 @@
         (any-source-processing?) (str " disabled"))]]))
 
 (defn ImportPDFsView []
-  (let [project-id @(subscribe [:active-project-id])
-        csrf-token @(subscribe [:csrf-token])]
-    [:div {:style {:margin-left "auto"
-                   :margin-right "auto"
-                   :margin-top "1em"
-                   }}
-     [Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
-                 :csrf-token csrf-token
-                 :on-complete #(do (dispatch [:reload [:project project-id]])
-                                   (dispatch [:reload [:project/sources project-id]])
-                                   (dispatch [::add-documents-visible false]))
-                 :project-id project-id}]]))
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div {:style {:margin-left "auto" :margin-right "auto"
+                   :margin-top "1em"}}
+     [uppy/Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
+                      :on-complete #(do (dispatch [:reload [:project/sources project-id]])
+                                        (dispatch [::add-documents-visible false]))
+                      :project-id project-id}]]))
 
 (defn ImportPDFZipsView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -369,8 +364,9 @@
              ;; when articles have been imported
              (and (false? importing-articles?) labeled-article-count article-count)
              (if @editing-view?
-               [EditJSONView {:source (subscribe [:project/sources source-id])
-                              :editing-view? editing-view?}]
+               [source-view/EditJSONView
+                {:source (subscribe [:project/sources source-id])
+                 :editing-view? editing-view?}]
                (list
                 [:div.source-description.column.left.aligned
                  {:key :reviewed-count

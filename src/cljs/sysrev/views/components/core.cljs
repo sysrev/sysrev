@@ -496,10 +496,10 @@
      [:div.header title]
      (when message [:p.bold {:style {:font-size "16px"}} message])]]
    [:div.ui.two.column.grid.confirm-cancel-form
-    [:div.column>button.ui.fluid.button
-     {:on-click (wrap-user-event on-confirm) :class action-color :id "confirm-cancel-form-confirm"}
+    [:div.column>button.ui.fluid.button.confirm-cancel-form-confirm
+     {:on-click (wrap-user-event on-confirm) :class action-color}
      "Confirm"]
-    [:div.column>button.ui.fluid.button
+    [:div.column>button.ui.fluid.button.confirm-cancel-form-cancel
      {:on-click (wrap-user-event on-cancel)}
      "Cancel"]]])
 
@@ -514,19 +514,20 @@
               :timeout (* 1000 60 60 4)}
         error-msg (r/atom nil)]
     (letfn [(init-dropzone []
-              (-> (Dropzone. (str "#" id)
-                             (clj->js
-                              (->> {:previewTemplate
-                                    (-> js/document
-                                        (.querySelector (str "#" id "-template"))
-                                        .-innerHTML)
-                                    :previewsContainer (str "#" id "-preview")
-                                    :clickable (str "#" id "-button")}
-                                   (merge opts))))
+              (-> (Dropzone/Dropzone.
+                   (str "#" id)
+                   (clj->js
+                    (->> {:previewTemplate
+                          (-> js/document
+                              (.querySelector (str "#" id "-template"))
+                              .-innerHTML)
+                          :previewsContainer (str "#" id "-preview")
+                          :clickable (str "#" id "-button")}
+                         (merge opts))))
                   (.on "error" (fn [file msg _]
-                                 (js/console.log (str "Upload error [" file "]: " msg))
+                                 (util/log-warn "Upload error [%s]: $s" file msg)
                                  (reset! error-msg (-> (re-find #"message\",\"(.*)?\"" msg)
-                                                       (get 1)))
+                                                       (nth 1)))
                                  true))
                   (.on "success" on-success)))]
       (r/create-class
@@ -569,7 +570,8 @@
       ]]]])
 
 (defn UploadButton [upload-url on-success text & [class style & {:keys [post-error-text]}]]
-  [UploadContainer UploadButtonImpl upload-url on-success text class style {:post-error-text post-error-text}])
+  [UploadContainer UploadButtonImpl upload-url on-success text
+   class style {:post-error-text post-error-text}])
 
 (defn WrapFixedVisibility [offset _child]
   (let [on-update
