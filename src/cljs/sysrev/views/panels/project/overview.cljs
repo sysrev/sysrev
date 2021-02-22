@@ -289,10 +289,14 @@
   (let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project/important-terms-text project-id]] {}
       (let [terms-res @(subscribe [:project/important-terms-text])
-            {:keys [terms]} terms-res]
+            {:keys [terms]} terms-res
+            raw-terms (take 10 (mapv :term (:terms terms-res)))]
         (when (not-empty terms)
           [:div.ui.segment
            [:h4.ui.dividing.header "Important Terms"]
+           [:div "important terms for this project include: "
+            (for [term raw-terms] ^{:key term} [:a {:href (str "/search?q=" term "&p=1&type=projects")} term " "])
+            "click links for related projects"]
            [:div
             [unpad-chart [0.25 0.35]
              [ImportantTermsChart {:data terms}]]]])))))
