@@ -442,7 +442,8 @@
              {:result :none}))))
 
 ;; Sets and optionally confirms label values for an article
-(def exponential-steps (->> (range 0 20) (map #(Math/pow 1.7 %)) (filter #(>= % 30)) (map int)))
+(def exponential-steps (into [15] (->> (range 0 20) (map #(Math/pow 1.7 %)) (filter #(>= % 30)) (map int))))
+
 (dr (POST "/api/set-labels" request
           (with-authorize request {:roles ["member"]}
             (let [user-id (current-user-id request)
@@ -471,9 +472,6 @@
                            (seq (filter #(= % after-count) exponential-steps)))
                   (predict-api/schedule-predict-update project-id)))
               {:result body}))))
-
-#_(for [after-count (range 0 200)]
-      (str after-count " - " (not (empty? (filter #(= % after-count) exponential-steps)))))
 
 (dr (POST "/api/set-article-note" request
           (with-authorize request {:roles ["member"]}

@@ -346,30 +346,31 @@
         labels (subscribe [:project/labels-raw])
         predictions (subscribe [:article/predictions article-id])]
     (fn []
-      [:div.ui.segment
-       [:h4.ui.header "Predictions"]
-       [:div.ui.cards
-        (doall
-          (for [label (->> @labels vals (filter #(contains? predictable-label-types (label->type %))))]
-            (let [all-values (if (= (label->type label) "boolean")
-                               ["TRUE" "FALSE"]
-                               (get-in label [:definition :all-values]))]
-              [:div.card {:key (:label-id label)}
-               [:div.content
-                [:div.header (:short-label label)]
-                [:div.description
-                 [:table.ui.compact.table
-                  [:thead
-                   [:tr
-                    (doall
-                      (for [v all-values] ^{:key v}
-                        [:th (label-value->display label v)]))]]
-                  [:tbody
-                   [:tr
-                    (doall
-                      (for [v all-values] ^{:key v}
-                        [:td
-                         (-> (get-in @predictions [(:label-id label) v]) (* 100) int (str "%"))]))]]]]]])))]])))
+      (when (seq @predictions)
+        [:div.ui.segment
+         [:h4.ui.header "Predictions"]
+         [:div.ui.cards
+          (doall
+            (for [label (->> @labels vals (filter #(contains? predictable-label-types (label->type %))))]
+              (let [all-values (if (= (label->type label) "boolean")
+                                 ["TRUE" "FALSE"]
+                                 (get-in label [:definition :all-values]))]
+                [:div.card {:key (:label-id label)}
+                 [:div.content
+                  [:div.header (:short-label label)]
+                  [:div.description
+                   [:table.ui.compact.table
+                    [:thead
+                     [:tr
+                      (doall
+                        (for [v all-values] ^{:key v}
+                          [:th (label-value->display label v)]))]]
+                    [:tbody
+                     [:tr
+                      (doall
+                        (for [v all-values] ^{:key v}
+                          [:td
+                           (-> (get-in @predictions [(:label-id label) v]) (* 100) js/Math.round (str "%"))]))]]]]]])))]]))))
 
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
                                         change-labels-button resolving?]
