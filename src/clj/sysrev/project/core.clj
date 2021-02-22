@@ -14,8 +14,7 @@
             [sysrev.db.queries :as q]
             [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.util :as util :refer
-             [map-values filter-values index-by opt-keys]]
-            [honeysql.helpers :as sqlh :refer [select from where]])
+             [map-values filter-values index-by opt-keys]])
   (:import java.util.UUID))
 
 ;; for clj-kondo

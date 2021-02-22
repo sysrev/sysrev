@@ -8,9 +8,10 @@
             [sysrev.project.core :refer [project-article-count]]
             [sysrev.biosource.core :refer [api-host]]
             [sysrev.datasource.api :as ds-api]
-            [honeysql.helpers :as sqlh :refer [insert-into values select from where delete limit order-by]]
-            [honeysql-postgres.helpers :as psqlh :refer [upsert on-conflict do-update-set]]
-            [sysrev.util :as util]))
+            [honeysql.helpers :as sqlh :refer [insert-into values select from where limit order-by]]
+            [honeysql-postgres.helpers :as psqlh]
+            [sysrev.util :as util]
+            [clojure.set]))
 
 (defn- project-sample-article-ids [project-id]
   (let [n-articles (project-article-count project-id)]
@@ -27,23 +28,21 @@
                     (str/join " \n " ))))))
 
 (defn- upsert-terms-and-join-term-id [terms]
-  (do
-    (-> (insert-into :important-terms)
-        (values (mapv (fn [term] {:term (:term term)}) terms))
-        (psqlh/upsert (-> (psqlh/on-conflict :term) (psqlh/do-nothing)))
-        db/do-execute)
-    (-> (select :term-id :term)(from :important-terms)
-        (where [:in :term (mapv :term terms)])
-        db/do-query
-        (clojure.set/join terms))))
+  (-> (insert-into :important-terms)
+      (values (mapv (fn [term] {:term (:term term)}) terms))
+      (psqlh/upsert (-> (psqlh/on-conflict :term) (psqlh/do-nothing)))
+      db/do-execute)
+  (-> (select :term-id :term)(from :important-terms)
+      (where [:in :term (mapv :term terms)])
+      db/do-query
+      (clojure.set/join terms)))
 
 (defn replace-project-important-term-tfidf [project-id term-tfidf]
-  (when (not (empty? term-tfidf))
-    (let [term-id-tfidf (upsert-terms-and-join-term-id term-tfidf)
-          insert-vals (mapv (fn [t] {:project-id project-id :term-id (:term-id t) :tfidf (:tfidf t)}) term-id-tfidf)]
-      (do
-        (-> (sqlh/delete-from :project-important-terms)(where [:= :project-id project-id]) db/do-execute)
-        (-> (insert-into :project-important-terms)(values insert-vals)db/do-execute)))))
+  (when (seq term-tfidf))
+  (let [term-id-tfidf (upsert-terms-and-join-term-id term-tfidf)
+        insert-vals (mapv (fn [t] {:project-id project-id :term-id (:term-id t) :tfidf (:tfidf t)}) term-id-tfidf)]
+    (-> (sqlh/delete-from :project-important-terms)(where [:= :project-id project-id]) db/do-execute)
+    (-> (insert-into :project-important-terms)(values insert-vals)db/do-execute)))
 
 (defn- project-last-source-update [project-id]
   (let [last-update (-> (select [:%max.date-created :max-date])(from :project-source)
@@ -67,7 +66,7 @@
   (try (let [article-ids (project-sample-article-ids project-id)
              text (get-article-text article-ids)
              min-count (* 0.05 (count article-ids))
-             {:keys [body] :as response}
+             {:keys [body]}
              (http/post (str api-host "/service/run/importance-2/importance")
                         {:content-type "application/json"
                          :body (json/write-str text)})]
@@ -101,5 +100,5 @@
 (defn project-important-terms
   "Given a project, return a map of important term counts from biosource"
   [project-id max-terms]
-  (if (should-update-terms? project-id) (update-project-terms project-id))
+  (when (should-update-terms? project-id) (update-project-terms project-id))
   {:terms (lookup-important-terms project-id max-terms)})
