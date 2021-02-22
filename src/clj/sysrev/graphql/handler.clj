@@ -1,20 +1,25 @@
 (ns sysrev.graphql.handler
-  (:require [clojure.string :as str]
-            [clojure.data.codec.base64 :as base64]
+  (:require [clojure.data.codec.base64 :as base64]
             [clojure.data.json :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia :refer [execute]]
             [com.walmartlabs.lacinia.schema :as schema]
             [com.walmartlabs.lacinia.util :refer [attach-resolvers]]
-            [sysrev.source.datasource :refer
-             [import-ds-query import-dataset import-datasource import-datasource-flattened]]
-            [sysrev.source.project-filter :refer [import-article-filter-url!]]
+            [sysrev.graphql.authorization :refer [authorized?]]
             [sysrev.project.graphql :as project]
+            [sysrev.source.datasource
+             :refer
+             [import-dataset
+              import-datasource
+              import-datasource-flattened
+              import-ds-query]]
+            [sysrev.source.project-filter :refer [import-article-filter-url!]]
             [sysrev.util :as util]))
 
-(defn sysrev-schema []
+(defn compile-sysrev-schema []
   (-> (io/resource "edn/graphql-schema.edn")
       slurp
       edn/read-string
@@ -25,6 +30,8 @@
                          :resolve-import-datasource-flattened! import-datasource-flattened
                          :resolve-import-article-filter-url! import-article-filter-url!})
       (schema/compile {:default-field-resolver schema/hyphenating-default-field-resolver})))
+
+(def sysrev-schema (atom (compile-sysrev-schema)))
 
 (defn variable-map
   "Reads the `variables` query parameter, which contains a JSON string
@@ -54,7 +61,7 @@
     :get  (get query-params "query")
     ;; Additional error handling because the clojure ring server still
     ;; hasn't handed over the values of the request to lacinia GraphQL
-    :post (try (-> (slurp body) (json/read-str :key-fn keyword) :query)
+    :post (try (-> body (json/read-str :key-fn keyword) :query)
                (catch Throwable _ ""))
     :else ""))
 
@@ -104,10 +111,15 @@
   Returns the result as text/json."
   [compiled-schema]
   (fn [request]
-    (let [vars (variable-map request)
+    (let [request (assoc request :body (slurp (:body request)))
+          vars (variable-map request)
           query (extract-query request)
-          result (execute compiled-schema query vars
-                          {:authorization (get-authorization-key request)})]
+          context {:authorization (get-authorization-key request)}
+          authorization-result (authorized? query vars context)
+          result (if (get-in authorization-result [:resolved-value :value])
+                   (execute compiled-schema query vars
+                            {:authorization (get-authorization-key request)})
+                   authorization-result)]
       {:status (if (seq (:errors result)) 400 200)
        :headers {"Content-Type" "application/json"}
        :body (json/write-str (transform-keys-to-json result))})))

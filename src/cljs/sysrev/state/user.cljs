@@ -48,3 +48,11 @@
 (reg-sub :user/project-ids
          (fn [[_ user-id]] (subscribe [::user user-id]))
          #(:projects %))
+
+(reg-sub :user/api-key
+         (fn [[_ user-id]] (subscribe [::user user-id]))
+         #(:api-key %))
+
+(reg-sub :user/dev-account-enabled?
+         (fn [[_ user-id]] (subscribe [::user user-id]))
+         #(:dev-account-enabled? %))

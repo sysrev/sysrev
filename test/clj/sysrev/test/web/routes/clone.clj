@@ -13,7 +13,7 @@
 (defmacro with-cleanup-users [user-emails & body]
   `(try ~@body
         (finally (doseq [email# ~user-emails]
-                   (b/cleanup-test-user! :email email#)))))
+                   (b/cleanup-test-user! :email email# :groups true)))))
 
 (deftest clone-user-project-test
   (let [handler (sysrev-handler)

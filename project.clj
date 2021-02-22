@@ -134,7 +134,8 @@
                                 :exclusions [org.bouncycastle/bcpkix-jdk15on
                                              org.bouncycastle/bcprov-jdk15on
                                              org.seleniumhq.selenium/selenium-api
-                                             org.seleniumhq.selenium/selenium-support]]]
+                                             org.seleniumhq.selenium/selenium-support]]
+                               [etaoin "0.4.1"]]
                               :plugins [[lein-eftest "0.5.9"]]}
              :repl           {:dependencies []
                               :plugins [[lein-environ "1.2.0"]]}

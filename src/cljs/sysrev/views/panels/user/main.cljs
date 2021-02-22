@@ -48,7 +48,8 @@
     (when self?
       (dispatch [:require [:user/payments-owed self-id]])
       (dispatch [:require [:user/payments-paid self-id]])
-      (dispatch [:data/load [:user/invitations self-id]]))
+      (dispatch [:data/load [:user/invitations self-id]])
+      (dispatch [:data/load [:user/current-plan self-id]]))
     [:div
      [:nav
       [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached

@@ -1,6 +1,6 @@
 (ns sysrev.web.routes.user
   (:require [compojure.coercions :refer [as-int]]
-            [compojure.core :as c :refer [defroutes context GET POST PUT DELETE]]
+            [compojure.core :as c :refer [context defroutes DELETE GET POST PUT]]
             [sysrev.api :as api]
             [sysrev.project.invitation :as invitation]
             [sysrev.web.app :refer [current-user-id with-authorize]]))
@@ -148,4 +148,9 @@
              (PUT "/set-primary" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [email]} (:body request)]
-                      (api/set-user-primary-email! user-id email))))))))
+                      (api/set-user-primary-email! user-id email)))))
+    (context "/developer" []
+             (PUT "/enable" [:as request]
+                  (with-authorize request {:authorize-fn (user-authd? user-id)}
+                    (let [{:keys [enabled?]} (:body request)]
+                      (api/toggle-developer-account! user-id enabled?))))))))

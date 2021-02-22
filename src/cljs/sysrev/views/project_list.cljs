@@ -121,7 +121,7 @@
                 :description "Winner of the sysrev mini-grants. This project tracks changes in insect populations."}
                {:project-id 23706
                 :description "A search for papers which sequenced the mitochondrial ND2 gene in island birds."}
-               {:project-id 26314
+               {:project-id 27698
                 :description "A data extraction project evaluating the methods used to measure \"work of breathing\" during exercise. Led by Troy Cross at Mayo Clinic & University of Sydney and other researchers."}
                {:project-id 24557
                 :description "This project was established in response to the catastrophic 2019-20 bushfire season in Australia, and will identify key knowledge gaps and research priorities for understanding how Australian invertebrates respond to fire events."}

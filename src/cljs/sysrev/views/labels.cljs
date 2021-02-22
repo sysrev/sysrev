@@ -46,7 +46,7 @@
                     (filter :enabled))
         label-name @(subscribe [:label/display "na" group-label-id])]
     (when (seq answers)
-      [:div.ui.tiny.labeled.label-answer-tag
+      [:div.ui.tiny.labeled.label-answer-tag.overflow-x-auto
        [Table {:striped true}
         [TableHeader {:full-width true}
          [TableRow {:text-align "center"}

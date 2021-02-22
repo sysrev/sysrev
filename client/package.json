@@ -30,7 +30,7 @@
     "react-dom": "16.13.0",
     "react-json-view": "^1.19.1",
     "react-pdf": "^4.1.0",
-    "react-stripe-elements": "6.1.1",
+    "react-stripe-elements": "^6.1.2",
     "react-xml-viewer": "^1.1.0",
     "semantic-ui-react": "^2.0.0",
     "showdown": "1.8.6",

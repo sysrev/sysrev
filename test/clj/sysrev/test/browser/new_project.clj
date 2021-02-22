@@ -99,4 +99,6 @@
       (b/click (xpath "//button[contains(text(),'Create Project')]"))
       ;; is this project private?
       (b/exists? "i.grey.lock")
-      (b/exists? (xpath "//span[contains(text(),'Private')]"))))
+      (b/exists? (xpath "//span[contains(text(),'Private')]"))
+      :cleanup
+      (b/cleanup-test-user! :email (:email test-user) :groups true)))

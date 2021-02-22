@@ -119,9 +119,7 @@
                      (when-not mobile?
                        [:span [:i.users.icon] " "])
                      "Users"]
-           :action (project-uri project-id "/users")
-           :disabled (not ready?)
-           :tooltip not-ready-msg}
+           :action (project-uri project-id "/users")}
           {:tab-id [:project :analytics]
            :class "analytics"
            :content [:div

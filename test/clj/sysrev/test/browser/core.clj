@@ -8,6 +8,7 @@
             [clj-webdriver.core :refer [->actions move-to-element click-and-hold
                                         move-by-offset release perform]]
             [me.raynes.fs :as fs]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
@@ -525,7 +526,8 @@
       :or {projects true, compensations true, groups false}}]
   (util/assert-single user-id email)
   (let [email (or email (q/get-user user-id :email))
-        user-id (or user-id (user/user-by-email email :user-id))]
+        user-id (or user-id (user/user-by-email email :user-id))
+        api-key (:api-token (user/user-by-email email))]
     (when (and email user-id)
       (when projects (delete-test-user-projects! user-id compensations))
       (when groups (delete-test-user-groups! user-id))
@@ -533,6 +535,10 @@
         (when-let [{:keys [sub-id]} (plans/user-current-plan user-id)]
           (stripe/delete-subscription! sub-id))
         (user/delete-user-stripe-customer! {:stripe-id stripe-id :user-id user-id}))
+      ;; check to see if there is a datasource user, delete it as well
+      (when (get-in (ds-api/read-account {:api-key api-key})
+                    [:data :account :apiKey])
+        (ds-api/delete-account! {:email email}))
       (delete-test-user :email email))))
 
 (defn url->path
