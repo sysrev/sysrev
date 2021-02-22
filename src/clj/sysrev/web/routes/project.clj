@@ -468,7 +468,7 @@
               (let [after-count (label/count-reviewed-articles project-id)]
                 (when (and (> after-count before-count)
                            (not= 0 after-count)
-                           (not (empty? (filter #(= % after-count) exponential-steps))))
+                           (seq (filter #(= % after-count) exponential-steps)))
                   (predict-api/schedule-predict-update project-id)))
               {:result body}))))
 
