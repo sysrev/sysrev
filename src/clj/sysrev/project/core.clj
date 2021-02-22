@@ -14,7 +14,8 @@
             [sysrev.db.queries :as q]
             [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.util :as util :refer
-             [map-values filter-values index-by opt-keys]])
+             [map-values filter-values index-by opt-keys]]
+            [honeysql.helpers :as sqlh :refer [select from where]])
   (:import java.util.UUID))
 
 ;; for clj-kondo
@@ -357,6 +358,20 @@
   (when-let [test-user-id (q/find-one :web-user {:email "browser+test@insilica.co"} :user-id)]
     (delete-solo-projects-from-user test-user-id)))
 
+(defn search-projects-important-terms
+  "Return a list of projects containing important terms in the given query"
+  [q & {:keys [limit] :or {limit 10}}]
+  (let [tokens (str/split q #" ")]
+    (-> (select [:md.string :description] :p.project_id :p.name :p.settings)
+        (from [:project_important_terms :pit])
+        (sqlh/join
+          [:important-terms :it] [:= :pit.term-id :it.term-id]
+          [:project_description :pd] [:= :pd.project-id :pit.project-id]
+          [:markdown :md] [:= :md.markdown-id :pd.markdown-id]
+          [:project :p] [:= :p.project-id :pit.project-id])
+        (where [:in :it.term tokens])
+        db/do-query)))
+
 ;; some notes:
 ;; https://www.postgresql.org/docs/current/textsearch.html
 ;; https://www.postgresql.org/docs/current/textsearch-controls.html
@@ -376,7 +391,11 @@
              "                           (coalesce(p.name,''))) @@ plainto_tsquery(?) "
              "LIMIT ? ")
         q limit]
-       db/raw-query))
+       db/raw-query
+       (concat (search-projects-important-terms q :limit limit))
+       distinct))
+
+
 
 (defn project-ids-where-labels-defined
   "Returns ids of all projects with at least one user-defined label."
