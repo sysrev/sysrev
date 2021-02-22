@@ -285,14 +285,16 @@
     (click datasource-item)
     (wait-exists (str "//div[contains(@class,'datasource-item')"
                       "      and contains(@class,'active')]"
-                      "//p[contains(text(),'" datasource-name "')]"))))
+                      "//p[contains(text(),'" datasource-name "')]"))
+    (Thread/sleep 100)))
 
 (defn uppy-attach-files
   "Given a coll of file names in the resources dir, attach the files to
   uppy file element."
   [coll]
+  (wait-exists "//button[contains(text(),'browse files')]")
   (fill {:css "input[name='files[]']"}
         (->> (for [s (util/ensure-vector coll)]
                (-> s io/resource .getFile URLDecoder/decode))
-             (str/join "\n")))
-  nil)
+             (str/join "\n"))
+        :delay 200))

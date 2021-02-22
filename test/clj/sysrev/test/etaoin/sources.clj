@@ -24,9 +24,8 @@
                 (str res-path "/" (fs/base-name f)))]
     (e/new-project "pdf files test")
     (e/select-datasource "PDF files")
-    (e/wait-exists "//button[contains(text(),'browse files')]")
     (e/uppy-attach-files files)
-    (e/click "//button[contains(text(),'Upload')]")
+    (e/click "//button[contains(text(),'Upload')]" :delay 200)
     (e/wait-exists {:css (b/not-disabled "div.delete-button")} 20000)
     (e/click {:css (x/project-menu-item :articles)} :delay 200)
     (e/click {:css "a.column.article-title"} :delay 200)

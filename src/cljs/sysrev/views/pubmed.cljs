@@ -65,14 +65,14 @@
              {:dispatch [:pubmed/save-search-term-summaries search-term page-number response]}))
 
 (def-action :project/import-articles-from-search
-  :uri (fn [] "/api/import-articles/pubmed")
+  :uri     "/api/import-articles/pubmed"
   :content (fn [project-id search-term source]
              {:project-id project-id
               :search-term search-term
               :source source})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
-               {:dispatch [:reload [:project/sources project-id]]}))
+               {:dispatch [:on-add-source project-id]}))
   :on-error (fn [{:keys [db error]} _]
               (let [{:keys [message]} error]
                 (when (string? message)

@@ -55,7 +55,7 @@
              {:search-term search-term :project-id project-id})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
-               {:dispatch [:reload [:project/sources project-id]]}))
+               {:dispatch [:on-add-source project-id]}))
   :on-error (fn [{:keys [db error]} _]
               (let [{:keys [message]} error]
                 (when (string? message)

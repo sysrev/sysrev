@@ -109,10 +109,11 @@
       (nav/new-project "pdf-interface test")
       (import/import-pdf-zip (b/current-project-id) {:file file :filename filename}
                              {:use-future? false})
+      (Thread/sleep 500)
       (b/init-route (-> (taxi/current-url) b/url->path))
       (b/click (x/project-menu-item :articles) :delay 100)
       (b/click "a.column.article-title" :displayed? true :delay 200)
-      (b/is-soon (taxi/displayed? ".pdf-view .pdf-page-container .pdf-page"))
+      (b/displayed? ".pdf-view .pdf-page-container .pdf-page")
       (b/click (x/project-menu-item :articles) :delay 100)
       (b/is-soon (taxi/exists? "a.column.article-title"))))
 
