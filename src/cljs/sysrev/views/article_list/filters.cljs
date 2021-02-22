@@ -212,7 +212,7 @@
     [ui/selection-dropdown
      [:div.text (option-name active)]
      (->> options (map-indexed (fn [i x]
-                                 [:div.item {:key i
+                                 [:div.item {:key (str i "-" x)
                                              :data-value (to-data-value x)
                                              :class (css [(= x active) "active selected"])}
                                   (option-name x)])))

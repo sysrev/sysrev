@@ -76,7 +76,7 @@
 ;; note: this is fairly hacky, won't work with multiple values
 (defn group-label-button-value
   [short-label ith]
-  (taxi/text (xpath "(//table/tbody/tr/td[count(//table/thead/tr/th[.='" short-label "']"
+  (taxi/text (xpath "(//table[contains(@class,'group-label-values-table')]/tbody/tr/td[count(//table/thead/tr/th[.='" short-label "']"
                     "/preceding-sibling::th)+1])[" ith "]")))
 
 (defn group-label-div

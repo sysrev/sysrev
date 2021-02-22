@@ -20,7 +20,7 @@
   (let [label-value (if (boolean? label-value-aux)
                       (if label-value-aux "TRUE" "FALSE")
                       label-value-aux)]
-    (with-project-cache project-id [:article-list :predicts]
+    (with-project-cache project-id [:article-list :predicts label-value]
       (when-let [predict-run-id (q/project-latest-predict-run-id project-id)]
         (-> (q/select-project-articles
               project-id [:lp.article-id :lp.label-id [:lp.val :score]])
