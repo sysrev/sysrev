@@ -362,9 +362,10 @@
   [q & {:keys [limit] :or {limit 10}}]
   (let [tokens (str/split q #" ")]
     (-> (select [:md.string :description] :p.project_id :p.name :p.settings)
-        (from [:project_important_terms :pit])
+        (from [::important-terms :it])
         (sqlh/join
-          [:important-terms :it] [:= :pit.term-id :it.term-id]
+          [:project-important-terms :pit] [:= :pit.term-id :it.term-id])
+        (sqlh/left-join
           [:project_description :pd] [:= :pd.project-id :pit.project-id]
           [:markdown :md] [:= :md.markdown-id :pd.markdown-id]
           [:project :p] [:= :p.project-id :pit.project-id])

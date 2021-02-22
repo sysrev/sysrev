@@ -38,11 +38,11 @@
       (clojure.set/join terms)))
 
 (defn replace-project-important-term-tfidf [project-id term-tfidf]
-  (when (seq term-tfidf))
-  (let [term-id-tfidf (upsert-terms-and-join-term-id term-tfidf)
-        insert-vals (mapv (fn [t] {:project-id project-id :term-id (:term-id t) :tfidf (:tfidf t)}) term-id-tfidf)]
-    (-> (sqlh/delete-from :project-important-terms)(where [:= :project-id project-id]) db/do-execute)
-    (-> (insert-into :project-important-terms)(values insert-vals)db/do-execute)))
+  (when (seq term-tfidf)
+    (let [term-id-tfidf (upsert-terms-and-join-term-id term-tfidf)
+          insert-vals (mapv (fn [t] {:project-id project-id :term-id (:term-id t) :tfidf (:tfidf t)}) term-id-tfidf)]
+      (-> (sqlh/delete-from :project-important-terms)(where [:= :project-id project-id]) db/do-execute)
+      (-> (insert-into :project-important-terms)(values insert-vals)db/do-execute))))
 
 (defn- project-last-source-update [project-id]
   (let [last-update (-> (select [:%max.date-created :max-date])(from :project-source)
@@ -100,6 +100,5 @@
 (defn project-important-terms
   "Given a project, return a map of important term counts from biosource"
   [project-id max-terms]
-  (when (should-update-terms? project-id)
-    (update-project-terms project-id))
+  (when (should-update-terms? project-id) (update-project-terms project-id))
   {:terms (lookup-important-terms project-id max-terms)})
