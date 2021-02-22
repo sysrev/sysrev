@@ -74,16 +74,19 @@
 
 (defn article-info-full [project-id article-id]
   (let [[article user-labels user-notes article-pdfs
-         [consensus resolve resolve-labels]]
+         [consensus resolve resolve-labels]
+         predictions]
         (pvalues (article/get-article article-id)
                  (label/article-user-labels-map article-id)
                  (article/article-user-notes-map project-id article-id)
                  (api/article-pdfs article-id)
                  (list (label/article-consensus-status project-id article-id)
                        (label/article-resolved-status project-id article-id)
-                       (label/article-resolved-labels project-id article-id)))]
+                       (label/article-resolved-labels project-id article-id))
+                 (article/article-predictions article-id))]
     {:article (merge (prepare-article-response article)
                      {:pdfs (:files article-pdfs)}
+                     {:predictions predictions}
                      {:review-status consensus}
                      {:resolve (merge resolve {:labels resolve-labels})})
      :labels user-labels
@@ -439,6 +442,7 @@
              {:result :none}))))
 
 ;; Sets and optionally confirms label values for an article
+(def exponential-steps (->> (range 0 20) (map #(Math/pow 1.7 %)) (filter #(>= % 30)) (map int)))
 (dr (POST "/api/set-labels" request
           (with-authorize request {:roles ["member"]}
             (let [user-id (current-user-id request)
@@ -464,9 +468,12 @@
               (let [after-count (label/count-reviewed-articles project-id)]
                 (when (and (> after-count before-count)
                            (not= 0 after-count)
-                           (= 0 (mod after-count 15)))
+                           (not (empty? (filter #(= % after-count) exponential-steps))))
                   (predict-api/schedule-predict-update project-id)))
               {:result body}))))
+
+#_(for [after-count (range 0 200)]
+      (str after-count " - " (not (empty? (filter #(= % after-count) exponential-steps)))))
 
 (dr (POST "/api/set-article-note" request
           (with-authorize request {:roles ["member"]}

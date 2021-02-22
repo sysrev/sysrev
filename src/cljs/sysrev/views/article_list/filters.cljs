@@ -10,6 +10,7 @@
             [sysrev.state.label :refer [project-overall-label-id]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.article-list.base :as al]
+            [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.util :as util :refer
              [in? map-values css space-join wrap-parens parse-integer parse-number
               when-test nbsp]]))
@@ -455,15 +456,19 @@
 (defmethod FilterEditorFields :prediction [context _filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
         {:keys [label-id label-value direction score]} value
-        overall-id @(subscribe [:project/overall-label-id])]
+        get-label-type #(deref (subscribe [:label/value-type nil %]))
+        label-ids (->> @(subscribe [:project/label-ids])
+                       (filter #(contains? predictable-label-types (get-label-type %))))]
     [:div.ui.small.form
      [:div.field>div.fields
       [:div.eight.wide.field
        [:label "Label"]
-       [SelectFromLabelsDropdown context [overall-id] label-id
-        (fn [v] (update-filter #(merge % {:label-id v :label-value true})))
-        ;; TODO: support all labels (or all boolean labels)
-        {:disabled true}]]
+       [SelectFromLabelsDropdown context label-ids label-id
+        (fn [v]
+          (let [default-value (if (= (get-label-type v) "boolean")
+                                true
+                                (first @(subscribe [:label/all-values nil v])))]
+            (update-filter #(merge % {:label-id v :label-value default-value}))))]]
       [:div.eight.wide.field
        [:label "Answer Value"]
        [LabelValueDropdown context label-id label-value

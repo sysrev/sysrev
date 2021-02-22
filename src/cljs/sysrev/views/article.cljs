@@ -6,6 +6,7 @@
             goog.object
             [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
+            [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.data.cursors :refer [map-from-cursors]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation]
@@ -331,6 +332,45 @@
                 nbsp nbsp [:a {:href (project-uri nil (str "/articles/" article-id))}
                            (str "#" article-id)]]))]]))
 
+(defn- ArticlePredictions [article-id]
+  (let [label->type #(deref (subscribe [:label/value-type "na" (:label-id %)]))
+        label-value->display (fn [label value]
+                               (cond
+                                 (= (:short-label label) "Include")
+                                 (if (= "TRUE" value) "Include" "Exclude")
+
+                                 (= (label->type label) "boolean")
+                                 (if (= "TRUE" value) "True" "False")
+
+                                 :else value))
+        labels (subscribe [:project/labels-raw])
+        predictions (subscribe [:article/predictions article-id])]
+    (fn []
+      [:div.ui.segment
+       [:h4.ui.header "Predictions"]
+       [:div.ui.cards
+        (doall
+          (for [label (->> @labels vals (filter #(contains? predictable-label-types (label->type %))))]
+            (let [all-values (if (= (label->type label) "boolean")
+                               ["TRUE" "FALSE"]
+                               (get-in label [:definition :all-values]))]
+              [:div.card {:key (:label-id label)}
+               [:div.content
+                [:div.header (:short-label label)]
+                [:div.description
+                 [:table.ui.compact.table
+                  [:thead
+                   [:tr
+                    (doall
+                      (for [v all-values] ^{:key v}
+                        [:th (label-value->display label v)]))]]
+                  [:tbody
+                   [:tr
+                    (doall
+                      (for [v all-values] ^{:key v}
+                        [:td
+                         (-> (get-in @predictions [(:label-id label) v]) (* 100) int (str "%"))]))]]]]]])))]])))
+
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
                                         change-labels-button resolving?]
                                  :or {show-score? true}}]
@@ -373,6 +413,7 @@
                 [ArticleInfoMain article-id :context context])]
              (when-not (= datasource-name "entity")
                ^{:key :article-pdfs} [pdf/PDFs article-id])))
+     [ArticlePredictions article-id]
      (when change-labels-button [change-labels-button])
      (when show-labels? [ArticleLabelsView article-id
                          :self-only? private-view? :resolving? resolving?])]))

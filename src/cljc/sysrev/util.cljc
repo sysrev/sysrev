@@ -179,7 +179,7 @@
    (and (string? s)
         (re-matches email-regex s))))
 
-(defn- uuid-from-string [x]
+(defn uuid-from-string [x]
   #?(:clj (UUID/fromString x)
      :cljs (uuid x)))
 

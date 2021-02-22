@@ -112,9 +112,23 @@
       (q/find-one [:article :a] {:a.article-id article-id
                                  :lp.predict-run-id predict-run-id
                                  :lp.stage 1
+                                 :lp.label-value "TRUE" 
                                  :l.name "overall include"}
                   :lp.val, :join [[[:label-predicts :lp] :a.article-id]
                                   [[:label :l]           :lp.label-id]]))))
+
+(defn article-predictions [article-id & {:keys [predict-run-id]}]
+  (->> (db/with-transaction
+         (let [predict-run-id (or predict-run-id (-> (q/get-article article-id :project-id)
+                                                     (q/project-latest-predict-run-id)))]
+           (q/find [:article :a] {:a.article-id article-id
+                                  :lp.predict-run-id predict-run-id
+                                  :lp.stage 1}
+                   [:lp.label-id :lp.label-value :lp.val]
+                   :join [[[:label-predicts :lp] :a.article-id]])))
+       (reduce (fn [acc {:keys [label-id label-value val]}]
+                 (assoc-in acc [label-id label-value] val))
+               {})))
 
 (defn get-article
   "Queries for article data by id, with data from other tables included.

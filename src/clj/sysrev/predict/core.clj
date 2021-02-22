@@ -14,13 +14,14 @@
               :returning :predict-run-id)))
 
 (defn store-article-predictions
-  [project-id predict-run-id label-id article-values]
+  [project-id predict-run-id article-values]
   (db/with-clear-project-cache project-id
-    (doseq [entries-group (->> (for [{:keys [article-id value]} article-values]
+    (doseq [entries-group (->> (for [{:keys [article-id label-id value label-value]} article-values]
                                  {:predict-run-id predict-run-id
                                   :article-id article-id
                                   :label-id label-id
                                   :stage 1
-                                  :val value})
+                                  :val value 
+                                  :label-value label-value})
                                (partition-all 500))]
       (q/create :label-predicts entries-group))))

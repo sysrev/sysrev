@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
+            [honeysql.helpers :refer [merge-where]]
             [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as label]
@@ -15,17 +16,21 @@
 ;;; Article data lookup functions
 ;;;
 
-(defn project-article-predicts [project-id]
-  (with-project-cache project-id [:article-list :predicts]
-    (when-let [predict-run-id (q/project-latest-predict-run-id project-id)]
-      (-> (q/select-project-articles
-           project-id [:lp.article-id :lp.label-id [:lp.val :score]])
-          (q/join-article-predict-values predict-run-id)
-          (->> do-query
-               (group-by :article-id)
-               (map-values
-                #(->> % (map (fn [{:keys [label-id score]}] {label-id score}))
-                      (apply merge))))))))
+(defn project-article-predicts [project-id label-value-aux]
+  (let [label-value (if (boolean? label-value-aux)
+                      (if label-value-aux "TRUE" "FALSE")
+                      label-value-aux)]
+    (with-project-cache project-id [:article-list :predicts]
+      (when-let [predict-run-id (q/project-latest-predict-run-id project-id)]
+        (-> (q/select-project-articles
+              project-id [:lp.article-id :lp.label-id [:lp.val :score]])
+            (-> (q/join-article-predict-values predict-run-id)
+                (merge-where [:= :lp.label-value label-value]))
+            (->> do-query
+                 (group-by :article-id)
+                 (map-values
+                   #(->> % (map (fn [{:keys [label-id score label-value]}] {label-id score}))
+                         (apply merge)))))))))
 
 (defn project-article-sources [project-id]
   (with-project-cache project-id [:article-list :sources]
@@ -240,7 +245,7 @@
 
 (defn article-prediction-filter
   [{:keys [project-id] :as _context} {:keys [label-id label-value direction score]}]
-  (let [all-predicts (project-article-predicts project-id)
+  (let [all-predicts (project-article-predicts project-id label-value)
         compare-score (case direction  :above >, :below <)]
     (fn [{:keys [article-id]}]
       (some-> (get-in all-predicts [article-id label-id])
