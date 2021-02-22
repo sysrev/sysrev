@@ -100,5 +100,6 @@
 (defn project-important-terms
   "Given a project, return a map of important term counts from biosource"
   [project-id max-terms]
-  (when (should-update-terms? project-id) (update-project-terms project-id))
+  (when (should-update-terms? project-id)
+    (update-project-terms project-id))
   {:terms (lookup-important-terms project-id max-terms)})
