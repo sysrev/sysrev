@@ -4,7 +4,7 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
             [clojure.string :as str]
             [sysrev.data.core :as data]
-            [sysrev.views.article :refer [ArticleInfo]]
+            [sysrev.views.article :refer [ArticleInfo ArticlePredictions]]
             [sysrev.views.review :as review]
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.list-pager :refer [ListPager]]
@@ -125,7 +125,8 @@
       :context :article-list
       :change-labels-button (fn [] [ChangeLabelsButton context article-id])
       :resolving? resolving?]
-     (when editing? [review/LabelAnswerEditor article-id])]))
+     (when editing? [review/LabelAnswerEditor article-id])
+     [ArticlePredictions article-id]]))
 
 (defn ArticleLabelsNotes [context article _full-size?]
   (let [self-id @(subscribe [:self/user-id])

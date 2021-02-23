@@ -347,11 +347,14 @@
         predictions (subscribe [:article/predictions article-id])]
     (fn []
       (when (seq @predictions)
-        [:div.ui.segment
+        [:div.ui.segment {:id "predictions"}
          [:h4.ui.header "Predictions"]
          [:div.ui.cards
           (doall
-            (for [label (->> @labels vals (filter #(contains? predictable-label-types (label->type %))))]
+            (for [label (->> @labels
+                             vals
+                             (filter #(contains? predictable-label-types (label->type %)))
+                             (sort-by #(count (get-in % [:definition :all-values]))))]
               (let [all-values (if (= (label->type label) "boolean")
                                  ["TRUE" "FALSE"]
                                  (get-in label [:definition :all-values]))]
@@ -359,18 +362,24 @@
                  [:div.content
                   [:div.header (:short-label label)]
                   [:div.description
-                   [:table.ui.compact.table
+                   [:table.ui.compact.table.fixed
                     [:thead
                      [:tr
-                      (doall
-                        (for [v all-values] ^{:key v}
-                          [:th (label-value->display label v)]))]]
+                      [:th "Label"]
+                      [:th.right.aligned "Prediction"]]]
                     [:tbody
-                     [:tr
-                      (doall
-                        (for [v all-values] ^{:key v}
-                          [:td
-                           (-> (get-in @predictions [(:label-id label) v]) (* 100) js/Math.round (str "%"))]))]]]]]])))]]))))
+                     (doall
+                       (for [v all-values] ^{:key v}
+                         (let [prediction-value (get-in @predictions [(:label-id label) v])
+                               percentage-value (-> prediction-value (* 100) js/Math.round)]
+                           [:tr
+                            [:td (label-value->display label v)]
+                            [:td.right.aligned
+                             (if true;prediction-value
+                               [:span.ui.text {:class [(when (<= percentage-value 25) "red")
+                                                       (when (>= percentage-value 75) "green")]}
+                                (str percentage-value "%")]
+                               "—")]])))]]]]])))]]))))
 
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
                                         change-labels-button resolving?]
@@ -392,6 +401,11 @@
               [:div.five.wide.middle.aligned.column>h4.ui.article-info
                {:data-article-id article-id} "Article Info"]
               [:div.eleven.wide.column.right.aligned
+               [:a.ui.basic.label {:on-click
+                                   (fn []
+                                     (aset js/window "location" "hash" "")
+                                     (js/setTimeout #(aset js/window "location" "hash" "predictions") 0))}
+                "See Predictions"]
                (when disabled?
                  [:div.ui.basic.label.review-status.orange "Disabled"])
                (when (and score show-score? (not= status :single))
@@ -414,7 +428,6 @@
                 [ArticleInfoMain article-id :context context])]
              (when-not (= datasource-name "entity")
                ^{:key :article-pdfs} [pdf/PDFs article-id])))
-     [ArticlePredictions article-id]
      (when change-labels-button [change-labels-button])
      (when show-labels? [ArticleLabelsView article-id
                          :self-only? private-view? :resolving? resolving?])]))
