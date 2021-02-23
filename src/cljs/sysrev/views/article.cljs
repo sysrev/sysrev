@@ -332,7 +332,7 @@
                 nbsp nbsp [:a {:href (project-uri nil (str "/articles/" article-id))}
                            (str "#" article-id)]]))]]))
 
-(defn- ArticlePredictions [article-id]
+(defn ArticlePredictions [article-id]
   (let [label->type #(deref (subscribe [:label/value-type "na" (:label-id %)]))
         label-value->display (fn [label value]
                                (cond
