@@ -45,11 +45,9 @@
                           (remove empty?)
                           (str/join " \n " ))))))
 
-
-
 (defn- predict-model-request-body [project-id]
   (db/with-transaction
-    (let [labels (->> (q/find :label {:project-id 100 :enabled true} :*)
+    (let [labels (->> (q/find :label {:project-id project-id :enabled true} :*)
                       (filter #(contains? predictable-label-types (:value-type %))))
           article-ids (->> labels
                            (mapcat #(get-training-article-ids project-id (:label-id %)))
