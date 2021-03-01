@@ -53,8 +53,7 @@
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [in? map-values index-by req-un parse-integer
-                                          sum]])
+            [sysrev.util :as util :refer [in? index-by req-un parse-integer sum]])
   (:import (java.util UUID)
            (java.util.zip ZipOutputStream ZipEntry)))
 

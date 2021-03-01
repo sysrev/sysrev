@@ -13,8 +13,6 @@
             [sysrev.biosource.core :refer [api-host]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.shared.labels :refer [predictable-label-types]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [select from where join limit]]
             [sysrev.util :as util :refer [in? map-values map-kv uuid-from-string]]))
 
 (defonce predict-api (agent nil))

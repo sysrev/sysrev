@@ -334,45 +334,31 @@
 
 (defn ArticlePredictions [article-id]
   (let [label->type #(deref (subscribe [:label/value-type "na" (:label-id %)]))
-        label-value->display (fn [label value]
-                               (cond
-                                 (= (:short-label label) "Include")
-                                 (if (= "TRUE" value) "Include" "Exclude")
-
-                                 (= (label->type label) "boolean")
-                                 (if (= "TRUE" value) "True" "False")
-
-                                 :else value))
         labels (subscribe [:project/labels-raw])
         predictions (subscribe [:article/predictions article-id])]
     (fn []
       (when (seq @predictions)
-        ;[:div.ui.segment {:id "predictions"}
-        ; [:h4.ui.header "Predictions"]
-        ; [:div.ui.segment {:id "predictions"}
-          [:table.ui.compact.celled.table
-           [:thead [:tr [:th {:colspan 3} [:h4.ui.header "Predictions"]]]]
-           [:thead [:tr [:th [:span "label"]] [:th "value"] [:th "probability"]]]
-           [:tbody
-            (doall
-              (for [label (->> @labels
-                               vals
-                               (filter #(contains? predictable-label-types (label->type %)))
-                               (filter #(:enabled %))
-                               (sort-by #(count (get-in % [:definition :all-values]))))]
-                (let [all-values (if (= (label->type label) "boolean")
-                                   ["TRUE"]
-                                   (get-in label [:definition :all-values]))]
-                  (doall
-                    (for [v all-values] ^{:key v}
-                                        (let [prediction-value (get-in @predictions [(:label-id label) v])
-                                              percentage-value (-> prediction-value (* 100) js/Math.round)]
-                                          [:tr [:td (:short-label label)] [:td v]
-                                           [:td [:span.ui.text {:class [(when (<= percentage-value 25) "red")
-                                                                        (when (>= percentage-value 75) "green")]} percentage-value]]]))))))
-
-
-            ]]))))
+        [:table.ui.compact.celled.table
+         [:thead [:tr [:th {:colspan 3} [:h4.ui.header "Predictions"]]]]
+         [:thead [:tr [:th [:span "label"]] [:th "value"] [:th "probability"]]]
+         [:tbody
+          (doall
+            (for [label (->> @labels
+                             vals
+                             (filter #(contains? predictable-label-types (label->type %)))
+                             (filter #(:enabled %))
+                             (sort-by #(count (get-in % [:definition :all-values]))))]
+              (let [all-values (if (= (label->type label) "boolean")
+                                 ["TRUE"]
+                                 (get-in label [:definition :all-values]))]
+                (doall
+                  (for [v all-values] ^{:key v}
+                                      (let [prediction-value (get-in @predictions [(:label-id label) v])
+                                            percentage-value (-> prediction-value (* 100) js/Math.round)]
+                                        [:tr [:td (:short-label label)] [:td v]
+                                         [:td [:span.ui.text {:class [(when (<= percentage-value 25) "red")
+                                                                      (when (>= percentage-value 75) "green")]}
+                                               percentage-value]]]))))))]]))))
 
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
                                         change-labels-button resolving?]

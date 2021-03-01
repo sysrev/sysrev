@@ -415,20 +415,9 @@
              {:db (assoc-in db [:data :project project-id :histograms]
                             prediction-histograms)}))
 
-(defn- LabelPredictionsInfo []
-  (when (seq @(subscribe [:project/predict]))
-    (let [updated @(subscribe [:predict/update-time])
-          labeled @(subscribe [:predict/labeled-count])
-          total @(subscribe [:predict/article-count])]
-      [:div.ui.segment
-       [:h4.ui.dividing.header "Label Predictions"]
-       [:p (format "Last updated: %s" updated)]
-       [:p (format "Trained from %s labeled articles: %s article predictions loaded"
-                   labeled total)]])))
-
 (defn- PredictionHistogramChart []
   (let [font (charts/graph-font-settings)
-        formatter (time-format/formatters :mysql) ;2020-08-18 20:35:33 UTC
+        formatter (time-format/formatters :mysql)
         updated @(subscribe [:predict/update-time])
         update-time (time-format/parse formatter (subs updated 0 19))
         dif-days (time/in-days (time/interval update-time (time/now)))
