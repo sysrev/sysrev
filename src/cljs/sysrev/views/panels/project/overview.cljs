@@ -430,7 +430,7 @@
                                               (= (:label-value e) "TRUE")))
                                     @(subscribe [::prediction-histograms]))
         pred-hist-data (mapv (fn [e] (if (nil? (:answer e)) (merge e {:answer "unreviewed"}) e)) pred-hist-filtered)
-        labels (mapv #(/ (util/round (* 1000 %)) 1000) (range 0.025 1 0.05))
+        labels (mapv #(/ (util/round (* 1000 %)) 1000) (range 0.025 1 0.025))
         answer-histogram (group-by :answer pred-hist-data)
         datasets (mapv (fn [[answer bucket-counts]]
                          (let [lbl-keys (group-by :bucket bucket-counts)]
@@ -454,7 +454,7 @@
      [:span (format "Models trained from %s labeled articles." labeled)]
      [:br]
      [:span (format "Model predictions loaded for %s articles" total)]
-     [:h52 "Predictions for Inclusion model"]
+     [:h5 "Predictions for Inclusion model"]
      [unpad-chart [0.5 0.6]
       [chartjs/bar
        {:data {:labels labels

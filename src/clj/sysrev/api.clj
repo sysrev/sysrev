@@ -778,7 +778,7 @@
   (biosource-contgroup/get-label-countgroup project-id))
 
 (defn project-prediction-histogram [project-id]
-  {:prediction-histograms (sysrev.biosource.predict/project-prediction-histogram project-id)})
+  {:prediction-histograms (sysrev.biosource.predict/project-prediction-histogram project-id 40)})
 
 (def annotations-atom (atom {}))
 
