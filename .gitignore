@@ -1,7 +1,13 @@
-#############################
+################################################################################
+################################# Local config #################################
+################################################################################
+
+# files starting with a dot should be ignored by default
+.*
 
 !/.clj-kondo
 !/.clj-kondo/config.edn
+!/.clj-kondo/version.txt
 /.clj-kondo/.cache
 
 /local/
@@ -47,9 +53,36 @@ figwheel_server.log
 .ensime*
 *.pgdumpc
 
-#############################
+# Semantic build directory
+resources/public/semantic
 
-# Created by https://www.gitignore.io/api/scala,emacs,clojure,intellij
+# files marked local
+*.local.*
+/resources/git-commit
+/resources/build-time
+
+/docs
+/resources/public/docs
+/README.html
+
+/pdf
+
+profiles.clj
+/vars.sh
+/flyway.cmd
+/vars.deploy.sh
+
+boot-cljsjs-checksums.edn
+client/node_modules
+client/semantic
+
+!/.carve_ignore
+/scripts/clj-kondo
+/scripts/clj-kondo.old
+
+################################################################################
+#### Created by https://www.gitignore.io/api/scala,emacs,clojure,intellij ######
+################################################################################
 
 ### Scala ###
 *.class
@@ -69,7 +102,6 @@ project/plugins/project/
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
-
 
 ### Emacs ###
 # -*- mode: gitignore; -*-
@@ -129,7 +161,6 @@ pom.xml.asc
 .lein-failures
 .nrepl-port
 
-
 ### Intellij ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and Webstorm
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
@@ -183,32 +214,3 @@ fabric.properties
 # modules.xml
 # .idea/misc.xml
 # *.ipr
-
-# Semantic build directory
-resources/public/semantic
-
-# files marked local
-*.local.*
-/resources/git-commit
-/resources/build-time
-
-/docs
-/resources/public/docs
-/README.html
-
-/pdf
-
-profiles.clj
-/vars.sh
-/flyway.cmd
-/vars.deploy.sh
-
-boot-cljsjs-checksums.edn
-client/node_modules
-client/semantic
-
-# files starting with a dot should be ignored by default
-.*
-
-!/.carve_ignore
-/scripts/clj-kondo
