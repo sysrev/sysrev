@@ -55,7 +55,7 @@ function install_clj_kondo() {
     echo "clj-kondo already installed to ./scripts/"
   else
     echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
-    install-clj-kondo --dir $PWD/scripts > /dev/null
+    install-clj-kondo > /dev/null
     echo "done"
   fi
 }
