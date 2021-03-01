@@ -13,7 +13,9 @@
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
             [sysrev.views.email-invite :refer [InviteEmails]]
             [sysrev.util :as util :refer [css wrap-user-event format]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]
+            [cljs-time.core :as time]
+            [cljs-time.format :as time-format]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -244,17 +246,6 @@
                           :margin-bottom "-0.6em"}}
             [chartjs/line {:data data :options options :height 275}]])]))))
 
-(defn- LabelPredictionsInfo []
-  (when (seq @(subscribe [:project/predict]))
-    (let [updated @(subscribe [:predict/update-time])
-          labeled @(subscribe [:predict/labeled-count])
-          total @(subscribe [:predict/article-count])]
-      [:div.ui.segment
-       [:h4.ui.dividing.header "Label Predictions"]
-       [:p (format "Last updated: %s" updated)]
-       [:p (format "Trained from %s labeled articles: %s article predictions loaded"
-                   labeled total)]])))
-
 (def-data :project/important-terms-text
   :loaded?  (fn [db project-id]
               (-> (get-in db [:data :project project-id])
@@ -424,49 +415,71 @@
              {:db (assoc-in db [:data :project project-id :histograms]
                             prediction-histograms)}))
 
+(defn- LabelPredictionsInfo []
+  (when (seq @(subscribe [:project/predict]))
+    (let [updated @(subscribe [:predict/update-time])
+          labeled @(subscribe [:predict/labeled-count])
+          total @(subscribe [:predict/article-count])]
+      [:div.ui.segment
+       [:h4.ui.dividing.header "Label Predictions"]
+       [:p (format "Last updated: %s" updated)]
+       [:p (format "Trained from %s labeled articles: %s article predictions loaded"
+                   labeled total)]])))
+
 (defn- PredictionHistogramChart []
   (let [font (charts/graph-font-settings)
-        prediction-histograms @(subscribe [::prediction-histograms])
-        chart-labels (->> (vals prediction-histograms)
-                          flatten (map :score) distinct sort vec)
-        histograms-data (fn [k]
-                          (let [histogram (get prediction-histograms k)
-                                score->count (zipmap (mapv :score histogram)
-                                                     (mapv :count histogram))]
-                            (mapv #(or (get score->count %) 0)
-                                  chart-labels)))
-        include-data    (histograms-data :reviewed-include-histogram)
-        exclude-data    (histograms-data :reviewed-exclude-histogram)
-        unreviewed-data (histograms-data :unreviewed-histogram)
-        datasets        (cond-> []
-                          (some pos? include-data)
-                          (conj {:label "Reviewed - Include"
-                                 :data include-data
-                                 :backgroundColor (:green colors)})
-                          (some pos? exclude-data)
-                          (conj {:label "Reviewed - Exclude"
-                                 :data exclude-data
-                                 :backgroundColor (:red colors)})
-                          (some pos? unreviewed-data)
-                          (conj {:label "Unreviewed"
-                                 :data unreviewed-data
-                                 :backgroundColor (:orange colors)}))]
-    (when (seq datasets)
-      [:div.ui.segment
-       [:h4.ui.dividing.header "Prediction Histograms"]
-       [unpad-chart [0.5 0.6]
-        [chartjs/bar
-         {:data {:labels chart-labels
-                 :datasets (->> datasets (mapv #(merge % {:borderWidth 0})))}
-          :options (charts/wrap-default-options
-                    {:scales (util/map-values
+        formatter (time-format/formatters :mysql) ;2020-08-18 20:35:33 UTC
+        updated @(subscribe [:predict/update-time])
+        update-time (time-format/parse formatter (subs updated 0 19))
+        dif-days (time/in-days (time/interval update-time (time/now)))
+        dif-hours (time/in-hours (time/interval update-time (time/now)))
+        dif-minutes (time/in-minutes (time/interval update-time (time/now)))
+        labeled @(subscribe [:predict/labeled-count])
+        total @(subscribe [:predict/article-count])
+        pred-hist-filtered (filterv (fn [e] (and
+                                              (= (:short-label e) "Include")
+                                              (= (:label-value e) "TRUE")))
+                                    @(subscribe [::prediction-histograms]))
+        pred-hist-data (mapv (fn [e] (if (nil? (:answer e)) (merge e {:answer "unreviewed"}) e)) pred-hist-filtered)
+        labels (mapv #(/ (util/round (* 1000 %)) 1000) (range 0.025 1 0.05))
+        answer-histogram (group-by :answer pred-hist-data)
+        datasets (mapv (fn [[answer bucket-counts]]
+                         (let [lbl-keys (group-by :bucket bucket-counts)]
+                           {:label (str answer)
+                            :data  (mapv (fn [lbl] (:count (first (get lbl-keys lbl)))) labels)
+                            :backgroundColor (if (= true answer) (:green colors) (if (= false answer) (:red colors) (:orange colors)))
+                            :barPercentage 0.9}))
+                       answer-histogram)
+        ]
+    [:div.ui.segment
+     [:h4.ui.dividing.header "Prediction Histograms"]
+     [:p "Prediction histograms provide an estimate of sysrev machine learning model accuracy."
+      [:a {:href "https://blog.sysrev.com/machine-learning"} " learn more"]]
+     [:p "Models are built for all binary & categorical labels. They can be used to build article filters."]
+     (cond
+       (< dif-hours 3) [:span (format "Models last updated %s minutes ago" dif-minutes)]
+       (< dif-days 2) [:span (format "Models last updated %s hours ago" dif-hours)]
+       :else [:span (format "Models last updated %s days ago" dif-days)]
+       )
+     [:br]
+     [:span (format "Models trained from %s labeled articles." labeled)]
+     [:br]
+     [:span (format "Model predictions loaded for %s articles" total)]
+     [:h52 "Predictions for Inclusion model"]
+     [unpad-chart [0.5 0.6]
+      [chartjs/bar
+       {:data {:labels labels
+               :datasets datasets}
+
+        :options (charts/wrap-default-options
+                   {:scales (util/map-values
                               #(merge % {:ticks font
                                          :scaleLabel font
                                          :gridLines {:color (charts/graph-border-color)}})
                               {:x {:stacked true}
                                :y {}})
-                     :legend {:labels font}})
-          :height (* 2 150)}]]])))
+                    :legend {:labels font}})
+        :height (* 2 150)}]]]))
 
 (defn- PredictionHistogram []
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -483,7 +496,6 @@
         [:div.column
          [ReviewStatusBox]
          [RecentProgressChart]
-         [LabelPredictionsInfo]
          [PredictionHistogram]
          [KeyTerms]]
         [:div.column

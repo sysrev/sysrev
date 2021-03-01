@@ -779,62 +779,7 @@
   (biosource-contgroup/get-label-countgroup project-id))
 
 (defn project-prediction-histogram [project-id]
-  (db/with-project-cache project-id [:prediction-histogram]
-    (let [all-score-vals (->> (range 0 1 0.02)
-                              (mapv #(util/round-to % 0.02 2 :op :floor)))
-          prediction-scores
-          (->> (article/project-prediction-scores project-id)
-               (mapv #(assoc % :rounded-score
-                             (-> (:val %) (util/round-to 0.02 2 :op :floor)))))
-          predictions-map (zipmap (mapv :article-id prediction-scores)
-                                  (mapv :rounded-score prediction-scores))
-          project-article-statuses (label/project-article-statuses project-id)
-          reviewed-articles-no-conflicts
-          (->> project-article-statuses
-               (group-by :group-status)
-               ((fn [reviewed-articles]
-                  (concat
-                   (:consistent reviewed-articles)
-                   (:single reviewed-articles)
-                   (:resolved reviewed-articles)))))
-          unreviewed-articles
-          (let [all-article-ids (set (mapv :article-id prediction-scores))
-                reviewed-article-ids (set (mapv :article-id project-article-statuses))]
-            (set/difference all-article-ids reviewed-article-ids))
-          get-rounded-score-fn (fn [article-id]
-                                 (get predictions-map article-id))
-          reviewed-articles-scores (mapv #(assoc % :rounded-score
-                                                 (get-rounded-score-fn (:article-id %)))
-                                         reviewed-articles-no-conflicts)
-          unreviewed-articles-scores (mapv #(hash-map :rounded-score
-                                                      (get-rounded-score-fn %))
-                                           unreviewed-articles)
-          histogram-fn (fn [scores]
-                         (let [score-counts (->> scores
-                                                 (group-by :rounded-score)
-                                                 (map-values count))]
-                           (->> all-score-vals
-                                (mapv (fn [score]
-                                        {:score score
-                                         :count (get score-counts score 0)}))
-                                ;; trim empty sequences at start and end
-                                (drop-while #(= 0 (:count %)))
-                                reverse
-                                (drop-while #(= 0 (:count %)))
-                                reverse
-                                vec)))]
-      (if (seq prediction-scores)
-        {:prediction-histograms {:reviewed-include-histogram
-                                 (histogram-fn (filterv #(true? (:answer %))
-                                                        reviewed-articles-scores))
-                                 :reviewed-exclude-histogram
-                                 (histogram-fn (filterv #(false? (:answer %))
-                                                        reviewed-articles-scores))
-                                 :unreviewed-histogram
-                                 (histogram-fn unreviewed-articles-scores)}}
-        {:prediction-histograms {:reviewed-include-histogram []
-                                 :reviewed-exclude-histogram []
-                                 :unreviewed-histogram []}}))))
+  {:prediction-histograms (sysrev.biosource.predict/project-prediction-histogram project-id)})
 
 (def annotations-atom (atom {}))
 

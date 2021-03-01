@@ -13,6 +13,8 @@
             [sysrev.biosource.core :refer [api-host]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.shared.labels :refer [predictable-label-types]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer [select from where join limit]]
             [sysrev.util :as util :refer [in? map-values map-kv uuid-from-string]]))
 
 (defonce predict-api (agent nil))
@@ -144,3 +146,18 @@
               (log/info "... success:" meta))))))
     (log/info "Finished updating predictions for"
               (count project-ids) "projects")))
+
+(defn project-prediction-histogram [project-id]
+  (let [predict-run-id (q/project-latest-predict-run-id (int project-id))
+    raw-predictions (->
+      (format
+        (str "SELECT l.label_id,l.short_label,al.answer, label_value, round(width_bucket(val,0,1,20)  * 0.05 - 0.025,3) as bucket, count(*)
+                      FROM label_predicts lp
+                      inner join label l on lp.label_id = l.label_id
+                      left join (SELECT * FROM article_label WHERE answer <> 'null') as al on al.article_id = lp.article_id and al.label_id = lp.label_id
+                      WHERE project_id = %s and predict_run_id = %s
+                      group by bucket, l.label_id, l.short_label, lp.label_value, al.answer;")
+        (int project-id) predict-run-id)
+      db/raw-query)]
+    (mapv (fn [raw-pred]
+            (merge raw-pred {:bucket (util/round 3 (:bucket raw-pred))})) raw-predictions)))
