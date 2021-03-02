@@ -11,13 +11,15 @@
         :width "90" :height "28"}]]
      [:div.right.menu]]]])
 
-(defn table [columns rows & {:keys [header]}]
-  [:table.ui.compact.striped.table
-   (when header [:thead [:tr [:th {:colSpan (count columns)} [:h4.ui.header header]]]])
-   [:thead [:tr (for [col columns] ^{:key col}[:th (name col)])]]
-   [:tbody (for [row rows]
-             ^{:key (cljs.core/random-uuid)}[:tr (for [col columns]
-                                                   ^{:key (cljs.core/random-uuid)}[:td (col row)])])]])
+
+#?(:cljs
+   (defn table [columns rows & {:keys [header]}]
+     [:table.ui.compact.striped.table
+      (when header [:thead [:tr [:th {:colSpan (count columns)} [:h4.ui.header header]]]])
+      [:thead [:tr (for [col columns] ^{:key col}[:th (name col)])]]
+      [:tbody (for [row rows]
+                ^{:key (cljs.core/random-uuid)}[:tr (for [col columns]
+                                                      ^{:key (cljs.core/random-uuid)}[:td (col row)])])]]))
 
 (def colors {:grey           "rgba(160, 160, 160, 0.5)"
              :turquoise      "rgba(64,  224, 208, 0.8)"

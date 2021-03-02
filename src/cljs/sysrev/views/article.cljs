@@ -17,11 +17,9 @@
             [sysrev.views.labels :refer [ArticleLabelsView]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
-            [sysrev.util :as util :refer [css filter-values nbsp]]
+            [sysrev.util :as util :refer [css filter-values nbsp format]]
             [sysrev.macros :refer-macros [with-loader]]
-            [sysrev.shared.components :as shared]
-            [sysrev.util :refer [format]]
-            [sysrev.shared.components :refer [colors]]))
+            [sysrev.shared.components :as shared :refer [colors]]))
 
 (def XMLViewerComponent (r/adapt-react-class XMLViewer))
 
