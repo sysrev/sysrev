@@ -18,7 +18,10 @@
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
             [sysrev.util :as util :refer [css filter-values nbsp]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader]]
+            [sysrev.shared.components :as shared]
+            [sysrev.util :refer [format]]
+            [sysrev.shared.components :refer [colors]]))
 
 (def XMLViewerComponent (r/adapt-react-class XMLViewer))
 
@@ -334,31 +337,36 @@
 
 (defn ArticlePredictions [article-id]
   (let [label->type #(deref (subscribe [:label/value-type "na" (:label-id %)]))
-        labels (subscribe [:project/labels-raw])
-        predictions (subscribe [:article/predictions article-id])]
-    (fn []
-      (when (seq @predictions)
-        [:table.ui.compact.celled.table
-         [:thead [:tr [:th {:colspan 3} [:h4.ui.header "Predictions"]]]]
-         [:thead [:tr [:th [:span "label"]] [:th "value"] [:th "probability"]]]
-         [:tbody
-          (doall
-            (for [label (->> @labels
-                             vals
-                             (filter #(contains? predictable-label-types (label->type %)))
-                             (filter #(:enabled %))
-                             (sort-by #(count (get-in % [:definition :all-values]))))]
-              (let [all-values (if (= (label->type label) "boolean")
-                                 ["TRUE"]
-                                 (get-in label [:definition :all-values]))]
-                (doall
-                  (for [v all-values] ^{:key v}
-                                      (let [prediction-value (get-in @predictions [(:label-id label) v])
-                                            percentage-value (-> prediction-value (* 100) js/Math.round)]
-                                        [:tr [:td (:short-label label)] [:td v]
-                                         [:td [:span.ui.text {:class [(when (<= percentage-value 25) "red")
-                                                                      (when (>= percentage-value 75) "green")]}
-                                               percentage-value]]]))))))]]))))
+        labels (->> @(subscribe [:project/labels-raw])
+                    vals
+                    (filter #(contains? predictable-label-types (label->type %)))
+                    (filter #(:enabled %))
+                    (sort-by #(count (get-in % [:definition :all-values]))))
+        predictions @(subscribe [:article/predictions article-id])
+        columns [:label :label-type :value :probability]
+        render-prob (fn [prob] (cond
+                                 (< prob 0.4) [:span {:style {:color (:red colors)}} (format "%.1f%%" (* 100 prob))]
+                                 (< prob 0.45) [:span {:style {:color (:pink colors)}} (format "%.1f%%" (* 100 prob))]
+
+                                 (> prob 0.6) [:span {:style {:color (:bright-green colors)}} (format "%.1f%%" (* 100 prob))]
+                                 (> prob 0.55) [:span {:style {:color (:green colors)}} (format "%.1f%%" (* 100 prob))]
+                                 :else [:span (format "%.1f%%" (* 100 prob))]))
+        rows (->> (mapcat
+                   (fn [label]
+                     (let [pred-values (get-in predictions [(:label-id label)])]
+                       (mapv (fn [[value pred]]
+                               [{:label (:short-label label)
+                                 :value value
+                                 :label-type (label->type label)
+                                 :probability (render-prob pred)}])
+                             pred-values)))
+                   labels)
+                 flatten
+                 (filter (fn [row] (not (and
+                                          (= "FALSE" (:value row))
+                                          (= "boolean" (:label-type row))))))
+                  vec)]
+    (shared/table columns rows :header "Predictions")))
 
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
                                         change-labels-button resolving?]
