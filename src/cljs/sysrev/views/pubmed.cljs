@@ -5,7 +5,7 @@
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :as data :refer [def-data]]
-            [sysrev.action.core :refer [def-action]]
+            [sysrev.action.core :refer [def-action run-action]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.util :as util :refer [wrap-prevent-default nbsp]]
@@ -65,14 +65,14 @@
              {:dispatch [:pubmed/save-search-term-summaries search-term page-number response]}))
 
 (def-action :project/import-articles-from-search
-  :uri (fn [] "/api/import-articles/pubmed")
+  :uri     "/api/import-articles/pubmed"
   :content (fn [project-id search-term source]
              {:project-id project-id
               :search-term search-term
               :source source})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
-               {:dispatch [:reload [:project/sources project-id]]}))
+               {:dispatch [:on-add-source project-id]}))
   :on-error (fn [{:keys [db error]} _]
               (let [{:keys [message]} error]
                 (when (string? message)
@@ -158,11 +158,12 @@
                                     @current-search-term])
         n-results (get-in search-results [:count])]
     [:div.ui.fluid.left.labeled.button.search-results
-     {:on-click
-      #(do
-         (dispatch [:action [:project/import-articles-from-search @project-id @current-search-term "PubMed"]])
-         (dispatch [:sysrev.views.panels.project.add-articles/set-show-new-source true])
-         (reset! state {}))}
+     {:on-click #(do (run-action :project/import-articles-from-search
+                                 @project-id @current-search-term "PubMed")
+                     (dispatch [(keyword 'sysrev.views.panels.project.add-articles
+                                         :add-documents-visible)
+                                false])
+                     (reset! state {}))}
      [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
      [:button.ui.blue.button

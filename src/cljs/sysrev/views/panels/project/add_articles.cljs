@@ -1,7 +1,8 @@
 (ns sysrev.views.panels.project.add-articles
   (:require [cljs-time.core :as t]
             [reagent.core :as r]
-            [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub reg-event-db trim-v]]
+            [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub
+                                   reg-event-db reg-event-fx trim-v]]
             [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :as data]
             [sysrev.state.nav :refer [project-uri]]
@@ -9,8 +10,8 @@
             [sysrev.views.ctgov :as ctgov]
             [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.panels.project.source-view :refer [EditJSONView]]
-            [sysrev.views.uppy :refer [Dashboard]]
+            [sysrev.views.panels.project.source-view :as source-view]
+            [sysrev.views.uppy :as uppy]
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
             [sysrev.util :as util :refer [css]]
@@ -57,6 +58,11 @@
              [:reload [:project project-id]]
              [:reload [:project/sources project-id]])})))
 
+(reg-event-fx :on-add-source [trim-v]
+              (fn [_ [project-id]]
+                {:dispatch-n [[::add-documents-visible false]
+                              [:poll-project-sources project-id]]}))
+
 (defn article-or-articles
   "Return either the singular or plural form of article"
   [item-count]
@@ -87,9 +93,7 @@
       " and under \"Save file as type\" select \"XML\"."]
      [ui/UploadButton
       (str "/api/import-articles/endnote-xml/" project-id)
-      (fn []
-        (dispatch [:reload [:project/sources project-id]])
-        (dispatch [::add-documents-visible false]))
+      #(dispatch [:on-add-source project-id])
       "Upload XML File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
@@ -114,35 +118,25 @@
            :target "_blank"} [Icon {:name "video camera"}]]]
      [ui/UploadButton
       (str "/api/import-articles/pmid-file/" project-id)
-      (fn []
-        (dispatch [:reload [:project/sources project-id]])
-        (dispatch [::add-documents-visible false]))
+      #(dispatch [:on-add-source project-id])
       "Upload Text File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
 
 (defn ImportPDFsView []
-  (let [project-id @(subscribe [:active-project-id])
-        csrf-token @(subscribe [:csrf-token])]
-    [:div {:style {:margin-left "auto"
-                   :margin-right "auto"
-                   :margin-top "1em"
-                   }}
-     [Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
-                 :csrf-token csrf-token
-                 :on-complete #(do (dispatch [:reload [:project project-id]])
-                                   (dispatch [:reload [:project/sources project-id]])
-                                   (dispatch [::add-documents-visible false]))
-                 :project-id project-id}]]))
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div {:style {:margin-left "auto" :margin-right "auto"
+                   :margin-top "1em"}}
+     [uppy/Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
+                      :on-complete #(dispatch [:on-add-source project-id])
+                      :project-id project-id}]]))
 
 (defn ImportPDFZipsView []
   (let [project-id @(subscribe [:active-project-id])]
     [:div
      [ui/UploadButton
       (str "/api/import-articles/pdf-zip/" project-id)
-      (fn []
-        (dispatch [:reload [:project/sources project-id]])
-        (dispatch [::add-documents-visible false]))
+      #(dispatch [:on-add-source project-id])
       "Upload Zip File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
@@ -169,9 +163,7 @@
      [:p "Having difficulties? We recommend using the free citation manager " [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] ". "]
      [ui/UploadButton
       (str "/api/import-articles/ris/" project-id)
-      (fn []
-        (dispatch [:reload [:project/sources project-id]])
-        (dispatch [::add-documents-visible false]))
+      #(dispatch [:on-add-source project-id])
       "Upload RIS file..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
@@ -291,12 +283,12 @@
 
 (defonce polling-sources? (r/atom false))
 
-(defn poll-project-sources [project-id source-id]
+(defn poll-project-sources [project-id]
   (when (not @polling-sources?)
     (reset! polling-sources? true)
     (dispatch [:fetch [:project/sources project-id]])
     (let [sources (subscribe [:project/sources])
-          first-source? (empty? (->> @sources (remove #(-> % :meta :importing-articles?))))
+          source-ids (subscribe [:project/source-ids])
           source-updating?
           (fn [source-id]
             (or (action/running? [:sources/delete project-id source-id])
@@ -304,17 +296,22 @@
                       {:keys [importing-articles? deleting?]} (:meta source)]
                   (or (and (true? importing-articles?)
                            (not (source-import-timed-out? source)))
-                      (true? deleting?)))))]
+                      (true? deleting?)))))
+          any-source-updating? #(some source-updating? @source-ids)]
       (util/continuous-update-until
        (fn [] (dispatch [:fetch [:project/sources project-id]]))
-       (fn [] (not (source-updating? source-id)))
+       (fn [] (not (any-source-updating?)))
        (fn []
          (reset! polling-sources? false)
-         (dispatch [:reload [:project project-id]])
-         (when first-source?
-           (dispatch [:data/after-load [:project project-id] :poll-source-redirect])))
+         (dispatch [:reload [:project project-id]]))
        600))
     nil))
+
+(reg-event-fx :poll-project-sources [trim-v]
+              (fn [_ [project-id]]
+                (-> #(poll-project-sources project-id)
+                    (js/setTimeout 200))
+                {}))
 
 (defn ArticleSource [_source]
   (let [editing-view? (r/atom false)]
@@ -333,7 +330,7 @@
           (dispatch [:require [:project-source/sample-article project-id source-id]]))
         (when (or (and (true? importing-articles?) (not timed-out?))
                   deleting? delete-running?)
-          (poll-project-sources project-id source-id))
+          (poll-project-sources project-id))
         [:div.project-source>div.ui.segments.project-source
          [SourceInfoView project-id source-id]
          [:div.ui.segment.source-details {:class segment-class}
@@ -369,8 +366,9 @@
              ;; when articles have been imported
              (and (false? importing-articles?) labeled-article-count article-count)
              (if @editing-view?
-               [EditJSONView {:source (subscribe [:project/sources source-id])
-                              :editing-view? editing-view?}]
+               [source-view/EditJSONView
+                {:source (subscribe [:project/sources source-id])
+                 :editing-view? editing-view?}]
                (list
                 [:div.source-description.column.left.aligned
                  {:key :reviewed-count

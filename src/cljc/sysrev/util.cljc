@@ -784,7 +784,9 @@
                        (current-function-name) (.getMessage e#) (print-cause-trace-custom e#)))))
 
 #?(:clj (defn gquery [query-form]
-          (venia/graphql-query {:venia/queries query-form})))
+          (if (string? query-form)
+            query-form ; return input value when already formatted as a query string
+            (venia/graphql-query {:venia/queries query-form}))))
 
 ;;;
 ;;; CLJS code
@@ -1159,7 +1161,7 @@
            (js/console.warn (apply format format-string args)) nil))
 
 #?(:cljs (defn ^:export add-dropzone-file-blob [to-blob base64-image]
-           (let [zone (Dropzone/forElement ".dropzone")
+           (let [zone (Dropzone/Dropzone.forElement ".dropzone")
                  blob (to-blob base64-image "image / png")]
              (.addFile zone blob))))
 

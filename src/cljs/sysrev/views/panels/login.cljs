@@ -198,55 +198,6 @@
               (fn [_ [fields]]
                 {:dispatch [:set-view-field :login [:submitted-fields] fields]}))
 
-#_
-(defn gapi [] (aget js/window "gapi"))
-
-#_
-(defn ^:export on-google-sign-in [^js google-user]
-  (let [^js profile (.getBasicProfile google-user)]
-    (js/console.log (str "ID: " (.getId profile)))
-    (js/console.log (str "Name: " (.getName profile)))
-    (js/console.log (str "Email: " (.getEmail profile)))
-    (js/console.log (str "ID Token: " (.-id_token (.getAuthResponse google-user))))
-    profile))
-
-#_
-(defn ^:export on-google-sign-in-failure [msg]
-  (js/console.log (str "Google login failed: " msg)))
-
-#_
-(defn ^:export log-out-google []
-  (when-let [^js gapi (gapi)]
-    (-> (.-auth2 gapi)
-        (.getAuthInstance)
-        (.signOut)
-        (.then #(js/console.log "Google logout successful")))))
-
-#_
-(defn ^:export render-google-sign-in []
-  (when-let [^js gapi (gapi)]
-    (js/console.log "Rendering Google signin button")
-    (some-> (.-signin2 gapi)
-            (.render "my-signin2"
-                     (clj->js
-                      {:scope "profile email"
-                       :width "200"
-                       ;; :height "40"
-                       :longtitle true
-                       ;; :theme "dark"
-                       :onsuccess on-google-sign-in
-                       :onfailure on-google-sign-in-failure})))))
-
-#_
-(defn GoogleSignInButton []
-  (r/create-class {:component-did-mount #(render-google-sign-in)
-                   :reagent-render (fn []
-                                     (if (gapi)
-                                       [:div.google-signin-wrapper
-                                        [:div#my-signin2.g-signin2
-                                         {:data-onsuccess "on-google-sign-in"}]]
-                                       [:div]))}))
-
 (defn- GoogleLogInImage [img-type]
   (let [theme (if @(subscribe [:self/dark-theme?])
                 "dark" "light")]

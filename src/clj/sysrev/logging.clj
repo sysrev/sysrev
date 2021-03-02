@@ -12,6 +12,7 @@
   [ns]
   (-> (str ns)
       (str/replace #"^sysrev\.test\.browser\." "s.t.b.")
+      (str/replace #"^sysrev\.test\.etaoin\." "s.t.et.")
       (str/replace #"^sysrev\.test\." "s.t.")
       (str/replace #"^sysrev\." "s.")))
 

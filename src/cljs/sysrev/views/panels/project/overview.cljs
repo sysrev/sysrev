@@ -153,7 +153,8 @@
               [LabelStatusHelpColumn colors]]]]])]])))
 
 (defn- MemberActivityChart []
-  (let [project-id @(subscribe [:active-project-id])
+  (let [user-id @(subscribe [:self/user-id])
+        project-id @(subscribe [:active-project-id])
         visible-user-ids (->> @(subscribe [:project/member-user-ids])
                               (sort-by #(deref (subscribe [:member/article-count %])) >))
         user-names (->> visible-user-ids
@@ -165,10 +166,9 @@
         yss [includes excludes]
         ynames ["Include" "Exclude"]
         invite-url @(subscribe [:project/invite-url])
-        invite? (and invite-url (or @(subscribe [:self/member?])
-                                    @(subscribe [:user/dev?])))
-        user-id @(subscribe [:self/user-id])
-        project-admin? @(subscribe [:project/controlled-by? project-id user-id])]
+        invite? (and invite-url
+                     (or @(subscribe [:project/controlled-by? project-id user-id])
+                         @(subscribe [:user/dev?])))]
     [:div.ui.segments
      [:div.ui.segment
       [:h4.ui.dividing.header "Member Activity"]
@@ -182,15 +182,15 @@
                       (nth visible-user-ids %))]])
       (when invite?
         (list
-         ^{:key :i1} (when project-admin? [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
-                                           "Invite others to join"])
-         ^{:key :i2} (when project-admin? [:div.ui.fluid.action.input
-                                           [:input#invite-url.ui.input {:readOnly true
-                                                                        :value invite-url}]
-                                           [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])
-         ^{:key :i3} (when project-admin? [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
-                                           "Send invitation emails"])
-         ^{:key :i4} (when project-admin? [InviteEmails])))]]))
+         ^{:key :i1} [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
+                      "Invite others to join"]
+         ^{:key :i2} [:div.ui.fluid.action.input
+                      [:input#invite-url.ui.input {:readOnly true
+                                                   :value invite-url}]
+                      [ui/ClipboardButton "#invite-url" "Copy Invite Link"]]
+         ^{:key :i3} [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
+                      "Send invitation emails"]
+         ^{:key :i4} [InviteEmails]))]]))
 
 (defn- RecentProgressChart []
   (let [project-id @(subscribe [:active-project-id])

@@ -1,27 +1,28 @@
 (ns sysrev.views.panels.password-reset
   (:require [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-event-fx trim-v]]
+             [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
             [sysrev.data.core :as data :refer [def-data]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.nav :as nav]
-            [sysrev.state.ui :refer [get-panel-field]]
-            [sysrev.util :refer [validate wrap-prevent-default css]]
+            [sysrev.state.ui :refer [get-panel-field set-panel-field]]
+            [sysrev.util :refer [validate css wrap-prevent-default
+                                 on-event-value]]
             [sysrev.macros :refer-macros [def-panel]]))
 
 (def ^:private request-panel [:request-password-reset])
 (def ^:private reset-panel [:reset-password])
 
-(reg-event-fx :reset-password/reset-code [trim-v]
-              (fn [_ [reset-code]]
-                {:dispatch [:set-panel-field [:reset-code] reset-code reset-panel]}))
+(reg-event-db :reset-password/reset-code [trim-v]
+              (fn [db [reset-code]]
+                (set-panel-field db [:reset-code] reset-code reset-panel)))
 
 (reg-sub :reset-password/reset-code
          :<- [:panel-field [:reset-code] reset-panel]
          identity)
 
-(reg-event-fx :reset-password/email [trim-v]
-              (fn [_ [email]]
-                {:dispatch [:set-panel-field [:email] email reset-panel]}))
+(reg-event-db :reset-password/email [trim-v]
+              (fn [db [email]]
+                (set-panel-field db [:email] email reset-panel)))
 
 (reg-sub :reset-password/email
          :<- [:panel-field [:email] reset-panel]
@@ -63,65 +64,65 @@
       {:dispatch-n (list [:ga-event "error" "password_reset_failure"]
                          [:reset-password/error (or message "Request failed")])})))
 
-(reg-event-fx ::request-email [trim-v]
-              (fn [_ [email]]
-                {:dispatch [:set-panel-field [:transient :email] email request-panel]}))
+(reg-event-db ::request-email [trim-v]
+              (fn [db [email]]
+                (set-panel-field db [:transient :email] email request-panel)))
 
 (reg-sub ::request-email
          :<- [:panel-field [:transient :email] request-panel]
          identity)
 
-(reg-event-fx ::request-submitted? [trim-v]
-              (fn [_ [submitted?]]
-                {:dispatch [:set-panel-field [:transient :submitted?] submitted? request-panel]}))
+(reg-event-db ::request-submitted? [trim-v]
+              (fn [db [submitted?]]
+                (set-panel-field db [:transient :submitted?] submitted? request-panel)))
 
 (reg-sub ::request-submitted?
          :<- [:panel-field [:transient :submitted?] request-panel]
          identity)
 
-(reg-event-fx :request-password-reset/sent? [trim-v]
-              (fn [_ [sent?]]
-                {:dispatch [:set-panel-field [:transient :sent?] sent? request-panel]}))
+(reg-event-db :request-password-reset/sent? [trim-v]
+              (fn [db [sent?]]
+                (set-panel-field db [:transient :sent?] sent? request-panel)))
 
 (reg-sub :request-password-reset/sent?
          :<- [:panel-field [:transient :sent?] request-panel]
          identity)
 
-(reg-event-fx :request-password-reset/error [trim-v]
-              (fn [_ [error]]
-                {:dispatch [:set-panel-field [:transient :error] error request-panel]}))
+(reg-event-db :request-password-reset/error [trim-v]
+              (fn [db [error]]
+                (set-panel-field db [:transient :error] error request-panel)))
 
 (reg-sub :request-password-reset/error
          :<- [:panel-field [:transient :error] request-panel]
          identity)
 
-(reg-event-fx ::reset-submitted? [trim-v]
-              (fn [_ [submitted?]]
-                {:dispatch [:set-panel-field [:transient :submitted?] submitted? reset-panel]}))
+(reg-event-db ::reset-submitted? [trim-v]
+              (fn [db [submitted?]]
+                (set-panel-field db [:transient :submitted?] submitted? reset-panel)))
 
 (reg-sub ::reset-submitted?
          :<- [:panel-field [:transient :submitted?] reset-panel]
          identity)
 
-(reg-event-fx :reset-password/error [trim-v]
-              (fn [_ [error]]
-                {:dispatch [:set-panel-field [:transient :error] error reset-panel]}))
+(reg-event-db :reset-password/error [trim-v]
+              (fn [db [error]]
+                (set-panel-field db [:transient :error] error reset-panel)))
 
 (reg-sub :reset-password/error
          :<- [:panel-field [:transient :error] reset-panel]
          identity)
 
-(reg-event-fx :reset-password/success? [trim-v]
-              (fn [_ [success?]]
-                {:dispatch [:set-panel-field [:transient :success?] success? reset-panel]}))
+(reg-event-db :reset-password/success? [trim-v]
+              (fn [db [success?]]
+                (set-panel-field db [:transient :success?] success? reset-panel)))
 
 (reg-sub :reset-password/success?
          :<- [:panel-field [:transient :success?] reset-panel]
          identity)
 
-(reg-event-fx ::password [trim-v]
-              (fn [_ [password]]
-                {:dispatch [:set-panel-field [:transient :password] password reset-panel]}))
+(reg-event-db ::password [trim-v]
+              (fn [db [password]]
+                (set-panel-field db [:transient :password] password reset-panel)))
 
 (reg-sub ::password
          :<- [:panel-field [:transient :password] reset-panel]
@@ -143,8 +144,7 @@
                       (when (empty? errors)
                         (run-action :auth/reset-password {:reset-code reset-code
                                                           :password password}))))
-        on-password-change #(let [val (-> % .-target .-value)]
-                              (dispatch-sync [::password val]))
+        on-password-change (on-event-value #(dispatch-sync [::password %]))
         error-class #(when (get errors %) "error")
         error-msg #(when-let [msg (get errors %)]
                      [:div.ui.warning.message msg])
@@ -194,9 +194,9 @@
                    #(do (dispatch [::request-submitted? true])
                         (when (empty? errors)
                           (dispatch [:action [:auth/request-password-reset email]]))))
-        on-email-change #(let [val (-> % .-target .-value)]
-                           (dispatch-sync [::request-email val])
-                           (dispatch-sync [:request-password-reset/error nil]))
+        on-email-change (on-event-value
+                         #(do (dispatch-sync [::request-email %])
+                              (dispatch-sync [:request-password-reset/error nil])))
         error-class #(when (get errors %) "error")
         error-msg #(when-let [msg (get errors %)]
                      [:div.ui.warning.message msg])
@@ -209,7 +209,7 @@
         [:input {:type "email"
                  :name "email"
                  :placeholder "E-mail address"
-                 :value email
+                 ;; :value email
                  :on-change on-email-change
                  :auto-focus true}]]]
       [error-msg :email]

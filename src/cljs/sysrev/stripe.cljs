@@ -132,7 +132,8 @@
     {:display-name "stripe-reagent-form"
      :render
      (fn [^js this]
-       (let [element-style {:base {:color "#424770"
+       (let [state (r/state this)
+             element-style {:base {:color "#424770"
                                    :letterSpacing "0.025em"
                                    :fontFamily "Source Code Pro, Menlo, monospace"
                                    "::placeholder" {:color "#aab7c4"}}
@@ -145,7 +146,7 @@
              errors? (fn []
                        ;; we're only putting errors in the state-atom,
                        ;; so this should be true only when there are errors
-                       (not (every? nil? (vals (r/state this)))))
+                       (not (every? nil? (vals state))))
              client-secret (subscribe [:stripe/client-secret])
              disabled? @(subscribe [::form-disabled])
              card-element (r/atom nil)]
@@ -173,22 +174,22 @@
                                :on-change element-on-change
                                :disabled disabled?
                                :onReady #(reset! card-element %)}]]
-          [:div.ui.red.header (-> (r/state this) :cardNumber :message)]
+          [:div.ui.red.header (-> state :cardNumber :message)]
           [:label "Expiration Date"
            [CardExpiryElement {:style element-style
                                :on-change element-on-change
                                :disabled disabled?}]]
-          [:div.ui.red.header (-> (r/state this) :cardExpiry :message)]
+          [:div.ui.red.header (-> state :cardExpiry :message)]
           [:label "CVC"
            [CardCVCElement {:style element-style
                             :on-change element-on-change
                             :disabled disabled?}]]
           ;; this might not ever even generate an error, included here
           ;; for consistency
-          [:div.ui.red.header (-> (r/state this) :cardCvc :message)]
-          [Button {:disabled (or disabled? (errors?))
-                   :class "use-card"
-                   :primary true}
+          [:div.ui.red.header (-> state :cardCvc :message)]
+          [Button {:class "use-card"
+                   :type :submit :primary true
+                   :disabled (or disabled? (errors?))}
            submit-button-text]
           ;; shows the errors returned from the server (our own, or stripe.com)
           (when-let [msg @(subscribe [::error-message])]

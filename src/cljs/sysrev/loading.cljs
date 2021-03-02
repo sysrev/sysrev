@@ -3,6 +3,7 @@
             [orchestra.core :refer-macros [defn-spec]]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch reg-fx]]
+            [medley.core :as medley]
             [sysrev.util :as util :refer [apply-keyargs now-ms]]))
 
 ;; for clj-kondo
@@ -31,6 +32,16 @@
         (keyword? query)     (= (first item) query)
         (fn? query)          (boolean (query item))
         (coll? query)        (some #(item-match? % item) query)))
+
+(defn- pending-requests
+  "Filters `ajax-data-counts` or `ajax-action-counts` entries to requests
+  that are currently running; returns map of {item num-pending, .. }."
+  [counts]
+  (->> (into {} (:sent counts))
+       (medley/map-kv-vals (fn [k _v]
+                             (- (get-in counts [:sent k] 0)
+                                (get-in counts [:returned k] 0))))
+       (medley/filter-vals pos?)))
 
 (defn- any-pending-impl
   "Tests for pending AJAX requests based on history from `counts`."
@@ -84,7 +95,7 @@
 (defn- reset-data-failed
   "Resets failed state for `item`."
   [item]
-  (swap! ajax-data-counts assoc-in [:failed item] false))
+  (swap! ajax-data-counts util/dissoc-in [:failed item]))
 (reg-fx :reset-data-failed reset-data-failed)
 
 ;;;
@@ -207,6 +218,13 @@
   `duration` ms (default 25) (ignores data requests)."
   [& [duration]]
   (< (ajax-action-status) (- (or duration 25))))
+
+;;; Exported for browser tests
+(defn ^:export all-pending-requests []
+  (util/write-transit-str
+   (->> {:data   (not-empty (pending-requests @ajax-data-counts))
+         :action (not-empty (pending-requests @ajax-action-counts))}
+        (medley/remove-vals empty?))))
 
 ;;;
 ;;; Events for start/completion of AJAX requests

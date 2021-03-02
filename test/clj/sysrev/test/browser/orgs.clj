@@ -237,7 +237,7 @@
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; set the project publicly viewable
     (b/click ".button.set-publicly-viewable")
-    (b/click "#confirm-cancel-form-confirm")
+    (b/click ".confirm-cancel-form-confirm")
     (log/info "set project to public access")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to Unlimited
@@ -324,7 +324,7 @@
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     ;; set the project publicly viewable
     (b/click ".button.set-publicly-viewable")
-    (b/click "#confirm-cancel-form-confirm")
+    (b/click ".confirm-cancel-form-confirm")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
     ;; renew subscription to unlimited
     (switch-to-org org-name-1 :silent true)

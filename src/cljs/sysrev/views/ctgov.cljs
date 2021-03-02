@@ -55,7 +55,7 @@
              {:search-term search-term :project-id project-id})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
-               {:dispatch [:reload [:project/sources project-id]]}))
+               {:dispatch [:on-add-source project-id]}))
   :on-error (fn [{:keys [db error]} _]
               (let [{:keys [message]} error]
                 (when (string? message)
@@ -154,11 +154,12 @@
                                     @current-search-term])
         n-results (get-in search-results [:count])]
     [:div.ui.fluid.left.labeled.button.search-results
-     {:on-click #(do
-                   (dispatch [:action [:project/import-trials-from-search
+     {:on-click #(do (dispatch [:action [:project/import-trials-from-search
                                          @project-id @current-search-term]])
-                   (dispatch [:sysrev.views.panels.project.add-articles/set-show-new-source true])
-                   (reset! state {}))}
+                     (dispatch [(keyword 'sysrev.views.panels.project.add-articles
+                                         :add-documents-visible)
+                                false])
+                     (reset! state {}))}
      [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
      [:button.ui.blue.button

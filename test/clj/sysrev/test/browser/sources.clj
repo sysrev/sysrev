@@ -4,7 +4,6 @@
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clj-webdriver.taxi :as taxi]
-            [me.raynes.fs :as fs]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
             [sysrev.source.import :as import]
@@ -110,10 +109,11 @@
       (nav/new-project "pdf-interface test")
       (import/import-pdf-zip (b/current-project-id) {:file file :filename filename}
                              {:use-future? false})
+      (Thread/sleep 500)
       (b/init-route (-> (taxi/current-url) b/url->path))
       (b/click (x/project-menu-item :articles) :delay 100)
       (b/click "a.column.article-title" :displayed? true :delay 200)
-      (b/is-soon (taxi/exists? "div.pdf-container div.page div.canvasWrapper"))
+      (b/displayed? ".pdf-view .pdf-page-container .pdf-page")
       (b/click (x/project-menu-item :articles) :delay 100)
       (b/is-soon (taxi/exists? "a.column.article-title"))))
 
@@ -146,29 +146,3 @@
           (is (b/exists? (xpath "//span[contains(text(),'" excerpt "')]")))
           (is* (= [abstract] (b/get-elements-text
                               (xpath "//span[contains(text(),'" excerpt "')]"))))))))
-
-(deftest-browser pdf-files
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [res-path "test-files/test-pdf-import"
-   files (for [f (fs/list-dir (io/resource res-path))]
-           (str res-path "/" (fs/base-name f)))]
-  (do (nav/log-in (:email test-user))
-      (nav/new-project "pdf files test")
-      (b/select-datasource "PDF files")
-      (b/wait-until-exists (xpath "//button[contains(text(),'browse files')]"))
-      (Thread/sleep 500)
-      (b/uppy-attach-files files)
-      (Thread/sleep 500)
-      (b/click (xpath "//button[contains(text(),'Upload')]") :delay 500)
-      (b/wait-until-displayed (b/not-disabled "div.delete-button"))
-      (b/wait-until-loading-completes :pre-wait 2000 :inactive-ms 2000 :loop 5
-                                      :timeout 30000 :interval 100)
-      (b/wait-until-exists (b/not-disabled (x/project-menu-item :articles))
-                           30000 100)
-      ;;(b/init-route (-> (taxi/current-url) b/url->path))
-      #_ (nav/go-project-route "/articles" :wait-ms 100)
-      (b/click (x/project-menu-item :articles) :delay 200)
-      (b/click "a.column.article-title" :displayed? true :delay 200)
-      (b/exists? "div.pdf-container div.page div.canvasWrapper")
-      (b/click (x/project-menu-item :articles) :delay 200)
-      (b/exists? "a.column.article-title")))

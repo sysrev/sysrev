@@ -25,10 +25,10 @@
 (def upgrade-plan (xpath "//h1[contains(text(),'Upgrade from Basic to Pro')]"))
 (def pricing-link (xpath "//a[@id='pricing-link']"))
 
-(defn click-use-card [& {:keys [wait delay error?]
+(defn click-use-card [& {:keys [wait delay]
                          :or {wait true delay 50 error? false}}]
   (b/wait-until-loading-completes :timeout 10000 :interval 100)
-  (b/click use-card :displayed? true :timeout 15000)
+  (b/click use-card :displayed? true :delay 200 :timeout 15000)
   (log/info "clicked \"Use Card\"")
   (b/wait-until-loading-completes :pre-wait delay))
 
@@ -193,8 +193,8 @@
           (if cc-fields
             (bstripe/enter-cc-information (merge {:cardnumber number} cc-fields))
             (bstripe/enter-cc-number number))
-          (when (b/try-wait b/wait-until #(taxi/exists? (b/not-disabled use-card)) 250 20)
-            (click-use-card :error? (boolean error)))
+          (when (b/try-wait b/wait-until #(taxi/exists? (b/not-disabled use-card)) 500 30)
+            (click-use-card))
           (when error
             (when (string? error)
               (b/is-soon (taxi/exists? (error-msg-xpath error))))

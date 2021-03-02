@@ -1,8 +1,8 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.10.1"]
+  :dependencies [[org.clojure/clojure "1.10.2"]
 
 ;;; clojure.spec
-                 [orchestra "2020.09.18-1"]
+                 [orchestra "2021.01.01-1"]
 
 ;;; Force versions of indirect dependencies
                  [com.fasterxml.jackson.core/jackson-databind "2.11.2"]

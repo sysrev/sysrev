@@ -129,7 +129,7 @@
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])
                  (contains? :sources)))
-  :uri (constantly "/api/project-sources")
+  :uri     "/api/project-sources"
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id] {:keys [sources]}]
