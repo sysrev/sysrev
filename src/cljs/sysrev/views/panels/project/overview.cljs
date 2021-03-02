@@ -15,22 +15,14 @@
             [sysrev.util :as util :refer [css wrap-user-event format]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]
             [cljs-time.core :as time]
-            [cljs-time.format :as time-format]))
+            [cljs-time.format :as time-format]
+            [sysrev.shared.components :refer [colors]]))
 
 ;; for clj-kondo
 (declare panel state)
 
 (setup-panel-state panel [:project :project :overview]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
-
-(def colors {:grey "rgba(160,160,160,0.5)"
-             :green "rgba(33,186,69,0.55)"
-             :dim-green "rgba(33,186,69,0.35)"
-             :orange "rgba(242,113,28,0.55)"
-             :dim-orange "rgba(242,113,28,0.35)"
-             :red "rgba(230,30,30,0.6)"
-             :blue "rgba(30,100,230,0.5)"
-             :purple "rgba(146,29,252,0.5)"})
 
 (defn- unpad-chart [unpad-em content]
   (let [margin-top (if (sequential? unpad-em) (first unpad-em) unpad-em)
@@ -436,7 +428,7 @@
                          (let [lbl-keys (group-by :bucket bucket-counts)]
                            {:label (str answer)
                             :data  (mapv (fn [lbl] (:count (first (get lbl-keys lbl)))) labels)
-                            :backgroundColor (if (= true answer) (:green colors) (if (= false answer) (:red colors) (:orange colors)))
+                            :backgroundColor (if (= true answer) (:green colors) (if (= false answer) (:transparent-red colors) (:orange colors)))
                             :barPercentage 0.9}))
                        answer-histogram)
         ]
