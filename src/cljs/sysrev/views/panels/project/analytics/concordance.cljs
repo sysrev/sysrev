@@ -8,7 +8,8 @@
             [sysrev.views.panels.project.analytics.common :refer [BetaMessage]]
             [sysrev.util :as util :refer [format sum round]]
             [sysrev.shared.text :as shared]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]
+            [sysrev.shared.components :refer [colors]]))
 
 ;; for clj-kondo
 (declare panel)
@@ -34,20 +35,6 @@
 (defn- get-default [db key default-val]
   (as-> (get db key) x
     (if (nil? x) default-val x)))
-
-(def colors {:grey           "rgba(160, 160, 160, 0.5)"
-             :green          "rgba(33,  186, 69,  0.55)"
-             :bright-green   "rgba(33,  186, 69,  0.9)"
-             :gold           "rgba(255, 215, 0,   1.0)"
-             :dim-green      "rgba(33,  186, 69,  0.35)"
-             :orange         "rgba(242, 113, 28,  0.55)"
-             :bright-orange  "rgba(242, 113, 28,  1.0)"
-             :dim-orange     "rgba(242, 113, 28,  0.35)"
-             :red            "rgba(255, 86,  77,  1.0)"
-             :blue           "rgba(84,  152, 169, 1.0)"
-             :purple         "rgba(146, 29,  252, 0.5)"
-             :bright-purple  "rgba(146, 29,  252, 1.0)"
-             :select-blue    "rgba(50,  150, 226, 1.0)"})
 
 ;;; STATISTICS
 (defn- measure-overall-concordance
