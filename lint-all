@@ -1,10 +1,30 @@
 #!/bin/bash
 set -eu
 
-if [ ! -e "scripts/clj-kondo" ] ; then
+# read version string from text file (git)
+version_txt () {
+  cat .clj-kondo/version.txt
+}
+
+# read version string from clj-kondo executable
+version_bin () {
+  if [ -e "scripts/clj-kondo" ] ; then
+    (./scripts/clj-kondo --version || echo) | sed 's/.*v//g'
+  fi
+}
+
+# check if ./scripts/clj-kondo exists and version matches version.txt
+clj_kondo_installed () {
+  if [ "$(version_bin)" == "$(version_txt)" ] ; then
+    echo "$(version_txt)"
+  fi
+}
+
+if [ -z "$(clj_kondo_installed)" ] ; then
   echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
   ./scripts/install-clj-kondo > /dev/null
   echo "done"
+  ./scripts/clj-kondo --version
 fi
 
 ./scripts/clj-kondo --lint src/ test/ "$@" ||
