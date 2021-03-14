@@ -14,8 +14,8 @@
             [sysrev.util :as util]
             [sysrev.macros :refer-macros [def-panel]]))
 
-(def state (r/atom {:search-results {}
-                    :search-value ""}))
+(defonce state (r/atom {:search-results {}
+                        :search-value ""}))
 
 (defn search-url
   "Create a url for search term q of optional type"
@@ -25,7 +25,7 @@
                            :p 1
                            :type type}))
 
-(defn site-search [q p]
+(defn- site-search [q p]
   (let [search-results (r/cursor state [:search-results])
         p (str p)]
     (swap! search-results assoc-in [q p] :retrieving)
@@ -68,7 +68,7 @@
                   :on-change (util/on-event-value #(reset! search-value %))
                   :value @search-value}]]]))))
 
-(defn ProjectSearchResult
+(defn- ProjectSearchResult
   [{:keys [project-id description name]}]
   (let [description-string (-> description markdown/create-markdown-html markdown/html->string)
         token-string (str/split description-string #" ")
@@ -80,7 +80,7 @@
                 " ..."))]
      [Divider]]))
 
-(defn UserSearchResult
+(defn- UserSearchResult
   [{:keys [user-id username introduction]}]
   [:div
    [Grid {:columns "equal"}
@@ -97,14 +97,14 @@
       [:p (-> introduction markdown/create-markdown-html markdown/html->string)]]]]
    [Divider]])
 
-(defn OrgSearchResult
+(defn- OrgSearchResult
   [{:keys [group-id group-name]}]
   [:div
    [:a {:href (str "/org/" group-id "/projects")}
     [:h3 group-name]
     [Divider]]])
 
-(defn SearchResults [{:keys [q p type]}]
+(defn- SearchResults [{:keys [q p type]}]
   (reset! (r/cursor state [:search-value]) q)
   (site-search q p)
   (r/create-class

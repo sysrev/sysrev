@@ -30,7 +30,6 @@ mkdir tmp
 cp -R ./out-production ./tmp/out
 cp *.js ./tmp
 cp -R ./css/ ./tmp/
-cp -R ./semantic ./tmp
 
 # favicon and image files
 cp ./favicon.ico ./tmp

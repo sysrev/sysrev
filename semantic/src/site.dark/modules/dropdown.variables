@@ -1,2 +1,0 @@
-@textColor: @invertedTextColor;
-@itemColor: @invertedTextColor;

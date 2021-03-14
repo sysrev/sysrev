@@ -1,7 +1,17 @@
 #!/bin/bash
 
+paths="src/less semantic/src"
+match_files='\(.*.less\|.*.variables\|.*.overrides\)'
+run_build='
+echo "[watch-css] building..."
+./scripts/prefix-lines ./scripts/build-all-css |
+  grep -v -Ee ".*(copied|building).*" |
+  grep -v -Ee "  >> *$" ;
+echo "[watch-css] done"
+'
+
 while true; do
-    find src/less -name \*.less | entr -r bash ./scripts/build-css
-    echo "Restarting CSS watcher..."
-    sleep 5
+  find $paths -regex "$match_files" | entr -r -s "$run_build"
+  echo "Restarting CSS watcher..."
+  sleep 5
 done

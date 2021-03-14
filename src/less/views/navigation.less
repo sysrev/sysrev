@@ -18,7 +18,7 @@
         padding-top: 2px;
         padding-bottom: 2px;
         font-size: 13px;
-        color: @text;
+        color: @textColor;
         .open-sans;
         .medium-weight;
     }
@@ -57,7 +57,7 @@
     }
 }
 
-@media only screen and (max-width: 900px) {
+@media only screen and (max-width: 991px) {
     .ui.menu.site-menu {
         .header { font-size: 18px; }
         .item { font-size: 12px; }
@@ -79,7 +79,7 @@
 
 .ui.secondary.pointing.menu.primary-menu {
     margin-left: -1px;
-    background-color: @background;
+    background-color: @background0;
 }
 
 .ui.secondary.pointing.menu.primary-menu a.item,
@@ -89,7 +89,7 @@
 }
 
 .ui.secondary.pointing.menu .item:not(.disabled) {
-    color: @mutedText;
+    color: @mutedTextColor;
 }
 
 .ui.secondary.pointing.menu .item,
@@ -110,7 +110,7 @@
 }
 
 .ui.secondary.pointing.menu.secondary-menu {
-    background-color: @background;
+    background-color: @background0;
     margin-left: -1px;
 }
 
@@ -133,7 +133,7 @@ a.disabled, a.disabled:hover {
     color: #e1e1e1;
 }
 
-@media only screen and (max-width: 900px) {
+@media only screen and (max-width: 991px) {
     .ui.menu .item,
     .ui.menu .menu .item {
         padding-left: 8px;

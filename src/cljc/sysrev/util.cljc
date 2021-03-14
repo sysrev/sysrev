@@ -811,7 +811,7 @@
            (>= (viewport-width) 992)))
 
 #?(:cljs (defn desktop-size? []
-           (>= (viewport-width) 1160)))
+           (>= (viewport-width) 1200)))
 
 #?(:cljs (defn annotator-size? []
            (>= (viewport-width) 1100)))

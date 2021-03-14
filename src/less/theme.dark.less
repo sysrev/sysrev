@@ -1,62 +1,67 @@
-@text: @lightText;
-@emphasisText: @lightestText;
-@invertedText: @darkText;
-@mutedText: @mutedLightText;
-@mutedInvertedText: @mutedDarkText;
-@fadedText: @fadedLightText;
-@fadedInvertedText: @fadedDarkText;
+@textColor                      : @lightText;
+@emphasisText                   : @lightestText;
+@invertedTextColor              : @darkText;
+@mutedTextColor                 : @mutedLightText;
+@fadedText                      : @fadedLightText;
+@fadedInvertedText              : @fadedDarkText;
 
-@grey: rgba(150, 150, 150, 0.925);
-@emphasisGrey: rgba(160, 160, 160, 0.925);
+@grey                           : rgba(150, 150, 150, 0.925);
+@emphasisGrey                   : rgba(160, 160, 160, 0.925);
 
-@blue: rgba(70, 140, 216, 1);
-@brightBlue: rgba(75, 160, 255, 1);
-@darkerBlue: darken(@blue, 5);
+@borderColor                    : rgba(70,70,70,0.85);
 
-@pageBackground : rgba(35, 36, 37, 1.0);
-@background: lighten(@pageBackground, 3);
-@menuBackground: lighten(@pageBackground, 2);
-@background1: lighten(@pageBackground, 8);
-@background2: lighten(@pageBackground, 10);
-@partialSegmentBackground: lighten(@pageBackground, 1);
-@secondarySegmentBackground: lighten(@pageBackground, 6);
-@borderColor: rgba(70,70,70,0.85);
+@notificationsCountBackground   : rgb(204, 0, 0);
+@notificationsCountColor        : rgb(255, 255, 255);
 
-@notificationsCountBackground: rgb(204, 0, 0);
-@notificationsCountColor: rgb(255, 255, 255);
+@footerBackground               : lighten(@pageBackground,3);
+@footerBorder                   : @borderColor;
 
-@footerBackground: lighten(@pageBackground,3);
-@footerBorder: @borderColor;
+// @blue                           : rgb(70, 140, 216);
+// @blue                           : rgb(83, 157, 219);
+@blue                           : rgb(75, 150, 220);
+@brightBlue                     : rgb(75, 160, 255);
+@darkerBlue                     : darken(@blue, 5);
 
-@blueBackground: fade(screen(@background, rgba(50,100,160,1.0)),20%);
-@greenBackground: fade(screen(@background, rgba(40,180,40,1.0)),20%);
-@redBackground: fade(screen(@background, rgba(140,60,60,1.0)),20%);
-@purpleBackground: fade(screen(@background, rgba(100,60,140,1.0)),20%);
-@warningBackground: @redBackground;
+@pageBackground                 : rgb(27, 29, 30);
+@background0                    : lighten(@pageBackground, 3);
+@menuBackground                 : lighten(@pageBackground, 2);
+@background1                    : lighten(@pageBackground, 8);
+@background2                    : lighten(@pageBackground, 10);
+@partialSegmentBackground       : lighten(@pageBackground, 1);
+@secondarySegmentBackground     : lighten(@pageBackground, 6);
 
-@inputBackground: rgba(245,245,245,1.0);
-@disabledInputBackground: rgba(210,210,210,1.0);
+@footerBackground               : lighten(@pageBackground,3);
+@footerBorder                   : rgba(70,70,70,0.85);
 
-@menuActiveBorder: @darkerBlue;
-@menuActiveBackground: rgba(255,255,255,0.75);
-@secondaryMenuColor: fadeout(@lightText, 10%, relative);
-@secondaryMenuActiveColor: rgba(245, 245, 245, 0.925);
+@blueBackground                 : fade(screen(@background0, rgb(50,  100, 160)), 20%);
+@greenBackground                : fade(screen(@background0, rgb(40,  180, 40)),  20%);
+@redBackground                  : fade(screen(@background0, rgb(140, 60,  60)),  20%);
+@purpleBackground               : fade(screen(@background0, rgb(100, 60,  140)), 20%);
+@warningBackground              : @redBackground;
 
-@blackButtonBackground: rgba(34, 35, 36, 1.0);
-@greyButtonBackground: rgba(130, 130, 130, 1.0);
+@inputBackground                : rgb(28, 29, 30);
+@disabledInputBackground        : rgb(50, 52, 53);
 
-@internalBorderColor: rgba(34, 36, 38, 0.1);
-@solidInternalBorderColor: rgba(130, 130, 130, 0.5);
+@menuActiveBorder               : @darkerBlue;
+@menuActiveBackground           : rgba(255,255,255,0.75);
+@secondaryMenuColor             : fadeout(@lightText, 10%, relative);
+@secondaryMenuActiveColor       : rgba(245, 245, 245, 0.925);
 
-@buttonBackground: rgb(224, 225, 226);
+@blackButtonBackground          : rgb(34, 35, 36);
+@greyButtonBackground           : rgb(130, 130, 130);
 
-@subtleButtonColor: rgba(75, 76, 77, 0.8);
-@subtleButtonHoverColor: lighten(@subtleButtonColor, 2);
+@internalBorderColor            : rgba(34, 36, 38, 0.1);
+@solidInternalBorderColor       : rgba(130, 130, 130, 0.5);
 
-@boxShadowColor: rgba(10,10,10,0.385);
+@buttonBackground               : hsla(209, 0%, 26%, 1);
 
-@landingBackground1: rgba(35, 36, 37, 1.0);
-@landingBackground2: rgba(42, 43, 44, 1.0);
+@subtleButtonColor              : rgba(75, 76, 77, 0.8);
+@subtleButtonHoverColor         : lighten(@subtleButtonColor, 2);
+
+@boxShadowColor                 : rgba(10,10,10,0.385);
+
+@landingBackground1             : rgb(35, 36, 37);
+@landingBackground2             : rgb(42, 43, 44);
 
 .ui.segment,
 .ui.segments,
@@ -65,17 +70,11 @@
     box-shadow: none !important;
 }
 
-.ui.buttons.selection {
-    .ui.active.button {
-        background-color: #a8a9aa;
-    }
-}
-
 .ui.segments > .ui.no-padding.segment > .ui.button,
 .ui.segments > .ui.no-padding.segment > .ui.buttons > .ui.button,
 .ui.attached.no-padding.segment > .ui.button,
 .ui.attached.no-padding.segment > .ui.buttons > .ui.button {
-    color: @text;
+    color: @textColor;
     background-color: @subtleButtonColor;
 }
 
@@ -104,18 +103,28 @@
 }
 
 .ui.checkbox {
+    input:hover~label:before {
+        background-color: lighten(@inputBackground, 3) !important;
+    }
+    label::before,
+    input:checked~label:before,
+    input:focus~label:before,
+    input:checked:focus~label:before,
+    input:not([type=radio]):indeterminate:focus~label:before {
+        background-color: @inputBackground !important;
+    }
     input:focus~label,
     input:hover~label,
     > label:hover,
     > label:active {
-        color: @text;
+        color: @textColor;
     }
 }
 
 .ui.label.selection-label {
     border-width: 2px;
-    background-color: @lightText;
-    color: @darkText;
+    // background-color: @lightText;
+    // color: @darkText;
 }
 
 .ui.segment > .ui.fluid.label {
@@ -132,13 +141,60 @@
     box-shadow:         0 2px 5px 0 @boxShadowColor, 0 2px 8px 0 @boxShadowColor !important;
 }
 
-.ui.button {
-    color: rgba(0,0,0,.66);
-}
-
 .ui.modal {
     > .header, > .content {
         background-color: @background2;
-        color: @text;
+        color: @textColor;
     }
+}
+
+.ui.button:active,
+.ui.dropdown.button:active {
+    color: @mutedTextColor;
+    // background: @buttonHoverBackground;
+    background: @buttonBackgroundColor;
+}
+
+.ui.button:active:hover,
+.ui.dropdown.button:active:hover {
+    color: @mutedTextColor;
+    background: @buttonHoverBackground;
+}
+
+.ui.button.active:active,
+.ui.dropdown.button.active:active,
+{
+    color: @textColor;
+    background: @buttonBackgroundColor;
+}
+
+.ui.dropdown {
+    color: @textColor;
+    .menu {
+        background: lighten( @pageBackground, 2 );
+        .item {
+            color: @textColor;
+        }
+        .item:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .selected.item {
+        }
+    }
+
+}
+
+.ui.dropdown.button.active {
+    color: @softTextColor;
+    background: @buttonSelectedBackground;
+}
+.ui.dropdown.button.active:hover {
+    color: @softTextColor;
+}
+
+.ui.grey.button:focus {
+    background-color: lighten(@greyButtonBackground, 3);
+}
+.ui.grey.button:hover {
+    background-color: lighten(@greyButtonBackground, 4);
 }

@@ -1,5 +1,5 @@
 span.annotated-text {
-    // color: @invertedText !important;
+    // color: @invertedTextColor !important;
     color: @darkText !important;
     background-color: rgba(160, 250, 150, 1.0);
 }
@@ -24,7 +24,7 @@ div.annotated-text-toplevel {
         padding: 0;
         > .ui.fluid.label {
             font-weight: normal;
-            color: @text;
+            color: @textColor;
             border-bottom-left-radius: 0;
             border-bottom-right-radius: 0;
         }
@@ -57,7 +57,7 @@ div.annotated-text-toplevel {
     }
 }
 
-@media only screen and (min-width: 1100px) and (max-width: 1439px) {
+@media only screen and (min-width: 1200px) and (max-width: 1439px) {
     #main-content.annotator {
         .ui.container {
             width: 100%;

@@ -1,2 +1,13 @@
-@basicTextColor: @siteTextColor;
-@basicBackground: inherit;
+@basicTextColor               : @textColor;
+@basicBackground              : @buttonBasicBackground;
+
+@textColor                    : @softTextColor;
+@backgroundColor              : @buttonBackgroundColor;
+
+@activeColor                  : @invertedSelectedTextColor;
+@activeBackgroundColor        : @buttonActiveBackground;
+
+@hoverBackgroundColor         : @buttonHoverBackground;
+
+@downColor                    : @invertedPressedTextColor;
+@downBackgroundColor          : @buttonDownBackground;

@@ -154,9 +154,9 @@
 (defn- ArticleAnnotatedField [article-id field-name text & {:keys [reader-error-render]}]
   (let [project-id @(subscribe [:active-project-id])
         ann-context {:class "abstract" :project-id project-id :article-id article-id}
-        annotations 
+        annotations
         (filter-annotations-by-field
-                    @(subscribe [:annotator/label-annotations ann-context])   
+                    @(subscribe [:annotator/label-annotations ann-context])
                      ;; [LEGACY ANNOTATIONS]
                      ;; #_(if (and self-id on-review?)
                      ;;   @(subscribe [:annotator/user-annotations ann-context self-id])
@@ -347,28 +347,26 @@
                     (sort-by #(count (get-in % [:definition :all-values]))))
         predictions @(subscribe [:article/predictions article-id])
         columns [:label :label-type :value :probability]
-        render-prob (fn [prob] (cond
-                                 (< prob 0.4) [:span {:style {:color (:red colors)}} (format "%.1f%%" (* 100 prob))]
-                                 (< prob 0.45) [:span {:style {:color (:pink colors)}} (format "%.1f%%" (* 100 prob))]
-
-                                 (> prob 0.6) [:span {:style {:color (:bright-green colors)}} (format "%.1f%%" (* 100 prob))]
-                                 (> prob 0.55) [:span {:style {:color (:green colors)}} (format "%.1f%%" (* 100 prob))]
-                                 :else [:span (format "%.1f%%" (* 100 prob))]))
-        rows (->> (mapcat
-                   (fn [label]
-                     (let [pred-values (get-in predictions [(:label-id label)])]
-                       (mapv (fn [[value pred]]
-                               [{:label (:short-label label)
-                                 :value value
-                                 :label-type (label->type label)
-                                 :probability (render-prob pred)}])
-                             pred-values)))
-                   labels)
-                 flatten
-                 (filter (fn [row] (not (and
-                                          (= "FALSE" (:value row))
-                                          (= "boolean" (:label-type row))))))
-                  vec)]
+        render-prob (fn [prob]
+                      (let [color (cond (< prob 0.4)   :red
+                                        (< prob 0.45)  :pink
+                                        (> prob 0.6)   :bright-green
+                                        (> prob 0.55)  :green
+                                        :else          nil)]
+                        [:span (when color {:style {:color (get colors color)}})
+                         (format "%.1f%%" (* 100 prob))]))
+        rows (->> labels
+                  (mapcat (fn [label]
+                            (let [pred-values (get-in predictions [(:label-id label)])]
+                              (mapv (fn [[value pred]]
+                                      [{:label (:short-label label)
+                                        :value value
+                                        :label-type (label->type label)
+                                        :probability (render-prob pred)}])
+                                    pred-values))))
+                  flatten
+                  (filterv (fn [row] (not (and (= "FALSE" (:value row))
+                                               (= "boolean" (:label-type row)))))))]
     (shared/table columns rows :header "Predictions")))
 
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context

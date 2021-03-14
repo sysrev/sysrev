@@ -496,7 +496,7 @@
 (defn- FilterEditNegationControl [_context _filter-idx ifilter update-filter]
   (let [[[_ {:keys [negate]}]] (vec ifilter)]
     [:div.ui.small.form>div.field.filter-negation
-     [:div.fields>div.sixteen.wide.field>div.ui.fluid.buttons
+     [:div.fields>div.sixteen.wide.field>div.ui.fluid.buttons.radio-primary
       [:button.ui.tiny.fluid.button
        {:class (css [(not negate) "primary"])
         :on-click (util/wrap-user-event (fn [] (update-filter #(dissoc % :negate))))}

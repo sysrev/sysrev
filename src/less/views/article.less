@@ -197,7 +197,7 @@ div.label-values .ui.label.labels-status {
     }
 
     > .ui.button {
-        color: @text;
+        color: @textColor;
     }
 }
 
@@ -228,12 +228,12 @@ div.label-values {
     }
 
     .ui.basic.button {
-        color: @text !important;
+        color: @textColor !important;
     }
 
     .ui.labeled.button {
         > .ui.button:hover {
-            background-color: @buttonBackground !important;
+            background-color: @buttonBackgroundColor !important;
         }
         > .ui.basic.button:hover {
             background-color: rgba(0, 0, 0, 0.0) !important;
@@ -331,7 +331,7 @@ div#article-pdfs div.ui.grid > div.row {
     }
 }
 
-@media only screen and (max-width: 900px) {
+@media only screen and (max-width: 991px) {
     .ui.label-section.grid.segment {
         padding: 0;
     }
