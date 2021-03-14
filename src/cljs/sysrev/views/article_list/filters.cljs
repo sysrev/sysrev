@@ -928,7 +928,7 @@
           [:button.ui.tiny.fluid.right.labeled.icon.button
            {:on-click (when-not defaults?
                         (util/wrap-user-event
-                         #(dispatch [:articles/load-export-settings export-type false])))
+                         #(dispatch [:article-list/load-export-settings nil export-type false])))
             :class (css [defaults? "disabled"])}
            [:i {:class (css [defaults? "circle check outline" :else "exchange"] "icon")}]
            "Set Defaults"]]]

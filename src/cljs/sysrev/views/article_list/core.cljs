@@ -1,7 +1,7 @@
 (ns sysrev.views.article-list.core
   (:require [reagent.ratom :refer [reaction]]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v reg-fx]]
             [clojure.string :as str]
             [sysrev.data.core :as data]
             [sysrev.views.article :refer [ArticleInfo ArticlePredictions]]
@@ -251,7 +251,7 @@
                                 [{:key :id :display "Article ID" :get-fn :article-id}
                                  {:key :title :display "Title" :get-fn :primary-title}
                                  (when show-notes
-                                   {:key :notes :display "Notes" :get-fn :notes})]) 
+                                   {:key :notes :display "Notes" :get-fn :notes})])
         user-columns [{:key :user :display "User" :get-fn #(deref (subscribe [:user/display %]))}]
         label-columns (map (fn [label]
                              {:key (:label-id label) :display (:short-label label)
@@ -261,7 +261,7 @@
                                           (= (label->type label) "annotation")
                                           [labels/AnnotationLabelAnswerTag {:annotation-label-id label-id
                                                                             :answer answer}]
-                                          
+
                                           (vector? answer)
                                           (str/join ", " answer)
 
@@ -276,52 +276,53 @@
       [:thead
        [:tr
         (doall
-          (for [column columns] ^{:key (:key column)}
-            [:th {:class (when (keyword? (:key column))
-                           (name (:key column)))}
-             (:display column)]))]]
+         (for [column columns] ^{:key (:key column)}
+           [:th {:class (when (keyword? (:key column))
+                          (name (:key column)))}
+            (:display column)]))]]
       [:tbody
        (doall
          (mapcat
            (fn [article]
-             (let [article-labels (remove #(contains? #{"group" "annotation"} (label->type %)) (:labels article))
+             (let [article-labels (remove #(contains? #{"group" "annotation"} (label->type %))
+                                          (:labels article))
                    answers (group-by :user-id article-labels)]
                (if (or (not show-labels) (empty? answers))
                  (list
-                   [:tr {:key (str (:article-id article))}
-                    (doall
+                  [:tr {:key (str (:article-id article))}
+                   (doall
+                    (for [column article-columns] ^{:key (:key column)}
+                      [:td {:class (name (:key column))}
+                       ((:get-fn column) article)]))
+                   (when show-labels
+                     (doall
+                      (for [column user-columns] ^{:key (:key column)}
+                        [:td])))
+                   (when show-labels
+                     (doall
+                      (for [column label-columns] ^{:key (:key column)}
+                        [:td])))])
+                 (map-indexed
+                  (fn [idx [user-id answers]]
+                    [:tr {:key (str idx "-" (:article-id article) "-" user-id)}
+                     (doall
                       (for [column article-columns] ^{:key (:key column)}
                         [:td {:class (name (:key column))}
-                         ((:get-fn column) article)]))
-                    (when show-labels
-                      (doall
-                        (for [column user-columns] ^{:key (:key column)}
-                          [:td])))
-                    (when show-labels
-                      (doall
-                        (for [column label-columns] ^{:key (:key column)}
-                          [:td])))])
-                   (map-indexed
-                     (fn [idx [user-id answers]]
-                       [:tr {:key (str idx "-" (:article-id article) "-" user-id)}
-                        (doall
-                          (for [column article-columns] ^{:key (:key column)}
-                            [:td {:class (name (:key column))}
-                             (when (zero? idx)
-                               ((:get-fn column) article))]))
-                        (doall
-                          (for [column user-columns] ^{:key (:key column)}
-                            [:td {:class (name (:key column))}
-                             ((:get-fn column) user-id)]))
-                        (doall
-                          (for [column label-columns]
-                            (let [answer (some #(when (= (:label-id %) (get-in column [:label :label-id])) %)
-                                               answers)]
-                              [:td {:key (:key column)}
-                               [:div.label-value
-                                ((:get-fn column) answer)]])))])
-                     answers))))
-           articles))]]]))
+                         (when (zero? idx)
+                           ((:get-fn column) article))]))
+                     (doall
+                      (for [column user-columns] ^{:key (:key column)}
+                        [:td {:class (name (:key column))}
+                         ((:get-fn column) user-id)]))
+                     (doall
+                      (for [column label-columns]
+                        (let [answer (some #(when (= (:label-id %) (get-in column [:label :label-id])) %)
+                                           answers)]
+                          [:td {:key (:key column)}
+                           [:div.label-value
+                            ((:get-fn column) answer)]])))])
+                  answers))))
+          articles))]]]))
 
 (defn- ArticleListContent [context options]
   (let [articles @(al/sub-articles (al/cached context))
@@ -334,8 +335,7 @@
      [ArticleListNavHeader context]
      (case (:display-mode options)
        :data [ArticleListContentDataTable context articles]
-
-       ;else
+       ;; else
        [ArticleListContentRows context articles])]))
 
 (defn- ArticleListExpandedEntry [context article]
@@ -449,3 +449,57 @@
             (subscribe [::resolving-allowed? context article-id])])
          (fn [[editing? resolving-allowed?]]
            (boolean (and editing? resolving-allowed?))))
+
+(reg-sub :article-list/context
+         :<- [:active-panel]
+         :<- [:sysrev.views.panels.project.articles/article-list-context]
+         :<- [:sysrev.views.panels.project.articles-data/article-list-context]
+         (fn [[active-panel a-context d-context] [_ panel]]
+           (case (or panel active-panel)
+             [:project :project :articles]       a-context
+             [:project :project :articles-data]  d-context
+             nil)))
+
+(defn load-settings-and-navigate
+  "Loads article list settings and navigates to the page from another panel,
+  while maintaining clean browser navigation history for Back/Forward."
+  [context {:keys [filters display sort-by sort-dir] :as settings}]
+  (let [context (or context @(subscribe [:article-list/context]))]
+    (dispatch [:article-list/load-settings context settings])
+    (dispatch [::al/navigate context :redirect? false])
+    (util/scroll-top)))
+
+(defn load-source-filters
+  "Loads settings for filtering by article source, and navigates to articles page."
+  [context & {:keys [source-ids]}]
+  (load-settings-and-navigate
+   context
+   {:filters (->> source-ids (mapv #(do {:source {:source-ids [%]}})))
+    :display {:show-inclusion true}
+    :sort-by :content-updated
+    :sort-dir :desc}))
+
+(reg-fx :article-list/load-source-filters
+        (fn [[context source-ids]] (load-source-filters context :source-ids source-ids)))
+
+(defn load-export-settings
+  "Loads default settings for file export type, then navigates to
+  articles page if navigate is true."
+  [context export-type navigate]
+  (let [context (or context @(subscribe [:article-list/context]))]
+    (dispatch [:article-list/load-settings context
+               {:filters (get f/export-type-default-filters export-type)
+                :display {:show-inclusion true, :expand-export (name export-type)}
+                :sort-by :content-updated
+                :sort-dir :desc}])
+    (when navigate
+      (dispatch [::al/navigate context :redirect? false])
+      (util/scroll-top))))
+
+(reg-fx :article-list/load-export-settings
+        (fn [[context export-type navigate]]
+          (load-export-settings context export-type navigate)))
+
+(reg-event-fx :article-list/load-export-settings [trim-v]
+              (fn [_ [context export-type navigate]]
+                {:article-list/load-export-settings [context export-type navigate]}))
