@@ -1,5 +1,5 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.10.2"]
+  :dependencies [[org.clojure/clojure "1.10.3"]
 
 ;;; clojure.spec
                  [orchestra "2021.01.01-1"]
@@ -39,7 +39,7 @@
 ;;; Postgres
                  [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.7"]
                  [org.clojure/java.jdbc "0.7.11"]
-                 [org.postgresql/postgresql "42.2.16"]
+                 [org.postgresql/postgresql "42.2.19"]
                  [joda-time "2.10.6"]
                  [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
@@ -58,7 +58,7 @@
                  [manifold "0.1.8"]
                  [aleph "0.4.6"]
                  [com.taoensso/sente "1.16.2"]
-                 [ring "1.8.1"]
+                 [ring "1.9.1"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.5.0" :exclusions [cheshire]]
@@ -69,7 +69,7 @@
 
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication
-                 [clj-http "3.10.2"]
+                 [clj-http "3.12.1"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.3"] ;; email client
                  [amazonica "0.3.152"
