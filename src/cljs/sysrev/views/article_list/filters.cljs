@@ -46,6 +46,24 @@
          (fn [self-id _]
            (filter-presets-impl self-id)))
 
+(defn filter-values-equal?
+  "Tests if two filter values are equivalent, treating missing and null
+  field values as identical."
+  [f1 f2]
+  (and (= (keys f1) (keys f2))
+       (->> (set/union (-> f1 vals first keys)
+                       (-> f2 vals first keys))
+            (every? #(= (-> f1 vals first (get %))
+                        (-> f2 vals first (get %)))))))
+
+(defn filter-sets-equal?
+  "Tests if two sets of filter values are equivalent, treating missing
+  and null field values as identical."
+  [fs1 fs2]
+  (and (= (count fs1) (count fs2))
+       (->> fs1 (every? (fn [f] (some #(filter-values-equal? % f) fs2))))
+       (->> fs2 (every? (fn [f] (some #(filter-values-equal? % f) fs1))))))
+
 (defn- reset-filters-input [db context]
   (al/set-state db context [:inputs :filters] nil))
 
@@ -131,7 +149,7 @@
                 (if editing?
                   (process-filter-input %)
                   %)))
-       (filterv (comp not nil?))))
+       (filterv some?)))
 
 (defn- sync-filters-input [db context]
   (let [filters (al/get-state db context [:filters])
@@ -292,7 +310,7 @@
         entries (cond->> (cond boolean?      [nil true false]
                                categorical?  (concat [nil] all-values)
                                :else         nil)
-                  (not include-nil?) (filterv (complement nil?)))]
+                  (not include-nil?) (filterv some?))]
     (if (empty? entries)
       [FilterDropdownPlaceholder false]
       [FilterDropdown
@@ -669,7 +687,7 @@
           (let [preset (get presets pkey)]
             [:button.ui.tiny.fluid.button
              {:class (css [(not enabled?) "disabled"
-                           (= filters (:filters preset)) "grey"])
+                           (filter-sets-equal? filters (:filters preset)) "grey"])
               :on-click (when enabled?
                           (util/wrap-user-event
                            #(dispatch-sync [:article-list/load-settings
@@ -812,23 +830,7 @@
    [:div.ui.one.column.center.aligned.grid.segment.expand-filters
     [:div.column>i.fitted.angle.double.right.icon]]])
 
-(defn filter-values-equal?
-  "Tests if two filter values are equivalent, treating missing and null
-  field values as identical."
-  [f1 f2]
-  (and (= (keys f1) (keys f2))
-       (->> (set/union (-> f1 vals first keys)
-                       (-> f2 vals first keys))
-            (every? #(= (-> f1 vals first (get %))
-                        (-> f2 vals first (get %)))))))
 
-(defn filter-sets-equal?
-  "Tests if two sets of filter values are equivalent, treating missing
-  and null field values as identical."
-  [fs1 fs2]
-  (and (= (count fs1) (count fs2))
-       (->> fs1 (every? (fn [f] (some #(filter-values-equal? % f) fs2))))
-       (->> fs2 (every? (fn [f] (some #(filter-values-equal? % f) fs1))))))
 
 (def export-type-default-filters
   {:group-answers    [{:has-label {:confirmed true}}
