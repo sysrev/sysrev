@@ -238,14 +238,16 @@
                 :reader-error-render [render-abstract article-id]]
                [render-abstract article-id])))
          ;; article links
-         [:div.ui.grid.article-links
+         [:div.ui.grid.article-links {:style {:margin "0"}}
           [:div.twelve.wide.left.aligned.middle.aligned.column
+           {:style {:margin "0" :padding "0"}}
            (when (seq urls)
              [:div.ui.content.horizontal.list
               {:style {:padding-top "0.75em"}}
               (doall (map-indexed (fn [i url] ^{:key [i]} [ui/out-link url])
                                   urls))])]
           [:div.four.wide.right.aligned.middle.aligned.column
+           {:style {:margin "0" :padding "0"}}
            [ArticleSourceLinks article-id]]]]))))
 
 (defonce checked? (r/atom false))

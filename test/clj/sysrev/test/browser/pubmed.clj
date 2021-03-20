@@ -62,7 +62,7 @@
 (defn click-pager
   "Given a nav string, click the link in the pager corresponding to that position"
   [nav]
-  (b/click (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")))
+  (b/click (xpath "//button[contains(@class,'button') and contains(text(),'" nav "')]")))
 
 (defn click-button-class [class]
   (b/click (format ".ui.button.%s" class)))
@@ -70,7 +70,7 @@
 (defn disabled-pager-link?
   "Given a nav string, check to see if that pager link is disabled"
   [nav]
-  (boolean (-> (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")
+  (boolean (-> (xpath "//button[contains(@class,'button') and contains(text(),'" nav "')]")
                (taxi/element)
                (taxi/attribute :class)
                (->> (re-matches #".*disabled.*")))))
