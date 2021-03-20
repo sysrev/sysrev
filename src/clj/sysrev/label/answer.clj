@@ -15,6 +15,9 @@
           (sequential? answer) (let [allowed (set (:all-values definition))]
                                  (when (every? #(contains? allowed %) answer)
                                    {label-id answer})))
+    "annotation"
+    (cond (nil? answer) {label-id answer}
+          (map? answer) {label-id answer})
     ;; TODO: check that answer value matches label regex
     "string"
     (when (coll? answer)

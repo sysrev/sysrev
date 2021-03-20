@@ -107,6 +107,12 @@
     [v/every #(contains? (set (:all-values definition)) %)
      :message "Inclusion values must each be present in list of categories"]]})
 
+(defn annotation-definition-validations
+  [_ _]
+  {:all-values
+   [[v/required
+     :message "Entities must be provided"] ]})
+
 (declare label-validations)
 (declare group)
 
@@ -162,6 +168,7 @@
                  "boolean" boolean-definition-validations
                  "string" string-definition-validations
                  "categorical" (categorical-definition-validations definition label-id)
+                 "annotation" (annotation-definition-validations definition label-id)
                  "group" [[#(label-validations %)]]
                  {})})
 

@@ -73,6 +73,24 @@
                   ;; In the articles list view answers keys are keywords, not UUIDs
                   (get-in answers [ith (-> label-id str keyword)])) ]])])]]])))
 
+(defn AnnotationLabelAnswerTag [{:keys [annotation-label-id answer indexed?]
+                            :or {indexed? false}}]
+  (let [label-name @(subscribe [:label/display "na" annotation-label-id])
+        entities (->> answer vals (group-by :semantic-class)
+                      (map (fn [[entity annotations]]
+                             [entity (map :value annotations)])))
+        dark-theme? @(subscribe [:self/dark-theme?])]
+    [:<>
+     (doall
+       (for [[entity values] entities]
+         [:div.ui.tiny.labeled.button.label-answer-tag {:key (str label-name "-" entity)}
+          [:div.ui.button {:class (when dark-theme? "basic")}
+           (if entity
+             (str label-name "|" entity)
+             (str label-name))]
+          [:div.ui.basic.label
+           (->> values (filter some?) (str/join ","))]]))]))
+
 (defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
   (let [all-label-ids (->> @(subscribe [:project/label-ids])
                            (filter #(contains? labels %)))
@@ -84,10 +102,18 @@
         user-name])
      (doall ;; basic labels
       (for [[label-id answer] (->> all-label-ids
-                                   (remove #(= "group" (value-type %)))
+                                   (remove #(or (= "group" (value-type %))
+                                                (= "annotation" (value-type %))))
                                    (map #(list % (get-in labels [% :answer]))))]
         (when (real-answer? answer)
           ^{:key (str label-id)} [LabelAnswerTag "na" label-id answer])))
+     (doall ;; annotation labels
+            (for [[annotation-label-id answer] (->> all-label-ids
+                                                    (filter #(= "annotation" (value-type %)))
+                                                    (map #(list % (get-in labels [% :answer]))))]
+              ^{:key (str annotation-label-id)}
+              [AnnotationLabelAnswerTag {:annotation-label-id annotation-label-id
+                                         :answer answer}]))
      (doall ;; group labels
       (for [[group-label-id answer] (->> all-label-ids
                                          (filter #(= "group" (value-type %)))
@@ -95,6 +121,7 @@
         ^{:key (str group-label-id)}
         [GroupLabelAnswerTag {:group-label-id group-label-id
                               :answers (:labels answer)}]))
+     
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])

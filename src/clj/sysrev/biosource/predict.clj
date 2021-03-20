@@ -66,6 +66,7 @@
                                                            (when (some? answer)
                                                              (let [values (case value-type
                                                                             "categorical" answer
+                                                                            "annotation" [(str answer)]
                                                                             "boolean" [(if answer "TRUE" "FALSE")]
                                                                             [])]
                                                                (map #(assoc {} "label_id" (str label-id) "value" %) values)))))))]

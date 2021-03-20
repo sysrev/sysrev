@@ -20,6 +20,8 @@
   (xpath "//button[contains(text(),'Add Categorical Label')]"))
 (def add-group-label-button
   (xpath "//button[contains(text(),'Add Group Label')]"))
+(def add-annotation-label-button
+  (xpath "//button[contains(text(),'Add Annotation Label')]"))
 
 (defn get-all-error-messages []
   (->> (taxi/find-elements (xpath "//div[contains(@class,'error')]"
@@ -124,11 +126,29 @@
         (when (not= included? (taxi/selected? inclusion-checkbox))
           (b/click inclusion-checkbox))))))
 
+(defn set-annotation-label-definition
+  [xpath {:keys [question short-label required consensus definition]
+          :or {question "" short-label "" required false}} & group?]
+  (let [{:keys [all-values]
+         :or {all-values []}} definition
+        xpath (if group?
+                (xpath "//h5[contains(@class,'value-type') and contains(text(),'Annotation Label')]")
+                xpath)
+        field-path #(field-input-xpath xpath (str "field-" %))]
+    (b/set-input-text (field-path "short-label") short-label)
+    (set-checkbox-button (field-path "required") required)
+    (set-checkbox-button (field-path "consensus") consensus)
+    (b/set-input-text (field-path "question") question)
+    (b/set-input-text (field-path "all-values") (str/join "," all-values) :delay 30)
+    (b/wait-until #(= (taxi/value (field-path "all-values"))
+                      (str/join "," all-values)))))
+
 (defn add-label-button [value-type]
   (condp = value-type
     "boolean"      add-boolean-label-button
     "string"       add-string-label-button
-    "categorical"  add-categorical-label-button))
+    "categorical"  add-categorical-label-button
+    "annotation"   add-annotation-label-button))
 
 (defn set-label-definition
   "Set definition for label using browser interface."
@@ -137,7 +157,8 @@
         set-definition (condp = value-type
                          "boolean"      set-boolean-label-definition
                          "string"       set-string-label-definition
-                         "categorical"  set-categorical-label-definition)]
+                         "categorical"  set-categorical-label-definition
+                         "annotation"   set-annotation-label-definition)]
     (b/wait-until-displayed xpath)
     (set-definition xpath label-map)))
 

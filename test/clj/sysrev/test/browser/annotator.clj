@@ -5,15 +5,16 @@
             [clojure.tools.logging :as log]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]
-            [sysrev.project.member :refer [add-project-member]]
+            ;; [sysrev.project.member :refer [add-project-member]]
             [sysrev.export.core :as export]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.review-articles :as review-articles]
-            [sysrev.test.browser.pubmed :as pm]
-            [sysrev.util :as util :refer [in? when-test css ignore-exceptions]]))
+            ;; [sysrev.test.browser.review-articles :as review-articles]
+            ;; [sysrev.test.browser.pubmed :as pm]
+            [sysrev.util :as util :refer [in? when-test css ignore-exceptions]]
+            [sysrev.test.browser.define-labels :as define]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -236,7 +237,7 @@
           (> (count elts) 1)   (log/warn "matched multiple annotation entries" q)
           :else                (b/click (css q ".ui.button.delete-annotation")))))
 
-(deftest-browser annotator-interface
+#_(deftest-browser annotator-interface
   (test/db-connected?) test-user
   [project-name "Browser Test (annotator-interface)"
    project-id (atom nil)
@@ -409,3 +410,18 @@
           (is (= 1 (count (api/project-annotations @project-id)))))))
   :cleanup (doseq [{:keys [email]} test-users]
              (b/cleanup-test-user! :email email)))
+
+(deftest-browser test-annotation-labels
+  (test/db-connected?) test-user
+  [project-name "Browser Test (annotation labels)"
+   project-id (atom nil)
+   annotation-label-definition {:value-type "annotation"
+                                :short-label "Test Label 1"
+                                :question "Is it?"
+                                :definition {:all-values ["EntityOne" "EntityTwo" "EntityThree"]}
+                                :required false}]
+  (do (nav/log-in (:email test-user))
+      (nav/new-project project-name)
+      (define/define-label annotation-label-definition))
+  :cleanup (do (nav/delete-current-project)
+               (nav/log-out)))

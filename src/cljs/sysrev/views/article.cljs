@@ -151,13 +151,14 @@
 
 (defn- ArticleAnnotatedField [article-id field-name text & {:keys [reader-error-render]}]
   (let [project-id @(subscribe [:active-project-id])
-        self-id @(subscribe [:self/user-id])
-        on-review? @(subscribe [:review/on-review-task?])
         ann-context {:class "abstract" :project-id project-id :article-id article-id}
-        annotations (filter-annotations-by-field
-                     (if (and self-id on-review?)
-                       @(subscribe [:annotator/user-annotations ann-context self-id])
-                       @(subscribe [:annotator/all-annotations ann-context true]))
+        annotations 
+        (filter-annotations-by-field
+                    @(subscribe [:annotator/label-annotations ann-context])   
+                     ;; [LEGACY ANNOTATIONS]
+                     ;; #_(if (and self-id on-review?)
+                     ;;   @(subscribe [:annotator/user-annotations ann-context self-id])
+                     ;;   @(subscribe [:annotator/all-annotations ann-context true]))
                      field-name text)]
     [annotator/AnnotationCapture ann-context field-name
      [annotation/AnnotatedText (vals annotations) text

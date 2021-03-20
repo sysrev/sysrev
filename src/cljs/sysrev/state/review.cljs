@@ -112,7 +112,11 @@
 (defn deep-merge [v & vs]
   (letfn [(rec-merge [v1 v2]
             (if (and (map? v1) (map? v2))
-              (merge-with deep-merge v1 v2)
+              (cond
+                (-> v2 meta :force-merge-override) v2
+                (-> v1 meta :force-merge-override) v1
+                :else
+                (merge-with deep-merge v1 v2))
               v2))]
     (if (some identity vs)
       (reduce #(rec-merge %1 %2) v vs)
@@ -236,6 +240,14 @@
 (reg-event-db :set-review-interface
               (fn [db [_ interface]]
                 (assoc-in db [:state :review-interface] interface)))
+
+(reg-event-fx :set-review-annotation-interface
+              (fn [{:keys [db]} [_ context annotation-data annotations]]
+                {:dispatch-n [[:set-review-interface :annotations]
+                              [:reset-annotations context annotations]]
+                 :db (assoc-in db [:state :annotation-label] annotation-data)}))
+
+(reg-sub ::review-interface-override #(get-in % [:state :review-interface]))
 
 (reg-sub ::review-interface-override #(get-in % [:state :review-interface]))
 

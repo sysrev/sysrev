@@ -124,6 +124,7 @@
            (case value-type
              "boolean" [true false]
              "categorical" (:all-values definition)
+             "annotation" (:all-values definition)
              nil)))
 
 (reg-sub :label/inclusion-values
@@ -166,6 +167,7 @@
              (case value-type
                "boolean"      (boolean? answer)
                "categorical"  (not-empty answer)
+               "annotation"   (not-empty answer)
                "string"       (not-empty (remove (comp empty? str/trim) answer))
                nil))))
 
@@ -180,6 +182,8 @@
                                 nil (boolean (in? ivals answer)))
                "categorical"  (if (or (empty? ivals) (nil? answer) (empty? answer))
                                 nil (boolean (some (in? ivals) answer)))
+               "annotation"  (if (or (empty? ivals) (nil? answer) (empty? answer))
+                               nil (boolean (some (in? ivals) answer)))
                nil))))
 
 (defn real-answer? [answer]

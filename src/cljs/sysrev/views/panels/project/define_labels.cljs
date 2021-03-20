@@ -167,6 +167,7 @@
                      "boolean"      {:inclusion-values []}
                      "string"       {:multi? false :max-length 100}
                      "categorical"  {:inclusion-values [] :multi? true}
+                     "annotation"  {}
                      {})
        :inclusion false
        :category "extra"
@@ -417,7 +418,7 @@
 ;;; type=(categorical or string)
         ;; required, boolean
         multi? (r/cursor definition [:multi?])
-;;; type=categorical
+;;; type=categorical or annotation
         ;; required, vector of strings
         all-values (r/cursor definition [:all-values])
 ;;; type=string
@@ -484,6 +485,19 @@
        [ui/TextInputField
         (make-args :all-values
                    {:default-value (str/join "," @all-values)
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! all-values nil)
+                                    (reset! all-values (str/split value #","))))}
+                   errors)])
+     (when (= @value-type "annotation")
+       ;; FIX: whitespace not trimmed from input strings;
+       ;; need to run db migration to fix all existing values
+       [ui/TextInputField
+        (make-args :all-values
+                   {:default-value (str/join "," @all-values)
+                    :label "Entities (comma-separated options)"
+                    :tooltip ["Entities to annotate."]
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! all-values nil)
@@ -702,6 +716,50 @@
                                           [:div.item {:data-value (str lval)} (str lval)])
                                         values))]]))}))
 
+(defn AnnotationLabelForm [{:keys [definition label-id required value onAdd onRemove]}]
+  (r/create-class
+   {:component-did-mount
+    (fn [c]
+      (-> ($ (dom-node c))
+          (.dropdown (clj->js {:onAdd onAdd
+                               :onRemove onRemove
+                               :onChange (fn [_] (-> ($ (dom-node c))
+                                                     (.dropdown "hide")))}))))
+    :reagent-render
+    (fn [{:keys [definition label-id required value onAdd onRemove]}]
+      (let [{:keys [all-values]} definition
+            special-value? #(in? ["none" "other"] (str/lower-case %))
+            values (if (every? string? all-values)
+                     (concat
+                      (->> all-values (filter special-value?))
+                      (->> all-values (remove special-value?)
+                           (sort #(compare (str/lower-case %1) (str/lower-case %2)))))
+                     all-values)
+            dom-id (str "label-edit-" label-id)
+            search? (or (and (util/desktop-size?) (>= (count values) 25))
+                        (>= (count values) 40))]
+        [:div.ui.fluid.multiple.selection
+         {:id dom-id
+          :class (css [search? "search"] "dropdown")
+          ;; hide dropdown on click anywhere in main dropdown box
+          :on-click (util/wrap-user-event
+                     #(let [target (-> % .-target)]
+                        (when (or (= dom-id (.-id target))
+                                  (-> ($ target) (.hasClass "default"))
+                                  (-> ($ target) (.hasClass "label")))
+                          (let [dd ($ (str "#" dom-id))]
+                            (when (.dropdown dd "is visible")
+                              (.dropdown dd "hide"))))))}
+         [:input {:type "hidden"
+                  :name (str "label-edit(" dom-id ")")
+                  :value (str/join "," @value)}]
+         [:i.dropdown.icon]
+         [:div.default.text "No answer selected"
+          (when required [:span.default.bold " (required)"])]
+         [:div.menu (doall (map-indexed (fn [i lval] ^{:key i}
+                                          [:div.item {:data-value (str lval)} (str lval)])
+                                        values))]]))}))
+
 ;; this corresponds to sysrev.views.review/label-column
 (defn Label [label]
   (let [{:keys [label-id value-type question short-label
@@ -733,6 +791,7 @@
      [:div.ui.row.label-edit-value {:class (case value-type
                                              "boolean"      "boolean"
                                              "categorical"  "category"
+                                             "annotation"   "annotation"
                                              "string"       "string"
                                              "group"        "group"
                                              nil)}
@@ -747,6 +806,13 @@
                           :label-id label-id
                           :definition definition}]
          "categorical"  [CategoricalLabelForm
+                         {:value answer
+                          :definition definition
+                          :label-id label-id
+                          :onAdd (fn [v _t] (swap! answer conj v))
+                          :onRemove
+                          (fn [v _t] (swap! answer #(into [] (remove (partial = v) %))))}]
+         "annotation"  [AnnotationLabelForm
                          {:value answer
                           :definition definition
                           :label-id label-id
@@ -980,11 +1046,13 @@
            [:div.column [AddLabelButton "boolean" add-new-label!]]
            [:div.column [AddLabelButton "categorical" add-new-label!]]
            [:div.column [AddLabelButton "string" add-new-label!]]
-           [:div.column [AddLabelButton "group" add-new-label!]]]
+           [:div.column [AddLabelButton "group" add-new-label!]]
+           [:div.column [AddLabelButton "annotation" add-new-label!]]]
           [:div.ui.three.column.stackable.grid
            [:div.column [AddLabelButton "boolean" add-new-label!]]
            [:div.column [AddLabelButton "categorical" add-new-label!]]
-           [:div.column [AddLabelButton "string" add-new-label!]]])
+           [:div.column [AddLabelButton "string" add-new-label!]]
+           [:div.column [AddLabelButton "annotation" add-new-label!]]])
         (when-not group-labels-allowed?
           [UpgradeMessage])])]))
 

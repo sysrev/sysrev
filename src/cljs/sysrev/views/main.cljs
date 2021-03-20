@@ -105,7 +105,6 @@
 
 (defn SidebarColumn []
   (let [article-id @(subscribe [:visible-article-id])
-        article-datasource @(subscribe [:article/datasource-name article-id])
         editing-id @(subscribe [:review/editing-id])
         interface @(subscribe [:review-interface])]
     (when (review/display-sidebar?)
@@ -117,14 +116,11 @@
         [:div.review-menu
          [ui/tabbed-panel-menu
           [{:tab-id :labels
-            :content "Labels"
+            :content (if (not= interface :labels)
+                       [:span [:i.arrow.left.icon] " Back to Labels"]
+                       "Labels")
             :action #(dispatch [:set-review-interface :labels])
-            :disabled (nil? editing-id)}
-           {:tab-id :annotations
-            :content "Annotations"
-            :action #(dispatch [:set-review-interface :annotations])
-            :disabled (or (= "ctgov" article-datasource)
-                          (= "entity" article-datasource))}]
+            :disabled (nil? editing-id)}]
           interface
           "review-interface"]
          (case interface

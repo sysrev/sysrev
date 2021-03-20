@@ -168,6 +168,43 @@
                                [:div.item {:data-value v} v])
                              unsel-values)]])))})))
 
+(defn AnnotationLabelInput [[root-label-id label-id ith] article-id]
+  (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)
+        article-id @(subscribe [:visible-article-id])
+        ann-context {:project-id @(subscribe [:active-project-id])
+                     :article-id article-id
+                     :class "abstract"}]
+    (when (= article-id @(subscribe [:review/editing-id]))
+      (let [required?      @(subscribe [:label/required? root-label-id label-id])
+            current-values @(subscribe [:review/active-labels
+                                        article-id root-label-id label-id ith])
+            current-values-count (count current-values)]
+        [:div {:class dom-class}
+         [:div.ui.grid
+          [:div.center.aligned.column {:on-click #(dispatch [:set-review-annotation-interface
+                                                             ann-context
+                                                             {:root-label-id root-label-id
+                                                              :label-id label-id
+                                                              :ith ith}
+                                                             current-values])}
+           [:button.ui.primary.button
+            "Annotate"]]]
+         (if (empty? current-values)
+           [:div {:style {:text-align "center"
+                          :margin "0.5rem 0"}
+                  :class  "missing-label-answer"
+                  :div (str "missing-label-answer " label-id)}
+            "No answers selected"
+            (when required?
+              " (required)")]
+
+           [:div {:style {:text-align "center"
+                          :margin "0.5rem 0"}}
+            [:span.ui.text.success
+             (if (= current-values-count 1)
+               "1 annotation set"
+               (str current-values-count " annotations set"))]])]))))
+
 (defn StringLabelInput
   [[root-label-id label-id ith] article-id]
   (let [multi? @(subscribe [:label/multi? root-label-id label-id])
@@ -398,11 +435,13 @@
       [:div.ui.row.label-edit-value {:class (condp = value-type
                                               "boolean"      "boolean"
                                               "categorical"  "category"
+                                              "annotation"   "annotation"
                                               "string"       "string"
                                               "")}
        [:div.inner (condp = value-type
                      "boolean" [BooleanLabelInput ["na" label-id "na"] article-id]
                      "categorical" [CategoricalLabelInput ["na" label-id "na"] article-id]
+                     "annotation" [AnnotationLabelInput ["na" label-id "na"] article-id]
                      "string" [StringLabelInput ["na" label-id "na"] article-id]
                      [:div "unknown label - label-column"])]]]
      (if (and (not= value-type "group")

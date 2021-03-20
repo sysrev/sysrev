@@ -21,7 +21,7 @@
 (declare user-article-confirmed?)
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
-(def valid-label-value-types  ["boolean" "categorical" "string" "group"])
+(def valid-label-value-types  ["boolean" "categorical" "string" "group" "annotation"])
 
 (defn-spec get-label (s/nilable ::sl/label)
   [label-id ::sl/label-id, & args (s/? any?)]
