@@ -407,14 +407,20 @@
              {:db (assoc-in db [:data :project project-id :histograms]
                             prediction-histograms)}))
 
+(defn PredictionHistogramLastUpdated []
+  (if-let [updated @(subscribe [:predict/update-time])]
+    (let [formatter (time-format/formatters :mysql)
+          update-time (time-format/parse formatter (subs updated 0 19))
+          dif-days (time/in-days (time/interval update-time (time/now)))
+          dif-hours (time/in-hours (time/interval update-time (time/now)))
+          dif-minutes (time/in-minutes (time/interval update-time (time/now)))]
+      (cond
+        (< dif-hours 3) [:span (format "Models last updated %s minutes ago" dif-minutes)]
+        (< dif-days 2) [:span (format "Models last updated %s hours ago" dif-hours)]
+        :else [:span (format "Models last updated %s days ago" dif-days)]))))
+
 (defn- PredictionHistogramChart []
   (let [font (charts/graph-font-settings)
-        formatter (time-format/formatters :mysql)
-        updated @(subscribe [:predict/update-time])
-        update-time (time-format/parse formatter (subs updated 0 19))
-        dif-days (time/in-days (time/interval update-time (time/now)))
-        dif-hours (time/in-hours (time/interval update-time (time/now)))
-        dif-minutes (time/in-minutes (time/interval update-time (time/now)))
         labeled @(subscribe [:predict/labeled-count])
         total @(subscribe [:predict/article-count])
         pred-hist-filtered (filterv (fn [e] (and
@@ -428,20 +434,19 @@
                          (let [lbl-keys (group-by :bucket bucket-counts)]
                            {:label (str answer)
                             :data  (mapv (fn [lbl] (:count (first (get lbl-keys lbl)))) labels)
-                            :backgroundColor (if (= true answer) (:green colors) (if (= false answer) (:transparent-red colors) (:orange colors)))
+                            :backgroundColor (if (= true answer)
+                                               (:green colors)
+                                               (if (= false answer)
+                                                 (:transparent-red colors)
+                                                 (:orange colors)))
                             :barPercentage 0.9}))
-                       answer-histogram)
-        ]
+                       answer-histogram)]
     [:div.ui.segment
      [:h4.ui.dividing.header "Prediction Histograms"]
      [:p "Prediction histograms provide an estimate of sysrev machine learning model accuracy."
       [:a {:href "https://blog.sysrev.com/machine-learning"} " learn more"]]
      [:p "Models are built for all binary & categorical labels. They can be used to build article filters."]
-     (cond
-       (< dif-hours 3) [:span (format "Models last updated %s minutes ago" dif-minutes)]
-       (< dif-days 2) [:span (format "Models last updated %s hours ago" dif-hours)]
-       :else [:span (format "Models last updated %s days ago" dif-days)]
-       )
+     [PredictionHistogramLastUpdated]
      [:br]
      [:span (format "Models trained from %s labeled articles." labeled)]
      [:br]
