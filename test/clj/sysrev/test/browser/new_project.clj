@@ -78,7 +78,7 @@
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
       (plans/click-use-card)
       (plans/click-upgrade-plan)
-      ;;;;;;; cut here
+;;;;;;; cut here
       (is (= "Unlimited_Org" (-> (orgs/user-groups (:email test-user))
                                  first
                                  :group-id
@@ -99,6 +99,5 @@
       (b/click (xpath "//button[contains(text(),'Create Project')]"))
       ;; is this project private?
       (b/exists? "i.grey.lock")
-      (b/exists? (xpath "//span[contains(text(),'Private')]"))
-      :cleanup
-      (b/cleanup-test-user! :email (:email test-user) :groups true)))
+      (b/exists? (xpath "//span[contains(text(),'Private')]")))
+  :cleanup (b/cleanup-test-user! :email (:email test-user) :groups true))
