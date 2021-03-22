@@ -408,7 +408,7 @@
                             prediction-histograms)}))
 
 (defn PredictionHistogramLastUpdated []
-  (if-let [updated @(subscribe [:predict/update-time])]
+  (when-let [updated @(subscribe [:predict/update-time])]
     (let [formatter (time-format/formatters :mysql)
           update-time (time-format/parse formatter (subs updated 0 19))
           dif-days (time/in-days (time/interval update-time (time/now)))
