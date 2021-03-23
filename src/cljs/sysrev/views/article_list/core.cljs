@@ -256,11 +256,18 @@
         label-columns (map (fn [label]
                              {:key (:label-id label) :display (:short-label label)
                               :label label
-                              :get-fn (fn [{:keys [label-id answer]}]
-                                        (if (vector? answer)
+                              :get-fn (fn [{:keys [label-id answer] :as label}]
+                                        (cond
+                                          (= (label->type label) "annotation")
+                                          [labels/AnnotationLabelAnswerTag {:annotation-label-id label-id
+                                                                            :answer answer}]
+                                          
+                                          (vector? answer)
                                           (str/join ", " answer)
+
+                                          :else
                                           (str answer)))})
-                           (remove #(= "group" (label->type %)) (vals labels)))
+                           (remove #(contains? #{"group" "annotation"} (label->type %)) (vals labels)))
         columns (concat article-columns
                         (when show-labels user-columns)
                         (when show-labels label-columns))]
@@ -277,7 +284,7 @@
        (doall
          (mapcat
            (fn [article]
-             (let [article-labels (remove #(= "group" (label->type %)) (:labels article))
+             (let [article-labels (remove #(contains? #{"group" "annotation"} (label->type %)) (:labels article))
                    answers (group-by :user-id article-labels)]
                (if (or (not show-labels) (empty? answers))
                  (list

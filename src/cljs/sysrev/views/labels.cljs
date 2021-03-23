@@ -73,8 +73,7 @@
                   ;; In the articles list view answers keys are keywords, not UUIDs
                   (get-in answers [ith (-> label-id str keyword)])) ]])])]]])))
 
-(defn AnnotationLabelAnswerTag [{:keys [annotation-label-id answer indexed?]
-                            :or {indexed? false}}]
+(defn AnnotationLabelAnswerTag [{:keys [annotation-label-id answer]}]
   (let [label-name @(subscribe [:label/display "na" annotation-label-id])
         entities (->> answer vals (group-by :semantic-class)
                       (map (fn [[entity annotations]]
