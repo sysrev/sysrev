@@ -41,9 +41,12 @@
   (b/wait-until-displayed "div.user-activity-summary")
   (let [articles-reviewed (parse-integer (taxi/text (taxi/element "h2.articles-reviewed")))
         labels-contributed (parse-integer (taxi/text (taxi/element "h2.labels-contributed")))
-        annotations-contributed (if (taxi/exists? "h2.annotations-contributed")
-                                  (parse-integer (taxi/text (taxi/element "h2.annotations-contributed")))
-                                  0)]
+        annotations-contributed 0
+
+        ;; LEGACY ANNOTATIONS
+        #_(if (taxi/exists? "h2.annotations-contributed")
+            (parse-integer (taxi/text (taxi/element "h2.annotations-contributed")))
+            0)]
     {:articles-reviewed articles-reviewed
      :labels-contributed labels-contributed
      :annotations-contributed annotations-contributed}))
@@ -150,11 +153,10 @@
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 3
                                              :labels-contributed 3
-                                             :annotations-contributed 1}))
+                                             :annotations-contributed 0}))
       ;; project activity
       (b/is-soon (= (project-activity-summary project-name-1) {:articles-reviewed 3
-                                                               :labels-contributed 3
-                                                               :annotations-contributed 1}))
+                                                               :labels-contributed 3}))
       ;; add another project
       (nav/new-project project-name-2)
       (change-project-public-access false)
@@ -181,15 +183,14 @@
       ;; total activity
       (b/is-soon (= (user-activity-summary) {:articles-reviewed 5
                                              :labels-contributed 5
-                                             :annotations-contributed 2}))
+                                             ;; LEGACY ANNOTATIONS 2
+                                             :annotations-contributed 0}))
       ;; project-1
       (b/is-soon (= (project-activity-summary project-name-1) {:articles-reviewed 3
-                                                               :labels-contributed 3
-                                                               :annotations-contributed 1}))
+                                                               :labels-contributed 3}))
       ;; project-2
       (b/is-soon (= (project-activity-summary project-name-2) {:articles-reviewed 2
-                                                               :labels-contributed 2
-                                                               :annotations-contributed 1}))
+                                                               :labels-contributed 2}))
       ;; make the first project, check that both projects show up in the correct divs
       (click-project-link project-name-1)
       (change-project-public-access true)
