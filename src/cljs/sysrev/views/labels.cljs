@@ -89,7 +89,7 @@
              (str label-name "|" entity)
              (str label-name))]
           [:div.ui.basic.label
-           (->> values (filter some?) (str/join ","))]]))]))
+           (->> values (filter some?) (str/join ", "))]]))]))
 
 (defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
   (let [all-label-ids (->> @(subscribe [:project/label-ids])

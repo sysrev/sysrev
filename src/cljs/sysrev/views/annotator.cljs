@@ -183,7 +183,7 @@
     (doall
       (map-indexed
         (fn [idx v]
-          (useHotkeys (str "ctrl+" (inc idx)) #(callback idx v)))
+          (useHotkeys (str "shift+" (inc idx)) #(callback idx v)))
         values))
     [:<>]))
 
@@ -195,7 +195,6 @@
         {:keys [editing-id]} @(subscribe [::get context])
         editing? (= ann-id editing-id)
         all-values @(subscribe [:label/all-values root-label-id label-id])
-        class-options @(subscribe [:annotator/semantic-class-options])
         on-save (fn []
                   (when (= ann-id draft-ann-id)
                     (dispatch-sync [::save-draft-ann context]))
@@ -218,8 +217,9 @@
         {:values all-values
          :callback (fn [_ v]
                      (set-ann [:semantic-class] v)
+                     (set-ann [:value] selection)
                      (when (not touchscreen?)
-                       (-> #(.focus ($ ".annotation-view.new-annotation .field.value input"))
+                       (-> #(.select ($ ".annotation-view.new-annotation .field.value input"))
                            (js/setTimeout 50))))}])
      [:form.ui.small.form.edit-annotation
       {:on-submit (util/wrap-user-event on-save :prevent-default true)}
@@ -230,9 +230,8 @@
                        (util/ellipsis-middle
                         selection 400 (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))))]]
       [:div.field.semantic-class
-       [:label "Semantic Class"]
-       (let [{:keys [new-class]} annotation
-             text-input? (or (not editing?) (empty? class-options) new-class)]
+       [:label "Entity"]
+       (let [text-input? (not editing?)]
          [:div.fields
           (if text-input?
             [ui/TextInput {:default-value (:semantic-class annotation)
@@ -388,7 +387,7 @@
      (doall
        (for [[idx v] (map-indexed vector all-values)] ^{:key idx}
          [:div.ui.secondary.basic.label {:style {:margin 5}}
-          "ctrl+" (inc idx)
+          "shift+" (inc idx)
           [:span.detail v]]))
      (doall
       (for [[annotation-id annotation] (reverse annotations)] ^{:key annotation-id}
