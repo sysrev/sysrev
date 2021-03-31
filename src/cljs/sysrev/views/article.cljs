@@ -6,6 +6,8 @@
             goog.object
             [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
+            ["react-markdown" :as ReactMarkdown]
+            ["remark-gfm" :as gfm]
             [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.data.cursors :refer [map-from-cursors]]
             [sysrev.state.nav :refer [project-uri]]
@@ -17,7 +19,7 @@
             [sysrev.views.labels :refer [ArticleLabelsView]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
-            [sysrev.util :as util :refer [css filter-values nbsp format]]
+            [sysrev.util :as util :refer [css filter-values nbsp format wrap-prevent-default]]
             [sysrev.macros :refer-macros [with-loader]]
             [sysrev.shared.components :as shared :refer [colors]]))
 
@@ -372,50 +374,78 @@
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
                                         change-labels-button resolving?]
                                  :or {show-score? true}}]
-  (let [full-size? (util/full-size?)
-        project-id @(subscribe [:active-project-id])
-        status @(subscribe [:article/review-status article-id])
-        score @(subscribe [:article/score article-id])
-        datasource-name @(subscribe [:article/datasource-name article-id])
-        ann-context {:class "abstract" :project-id project-id :article-id article-id}
-        {:keys [unlimited-reviews]} @(subscribe [:project/settings])
-        {:keys [disabled?] :as duplicates} @(subscribe [:article/duplicates article-id])]
-    [:div.article-info-top
-     (dispatch [:require (annotator/annotator-data-item ann-context)])
-     (dispatch [:require [:annotator/status project-id]])
-     (with-loader [[:article project-id article-id]]
-       {:class "ui segments article-info"}
-       (list [:div.ui.middle.aligned.header.grid.segment.article-header {:key :article-header}
-              [:div.five.wide.middle.aligned.column>h4.ui.article-info
-               {:data-article-id article-id} "Article Info"]
-              [:div.eleven.wide.column.right.aligned
-               [:a.ui.basic.label {:on-click
-                                   (fn []
-                                     (aset js/window "location" "hash" "")
-                                     (js/setTimeout #(aset js/window "location" "hash" "predictions") 0))}
-                "See Predictions"]
-               (when disabled?
-                 [:div.ui.basic.label.review-status.orange "Disabled"])
-               (when (and score show-score? (not= status :single))
-                 [ArticleScoreLabel score])
-               (when-not (and (= context :review) (true? unlimited-reviews))
-                 [ReviewStatusLabel (if private-view? :user status)])]]
+  (let [active-tab (r/atom :article)
+        tabs [{:id :article :display "Article"}
+              {:id :helper-text :display "Helper text"}]]
+    (fn [article-id & {:keys [show-labels? private-view? show-score? context
+                                        change-labels-button resolving?]
+                                 :or {show-score? true}}]
+      (let [full-size? (util/full-size?)
+            project-id @(subscribe [:active-project-id])
+            status @(subscribe [:article/review-status article-id])
+            score @(subscribe [:article/score article-id])
+            datasource-name @(subscribe [:article/datasource-name article-id])
+            helper-text @(subscribe [:article/helper-text article-id])
+            ann-context {:class "abstract" :project-id project-id :article-id article-id}
+            {:keys [unlimited-reviews]} @(subscribe [:project/settings])
+            {:keys [disabled?] :as duplicates} @(subscribe [:article/duplicates article-id])]
+        [:<>
+         [:div.ui.top.attached.tabular.menu
+          (doall
+            (for [tab tabs] ^{:id (:id tab)}
+              [:a.item {:class (when (= (:id tab) @active-tab) "active")
+                          :href "#"
+                          :on-click (wrap-prevent-default #(reset! active-tab (:id tab)))}
+               (:display tab)]))]
+         [:div.ui.bottom.attached.active.tab.segment
+          (case @active-tab
+            :article 
+            [:div.article-info-top
+             (dispatch [:require (annotator/annotator-data-item ann-context)])
+             (dispatch [:require [:annotator/status project-id]])
+             (with-loader [[:article project-id article-id]]
+               {:class "ui segments article-info"}
+               (list [:div.ui.middle.aligned.header.grid.segment.article-header {:key :article-header}
+                      [:div.five.wide.middle.aligned.column>h4.ui.article-info
+                       {:data-article-id article-id} "Article Info"]
+                      [:div.eleven.wide.column.right.aligned
+                       [:a.ui.basic.label {:on-click
+                                           (fn []
+                                             (aset js/window "location" "hash" "")
+                                             (js/setTimeout #(aset js/window "location" "hash" "predictions") 0))}
+                        "See Predictions"]
+                       (when disabled?
+                         [:div.ui.basic.label.review-status.orange "Disabled"])
+                       (when (and score show-score? (not= status :single))
+                         [ArticleScoreLabel score])
+                       (when-not (and (= context :review) (true? unlimited-reviews))
+                         [ReviewStatusLabel (if private-view? :user status)])]]
 
-             (when duplicates ^{:key :duplicates}
-               [ArticleDuplicatesSegment article-id])
+                     (when duplicates ^{:key :duplicates}
+                       [ArticleDuplicatesSegment article-id])
 
-             (when-not full-size? ^{:key :article-flags}
-               [ArticleFlagsView article-id "ui segment"])
+                     (when-not full-size? ^{:key :article-flags}
+                       [ArticleFlagsView article-id "ui segment"])
 
-             [:div.ui.segment.article-content {:key :article-content}
-              ;; if adding new datasource, be sure to disable annotator
-              ;; in sysrev.views.main/SidebarColumn
-              (condp = datasource-name
-                "ctgov"  [CTDocument article-id]
-                "entity" [Entity article-id]
-                [ArticleInfoMain article-id :context context])]
-             (when-not (= datasource-name "entity")
-               ^{:key :article-pdfs} [pdf/ArticlePdfListFull article-id])))
-     (when change-labels-button [change-labels-button])
-     (when show-labels? [ArticleLabelsView article-id
-                         :self-only? private-view? :resolving? resolving?])]))
+                     [:div.ui.segment.article-content {:key :article-content}
+                      ;; if adding new datasource, be sure to disable annotator
+                      ;; in sysrev.views.main/SidebarColumn
+                      (condp = datasource-name
+                        "ctgov"  [CTDocument article-id]
+                        "entity" [Entity article-id]
+                        [ArticleInfoMain article-id :context context])]
+                     (when-not (= datasource-name "entity")
+                       ^{:key :article-pdfs} [pdf/ArticlePdfListFull article-id])))
+             (when helper-text
+               [:div
+                [:h3 "Help info"]
+                [:> ReactMarkdown {:plugins [gfm] :children helper-text}]])
+             (when change-labels-button [change-labels-button])
+             (when show-labels? [ArticleLabelsView article-id
+                                 :self-only? private-view? :resolving? resolving?])]
+
+            :helper-text
+            [:div
+             ]
+            
+            :else [:div])]]))))

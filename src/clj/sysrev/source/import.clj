@@ -4,6 +4,7 @@
             sysrev.source.pmid
             sysrev.source.endnote
             sysrev.source.pdf-zip
+            sysrev.source.json
             sysrev.source.pdfs
             sysrev.source.extra
             sysrev.source.ris
@@ -38,6 +39,10 @@
 (defn import-pdf-zip
   [project-id {:keys [file filename] :as input} & [{:as options}]]
   (import-source :pdf-zip project-id input options))
+
+(defn import-json
+  [project-id {:keys [file filename] :as input} & [{:as options}]]
+  (import-source :json project-id input options))
 
 ;; be sure to add entry above to require in sysrev.source
 ;; if new data type, add to

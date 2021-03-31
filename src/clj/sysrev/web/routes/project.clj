@@ -410,6 +410,12 @@
                   {:keys [tempfile filename]} (get-in request [:params :file])]
               (api/import-articles-from-pdf-zip-file project-id tempfile filename)))))
 
+(dr (POST "/api/import-articles/json/:project-id" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  {:keys [tempfile filename]} (get-in request [:params :file])]
+              (api/import-articles-from-json-file project-id tempfile filename)))))
+
 (dr (POST "/api/import-articles/pdfs/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)]

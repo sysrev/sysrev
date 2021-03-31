@@ -142,6 +142,17 @@
         (any-source-processing?) (str " disabled"))
       {} :post-error-text "Try editing your file to fit the upload instructions above or contact us at info@insilica.co with a copy of your zip file."]]))
 
+(defn ImportJSONView []
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div
+     [ui/UploadButton
+      (str "/api/import-articles/json/" project-id)
+      #(dispatch [:on-add-source project-id])
+      "Upload JSON File..."
+      (cond-> "fluid"
+        (any-source-processing?) (str " disabled"))
+      {} :post-error-text "Try editing your file to fit the upload instructions above or contact us at info@insilica.co with a copy of your JSON file."]]))
+
 (defn ImportRISView []
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui
@@ -500,6 +511,9 @@
                            {:value :ctgov
                             :text "ClinicalTrials (beta)"
                             :name "hospital outline"}
+                           {:value :json
+                            :text "JSON file"
+                            :name "file json outline"}
                            {:value :custom
                             :text "Custom Datasource"
                             :name "database"}]]
@@ -509,6 +523,7 @@
           :pmid      [:div [:h3 "2. Upload a file with pubmed ids (one per line)"] [ImportPMIDsView]]
           :endnote   [:div [:h3 "2. Upload an Endnote XML file export"] [ImportEndNoteView]]
           :pdfs      [:div [:h3 "2. Import PDF files"] [ImportPDFsView]]
+          :json      [:div [:h3 "2. JSON file"] [ImportJSONView]]
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs. An article entry will be created for each PDF."]
                       [ImportPDFZipsView]]
           :ris-file  [ImportRISView]

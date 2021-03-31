@@ -26,6 +26,7 @@
         sysrev.source.core
         sysrev.source.endnote
         sysrev.source.pdf-zip
+        sysrev.source.json
         sysrev.source.ris
         sysrev.source.import
         sysrev.payment.paypal
