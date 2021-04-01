@@ -1235,4 +1235,11 @@
         fns))
     items))
 
-
+(defn should-robot-index? [uri]
+  (boolean
+    (or
+      (= uri "/")
+      (= uri "/pricing")
+      (= uri "/terms-of-use")
+      (re-matches #"/p/\d+$" uri)
+      (re-matches #"/u/\d+/p/\d+$" uri))))

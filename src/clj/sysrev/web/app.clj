@@ -93,6 +93,13 @@
     (fn [request]
       (handler request))))
 
+(defn wrap-robot-noindex [handler]
+  (fn [request]
+      (let [resp (handler request)
+            headers (:headers resp)]
+        (assoc resp :headers 
+               (assoc headers "X-Robots-Tag" "noindex, nofollow")))))
+
 (defn- merge-default-success-true
   "If response result is a map and has keyword key values, merge in
   default {:success true} entry."

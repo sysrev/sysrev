@@ -65,6 +65,8 @@
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
     [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
+    (when-not (util/should-robot-index? (:uri request))
+      [:meta {:name "robots" :content "noindex,nofollow"}])
     #_ [:meta {:name "google-signin-scope" :content "profile email"}]
     #_ [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
     #_ [:script {:src "https://apis.google.com/js/platform.js"

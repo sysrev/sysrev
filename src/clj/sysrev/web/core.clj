@@ -75,6 +75,7 @@
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery true}))
       (wrap-transit-body {:opts {}})
+      app/wrap-robot-noindex
       (app/wrap-log-request)))
 
 (defn wrap-force-json-request
