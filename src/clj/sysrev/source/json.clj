@@ -15,13 +15,14 @@
 (defmethod make-source-meta :json [_ {:keys [filename]}]
   {:source "JSON file" :filename filename})
 
-(defn get-helper-text [article]
-  (str
-    "| Name | Value | \n"
-    "| --- | --- | \n"
-    "| lvl1 | " (:lvl1 article) " | \n"
-    "| lvl2 | " (:lvl2 article) " | \n"
-    "| lvl3 | " (:lvl3 article) " | \n"))
+(defn get-helper-text [{:keys [lvl1 lvl2 lvl3]}]
+  (when (or (lvl1 lvl2 lvl3))
+    (str
+      "| Name | Value | \n"
+      "| --- | --- | \n"
+      "| lvl1 | " (:lvl1 article) " | \n"
+      "| lvl2 | " (:lvl2 article) " | \n"
+      "| lvl3 | " (:lvl3 article) " | \n")))
 
 (defmethod import-source :json
   [_ project-id {:keys [file filename]} {:as options}]
@@ -35,7 +36,6 @@
                           (map (fn [article]
                                  [(:ID article) article]))
                           (into {})) 
-            _ (println (take 1 articles))
             source-meta (make-source-meta :json {:filename filename})
             impl {:types {:article-type "file" :article-subtype "json"}
                   :get-article-refs #(->> articles vals (map :ID))
@@ -43,8 +43,9 @@
                   ;; :on-article-added #(article-file/save-article-pdf
                   ;;                     (-> (select-keys % [:article-id :filename])
                   ;;                         (assoc :file-bytes (:file-byte-array %))))
-                  :prepare-article #(-> (select-keys % [:Name])
-                                        (set/rename-keys {:Name :primary-title})
+                  :prepare-article #(-> (select-keys % [:title :description])
+                                        (set/rename-keys {:title :primary-title
+                                                          :description :abstract})
                                         (assoc :helper-text (get-helper-text %)))}]
         (import-source-impl project-id source-meta impl options
                             :filename filename :file file)))))

@@ -145,6 +145,9 @@
 (defn ImportJSONView []
   (let [project-id @(subscribe [:active-project-id])]
     [:div
+     [:p "Please upload a JSON file with the following schema:"
+      [:div
+       [:code "{ \"articles\": [ {\"title\": \"...\", \"description\": \"...\"}, ... ] }"]]]
      [ui/UploadButton
       (str "/api/import-articles/json/" project-id)
       #(dispatch [:on-add-source project-id])
