@@ -5,7 +5,8 @@
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config :refer [env]]
-            [sysrev.web.routes.site :as site])
+            [sysrev.web.routes.site :as site]
+            [sysrev.annotations :as annotations])
   (:import [java.net BindException]))
 
 (defn start-db [& [postgres-overrides only-if-new]]
@@ -26,4 +27,5 @@
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
   (start-db postgres-overrides only-if-new)
   (start-web server-port-override only-if-new)
+  (annotations/migrate-old-annotations)
   true)

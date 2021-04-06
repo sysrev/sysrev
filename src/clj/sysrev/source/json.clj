@@ -1,12 +1,9 @@
 (ns sysrev.source.json
-  (:require [sysrev.config :as config]
-            [sysrev.formats.json :as json]
-            [sysrev.source.core :as source :refer [make-source-meta]]
+  (:require [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
-            [sysrev.datasource.api :as ds-api]
             [clojure.tools.logging :as log]
             [clojure.set :as set]
-            [sysrev.util :as util :refer [parse-integer]]))
+            [sysrev.util :as util]))
 
 (defn- lookup-filename-sources [project-id filename]
   (->> (source/project-sources project-id)
@@ -16,13 +13,13 @@
   {:source "JSON file" :filename filename})
 
 (defn get-helper-text [{:keys [lvl1 lvl2 lvl3]}]
-  (when (or (lvl1 lvl2 lvl3))
+  (when (or lvl1 lvl2 lvl3)
     (str
       "| Name | Value | \n"
       "| --- | --- | \n"
-      "| lvl1 | " (:lvl1 article) " | \n"
-      "| lvl2 | " (:lvl2 article) " | \n"
-      "| lvl3 | " (:lvl3 article) " | \n")))
+      "| lvl1 | " lvl1 " | \n"
+      "| lvl2 | " lvl2 " | \n"
+      "| lvl3 | " lvl3 " | \n")))
 
 (defmethod import-source :json
   [_ project-id {:keys [file filename]} {:as options}]
