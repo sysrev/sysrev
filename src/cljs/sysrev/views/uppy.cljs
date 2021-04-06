@@ -54,7 +54,7 @@
                                                   [:headers "uppy-grouping-uuid"] (uuidv4))}))
             50)))))
 
-(defn Dashboard [{:keys [endpoint on-complete]}]
+(defn Dashboard [{:keys [endpoint on-complete allowed-file-types] :or {allowed-file-types ["application/pdf"]}}]
   (let [uppy (r/atom nil)
         csrf-token (subscribe [:csrf-token])]
     (r/create-class
@@ -63,7 +63,7 @@
         (reset! uppy (Uppy.))
         (uppy-setup {:uppy-atom uppy
                      :uppy-options {:restrictions
-                                    {:allowedFileTypes ["application/pdf"]}}
+                                    {:allowedFileTypes allowed-file-types}}
                      :xhr-options
                      {:endpoint endpoint
                       :bundle true

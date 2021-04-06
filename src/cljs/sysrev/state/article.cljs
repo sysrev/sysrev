@@ -120,6 +120,10 @@
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:predictions article)))
 
+(reg-sub :article/helper-text
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:helper-text article)))
+
 (defn- article-location-urls [locations]
   (->> (for [source [:pubmed :doi :pii :nct]]
          (let [entries (get locations (name source))]

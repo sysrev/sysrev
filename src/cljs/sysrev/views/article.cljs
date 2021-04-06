@@ -6,6 +6,8 @@
             goog.object
             [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
+            ["react-markdown" :as ReactMarkdown]
+            ["remark-gfm" :as gfm]
             [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.data.cursors :refer [map-from-cursors]]
             [sysrev.state.nav :refer [project-uri]]
@@ -377,6 +379,7 @@
         status @(subscribe [:article/review-status article-id])
         score @(subscribe [:article/score article-id])
         datasource-name @(subscribe [:article/datasource-name article-id])
+        helper-text @(subscribe [:article/helper-text article-id])
         ann-context {:class "abstract" :project-id project-id :article-id article-id}
         {:keys [unlimited-reviews]} @(subscribe [:project/settings])
         {:keys [disabled?] :as duplicates} @(subscribe [:article/duplicates article-id])]
@@ -416,6 +419,10 @@
                 [ArticleInfoMain article-id :context context])]
              (when-not (= datasource-name "entity")
                ^{:key :article-pdfs} [pdf/ArticlePdfListFull article-id])))
+     (when helper-text
+       [:div
+        [:h3 "Help info"]
+        [:> ReactMarkdown {:plugins [gfm] :children helper-text}]])
      (when change-labels-button [change-labels-button])
      (when show-labels? [ArticleLabelsView article-id
                          :self-only? private-view? :resolving? resolving?])]))
