@@ -28,6 +28,8 @@
 (extend-protocol j/ISQLParameter
   java.lang.Number
   (set-parameter [num ^java.sql.PreparedStatement s ^long i]
+    (.setObject s i num)
+    #_
     (let [_conn (.getConnection s)
           meta (.getParameterMetaData s)
           _type-name (.getParameterTypeName meta i)]

@@ -4,7 +4,6 @@
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :as project]
-            [honeysql.helpers :as sqlh]
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [clojure.tools.logging :as log]
@@ -94,14 +93,26 @@
 (defn find-project-ids-with-annotations
   "Retrieve all project IDs that have annotations"
   []
-  (let [res (-> (sqlh/select :article.project-id)
-                (sqlh/modifiers :distinct)
-                (sqlh/from [:annotation :ann])
-                (sqlh/join :article [:= :ann.article-id :article.article-id])
-                db/do-query)]
-    (map :project-id res)))
+  (q/find :annotation {} [[:%distinct.article.project-id :project-id]]
+          :join [:article :annotation.article-id]))
 
-(defn migrate-old-annotations []
+(defn delete-invalid-annotations
+  "Migration function to ensure all annotation entries are
+  valid. Deletes entries that have no linked :ann-user entry."
+  []
+  (db/with-transaction
+    (when-let [invalid-ids (seq (q/find [:annotation :ann] {} :annotation-id
+                                        :where (q/not-exists :ann-user {:ann-user.annotation-id
+                                                                        :ann.annotation-id})))]
+      (assert (<= (count invalid-ids) 10)
+              "found too many invalid annotation entries")
+      (log/infof "deleting %d annotations with missing ann_user entry" (count invalid-ids))
+      (q/delete :annotation {:annotation-id invalid-ids}))))
+
+(defn migrate-old-annotations
+  "Migration function to ensure existence of annotation :label entries, copying from
+  legacy :annotation table."
+  []
   (db/with-transaction
     (let [project-ids (find-project-ids-with-annotations)
           general-annotation-name "Annotations"]

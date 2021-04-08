@@ -11,7 +11,7 @@
             [sysrev.payment.stripe :as stripe]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.file.document :refer [migrate-filestore-table]]
-            [sysrev.annotations :refer [migrate-old-annotations]]
+            [sysrev.annotations :refer [delete-invalid-annotations migrate-old-annotations]]
             [sysrev.util :as util]))
 
 (defn update-stripe-plans-table
@@ -72,6 +72,7 @@
                       #'ensure-groups
                       #'migrate-all-project-article-resolve
                       #'migrate-filestore-table
+                      #'delete-invalid-annotations
                       #'migrate-old-annotations]]
     (log/info "Running " (str migrate-fn))
     (time (try ((var-get migrate-fn))
