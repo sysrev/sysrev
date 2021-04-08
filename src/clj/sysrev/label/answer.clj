@@ -78,7 +78,8 @@
   (assert (integer? article-id))
   (assert (map? label-values))
   (with-transaction
-    (let [project-id (q/get-article article-id :project-id, :with [])
+    (let [project-id (q/get-article article-id :project-id
+                                    :with [], :include-disabled true)
           project-labels (project/project-labels project-id)
           valid-values (filter-valid-label-values project-labels label-values)
           now (db/sql-now)
