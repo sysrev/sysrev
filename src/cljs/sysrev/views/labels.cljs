@@ -9,7 +9,7 @@
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody
                                            TableCell Icon Button]]
             [sysrev.state.label :refer [real-answer?]]
-            [sysrev.util :as util :refer [in? css time-from-epoch nbsp parse-integer]]
+            [sysrev.util :as util :refer [in? css time-from-epoch parse-integer]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ValueDisplay [root-label-id label-id answer]
@@ -241,20 +241,4 @@
                   [ArticleLabelValuesView article-id user-id]]
                  (let [note-content @(subscribe [:article/notes article-id user-id "default"])]
                    (when (and (string? note-content) (not-empty (str/trim note-content)))
-                     [:div.notes [note-content-label "default" note-content]]))]]
-               (when (and @(subscribe [:have? ann-data-item])
-                          @(subscribe [:have? ann-status-item]))
-                 (when-let [entries (user-annotations user-id)]
-                   (doall
-                    (for [{:keys [annotation-id selection semantic-class annotation]} entries]
-                      [:div.ui.form.segment.user-annotation {:key [:annotation annotation-id]}
-                       [:div.field>div.three.fields
-                        [:div.field [:label "Selection"]
-                         [:div.ui.fluid.basic.label
-                          (or (some-> selection str pr-str) nbsp)]]
-                        [:div.field [:label "Semantic Class"]
-                         [:div.ui.fluid.basic.label
-                          (or (some-> semantic-class str not-empty) nbsp)]]
-                        [:div.field [:label "Value"]
-                         [:div.ui.fluid.basic.label
-                          (or (some-> annotation str not-empty) nbsp)]]]])))))))))))))
+                     [:div.notes [note-content-label "default" note-content]]))]])))))))))

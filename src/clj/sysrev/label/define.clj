@@ -109,9 +109,7 @@
 
 (defn annotation-definition-validations
   [_ _]
-  {:all-values
-   [[v/required
-     :message "Entities must be provided"] ]})
+  {})
 
 (declare label-validations)
 (declare group)
