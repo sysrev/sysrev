@@ -105,7 +105,7 @@
   (future
     (Thread/sleep 30000)
     (try
-      (let [project-ids [3144]; (find-project-ids-with-annotations)
+      (let [project-ids (find-project-ids-with-annotations)
             general-annotation-name "Annotations"]
         
         (doseq [project-id project-ids]

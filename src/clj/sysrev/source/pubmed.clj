@@ -48,8 +48,6 @@
       (let [source-meta (source/make-source-meta
                          :pubmed {:search-term search-term
                                   :search-count pmids-count})]
-        (println (pubmed/get-all-pmids-for-query search-term))
-        (println (pubmed-get-articles (pubmed/get-all-pmids-for-query search-term)))
         (import-source-impl
          project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
