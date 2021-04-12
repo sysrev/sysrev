@@ -244,7 +244,7 @@
 (reg-event-fx :set-review-annotation-interface
               (fn [{:keys [db]} [_ context annotation-data annotations]]
                 {:dispatch-n [[:set-review-interface :annotations]
-                              [:reset-annotations context annotations]]
+                              [:reset-annotations context (:article-id annotation-data) annotations]]
                  :db (assoc-in db [:state :annotation-label] annotation-data)}))
 
 (reg-sub ::review-interface-override #(get-in % [:state :review-interface]))

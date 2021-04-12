@@ -516,7 +516,7 @@
                             :name "hospital outline"}
                            {:value :json
                             :text "JSON file"
-                            :name "file json outline"}
+                            :name "file outline"}
                            {:value :custom
                             :text "Custom Datasource"
                             :name "database"}]]

@@ -185,6 +185,7 @@
                                                              ann-context
                                                              {:root-label-id root-label-id
                                                               :label-id label-id
+                                                              :article-id article-id
                                                               :ith ith}
                                                              current-values])}
            [:button.ui.primary.button
