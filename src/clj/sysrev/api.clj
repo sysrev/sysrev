@@ -1518,10 +1518,12 @@
 
 (defn user-notifications [user-id]
   {:success true
-   :notifications [{:id 1003
-                    :html "You were invited to a <u>project</u>!"
+   :notifications [{:created #inst "2021-04-18"
+                    :id 1003
+                    :text "You were invited to a project!"
                     :viewed #inst "2021-04-19"}
-                   {:id 1004
-                    :html "You won a new car!"
+                   {:created #inst "2021-04-19"
+                    :id 1004
+                    :text "You won a new car!"
                     :viewed nil}]})
 
