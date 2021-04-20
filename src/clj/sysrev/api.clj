@@ -1516,4 +1516,12 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
+(defn user-notifications [user-id]
+  {:success true
+   :notifications [{:id 1003
+                    :text "You were invited to a project<<link>>!"
+                    :viewed #inst "2021-04-19"}
+                   {:id 1004
+                    :text "You won a new car!"
+                    :viewed nil}]})
 

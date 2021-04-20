@@ -149,6 +149,9 @@
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [email]} (:body request)]
                       (api/set-user-primary-email! user-id email)))))
+    (GET "/notifications" [:as request]
+         (with-authorize request {:authorize-fn (user-authd? user-id)}
+           (api/user-notifications user-id)))
     (context "/developer" []
              (PUT "/enable" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
