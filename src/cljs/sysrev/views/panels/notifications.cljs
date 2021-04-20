@@ -1,13 +1,15 @@
 (ns sysrev.views.panels.notifications
-  (:require [reagent.core :as r]
-            [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe]]
+  (:require [cljs-time.coerce :as tc]
+            [reagent.core :as r]
+            [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-sub subscribe]]
             [sysrev.data.core :refer [def-data load-data]]
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.state.notifications]
             [sysrev.views.semantic :refer [Segment Message]]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.user.profile :refer [User]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]
+            [sysrev.util :refer [time-elapsed-string]]))
 
 (reg-sub :notifications
          (fn [db & args]
@@ -24,16 +26,32 @@
 (defn toggle-open [open?]
   (dispatch [:notifications/set-open (not open?)]))
 
-(defn Notification [{:keys [action id text viewed]}]
+(reg-event-fx :consume-notification
+              (fn [{:keys [db]} [_ {:keys [id uri] :as notification}]]
+                (let [notifications (->> db :notifications
+                                      (mapv #(if (= notification %)
+                                               (assoc notification :viewed (js/Date.))
+                                               %)))]
+                  {:db (assoc db :notifications notifications)
+                   :dispatch-n [[:notifications/set-open false]
+                                [:nav uri]]})))
+
+(defn Notification [{:keys [created html id viewed] :as notification}]
   [:li {:class "notification-item"
         :style {:list-style "none"
                 :margin-bottom "10px"}}
-   [:a.item {:style {:font-size "17px"
-                     :font-weight (when-not viewed "bold")}}
-    text]])
+   [:a.item {:on-click #(dispatch [:consume-notification notification])
+             :style {:font-size "17px"}}
+    [:span {:style {:display "inline"}}
+     [:span {:dangerouslySetInnerHTML {:__html html}}]
+     [:br] [:br]
+     [:span {:class "blue-text"
+             :style {:font-weight "bold"}}
+      (time-elapsed-string (tc/from-date created))]]]])
 
 (defn NotificationsDropdown []
   (let [notifications (->> @(subscribe [:notifications])
+                        (remove :viewed)
                         (sort-by :created)
                         reverse)]
     [:div {:class "notifications-container"
@@ -46,11 +64,11 @@
                    :right 0
                    :top "3.3em"
                    :-webkit-box-shadow "0 3px 8px rgba(0, 0, 0, .25)"
+                   :width "500px"
                    :z-index 1000}}
      [:div {:class "notifications-title ui header"
             :style {:border-bottom "1px solid #dddddd"
                     :font-weight "bold"
-                    :min-width "350px"
                     :padding "5px"}}
            "Notifications"]
      (into [:ul]
