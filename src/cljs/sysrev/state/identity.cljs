@@ -33,7 +33,9 @@
                            (assoc-in [:state :self :projects] projects)
                            (assoc-in [:state :self :orgs] orgs))
                  have-user? (store-user-map identity))
-           :dispatch-n (list [:load-project-url-ids url-ids-map])}
+           :dispatch-n (list [:load-project-url-ids url-ids-map]
+                         (when have-user?
+                           [:fetch [:notifications (:user-id identity)]]))}
         theme-changed? (merge {:reload-page [true]})))))
 
 (def-action :auth/log-in

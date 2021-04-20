@@ -8,6 +8,7 @@
             sysrev.state.label
             sysrev.state.review
             sysrev.state.note
+            sysrev.state.notifications
             sysrev.state.project.base
             sysrev.state.project.core
             sysrev.state.project.data
