@@ -3,6 +3,11 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
+            [sysrev.project.core :as project]
+            [honeysql.helpers :as sqlh]
+            [sysrev.label.core :as label]
+            [sysrev.label.answer :as answer]
+            [clojure.tools.logging :as log]
             [sysrev.util :as util :refer [map-values]]))
 
 (defn create-annotation! [selection annotation context article-id]
@@ -85,6 +90,84 @@
             (merge entry (select-keys (get articles article-id)
                                       [:primary-title :secondary-title :abstract])))
           entries)))
+
+(defn find-project-ids-with-annotations
+  "Retrieve all project IDs that have annotations"
+  []
+  (let [res (-> (sqlh/select :article.project-id)
+                (sqlh/modifiers :distinct)
+                (sqlh/from [:annotation :ann])
+                (sqlh/join :article [:= :ann.article-id :article.article-id])
+                db/do-query)]
+    (map :project-id res)))
+
+(defn migrate-old-annotations []
+  (future
+    (Thread/sleep 30000)
+    (try
+      (let [project-ids (find-project-ids-with-annotations)
+            general-annotation-name "Annotations"]
+        
+        (doseq [project-id project-ids]
+          (let [project-labels (project/project-labels project-id true)
+                has-been-migrated? (contains? (->> project-labels vals (map :name) set) general-annotation-name)]
+            (when-not has-been-migrated?
+              (log/info "Migrating old annotations for project" project-id)
+              (let [annotations (find-annotation {:a.project-id project-id}
+                                                 [:ann.annotation-id :ann.selection :ann.annotation :ann.context :ann-sc.definition
+                                                  :ann-u.user-id :a.article-id :s3.key :s3.filename
+                                                  :ad.external-id :ad.datasource-name])
+                    article-ids (distinct (map :article-id annotations))
+                    all-values (->> (map :definition annotations)
+                                    (filter some?)
+                                    (distinct)) 
+                    general-annotation-definition {:name general-annotation-name
+                                                   :question "Define general annotations for this article"
+                                                   :short-label "Annotations"
+                                                   :category "extra"
+                                                   :enabled true
+                                                   :project-ordering (count project-labels)
+                                                   :required false
+                                                   :consensus false
+                                                   :value-type "annotation"
+                                                   :definition {:all-values all-values}
+                                                   :root-label-id-local nil}]
+                (label/add-label-entry project-id general-annotation-definition)
+                (db/clear-project-cache project-id)
+                (let [general-annotation-label (-> (sqlh/select :*)
+                                                   (sqlh/from :label)
+                                                   (sqlh/where [:= :label.name general-annotation-name]
+                                                               [:= :label.project-id project-id])
+                                                   db/do-query
+                                                   first)]
+                  (doseq [article-id article-ids]
+                    (let [article (-> (sqlh/select :*)
+                                      (sqlh/from :article)
+                                      (sqlh/where [:= :article.article-id article-id])
+                                      db/do-query
+                                      first) 
+                          article-annotations (filter #(= (:article-id %) article-id) annotations)
+                          article-annotations-per-user (group-by :user-id article-annotations)]
+                      (when (:enabled article)
+                        (doseq [[user-id user-annotations] article-annotations-per-user]
+                          (let [label-values (->> user-annotations
+                                                  (map (fn [annotation]
+                                                         [(str "ann-" (:annotation-id annotation))
+                                                          {:annotation-id (str "ann-" (:annotation-id annotation))
+                                                           :selection (:selection annotation)
+                                                           :context (:context annotation)
+                                                           :semantic-class (:definition annotation)
+                                                           :value (:annotation annotation)}]))
+                                                  (into {}))]
+                            (answer/set-user-article-labels user-id article-id
+                                                            {(:label-id general-annotation-label) label-values}
+                                                            :imported? false
+                                                            :confirm? false
+                                                            :change? false
+                                                            :resolve? false))))))))))))
+      (catch Throwable e
+        (log/error "Old annotations import failed" (type e) (.getMessage e))))))
+
 
 (defn project-annotations-basic
   "Retrieve all annotations for project-id"

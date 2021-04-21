@@ -244,6 +244,12 @@
   (wrap-import-api #(import/import-pdf-zip project-id % options)
                    {:file file :filename filename}))
 
+(defn import-articles-from-json-file
+  "Import articles from a JSON file."
+  [project-id file filename & {:keys [] :as options}]
+  (wrap-import-api #(import/import-json project-id % options)
+                   {:file file :filename filename}))
+
 (defn import-articles-from-pdfs [project-id multipart-params & {:keys [threads] :as options}]
   (let [files (get multipart-params "files[]")]
     (wrap-import-api #(import/import-pdfs project-id % options)

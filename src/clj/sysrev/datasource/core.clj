@@ -51,6 +51,7 @@
     "PMID file"        ["academic"  "pubmed"]
     "EndNote file"     ["academic"  "endnote"]
     "PDF Zip file"     ["file"      "pdf"]
+    "JSON file"        ["file"      "json"]
     "API Text Manual"  ["text"      "generic"]
     "legacy"           ["academic"  "unknown"]
     nil))
@@ -68,7 +69,7 @@
 
 (defn make-article-data
   [{:keys [article-type article-subtype] :as extra}
-   {:keys [public-id external-id primary-title] :as article}]
+   {:keys [public-id external-id primary-title helper-text] :as article}]
   ;; allow alternate :public-id key to support legacy article migration
   (let [external-id (or external-id public-id)
         datasource-name (datasource-name-for-type extra)]
@@ -80,6 +81,7 @@
                       (some-> external-id parse-integer str)
                       external-id))
      :title primary-title
+     :helper-text helper-text
      :content (when-not datasource-name
                 (->> (dissoc article
                              :source-meta :text-search :enabled :article-data-id

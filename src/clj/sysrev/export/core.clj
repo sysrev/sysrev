@@ -240,12 +240,19 @@
                                                                                     (sort-by :ordering))))
                       (into []))
           process-group-answers (fn [answers]
-                                  (->> answers
-                                       (mapv
-                                        #(assoc % :ordering (:ordering (get group-label-defs (:id %)))))
-                                       (sort-by :ordering)
-                                       (mapv (fn [{:keys [answer]}]
-                                               (stringify-csv-value separator answer)))))
+                                  (let [answered-label-ids (set (map :id answers))
+                                        non-answered-labels (->> group-label-defs vals
+                                                                 (filter #(not (contains? answered-label-ids (:id %)))))
+                                        empty-answers (map #(-> %
+                                                                (select-keys [:id :name :question :required :type])
+                                                                (assoc :answer []))
+                                                           non-answered-labels)]
+                                    (->> (concat answers empty-answers)
+                                         (mapv
+                                           #(assoc % :ordering (:ordering (get group-label-defs (:id %)))))
+                                         (sort-by :ordering)
+                                         (mapv (fn [{:keys [answer]}]
+                                                 (stringify-csv-value separator answer))))))
           process-group-labels (fn [group-label]
                                  (let [{:keys [id name]} (:reviewer group-label)
                                        answer  (:answer group-label)]

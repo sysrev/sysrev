@@ -56,14 +56,18 @@
                                               (assoc new-id annotation))]
                                   ret)))))
 
-
 (reg-event-db :annotator/init-view-state [trim-v]
               (fn [db [context & [_panel]]]
                 (set-field db context [] {:context context})))
 
 (reg-event-db :reset-annotations [trim-v]
-              (fn [db [context annotations]]
-                (set-field db context [:annotations] (or annotations {}))))
+              (fn [db [context article-id annotations]]
+                (let [abstract @(subscribe [:article/abstract article-id])]
+                  (set-field db context [:annotations]
+                             (->> (or annotations {})
+                                  (map (fn [[ann-id annotation]]
+                                         [ann-id (update annotation :context assoc :text-context abstract)]))
+                                  (into {}))))))
 
 (defn annotator-data-item
   "Given an annotator context, returns a vector representing both the
@@ -361,7 +365,10 @@
 (reg-event-fx ::save 
               (fn [{:keys [db]} [_ context]]
                 (let [annotation-label-data @(subscribe [::annotation-label-data])
-                      annotations @(subscribe [::get context [:annotations]])
+                      annotations (->> @(subscribe [::get context [:annotations]])
+                                       (map (fn [[ann-id annotation]]
+                                              [ann-id (update annotation :context dissoc :text-context)]))
+                                       (into {}))
                       article-id (:article-id context)
                       {:keys [root-label-id label-id ith]} annotation-label-data]
                   {:dispatch [:review/set-label-value article-id root-label-id label-id ith
@@ -469,6 +476,7 @@
                              :context (-> (dissoc selection-map :selection)
                                           (assoc :client-field field))
                              :annotation ""
+                             :value (:selection selection-map)
                              :semantic-class nil}]
                   (set [:new-annotation] entry)
                   (set [:editing-id] (:annotation-id entry))
