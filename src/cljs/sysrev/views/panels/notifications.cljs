@@ -8,6 +8,8 @@
             [sysrev.views.semantic :refer [Segment Message]]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.user.profile :refer [User]]
+            [sysrev.views.semantic :refer [Divider Dropdown Form Grid Input Row Column
+                                           Button Icon Radio Header]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]
             [sysrev.util :refer [time-elapsed-string]]))
 
@@ -35,8 +37,7 @@
                   {:db (assoc db :notifications notifications)
                    :dispatch-n [[:notifications/set-open false]
                                 [:nav uri]]})))
-
-(defn Notification [{:keys [created html id viewed] :as notification}]
+(defn NotificationInMenu [{:keys [created html id viewed] :as notification}]
   [:li {:class "notification-item"
         :style {:list-style "none"
                 :margin-bottom "10px"}}
@@ -72,8 +73,10 @@
                     :padding "5px"}}
            "Notifications"]
      (into [:ul]
-       (mapv #(-> [Notification %]) notifications))
+       (mapv #(-> [NotificationInMenu %]) notifications))
      [:div {:class "notifications-footer"
+            :on-click #(do (dispatch [:nav "/notifications"])
+                           (dispatch [:notifications/set-open false]))
             :style {:background-color "#e9eaed"
                     :border-top "1px solid #dddddd"
                     :font-size "15px"
@@ -110,3 +113,44 @@
      (when open?
        [NotificationsDropdown])]))
 
+;; for clj-kondo
+(declare panel state)
+
+(setup-panel-state panel [:notifications]
+                   :state state :get [panel-get ::get] :set [panel-set ::set])
+
+(defn NotificationInPanel [{:keys [created html id viewed] :as notification}]
+  [:div {:class "ui middle aligned grid segment"
+         :style {:border-radius 0
+                 :margin 0
+                 :padding 0}}
+   [:div {:class "row item"}
+    [:div {:class "sixteen wide column notification"
+           :on-click #(dispatch [:consume-notification notification])}
+     [:span.item {:style {:font-size "17px"}}
+      [:span {:style {:display "inline"}}
+       [:span {:dangerouslySetInnerHTML {:__html html}}]
+       [:br] [:br]
+       [:span {:class "blue-text"
+               :style {:font-weight "bold"}}
+        (time-elapsed-string (tc/from-date created))]]]]]])
+
+(defn NotificationsPanel []
+    (let [notifications @(subscribe [:notifications])]
+      [:div.panel.ui.segment
+       [:div.ui.stackable.grid
+        [:div.row
+         [:div {:class "eight wide column"
+                :id "notifications-header"}
+          [Header {:as "h2" :style {:margin-bottom "0.5em"}}
+           "Notifications"]]]
+        (into [:div {:style {:margin 0
+                             :padding 0
+                             :width "100%"}}]
+          (mapv NotificationInPanel notifications))]]))
+
+(def-panel :uri "/notifications" :panel panel
+  :on-route (dispatch [:set-active-panel panel])
+  :content (when-let [user-id @(subscribe [:self/user-id])]
+             [NotificationsPanel])
+  :require-login true)

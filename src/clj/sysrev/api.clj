@@ -1528,7 +1528,7 @@
                     :id 1004
                     :uri "/u/371/p/16612"}
                    {:created #inst "2021-04-20"
-                    :html "You were invited to a project: <b>	Evidence-Based Toxicology Assignment 2018</b>"
+                    :html "You were invited to a project: <b>Evidence-Based Toxicology Assignment 2018</b>"
                     :id 1005
                     :uri "/p/3509"}]})
 
