@@ -1,7 +1,6 @@
 (ns sysrev.views.menu
   (:require [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [sysrev.action.core :refer [run-action]]
-            [sysrev.data.core :refer [load-data]]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [user-uri]]
             [sysrev.views.components.core :refer [dropdown-menu with-tooltip]]

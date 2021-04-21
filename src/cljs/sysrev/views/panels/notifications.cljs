@@ -1,24 +1,17 @@
 (ns sysrev.views.panels.notifications
   (:require [cljs-time.coerce :as tc]
-            [reagent.core :as r]
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-sub subscribe]]
-            [sysrev.data.core :refer [def-data load-data]]
-            [sysrev.state.identity :refer [current-user-id]]
             [sysrev.state.notifications]
-            [sysrev.views.semantic :refer [Segment Message]]
-            [sysrev.views.components.core :refer [CursorMessage]]
-            [sysrev.views.panels.user.profile :refer [User]]
-            [sysrev.views.semantic :refer [Divider Dropdown Form Grid Input Row Column
-                                           Button Icon Radio Header]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]
+            [sysrev.views.semantic :refer [Header]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.util :refer [time-elapsed-string]]))
 
 (reg-sub :notifications
-         (fn [db & args]
+         (fn [db & _]
            (get db :notifications)))
 
 (reg-sub :notifications/open?
-         (fn [db & args]
+         (fn [db & _]
            (get db :notifications/open?)))
 
 (reg-event-db :notifications/set-open
@@ -156,6 +149,6 @@
 
 (def-panel :uri "/notifications" :panel panel
   :on-route (dispatch [:set-active-panel panel])
-  :content (when-let [user-id @(subscribe [:self/user-id])]
+  :content (when-let [_ @(subscribe [:self/user-id])]
              [NotificationsPanel])
   :require-login true)

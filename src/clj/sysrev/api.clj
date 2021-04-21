@@ -1522,7 +1522,7 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
-(defn user-notifications [user-id]
+(defn user-notifications [_]
   {:success true
    :notifications [{:created #inst "2021-04-18"
                     :html "You were invited to a project: <b>Mangiferin - Data Extraction</b>"
