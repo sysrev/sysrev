@@ -13,17 +13,32 @@
 (use-fixtures :once default-fixture)
 (use-fixtures :each etaoin-fixture)
 
-(deftest-etaoin notifications
+(deftest-etaoin notifications-button
   (let [user (account/create-account)
         user-id (:user-id (user-by-email (:email user)))
         _ (swap! *cleanup-users* conj {:user-id user-id})
         driver @e/*driver*]
     (testing "Notifications button and drop-down work."
       (doto driver
+        (ea/wait-visible {:fn/has-classes [:notifications-count]
+                          :fn/has-text "2"})
         (ea/click-visible {:fn/has-classes [:black :bell :icon]})
         (ea/click-visible {:fn/has-text "EntoGEM"})
         (ea/wait 1))
       (is (= "/u/371/p/16612" (e/get-path))))
+    (testing "Notifications are removed after being clicked."
+      (doto driver
+        (ea/wait-visible {:fn/has-classes [:notifications-count]
+                          :fn/has-text "1"})
+        (ea/click-visible {:fn/has-classes [:black :bell :icon]})
+        (ea/wait 1))
+      (is (not (ea/visible? driver {:fn/has-text "EntoGEM"}))))))
+
+(deftest-etaoin notifications-page
+  (let [user (account/create-account)
+        user-id (:user-id (user-by-email (:email user)))
+        _ (swap! *cleanup-users* conj {:user-id user-id})
+        driver @e/*driver*]
     (testing "Notifications page works."
       (doto driver
         (ea/click-visible {:fn/has-classes [:black :bell :icon]})
