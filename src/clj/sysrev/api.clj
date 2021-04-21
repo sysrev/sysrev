@@ -1521,14 +1521,17 @@
    :notifications [{:created #inst "2021-04-18"
                     :html "You were invited to a project: <b>Mangiferin - Data Extraction</b>"
                     :id 1003
+                    :image-uri "/favicon-32x32.png"
                     :uri "/u/13552/p/34469"
                     :viewed #inst "2021-04-19"}
                    {:created #inst "2021-04-19"
                     :html "You were invited to a project: <b>EntoGEM: a systematic map of global insect population and biodiversity trends</b>"
                     :id 1004
+                    :image-uri "/favicon-32x32.png"
                     :uri "/u/371/p/16612"}
                    {:created #inst "2021-04-20"
                     :html "You were invited to a project: <b>Evidence-Based Toxicology Assignment 2018</b>"
                     :id 1005
+                    :image-uri "/favicon-32x32.png"
                     :uri "/p/3509"}]})
 

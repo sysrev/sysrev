@@ -37,12 +37,15 @@
                   {:db (assoc db :notifications notifications)
                    :dispatch-n [[:notifications/set-open false]
                                 [:nav uri]]})))
-(defn NotificationInMenu [{:keys [created html id viewed] :as notification}]
+
+(defn NotificationInMenu [{:keys [created html image-uri id viewed] :as notification}]
   [:li {:class "notification-item"
         :style {:list-style "none"
                 :margin-bottom "10px"}}
    [:a.item {:on-click #(dispatch [:consume-notification notification])
              :style {:font-size "17px"}}
+    [:img {:src image-uri
+           :style {:margin-right "10px"}}]
     [:span {:style {:display "inline"}}
      [:span {:dangerouslySetInnerHTML {:__html html}}]
      [:br] [:br]
@@ -119,7 +122,7 @@
 (setup-panel-state panel [:notifications]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
-(defn NotificationInPanel [{:keys [created html id viewed] :as notification}]
+(defn NotificationInPanel [{:keys [created html id image-uri viewed] :as notification}]
   [:div {:class "ui middle aligned grid segment"
          :style {:border-radius 0
                  :margin 0
@@ -127,6 +130,8 @@
    [:div {:class "row item"}
     [:div {:class "sixteen wide column notification"
            :on-click #(dispatch [:consume-notification notification])}
+     [:img {:src image-uri
+            :style {:margin-right "10px"}}]
      [:span.item {:style {:font-size "17px"}}
       [:span {:style {:display "inline"}}
        [:span {:dangerouslySetInnerHTML {:__html html}}]
