@@ -43,15 +43,25 @@
      (time-elapsed-string (tc/from-date created))]]])
 
 (defn NotificationsContainer []
-  (let [notifications (->> @(subscribe [:notifications])
-                        (remove :viewed)
-                        (sort-by :created)
-                        reverse)]
+  (let [notifications @(subscribe [:notifications])
+        new-notifications (->> notifications
+                            (remove :viewed)
+                            (sort-by :created)
+                            reverse)]
     [:div {:class "ui notifications-container"}
      [:div {:class "ui header notifications-title"}
       "Notifications"]
-     (into [:div]
-       (mapv #(-> [NotificationItem %]) notifications))
+     (if (empty? new-notifications)
+       (if (empty? notifications)
+         [:div {:class "notifications-empty-message"}
+          "You don't have any notifications yet."]
+         [:div {:class "notifications-empty-message"}
+          "You don't have any new notifications. Click "
+          [:a {:href "/notifications"}
+           "See All"]
+          " to see older notifications."])
+       (into [:div]
+         (mapv #(-> [NotificationItem %]) new-notifications)))
      [:div {:class "notifications-footer"
             :on-click #(do (dispatch [:nav "/notifications"])
                            (dispatch [:notifications/set-open false]))}
@@ -82,8 +92,11 @@
       [:div {:class "ui panel segment notifications-panel"}
        [:div {:class "ui header notifications-title"}
         "Notifications"]
-       (into [:div]
-         (mapv #(-> [NotificationItem %]) notifications))]))
+       (if (empty? notifications)
+         [:div {:class "notifications-empty-message"}
+          "You don't have any notifications yet."]
+         (into [:div]
+           (mapv #(-> [NotificationItem %]) notifications)))]))
 
 (def-panel :uri "/notifications" :panel panel
   :on-route (dispatch [:set-active-panel panel])
