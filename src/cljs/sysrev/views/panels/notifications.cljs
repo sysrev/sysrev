@@ -1,9 +1,29 @@
 (ns sysrev.views.panels.notifications
   (:require [cljs-time.coerce :as tc]
+            [clojure.string :as str]
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-sub subscribe]]
             [sysrev.state.notifications]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.util :refer [time-elapsed-string]]))
+
+(defmulti MessageDisplay (comp keyword :type :content))
+
+(defmethod MessageDisplay :default [notification]
+  [:span (pr-str notification)])
+
+(defmethod MessageDisplay :project-invitation [notification]
+  (let [{{:keys [project-name]} :content} notification]
+    [:span
+     "You were invited to a project: "
+     [:b project-name]]))
+
+(defmulti consume-notification-dispatches (comp keyword :type :content))
+
+(defmethod consume-notification-dispatches :default [notification]
+  [])
+
+(defmethod consume-notification-dispatches :project-invitation [notification]
+  [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]])
 
 (reg-sub :notifications
          (fn [db & _]
@@ -27,8 +47,9 @@
                                                (assoc notification :viewed (js/Date.))
                                                %)))]
                   {:db (assoc db :notifications notifications)
-                   :dispatch-n [[:notifications/set-open false]
-                                [:nav uri]]})))
+                   :dispatch-n (concat
+                                [[:notifications/set-open false]]
+                                (consume-notification-dispatches notification))})))
 
 (defn NotificationItem [{:keys [created html image-uri id viewed] :as notification}]
   [:div {:class "notification-item"
@@ -37,10 +58,11 @@
     [:img {:class "notification-item-image"
            :src image-uri}]]
    [:span
-    [:span {:dangerouslySetInnerHTML {:__html html}}]
+    [MessageDisplay notification]
     [:br] [:br]
     [:span {:class "notification-item-time"}
-     (time-elapsed-string (tc/from-date created))]]])
+     (str/capitalize
+      (time-elapsed-string (tc/from-date created)))]]])
 
 (defn NotificationsContainer []
   (let [notifications @(subscribe [:notifications])

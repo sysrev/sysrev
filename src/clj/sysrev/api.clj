@@ -43,6 +43,7 @@
             [sysrev.file.article :as article-file]
             [sysrev.file.user-image :as user-image]
             [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
+            [sysrev.notifications.core :as notifications]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.paypal :as paypal]
             [sysrev.payment.plans :as plans]
@@ -1522,22 +1523,12 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
-(defn user-notifications [_]
+(defn user-notifications [user-id]
   {:success true
-   :notifications [{:created #inst "2021-04-18"
-                    :html "You were invited to a project: <b>Mangiferin - Data Extraction</b>"
-                    :id 1003
-                    :image-uri "/favicon-32x32.png"
-                    :uri "/u/13552/p/34469"
-                    :viewed #inst "2021-04-19"}
-                   {:created #inst "2021-04-19"
-                    :html "You were invited to a project: <b>EntoGEM: a systematic map of global insect population and biodiversity trends</b>"
-                    :id 1004
-                    :image-uri "/favicon-32x32.png"
-                    :uri "/u/371/p/16612"}
-                   {:created #inst "2021-04-20"
-                    :html "You were invited to a project: <b>Evidence-Based Toxicology Assignment 2018</b>"
-                    :id 1005
-                    :image-uri "/favicon-32x32.png"
-                    :uri "/p/3509"}]})
+   :notifications (with-transaction
+                    (notifications/messages-for-subscriber
+                     (notifications/subscriber-for-user
+                      user-id
+                      :create? true
+                      :returning :subscriber-id)))})
 

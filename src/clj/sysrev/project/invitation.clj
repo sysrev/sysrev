@@ -1,6 +1,7 @@
 (ns sysrev.project.invitation
   (:require [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
+            [sysrev.notifications.core :refer [create-message]]
             [sysrev.util :refer [in?]]))
 
 (defn create-invitation!
@@ -9,13 +10,22 @@
   defaults to 'view-project'."
   [invitee project-id inviter description]
   (db/with-transaction
-    (when-let [invitation-id (q/create :invitation {:user-id invitee
-                                                    :project-id project-id
-                                                    :description description}
-                                       :returning :id)]
-      (q/create :invitation-from {:invitation-id invitation-id
-                                  :user-id inviter})
-      invitation-id)))
+    (let [invitation {:user-id invitee
+                      :project-id project-id
+                      :description description}
+          invitation-id (q/create :invitation invitation :returning :id)
+          [project-name] (q/find :project {:project-id project-id} :name)
+          message {:description description
+                   :invitation-id invitation-id
+                   :project-id project-id
+                   :project-name project-name
+                   :type :project-invitation
+                   :user-id invitee}]
+      (when invitation-id
+        (q/create :invitation-from {:invitation-id invitation-id
+                                    :user-id inviter})
+        (create-message message)
+        invitation-id))))
 
 (defn invitations-for-admined-projects
   "Get all invitations that have been sent for projects where `user-id`
