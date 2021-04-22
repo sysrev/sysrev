@@ -857,7 +857,8 @@
                    (pos? weeks)   (write weeks "week")
                    (pos? days)    (write days "day")
                    (pos? hours)   (write hours "hour")
-                   :else          (write minutes "minute")))))
+                   (pos? minutes) (write minutes "minute")
+                   :else          "just now"))))
 
 #?(:cljs (defn get-dom-elt [selector]
            (-> ($ selector) (.get 0))))
