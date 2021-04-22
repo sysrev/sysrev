@@ -22,7 +22,7 @@
       (doto driver
         (ea/wait-visible {:fn/has-classes [:notifications-count]
                           :fn/has-text "2"})
-        (ea/click-visible {:fn/has-classes [:black :bell :icon]})
+        (ea/click-visible {:fn/has-classes [:notifications-icon]})
         (ea/click-visible {:fn/has-text "EntoGEM"})
         (ea/wait 1))
       (is (= "/u/371/p/16612" (e/get-path))))
@@ -30,7 +30,7 @@
       (doto driver
         (ea/wait-visible {:fn/has-classes [:notifications-count]
                           :fn/has-text "1"})
-        (ea/click-visible {:fn/has-classes [:black :bell :icon]})
+        (ea/click-visible {:fn/has-classes [:notifications-icon]})
         (ea/wait 1))
       (is (not (ea/visible? driver {:fn/has-text "EntoGEM"}))))))
 
@@ -41,7 +41,7 @@
         driver @e/*driver*]
     (testing "Notifications page works."
       (doto driver
-        (ea/click-visible {:fn/has-classes [:black :bell :icon]})
+        (ea/click-visible {:fn/has-classes [:notifications-icon]})
         (ea/click-visible {:fn/has-class :notifications-footer}))
       (is (= "/notifications" (e/get-path)))
       (doto driver

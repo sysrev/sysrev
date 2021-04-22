@@ -1,0 +1,88 @@
+.ui.menu .notifications-icon {
+  font-size: 22px;
+}
+
+.ui.menu .notifications-count {
+  color: @notificationsCountColor;
+  font-size: 11px;
+  font-weight: bold;
+  margin-left: 12px;
+  margin-top: -15px;
+  background: @notificationsCountBackground;
+  padding: 3px 7px;
+  position: absolute;
+  border-radius: 9px;
+}
+
+.ui.notifications-container {
+  box-shadow: @boxShadowColor 0px 3px 8px;
+  top: 3.3em;
+  overflow: visible;
+  background: @footerBackground;
+  z-index: 1000;
+  right: 0px;
+  display: block;
+  position: absolute;
+  border: 1px solid @borderColor;
+  border-radius: 3px;
+  min-width: 500px;
+  width: 40%;
+}
+
+.ui.notifications-panel {
+  padding: 0;
+}
+
+.ui.notifications-container .notifications-title,
+.ui.notifications-panel .notifications-title {
+  border-bottom: 1px solid @borderColor;
+  font-weight: bold;
+  margin: 0;
+  padding: 12px;
+}
+
+.ui.notifications-container .notification-item {
+  background: @footerBackground;
+  display: flex;
+  font-size: 17px;
+  padding: 8px 16px 8px 16px;
+}
+
+.ui.notifications-panel .notification-item {
+  background: @footerBackground;
+  display: flex;
+  font-size: 17px;
+  padding: 10px 20px 10px 20px;
+}
+
+.ui.notifications-container .notification-item:hover,
+.ui.notifications-panel .notification-item:hover {
+  cursor: pointer;
+  background-color: @subtleButtonHoverColor;
+}
+
+.ui.notifications-container .notification-item-image,
+.ui.notifications-panel .notification-item-image {
+  margin-right: 16px;
+}
+
+.ui.notifications-container .notification-item-time,
+.ui.notifications-panel .notification-item-time {
+  color: @blue;
+  font-weight: bold;
+}
+
+.ui.notifications-container .notifications-footer {
+  background-color: @footerBackground;
+  border-top: 1px solid @borderColor;
+  color: @darkerBlue;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 8px;
+  text-align: center;
+}
+
+.ui.notifications-container .notifications-footer:hover {
+  cursor: pointer;
+  background-color: @borderColor;
+}
