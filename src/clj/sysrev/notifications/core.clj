@@ -1,6 +1,6 @@
 (ns sysrev.notifications.core
   (:require [clojure.string :as str]
-            [honeysql.core :as hsql]
+            [honeysql.core :as sql]
             [sysrev.db.core :refer [with-transaction]]
             [sysrev.db.queries :as q]))
 
@@ -30,7 +30,7 @@
 (def subscriber-for-user
   (partial x-for-y :notification_subscriber :user-id))
 
-(defn messages-for-subscriber [subscriber-id & [new?]]
+(defn messages-for-subscriber [subscriber-id]
   (q/find [:notification_message_subscriber :nms]
           {:nms.subscriber-id subscriber-id}
           :*
@@ -108,7 +108,6 @@
                       (subscribers-for-topic topic-id)))))))
 
 (defn update-message-viewed [message-id subscriber-id]
-  (prn message-id subscriber-id
-   (q/modify :notification_message_subscriber
-             {:message-id message-id :subscriber-id subscriber-id}
-             {:viewed (hsql/call :now)})))
+  (q/modify :notification_message_subscriber
+            {:message-id message-id :subscriber-id subscriber-id}
+            {:viewed (hsql/call :now)}))
