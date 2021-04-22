@@ -2,6 +2,7 @@
   (:require [cljs-time.coerce :as tc]
             [clojure.string :as str]
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-sub subscribe]]
+            [sysrev.state.identity :refer [current-user-id]]
             [sysrev.state.notifications]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.util :refer [time-elapsed-string]]))
@@ -19,7 +20,7 @@
 
 (defmulti consume-notification-dispatches (comp keyword :type :content))
 
-(defmethod consume-notification-dispatches :default [notification]
+(defmethod consume-notification-dispatches :default [_]
   [])
 
 (defmethod consume-notification-dispatches :project-invitation [notification]
@@ -48,15 +49,22 @@
                                                %)))]
                   {:db (assoc db :notifications notifications)
                    :dispatch-n (concat
-                                [[:notifications/set-open false]]
+                                [[:notifications/set-open false]
+                                 (when-not (:viewed notification)
+                                   [:action
+                                    [:notifications/set-viewed
+                                     (current-user-id db)
+                                     (:message-id notification)]])]
                                 (consume-notification-dispatches notification))})))
 
-(defn NotificationItem [{:keys [created html image-uri id viewed] :as notification}]
+(defn NotificationItem [{:keys [created id viewed]
+                         {:keys [image-uri]} :content
+                         :as notification}]
   [:div {:class "notification-item"
          :on-click #(dispatch [:consume-notification notification])}
    [:div
     [:img {:class "notification-item-image"
-           :src image-uri}]]
+           :src (or image-uri "/favicon-32x32.png")}]]
    [:span
     [MessageDisplay notification]
     [:br] [:br]
