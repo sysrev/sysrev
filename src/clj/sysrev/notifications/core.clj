@@ -1,8 +1,10 @@
 (ns sysrev.notifications.core
-  (:require [clojure.string :as str]
+  (:require [clojure.edn :as edn]
+            [clojure.string :as str]
             [honeysql.core :as sql]
             [sysrev.db.core :refer [with-transaction]]
-            [sysrev.db.queries :as q]))
+            [sysrev.db.queries :as q]
+            [sysrev.project.core :refer [project-user-ids]]))
 
 (defn x-for-y [table-name col-name col-value
                & {:keys [create? returning]
@@ -50,12 +52,43 @@
           {:topic-id topic-id}
           :subscriber-id))
 
-(defn topic-for-name [unique-name & {:keys [create?] :as opts}]
-  (if (and create? (str/starts-with? unique-name ":user-notify "))
-    (with-transaction
-      (or
-       (apply x-for-y :notification_topic :unique-name unique-name
-              (apply concat (assoc opts :create? false)))
+(defn unsubscribe-from-topic [subscriber-id topic-id]
+  (q/delete :notification_subscriber_topic
+            {:subscriber-id subscriber-id :topic-id topic-id}))
+
+(defmulti topic-for-name
+  (fn [unique-name & _]
+    (-> unique-name (str/split #" " 2) first edn/read-string)))
+
+(defmethod topic-for-name :default [unique-name & opts]
+  (apply x-for-y :notification_topic :unique-name unique-name opts))
+
+(defmethod topic-for-name :project [unique-name
+                                    & {:keys [create?] :as opts}]
+  (with-transaction
+    (or
+     (apply x-for-y :notification_topic :unique-name unique-name
+            (apply concat (assoc opts :create? false)))
+     (when create?
+       (let [project-id (-> unique-name (str/split #" " 2) second Long/parseLong)
+             topic-id (apply x-for-y :notification_topic :unique-name unique-name
+                             (apply concat (assoc opts :returning :topic-id)))]
+         (doseq [sid (->> project-id project-user-ids
+                          (map #(subscriber-for-user
+                                 %
+                                 :create? true
+                                 :returning :subscriber-id)))]
+           (subscribe-to-topic sid topic-id))
+         (apply x-for-y :notification_topic :unique-name unique-name
+                (apply concat (assoc opts :create? false))))))))
+
+(defmethod topic-for-name :user-notify [unique-name
+                                        & {:keys [create?] :as opts}]
+  (with-transaction
+    (or
+     (apply x-for-y :notification_topic :unique-name unique-name
+            (apply concat (assoc opts :create? false)))
+     (when create?
        (let [user-id (-> unique-name (str/split #" " 2) second Long/parseLong)
              topic-id (apply x-for-y :notification_topic :unique-name unique-name
                              (apply concat (assoc opts :returning :topic-id)))]
@@ -63,9 +96,7 @@
           (subscriber-for-user user-id :create? true :returning :subscriber-id)
           topic-id)
          (apply x-for-y :notification_topic :unique-name unique-name
-                (apply concat (assoc opts :create? false))))))
-    (apply x-for-y :notification_topic :unique-name unique-name
-           (apply concat opts))))
+                (apply concat (assoc opts :create? false))))))))
 
 (defmulti message-publisher :type)
 
