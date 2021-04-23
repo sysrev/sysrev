@@ -110,4 +110,4 @@
 (defn update-message-viewed [message-id subscriber-id]
   (q/modify :notification_message_subscriber
             {:message-id message-id :subscriber-id subscriber-id}
-            {:viewed (hsql/call :now)}))
+            {:viewed (sql/call :now)}))
