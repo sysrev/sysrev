@@ -1,5 +1,6 @@
 (ns sysrev.project.member
   (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db]
@@ -43,6 +44,14 @@
       user-id :create? true :returning :subscriber-id)
      (notifications/topic-for-name
       (str ":project " project-id) :create? true :returning :topic-id))
+    (let [[new-user-email] (q/find :web-user {:user-id user-id} :email)
+          [project-name] (q/find :project {:project-id project-id} :name)]
+      (notifications/create-message
+       {:new-user-id user-id
+        :new-user-name (first (str/split new-user-email #"@"))
+        :project-id project-id
+        :project-name project-name
+        :type :project-has-new-user}))
     nil))
 
 (defn-spec remove-project-member int?

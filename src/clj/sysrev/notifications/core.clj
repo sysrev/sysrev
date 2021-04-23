@@ -117,26 +117,37 @@
 (defn message-topic [message]
   (topic-for-name (message-topic-name message) :create? true))
 
+(defmulti subscriber-ids-to-skip :type)
+
+(defmethod subscriber-ids-to-skip :default [_]
+  nil)
+
+(defmethod subscriber-ids-to-skip :project-has-new-user [message]
+  (some-> (subscriber-for-user (:new-user-id message)
+                               :returning :subscriber-id)
+          vector))
+
 (defn create-message
   ([message]
    (with-transaction
      (create-message (-> message message-publisher :publisher-id)
                      (message-topic-name message)
                      message)))
-  ([publisher-id topic-name content]
+  ([publisher-id topic-name message]
    (with-transaction
      (let [topic-id (topic-for-name topic-name
                                     :create? true
                                     :returning :topic-id)
            message-id (q/create :notification_message
-                                {:content content
+                                {:content message
                                  :publisher-id publisher-id
                                  :topic-id topic-id}
                                 :returning :message-id)]
        (q/create :notification_message_subscriber
-                 (map #(-> {:message-id message-id
-                            :subscriber-id %})
-                      (subscribers-for-topic topic-id)))))))
+                 (->> (subscribers-for-topic topic-id)
+                      (remove (into #{} (subscriber-ids-to-skip message)))
+                      (map #(-> {:message-id message-id
+                                 :subscriber-id %}))))))))
 
 (defn update-message-viewed [message-id subscriber-id]
   (q/modify :notification_message_subscriber

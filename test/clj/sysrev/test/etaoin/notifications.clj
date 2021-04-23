@@ -1,8 +1,10 @@
 (ns sysrev.test.etaoin.notifications
-  (:require [etaoin.api :as ea]
+  (:require [clojure.string :as str]
+            [etaoin.api :as ea]
             [medley.core :as medley]
             [sysrev.project.core :refer [create-project]]
             [sysrev.project.invitation :refer [create-invitation!]]
+            [sysrev.project.member :refer [add-project-member]]
             [sysrev.user.core :refer [user-by-email]]
             [sysrev.test.core :as test :refer [default-fixture]]
             [sysrev.test.etaoin.core :as e :refer
@@ -79,3 +81,27 @@
           (ea/click-visible {:fn/has-text (:name project-b)})
           (ea/wait 1))
         (is (= (str "/user/" user-id "/invitations") (e/get-path)))))))
+
+(deftest-etaoin project-has-new-user-notifications
+  (let [new-user-email (:email (account/create-account))
+        new-user-display (first (str/split new-user-email #"@"))
+        new-user-id (-> new-user-email user-by-email :user-id)
+        _ (account/log-out)
+        user (account/create-account)
+        user-id (:user-id (user-by-email (:email user)))
+        _ (swap! *cleanup-users* conj {:user-id user-id})
+        driver @e/*driver*
+        project-a-id (:project-id (create-project "Mangiferin"))]
+    (add-project-member project-a-id user-id)
+    (add-project-member project-a-id new-user-id)
+    (testing ":project-has-new-user notifications"
+      (doto driver
+        (ea/reload)
+        (ea/click-visible {:fn/has-class :notifications-icon})
+        (ea/wait-visible {:fn/has-class :notifications-footer}))
+      (is (ea/visible? driver {:fn/has-text "Mangiferin"}))
+      (is (ea/visible? driver {:fn/has-text new-user-display}))
+      (doto driver
+        (ea/click {:fn/has-text "Mangiferin"})
+        (ea/wait 1))
+      (is (str/ends-with? (e/get-path) (str "/p/" project-a-id "/users"))))))
