@@ -38,8 +38,6 @@
       (testing "Notifications button and drop-down work."
         (doto driver
           (ea/refresh)
-          (ea/wait 1)
-          (do (e/take-screenshot))
           (ea/wait-visible {:fn/has-class :notifications-count
                             :fn/has-text "2"})
           (ea/click-visible {:fn/has-class :notifications-icon})
@@ -69,7 +67,7 @@
         (ea/click-visible {:fn/has-class :notifications-footer})
         (ea/wait-visible {:fn/has-text "You don't have any notifications yet"}))
       (is (= "/notifications" (e/get-path))))
-    (let [[project-a project-b]
+    (let [[_ project-b]
           #__ (create-projects-and-invitations! inviter-id user-id)]
       (testing "Notifications page works."
         (e/go "/")
