@@ -3,6 +3,7 @@
             sysrev.logging
             sysrev.stacktrace
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
+            [sysrev.db.listeners :refer [start-listeners!]]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config :refer [env]]
             [sysrev.web.routes.site :as site]
@@ -14,6 +15,7 @@
                    (merge (:postgres env) postgres-overrides))
         db (set-active-db! db-config only-if-new)]
     (site/init-global-stats)
+    (start-listeners!)
     db))
 
 (defn start-web [& [server-port-override only-if-new]]

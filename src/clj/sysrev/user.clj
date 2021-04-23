@@ -4,6 +4,7 @@
   (:use sysrev.logging
         sysrev.util
         sysrev.db.core
+        sysrev.db.listeners
         sysrev.db.migration
         sysrev.user.core
         sysrev.group.core
