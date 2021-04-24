@@ -28,6 +28,7 @@
                 [org.clojure/test.check "1.1.0"]
 ;;; Client libraries (CLJS)
                 [com.cognitect/transit-cljs "0.8.264"]
+                [com.taoensso/sente "1.16.2"]
                 [reagent "1.0.0"]
                 [re-frame "1.1.2"]
                 [day8.re-frame/http-fx "0.2.2"]

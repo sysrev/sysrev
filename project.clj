@@ -57,6 +57,7 @@
                  [javax.servlet/servlet-api "2.5"]
                  [manifold "0.1.8"]
                  [aleph "0.4.6"]
+                 [com.taoensso/sente "1.16.2"]
                  [ring "1.8.1"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]

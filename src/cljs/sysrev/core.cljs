@@ -14,6 +14,7 @@
             [sysrev.loading]
             [sysrev.views.article]
             [sysrev.views.main :refer [main-content]]
+            sysrev.sente
             [sysrev.shared.spec.core]
             [sysrev.shared.spec.article]
             [sysrev.shared.spec.project]
