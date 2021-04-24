@@ -332,3 +332,8 @@
 (defmethod sqlf/fn-handler "textmatch" [_ a b & _more]
   (assert (nil? _more))
   (str (sqlf/to-sql-value a) " @@ " (sqlf/to-sql-value b)))
+
+(defn notify! [topic & [^String x]]
+  (let [topic (if (string? topic) topic (sqlf/to-sql topic))]
+    (do-execute
+     {:select [(honeysql.core/call :pg_notify topic x)]})))
