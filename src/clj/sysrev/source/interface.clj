@@ -1,10 +1,12 @@
 (ns sysrev.source.interface
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [medley.core :refer [remove-vals]]
             [sysrev.db.core :as db :refer [*conn*]]
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
             [sysrev.datasource.core :as ds]
+            [sysrev.notifications.core :refer [create-message]]
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.slack :refer [log-slack-custom]]
@@ -81,7 +83,8 @@
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
   [project-id source-id
-   {:keys [article-refs get-articles prepare-article on-article-added types] :as _impl}]
+   {:keys [article-refs get-articles prepare-article on-article-added types] :as _impl}
+   & [{:keys [user-id] :as _opts}]]
   (letfn [(import-group [articles]
             (db/with-transaction
               (let [{:keys [new-articles existing-article-ids]}
@@ -95,18 +98,35 @@
                                   (->> (:locations article)
                                        (mapv #(assoc % :article-id article-id))))))
                          (apply concat)
-                         vec)]
+                         vec)
+                    user-name (when user-id
+                                (some-> (q/find-one :web-user {:user-id user-id} :email)
+                                        (str/split #"@" 2)
+                                        first))
+                    project-name (q/find-one :project {:project-id project-id} :name)
+                    message (remove-vals nil? {:adding-user-id user-id
+                                               :adding-user-name user-name
+                                               :project-id project-id
+                                               :project-name project-name
+                                               :type :project-has-new-article})]
                 (source/add-articles-to-source
                  (concat existing-article-ids (keys new-articles-map))
                  source-id)
                 (q/create :article-location new-locations)
-                (when on-article-added
-                  (try (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
-                         (on-article-added (get new-articles-map article-id)))
-                       (catch Throwable e
-                         (log/warn "import-articles-impl: exception in on-article-added")
-                         (log/warn (with-out-str (strace/print-cause-trace-custom e)))
-                         (throw e)))))))]
+                (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
+                  (->> (q/find-one [:article :a]
+                                   {:a.article-id article-id}
+                                   :ad.title
+                                   :join [[:article-data :ad] [:= :a.article-data-id :ad.article-data-id]])
+                   (assoc message :article-id article-id :article-data-title)
+                   create-message)
+                  (when on-article-added
+                    (try
+                      (on-article-added (get new-articles-map article-id))
+                      (catch Throwable e
+                        (log/warn "import-articles-impl: exception in on-article-added")
+                        (log/warn (with-out-str (strace/print-cause-trace-custom e)))
+                        (throw e))))))))]
     (try (doseq [articles (partition-all 10 (get-articles article-refs))]
            (try (import-group articles)
                 (catch Throwable e
@@ -130,19 +150,20 @@
   indicating failure in return value."
   [project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added types] :as impl}
-   threads]
+   {:keys [threads] :as opts}]
   (if (and (> threads 1) (nil? *conn*))
     (try (let [group-size (->> (quot (count article-refs) threads) (max 1))
                thread-groups (->> article-refs (partition-all group-size))
                threads (doall (for [thread-refs thread-groups]
                                 (future (import-articles-impl
                                          project-id source-id
-                                         (assoc impl :article-refs thread-refs)))))]
+                                         (assoc impl :article-refs thread-refs)
+                                         opts))))]
            (every? true? (mapv deref threads)))
          (catch Throwable e
            (log/warn "Error in import-source-articles:" (.getMessage e))
            false))
-    (import-articles-impl project-id source-id impl)))
+    (import-articles-impl project-id source-id impl opts)))
 
 (defn- after-source-import
   "Handles success or failure after an import attempt has finished."
@@ -216,7 +237,7 @@
   and referenced in the source meta map."
   [project-id source-meta
    {:keys [get-article-refs get-articles prepare-article on-article-added types] :as impl}
-   {:keys [use-future? threads] :or {use-future? true threads 4}}
+   {:keys [use-future? user-id threads] :or {use-future? true threads 4}}
    & {:keys [filename file]}]
   (let [blocking? (boolean (or (not use-future?) *conn*))
         source-id (source/create-source project-id (assoc source-meta :importing-articles? true))
@@ -230,7 +251,7 @@
                      project-id source-id
                      (-> (assoc impl :article-refs (get-article-refs))
                          (dissoc :get-article-refs))
-                     threads)
+                     {:threads threads :user-id user-id})
                     (catch Throwable e
                       (log/warn "import-source-impl failed -" (.getMessage e))
                       (.printStackTrace e)

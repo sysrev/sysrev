@@ -12,6 +12,15 @@
 (defmethod MessageDisplay :default [notification]
   [:span (pr-str notification)])
 
+(defmethod MessageDisplay :project-has-new-article [notification]
+  (let [{{:keys [adding-user-name article-data-title project-name]} :content} notification]
+    [:span
+     [:b adding-user-name]
+     " added a new article to "
+     [:b project-name]
+     ": "
+     [:b article-data-title]]))
+
 (defmethod MessageDisplay :project-has-new-user [notification]
   (let [{{:keys [new-user-name project-name]} :content} notification]
     [:span
@@ -29,6 +38,10 @@
 
 (defmethod consume-notification-dispatches :default [_]
   [])
+
+(defmethod consume-notification-dispatches :project-has-new-article [notification]
+  (let [{:keys [article-id project-id]} (:content notification)]
+    [[:nav (str "/p/" project-id "/article/" article-id)]]))
 
 (defmethod consume-notification-dispatches :project-has-new-user [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]) "/users")]])

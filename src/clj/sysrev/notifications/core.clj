@@ -113,19 +113,25 @@
 
 (defmulti message-publisher :type)
 
-(defmethod message-publisher :project-invitation [message]
+(defmethod message-publisher :project-has-new-article [message]
   (publisher-for-project (:project-id message) :create? true))
 
 (defmethod message-publisher :project-has-new-user [message]
   (publisher-for-project (:project-id message) :create? true))
 
+(defmethod message-publisher :project-invitation [message]
+  (publisher-for-project (:project-id message) :create? true))
+
 (defmulti message-topic-name :type)
 
-(defmethod message-topic-name :project-invitation [message]
-  (str ":user-notify " (:user-id message)))
+(defmethod message-topic-name :project-has-new-article [message]
+  (str ":project " (:project-id message)))
 
 (defmethod message-topic-name :project-has-new-user [message]
   (str ":project " (:project-id message)))
+
+(defmethod message-topic-name :project-invitation [message]
+  (str ":user-notify " (:user-id message)))
 
 (defn message-topic [message]
   (topic-for-name (message-topic-name message) :create? true))
@@ -134,6 +140,11 @@
 
 (defmethod subscriber-ids-to-skip :default [_]
   nil)
+
+(defmethod subscriber-ids-to-skip :project-has-new-article [message]
+  (some-> (subscriber-for-user (:adding-user-id message)
+                               :returning :subscriber-id)
+          vector))
 
 (defmethod subscriber-ids-to-skip :project-has-new-user [message]
   (some-> (subscriber-for-user (:new-user-id message)
