@@ -2,7 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [honeysql.core :as sql]
-            [sysrev.db.core :refer [with-transaction]]
+            [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [project-user-ids]]))
 
@@ -32,6 +32,12 @@
 (def subscriber-for-user
   (partial x-for-y :notification_subscriber :user-id))
 
+(defn user-id-for-subscriber [subscriber-id]
+  (first
+   (q/find :notification-subscriber
+           {:subscriber-id subscriber-id}
+           :user-id)))
+
 (defn messages-for-subscriber [subscriber-id]
   (q/find [:notification_message_subscriber :nms]
           {:nms.subscriber-id subscriber-id}
@@ -39,6 +45,13 @@
           :join [[:notification_message :nm] [:= :nms.message_id :nm.message_id]]
           :order-by [:created :desc]
           :limit 50))
+
+(defn user-ids-for-message [message-id]
+  (q/find [:notification-message-subscriber :nms]
+          {:nms.message-id message-id}
+          :ns.user-id
+          :join [[:notification-subscriber :ns]
+                 [:= :nms.subscriber-id :ns.subscriber-id]]))
 
 (defn subscribe-to-topic [subscriber-id topic-id]
   (q/create :notification_subscriber_topic
@@ -142,14 +155,24 @@
                                 {:content message
                                  :publisher-id publisher-id
                                  :topic-id topic-id}
-                                :returning :message-id)]
-       (q/create :notification_message_subscriber
-                 (->> (subscribers-for-topic topic-id)
+                                :returning :message-id)
+           nmses (->> (subscribers-for-topic topic-id)
                       (remove (into #{} (subscriber-ids-to-skip message)))
                       (map #(-> {:message-id message-id
-                                 :subscriber-id %}))))))))
+                                 :subscriber-id %})))]
+       (db/notify! :notification-message
+                   (pr-str {:message-id message-id}))
+       (q/create :notification-message-subscriber nmses)
+       (doseq [n nmses]
+         (db/notify! :notification-message-subscriber (pr-str n)))))))
 
 (defn update-message-viewed [message-id subscriber-id]
-  (q/modify :notification_message_subscriber
-            {:message-id message-id :subscriber-id subscriber-id}
-            {:viewed (sql/call :now)}))
+  (with-transaction
+    (let [now (-> "SELECT NOW()" db/raw-query first :now .getTime)]
+      (db/notify! :notification-message-subscriber
+                  (pr-str {:message-id message-id
+                           :subscriber-id subscriber-id
+                           :viewed now}))
+      (q/modify :notification-message-subscriber
+                {:message-id message-id :subscriber-id subscriber-id}
+                {:viewed (sql/call :now)}))))

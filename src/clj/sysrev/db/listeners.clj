@@ -1,7 +1,11 @@
 (ns sysrev.db.listeners
-  (:require [clojure.core.async :refer [>! chan go]]
+  (:require [clojure.core.async :refer [<! >! chan go]]
             [clojure.tools.logging :as log]
-            [sysrev.db.core :refer [*conn* active-db]])
+            [medley.core :refer [map-vals]]
+            [sysrev.db.core :refer [*conn* active-db]]
+            [sysrev.notifications.listeners
+             :refer [handle-notification-message
+                     handle-notification-message-subscriber]])
   (:import com.impossibl.postgres.api.jdbc.PGNotificationListener
            com.impossibl.postgres.jdbc.PGDataSource))
 
@@ -66,11 +70,12 @@
    (fn [_process-id channel-name payload]
      (go (>! (channel-map channel-name) payload)))))
 
-(defonce listener-channels
-  {"notification_message_subscriber" (chan)})
+(def listener-handlers
+  {"notification_message" #'handle-notification-message
+   "notification_message_subscriber" #'handle-notification-message-subscriber})
 
 (defonce listener-state
-  (agent {:channels listener-channels
+  (agent {:channels (map-vals (fn [_] (chan)) listener-handlers)
           :close-f nil}))
 
 (defn start-listeners! []
@@ -80,3 +85,13 @@
      (when close-f (close-f))
      {:channels channels
       :close-f (register-channels channels)})))
+
+(defn handle-listener [f chan]
+  (go
+    (while true
+      (f (<! chan)))))
+
+(defn start-listener-handlers! []
+  (let [chans (:channels @listener-state)]
+    (doseq [[k f] listener-handlers]
+      (handle-listener f (get chans k)))))

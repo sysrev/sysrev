@@ -3,7 +3,8 @@
             sysrev.logging
             sysrev.stacktrace
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
-            [sysrev.db.listeners :refer [start-listeners!]]
+            [sysrev.db.listeners :refer [start-listeners!
+                                         start-listener-handlers!]]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config :refer [env]]
             [sysrev.web.routes.site :as site]
@@ -29,5 +30,6 @@
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
   (start-db postgres-overrides only-if-new)
   (start-web server-port-override only-if-new)
+  (start-listener-handlers!)
   (annotations/migrate-old-annotations)
   true)

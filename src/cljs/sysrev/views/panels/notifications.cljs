@@ -52,22 +52,19 @@
   (dispatch [:notifications/set-open (not open?)]))
 
 (reg-event-fx :consume-notification
-              (fn [{:keys [db]} [_ {:keys [id uri] :as notification}]]
-                (let [notifications (->> db :notifications
-                                      (mapv #(if (= notification %)
-                                               (assoc notification :viewed (js/Date.))
-                                               %)))]
-                  {:db (assoc db :notifications notifications)
-                   :dispatch-n (concat
-                                [[:notifications/set-open false]
-                                 (when-not (:viewed notification)
-                                   [:action
-                                    [:notifications/set-viewed
-                                     (current-user-id db)
-                                     (:message-id notification)]])]
-                                (consume-notification-dispatches notification))})))
+              (fn [{:keys [db]} [_ {:keys [message-id] :as message}]]
+                {:db (assoc-in db [:notifications message-id :viewed]
+                               (js/Date.))
+                 :dispatch-n (concat
+                              [[:notifications/set-open false]
+                               (when-not (:viewed message)
+                                 [:action
+                                  [:notifications/set-viewed
+                                   (current-user-id db)
+                                   message-id]])]
+                              (consume-notification-dispatches message))}))
 
-(defn NotificationItem [{:keys [created id viewed]
+(defn NotificationItem [{:keys [created]
                          {:keys [image-uri]} :content
                          :as notification}]
   [:div {:class "notification-item"
@@ -85,9 +82,10 @@
 (defn NotificationsContainer []
   (let [notifications @(subscribe [:notifications])
         new-notifications (->> notifications
-                            (remove :viewed)
-                            (sort-by :created)
-                            reverse)]
+                               vals
+                               (remove :viewed)
+                               (sort-by :created)
+                               reverse)]
     [:div {:class "ui notifications-container"}
      [:div {:class "ui header notifications-title"}
       "Notifications"]
@@ -109,7 +107,7 @@
 
 (defn NotificationsButton []
   (let [notifications @(subscribe [:notifications])
-        new-count (count (remove :viewed notifications))
+        new-count (->> notifications vals (remove :viewed) count)
         open? (some-> (subscribe [:notifications/open?]) deref)]
     [:<>
      [:a {:class "item"
@@ -128,7 +126,10 @@
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (defn NotificationsPanel []
-    (let [notifications @(subscribe [:notifications])]
+  (let [notifications (->> @(subscribe [:notifications])
+                           vals
+                           (sort-by :created)
+                           reverse)]
       [:div {:class "ui panel segment notifications-panel"}
        [:div {:class "ui header notifications-title"}
         "Notifications"]

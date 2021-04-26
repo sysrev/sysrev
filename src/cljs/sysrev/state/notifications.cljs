@@ -1,5 +1,6 @@
 (ns sysrev.state.notifications
-  (:require [sysrev.action.core :refer [def-action]]
+  (:require [re-frame.core :refer [reg-event-db]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.data.core :refer [def-data]]))
 
 (def-data :notifications
@@ -8,9 +9,21 @@
   :uri (fn [user-id] (str "/api/user/" user-id "/notifications"))
   :process
   (fn [{:keys [db]} _ {:keys [notifications]}]
-    {:db (assoc db :notifications notifications)}))
+    {:db (->> notifications
+              (map (juxt :message-id identity))
+              (into {})
+              (assoc db :notifications))}))
 
 (def-action :notifications/set-viewed
   :uri (fn [user-id] (str "/api/user/" user-id "/notifications/set-viewed"))
   :content (fn [_ message-id] {:message-id message-id})
   :process (fn [_ _ _]))
+
+(reg-event-db :notifications/new
+              (fn [db [_ message]]
+                (assoc-in db [:notifications (:message-id message)] message)))
+
+(reg-event-db :notifications/update-notification
+              (fn [db [_ message]]
+                (update-in db [:notifications (:message-id message)]
+                           merge message)))
