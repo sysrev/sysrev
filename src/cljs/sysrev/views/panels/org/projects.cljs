@@ -80,17 +80,17 @@
            [:div {:id "projects"}
             [Table {:sortable true}
              [TableHeader
-              [TableRow
-               [TableHeaderCell {:onClick #(sort-fn :name)
+              [TableRow {:class "noselect"}
+               [TableHeaderCell {:on-click #(sort-fn :name)
                                  :sorted (sorted :name)} "Project Name"]
                [TableHeaderCell {:text-align "center"
-                                 :onClick #(sort-fn :last-active)
+                                 :on-click #(sort-fn :last-active)
                                  :sorted (sorted :last-active)} "Last Active"]
                [TableHeaderCell {:text-align "center"
                                  #_ :on-click #_ (sort-fn :admins)
                                  #_ :sorted #_ (sorted :admins)} "Administrators"]
                [TableHeaderCell {:text-align "center"
-                                 :onClick #(sort-fn :member-count)
+                                 :on-click #(sort-fn :member-count)
                                  :sorted (sorted :member-count)} "Team Size"]
                [TableHeaderCell {:text-align "center"} "Settings"]]]
              [TableBody

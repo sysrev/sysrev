@@ -13,7 +13,7 @@
             [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.util :as util :refer
              [in? map-values css space-join wrap-parens parse-integer parse-number
-              when-test nbsp]]))
+              when-test]]))
 
 (reg-sub ::inputs
          (fn [[_ context path]]
@@ -889,7 +889,7 @@
             [:div.field.export-setting {:key :csv-separator}
              [:div.fields>div.sixteen.wide.field
               (ui/with-ui-help-tooltip
-                [:label "Value Separator" nbsp [ui/ui-help-icon]]
+                [:label "Value Separator" [ui/ui-help-icon]]
                 :help-content
                 ["Internal separator for multiple values inside a column, such as label answers."])
               [SelectSeparatorDropdown context]]]))]

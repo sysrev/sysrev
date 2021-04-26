@@ -369,7 +369,9 @@
                   flatten
                   (filterv (fn [row] (not (and (= "FALSE" (:value row))
                                                (= "boolean" (:label-type row)))))))]
-    (shared/table columns rows :header "Predictions")))
+    (shared/table columns rows
+                  :header "Predictions"
+                  :props {:id "predictions"})))
 
 (defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
                                         change-labels-button resolving?]
@@ -392,10 +394,10 @@
               [:div.five.wide.middle.aligned.column>h4.ui.article-info
                {:data-article-id article-id} "Article Info"]
               [:div.eleven.wide.column.right.aligned
-               [:a.ui.basic.label {:on-click
-                                   (fn []
-                                     (aset js/window "location" "hash" "")
-                                     (js/setTimeout #(aset js/window "location" "hash" "predictions") 0))}
+               [:a.ui.tiny.button {;; prevent pushy from intercepting href click event
+                                   :data-pushy-ignore true
+                                   :href (util/url-hash "predictions")
+                                   :style {:padding ".5833em .833em"}}
                 "See Predictions"]
                (when disabled?
                  [:div.ui.basic.label.review-status.orange "Disabled"])

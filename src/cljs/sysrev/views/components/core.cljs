@@ -262,8 +262,8 @@
       (get icons true)]]))
 
 (defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
-  [:i.circle.question.mark.icon {:class (css "grey" size class)
-                                 :style style}])
+  [:i.circle.question.mark.icon {:class (css "grey" size class "noselect")
+                                 :style (merge {:margin "0 4px"} style)}])
 
 (defn with-ui-help-tooltip [element & {:keys [help-content help-element popup-options]}]
   (list
@@ -352,7 +352,7 @@
         (if (nil? tooltip) label
             (doall (with-ui-help-tooltip
                      [:span {:style {:width "100%"}}
-                      label " " [ui-help-icon]]
+                      label [ui-help-icon]]
                      :help-content tooltip
                      :popup-options {:delay {:show 500 :hide 0}})))]
     (if-not optional
