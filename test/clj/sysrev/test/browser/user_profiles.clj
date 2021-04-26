@@ -266,7 +266,9 @@
                               ;; another (jeff chromium linux wayland/sway)
                               "cec7c07b3259529052801ed1714f5d059326151c"
                               ;; after library updates
-                              "24e6c82660c56ab1ed297eab7c5561f96e21acd3"}
+                              "24e6c82660c56ab1ed297eab7c5561f96e21acd3"
+                              ;; chrome 90, linux
+                              "4b8beb92ad915c6310dc44f3ac54d96840c577b3"}
                             (:key (user-image/user-active-avatar-image user-id)))
                  5000 250)
       (log/info "got file key")
