@@ -28,6 +28,7 @@
 
 (deftest-etaoin notifications-button
   (let [inviter-id (-> (account/create-account) :email user-by-email :user-id)
+        _ (swap! *cleanup-users* conj {:user-id inviter-id})
         _ (account/log-out)
         user (account/create-account)
         user-id (:user-id (user-by-email (:email user)))
@@ -60,6 +61,7 @@
 
 (deftest-etaoin notifications-page
   (let [inviter-id (-> (account/create-account) :email user-by-email :user-id)
+        _ (swap! *cleanup-users* conj {:user-id inviter-id})
         _ (account/log-out)
         user (account/create-account)
         user-id (:user-id (user-by-email (:email user)))
@@ -129,6 +131,7 @@
   (let [new-user-email (:email (account/create-account))
         new-user-display (first (str/split new-user-email #"@"))
         new-user-id (-> new-user-email user-by-email :user-id)
+        _ (swap! *cleanup-users* conj {:user-id new-user-id})
         _ (account/log-out)
         user (account/create-account)
         user-id (:user-id (user-by-email (:email user)))
