@@ -137,6 +137,9 @@
 
 (defmulti message-publisher :type)
 
+(defmethod message-publisher :article-reviewed [message]
+  (publisher-for-project (:project-id message) :create? true))
+
 (defmethod message-publisher :group-has-new-project [message]
   (publisher-for-project (:project-id message) :create? true))
 
@@ -150,6 +153,9 @@
   (publisher-for-project (:project-id message) :create? true))
 
 (defmulti message-topic-name :type)
+
+(defmethod message-topic-name :article-reviewed [message]
+  (str ":project " (:project-id message)))
 
 (defmethod message-topic-name :group-has-new-project [message]
   (str ":group " (:group-id message)))
@@ -170,6 +176,11 @@
 
 (defmethod subscriber-ids-to-skip :default [_]
   nil)
+
+(defmethod subscriber-ids-to-skip :article-reviewed [message]
+  (some-> (subscriber-for-user (:user-id message)
+                               :returning :subscriber-id)
+          vector))
 
 (defmethod subscriber-ids-to-skip :group-has-new-project [message]
   (some-> (subscriber-for-user (:adding-user-id message)

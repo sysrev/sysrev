@@ -12,6 +12,13 @@
 (defmethod MessageDisplay :default [notification]
   [:span (pr-str notification)])
 
+(defmethod MessageDisplay :article-reviewed [notification]
+  (let [{{:keys [article-data-title project-name]} :content} notification]
+    [:span
+     [:b project-name]
+     " has a new article review: "
+     [:b article-data-title]]))
+
 (defmethod MessageDisplay :group-has-new-project [notification]
   (let [{{:keys [group-name project-name]} :content} notification]
     [:span
@@ -47,6 +54,10 @@
 
 (defmethod consume-notification-dispatches :default [_]
   [])
+
+(defmethod consume-notification-dispatches :article-reviewed [notification]
+  (let [{:keys [article-id project-id]} (:content notification)]
+    [[:nav (str "/p/" project-id "/article/" article-id)]]))
 
 (defmethod consume-notification-dispatches :group-has-new-project [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]))]])

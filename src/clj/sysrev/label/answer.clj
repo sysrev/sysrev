@@ -1,6 +1,7 @@
 (ns sysrev.label.answer
   (:require [sysrev.db.core :as db :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
+            [sysrev.notifications.core :refer [create-message]]
             [sysrev.project.core :as project]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :as util :refer [in?]]))
@@ -134,6 +135,18 @@
       (q/create :article-label new-entries)
       (when change?
         (q/create :article-label-history current-entries))
+      (when confirm?
+        (create-message
+         {:article-id article-id
+          :article-data-title
+          (q/find-one [:article :a]
+                      {:a.article-id article-id}
+                      :ad.title
+                      :join [[:article-data :ad] [:= :a.article-data-id :ad.article-data-id]])
+          :project-id project-id
+          :project-name (q/find-one :project {:project-id project-id} :name)
+          :user-id user-id
+          :type :article-reviewed}))
       (when resolve?
         (resolve-article-answers article-id user-id :resolve-time now))
       (db/clear-project-cache project-id)
