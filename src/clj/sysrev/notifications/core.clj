@@ -76,6 +76,30 @@
 (defmethod topic-for-name :default [unique-name & opts]
   (apply x-for-y :notification_topic :unique-name unique-name opts))
 
+(defn users-in-group [group-id]
+  (q/find [:user-group :ug]
+          {:ug.group-id group-id}
+          :u.user-id
+          :join [[:web-user :u] [:= :ug.user-id :u.user-id]]))
+
+(defmethod topic-for-name :group [unique-name & {:keys [create?] :as opts}]
+  (with-transaction
+    (or
+     (apply x-for-y :notification_topic :unique-name unique-name
+            (apply concat (assoc opts :create? false)))
+     (when create?
+       (let [group-id (-> unique-name (str/split #" " 2) second Long/parseLong)
+             topic-id (apply x-for-y :notification_topic :unique-name unique-name
+                             (apply concat (assoc opts :returning :topic-id)))]
+         (doseq [sid (->> group-id users-in-group
+                          (map #(subscriber-for-user
+                                 %
+                                 :create? true
+                                 :returning :subscriber-id)))]
+           (subscribe-to-topic sid topic-id))
+         (apply x-for-y :notification_topic :unique-name unique-name
+                (apply concat (assoc opts :create? false))))))))
+
 (defmethod topic-for-name :project [unique-name
                                     & {:keys [create?] :as opts}]
   (with-transaction
