@@ -4,20 +4,20 @@
             [sysrev.notifications.core :as core]
             [sysrev.web.core :refer [sente-dispatch!]]))
 
-(defn handle-notification-message [s]
-  (let [{:keys [message-id]} (edn/read-string s)
-        message (first (q/find :notification-message
-                               {:message-id message-id}
+(defn handle-notification [s]
+  (let [{:keys [notification-id]} (edn/read-string s)
+        notification (first (q/find :notification
+                               {:notification-id notification-id}
                                :*))
-        user-ids (core/user-ids-for-message message-id)]
+        user-ids (core/user-ids-for-notification notification-id)]
     (doseq [uid user-ids]
-      (sente-dispatch! uid [:notifications/new message]))))
+      (sente-dispatch! uid [:notifications/new notification]))))
 
-(defn handle-notification-message-subscriber [s]
-  (let [{:keys [message-id subscriber-id viewed]} (edn/read-string s)
+(defn handle-notification-notification-subscriber [s]
+  (let [{:keys [notification-id subscriber-id viewed]} (edn/read-string s)
         user-id (when viewed (core/user-id-for-subscriber subscriber-id))]
     (when user-id
       (sente-dispatch! user-id [:notifications/update-notification
-                                {:message-id message-id
+                                {:notification-id notification-id
                                  :viewed (java.util.Date. viewed)}]))))
 

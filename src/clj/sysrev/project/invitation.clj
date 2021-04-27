@@ -1,7 +1,7 @@
 (ns sysrev.project.invitation
   (:require [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.notifications.core :refer [create-message]]
+            [sysrev.notifications.core :refer [create-notification]]
             [sysrev.util :refer [in?]]))
 
 (defn create-invitation!
@@ -15,16 +15,16 @@
                       :description description}
           invitation-id (q/create :invitation invitation :returning :id)
           [project-name] (q/find :project {:project-id project-id} :name)
-          message {:description description
-                   :invitation-id invitation-id
-                   :project-id project-id
-                   :project-name project-name
-                   :type :project-invitation
-                   :user-id invitee}]
+          notification {:description description
+                        :invitation-id invitation-id
+                        :project-id project-id
+                        :project-name project-name
+                        :type :project-invitation
+                        :user-id invitee}]
       (when invitation-id
         (q/create :invitation-from {:invitation-id invitation-id
                                     :user-id inviter})
-        (create-message message)
+        (create-notification notification)
         invitation-id))))
 
 (defn invitations-for-admined-projects

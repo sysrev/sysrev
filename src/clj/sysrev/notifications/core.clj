@@ -38,20 +38,20 @@
            {:subscriber-id subscriber-id}
            :user-id)))
 
-(defn messages-for-subscriber [subscriber-id]
-  (q/find [:notification_message_subscriber :nms]
-          {:nms.subscriber-id subscriber-id}
+(defn notifications-for-subscriber [subscriber-id]
+  (q/find [:notification_notification_subscriber :nns]
+          {:nns.subscriber-id subscriber-id}
           :*
-          :join [[:notification_message :nm] [:= :nms.message_id :nm.message_id]]
+          :join [[:notification :n] [:= :nns.notification_id :n.notification_id]]
           :order-by [:created :desc]
           :limit 50))
 
-(defn user-ids-for-message [message-id]
-  (q/find [:notification-message-subscriber :nms]
-          {:nms.message-id message-id}
+(defn user-ids-for-notification [notification-id]
+  (q/find [:notification-notification-subscriber :nns]
+          {:nns.notification-id notification-id}
           :ns.user-id
           :join [[:notification-subscriber :ns]
-                 [:= :nms.subscriber-id :ns.subscriber-id]]))
+                 [:= :nns.subscriber-id :ns.subscriber-id]]))
 
 (defn subscribe-to-topic [subscriber-id topic-id]
   (q/create :notification_subscriber_topic
@@ -135,101 +135,101 @@
          (apply x-for-y :notification_topic :unique-name unique-name
                 (apply concat (assoc opts :create? false))))))))
 
-(defmulti message-publisher :type)
+(defmulti notification-publisher :type)
 
-(defmethod message-publisher :article-reviewed [message]
-  (publisher-for-project (:project-id message) :create? true))
+(defmethod notification-publisher :article-reviewed [notification]
+  (publisher-for-project (:project-id notification) :create? true))
 
-(defmethod message-publisher :group-has-new-project [message]
-  (publisher-for-project (:project-id message) :create? true))
+(defmethod notification-publisher :group-has-new-project [notification]
+  (publisher-for-project (:project-id notification) :create? true))
 
-(defmethod message-publisher :project-has-new-article [message]
-  (publisher-for-project (:project-id message) :create? true))
+(defmethod notification-publisher :project-has-new-article [notification]
+  (publisher-for-project (:project-id notification) :create? true))
 
-(defmethod message-publisher :project-has-new-user [message]
-  (publisher-for-project (:project-id message) :create? true))
+(defmethod notification-publisher :project-has-new-user [notification]
+  (publisher-for-project (:project-id notification) :create? true))
 
-(defmethod message-publisher :project-invitation [message]
-  (publisher-for-project (:project-id message) :create? true))
+(defmethod notification-publisher :project-invitation [notification]
+  (publisher-for-project (:project-id notification) :create? true))
 
-(defmulti message-topic-name :type)
+(defmulti notification-topic-name :type)
 
-(defmethod message-topic-name :article-reviewed [message]
-  (str ":project " (:project-id message)))
+(defmethod notification-topic-name :article-reviewed [notification]
+  (str ":project " (:project-id notification)))
 
-(defmethod message-topic-name :group-has-new-project [message]
-  (str ":group " (:group-id message)))
+(defmethod notification-topic-name :group-has-new-project [notification]
+  (str ":group " (:group-id notification)))
 
-(defmethod message-topic-name :project-has-new-article [message]
-  (str ":project " (:project-id message)))
+(defmethod notification-topic-name :project-has-new-article [notification]
+  (str ":project " (:project-id notification)))
 
-(defmethod message-topic-name :project-has-new-user [message]
-  (str ":project " (:project-id message)))
+(defmethod notification-topic-name :project-has-new-user [notification]
+  (str ":project " (:project-id notification)))
 
-(defmethod message-topic-name :project-invitation [message]
-  (str ":user-notify " (:user-id message)))
+(defmethod notification-topic-name :project-invitation [notification]
+  (str ":user-notify " (:user-id notification)))
 
-(defn message-topic [message]
-  (topic-for-name (message-topic-name message) :create? true))
+(defn notification-topic [notification]
+  (topic-for-name (notification-topic-name notification) :create? true))
 
 (defmulti subscriber-ids-to-skip :type)
 
 (defmethod subscriber-ids-to-skip :default [_]
   nil)
 
-(defmethod subscriber-ids-to-skip :article-reviewed [message]
-  (some-> (subscriber-for-user (:user-id message)
+(defmethod subscriber-ids-to-skip :article-reviewed [notification]
+  (some-> (subscriber-for-user (:user-id notification)
                                :returning :subscriber-id)
           vector))
 
-(defmethod subscriber-ids-to-skip :group-has-new-project [message]
-  (some-> (subscriber-for-user (:adding-user-id message)
+(defmethod subscriber-ids-to-skip :group-has-new-project [notification]
+  (some-> (subscriber-for-user (:adding-user-id notification)
                                :returning :subscriber-id)
           vector))
 
-(defmethod subscriber-ids-to-skip :project-has-new-article [message]
-  (some-> (subscriber-for-user (:adding-user-id message)
+(defmethod subscriber-ids-to-skip :project-has-new-article [notification]
+  (some-> (subscriber-for-user (:adding-user-id notification)
                                :returning :subscriber-id)
           vector))
 
-(defmethod subscriber-ids-to-skip :project-has-new-user [message]
-  (some-> (subscriber-for-user (:new-user-id message)
+(defmethod subscriber-ids-to-skip :project-has-new-user [notification]
+  (some-> (subscriber-for-user (:new-user-id notification)
                                :returning :subscriber-id)
           vector))
 
-(defn create-message
-  ([message]
+(defn create-notification
+  ([notification]
    (with-transaction
-     (create-message (-> message message-publisher :publisher-id)
-                     (message-topic-name message)
-                     message)))
-  ([publisher-id topic-name message]
+     (create-notification (-> notification notification-publisher :publisher-id)
+                     (notification-topic-name notification)
+                     notification)))
+  ([publisher-id topic-name notification]
    (with-transaction
      (let [topic-id (topic-for-name topic-name
                                     :create? true
                                     :returning :topic-id)
-           message-id (q/create :notification_message
-                                {:content message
+           notification-id (q/create :notification
+                                {:content notification
                                  :publisher-id publisher-id
                                  :topic-id topic-id}
-                                :returning :message-id)
-           nmses (->> (subscribers-for-topic topic-id)
-                      (remove (into #{} (subscriber-ids-to-skip message)))
-                      (map #(-> {:message-id message-id
+                                :returning :notification-id)
+           nnses (->> (subscribers-for-topic topic-id)
+                      (remove (into #{} (subscriber-ids-to-skip notification)))
+                      (map #(-> {:notification-id notification-id
                                  :subscriber-id %})))]
-       (db/notify! :notification-message
-                   (pr-str {:message-id message-id}))
-       (q/create :notification-message-subscriber nmses)
-       (doseq [n nmses]
-         (db/notify! :notification-message-subscriber (pr-str n)))))))
+       (db/notify! :notification
+                   (pr-str {:notification-id notification-id}))
+       (q/create :notification-notification-subscriber nnses)
+       (doseq [n nnses]
+         (db/notify! :notification-notification-subscriber (pr-str n)))))))
 
-(defn update-message-viewed [message-id subscriber-id]
+(defn update-notification-viewed [notification-id subscriber-id]
   (with-transaction
     (let [now (-> "SELECT NOW()" db/raw-query first :now .getTime)]
-      (db/notify! :notification-message-subscriber
-                  (pr-str {:message-id message-id
+      (db/notify! :notification-notification-subscriber
+                  (pr-str {:notification-id notification-id
                            :subscriber-id subscriber-id
                            :viewed now}))
-      (q/modify :notification-message-subscriber
-                {:message-id message-id :subscriber-id subscriber-id}
+      (q/modify :notification-notification-subscriber
+                {:notification-id notification-id :subscriber-id subscriber-id}
                 {:viewed (sql/call :now)}))))

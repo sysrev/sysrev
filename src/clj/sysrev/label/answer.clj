@@ -1,7 +1,7 @@
 (ns sysrev.label.answer
   (:require [sysrev.db.core :as db :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.notifications.core :refer [create-message]]
+            [sysrev.notifications.core :refer [create-notification]]
             [sysrev.project.core :as project]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :as util :refer [in?]]))
@@ -136,7 +136,7 @@
       (when change?
         (q/create :article-label-history current-entries))
       (when confirm?
-        (create-message
+        (create-notification
          {:article-id article-id
           :article-data-title
           (q/find-one [:article :a]

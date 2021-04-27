@@ -1,7 +1,3 @@
---ALTER TABLE notification_publisher DROP CONSTRAINT notification_publisher_project_id_user_id_key;
-
---ALTER TABLE notification_publisher ADD CONSTRAINT notification_publisher_project_id_user_id_key UNIQUE (coalesce(project_id, -1), coalesce(user_id, -1));
-
 DROP TABLE notification_publisher CASCADE;
 
 CREATE TABLE notification_publisher (

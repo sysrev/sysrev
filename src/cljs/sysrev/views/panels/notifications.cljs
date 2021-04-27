@@ -7,19 +7,19 @@
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.util :refer [time-elapsed-string]]))
 
-(defmulti MessageDisplay (comp keyword :type :content))
+(defmulti NotificationDisplay (comp keyword :type :content))
 
-(defmethod MessageDisplay :default [notification]
+(defmethod NotificationDisplay :default [notification]
   [:span (pr-str notification)])
 
-(defmethod MessageDisplay :article-reviewed [notification]
+(defmethod NotificationDisplay :article-reviewed [notification]
   (let [{{:keys [article-data-title project-name]} :content} notification]
     [:span
      [:b project-name]
      " has a new article review: "
      [:b article-data-title]]))
 
-(defmethod MessageDisplay :group-has-new-project [notification]
+(defmethod NotificationDisplay :group-has-new-project [notification]
   (let [{{:keys [group-name project-name]} :content} notification]
     [:span
      "The "
@@ -28,7 +28,7 @@
      [:b group-name]
      " organization."]))
 
-(defmethod MessageDisplay :project-has-new-article [notification]
+(defmethod NotificationDisplay :project-has-new-article [notification]
   (let [{{:keys [adding-user-name article-data-title project-name]} :content} notification]
     [:span
      [:b adding-user-name]
@@ -37,14 +37,14 @@
      ": "
      [:b article-data-title]]))
 
-(defmethod MessageDisplay :project-has-new-user [notification]
+(defmethod NotificationDisplay :project-has-new-user [notification]
   (let [{{:keys [new-user-name project-name]} :content} notification]
     [:span
      [:b new-user-name]
      " joined "
      [:b project-name]]))
 
-(defmethod MessageDisplay :project-invitation [notification]
+(defmethod NotificationDisplay :project-invitation [notification]
   (let [{{:keys [project-name]} :content} notification]
     [:span
      "You were invited to a project: "
@@ -88,17 +88,17 @@
   (dispatch [:notifications/set-open (not open?)]))
 
 (reg-event-fx :consume-notification
-              (fn [{:keys [db]} [_ {:keys [message-id] :as message}]]
-                {:db (assoc-in db [:notifications message-id :viewed]
+              (fn [{:keys [db]} [_ {:keys [notification-id] :as notification}]]
+                {:db (assoc-in db [:notifications notification-id :viewed]
                                (js/Date.))
                  :dispatch-n (concat
                               [[:notifications/set-open false]
-                               (when-not (:viewed message)
+                               (when-not (:viewed notification)
                                  [:action
                                   [:notifications/set-viewed
                                    (current-user-id db)
-                                   message-id]])]
-                              (consume-notification-dispatches message))}))
+                                   notification-id]])]
+                              (consume-notification-dispatches notification))}))
 
 (defn NotificationItem [{:keys [created]
                          {:keys [image-uri]} :content
@@ -109,7 +109,7 @@
     [:img {:class "notification-item-image"
            :src (or image-uri "/favicon-32x32.png")}]]
    [:span
-    [MessageDisplay notification]
+    [NotificationDisplay notification]
     [:br] [:br]
     [:span {:class "notification-item-time"}
      (str/capitalize
@@ -135,7 +135,7 @@
            "See All"]
           " to see older notifications."])
        (into [:div]
-         (mapv #(-> [NotificationItem %]) new-notifications)))
+             (mapv #(-> [NotificationItem %]) new-notifications)))
      [:div {:class "notifications-footer"
             :on-click #(do (dispatch [:nav "/notifications"])
                            (dispatch [:notifications/set-open false]))}

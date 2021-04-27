@@ -4,8 +4,8 @@
             [medley.core :refer [map-vals]]
             [sysrev.db.core :refer [*conn* active-db]]
             [sysrev.notifications.listeners
-             :refer [handle-notification-message
-                     handle-notification-message-subscriber]])
+             :refer [handle-notification
+                     handle-notification-notification-subscriber]])
   (:import com.impossibl.postgres.api.jdbc.PGNotificationListener
            com.impossibl.postgres.jdbc.PGDataSource))
 
@@ -71,8 +71,8 @@
      (go (>! (channel-map channel-name) payload)))))
 
 (def listener-handlers
-  {"notification_message" #'handle-notification-message
-   "notification_message_subscriber" #'handle-notification-message-subscriber})
+  {"notification" #'handle-notification
+   "notification_notification_subscriber" #'handle-notification-notification-subscriber})
 
 (defonce listener-state
   (agent {:channels (map-vals (fn [_] (chan)) listener-handlers)

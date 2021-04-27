@@ -10,20 +10,20 @@
   :process
   (fn [{:keys [db]} _ {:keys [notifications]}]
     {:db (->> notifications
-              (map (juxt :message-id identity))
+              (map (juxt :notification-id identity))
               (into {})
               (assoc db :notifications))}))
 
 (def-action :notifications/set-viewed
   :uri (fn [user-id] (str "/api/user/" user-id "/notifications/set-viewed"))
-  :content (fn [_ message-id] {:message-id message-id})
+  :content (fn [_ notification-id] {:notification-id notification-id})
   :process (fn [_ _ _]))
 
 (reg-event-db :notifications/new
-              (fn [db [_ message]]
-                (assoc-in db [:notifications (:message-id message)] message)))
+              (fn [db [_ notification]]
+                (assoc-in db [:notifications (:notification-id notification)] notification)))
 
 (reg-event-db :notifications/update-notification
-              (fn [db [_ message]]
-                (update-in db [:notifications (:message-id message)]
-                           merge message)))
+              (fn [db [_ notification]]
+                (update-in db [:notifications (:notification-id notification)]
+                           merge notification)))

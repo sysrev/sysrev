@@ -6,7 +6,7 @@
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
             [sysrev.datasource.core :as ds]
-            [sysrev.notifications.core :refer [create-message]]
+            [sysrev.notifications.core :refer [create-notification]]
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.slack :refer [log-slack-custom]]
@@ -104,11 +104,11 @@
                                         (str/split #"@" 2)
                                         first))
                     project-name (q/find-one :project {:project-id project-id} :name)
-                    message (remove-vals nil? {:adding-user-id user-id
-                                               :adding-user-name user-name
-                                               :project-id project-id
-                                               :project-name project-name
-                                               :type :project-has-new-article})]
+                    notification (remove-vals nil? {:adding-user-id user-id
+                                                    :adding-user-name user-name
+                                                    :project-id project-id
+                                                    :project-name project-name
+                                                    :type :project-has-new-article})]
                 (source/add-articles-to-source
                  (concat existing-article-ids (keys new-articles-map))
                  source-id)
@@ -118,8 +118,8 @@
                                    {:a.article-id article-id}
                                    :ad.title
                                    :join [[:article-data :ad] [:= :a.article-data-id :ad.article-data-id]])
-                   (assoc message :article-id article-id :article-data-title)
-                   create-message)
+                   (assoc notification :article-id article-id :article-data-title)
+                   create-notification)
                   (when on-article-added
                     (try
                       (on-article-added (get new-articles-map article-id))

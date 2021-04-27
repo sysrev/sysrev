@@ -46,7 +46,7 @@
       (str ":project " project-id) :create? true :returning :topic-id))
     (let [[new-user-email] (q/find :web-user {:user-id user-id} :email)
           [project-name] (q/find :project {:project-id project-id} :name)]
-      (notifications/create-message
+      (notifications/create-notification
        {:new-user-id user-id
         :new-user-name (first (str/split new-user-email #"@"))
         :project-id project-id

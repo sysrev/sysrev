@@ -154,7 +154,7 @@
       (sync-project-owners! project-id group-id)
       (change-project-settings project-id [{:setting :public-access
                                             :value public-access}])
-      (notifications/create-message
+      (notifications/create-notification
        {:adding-user-id user-id
         :group-id group-id
         :group-name (q/find-one :groups {:group-id group-id} :group-name)
@@ -1413,7 +1413,7 @@
         ;; add the project to the group
         (group/create-project-group! dest-project-id org-id)
         (sync-project-owners! dest-project-id org-id)
-        (notifications/create-message
+        (notifications/create-notification
          {:adding-user-id user-id
           :group-id org-id
           :group-name (q/find-one :groups {:group-id org-id} :group-name)
@@ -1540,17 +1540,17 @@
 (defn user-notifications [user-id]
   {:success true
    :notifications (with-transaction
-                    (notifications/messages-for-subscriber
+                    (notifications/notifications-for-subscriber
                      (notifications/subscriber-for-user
                       user-id
                       :create? true
                       :returning :subscriber-id)))})
 
-(defn user-notifications-set-viewed [message-id user-id]
+(defn user-notifications-set-viewed [notification-id user-id]
   {:success true
    :row-count (with-transaction
-                (notifications/update-message-viewed
-                 message-id
+                (notifications/update-notification-viewed
+                 notification-id
                  (notifications/subscriber-for-user
                   user-id
                   :create? true
