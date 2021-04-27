@@ -2,8 +2,9 @@
   (:require [clojure.string :as str]
             [etaoin.api :as ea]
             [medley.core :as medley]
-            [sysrev.api :refer [import-articles-from-pdfs]]
+            [sysrev.api :refer [clone-project-for-org! import-articles-from-pdfs]]
             [sysrev.db.queries :as q]
+            [sysrev.group.core :refer [add-user-to-group! create-group!]]
             [sysrev.project.core :refer [create-project]]
             [sysrev.project.invitation :refer [create-invitation!]]
             [sysrev.project.member :refer [add-project-member]]
@@ -86,6 +87,38 @@
           (ea/wait 1))
         (is (= (str "/user/" user-id "/invitations") (e/get-path)))))))
 
+(deftest-etaoin group-has-new-project-notifications
+  (let [user-b-email (:email (account/create-account))
+        user-b-id (-> user-b-email user-by-email :user-id)
+        _ (swap! *cleanup-users* conj {:user-id user-b-id})
+        _ (account/log-out)
+        user (account/create-account)
+        user-id (:user-id (user-by-email (:email user)))
+        _ (swap! *cleanup-users* conj {:user-id user-id})
+        driver @e/*driver*
+        project-a-id (:project-id (create-project "EntoGEM"))
+        group-id (create-group! "TestGroupA")
+        _ (add-user-to-group! user-b-id group-id :permissions ["admin"])
+        _ (add-user-to-group! user-id group-id :permissions ["admin"])
+        {:keys [dest-project-id]}
+        #__ (clone-project-for-org!
+             {:src-project-id project-a-id :user-id user-b-id :org-id group-id})]
+    (testing ":group-has-new-project notifications"
+      (doto driver
+        (ea/wait 1)
+        (ea/reload)
+        (ea/click-visible {:fn/has-class :notifications-icon})
+        (ea/wait-visible {:fn/has-class :notifications-footer})
+        (ea/wait-visible [{:fn/has-class :notifications-container}
+                          {:fn/has-text "EntoGEM"}]))
+      (is (ea/visible? driver [{:fn/has-class :notifications-container}
+                               {:fn/has-text "TestGroupA"}]))
+      (doto driver
+        (ea/click [{:fn/has-class :notifications-container}
+                   {:fn/has-text "TestGroupA"}])
+        (ea/wait 1))
+      (is (str/ends-with? (e/get-path) (str "/p/" dest-project-id "/add-articles"))))))
+
 (deftest-etaoin project-has-new-article-notifications
   (let [user-b-email (:email (account/create-account))
         user-b-display (first (str/split user-b-email #"@"))
@@ -142,6 +175,7 @@
     (add-project-member project-a-id new-user-id)
     (testing ":project-has-new-user notifications"
       (doto driver
+        (ea/wait 1)
         (ea/reload)
         (ea/click-visible {:fn/has-class :notifications-icon})
         (ea/wait-visible {:fn/has-class :notifications-footer}))

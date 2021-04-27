@@ -154,6 +154,13 @@
       (sync-project-owners! project-id group-id)
       (change-project-settings project-id [{:setting :public-access
                                             :value public-access}])
+      (notifications/create-message
+       {:adding-user-id user-id
+        :group-id group-id
+        :group-name (q/find-one :groups {:group-id group-id} :group-name)
+        :project-id project-id
+        :project-name project-name
+        :type :group-has-new-project})
       {:project (select-keys project [:project-id :name])})))
 
 (defn-spec delete-project! (req-un ::sp/project-id)
@@ -1406,6 +1413,13 @@
         ;; add the project to the group
         (group/create-project-group! dest-project-id org-id)
         (sync-project-owners! dest-project-id org-id)
+        (notifications/create-message
+         {:adding-user-id user-id
+          :group-id org-id
+          :group-name (q/find-one :groups {:group-id org-id} :group-name)
+          :project-id dest-project-id
+          :project-name (q/find-one :project {:project-id dest-project-id} :name)
+          :type :group-has-new-project})
         {:dest-project-id dest-project-id}))
     {:error {:status forbidden
              :message "You don't have permission to clone that project"}}))
