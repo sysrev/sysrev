@@ -170,7 +170,9 @@
          :on-click #(dispatch [:consume-notification notification])}
    [:div
     [:img {:class "notification-item-image"
-           :src (or image-uri "/favicon-32x32.png")}]]
+           :src (or image-uri "/apple-touch-icon.png")
+           :style {:max-height "60px"
+                   :width "60px"}}]]
    [:span
     [NotificationDisplay notification]
     [:br] [:br]
