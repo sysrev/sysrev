@@ -46,7 +46,8 @@
   (combine-notifications-of-type*
    (comp :project-id :content)
    (fn [n project-id ns]
-     (assoc n :content {:new-user-names (->> (sort-by :created ns)
+     (assoc n :content {:image-uri (some (comp :image-uri :content) ns)
+                        :new-user-names (->> (sort-by :created ns)
                                              reverse
                                              (map (comp :new-user-name :content)))
                         :project-id project-id
