@@ -117,7 +117,7 @@
 
 (defmethod consume-notification-dispatches :project-has-new-article-combined
   [notification]
-  [[:nav (str "/p/" (get-in notification [:content :project-id]) "/articles")]])
+  [[:project/navigate (get-in notification [:content :project-id]) "/articles" :params {:sort-by "article-added"}]])
 
 (defmethod consume-notification-dispatches :project-has-new-user [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]) "/users")]])
