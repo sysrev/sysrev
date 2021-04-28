@@ -223,6 +223,20 @@
        (doseq [n nnses]
          (db/notify! :notification-notification-subscriber (pr-str n)))))))
 
+(defn update-notifications-consumed [notification-ids subscriber-id]
+  (with-transaction
+    (let [now (-> "SELECT NOW()" db/raw-query first :now .getTime)]
+      (db/notify! :notification-notification-subscriber
+                  (pr-str {:consumed now
+                           :notification-ids notification-ids
+                           :subscriber-id subscriber-id
+                           :viewed now}))
+      (q/modify :notification-notification-subscriber
+                {:notification-id notification-ids
+                 :subscriber-id subscriber-id}
+                {:consumed (sql/call :now)
+                 :viewed (sql/call :now)}))))
+
 (defn update-notifications-viewed [notification-ids subscriber-id]
   (with-transaction
     (let [now (-> "SELECT NOW()" db/raw-query first :now .getTime)]

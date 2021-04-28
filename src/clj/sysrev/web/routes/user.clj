@@ -153,6 +153,10 @@
          (with-authorize request {:authorize-fn (user-authd? user-id)}
            (api/user-notifications user-id)))
     (context "/notifications" []
+             (POST "/set-consumed" [:as request]
+                   (with-authorize request {:authorize-fn (user-authd? user-id)}
+                     (let [{:keys [notification-ids]} (:body request)]
+                       (api/user-notifications-set-consumed notification-ids user-id))))
              (POST "/set-viewed" [:as request]
                    (with-authorize request {:authorize-fn (user-authd? user-id)}
                      (let [{:keys [notification-ids]} (:body request)]

@@ -1,0 +1,3 @@
+ALTER TABLE notification_notification_subscriber ADD COLUMN consumed timestamp WITH time zone;
+
+CREATE INDEX notification_notification_subscriber_consumed_idx ON notification_notification_subscriber (consumed);

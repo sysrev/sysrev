@@ -49,18 +49,10 @@
           (ea/wait-visible {:fn/has-class :notifications-count
                             :fn/has-text "2"})
           (ea/click-visible {:fn/has-class :notifications-icon})
-          (ea/click-visible {:fn/has-text (:name project-a)})
+          (ea/click-visible [{:fn/has-class :notifications-container}
+                             {:fn/has-text (:name project-a)}])
           (ea/wait 1))
-        (is (= (str "/user/" user-id "/invitations") (e/get-path))))
-      (testing "Notifications are removed after being clicked."
-        (e/go "/")
-        (doto driver
-          (ea/wait-visible {:fn/has-class :notifications-count
-                            :fn/has-text "1"})
-          (ea/click-visible {:fn/has-class :notifications-icon})
-          (ea/wait 1))
-        (is (not (ea/visible? driver {:fn/has-text (:name project-a)})))
-        (is (ea/visible? driver {:fn/has-text (:name project-b)}))))))
+        (is (= (str "/user/" user-id "/invitations") (e/get-path)))))))
 
 (deftest-etaoin notifications-page
   (let [inviter-id (-> (account/create-account) :email user-by-email :user-id)

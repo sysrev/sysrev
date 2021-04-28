@@ -1546,6 +1546,16 @@
                       :create? true
                       :returning :subscriber-id)))})
 
+(defn user-notifications-set-consumed [notification-ids user-id]
+  {:success true
+   :row-count (with-transaction
+                (notifications/update-notifications-consumed
+                 notification-ids
+                 (notifications/subscriber-for-user
+                  user-id
+                  :create? true
+                  :returning :subscriber-id)))})
+
 (defn user-notifications-set-viewed [notification-ids user-id]
   {:success true
    :row-count (with-transaction

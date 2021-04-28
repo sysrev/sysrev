@@ -1,9 +1,8 @@
 (ns sysrev.views.panels.notifications
   (:require [cljs-time.coerce :as tc]
             [clojure.string :as str]
-            [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-sub subscribe]]
+            [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe]]
             [sysrev.shared.notifications :refer [combine-notifications]]
-            [sysrev.state.identity :refer [current-user-id]]
             [sysrev.state.notifications]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.util :refer [time-elapsed-string]]))
@@ -95,41 +94,6 @@
      [:b project-name]
      "."]))
 
-(defmulti consume-notification-dispatches (comp keyword :type :content))
-
-(defmethod consume-notification-dispatches :default [_]
-  [])
-
-(defmethod consume-notification-dispatches :article-reviewed [notification]
-  (let [{:keys [article-id project-id]} (:content notification)]
-    [[:nav (str "/p/" project-id "/article/" article-id)]]))
-
-(defmethod consume-notification-dispatches :article-reviewed-combined
-  [notification]
-  [[:nav (str "/p/" (get-in notification [:content :project-id]) "/articles")]])
-
-(defmethod consume-notification-dispatches :group-has-new-project [notification]
-  [[:nav (str "/p/" (get-in notification [:content :project-id]))]])
-
-(defmethod consume-notification-dispatches :project-has-new-article [notification]
-  (let [{:keys [article-id project-id]} (:content notification)]
-    [[:nav (str "/p/" project-id "/article/" article-id)]]))
-
-(defmethod consume-notification-dispatches :project-has-new-article-combined
-  [notification]
-  [[:project/navigate (get-in notification [:content :project-id]) "/articles" :params {:sort-by "article-added"}]])
-
-(defmethod consume-notification-dispatches :project-has-new-user [notification]
-  [[:nav (str "/p/" (get-in notification [:content :project-id]) "/users")]])
-
-(defmethod consume-notification-dispatches :project-has-new-user-combined
-  [notification]
-  (consume-notification-dispatches
-   (assoc-in notification [:content :type] :project-has-new-user)))
-
-(defmethod consume-notification-dispatches :project-invitation [notification]
-  [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]])
-
 (reg-sub :notifications
          (fn [db & _]
            (get db :notifications)))
@@ -145,30 +109,11 @@
 (defn toggle-open [open?]
   (dispatch [:notifications/set-open (not open?)]))
 
-(reg-event-fx :consume-notification
-              (fn [{:keys [db]} [_ notification]]
-                (let [nids (:notification-ids notification [(:notification-id notification)])
-                      now (js/Date.)]
-                  {:db
-                   (assoc db :notifications
-                          (reduce
-                           #(assoc-in % [%2 :viewed] now)
-                           (:notifications db)
-                           nids))
-                   :dispatch-n (concat
-                                [[:notifications/set-open false]
-                                 (when-not (:viewed notification)
-                                   [:action
-                                    [:notifications/set-viewed
-                                     (current-user-id db)
-                                     nids]])]
-                                (consume-notification-dispatches notification))})))
-
 (defn NotificationItem [{:keys [created]
                          {:keys [image-uri]} :content
                          :as notification}]
   [:div {:class "notification-item"
-         :on-click #(dispatch [:consume-notification notification])}
+         :on-click #(dispatch [:notifications/consume notification])}
    [:div
     [:img {:class "notification-item-image"
            :src (or image-uri "/apple-touch-icon.png")
@@ -186,10 +131,13 @@
   (let [notifications @(subscribe [:notifications])
         new-notifications (->> notifications
                                vals
-                               (remove :viewed)
+                               (remove :consumed)
                                combine-notifications
                                (sort-by :created)
                                reverse)]
+    (some->> (remove :viewed new-notifications)
+             (vector :notifications/view)
+             dispatch)
     [:div {:class "ui notifications-container"}
      [:div {:class "ui header notifications-title"}
       "Notifications"]
@@ -199,7 +147,9 @@
           "You don't have any notifications yet."]
          [:div {:class "notifications-empty-message"}
           "You don't have any new notifications. Click "
-          [:a {:href "/notifications"}
+          [:a {:href "/notifications"
+               :on-click #(do (dispatch [:nav "/notifications"])
+                              (dispatch [:notifications/set-open false]))}
            "See All"]
           " to see older notifications."])
        (into [:div]
@@ -239,6 +189,9 @@
                                 [(.getYear created) (.getMonth created) (.getDate created)])))
                            (sort-by :created)
                            reverse)]
+    (some->> (remove :viewed notifications)
+             (vector :notifications/view)
+             dispatch)
     [:div {:class "ui panel segment notifications-panel"}
      [:div {:class "ui header notifications-title"}
       "Notifications"]
