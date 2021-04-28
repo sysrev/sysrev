@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [honeysql.core :as sql]
+            [medley.core :as me]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [project-user-ids]]))
@@ -38,13 +39,17 @@
            {:subscriber-id subscriber-id}
            :user-id)))
 
-(defn notifications-for-subscriber [subscriber-id]
-  (q/find [:notification_notification_subscriber :nns]
-          {:nns.subscriber-id subscriber-id}
-          :*
-          :join [[:notification :n] [:= :nns.notification_id :n.notification_id]]
-          :order-by [:created :desc]
-          :limit 50))
+(defn notifications-for-subscriber [subscriber-id & {:as opts}]
+  (->> (apply q/find
+              [:notification_notification_subscriber :nns]
+              {:nns.subscriber-id subscriber-id}
+              [:consumed :content :created :nns.notification-id :publisher-id
+               :subscriber-id :topic-id :viewed]
+              :join [[:notification :n] [:= :nns.notification_id :n.notification_id]]
+              :order-by [:created :desc]
+              :limit 50
+              (apply concat opts))
+       (map #(me/update-existing-in % [:content :type] keyword))))
 
 (defn user-ids-for-notification [notification-id]
   (q/find [:notification-notification-subscriber :nns]

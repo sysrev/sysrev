@@ -151,7 +151,7 @@
                       (api/set-user-primary-email! user-id email)))))
     (GET "/notifications" [:as request]
          (with-authorize request {:authorize-fn (user-authd? user-id)}
-           (api/user-notifications user-id)))
+           (api/user-notifications user-id (:params request))))
     (context "/notifications" []
              (POST "/set-consumed" [:as request]
                    (with-authorize request {:authorize-fn (user-authd? user-id)}

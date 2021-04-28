@@ -47,11 +47,13 @@
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.paypal :as paypal]
             [sysrev.payment.plans :as plans]
+            [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
+            [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
             [sysrev.util :as util :refer [in? index-by req-un parse-integer sum]])
@@ -1537,14 +1539,17 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
-(defn user-notifications [user-id]
+(defn user-notifications [user-id {:keys [consumed]}]
   {:success true
    :notifications (with-transaction
-                    (notifications/notifications-for-subscriber
-                     (notifications/subscriber-for-user
-                      user-id
-                      :create? true
-                      :returning :subscriber-id)))})
+                    (-> (notifications/subscriber-for-user
+                         user-id :create? true :returning :subscriber-id)
+                        ((partial apply notifications/notifications-for-subscriber)
+                         (when #({"false" "true"} consumed)
+                           [:where [(if (= "true" consumed) :not= :=) :nns.consumed nil]]))
+                        (->> (combine-notifications
+                              (fn [{:keys [created]}]
+                                [(.getYear created) (.getMonth created) (.getDate created)])))))})
 
 (defn user-notifications-set-consumed [notification-ids user-id]
   {:success true

@@ -2,6 +2,7 @@
   (:require [re-frame.core :refer [reg-event-db reg-event-fx]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.shared.notifications :refer [uncombine-notification]]
             [sysrev.state.identity :refer [current-user-id]]))
 
 (defn notification-ids [{:keys [notification-id notification-ids]}]
@@ -42,7 +43,20 @@
    (assoc-in notification [:content :type] :project-has-new-user)))
 
 (defmethod consume-notification-dispatches :project-invitation [notification]
-  [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]])
+  [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]
+])
+
+(def-data :notifications/all
+  :loaded? (fn [db] (-> (get-in db [:data])
+                      (contains? :notifications)))
+  :uri (fn [user-id] (str "/api/user/" user-id "/notifications"))
+  :process
+  (fn [{:keys [db]} _ {:keys [notifications]}]
+    {:db (->> notifications
+              (mapcat uncombine-notification notifications)
+              (map (juxt :notification-id identity))
+              (into {})
+              (assoc db :notifications))}))
 
 (def-data :notifications/new
   :loaded? (fn [db] (-> (get-in db [:data])
@@ -51,6 +65,7 @@
   :process
   (fn [{:keys [db]} _ {:keys [notifications]}]
     {:db (->> notifications
+              (mapcat uncombine-notification notifications)
               (map (juxt :notification-id identity))
               (into {})
               (assoc db :notifications))}))
@@ -72,7 +87,7 @@
                    (update-in db [:notifications k]
                               merge (assoc v :notification-id k)))
                  db
-                 notifications)))
+                 (mapcat uncombine-notification notifications))))
 
 (reg-event-fx :notifications/consume
               (fn [{:keys [db]} [_ notification]]

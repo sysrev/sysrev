@@ -67,7 +67,7 @@
         (ea/click-visible {:fn/has-class :notifications-icon})
         (ea/click-visible {:fn/has-class :notifications-footer})
         (ea/wait-visible {:fn/has-text "You don't have any notifications yet"}))
-      (is (= "/notifications" (e/get-path))))
+      (is (= (str "/user/" user-id "/notifications") (e/get-path))))
     (let [[_ project-b]
           #__ (create-projects-and-invitations! inviter-id user-id)]
       (testing "Notifications page works."
@@ -75,7 +75,7 @@
         (doto driver
           (ea/click-visible {:fn/has-class :notifications-icon})
           (ea/click-visible {:fn/has-class :notifications-footer}))
-        (is (= "/notifications" (e/get-path)))
+        (is (= (str "/user/" user-id "/notifications") (e/get-path)))
         (doto driver
           (ea/click-visible {:fn/has-text (:name project-b)})
           (ea/wait 1))

@@ -2,10 +2,11 @@
   (:require [cljs-time.coerce :as tc]
             [clojure.string :as str]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe]]
+            [sysrev.data.core :as data]
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.state.notifications]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
-            [sysrev.util :refer [time-elapsed-string]]))
+            [sysrev.util :as util :refer [time-elapsed-string]]))
 
 (defn comma-and-join [coll]
   (let [xs (remove empty? coll)
@@ -129,6 +130,7 @@
 
 (defn NotificationsContainer []
   (let [notifications @(subscribe [:notifications])
+        user-id (or @(subscribe [:self/user-id]) "")
         new-notifications (->> notifications
                                vals
                                (remove :consumed)
@@ -147,15 +149,14 @@
           "You don't have any notifications yet."]
          [:div {:class "notifications-empty-message"}
           "You don't have any new notifications. Click "
-          [:a {:href "/notifications"
-               :on-click #(do (dispatch [:nav "/notifications"])
-                              (dispatch [:notifications/set-open false]))}
+          [:a {:href (str "/user/" user-id "/notifications")
+               :on-click #(dispatch [:notifications/set-open false])}
            "See All"]
           " to see older notifications."])
        (into [:div]
              (mapv #(-> [NotificationItem %]) new-notifications)))
      [:div {:class "notifications-footer"
-            :on-click #(do (dispatch [:nav "/notifications"])
+            :on-click #(do (dispatch [:nav (str "/user/" user-id "/notifications")])
                            (dispatch [:notifications/set-open false]))}
       "See All"]]))
 
@@ -201,8 +202,9 @@
        (into [:div]
              (mapv #(-> [NotificationItem %]) notifications)))]))
 
-(def-panel :uri "/notifications" :panel panel
-  :on-route (dispatch [:set-active-panel panel])
+(def-panel :uri "/user/:user-id/notifications" :params [user-id] :panel panel
+  :on-route (do (dispatch [:set-active-panel panel])
+                (dispatch [:fetch [:notifications/all (util/parse-integer user-id)]]))
   :content (when-let [_ @(subscribe [:self/user-id])]
              [NotificationsPanel])
   :require-login true)
