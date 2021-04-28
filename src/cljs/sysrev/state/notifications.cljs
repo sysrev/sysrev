@@ -23,6 +23,10 @@
   [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]) "/articles")]])
 
+(defmethod consume-notification-dispatches :notify-user
+  [notification]
+  [[:nav (get-in notification [:content :uri])]])
+
 (defmethod consume-notification-dispatches :group-has-new-project [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]))]])
 

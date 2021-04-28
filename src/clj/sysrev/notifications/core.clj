@@ -148,6 +148,9 @@
 (defmethod notification-publisher :group-has-new-project [notification]
   (publisher-for-project (:project-id notification) :create? true))
 
+(defmethod notification-publisher :notify-user [notification]
+  (publisher-for-user (:user-id notification) :create? true))
+
 (defmethod notification-publisher :project-has-new-article [notification]
   (publisher-for-project (:project-id notification) :create? true))
 
@@ -161,6 +164,9 @@
 
 (defmethod notification-topic-name :article-reviewed [notification]
   (str ":project " (:project-id notification)))
+
+(defmethod notification-topic-name :notify-user [notification]
+  (str ":user-notify " (:user-id notification)))
 
 (defmethod notification-topic-name :group-has-new-project [notification]
   (str ":group " (:group-id notification)))

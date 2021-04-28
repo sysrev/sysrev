@@ -38,6 +38,9 @@
      [:b article-count]
      " new article reviews."]))
 
+(defmethod NotificationDisplay :notify-user [notification]
+  [:span (get-in notification [:content :text])])
+
 (defmethod NotificationDisplay :group-has-new-project [notification]
   (let [{{:keys [group-name project-name]} :content} notification]
     [:span
