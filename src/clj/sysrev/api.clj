@@ -1545,7 +1545,8 @@
                     (-> (notifications/subscriber-for-user
                          user-id :create? true :returning :subscriber-id)
                         ((partial apply notifications/notifications-for-subscriber)
-                         (when #({"false" "true"} consumed)
+
+                         (when ({"false" "true"} consumed)
                            [:where [(if (= "true" consumed) :not= :=) :nns.consumed nil]]))
                         (->> (combine-notifications
                               (fn [{:keys [created]}]
