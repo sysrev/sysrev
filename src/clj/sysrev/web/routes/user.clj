@@ -155,8 +155,8 @@
     (context "/notifications" []
              (POST "/set-viewed" [:as request]
                    (with-authorize request {:authorize-fn (user-authd? user-id)}
-                     (let [{:keys [notification-id]} (:body request)]
-                       (api/user-notifications-set-viewed notification-id user-id)))))
+                     (let [{:keys [notification-ids]} (:body request)]
+                       (api/user-notifications-set-viewed notification-ids user-id)))))
     (context "/developer" []
              (PUT "/enable" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}

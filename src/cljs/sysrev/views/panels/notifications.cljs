@@ -88,17 +88,23 @@
   (dispatch [:notifications/set-open (not open?)]))
 
 (reg-event-fx :consume-notification
-              (fn [{:keys [db]} [_ {:keys [notification-id] :as notification}]]
-                {:db (assoc-in db [:notifications notification-id :viewed]
-                               (js/Date.))
-                 :dispatch-n (concat
-                              [[:notifications/set-open false]
-                               (when-not (:viewed notification)
-                                 [:action
-                                  [:notifications/set-viewed
-                                   (current-user-id db)
-                                   notification-id]])]
-                              (consume-notification-dispatches notification))}))
+              (fn [{:keys [db]} [_ notification]]
+                (let [nids (:notification-ids notification [(:notification-id notification)])
+                      now (js/Date.)]
+                  {:db
+                   (assoc db :notifications
+                          (reduce
+                           #(assoc-in % [%2 :viewed] now)
+                           (:notifications db)
+                           nids))
+                   :dispatch-n (concat
+                                [[:notifications/set-open false]
+                                 (when-not (:viewed notification)
+                                   [:action
+                                    [:notifications/set-viewed
+                                     (current-user-id db)
+                                     nids]])]
+                                (consume-notification-dispatches notification))})))
 
 (defn NotificationItem [{:keys [created]
                          {:keys [image-uri]} :content

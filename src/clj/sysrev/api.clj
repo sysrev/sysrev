@@ -1546,11 +1546,11 @@
                       :create? true
                       :returning :subscriber-id)))})
 
-(defn user-notifications-set-viewed [notification-id user-id]
+(defn user-notifications-set-viewed [notification-ids user-id]
   {:success true
    :row-count (with-transaction
-                (notifications/update-notification-viewed
-                 notification-id
+                (notifications/update-notifications-viewed
+                 notification-ids
                  (notifications/subscriber-for-user
                   user-id
                   :create? true
