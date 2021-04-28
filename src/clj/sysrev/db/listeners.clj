@@ -5,7 +5,8 @@
             [sysrev.db.core :refer [*conn* active-db]]
             [sysrev.notifications.listeners
              :refer [handle-notification
-                     handle-notification-notification-subscriber]])
+                     handle-notification-notification-subscriber]]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]])
   (:import com.impossibl.postgres.api.jdbc.PGNotificationListener
            com.impossibl.postgres.jdbc.PGDataSource))
 
@@ -89,7 +90,17 @@
 (defn handle-listener [f chan]
   (go
     (while true
-      (f (<! chan)))))
+      (try
+        (let [x (<! chan)]
+          (try
+            (f x)
+            (catch Throwable e
+              (log/errorf "handle-listener error %s\n\n%s"
+                          (with-out-str (print-cause-trace-custom e 20))
+                          (pr-str x)))))
+        (catch Throwable e
+          (log/errorf "handle-listener error %s"
+                      (with-out-str (print-cause-trace-custom e 20))))))))
 
 (defn start-listener-handlers! []
   (let [chans (:channels @listener-state)]
