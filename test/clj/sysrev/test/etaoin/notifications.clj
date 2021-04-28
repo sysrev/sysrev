@@ -41,7 +41,7 @@
       (doto driver
         (ea/click-visible {:fn/has-class :notifications-icon})
         (ea/wait-visible {:fn/has-text "You don't have any notifications yet"})))
-    (let [[project-a project-b]
+    (let [[project-a]
           #__ (create-projects-and-invitations! inviter-id user-id)]
       (testing "Notifications button and drop-down work."
         (doto driver

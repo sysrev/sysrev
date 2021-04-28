@@ -2,7 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [honeysql.core :as sql]
-            [medley.core :as me]
+            [medley.core :as medley]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [project-user-ids]]))
@@ -49,7 +49,7 @@
               :order-by [:created :desc]
               :limit 50
               (apply concat opts))
-       (map #(me/update-existing-in % [:content :type] keyword))))
+       (map #(medley/update-existing-in % [:content :type] keyword))))
 
 (defn user-ids-for-notification [notification-id]
   (q/find [:notification-notification-subscriber :nns]

@@ -47,7 +47,6 @@
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.paypal :as paypal]
             [sysrev.payment.plans :as plans]
-            [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.formats.pubmed :as pubmed]

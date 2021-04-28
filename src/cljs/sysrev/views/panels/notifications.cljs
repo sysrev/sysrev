@@ -2,7 +2,6 @@
   (:require [cljs-time.coerce :as tc]
             [clojure.string :as str]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe]]
-            [sysrev.data.core :as data]
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.state.notifications]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
