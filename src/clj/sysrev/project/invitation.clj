@@ -16,6 +16,7 @@
           invitation-id (q/create :invitation invitation :returning :id)
           [project-name] (q/find :project {:project-id project-id} :name)
           notification {:description description
+                        :image-uri (str "/api/user/" inviter "/avatar")
                         :invitation-id invitation-id
                         :project-id project-id
                         :project-name project-name
