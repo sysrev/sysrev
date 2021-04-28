@@ -88,9 +88,10 @@
      "."]))
 
 (defmethod NotificationDisplay :project-invitation [notification]
-  (let [{{:keys [project-name]} :content} notification]
+  (let [{{:keys [inviter-name project-name]} :content} notification]
     [:span
-     "You were invited to a project: "
+     [:b inviter-name]
+     " invited you to a project: "
      [:b project-name]
      "."]))
 
