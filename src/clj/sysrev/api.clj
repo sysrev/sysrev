@@ -1538,18 +1538,76 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
-(defn user-notifications [user-id {:keys [consumed]}]
-  {:success true
-   :notifications (with-transaction
-                    (-> (notifications/subscriber-for-user
-                         user-id :create? true :returning :subscriber-id)
-                        ((partial apply notifications/notifications-for-subscriber)
+(defn epoch-millis->LocalDateTime [millis]
+  (java.time.LocalDateTime/ofEpochSecond
+   (quot millis 1000)
+   (* 1000 (rem millis 1000))
+   java.time.ZoneOffset/UTC))
 
-                         (when ({"false" "true"} consumed)
-                           [:where [(if (= "true" consumed) :not= :=) :nns.consumed nil]]))
-                        (->> (combine-notifications
-                              (fn [{:keys [created]}]
-                                [(.getYear created) (.getMonth created) (.getDate created)])))))})
+(defn at-start-of-day [^java.time.ZonedDateTime zdt]
+  (-> zdt (.withHour 0) (.withMinute 0) (.withSecond 0) (.withNano 0)))
+
+(defn user-notifications-by-day*
+  "We first query for notifications up to the specified limit. Then we
+  find the day of the last notification, and make a second query for the
+  rest of the notifications on that day.
+
+  This avoids complications introduced by combining notifications. Since
+  combination happens per day, we shouldn't have any surprises as long
+  as we send all notifications for each day at the same time."
+  [user-id {:keys [created-after limit]}]
+  (with-transaction
+    (when-let [subscriber-id (notifications/subscriber-for-user
+                              user-id :returning :subscriber-id)]
+      (let [ntfs (notifications/notifications-for-subscriber
+                  subscriber-id :where (when created-after
+                                         [:< :created created-after])
+                  :limit limit)
+            last-timestamp (-> ntfs last :created)
+            start-of-day (when last-timestamp
+                           (-> last-timestamp .toInstant
+                               (.atZone (java.time.ZoneId/of "UTC"))
+                               at-start-of-day .toInstant
+                               java.sql.Timestamp/from))
+            ntfs2 (when last-timestamp
+                    (notifications/notifications-for-subscriber
+                     subscriber-id :where
+                     [:and [:>= :created start-of-day]
+                      [:<= :created last-timestamp]]))]
+        {:notifications (dedupe (concat ntfs ntfs2))
+         :start-of-day start-of-day}))))
+
+(defn user-notifications-by-day [user-id {:keys [created-after limit]}]
+  (let [created-after (when created-after
+                           (some-> (try (Long/parseLong created-after)
+                                        (catch Exception _))
+                                   epoch-millis->LocalDateTime
+                                   (.atZone (java.time.ZoneId/of "UTC"))
+                                   .toInstant java.sql.Timestamp/from))
+        limit (-> (try (Long/parseLong limit) (catch Exception _))
+                     (or 50) (min 50))
+        {:keys [notifications start-of-day]}
+        #__ (user-notifications-by-day*
+             user-id {:created-after created-after :limit limit})]
+    {:success true
+     :notifications (combine-notifications
+                     (fn [{:keys [created]}]
+                       [(.getYear created) (.getMonth created) (.getDate created)])
+                     notifications)
+     :next-created-after start-of-day}))
+
+(defn user-notifications-new [user-id {:keys [limit]}]
+  (with-transaction
+    (when-let [subscriber-id (notifications/subscriber-for-user
+                          user-id :returning :subscriber-id)]
+      (let [limit (-> (try (Long/parseLong limit) (catch Exception _))
+                      (or 50) (min 50))]
+        {:success true
+         :notifications
+         (->> (notifications/notifications-for-subscriber
+               subscriber-id :where [:= :consumed nil] :limit 50)
+              combine-notifications
+              (take limit))}))))
 
 (defn user-notifications-set-consumed [notification-ids user-id]
   {:success true

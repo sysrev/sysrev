@@ -1,5 +1,7 @@
 (ns sysrev.state.notifications
-  (:require [re-frame.core :refer [reg-event-db reg-event-fx]]
+  (:require [cljs-http.client :as http]
+            [cljs-time.coerce :as tc]
+            [re-frame.core :refer [reg-event-db reg-event-fx reg-sub]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.shared.notifications :refer [uncombine-notification]]
@@ -50,29 +52,40 @@
   [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]
 ])
 
-(def-data :notifications/all
-  :loaded? (fn [db] (-> (get-in db [:data])
-                      (contains? :notifications)))
-  :uri (fn [user-id] (str "/api/user/" user-id "/notifications"))
+(defn merge-notifications [db notifications]
+  (->> (mapcat uncombine-notification notifications)
+       (reduce
+        (fn [m {:keys [notification-id] :as notification}]
+          (update m notification-id merge notification))
+        (get-in db [:data :notifications]))
+       (assoc-in db [:data :notifications])))
+
+(def-data :notifications/by-day
+  :loaded? (fn [db & args]
+             (get-in db [:state :notifications :loaded-by-day args]))
+  :uri (fn [user-id & {:as query-params}]
+         (apply str "/api/user/" user-id "/notifications/by-day"
+              (when (seq query-params)
+                ["?" (http/generate-query-string query-params)])))
   :process
-  (fn [{:keys [db]} _ {:keys [notifications]}]
-    {:db (->> notifications
-              (mapcat uncombine-notification notifications)
-              (map (juxt :notification-id identity))
-              (into {})
-              (assoc db :notifications))}))
+  (fn [{:keys [db]}
+       [_user-id & {:keys [start-at]} :as args]
+       {:keys [next-created-after notifications]}]
+    {:db (-> (merge-notifications db notifications)
+             (assoc-in [:state :notifications :loaded-by-day args] true)
+             (assoc-in [:state :notifications :at-end?] (empty? notifications))
+             (assoc-in [:state :notifications :next-created-after]
+                       (tc/to-long (tc/from-date next-created-after))))}))
 
 (def-data :notifications/new
-  :loaded? (fn [db] (-> (get-in db [:data])
-                      (contains? :notifications)))
-  :uri (fn [user-id] (str "/api/user/" user-id "/notifications?consumed=false"))
+  :loaded? (fn [db]
+             (get-in db [:state :notifications :loaded-new?]))
+  :uri (fn [user-id & {:keys [limit] :or {limit 5}}]
+         (str "/api/user/" user-id "/notifications/new?limit=" limit))
   :process
   (fn [{:keys [db]} _ {:keys [notifications]}]
-    {:db (->> notifications
-              (mapcat uncombine-notification notifications)
-              (map (juxt :notification-id identity))
-              (into {})
-              (assoc db :notifications))}))
+    {:db (-> (merge-notifications db notifications)
+             (assoc-in [:state :notifications :loaded-new?] true))}))
 
 (def-action :notifications/set-consumed
   :uri (fn [user-id] (str "/api/user/" user-id "/notifications/set-consumed"))
@@ -86,22 +99,19 @@
 
 (reg-event-db :notifications/update-notifications
               (fn [db [_ notifications]]
-                (reduce
-                 (fn [db [k v]]
-                   (update-in db [:notifications k]
-                              merge (assoc v :notification-id k)))
-                 db
-                 (mapcat uncombine-notification notifications))))
+                (->> notifications
+                     (map (fn [[k v]] (assoc v :notification-id k)))
+                     (merge-notifications db))))
 
 (reg-event-fx :notifications/consume
               (fn [{:keys [db]} [_ notification]]
                 (let [nids (notification-ids notification)
                       now (js/Date.)]
                   {:db
-                   (assoc db :notifications
+                   (assoc-in db [:data :notifications]
                           (reduce
                            #(update % %2 assoc :consumed now :viewed now)
-                           (:notifications db)
+                           (get-in db [:data :notifications])
                            nids))
                    :dispatch-n
                    (into
@@ -116,11 +126,23 @@
                                 (mapcat notification-ids))
                       now (js/Date.)]
                   {:db
-                   (assoc db :notifications
+                   (assoc-in db [:data :notifications]
                           (reduce
                            #(assoc-in % [%2 :viewed] now)
-                           (:notifications db)
+                           (get-in db [:data :notifications])
                            nids))
                    :dispatch-n [(when (seq nids)
                                   [:action [:notifications/set-viewed
                                             (current-user-id db) nids]])]})))
+
+(reg-sub :notifications
+         (fn [db & _]
+           (get-in db [:data :notifications])))
+
+(reg-sub :notifications/at-end?
+         (fn [db & _]
+           (get-in db [:state :notifications :at-end?])))
+
+(reg-sub :notifications/next-created-after
+         (fn [db & _]
+           (get-in db [:state :notifications :next-created-after])))

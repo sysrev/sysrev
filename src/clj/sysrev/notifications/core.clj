@@ -47,7 +47,6 @@
                :subscriber-id :topic-id :viewed]
               :join [[:notification :n] [:= :nns.notification_id :n.notification_id]]
               :order-by [:created :desc]
-              :limit 50
               (apply concat opts))
        (map #(medley/update-existing-in % [:content :type] keyword))))
 

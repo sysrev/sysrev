@@ -35,7 +35,7 @@
                  have-user? (store-user-map identity))
            :dispatch-n (list [:load-project-url-ids url-ids-map]
                          (when have-user?
-                           [:fetch [:notifications/new (:user-id identity)]]))}
+                           [:require [:notifications/new (:user-id identity)]]))}
         theme-changed? (merge {:reload-page [true]})))))
 
 (def-action :auth/log-in

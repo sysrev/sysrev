@@ -1,11 +1,14 @@
 (ns sysrev.views.panels.notifications
   (:require [cljs-time.coerce :as tc]
             [clojure.string :as str]
+            [reagent.core :refer [create-element]]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe]]
+            [sysrev.data.core :as data]
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.state.notifications]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
-            [sysrev.util :as util :refer [time-elapsed-string]]))
+            [sysrev.util :as util :refer [time-elapsed-string]]
+            ["react-infinite-scroll-component" :as InfiniteScroll]))
 
 (defn comma-and-join [coll]
   (let [xs (remove empty? coll)
@@ -97,17 +100,13 @@
      [:b project-name]
      "."]))
 
-(reg-sub :notifications
-         (fn [db & _]
-           (get db :notifications)))
-
 (reg-sub :notifications/open?
          (fn [db & _]
-           (get db :notifications/open?)))
+           (get-in db [:state :notifications :open?])))
 
 (reg-event-db :notifications/set-open
               (fn [db [_ open?]]
-                (assoc db :notifications/open? open?)))
+                (assoc-in db [:state :notifications :open?] open?)))
 
 (defn toggle-open [open?]
   (dispatch [:notifications/set-open (not open?)]))
@@ -138,7 +137,8 @@
                                (remove :consumed)
                                combine-notifications
                                (sort-by :created)
-                               reverse)]
+                               reverse
+                               (take 5))]
     (some->> (remove :viewed new-notifications)
              (vector :notifications/view)
              dispatch)
@@ -183,8 +183,24 @@
 (setup-panel-state panel [:notifications]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
+(defn InfiniteNotifications [user-id next-created-after at-end? notifications]
+  (into
+   [:> InfiniteScroll
+    {:endMessage (create-element "div" #js{:className "no-more-notifications"}
+                                 "That's everything!")
+     :dataLength (count notifications)
+     :hasMore (not at-end?)
+     :loader (create-element "div" #js{:className "loading-notifications"}
+                             "Loading...")
+     :next #(data/require-data :notifications/by-day user-id
+                               :created-after next-created-after)}]
+   notifications))
+
 (defn NotificationsPanel []
-  (let [notifications (->> @(subscribe [:notifications])
+  (let [user-id @(subscribe [:self/user-id])
+        next-created-after @(subscribe [:notifications/next-created-after])
+        at-end? @(subscribe [:notifications/at-end?])
+        notifications (->> @(subscribe [:notifications])
                            vals
                            (combine-notifications
                             (fn [{:keys [created]}]
@@ -192,6 +208,9 @@
                                 [(.getYear created) (.getMonth created) (.getDate created)])))
                            (sort-by :created)
                            reverse)]
+    (when (and (not at-end?) (> 30 (count notifications)))
+      (data/require-data :notifications/by-day user-id
+                         :created-after next-created-after))
     (some->> (remove :viewed notifications)
              (vector :notifications/view)
              dispatch)
@@ -201,12 +220,12 @@
      (if (empty? notifications)
        [:div {:class "notifications-empty-message"}
         "You don't have any notifications yet."]
-       (into [:div]
-             (mapv #(-> [NotificationItem %]) notifications)))]))
+       [InfiniteNotifications user-id next-created-after at-end?
+        (mapv #(-> [NotificationItem %]) notifications)])]))
 
 (def-panel :uri "/user/:user-id/notifications" :params [user-id] :panel panel
   :on-route (do (dispatch [:set-active-panel panel])
-                (dispatch [:fetch [:notifications/all (util/parse-integer user-id)]]))
+                (dispatch [:require [:notifications/by-day (util/parse-integer user-id)]]))
   :content (when-let [_ @(subscribe [:self/user-id])]
              [NotificationsPanel])
   :require-login true)
