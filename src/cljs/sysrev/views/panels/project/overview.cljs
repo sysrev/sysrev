@@ -300,7 +300,8 @@
                             data)}))
 
 (defn- LabelCountChart []
-  (let [color-filter (r/atom #{})]
+  (let [color-filter (r/atom #{})
+        animate? (r/atom true)]
     (fn []
       (when-let [label-counts (not-empty @(subscribe [:project/label-counts]))]
         (let [label-ids @(subscribe [:project/label-ids])
@@ -372,12 +373,15 @@
                          (:fillStyle (js->clj legend-item
                                               :keywordize-keys true))
                          enabled? (not (filtered-color? current-legend-color))]
+                     ;; disable animations when changing label filters
+                     (reset! animate? false)
                      (if enabled?
                        ;; filter out the associated data points
                        (swap! color-filter #(conj % current-legend-color))
                        ;; the associated data points should no longer be filtered out
                        (swap! color-filter #(disj % current-legend-color)))))}}
-               :items-clickable? true)
+               :items-clickable? true
+               :animate? @animate?)
               height (* 2 (+ 40
                              (* 10 (Math/round (/ (inc (count label-ids)) 3)))
                              (* 10 (count counts))))]
