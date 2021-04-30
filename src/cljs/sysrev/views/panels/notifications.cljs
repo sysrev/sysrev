@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.notifications
   (:require [cljs-time.coerce :as tc]
+            [cljs-time.format :as tf]
             [clojure.string :as str]
             [reagent.core :refer [create-element]]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe]]
@@ -183,31 +184,44 @@
 (setup-panel-state panel [:notifications]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
-(defn InfiniteNotifications [user-id next-created-after at-end? notifications]
+(defn InfiniteNotifications [user-id next-created-after at-end? children]
   (into
    [:> InfiniteScroll
     {:endMessage (create-element "div" #js{:className "no-more-notifications"}
                                  "That's everything!")
-     :dataLength (count notifications)
+     :dataLength (count children)
      :hasMore (not at-end?)
      :loader (create-element "div" #js{:className "loading-notifications"}
                              "Loading...")
      :next #(data/require-data :notifications/by-day user-id
                                :created-after next-created-after)}]
-   notifications))
+   children))
+
+
+(def year-month-day-formatter (tf/formatter "yyyy-MM-dd"))
+(def month-day-formatter (tf/formatter "MMMM dd"))
+
+(defn day-grouping [{:keys [created]}]
+  (when created
+    (tf/unparse year-month-day-formatter (tc/from-date created))))
 
 (defn NotificationsPanel []
   (let [user-id @(subscribe [:self/user-id])
         next-created-after @(subscribe [:notifications/next-created-after])
         at-end? @(subscribe [:notifications/at-end?])
-        notifications (->> @(subscribe [:notifications])
-                           vals
-                           (combine-notifications
-                            (fn [{:keys [created]}]
-                              (when created
-                                [(.getYear created) (.getMonth created) (.getDate created)])))
-                           (sort-by :created)
-                           reverse)]
+        notifications (vals @(subscribe [:notifications]))
+        children (->> notifications
+                      (group-by day-grouping)
+                      (map (fn [[k v]] [k (combine-notifications v)]))
+                      sort
+                      reverse
+                      (mapcat
+                       (fn [[_ ntfcns]]
+                         (let [date (-> ntfcns first :created tc/from-date)]
+                           (into
+                            [[:div {:class "notifications-date-header"}
+                              (tf/unparse month-day-formatter date)]]
+                            (map #(-> [NotificationItem %]) ntfcns))))))]
     (when (and (not at-end?) (> 30 (count notifications)))
       (data/require-data :notifications/by-day user-id
                          :created-after next-created-after))
@@ -217,11 +231,10 @@
     [:div {:class "ui panel segment notifications-panel"}
      [:div {:class "ui header notifications-title"}
       "Notifications"]
-     (if (empty? notifications)
+     (if (empty? children)
        [:div {:class "notifications-empty-message"}
         "You don't have any notifications yet."]
-       [InfiniteNotifications user-id next-created-after at-end?
-        (mapv #(-> [NotificationItem %]) notifications)])]))
+       [InfiniteNotifications user-id next-created-after at-end? children])]))
 
 (def-panel :uri "/user/:user-id/notifications" :params [user-id] :panel panel
   :on-route (do (dispatch [:set-active-panel panel])
