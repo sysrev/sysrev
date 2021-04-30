@@ -6,10 +6,13 @@
 @darkestText                  : rgba(0, 0, 0, 1.0);
 @lightText                    : rgba(250, 250, 250, 0.925);
 @lightestText                 : rgba(255, 255, 255, 1.0);
-@mutedDarkText                : rgba(45, 45, 45, 0.85);
-@mutedLightText               : rgba(230, 230, 230, 0.85);
-@fadedDarkText                : rgba(100, 100, 100, 0.3);
-@fadedLightText               : rgba(160, 160, 160, 0.3);
+@mutedDarkText                : rgba(45, 45, 45, 0.8);
+@mutedLightText               : rgba(235, 235, 235, 0.8);
+@fadedDarkText                : rgba(45, 45, 45, 0.7);
+@fadedLightText               : rgba(235, 235, 235, 0.7);
+
+@fadedText                    : @fadedLightText;
+@fadedInvertedText            : @fadedDarkText;
 
 @green                        : rgba(33, 186, 69, 1);
 @orange                       : #f2711c;
@@ -18,13 +21,13 @@
 
 @largeMonitorBreakpoint       : 1200px;
 
-@siteTextColor                : rgba(240, 240, 240, 0.925);
+@siteTextColor                : rgba(235, 235, 235, 0.925);
 @textColor                    : @siteTextColor;
 
-@darkTextColor                : rgba(240, 240, 240, 0.875);
-@softTextColor                : rgba(240, 240, 240, 0.85);
-@mutedTextColor               : rgba(240, 240, 240, 0.82);
-@lightTextColor               : rgba(240, 240, 240, 0.5);
+@darkTextColor                : rgba(235, 235, 235, 0.875);
+@softTextColor                : rgba(235, 235, 235, 0.85);
+@mutedTextColor               : @mutedLightText;
+@lightTextColor               : rgba(235, 235, 235, 0.5);
 @emphasisText                 : @lightText;
 
 @buttonBackgroundColor        : hsla(209, 0%, 26%, 1);

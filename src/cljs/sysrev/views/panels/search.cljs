@@ -126,30 +126,26 @@
           [Column {:widescreen base-menu-width
                    :tablet (+ base-menu-width 1)
                    :mobile (+ base-menu-width 2)}
-           [Menu {:secondary true
-                  :vertical true
-                  :fluid true}
+           [Menu {:class "search-results-menu"
+                  :secondary true, :vertical true, :fluid true}
             [MenuItem {:name "Projects"
                        :active (= active :projects)
                        :on-click #(nav/nav "/search" :params {:q q :p 1 :type "projects"})
                        :color "orange"}
              "Projects"
-             [Label {:size "mini"
-                     :id "search-results-projects-count"} @projects-count]]
+             [Label {:id "search-results-projects-count"} @projects-count]]
             [MenuItem {:name "Users"
                        :active (= active :users)
                        :on-click #(nav/nav "/search" :params {:q q :p 1 :type "users"})
                        :color "orange"}
              "Users"
-             [Label {:size "mini"
-                     :id "search-results-users-count"} @users-count]]
+             [Label {:id "search-results-users-count"} @users-count]]
             [MenuItem {:name "Orgs"
                        :active (= active :orgs)
                        :on-click #(nav/nav "/search" :params {:q q :p 1 :type "orgs"})
                        :color "orange"}
              "Orgs"
-             [Label {:size "mini"
-                     :id "search-results-orgs-count"} @orgs-count]]]]
+             [Label {:id "search-results-orgs-count"} @orgs-count]]]]
           [Column
            [:div
             (if (= @search-results :retrieving)

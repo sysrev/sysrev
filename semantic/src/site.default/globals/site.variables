@@ -6,8 +6,8 @@
 @darkestText                  : rgba(0, 0, 0, 1.0);
 @lightText                    : rgba(250, 250, 250, 0.925);
 @lightestText                 : rgba(255, 255, 255, 1.0);
-@mutedDarkText                : rgba(45, 45, 45, 0.85);
-@mutedLightText               : rgba(230, 230, 230, 0.85);
+@mutedDarkText                : rgba(45, 45, 45, 0.8);
+@mutedLightText               : rgba(230, 230, 230, 0.8);
 @fadedDarkText                : rgba(100, 100, 100, 0.3);
 @fadedLightText               : rgba(160, 160, 160, 0.3);
 

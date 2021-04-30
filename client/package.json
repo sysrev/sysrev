@@ -6,6 +6,8 @@
     "shadow-cljs": "2.12.5"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^1.4.0",
+    "@stripe/stripe-js": "^1.14.0",
     "@types/react": "^17.0.0",
     "@uppy/core": "^1.13.2",
     "@uppy/react": "^1.10.8",
@@ -33,7 +35,6 @@
     "react-json-view": "^1.21.1",
     "react-markdown": "^5.0.3",
     "react-pdf": "^5.2.0",
-    "react-stripe-elements": "^6.1.2",
     "react-xml-viewer": "^1.1.0",
     "remark-gfm": "^1.0.0",
     "semantic-ui-react": "^2.0.0",
