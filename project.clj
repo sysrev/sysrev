@@ -49,10 +49,6 @@
                  [honeysql "0.9.8"]
                  [nilenso/honeysql-postgres "0.2.6"]
 
-;;; Cassandra
-                 [cc.qbits/alia-all "4.3.3"]
-                 [cc.qbits/hayt "4.1.0"]
-
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
                  [manifold "0.1.8"]
