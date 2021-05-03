@@ -222,7 +222,7 @@
                             [[:div {:class "notifications-date-header"}
                               (tf/unparse month-day-formatter date)]]
                             (map #(-> [NotificationItem %]) ntfcns))))))]
-    (when (and (not at-end?) (> 30 (count notifications)))
+    (when (and (not at-end?) (> 30 (count children)))
       (data/require-data :notifications/by-day user-id
                          :created-after next-created-after))
     (some->> (remove :viewed notifications)
