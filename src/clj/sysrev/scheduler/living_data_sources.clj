@@ -1,15 +1,12 @@
 (ns sysrev.scheduler.living-data-sources
   (:require [clojurewerkz.quartzite.scheduler :as q]
-            [clojurewerkz.quartzite.jobs :as j :refer [defjob]]
+            [clojurewerkz.quartzite.jobs :as j]
             [clojurewerkz.quartzite.schedule.simple :refer [schedule repeat-forever with-interval-in-hours]]
             [clojurewerkz.quartzite.triggers :as t]
             [sysrev.source.pubmed :as pubmed]
             [sysrev.source.core :as source]
             [honeysql.helpers :as sqlh :refer [select from where]]
             [sysrev.db.core :as db :refer [do-query]]))
-
-;; for clj-kondo
-;; (declare LivingDataSourcesJob ctx)
 
 (defn check-new-articles-pubmed [{:keys [source-id] :as source}]
   (let [new-article-ids (pubmed/get-new-articles-available source)
@@ -29,8 +26,10 @@
           "PubMed search" (check-new-articles-pubmed source)
           :noop)))))
 
-(defjob LivingDataSourcesJob [ctx]
-  (check-new-articles))
+(defrecord LivingDataSourcesJob []
+  org.quartz.Job
+  (execute [_ _]
+    (check-new-articles)))
 
 (defn schedule-living-data-sources [scheduler]
   (let [job (j/build
