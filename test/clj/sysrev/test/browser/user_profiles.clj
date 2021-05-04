@@ -256,7 +256,7 @@
       (log/info "setting avatar")
       (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
       ;; check manually that the avatar matches what we would expect
-      ;; (two possible values for some reason, depending on system)
+      ;; (multiple possible values for some reason, depending on system)
       (b/is-soon (contains? #{ ;; original test value (james mac)
                               "52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
                               ;; second test value (jeff/james mac, jenkins linux)
@@ -264,7 +264,9 @@
                               ;; another value (jeff chromium linux)
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"
                               ;; another (jeff chromium linux wayland/sway)
-                              "cec7c07b3259529052801ed1714f5d059326151c"}
+                              "cec7c07b3259529052801ed1714f5d059326151c"
+                              ;; after library updates
+                              "24e6c82660c56ab1ed297eab7c5561f96e21acd3"}
                             (:key (user-image/user-active-avatar-image user-id)))
                  5000 250)
       (log/info "got file key")
