@@ -261,6 +261,7 @@
                               "52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
                               ;; second test value (jeff/james mac, jenkins linux)
                               "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
+                              "24e6c82660c56ab1ed297eab7c5561f96e21acd3"
                               ;; another value (jeff chromium linux)
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"
                               ;; another (jeff chromium linux wayland/sway)
