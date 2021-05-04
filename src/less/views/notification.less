@@ -35,10 +35,13 @@
 
 .ui.notifications-container .notifications-title,
 .ui.notifications-panel .notifications-title {
-  border-bottom: 1px solid @borderColor;
   font-weight: bold;
   margin: 0;
   padding: 12px;
+}
+
+.ui.notifications-container .notifications-title {
+  border-bottom: 1px solid @borderColor;
 }
 
 .ui.notifications-container .notification-item {
@@ -95,12 +98,16 @@
 
 .ui.notifications-panel .loading-notifications,
 .ui.notifications-panel .no-more-notifications {
+  background: @footerBackground;
+  border-top: 1px solid @borderColor;
   font-size: 17px;
-  margin: 10px;
+  padding: 10px;
 }
 
 .ui.notifications-panel .notifications-date-header {
+  background: @footerBackground;
+  border-top: 1px solid @borderColor;
   font-size: 17px;
   font-weight: bold;
-  margin: 10px;
+  padding: 10px;
 }
