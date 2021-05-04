@@ -4,6 +4,7 @@
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [user-uri]]
             [sysrev.views.components.core :refer [dropdown-menu with-tooltip]]
+            [sysrev.views.panels.notifications :refer [NotificationsButton]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
             [sysrev.views.panels.search :refer [SiteSearch]]
             [sysrev.util :as util]))
@@ -70,6 +71,7 @@
           [:div
            [Avatar {:user-id user-id}]
            [:span.blue-text {:style {:margin-left "0.25em"}} user-display]]]
+         [NotificationsButton]
          [:a.item {:id "log-out-link" :on-click #(run-action :auth/log-out)}
           "Log Out"]
          [:div.item {:style {:width "0" :padding "0"}}]]

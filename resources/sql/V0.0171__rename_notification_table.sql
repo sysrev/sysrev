@@ -1,0 +1,10 @@
+ALTER TABLE notification_message RENAME TO notification;
+ALTER TABLE notification_message_subscriber RENAME TO notification_notification_subscriber;
+
+ALTER TABLE notification RENAME COLUMN message_id TO notification_id;
+ALTER TABLE notification_notification_subscriber RENAME COLUMN message_id TO notification_id;
+
+ALTER INDEX notification_message_pkey RENAME TO notification_pkey;
+ALTER INDEX notification_message_subscriber_pkey RENAME TO notification_notification_subscriber_pkey;
+
+ALTER SEQUENCE notification_message_message_id_seq RENAME TO notification_notification_id_seq;

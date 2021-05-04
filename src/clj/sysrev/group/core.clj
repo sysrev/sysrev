@@ -5,6 +5,8 @@
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user]
+            [sysrev.notifications.core :refer [subscribe-to-topic subscriber-for-user
+                                               topic-for-name unsubscribe-from-topic]]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
             [sysrev.util :as util :refer [index-by]]))
@@ -19,9 +21,13 @@
   "Create a user-group association between group-id and user-id
   with optional :permissions vector (default of [\"member\"])"
   [user-id group-id & {:keys [permissions]}]
-  (q/create :user-group (cond-> {:user-id user-id :group-id group-id}
-                          permissions (assoc :permissions (db/to-sql-array "text" permissions)))
-            :returning :id))
+  (with-transaction
+    (-> (subscriber-for-user user-id :create? true :returning :subscriber-id)
+        (subscribe-to-topic
+         (topic-for-name (str ":group " group-id) :create? true :returning :topic-id)))
+    (q/create :user-group (cond-> {:user-id user-id :group-id group-id}
+                            permissions (assoc :permissions (db/to-sql-array "text" permissions)))
+              :returning :id)))
 
 (defn-spec get-group-owner (s/nilable int?)
   "Return earliest owner `user-id` among current owners of `group-id`."
@@ -39,8 +45,15 @@
 (defn set-user-group-enabled!
   "Set boolean enabled status for user-group entry"
   [user-group-id enabled]
-  (q/modify :user-group {:id user-group-id}
-            {:enabled enabled, :updated :%now}))
+  (with-transaction
+    (let [{:keys [group-id user-id] enbld :enabled}
+          #__ (q/find-one :user-group {:id user-group-id} [:enabled :group-id :user-id])]
+      (when (not= enabled enbld)
+        (let [subscriber-id (subscriber-for-user user-id :create? true :returning :subscriber-id)
+              topic-id (topic-for-name (str ":group " group-id) :create? true :returning :topic-id)]
+          ((if enabled subscribe-to-topic unsubscribe-from-topic) subscriber-id topic-id)))
+      (q/modify :user-group {:id user-group-id}
+                {:enabled enabled, :updated :%now}))))
 
 (defn set-user-group-permissions!
   "Set the permissions for user-group-id"

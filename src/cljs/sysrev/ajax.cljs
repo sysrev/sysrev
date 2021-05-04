@@ -22,9 +22,10 @@
 (defn get-build-time [db] (:build-time db))
 (reg-sub :build-time get-build-time)
 
-(reg-event-db :set-csrf-token [trim-v]
-              (fn [db [csrf-token]]
-                (assoc db :csrf-token csrf-token)))
+(reg-event-fx :set-csrf-token [trim-v]
+              (fn [{:keys [db]} [csrf-token]]
+                {:db (assoc db :csrf-token csrf-token)
+                 :dispatch [:connect-sente csrf-token]}))
 
 (reg-fx :set-csrf-token #(dispatch [:set-csrf-token %]))
 

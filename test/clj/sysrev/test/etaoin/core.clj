@@ -10,7 +10,7 @@
             [sysrev.util :as util])
   (:import [clojure.lang ExceptionInfo]
            java.util.Date
-           [java.net URLDecoder]))
+           [java.net URL URLDecoder]))
 
 (defonce ^:dynamic *driver* (atom {}))
 (defonce ^:dynamic *cleanup-users* (atom {}))
@@ -29,6 +29,9 @@
 
 (defn get-url []
   (ea/get-url @*driver*))
+
+(defn get-path []
+  (-> (get-url) URL. .getPath))
 
 (defn sysrev-url? []
   (when-let [url (util/ignore-exceptions (get-url))]

@@ -149,6 +149,21 @@
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [email]} (:body request)]
                       (api/set-user-primary-email! user-id email)))))
+    (context "/notifications" []
+             (GET "/new" [:as request]
+                  (with-authorize request {:authorize-fn (user-authd? user-id)}
+                    (api/user-notifications-new user-id (:params request))))
+             (GET "/by-day" [:as request]
+                  (with-authorize request {:authorize-fn (user-authd? user-id)}
+                    (api/user-notifications-by-day user-id (:params request))))
+             (POST "/set-consumed" [:as request]
+                   (with-authorize request {:authorize-fn (user-authd? user-id)}
+                     (let [{:keys [notification-ids]} (:body request)]
+                       (api/user-notifications-set-consumed notification-ids user-id))))
+             (POST "/set-viewed" [:as request]
+                   (with-authorize request {:authorize-fn (user-authd? user-id)}
+                     (let [{:keys [notification-ids]} (:body request)]
+                       (api/user-notifications-set-viewed notification-ids user-id)))))
     (context "/developer" []
              (PUT "/enable" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}

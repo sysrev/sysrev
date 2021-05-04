@@ -37,6 +37,7 @@
                  [vincit/venia "0.2.5"]
 
 ;;; Postgres
+                 [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.7"]
                  [org.clojure/java.jdbc "0.7.11"]
                  [org.postgresql/postgresql "42.2.16"]
                  [joda-time "2.10.6"]
@@ -56,6 +57,7 @@
                  [javax.servlet/servlet-api "2.5"]
                  [manifold "0.1.8"]
                  [aleph "0.4.6"]
+                 [com.taoensso/sente "1.16.2"]
                  [ring "1.8.1"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
@@ -81,6 +83,7 @@
                  [bouncer "1.0.1"] ;; validation
                  [hickory "0.7.1"] ;; html parser
                  [kanwei/sitemap "0.3.1"] ;; sitemap alternative with clojure.spec fix
+                 [org.clojure/core.async "1.3.610"]
                  [org.clojure/core.memoize "0.7.2"]
                  [gravatar "1.1.1"]
                  [medley "1.3.0"]

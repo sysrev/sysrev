@@ -4,6 +4,7 @@
   (:use sysrev.logging
         sysrev.util
         sysrev.db.core
+        sysrev.db.listeners
         sysrev.db.migration
         sysrev.user.core
         sysrev.group.core
@@ -14,6 +15,7 @@
         sysrev.annotations
         sysrev.datasource.core
         sysrev.datasource.api
+        sysrev.notifications.core
         sysrev.project.core
         sysrev.project.charts
         sysrev.project.member

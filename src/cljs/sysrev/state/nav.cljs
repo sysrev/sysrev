@@ -151,8 +151,9 @@
   (str "/org/" group-id "/users" ))
 
 (reg-event-fx :project/navigate
-              (fn [_ [_ project-id]]
-                {:nav [(project-uri project-id "")]}))
+              (fn [_ [_ project-id & [suburi & {:as opts}]]]
+                {:nav (into [(project-uri project-id suburi)]
+                            (apply concat opts))}))
 
 (reg-event-db :load-project-url-ids
               (fn [db [_ url-ids-map]]

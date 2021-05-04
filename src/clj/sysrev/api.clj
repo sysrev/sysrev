@@ -43,6 +43,7 @@
             [sysrev.file.article :as article-file]
             [sysrev.file.user-image :as user-image]
             [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
+            [sysrev.notifications.core :as notifications]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.paypal :as paypal]
             [sysrev.payment.plans :as plans]
@@ -51,6 +52,7 @@
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.sendgrid :as sendgrid]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
+            [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
             [sysrev.util :as util :refer [in? index-by req-un parse-integer sum]])
@@ -153,6 +155,13 @@
       (sync-project-owners! project-id group-id)
       (change-project-settings project-id [{:setting :public-access
                                             :value public-access}])
+      (notifications/create-notification
+       {:adding-user-id user-id
+        :group-id group-id
+        :group-name (q/find-one :groups {:group-id group-id} :group-name)
+        :project-id project-id
+        :project-name project-name
+        :type :group-has-new-project})
       {:project (select-keys project [:project-id :name])})))
 
 (defn-spec delete-project! (req-un ::sp/project-id)
@@ -1428,6 +1437,13 @@
         ;; add the project to the group
         (group/create-project-group! dest-project-id org-id)
         (sync-project-owners! dest-project-id org-id)
+        (notifications/create-notification
+         {:adding-user-id user-id
+          :group-id org-id
+          :group-name (q/find-one :groups {:group-id org-id} :group-name)
+          :project-id dest-project-id
+          :project-name (q/find-one :project {:project-id dest-project-id} :name)
+          :type :group-has-new-project})
         {:dest-project-id dest-project-id}))
     {:error {:status forbidden
              :message "You don't have permission to clone that project"}}))
@@ -1545,4 +1561,94 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
+(defn epoch-millis->LocalDateTime [millis]
+  (java.time.LocalDateTime/ofEpochSecond
+   (quot millis 1000)
+   (* 1000 (rem millis 1000))
+   java.time.ZoneOffset/UTC))
 
+(defn at-start-of-day [^java.time.ZonedDateTime zdt]
+  (-> zdt (.withHour 0) (.withMinute 0) (.withSecond 0) (.withNano 0)))
+
+(defn user-notifications-by-day*
+  "We first query for notifications up to the specified limit. Then we
+  find the day of the last notification, and make a second query for the
+  rest of the notifications on that day.
+
+  This avoids complications introduced by combining notifications. Since
+  combination happens per day, we shouldn't have any surprises as long
+  as we send all notifications for each day at the same time."
+  [user-id {:keys [created-after limit]}]
+  (with-transaction
+    (when-let [subscriber-id (notifications/subscriber-for-user
+                              user-id :returning :subscriber-id)]
+      (let [ntfs (notifications/notifications-for-subscriber
+                  subscriber-id :where (when created-after
+                                         [:< :created created-after])
+                  :limit limit)
+            last-timestamp (-> ntfs last :created)
+            start-of-day (when last-timestamp
+                           (-> last-timestamp .toInstant
+                               (.atZone (java.time.ZoneId/of "UTC"))
+                               at-start-of-day .toInstant
+                               java.sql.Timestamp/from))
+            ntfs2 (when last-timestamp
+                    (notifications/notifications-for-subscriber
+                     subscriber-id :where
+                     [:and [:>= :created start-of-day]
+                      [:<= :created last-timestamp]]))]
+        {:notifications (dedupe (concat ntfs ntfs2))
+         :start-of-day start-of-day}))))
+
+(defn user-notifications-by-day [user-id {:keys [created-after limit]}]
+  (let [created-after (when created-after
+                           (some-> (try (Long/parseLong created-after)
+                                        (catch Exception _))
+                                   epoch-millis->LocalDateTime
+                                   (.atZone (java.time.ZoneId/of "UTC"))
+                                   .toInstant java.sql.Timestamp/from))
+        limit (-> (try (Long/parseLong limit) (catch Exception _))
+                     (or 50) (min 50))
+        {:keys [notifications start-of-day]}
+        #__ (user-notifications-by-day*
+             user-id {:created-after created-after :limit limit})]
+    {:success true
+     :notifications (combine-notifications
+                     (fn [{:keys [created]}]
+                       [(.getYear created) (.getMonth created) (.getDate created)])
+                     notifications)
+     :next-created-after start-of-day}))
+
+(defn user-notifications-new [user-id {:keys [limit]}]
+  (with-transaction
+    (if-let [subscriber-id (notifications/subscriber-for-user
+                          user-id :returning :subscriber-id)]
+      (let [limit (-> (try (Long/parseLong limit) (catch Exception _))
+                      (or 50) (min 50))]
+        {:success true
+         :notifications
+         (->> (notifications/notifications-for-subscriber
+               subscriber-id :where [:= :consumed nil] :limit 50)
+              combine-notifications
+              (take limit))})
+      {:success true :notifications []})))
+
+(defn user-notifications-set-consumed [notification-ids user-id]
+  {:success true
+   :row-count (with-transaction
+                (notifications/update-notifications-consumed
+                 notification-ids
+                 (notifications/subscriber-for-user
+                  user-id
+                  :create? true
+                  :returning :subscriber-id)))})
+
+(defn user-notifications-set-viewed [notification-ids user-id]
+  {:success true
+   :row-count (with-transaction
+                (notifications/update-notifications-viewed
+                 notification-ids
+                 (notifications/subscriber-for-user
+                  user-id
+                  :create? true
+                  :returning :subscriber-id)))})

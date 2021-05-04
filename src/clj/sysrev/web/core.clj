@@ -1,7 +1,7 @@
 (ns sysrev.web.core
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [compojure.core :as c :refer [defroutes GET ANY]]
+            [compojure.core :as c :refer [defroutes GET ANY POST]]
             [compojure.route :refer [not-found]]
             [ring.util.response :as r]
             [ring.middleware.defaults :as default]
@@ -19,8 +19,10 @@
             [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
             [sysrev.web.routes.graphql :refer [graphql-routes]]
             sysrev.web.routes.api.handlers
-            [sysrev.web.app :as app]
-            [sysrev.util :as util :refer [in?]]))
+            [sysrev.web.app :as app :refer [current-user-id]]
+            [sysrev.util :as util :refer [in?]]
+            [taoensso.sente :refer [make-channel-socket!]]
+            [taoensso.sente.server-adapters.aleph :refer [get-sch-adapter]]))
 
 ;; for clj-kondo
 (declare html-routes)
@@ -97,10 +99,26 @@
       (wrap-json-body {:keywords? true})
       wrap-force-json-request))
 
+(defonce web-server-channel-socket (atom nil))
+
+(defn sente-send! [& args]
+  (apply (:send-fn @web-server-channel-socket) args))
+
+(defn sente-dispatch! [client-id re-frame-event]
+  (sente-send! client-id [:re-frame/dispatch re-frame-event]))
+
+(defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
+                                     ajax-post-fn]}]
+  (-> (c/routes
+       (GET "/api/chsk" request (ajax-get-or-ws-handshake-fn request))
+       (POST "/api/chsk" request (ajax-post-fn request)))
+      (c/wrap-routes wrap-sysrev-app)))
+
 (defn sysrev-handler
   "Root handler for web server"
   []
   (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) wrap-sysrev-api))
+                    (channel-socket-routes @web-server-channel-socket)
                     (ANY "/api/*" [] (c/wrap-routes app-routes wrap-sysrev-app))
                     (ANY "/graphql" [] graphql-routes)
                     (compojure.route/resources "/")
@@ -120,6 +138,7 @@
       (when-let [server (get active id)]
         (.close server)
         (Thread/sleep 1000)
+        (reset! web-server-channel-socket nil)
         (swap! web-servers assoc id nil)))))
 
 (defn run-web [& [port prod? only-if-new]]
@@ -130,6 +149,9 @@
       (reset! web-port port)
       (reset! web-server-config config)
       (stop-web-server)
+      (swap! web-server-channel-socket
+             #(or % (make-channel-socket! (get-sch-adapter)
+                                          {:user-id-fn current-user-id})))
       (reset! web-servers
               {:main (aleph/start-server (sysrev-handler) {:port port})})
       (log/info (format "web server started (port %d)" port))

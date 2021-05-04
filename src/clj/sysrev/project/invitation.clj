@@ -1,6 +1,8 @@
 (ns sysrev.project.invitation
-  (:require [sysrev.db.core :as db]
+  (:require [clojure.string :as str]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
+            [sysrev.notifications.core :refer [create-notification]]
             [sysrev.util :refer [in?]]))
 
 (defn create-invitation!
@@ -9,13 +11,26 @@
   defaults to 'view-project'."
   [invitee project-id inviter description]
   (db/with-transaction
-    (when-let [invitation-id (q/create :invitation {:user-id invitee
-                                                    :project-id project-id
-                                                    :description description}
-                                       :returning :id)]
-      (q/create :invitation-from {:invitation-id invitation-id
-                                  :user-id inviter})
-      invitation-id)))
+    (let [invitation {:user-id invitee
+                      :project-id project-id
+                      :description description}
+          invitation-id (q/create :invitation invitation :returning :id)
+          [project-name] (q/find :project {:project-id project-id} :name)
+          notification {:description description
+                        :image-uri (str "/api/user/" inviter "/avatar")
+                        :invitation-id invitation-id
+                        :inviter-id inviter
+                        :inviter-name (some-> (q/find-one :web-user {:user-id inviter} :email)
+                                              (str/split #"@" 2) first)
+                        :project-id project-id
+                        :project-name project-name
+                        :type :project-invitation
+                        :user-id invitee}]
+      (when invitation-id
+        (q/create :invitation-from {:invitation-id invitation-id
+                                    :user-id inviter})
+        (create-notification notification)
+        invitation-id))))
 
 (defn invitations-for-admined-projects
   "Get all invitations that have been sent for projects where `user-id`
