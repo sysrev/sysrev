@@ -1,9 +1,11 @@
 (ns sysrev.source.pubmed
   (:require [sysrev.config :as config]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.source.core :as source :refer [make-source-meta]]
-            [sysrev.source.interface :refer [import-source import-source-impl]]
+            [sysrev.source.core :as source :refer [make-source-meta re-import]]
+            [sysrev.source.interface :refer [import-source import-source-impl import-source-articles after-source-import]]
             [sysrev.datasource.api :as ds-api]
+            [sysrev.db.core :as db :refer [do-query]]
+            [honeysql.helpers :as sqlh :refer [select from where join]]
             [sysrev.util :as util :refer [parse-integer]]))
 
 (defn pubmed-get-articles [pmids]
@@ -54,3 +56,35 @@
           :get-article-refs #(pubmed/get-all-pmids-for-query search-term)
           :get-articles pubmed-get-articles}
          options)))))
+
+(defn get-new-articles-available [{:keys [source-id] :as source}]
+  (let [prev-article-ids (->> (-> (select :article-data.external-id)
+                                  (from [:article-source :asrc])
+                                  (join :article [:= :asrc.article-id :article.article-id]
+                                        :article-data [:= :article.article-data-id :article-data.article-data-id])
+                                  (where [:= :asrc.source-id source-id])
+                                  do-query)
+                              (map :external-id)
+                              (filter string?)
+                              (map read-string)
+                              set)
+        new-article-ids (->> (pubmed/get-all-pmids-for-query (get-in source [:meta :search-term]))
+                             (filter #(not (contains? prev-article-ids %))))]
+    new-article-ids))
+
+
+(defmethod re-import "PubMed search" [project-id {:keys [source-id] :as source}]
+  (let [threads 4
+        do-import (fn []
+                    (->> (import-source-articles
+                           project-id source-id
+                           {:types {:article-type "academic" :article-subtype "pubmed"}
+                            :article-refs (get-new-articles-available source)
+                            :get-articles pubmed-get-articles}
+                           threads)
+                         (after-source-import project-id source-id)))]
+    (source/alter-source-meta source-id #(assoc % :importing-articles? true))
+    (source/set-import-date source-id)
+    (future (do-import))
+    {:source-id source-id}))
+

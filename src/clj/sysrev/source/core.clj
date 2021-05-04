@@ -33,12 +33,18 @@
   "Create an entry in project-source table."
   [project-id int?, metadata map?]
   (db/with-clear-project-cache project-id
-    (q/create :project-source {:project-id project-id :meta metadata}
+    (q/create :project-source {:project-id project-id :meta metadata :import-date :%now}
               :returning :source-id)))
 
 (defmulti make-source-meta (fn [source-type _values] source-type))
 
 (defmethod make-source-meta :default [_source-type _values]
+  (throw (Exception. "invalid source-type")))
+
+(defmulti re-import (fn [_ source]
+                      (-> source :meta :source)))
+
+(defmethod re-import :default [_ _]
   (throw (Exception. "invalid source-type")))
 
 (defn-spec ^:private set-source-meta int?
@@ -265,7 +271,7 @@
   (with-transaction
     (let [overlap-coll (project-sources-overlap project-id)
           unique-coll (source-unique-articles-count project-id)]
-      (-> (select :source-id :project-id :meta :enabled :date-created)
+      (-> (select :source-id :project-id :meta :enabled :date-created :import-date :check-new-results :import-new-results :notes :new-articles-available)
           (from [:project-source :ps])
           (where [:= :ps.project-id project-id])
           (->> do-query
@@ -311,6 +317,30 @@
     (q/modify :project-source {:source-id source-id} {:enabled enabled})
     (update-project-articles-enabled (source-id->project-id source-id))
     enabled))
+
+(defn-spec update-source some?
+  "Set enabled status for source-id."
+  [project-id int?, source-id int?, check-new-results? boolean?, import-new-results? boolean?, notes string?]
+  (db/with-clear-project-cache project-id
+    (with-transaction
+      (q/modify :project-source
+                {:source-id source-id}
+                {:check-new-results check-new-results?
+                 :import-new-results import-new-results?
+                 :notes notes}))))
+
+(defn-spec set-import-date some?
+  "Set enabled status for source-id."
+  [source-id int?]
+  (with-transaction
+    (q/modify :project-source {:source-id source-id} {:import-date :%now})))
+
+(defn-spec set-new-articles-available some?
+  "Set enabled status for source-id."
+  [project-id int?, source-id int?, new-articles-count int?]
+  (db/with-clear-project-cache project-id
+    (with-transaction
+      (q/modify :project-source {:source-id source-id} {:new-articles-available new-articles-count}))))
 
 ;; FIX: handle duplicate file uploads, don't create new copy
 (defn save-import-file [source-id filename file]

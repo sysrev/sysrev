@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.project.add-articles
   (:require [cljs-time.core :as t]
+            [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub
                                    reg-event-db reg-event-fx trim-v]]
@@ -12,8 +13,11 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :as source-view]
             [sysrev.views.uppy :as uppy]
+            [sysrev.stripe :as stripe]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button]]
+            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button
+                                           Modal ModalHeader ModalContent ModalDescription
+                                           Form Checkbox FormField TextArea]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
                                           sr-defroute-project]]))
@@ -58,10 +62,108 @@
              [:reload [:project project-id]]
              [:reload [:project/sources project-id]])})))
 
+(def-action :sources/update
+  :uri (fn [] "/api/update-source")
+  :content (fn [project-id source-id {:keys [check-new-results? import-new-results? notes]}]
+             {:project-id project-id
+              :source-id source-id
+              :check-new-results? check-new-results?
+              :import-new-results? import-new-results?
+              :notes notes})
+  :process
+  (fn [_ [project-id source-id _] {:keys [success message] :as _result}]
+    (when success
+      {:dispatch-n
+       (list [:reload [:review/task project-id]]
+             [:reload [:project project-id]]
+             [:reload [:project/sources project-id]]
+             [::set [:edit-source-modal source-id :open] false]
+             [:toast {:class "success" :message message}])})))
+
+(def-action :sources/re-import
+  :uri (fn [] "/api/re-import-source")
+  :content (fn [project-id source-id]
+             {:project-id project-id
+              :source-id source-id})
+  :process
+  (fn [_ [project-id _] {:keys [success] :as _result}]
+    (when success
+      {:dispatch-n
+       (list [:reload [:project/sources project-id]]
+             [:on-add-source project-id])})))
+
 (reg-event-fx :on-add-source [trim-v]
               (fn [_ [project-id]]
                 {:dispatch-n [[::add-documents-visible false]
                               [:poll-project-sources project-id]]}))
+
+(defn EditSourceModal [source]
+  (let [modal-state-path [:edit-source-modal (:source-id source)]
+        modal-open (r/cursor state (concat modal-state-path [:open]))
+        project-id @(subscribe [:active-project-id])
+        project-plan  @(subscribe [:project/plan project-id])
+        has-pro? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+                     (stripe/pro? project-plan)) 
+        source-check-new-results? (r/cursor state (concat modal-state-path [:form-data :check-new-results?]))
+        source-import-new-results? (r/cursor state (concat modal-state-path [:form-data :import-new-results?]))
+        source-notes (r/cursor state (concat modal-state-path [:form-data :notes]))]
+    (fn [source]
+      [Modal {:trigger (r/as-element
+                         [:div.ui.tiny.fluid.labeled.icon.button.edit-button
+                          {:on-click #(dispatch [::set modal-state-path {:open true
+                                                                         :form-data {:check-new-results? (:check-new-results source)
+                                                                                     :import-new-results? (:import-new-results source)
+                                                                                     :notes (:notes source)}}])}
+                          "Edit"
+                          [:i.pencil.icon]])
+              :class "tiny"
+              :open @modal-open
+              :on-open #(reset! modal-open true)
+              :on-close #(reset! modal-open false)}
+       [ModalHeader
+        "Edit data source"]
+       [ModalContent
+        [ModalDescription
+         [Form {:on-submit (util/wrap-prevent-default
+                             #(dispatch [:action [:sources/update project-id (:source-id source)
+                                                  {:check-new-results? @source-check-new-results?
+                                                   :import-new-results? @source-import-new-results?
+                                                   :notes @source-notes}]]))}
+          [FormField
+           [Checkbox {:label "Check new results"
+                      :id "check-new-results-checkbox"
+                      :checked @source-check-new-results?
+                      :on-change (util/on-event-checkbox-value
+                                   (fn [v]
+                                     (if has-pro?
+                                       (reset! source-check-new-results? v)
+                                       (dispatch [:toast {:title "Pro plan required"
+                                                          :class "blue"
+                                                          :message "This feature is only available for pro users."
+                                                          :displayTime 0
+                                                          :actions [{:text "Maybe later"}
+                                                                    {:text "Purchase plan"
+                                                                     :class "black"
+                                                                     :click #(dispatch [:nav "/user/plans"])}]}]))
+                                     true))}]
+           " "
+           (when-not has-pro?
+             [:i.chess.king.icon.yellow {:title "Pro feature"}])]
+          ;; [FormField
+          ;;  [Checkbox {:label "Auto import new results"
+          ;;             :id "import-new-results-checkbox"
+          ;;             :disabled (not @source-check-new-results?)
+          ;;             :checked @source-import-new-results?
+          ;;             :on-change (util/on-event-checkbox-value #(reset! source-import-new-results? %))}]]
+          [FormField
+           [:label "Notes"]
+           [TextArea {:label "Notes"
+                      :id "source-notes-input"
+                      :default-value (:notes source)
+                      :on-change (util/on-event-value #(reset! source-notes %))}]]
+          [Button {:primary true
+                   :id "save-source-btn"}
+           "Save"]]]]])))
 
 (defn article-or-articles
   "Return either the singular or plural form of article"
@@ -69,12 +171,12 @@
   (util/pluralize item-count "article"))
 
 (defn- source-import-timed-out? [source]
-  (let [{:keys [meta date-created]} source
+  (let [{:keys [meta import-date]} source
         {:keys [importing-articles?]} meta]
     (and (true? importing-articles?)
          (t/within? {:start (t/epoch)
                      :end (t/minus (t/now) (t/minutes 30))}
-                    date-created))))
+                    import-date))))
 
 (defn any-source-processing? []
   (or (action/running? #{:sources/delete :sources/toggle-source})
@@ -249,6 +351,18 @@
                                         (util/write-json true)))
              nil)))
 
+(defn ReImportSource [source]
+  (when (> (:new-articles-available source) 0)
+    (let [project-id @(subscribe [:active-project-id])]
+      [:div.ui.blue.mt-2
+       [:span.ui.text.blue 
+        (:new-articles-available source) " new articles found. "]
+       [:div.mt-1
+        [:div.ui.mini.button.blue
+         {:on-click #(dispatch [:action [:sources/re-import project-id (:source-id source)]])}
+         [:i.download.icon]
+         " Import new articles"]]])))
+
 (defn SourceArticlesLink [source-id]
   [:div.ui.primary.tiny.left.labeled.icon.button.view-articles
    {:on-click (util/wrap-user-event
@@ -263,13 +377,13 @@
         import-label @(subscribe [:source/display-info source-id])]
     [:div.ui.middle.aligned.stackable.grid.segment.source-info {:data-source-id source-id}
      [:div.row
-      [:div.six.wide.middle.aligned.left.aligned.column
+      [:div.seven.wide.middle.aligned.left.aligned.column
        {:style {:padding-right "0.25rem"}}
        [:div.ui.large.label.source-type {:data-name source-type}
         (str source-type)]
        (when enabled
          [SourceArticlesLink source-id])]
-      [:div.ten.wide.right.aligned.middle.aligned.column
+      [:div.nine.wide.right.aligned.middle.aligned.column
        (when import-label
          [:div.import-label.ui.large.basic.label
           [:span.import-label
@@ -347,6 +461,7 @@
           (poll-project-sources project-id))
         [:div.project-source>div.ui.segments.project-source
          [SourceInfoView project-id source-id]
+         
          [:div.ui.segment.source-details {:class segment-class}
           [:div.ui.middle.aligned.stackable.grid>div.row
            (cond
@@ -400,7 +515,10 @@
                     [:div.column
                      [:span.unique-count {:data-count (str unique-articles-count)}
                       (.toLocaleString unique-articles-count)]
-                     " unique " (article-or-articles unique-articles-count)])
+                     " unique " (article-or-articles unique-articles-count)
+                     " "
+                     [ReImportSource source]])
+                  
                   (doall
                    (for [{shared-count :count, overlap-source-id :overlap-source-id}
                          (filter #(pos? (:count %)) (:overlap source))]
@@ -415,8 +533,12 @@
                    {:key :buttons
                     :class (if (util/desktop-size?) "two wide" "three wide")}
                    [ToggleArticleSource source-id enabled]
+                   [EditSourceModal source]
+                   
+                   
                    (when (zero? labeled-article-count)
                      [DeleteArticleSource source-id])
+                   
                    ;; should include any JSON / XML sources
                    ;; TODO: Fix this so CT.gov uses regular article content
                    ;; this should only dispatch on mimetype, not on source-name
@@ -431,7 +553,12 @@
                     "Starting import..."]
                    [:div.six.wide.column.placeholder    {:key :placeholder}]
                    [:div.two.wide.column.right.aligned  {:key :loader}
-                    [:div.ui.small.active.loader]]))]]]))))
+                    [:div.ui.small.active.loader]]))]]
+        
+         (when-not (str/blank? (:notes source))
+           [:div.ui.segment
+            [:h4 "Notes"]
+            [:div (util/ellipsize (:notes source) 400)]])]))))
 
 (defn ProjectSourcesList []
   (let [sources @(subscribe [:project/sources])]

@@ -83,7 +83,8 @@
                  [kanwei/sitemap "0.3.1"] ;; sitemap alternative with clojure.spec fix
                  [org.clojure/core.memoize "0.7.2"]
                  [gravatar "1.1.1"]
-                 [medley "1.3.0"]]
+                 [medley "1.3.0"]
+                 [clojurewerkz/quartzite "2.1.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-server"

@@ -134,9 +134,7 @@
            username]]
          [ModalContent
           [ModalDescription
-           [Form {:id "edit-user-modal"
-                  :on-submit (fn [_e]
-                               )}
+           [Form {:id "edit-user-modal"}
             [:div.ui.field
              [:label "Groups"]
              [:div {:style {:margin-bottom "10px"}}

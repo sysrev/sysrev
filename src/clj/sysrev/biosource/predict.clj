@@ -69,7 +69,11 @@
                                                                             "annotation" [(str answer)]
                                                                             "boolean" [(if answer "TRUE" "FALSE")]
                                                                             [])]
-                                                               (map #(assoc {} "label_id" (str label-id) "value" %) values)))))))]
+                                                               (map #(assoc {}
+                                                                            "label_id" (str label-id)
+                                                                            "label_type" value-type
+                                                                            "value" %)
+                                                                    values)))))))]
                                  {"text" (texts article-id)
                                   "tags" tags}))))]
 

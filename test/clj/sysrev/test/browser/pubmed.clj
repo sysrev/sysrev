@@ -154,6 +154,12 @@
       (import-pmids-via-db pmids)
       (add-articles-from-search-term search-term))))
 
+(defn edit-search-term-source [search-term]
+  (b/wait-until-loading-completes :pre-wait 75 :inactive-ms 100 :loop 3)
+  (log/info "editing article source")
+  (b/click (x/search-term-edit search-term))
+  (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 4))
+
 (defn delete-search-term-source [search-term]
   (b/wait-until-loading-completes :pre-wait 75 :inactive-ms 100 :loop 3)
   (log/info "deleting article source")

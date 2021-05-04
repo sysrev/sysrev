@@ -605,6 +605,18 @@
                   _user-id (current-user-id request)]
               (api/toggle-source source-id enabled?)))))
 
+(dr (POST "/api/update-source" request
+          (with-authorize request {:roles ["admin"]}
+            (let [{:keys [source-id check-new-results? import-new-results? notes]} (-> request :body)
+                  _user-id (current-user-id request)]
+              (api/update-source source-id check-new-results? import-new-results? notes)))))
+
+(dr (POST "/api/re-import-source" request
+          (with-authorize request {:roles ["admin"]}
+            (let [{:keys [source-id]} (-> request :body)
+                  _user-id (current-user-id request)]
+              (api/re-import-source source-id)))))
+
 (dr (GET "/api/sources/download/:project-id/:source-id" request
          (with-authorize request {:allow-public true}
            (let [_project-id (active-project request)

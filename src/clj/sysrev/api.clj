@@ -298,6 +298,29 @@
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 
+(defn-spec update-source (-> (req-un ::success) or-error)
+  "Toggle a source as being enabled or disabled."
+  [source-id int?, check-new-results? boolean?, import-new-results? boolean?, notes string?]
+  (if (source/source-exists? source-id)
+    (let [project-id (source/source-id->project-id source-id)]
+      (source/update-source project-id source-id check-new-results? import-new-results? notes)
+      {:success true
+       :message "Source updated"})
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exist")}}))
+
+(defn-spec re-import-source (-> (req-un ::success) or-error)
+  "Toggle a source as being enabled or disabled."
+  [source-id int?]
+  (if (source/source-exists? source-id)
+    (let [project-id (source/source-id->project-id source-id)
+          source (source/get-source source-id)]
+      (source/re-import project-id source)
+      {:success true
+       :message "Source updated"})
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exist")}}))
+
 (defn source-sample
   "Return a sample article from source"
   [source-id]

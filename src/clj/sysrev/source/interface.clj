@@ -124,7 +124,7 @@
            false)
          (finally (db/clear-project-cache project-id)))))
 
-(defn- import-source-articles
+(defn import-source-articles
   "Implements multi-threaded import of articles from a new project-source.
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
@@ -144,7 +144,7 @@
            false))
     (import-articles-impl project-id source-id impl)))
 
-(defn- after-source-import
+(defn after-source-import
   "Handles success or failure after an import attempt has finished."
   [project-id source-id success?]
   (db/with-transaction

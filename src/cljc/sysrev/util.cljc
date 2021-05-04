@@ -941,6 +941,11 @@
            [event]
            (-> event .-target .-value)))
 
+#?(:cljs (defn event-checkbox-value
+           "Returns event.target.value from a DOM event."
+           [event]
+           (-> event .-target .-checked)))
+
 #?(:cljs (defn input-focused? []
            (when-let [el js/document.activeElement]
              (when (or (.is ($ el) "input")
@@ -1046,6 +1051,10 @@
   effect; returns a DOM event handler function (for :on-change etc)."
            [handler]
            (wrap-prevent-default #(-> % event-input-value (handler)))))
+
+#?(:cljs (defn on-event-checkbox-value
+           [handler]
+           (wrap-prevent-default #(-> % event-checkbox-value (handler)))))
 
 #?(:cljs (defn no-submit
            "Returns on-submit handler to block default action on forms."
