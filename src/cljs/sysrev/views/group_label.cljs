@@ -6,7 +6,8 @@
             [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
-                                           TableBody TableHeaderCell TableCell Input Popup]]))
+                                           TableBody TableHeaderCell TableCell Input Popup]]
+            ["react-datasheet" :as react-datasheet :default ReactDataSheet]))
 
 (def group-label-preview-div "group-label-preview")
 
@@ -14,7 +15,8 @@
                         :current-position nil
                         :new-row-positive false
                         :max-col nil
-                        :max-row nil}))
+                        :max-row nil
+                        :use-spreadsheet false}))
 
 ;; for setting the active group label
 (reg-event-db :group-label/set-active-group-label [trim-v]
@@ -317,7 +319,10 @@
                         :border-bottom-right-radius "0"}}
          [TableHeader {:fullWidth true}
           [TableRow {:textAlign "center"}
-           [TableHeaderCell {:colSpan (+ (count labels) 1)} label-name]]]
+           [TableHeaderCell {:colSpan (+ (count labels) 1)}
+            label-name " "
+            [:button {:on-click #(swap! state update :use-spreadsheet not)}
+             "Toggle Editor"]]]]
          [TableHeader
           [TableRow {:id "sub-labels"}
            [TableHeaderCell {:style {:max-width "10em"
@@ -460,12 +465,46 @@
                  :primary true}
          [Icon {:name "circle plus"}] "New Blank Row"]])]))
 
+(defn DataSheet [rows]
+  [:> ReactDataSheet
+   {:data (clj->js rows)
+    :valueRenderer #(.-value %)}])
+
+(defn DSCells [{:keys [article-id group-label-id]}])
+
+(defn DSTable [{:keys [article-id group-label-id]}]
+  (let [group-label-id @group-label-id
+        answers @(subscribe [:review/active-labels article-id "na"
+                             group-label-id])
+        labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
+                    (sort-by :project-ordering <)
+                    (filter :enabled))
+        label-name @(subscribe [:label/display "na" group-label-id])]
+    [:div
+     label-name " "
+     [:button {:on-click #(swap! state update :use-spreadsheet not)}
+      "Toggle Editor"]
+     [DataSheet
+      (into [(mapv #(-> {:value @(subscribe [:label/question group-label-id
+                                             (:label-id %)])})
+                   labels)]
+       (mapv
+        (fn [i]
+          (mapv
+           (fn [label]
+             {:value (pr-str @(subscribe [:review/sub-group-label-answer
+                                          article-id group-label-id (:label-id label) (str i)]))})
+           labels))
+        (range 3)))]]))
+
 (defn GroupLabelEditor [article-id]
-  (let [active-group-label (subscribe [:group-label/active-group-label])]
+  (let [active-group-label (subscribe [:group-label/active-group-label])
+        use-spreadsheet @(r/cursor state [:use-spreadsheet])]
     (when-not (nil? @active-group-label)
       [:div {:id "group-label-editor"
              :style {:position "sticky"
                      :top "10px"
                      :z-index "1"}}
-       [GroupLabelDiv {:article-id article-id
-                       :group-label-id active-group-label}]])))
+       [(if use-spreadsheet DSTable GroupLabelDiv)
+        {:article-id article-id
+         :group-label-id active-group-label}]])))
