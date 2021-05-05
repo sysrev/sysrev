@@ -34,6 +34,7 @@
     "react-json-view": "^1.21.1",
     "react-markdown": "^5.0.3",
     "react-pdf": "^5.2.0",
+    "react-rnd": "^10.2.4",
     "react-stripe-elements": "^6.1.2",
     "react-xml-viewer": "^1.1.0",
     "remark-gfm": "^1.0.0",

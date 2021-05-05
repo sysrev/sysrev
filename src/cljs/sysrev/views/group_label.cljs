@@ -6,7 +6,8 @@
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
                                            TableBody TableHeaderCell TableCell Input Popup]]
-            ["react-datasheet" :as react-datasheet :default ReactDataSheet]))
+            ["react-datasheet" :as react-datasheet :default ReactDataSheet]
+            ["react-rnd" :refer [Rnd]]))
 
 (def group-label-preview-div "group-label-preview")
 
@@ -15,6 +16,7 @@
                         :new-row-positive false
                         :max-col nil
                         :max-row nil
+                        :popped-out false
                         :use-spreadsheet false}))
 
 (def value-coercers
@@ -177,6 +179,12 @@
   [:button {:class "ui button"
             :on-click #(swap! state update :use-spreadsheet not)}
    "Toggle Editor"])
+
+(defn TogglePopoutButton []
+  (let [popped-out @(r/cursor state [:popped-out])]
+    [:button {:class "ui button"
+              :on-click #(swap! state assoc :popped-out (not popped-out))}
+     (if popped-out "Attach" "Detach")]))
 
 (defn ValueDisplay [{:keys [article-id root-label-id label-id ith]}]
   (let [answer @(subscribe [:review/sub-group-label-answer
@@ -360,7 +368,8 @@
             [:div {:style {:text-align "center"}}
              label-name
              [:div {:style {:float "right"}}
-              [ToggleEditorButton]]]]]]
+              [ToggleEditorButton]
+              [TogglePopoutButton]]]]]]
          [TableHeader
           [TableRow {:id "sub-labels"}
            [TableHeaderCell {:style {:max-width "10em"
@@ -568,7 +577,8 @@
             [:div {:style {:text-align "center"}}
              label-name
              [:div {:style {:float "right"}}
-              [ToggleEditorButton]]]]]]
+              [ToggleEditorButton]
+              [TogglePopoutButton]]]]]]
         [TableHeader
          [TableRow {:id "sub-labels"}
           [TableHeaderCell {:style {:max-width "10em"
@@ -642,6 +652,10 @@
          labels))
       (->> (:labels answers) keys (map parse-integer) sort))]))
 
+(defn EditorContainer [& children]
+  [:> Rnd {}
+   children])
+
 (defn GroupLabelDiv [{:keys [article-id group-label-id] :as opts}]
   (let [multi? @(subscribe [:label/multi? "na" group-label-id])
         row-count (-> @(subscribe [:review/active-labels
@@ -656,26 +670,30 @@
                                    article-id group-label-id])
                         (swap! max-row inc)
                         (reset! current-position {:row @max-row  :col 0})))
+        popped-out @(r/cursor state [:popped-out])
         use-spreadsheet @(r/cursor state [:use-spreadsheet])]
-    [:div {:id group-label-preview-div
-           :style {:overflow-x "scroll"
-                   :overflow-y "visible"
-                   :min-height "8rem"
-                   :margin-bottom "1rem"
-                   :resize "both"
-                   :overflow "auto"
-                   :height "auto"}}
-     (if use-spreadsheet
-       [DSTable opts]
-       [SpreadSheetAnswers opts])
-     (when (or multi? (= row-count 0))
-       [:div {:style {:position "sticky" :left "0"}}
-        [Button {:id "add-group-label-instance"
-                 :on-click on-activate
-                 :onKeyPress on-activate
-                 :attached "bottom"
-                 :primary true}
-         [Icon {:name "circle plus"}] "New Blank Row"]])]))
+    (into
+     (if popped-out
+       [EditorContainer]
+       [:div {:id group-label-preview-div
+              :style {:overflow-x "scroll"
+                      :overflow-y "visible"
+                      :min-height "8rem"
+                      :margin-bottom "1rem"
+                      :resize "both"
+                      :overflow "auto"
+                      :height "auto"}}])
+     [(if use-spreadsheet
+        [DSTable opts]
+        [SpreadSheetAnswers opts])
+      (when (or multi? (= row-count 0))
+        [:div {:style {:position "sticky" :left "0"}}
+         [Button {:id "add-group-label-instance"
+                  :on-click on-activate
+                  :onKeyPress on-activate
+                  :attached "bottom"
+                  :primary true}
+          [Icon {:name "circle plus"}] "New Blank Row"]])])))
 
 (defn GroupLabelEditor [article-id]
   (let [active-group-label (subscribe [:group-label/active-group-label])]
