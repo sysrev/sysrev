@@ -9,7 +9,7 @@
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody
                                            TableCell Icon Button]]
             [sysrev.state.label :refer [real-answer?]]
-            [sysrev.util :as util :refer [in? css time-from-epoch parse-integer]]
+            [sysrev.util :as util :refer [in? css time-from-epoch]]
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ValueDisplay [root-label-id label-id answer]
@@ -57,7 +57,7 @@
                        (let [av (nth a i)
                              bv (nth b i)
                              c (try (compare av bv)
-                                    (catch js/Error e
+                                    (catch js/Error _e
                                         0))]
                          (({:asc identity :desc -} order) c)))
         compare-rows (fn [a b sorts]
@@ -78,15 +78,16 @@
          [TableHeader
           [TableRow
            (when indexed? [TableHeaderCell])
-           (for [[i {:keys [label-id]}] (map-indexed vector labels)
-                 :let [sort (current-sort sorts i)]]
-             ^{:key (str group-label-id "-" label-id "-table-header" )}
-             [TableHeaderCell
-              {:on-click #(toggle-sort! i)}
-              @(subscribe [:label/display group-label-id label-id])
-              ({:asc [:i {:class "arrow up icon" :style {:margin-left "4px"}}]
-                :desc [:i {:class "arrow down icon" :style {:margin-left "4px"}}]}
-               sort)])]]
+           (doall
+            (for [[i {:keys [label-id]}] (map-indexed vector labels)
+                  :let [sort (current-sort sorts i)]]
+              ^{:key (str group-label-id "-" label-id "-table-header" )}
+              [TableHeaderCell
+               {:on-click #(toggle-sort! i)}
+               @(subscribe [:label/display group-label-id label-id])
+               ({:asc [:i {:class "arrow up icon" :style {:margin-left "4px"}}]
+                 :desc [:i {:class "arrow down icon" :style {:margin-left "4px"}}]}
+                sort)]))]]
          [TableBody
           (for [[i row] (map-indexed vector (sort #(compare-rows % %2 sorts) rows))]
             ^{:key (str group-label-id "-" i "-row")}
