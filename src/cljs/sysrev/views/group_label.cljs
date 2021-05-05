@@ -1,5 +1,6 @@
 (ns sysrev.views.group-label
-  (:require [clojure.set :refer [rename-keys]]
+  (:require [clojure.edn :as edn]
+            [clojure.set :refer [rename-keys]]
             [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
@@ -438,13 +439,18 @@
                   (when-not (str/starts-with? s "N")
                     (if (str/starts-with? s "F")
                       false
-                      true))))})
+                      true))))
+   "categorical" #(if (string? %)
+                    (edn/read-string %)
+                    %)})
 
 (def value-viewers
   {"boolean" #(let [v (.-value (.-cell %))]
                 (if (nil? v)
                   ""
-                  (str/upper-case (str v))))})
+                  (str/upper-case (str v))))
+   "categorical" #(let [v (.-value (.-cell %))]
+                    (str/join ", " (map str v)))})
 
 (defn DataSheet [{:keys [article-id group-label-id multi?]}
                  label-name labels rows]
