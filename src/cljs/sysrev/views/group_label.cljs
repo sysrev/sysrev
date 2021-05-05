@@ -91,11 +91,6 @@
                               (str (.-row %)) (coerced-value %)])
                         cells)})))
 
-(defn reorder-keys [m]
-  (rename-keys m (->> (keys m)
-                      (map-indexed (fn [i k] {k (str i)}))
-                      (apply conj))))
-
 (defn delete-label-instance [db [_ article-id root-label-id ith]]
   (let [self-id @(subscribe [:self/user-id])
         labels-cursor [:state :review :labels article-id root-label-id :labels]
@@ -105,7 +100,13 @@
                                          article-id "na" root-label-id])
                             :labels
                             (dissoc ith))
-        reordered-modified-labels (reorder-keys modified-labels)]
+        i (parse-integer ith)
+        reordered-modified-labels (medley/map-keys
+                                   #(let [j (parse-integer %)]
+                                      (if (< i j)
+                                        (str (dec j))
+                                        %))
+                                   modified-labels)]
     (-> ;; we need to delete it here
      (assoc-in db labels-cursor reordered-modified-labels)
      ;;... but also in article/labels
