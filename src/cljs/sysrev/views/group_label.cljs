@@ -173,6 +173,11 @@
                              :arrow-right inc-col-pos
                              :tab inc-col-pos})
 
+(defn ToggleEditorButton []
+  [:button {:class "ui button"
+            :on-click #(swap! state update :use-spreadsheet not)}
+   "Toggle Editor"])
+
 (defn ValueDisplay [{:keys [article-id root-label-id label-id ith]}]
   (let [answer @(subscribe [:review/sub-group-label-answer
                             article-id root-label-id label-id ith])
@@ -350,11 +355,12 @@
                         :border-bottom-left-radius "0"
                         :border-bottom-right-radius "0"}}
          [TableHeader {:fullWidth true}
-          [TableRow {:textAlign "center"}
-           [TableHeaderCell {:colSpan (+ (count labels) 1)}
-            label-name " "
-            [:button {:on-click #(swap! state update :use-spreadsheet not)}
-             "Toggle Editor"]]]]
+          [TableRow
+           [TableHeaderCell {:colSpan (inc (count labels))}
+            [:div {:style {:text-align "center"}}
+             label-name
+             [:div {:style {:float "right"}}
+              [ToggleEditorButton]]]]]]
          [TableHeader
           [TableRow {:id "sub-labels"}
            [TableHeaderCell {:style {:max-width "10em"
@@ -558,10 +564,11 @@
                        :border-bottom-right-radius "0"}}
         [TableHeader {:fullWidth true}
          [TableRow {:textAlign "center"}
-          [TableHeaderCell {:colSpan (+ (count labels) 1)}
-           label-name " "
-           [:button {:on-click #(swap! state update :use-spreadsheet not)}
-            "Toggle Editor"]]]]
+           [TableHeaderCell {:colSpan (inc (count labels))}
+            [:div {:style {:text-align "center"}}
+             label-name
+             [:div {:style {:float "right"}}
+              [ToggleEditorButton]]]]]]
         [TableHeader
          [TableRow {:id "sub-labels"}
           [TableHeaderCell {:style {:max-width "10em"
