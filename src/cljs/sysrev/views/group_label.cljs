@@ -435,7 +435,7 @@
 (def value-coercers
   {"boolean" #(when-not (str/blank? %)
                 (let [s (str/upper-case %)]
-                  (when-not (#{"NA" "N/A" "NIL" "NULL"} s)
+                  (when-not (str/starts-with? s "N")
                     (if (str/starts-with? s "F")
                       false
                       true))))})
