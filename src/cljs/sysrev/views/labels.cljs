@@ -39,39 +39,92 @@
      [:div.ui.basic.label
       [ValueDisplay root-label-id label-id answer]]]))
 
+(defn GroupLabelAnswerTable []
+  (let [state (r/atom {:sorts '()})
+        current-sort (fn [sorts i]
+                       (some (fn [[j order]] (when (= i j) order)) sorts))
+        toggle-sort! (fn [i]
+                      (swap! state update :sorts
+                             (fn [sorts]
+                               (let [current (current-sort sorts i)
+                                     sorts (remove #(= i (first %)) sorts)]
+                                 (if (= :asc current)
+                                   sorts
+                                   (if (= :desc current)
+                                     (cons [i :asc] sorts)
+                                     (cons [i :desc] sorts)))))))
+        compare-cols (fn [a b [i order]]
+                       (let [av (nth a i)
+                             bv (nth b i)
+                             c (try (compare av bv)
+                                    (catch js/Error e
+                                        0))]
+                         (({:asc identity :desc -} order) c)))
+        compare-rows (fn [a b sorts]
+                       (reduce
+                        #(if (zero? %)
+                           (compare-cols a b %2)
+                           (reduced %))
+                        0
+                        sorts))]
+    (fn [{:keys [group-label-id indexed? label-name labels rows]}]
+      (let [{:keys [sorts]} @state]
+        [Table {:striped true :class "group-label-values-table"}
+         [TableHeader {:full-width true}
+          [TableRow {:text-align "center"}
+           [TableHeaderCell {:col-span (if indexed?
+                                         (+ (count labels) 1)
+                                         (count labels))} label-name]]]
+         [TableHeader
+          [TableRow
+           (when indexed? [TableHeaderCell])
+           (for [[i {:keys [label-id]}] (map-indexed vector labels)
+                 :let [sort (current-sort sorts i)]]
+             ^{:key (str group-label-id "-" label-id "-table-header" )}
+             [TableHeaderCell
+              {:on-click #(toggle-sort! i)}
+              @(subscribe [:label/display group-label-id label-id])
+              ({:asc [:i {:class "arrow up icon" :style {:margin-left "4px"}}]
+                :desc [:i {:class "arrow down icon" :style {:margin-left "4px"}}]}
+               sort)])]]
+         [TableBody
+          (for [[i row] (map-indexed vector (sort #(compare-rows % %2 sorts) rows))]
+            ^{:key (str group-label-id "-" i "-row")}
+            [TableRow
+             (when indexed? [TableCell (inc i)])
+             (for [[j answer] (map-indexed vector row)
+                   :let [label-id (:label-id (nth labels j))]]
+               ^{:key (str group-label-id "-" i "-row-" label-id "-cell")}
+               [TableCell
+                [ValueDisplay group-label-id label-id
+                 answer]])])]]))))
+
 (defn GroupLabelAnswerTag [{:keys [group-label-id answers indexed?]
-                            :or {indexed? false}}]
+                            :or {indexed? false}
+                            :as opts}]
   (let [labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                     (sort-by :project-ordering <)
                     (filter :enabled))
-        label-name @(subscribe [:label/display "na" group-label-id])]
+        label-name @(subscribe [:label/display "na" group-label-id])
+        label-ids (mapv :label-id labels)
+        answer-value (fn [answer label-id]
+                       (let [v (if (contains? answer label-id)
+                                 (get answer label-id)
+                                 (get answer (keyword (str label-id))))
+                             ;; In the articles list view answers keys are
+                             ;; keywords, not UUIDs.
+                             ]
+                         (if (and (string? v) (str/blank? v))
+                           nil
+                           v)))
+        answer->row (fn [answer]
+                      (mapv #(answer-value answer %) label-ids))]
     (when (seq answers)
       [:div.ui.tiny.labeled.label-answer-tag.overflow-x-auto
-       [Table {:striped true :class "group-label-values-table"}
-        [TableHeader {:full-width true}
-         [TableRow {:text-align "center"}
-          [TableHeaderCell {:col-span (if indexed?
-                                        (+ (count labels) 1)
-                                        (count labels))} label-name]]]
-        [TableHeader
-         [TableRow
-          (when indexed? [TableHeaderCell])
-          (for [{:keys [label-id]} labels]
-            ^{:key (str group-label-id "-" label-id "-table-header" )}
-            [TableHeaderCell @(subscribe [:label/display group-label-id label-id])])]]
-        [TableBody
-         (for [ith (sort (keys answers))]
-           ^{:key (str group-label-id "-" ith "-row")}
-           [TableRow
-            (when indexed? [TableCell (+ (parse-integer ith) 1)])
-            (for [{:keys [label-id]} labels]
-              ^{:key (str group-label-id "-" ith "-row-" label-id "-cell")}
-              [TableCell
-               [ValueDisplay group-label-id label-id
-                (if-some [answer (get-in answers [ith label-id])]
-                  answer
-                  ;; In the articles list view answers keys are keywords, not UUIDs
-                  (get-in answers [ith (-> label-id str keyword)])) ]])])]]])))
+       [GroupLabelAnswerTable
+        (-> (dissoc opts :answers)
+            (assoc :label-name label-name :labels labels
+                   :rows (->> answers vals (map answer->row))))]])))
 
 (defn AnnotationLabelAnswerTag [{:keys [annotation-label-id answer]}]
   (let [label-name @(subscribe [:label/display "na" annotation-label-id])
