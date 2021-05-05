@@ -18,6 +18,17 @@
                         :max-row nil
                         :use-spreadsheet false}))
 
+(def value-coercers
+  {"boolean" #(when-not (str/blank? %)
+                (let [s (str/upper-case %)]
+                  (when-not (str/starts-with? s "N")
+                    (if (str/starts-with? s "F")
+                      false
+                      true))))
+   "categorical" #(if (or (array? %) (sequential? %))
+                    (str/join "," (seq %))
+                    %)})
+
 ;; for setting the active group label
 (reg-event-db :group-label/set-active-group-label [trim-v]
               (fn [db [label-id]]
@@ -58,6 +69,27 @@
                     (assoc-in db [:state :review :labels article-id label-id
                                   :labels (str labels-count)]
                               {})))))
+
+(reg-event-fx :group-label/add-out-of-bounds-cells [trim-v]
+              (fn [{:keys [db]} [article-id group-label-id js-cells]]
+                (let [labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
+                                  (sort-by :project-ordering <)
+                                  (filterv :enabled))
+                      labels-count (count labels)
+                      cells (filter #(< (.-col %) labels-count) js-cells)
+                      coerced-value (fn [cell]
+                                      (if-let [coerce (->> cell .-col
+                                                           (nth labels)
+                                                           :value-type
+                                                           value-coercers)]
+                                        (coerce (.-value cell))
+                                        (.-value cell)))]
+                  {:db db
+                   :dispatch-n
+                   (map #(-> [:review/set-label-value article-id group-label-id
+                              (->> (.-col %) (nth labels) :label-id)
+                              (str (.-row %)) (coerced-value %)])
+                        cells)})))
 
 (defn reorder-keys [m]
   (rename-keys m (->> (keys m)
@@ -462,19 +494,9 @@
                  :placeholder "Choose a label"
                  :search? true
                  :selection? true
-                 :value value}
+                 :value (->> (if (string? value) (str/split value #",") value)
+                             (filter seq))}
      props]))
-
-(def value-coercers
-  {"boolean" #(when-not (str/blank? %)
-                (let [s (str/upper-case %)]
-                  (when-not (str/starts-with? s "N")
-                    (if (str/starts-with? s "F")
-                      false
-                      true))))
-   "categorical" #(if (or (array? %) (sequential? %))
-                    (str/join "," (seq %))
-                    %)})
 
 (def value-editors
   {"categorical" DSCategoricalEditor})
@@ -494,13 +516,16 @@
   [:> ReactDataSheet
    {:data rows
     :onCellsChanged
-    (fn [changes]
+    (fn [changes out-of-bounds-cells]
       (doseq [c changes]
         (let [cell (.-cell c)
               coerce (value-coercers (aget cell "value-type"))
               v (if coerce (coerce (.-value c)) (.-value c))]
           (dispatch [:review/set-label-value article-id group-label-id
-                     (aget cell "label-id") (str (.-row c)) v]))))
+                     (aget cell "label-id") (str (.-row c)) v])))
+      (when (seq out-of-bounds-cells)
+        (dispatch [:group-label/add-out-of-bounds-cells
+                   article-id group-label-id out-of-bounds-cells])))
     :rowRenderer
     (fn [props]
       (r/as-element
