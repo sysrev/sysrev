@@ -432,75 +432,32 @@
     (fn [_]
       (.removeEventListener js/document "keydown" on-key-down-listener true))}))
 
-(defn DSLabelInput [{:keys [article-id group-label-id label-id ith]}]
-  (let [value-type @(subscribe [:label/value-type group-label-id label-id])
-        all-values @(subscribe [:label/all-values group-label-id label-id])
-        answer (subscribe [:review/sub-group-label-answer
-                           article-id group-label-id label-id ith])
-        props (condp = value-type
-                "boolean" {:placeholder "True or False?"
-                           :search? true
-                           :selection? true
-                           :value @answer
-                           :options [{:key true :value true :text "True"}
-                                     {:key false :value false :text "False"}
-                                     {:key nil :value nil :text "NA"}]
-                           :multiple? false}
-                "categorical" {:placeholder "Choose a label"
-                               :search? true
-                               :selection? true
-                               :value @answer
-                               :options (->> all-values
-                                             (mapv #(hash-map :key % :value % :text %)))
-                               :multiple? true}
-                "string" {:placeholder "Enter a value"
-                          :search? false
-                          :selection? false
-                          :value (or @answer "")})
-        on-change (fn [_ data]
-                    (let [value (:value (js->clj data :keywordize-keys true))]
-                      (dispatch [:review/set-label-value
-                                 article-id group-label-id label-id ith value])))
-        {:keys [placeholder search? selection? value options multiple?]} props]
-    (if (= value-type "string")
-      ;; handle validity checking of string values
-      (let [valid? (or @(subscribe [:label/valid-string-value?
-                                    group-label-id label-id @answer])
-                       (str/blank? @answer))]
-        [Input {:placeholder placeholder
-                :style {:width "10em"}
-                :error (not valid?)
-                :autoFocus true
-                :value value
-                :onChange on-change}])
-      ;; boolean and categorical
-      [Dropdown {:placeholder placeholder
-                 :style {:width "10em"}
-                 :upward false
-                 :searchInput {:autoFocus true}
-                 :search search?
-                 :selection selection?
-                 :multiple multiple?
-                 :closeOnBlur true
-                 :value value
-                 :on-change on-change
-                 :options options}])))
+(def value-coercers
+  {"boolean" #(when-not (str/blank? %)
+                (let [s (str/upper-case %)]
+                  (when-not (#{"NA" "N/A" "NIL" "NULL"} s)
+                    (if (str/starts-with? s "F")
+                      false
+                      true))))})
 
-(defn DSValueRenderer [opts data]
-  (if (:header data)
-    [:div (:value data)]
-    [DSLabelInput (assoc opts :ith (:ith data) :label-id (:label-id data))]))
+(def value-viewers
+  {"boolean" #(let [v (.-value (.-cell %))]
+                (if (nil? v)
+                  ""
+                  (str/upper-case (str v))))})
 
 (defn DataSheet [{:keys [article-id group-label-id multi?]}
                  label-name labels rows]
   [:> ReactDataSheet
    {:data rows
-    :dataRenderer #(or (:value %) "")
     :onCellsChanged
     (fn [changes]
       (doseq [c changes]
-        (dispatch [:review/set-label-value article-id group-label-id
-                   (:label-id (.-cell c)) (str (.-row c)) (.-value c)])))
+        (let [cell (.-cell c)
+              coerce (value-coercers (aget cell "value-type"))
+              v (if coerce (coerce (.-value c)) (.-value c))]
+          (dispatch [:review/set-label-value article-id group-label-id
+                     (aget cell "label-id") (str (.-row c)) v]))))
     :rowRenderer
     (fn [props]
       (r/as-element
@@ -569,10 +526,8 @@
                                             :required? required?
                                             :question question
                                             :examples examples}])}]]])))]]
-        (.-children props)]))
-    :valueRenderer #(r/as-element (pr-str (:value %)))}])
-
-(defn DSCells [{:keys [article-id group-label-id]}])
+        [TableBody (.-children props)]]))
+    :valueRenderer #(str (.-value %))}])
 
 (defn DSTable [{:keys [article-id group-label-id] :as opts}]
   (let [group-label-id group-label-id
@@ -590,10 +545,19 @@
       (fn [i]
         (map-arr
          (fn [label]
-           {:ith (str i)
-            :label-id (:label-id label)
-            :value (pr-str @(subscribe [:review/sub-group-label-answer
-                                        article-id group-label-id (:label-id label) (str i)]))})
+           (let [label-id (:label-id label)
+                 ith (str i)
+                 value-type @(subscribe [:label/value-type group-label-id label-id])
+                 all-values @(subscribe [:label/all-values group-label-id label-id])
+                 value @(subscribe [:review/sub-group-label-answer
+                                    article-id group-label-id label-id ith])
+                 obj #js{:all-values all-values
+                         :ith ith
+                         :label-id label-id
+                         :value value
+                         :value-type value-type}]
+             (set! (.-valueViewer obj) (value-viewers value-type))
+             obj))
          labels))
       (->> (:labels answers) keys (map parse-integer) sort))]))
 
