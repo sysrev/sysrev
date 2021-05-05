@@ -1,6 +1,5 @@
 (ns sysrev.views.group-label
-  (:require [clojure.set :refer [rename-keys]]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
