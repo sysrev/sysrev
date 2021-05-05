@@ -1,6 +1,5 @@
 (ns sysrev.views.group-label
-  (:require [clojure.edn :as edn]
-            [clojure.set :refer [rename-keys]]
+  (:require [clojure.set :refer [rename-keys]]
             [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
@@ -433,6 +432,39 @@
     (fn [_]
       (.removeEventListener js/document "keydown" on-key-down-listener true))}))
 
+(defn DSDropdown [{:keys [multiple? on-change options placeholder search?
+                          selection? value]}
+                  props]
+  [Dropdown {:close-on-change true
+             :multiple multiple?
+             :on-change on-change
+             :options options
+             :placeholder placeholder
+             :search search?
+             :searchInput {:autoFocus true
+                           :onKeyDown #(.onKeyDown props %)}
+             :selection selection?
+             :style {:width "10em"}
+             :upward false
+             :value value}])
+
+(defn DSCategoricalEditor [{:keys [article-id group-label-id]} props]
+  (let [{:strs [all-values label-id ith value]} (js->clj (.-cell props))]
+    [DSDropdown {:multiple? true
+                 :on-change
+                 (fn [_ data]
+                   (let [value (.-value data)]
+                     (.onCommit props value)
+                     (dispatch [:review/set-label-value
+                                article-id group-label-id label-id ith value])))
+                 :options (->> all-values
+                               (mapv #(hash-map :key % :value % :text %)))
+                 :placeholder "Choose a label"
+                 :search? true
+                 :selection? true
+                 :value value}
+     props]))
+
 (def value-coercers
   {"boolean" #(when-not (str/blank? %)
                 (let [s (str/upper-case %)]
@@ -440,9 +472,12 @@
                     (if (str/starts-with? s "F")
                       false
                       true))))
-   "categorical" #(if (string? %)
-                    (edn/read-string %)
+   "categorical" #(if (or (array? %) (sequential? %))
+                    (str/join "," (seq %))
                     %)})
+
+(def value-editors
+  {"categorical" DSCategoricalEditor})
 
 (def value-viewers
   {"boolean" #(let [v (.-value (.-cell %))]
@@ -450,7 +485,9 @@
                   ""
                   (str/upper-case (str v))))
    "categorical" #(let [v (.-value (.-cell %))]
-                    (str/join ", " (map str v)))})
+                    (if (or (array? v) (sequential? v))
+                      (str/join ", " (seq v))
+                      v))})
 
 (defn DataSheet [{:keys [article-id group-label-id multi?]}
                  label-name labels rows]
@@ -533,7 +570,10 @@
                                             :question question
                                             :examples examples}])}]]])))]]
         [TableBody (.-children props)]]))
-    :valueRenderer #(str (.-value %))}])
+    :valueRenderer #(let [v (.-value %)]
+                      (if (or (array? v) (sequential? v))
+                        (str/join "," (seq v))
+                        (str v)))}])
 
 (defn DSTable [{:keys [article-id group-label-id] :as opts}]
   (let [group-label-id group-label-id
@@ -562,6 +602,9 @@
                          :label-id label-id
                          :value value
                          :value-type value-type}]
+             (set! (.-dataEditor obj)
+                   (when-let [editor (value-editors value-type)]
+                     #(r/as-element [editor opts % obj])))
              (set! (.-valueViewer obj) (value-viewers value-type))
              obj))
          labels))
