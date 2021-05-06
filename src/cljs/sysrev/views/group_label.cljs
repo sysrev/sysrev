@@ -659,7 +659,7 @@
       (->> (:labels answers) keys (map parse-integer) sort))]))
 
 (defn EditorContainer [& children]
-  [:> Rnd {}
+  [:> Rnd {:className "ui detached"}
    children])
 
 (defn GroupLabelDiv [{:keys [article-id group-label-id] :as opts}]
