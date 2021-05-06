@@ -165,17 +165,13 @@
            (when indexed? [TableHeaderCell])
            (doall
             (for [[i label] (map-indexed vector labels)
-                  :let [sort (current-sort sorts i)
-                        {:keys [label-id value-type]} label
+                  :let [{:keys [label-id value-type]} label
                         options (case value-type
                                   "boolean" ["—" "True" "False"]
-                                  "categorical" (->> rows
-                                                     (mapcat #(nth % i))
-                                                     (medley/distinct-by
-                                                      str/lower-case)
-                                                     (remove empty?)
-                                                     (sort-by str/lower-case)
-                                                     ((partial cons "—")))
+                                  "categorical" (->> label :definition :all-values
+                                                     (concat
+                                                      (when (some #(empty? (nth % i)) rows)
+                                                        ["—"])))
                                   "string" (let [vs (->> rows
                                                          (map #(str (nth % i)))
                                                          (medley/distinct-by
