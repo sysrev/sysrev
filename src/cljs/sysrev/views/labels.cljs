@@ -23,7 +23,7 @@
      (map #(-> [:div {:class "ui label"
                       :key %
                       :on-click (util/wrap-user-event
-                                 (fn [] (on-remove %)))}
+                                 (fn [] (on-remove (str/lower-case %))))}
                 %
                 [:i {:class "delete icon"}]])
           selected)
@@ -32,7 +32,7 @@
         [ui/selection-dropdown
          [:div.text "—"]
          (map #(-> [:div.item {:key %} %]) options)
-         {:onChange #(on-select %2)}]])]]])
+         {:onChange #(on-select (str/lower-case %2))}]])]]])
 
 (defn FilterElement
   "Requires a seq of unique, non-blank string options."
@@ -42,8 +42,10 @@
           :or {on-change #(-> nil)}}]
       (let [{:keys [exclude match]} @state
             selected (-> #{} (into exclude) (into match))
-            match-options (remove (partial contains? selected) options)
-            exclude-options (remove (partial contains? selected) options)]
+            match-options (remove #(contains? selected (str/lower-case %))
+                                  options)
+            exclude-options (remove #(contains? selected (str/lower-case %))
+                                    options)]
         [:div.ui.secondary.segment.edit-filter
          (when (or (seq match) (seq match-options))
            [FilterSelector {:on-remove
@@ -131,13 +133,13 @@
                        (let [v (nth row i)
                              value-type (nth value-types i)
                              v (case value-type
-                                 "boolean" ({true "True"
-                                             false "False"
+                                 "boolean" ({true "true"
+                                             false "false"
                                              nil "—"}
                                             v)
                                  "categorical" (when (seq v)
                                                  (map str/lower-case v))
-                                 "string" (if (empty? v) "—" v)
+                                 "string" (if (empty? v) "—" (str/lower-case v))
                                  v)]
                          (if (= "categorical" value-type)
                            (if (empty? v)
