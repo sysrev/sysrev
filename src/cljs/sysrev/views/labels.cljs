@@ -1,9 +1,11 @@
 (ns sysrev.views.labels
   (:require [clojure.string :as str]
+            [medley.core :as medley]
             [re-frame.core :refer [subscribe dispatch]]
             [cljs-time.core :as t]
             [reagent.core :as r]
-            [sysrev.views.components.core :refer [updated-time-label note-content-label]]
+            [sysrev.views.components.core :as ui
+             :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody
@@ -11,6 +13,60 @@
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch]]
             [sysrev.macros :refer-macros [with-loader]]))
+
+(defn FilterSelector [{:keys [on-remove on-select options selected title]}]
+  [:div.ui.small.form
+   [:div.field>div.fields
+    [:div.eight.wide.field
+     [:div {:style {:margin-bottom "4px"}}
+      [:b title]]
+     (map #(-> [:div {:class "ui label"
+                      :key %
+                      :on-click (util/wrap-user-event
+                                 (fn [] (on-remove %)))}
+                %
+                [:i {:class "delete icon"}]])
+          selected)
+     (when (seq options)
+       [:div {:style {:margin-top "4px"}}
+        [ui/selection-dropdown
+         [:div.text "—"]
+         (map #(-> [:div.item {:key %} %]) options)
+         {:onChange #(on-select %2)}]])]]])
+
+(defn FilterElement
+  "Requires a seq of unique, non-blank string options."
+  []
+  (let [state (r/atom {:exclude [] :match []})]
+    (fn [{:keys [on-change options]
+          :or {on-change #(-> nil)}}]
+      (let [{:keys [exclude match]} @state
+            selected (-> #{} (into exclude) (into match))
+            match-options (remove (partial contains? selected) options)
+            exclude-options (remove (partial contains? selected) options)]
+        [:div.ui.secondary.segment.edit-filter
+         (when (or (seq match) (seq match-options))
+           [FilterSelector {:on-remove
+                            #(-> (swap! state update :match
+                                        (partial remove (partial contains? #{%})))
+                                 on-change)
+                            :on-select
+                            #(-> (swap! state update :match conj %)
+                                 on-change)
+                            :options match-options
+                            :selected match
+                            :title "Match"}])
+         (when (or (seq exclude) (seq exclude-options))
+           [FilterSelector {:on-remove
+                            #(-> (swap! state update :exclude
+                                        (partial remove (partial contains? #{%})))
+                                 on-change)
+                            :on-select
+                            #(-> (swap! state update :exclude conj %)
+                                 on-change)
+                            :options exclude-options
+                            :selected exclude
+                            :title "Exclude"}])]))))
 
 (defn ValueDisplay [root-label-id label-id answer]
   (let [inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])
@@ -66,15 +122,75 @@
                            (compare-cols a b %2)
                            (reduced %))
                         0
-                        sorts))]
+                        sorts))
+        value-matches? (fn [v match exclude]
+                         (and
+                          (or (empty? match) (some #(= v %) match))
+                          (or (empty? exclude) (not (some #(= v %) exclude)))))
+        row-matches? (fn [row value-types [i {:keys [exclude match]}]]
+                       (let [v (nth row i)
+                             value-type (nth value-types i)
+                             v (case value-type
+                                 "boolean" ({true "True"
+                                             false "False"
+                                             nil "—"}
+                                            v)
+                                 "categorical" (when (seq v)
+                                                 (map str/lower-case v))
+                                 "string" (if (empty? v) "—" v)
+                                 v)]
+                         (if (= "categorical" value-type)
+                           (if (empty? v)
+                             (value-matches? "—" match exclude)
+                             (and (some #(value-matches? % match nil) v)
+                                  (every? #(value-matches? % nil exclude) v)))
+                           (value-matches? v match exclude))))
+        filter-rows (fn [filters value-types rows]
+                      (filter
+                       #(every? (partial row-matches? % value-types) filters)
+                       rows))]
     (fn [{:keys [group-label-id indexed? label-name labels rows]}]
-      (let [{:keys [sorts]} @state]
+      (let [{:keys [filters sorts]} @state
+            display-rows (->> rows
+                              (filter-rows filters (mapv :value-type labels))
+                              (sort #(compare-rows % %2 sorts)))]
         [Table {:striped true :class "group-label-values-table"}
          [TableHeader {:full-width true}
           [TableRow {:text-align "center"}
            [TableHeaderCell {:col-span (if indexed?
                                          (+ (count labels) 1)
                                          (count labels))} label-name]]]
+         [TableHeader
+          [TableRow
+           (when indexed? [TableHeaderCell])
+           (doall
+            (for [[i label] (map-indexed vector labels)
+                  :let [sort (current-sort sorts i)
+                        {:keys [label-id value-type]} label
+                        options (case value-type
+                                  "boolean" ["—" "True" "False"]
+                                  "categorical" (->> rows
+                                                     (mapcat #(nth % i))
+                                                     (medley/distinct-by
+                                                      str/lower-case)
+                                                     (remove empty?)
+                                                     (sort-by str/lower-case)
+                                                     ((partial cons "—")))
+                                  "string" (let [vs (->> rows
+                                                         (map #(str (nth % i)))
+                                                         (medley/distinct-by
+                                                          str/lower-case))]
+                                             (->> vs
+                                                  (remove empty?)
+                                                  (sort-by str/lower-case)
+                                                  ((if (some empty? vs)
+                                                     (partial cons "—")
+                                                     identity))))
+                                  [])]]
+              ^{:key (str group-label-id "-" label-id "-table-header")}
+              [TableHeaderCell {:vertical-align "top"}
+               [FilterElement {:on-change #(swap! state assoc-in [:filters i] %)
+                               :options options}]]))]]
          [TableHeader
           [TableRow
            (when indexed? [TableHeaderCell])
@@ -89,7 +205,7 @@
                  :desc [:i {:class "arrow down icon" :style {:margin-left "4px"}}]}
                 sort)]))]]
          [TableBody
-          (for [[i row] (map-indexed vector (sort #(compare-rows % %2 sorts) rows))]
+          (for [[i row] (map-indexed vector display-rows)]
             ^{:key (str group-label-id "-" i "-row")}
             [TableRow
              (when indexed? [TableCell (inc i)])
