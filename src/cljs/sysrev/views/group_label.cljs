@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
+            [reagent.dom :as rdom]
             [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
@@ -479,23 +480,22 @@
     (fn [_]
       (.removeEventListener js/document "keydown" on-key-down-listener true))}))
 
-(defn DSDropdown [{:keys [multiple? on-change options placeholder search?
-                          selection? value]}
-                  props]
+(defn DSDropdown [{:keys [multiple? on-change on-close options placeholder
+                          search? selection? value]}]
   [Dropdown {:close-on-change true
              :multiple multiple?
              :on-change on-change
+             :on-close on-close
              :options options
              :placeholder placeholder
              :search search?
-             :searchInput {:autoFocus true
-                           :onKeyDown #(.onKeyDown props %)}
+             :searchInput {:autoFocus true}
              :selection selection?
              :style {:width "10em"}
              :upward false
              :value value}])
 
-(defn DSCategoricalEditor [{:keys [article-id group-label-id]} props]
+(defn DSCategoricalEditor [{:keys [article-id group-label-id on-close]} props]
   (let [{:strs [all-values label-id ith value]} (js->clj (.-cell props))]
     [DSDropdown {:multiple? true
                  :on-change
@@ -504,6 +504,7 @@
                      (.onCommit props value)
                      (dispatch [:review/set-label-value
                                 article-id group-label-id label-id ith value])))
+                 :on-close #(when on-close (apply on-close %&))
                  :options (->> all-values
                                (mapv #(hash-map :key % :value % :text %)))
                  :placeholder "Choose a label"
@@ -618,7 +619,9 @@
                         (str v)))}])
 
 (defn DSTable [{:keys [article-id group-label-id] :as opts}]
-  (let [group-label-id group-label-id
+  (let [this (r/current-component)
+        focus-me #(js/setTimeout (fn [] (.focus (rdom/dom-node this))) 0)
+        group-label-id group-label-id
         answers @(subscribe [:review/active-labels article-id "na"
                              group-label-id])
         labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
@@ -646,7 +649,10 @@
                          :value-type value-type}]
              (set! (.-dataEditor obj)
                    (when-let [editor (value-editors value-type)]
-                     #(r/as-element [editor opts % obj])))
+                     #(r/as-element [editor
+                                     (assoc opts :on-close focus-me)
+                                     %
+                                     obj])))
              (set! (.-valueViewer obj) (value-viewers value-type))
              obj))
          labels))
