@@ -64,7 +64,7 @@
 (defn set-group-label-row [nth {:keys [short-label definition]}]
   (let [{:keys [labels]} definition
         group-label-editor (xpath "//div[@id='group-label-editor']"
-                                  "/descendant::th[contains(text(),'" short-label "')]")]
+                                  "/descendant::*[contains(text(),'" short-label "')]")]
     (when-not (taxi/exists? group-label-editor)
       (b/click (group-label-div-with-name short-label)))
     (b/wait-until-exists group-label-editor)
@@ -222,7 +222,7 @@
                                 {:value include-label-value}))
     ;; set the labels
     (set-group-label-row 1 group-label-definition)
-    (is (b/exists? (xpath "//th[contains(text(),'"
+    (is (b/exists? (xpath "//*[contains(text(),'"
                           (:short-label group-label-definition) "')]")))
     (b/click ".button.save-labels" :displayed? true)
     ;;verify we are on the next article
