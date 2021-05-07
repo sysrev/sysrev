@@ -4,6 +4,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [cljs-time.core :as t]
             [reagent.core :as r]
+            [reagent.dom :as rdom]
             [sysrev.views.components.core :as ui
              :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
@@ -12,7 +13,8 @@
                                            TableCell Icon Button]]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader]]
+            ["@material-ui/core" :refer [Popper]]))
 
 (defn FilterSelector [{:keys [on-remove on-select options selected title]}]
   [:div.ui.small.form
@@ -36,39 +38,37 @@
 
 (defn FilterElement
   "Requires a seq of unique, non-blank string options."
-  []
-  (let [state (r/atom {:exclude [] :match []})]
-    (fn [{:keys [on-change options]
-          :or {on-change #(-> nil)}}]
-      (let [{:keys [exclude match]} @state
-            selected (-> #{} (into exclude) (into match))
-            match-options (remove #(contains? selected (str/lower-case %))
-                                  options)
-            exclude-options (remove #(contains? selected (str/lower-case %))
-                                    options)]
-        [:div.ui.secondary.segment.edit-filter
-         (when (or (seq match) (seq match-options))
-           [FilterSelector {:on-remove
-                            #(-> (swap! state update :match
-                                        (partial remove (partial contains? #{%})))
-                                 on-change)
-                            :on-select
-                            #(-> (swap! state update :match conj %)
-                                 on-change)
-                            :options match-options
-                            :selected match
-                            :title "Match"}])
-         (when (or (seq exclude) (seq exclude-options))
-           [FilterSelector {:on-remove
-                            #(-> (swap! state update :exclude
-                                        (partial remove (partial contains? #{%})))
-                                 on-change)
-                            :on-select
-                            #(-> (swap! state update :exclude conj %)
-                                 on-change)
-                            :options exclude-options
-                            :selected exclude
-                            :title "Exclude"}])]))))
+  [{:keys [class filters on-change on-close options]
+    :or {on-change #(-> nil)}}]
+  (let [{:keys [exclude match]} filters
+        selected (-> #{} (into exclude) (into match))
+        match-options (remove #(contains? selected (str/lower-case %))
+                              options)
+        exclude-options (remove #(contains? selected (str/lower-case %))
+                                options)]
+    [:div.ui.secondary.segment.edit-filter {:class class}
+     (when (or (seq match) (seq match-options))
+       [FilterSelector {:on-remove
+                        #(on-change
+                          (update filters :match
+                                  (partial remove (partial contains? #{%}))))
+                        :on-select
+                        #(on-change (update filters :match conj %))
+                        :options match-options
+                        :selected match
+                        :title "Match"}])
+     (when (or (seq exclude) (seq exclude-options))
+       [FilterSelector {:on-remove
+                        #(on-change
+                          (update filters :exclude
+                                  (partial remove (partial contains? #{%}))))
+                        :on-select
+                        #(on-change filters (update filters :exclude conj %))
+                        :options exclude-options
+                        :selected exclude
+                        :title "Exclude"}]
+       [Button {:on-click #(when on-close (apply on-close %&))}
+        "Hide"])]))
 
 (defn ValueDisplay [root-label-id label-id answer]
   (let [inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])
@@ -97,8 +97,57 @@
      [:div.ui.basic.label
       [ValueDisplay root-label-id label-id answer]]]))
 
+(defn WrappedPopper [{:keys [anchor-component props]} _child]
+  (let [anchor-node (r/atom nil)]
+    (r/create-class
+     {:display-name "WrappedPopper"
+      :component-did-mount
+      (fn []
+        (reset! anchor-node (rdom/dom-node anchor-component)))
+      :component-did-update
+      (fn []
+        (reset! anchor-node (rdom/dom-node anchor-component)))
+      :reagent-render
+      (fn [{:keys [anchor-component props]} child]
+        (when-let [anchorEl @anchor-node]
+          [:> Popper (assoc props :anchorEl anchorEl)
+           (r/as-element
+            child)]))})))
+
+(defn LabelHeaderCell []
+  (let [state (r/atom {:open? false})]
+    (fn [{:keys [filters group-label-id i label label-display
+                 on-change options sort toggle-sort]}]
+      (let [{:keys [open?]} @state]
+        [TableHeaderCell
+         [:div {:on-click toggle-sort
+                :style {:cursor "pointer"
+                        :width "100%"}}
+          [:i {:class (if (->> filters vals (apply concat) seq)
+                        "filter icon active"
+                        "filter icon")
+               :on-click #(do (.stopPropagation %)
+                              (swap! state update :open? not))
+               :style {:cursor "pointer"
+                       :margin "4px"}}]
+          label-display
+          [:i {:class ({:asc "arrow up icon active"
+                        :desc "arrow down icon active"
+                        nil "minus icon"}
+                       sort)
+               :style {:margin-left "8px"}}]]
+         [WrappedPopper {:anchor-component (r/current-component)
+                         :props {:flip {:enabled true}
+                                 :open open?
+                                 :placement "top-start"}}
+          [FilterElement {:class "detached"
+                          :filters filters
+                          :on-change on-change
+                          :on-close #(swap! state assoc :open? false)
+                          :options options}]]]))))
+
 (defn GroupLabelAnswerTable []
-  (let [state (r/atom {:sorts '()})
+  (let [state (r/atom {:filters {} :sorts '()})
         current-sort (fn [sorts i]
                        (some (fn [[j order]] (when (= i j) order)) sorts))
         toggle-sort! (fn [i]
@@ -150,7 +199,25 @@
         filter-rows (fn [filters value-types rows]
                       (filter
                        #(every? (partial row-matches? % value-types) filters)
-                       rows))]
+                       rows))
+        label-values (fn [i label rows]
+                       (case (:value-type label)
+                         "boolean" ["—" "True" "False"]
+                         "categorical" (->> label :definition :all-values
+                                            (concat
+                                             (when (some #(empty? (nth % i)) rows)
+                                               ["—"])))
+                         "string" (let [vs (->> rows
+                                                (map #(str (nth % i)))
+                                                (medley/distinct-by
+                                                 str/lower-case))]
+                                    (->> vs
+                                         (remove empty?)
+                                         (sort-by str/lower-case)
+                                         ((if (some empty? vs)
+                                            (partial cons "—")
+                                            identity))))
+                         []))]
     (fn [{:keys [group-label-id indexed? label-name labels rows]}]
       (let [{:keys [filters sorts]} @state
             display-rows (->> rows
@@ -166,42 +233,20 @@
           [TableRow
            (when indexed? [TableHeaderCell])
            (doall
-            (for [[i label] (map-indexed vector labels)
-                  :let [{:keys [label-id value-type]} label
-                        options (case value-type
-                                  "boolean" ["—" "True" "False"]
-                                  "categorical" (->> label :definition :all-values
-                                                     (concat
-                                                      (when (some #(empty? (nth % i)) rows)
-                                                        ["—"])))
-                                  "string" (let [vs (->> rows
-                                                         (map #(str (nth % i)))
-                                                         (medley/distinct-by
-                                                          str/lower-case))]
-                                             (->> vs
-                                                  (remove empty?)
-                                                  (sort-by str/lower-case)
-                                                  ((if (some empty? vs)
-                                                     (partial cons "—")
-                                                     identity))))
-                                  [])]]
-              ^{:key (str group-label-id "-" label-id "-table-header")}
-              [TableHeaderCell {:vertical-align "top"}
-               [FilterElement {:on-change #(swap! state assoc-in [:filters i] %)
-                               :options options}]]))]]
-         [TableHeader
-          [TableRow
-           (when indexed? [TableHeaderCell])
-           (doall
-            (for [[i {:keys [label-id]}] (map-indexed vector labels)
-                  :let [sort (current-sort sorts i)]]
-              ^{:key (str group-label-id "-" label-id "-table-header" )}
-              [TableHeaderCell
-               {:on-click #(toggle-sort! i)}
-               @(subscribe [:label/display group-label-id label-id])
-               ({:asc [:i {:class "arrow up icon" :style {:margin-left "4px"}}]
-                 :desc [:i {:class "arrow down icon" :style {:margin-left "4px"}}]}
-                sort)]))]]
+            (map-indexed
+             #(-> ^{:key (str group-label-id "-" (:label-id %2) "-table-header")}
+                  [LabelHeaderCell
+                   {:group-label-id group-label-id
+                    :filters (filters %)
+                    :i %
+                    :label %2
+                    :label-display @(subscribe [:label/display group-label-id (:label-id %2)])
+                    :on-change (fn [x]
+                                 (swap! state assoc-in [:filters %] x))
+                    :options (label-values % %2 rows)
+                    :sort (current-sort sorts %)
+                    :toggle-sort (fn [] (toggle-sort! %))}])
+             labels))]]
          [TableBody
           (for [[i row] (map-indexed vector display-rows)]
             ^{:key (str group-label-id "-" i "-row")}
