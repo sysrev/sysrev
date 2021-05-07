@@ -2,6 +2,7 @@
   (:require ["clipboard" :as Clipboard]
             ["dropzone" :as Dropzone]
             ["jquery" :as $]
+            ["@material-ui/core" :as mui]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [reagent.core :as r]
@@ -666,3 +667,20 @@
 
 (defn CheckboxButton [{:keys [active? on-click text title] :as options}]
   [RadioCheckboxButton (merge options {:type "checkbox"})])
+
+(defn Popper [{:keys [anchor-component props]} _child]
+  (let [anchor-node (r/atom nil)]
+    (r/create-class
+     {:display-name "Popper"
+      :component-did-mount
+      (fn []
+        (reset! anchor-node (dom-node anchor-component)))
+      :component-did-update
+      (fn []
+        (reset! anchor-node (dom-node anchor-component)))
+      :reagent-render
+      (fn [{:keys [anchor-component props]} child]
+        (when-let [anchorEl @anchor-node]
+          [:> mui/Popper (assoc props :anchorEl anchorEl)
+           (r/as-element
+            child)]))})))

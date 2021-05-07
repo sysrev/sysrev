@@ -4,7 +4,6 @@
             [re-frame.core :refer [subscribe dispatch]]
             [cljs-time.core :as t]
             [reagent.core :as r]
-            [reagent.dom :as rdom]
             [sysrev.views.components.core :as ui
              :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
@@ -13,8 +12,7 @@
                                            TableCell Icon Button]]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch]]
-            [sysrev.macros :refer-macros [with-loader]]
-            ["@material-ui/core" :refer [Popper]]))
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (defn FilterSelector [{:keys [on-remove on-select options selected title]}]
   [:div.ui.small.form
@@ -97,23 +95,6 @@
      [:div.ui.basic.label
       [ValueDisplay root-label-id label-id answer]]]))
 
-(defn WrappedPopper [{:keys [anchor-component props]} _child]
-  (let [anchor-node (r/atom nil)]
-    (r/create-class
-     {:display-name "WrappedPopper"
-      :component-did-mount
-      (fn []
-        (reset! anchor-node (rdom/dom-node anchor-component)))
-      :component-did-update
-      (fn []
-        (reset! anchor-node (rdom/dom-node anchor-component)))
-      :reagent-render
-      (fn [{:keys [anchor-component props]} child]
-        (when-let [anchorEl @anchor-node]
-          [:> Popper (assoc props :anchorEl anchorEl)
-           (r/as-element
-            child)]))})))
-
 (defn LabelHeaderCell []
   (let [state (r/atom {:open? false})]
     (fn [{:keys [filters group-label-id i label label-display
@@ -136,10 +117,10 @@
                         nil "minus icon"}
                        sort)
                :style {:margin-left "8px"}}]]
-         [WrappedPopper {:anchor-component (r/current-component)
-                         :props {:flip {:enabled true}
-                                 :open open?
-                                 :placement "top-start"}}
+         [ui/Popper {:anchor-component (r/current-component)
+                     :props {:flip {:enabled true}
+                             :open open?
+                             :placement "top-start"}}
           [FilterElement {:class "detached"
                           :filters filters
                           :on-change on-change
