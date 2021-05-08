@@ -27,7 +27,8 @@
 
 (defmethod consume-notification-dispatches :notify-user
   [notification]
-  [[:nav (get-in notification [:content :uri])]])
+  (when-let [uri (get-in notification [:content :uri])]
+    [[:nav uri]]))
 
 (defmethod consume-notification-dispatches :group-has-new-project [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]))]])
@@ -51,6 +52,11 @@
 (defmethod consume-notification-dispatches :project-invitation [notification]
   [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]
 ])
+
+(defmethod consume-notification-dispatches :system
+  [notification]
+  (when-let [uri (get-in notification [:content :uri])]
+    [[:nav uri]]))
 
 (defn merge-notifications [db notifications]
   (->> (mapcat uncombine-notification notifications)

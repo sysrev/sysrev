@@ -1621,17 +1621,18 @@
 
 (defn user-notifications-new [user-id {:keys [limit]}]
   (with-transaction
-    (if-let [subscriber-id (notifications/subscriber-for-user
-                          user-id :returning :subscriber-id)]
-      (let [limit (-> (try (Long/parseLong limit) (catch Exception _))
-                      (or 50) (min 50))]
-        {:success true
-         :notifications
-         (->> (notifications/notifications-for-subscriber
-               subscriber-id :where [:= :consumed nil] :limit 50)
-              combine-notifications
-              (take limit))})
-      {:success true :notifications []})))
+    (let [subscriber-id (notifications/subscriber-for-user
+                         user-id :create? true :returning :subscriber-id)
+          limit (-> (try (Long/parseLong limit) (catch Exception _))
+                    (or 50) (min 50))]
+      {:success true
+       :notifications
+       (->> (notifications/notifications-for-subscriber
+             subscriber-id :where [:= :consumed nil] :limit 50)
+            (concat (notifications/unviewed-system-notifications
+                     subscriber-id :limit limit))
+            combine-notifications
+            (take limit))})))
 
 (defn user-notifications-set-consumed [notification-ids user-id]
   {:success true

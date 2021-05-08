@@ -101,6 +101,9 @@
      [:b project-name]
      "."]))
 
+(defmethod NotificationDisplay :system [notification]
+  [:span (get-in notification [:content :text])])
+
 (reg-sub :notifications/open?
          (fn [db & _]
            (get-in db [:state :notifications :open?])))
