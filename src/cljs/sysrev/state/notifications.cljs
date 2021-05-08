@@ -111,7 +111,8 @@
 
 (reg-event-fx :notifications/consume
               (fn [{:keys [db]} [_ notification]]
-                (let [nids (notification-ids notification)
+                (let [nids (->> notification notification-ids
+                                (remove #(get-in db [:data :notifications % :consumed])))
                       now (js/Date.)]
                   {:db
                    (assoc-in db [:data :notifications]
