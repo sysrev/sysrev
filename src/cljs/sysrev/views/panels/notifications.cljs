@@ -147,7 +147,7 @@
              (vector :notifications/view)
              dispatch)
     [:div {:class "ui notifications-container"}
-     [:div {:class "ui header notifications-title"}
+     [:div {:class "ui notifications-title"}
       "Notifications"]
      (if (empty? new-notifications)
        (if (empty? notifications)
@@ -232,7 +232,7 @@
              (vector :notifications/view)
              dispatch)
     [:div {:class "ui panel segment notifications-panel"}
-     [:div {:class "ui header notifications-title"}
+     [:div {:class "ui notifications-title"}
       "Notifications"]
      (if (empty? children)
        [:div {:class "notifications-empty-message"}
