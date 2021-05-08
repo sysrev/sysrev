@@ -1,11 +1,13 @@
 (ns sysrev.notifications.core
   (:require [clojure.edn :as edn]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [honeysql.core :as sql]
             [medley.core :as medley]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :refer [project-user-ids]]))
+            [sysrev.project.core :refer [project-user-ids]]
+            [sysrev.shared.spec.notification :as sntfcn]))
 
 (defn x-for-y [table-name col-name col-value
                & {:keys [create? returning]
@@ -245,29 +247,43 @@
 
 (defn create-notification
   ([notification]
-   (with-transaction
-     (create-notification (-> notification notification-publisher :publisher-id)
-                     (notification-topic-name notification)
-                     notification)))
+   (if-let [ed (s/explain-data ::sntfcn/create-notification-request
+                               notification)]
+     (throw (ex-info
+             "Notification failed spec validation"
+             {:explain-data ed
+              :notification notification
+              :spec ::sntfcn/create-notification-request}))
+     (with-transaction
+       (create-notification (-> notification notification-publisher :publisher-id)
+                            (notification-topic-name notification)
+                            notification))))
   ([publisher-id topic-name notification]
-   (with-transaction
-     (let [topic-id (topic-for-name topic-name
-                                    :create? true
-                                    :returning :topic-id)
-           notification-id (q/create :notification
-                                {:content notification
-                                 :publisher-id publisher-id
-                                 :topic-id topic-id}
-                                :returning :notification-id)
-           nnses (->> (subscribers-for-topic topic-id)
-                      (remove (into #{} (subscriber-ids-to-skip notification)))
-                      (map #(-> {:notification-id notification-id
-                                 :subscriber-id %})))]
-       (db/notify! :notification
-                   (pr-str {:notification-id notification-id}))
-       (q/create :notification-notification-subscriber nnses)
-       (doseq [n nnses]
-         (db/notify! :notification-notification-subscriber (pr-str n)))))))
+   (if-let [ed (s/explain-data ::sntfcn/create-notification-request
+                               notification)]
+     (throw (ex-info
+             "Notification failed spec validation"
+             {:explain-data ed
+              :notification notification
+              :spec ::sntfcn/create-notification-request}))
+     (with-transaction
+       (let [topic-id (topic-for-name topic-name
+                                      :create? true
+                                      :returning :topic-id)
+             notification-id (q/create :notification
+                                       {:content notification
+                                        :publisher-id publisher-id
+                                        :topic-id topic-id}
+                                       :returning :notification-id)
+             nnses (->> (subscribers-for-topic topic-id)
+                        (remove (into #{} (subscriber-ids-to-skip notification)))
+                        (map #(-> {:notification-id notification-id
+                                   :subscriber-id %})))]
+         (db/notify! :notification
+                     (pr-str {:notification-id notification-id}))
+         (q/create :notification-notification-subscriber nnses)
+         (doseq [n nnses]
+           (db/notify! :notification-notification-subscriber (pr-str n))))))))
 
 (defn update-notifications-consumed [notification-ids subscriber-id]
   (with-transaction
