@@ -283,7 +283,8 @@
                      (pr-str {:notification-id notification-id}))
          (q/create :notification-notification-subscriber nnses)
          (doseq [n nnses]
-           (db/notify! :notification-notification-subscriber (pr-str n))))))))
+           (db/notify! :notification-notification-subscriber (pr-str n)))
+         notification-id)))))
 
 (defn update-notifications-consumed [notification-ids subscriber-id]
   (with-transaction
