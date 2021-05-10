@@ -39,10 +39,15 @@
 (defn make-error-response
   [http-code etype emessage & [exception response]]
   (cond-> response
-    true (assoc :status http-code
-                :body {:error {:type etype
-                               :message emessage}})
+    true (-> (assoc :status http-code)
+             (update-in [:body :error] assoc :type etype :message emessage))
     exception (assoc-in [:body :error :exception] (str exception))))
+
+(defn validation-failed-response [etype emessage spec explain-data]
+  {:status 500
+   :body {:error {:type etype :message emessage}
+          :explain-data explain-data
+          :spec spec}})
 
 (defn not-found-response [request]
   (-> (r/response (index/not-found request))
