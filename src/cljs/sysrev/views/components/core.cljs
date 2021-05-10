@@ -180,9 +180,9 @@
    (util/url-domain url) nbsp [:i.external.icon]])
 
 (defn updated-time-label [dt & [shorten?]]
-  (when-let [s (some-> dt util/time-elapsed-string)]
-    [:div.ui.tiny.label.updated-time
-     (if-not shorten? s (->> (str/split s #" ") butlast (str/join " ")))]))
+  [:div.ui.tiny.label.updated-time
+   ((if shorten? util/time-elapsed-string-short util/time-elapsed-string)
+    dt)])
 
 (defn three-state-selection
   "props are:

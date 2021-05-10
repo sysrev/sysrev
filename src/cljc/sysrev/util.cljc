@@ -839,7 +839,7 @@
                        (when (not (func (k data))) [k message])))
                 (into (hash-map)))))
 
-#?(:cljs (defn time-elapsed-string [dt]
+#?(:cljs (defn time-elapsed [dt]
            (let [now (t/now)
                  intv (if (t/after? now dt)
                         (t/interval dt now)
@@ -849,16 +849,25 @@
                  days (t/in-days intv)
                  weeks (t/in-weeks intv)
                  months (t/in-months intv)
-                 years (t/in-years intv)
-                 write (fn [n unit-name]
-                         (format "%d %s ago" n (pluralize n unit-name)))]
-             (cond (pos? years)   (write years "year")
-                   (pos? months)  (write months "month")
-                   (pos? weeks)   (write weeks "week")
-                   (pos? days)    (write days "day")
-                   (pos? hours)   (write hours "hour")
-                   (pos? minutes) (write minutes "minute")
-                   :else          "just now"))))
+                 years (t/in-years intv)]
+             (cond (pos? years)   [years :year]
+                   (pos? months)  [months :month]
+                   (pos? weeks)   [weeks :week]
+                   (pos? days)    [days :day]
+                   (pos? hours)   [hours :hour]
+                   (pos? minutes) [minutes :minute]))))
+
+#?(:cljs (defn time-elapsed-string [dt]
+           (let [[n unit] (time-elapsed dt)]
+             (if n
+               (format "%d %s ago" n (pluralize n (name unit)))
+               "just now"))))
+
+#?(:cljs (defn time-elapsed-string-short [dt]
+           (let [[n unit] (time-elapsed dt)]
+             (if n
+               (format "%d %s" n (pluralize n (name unit)))
+               "just now"))))
 
 #?(:cljs (defn get-dom-elt [selector]
            (-> ($ selector) (.get 0))))
