@@ -1,14 +1,18 @@
 (ns sysrev.web.routes.api.handlers
-  (:require [clojure.string :as str]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             [clojure.walk :as walk]
             [sysrev.api :as api]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user :refer [user-by-email]]
+            [sysrev.notifications.core :as notifications]
             [sysrev.project.core :as project]
             [sysrev.project.clone :as clone]
+            [sysrev.shared.spec.notification :as sntfcn]
             [sysrev.source.import :as import]
-            [sysrev.web.app :refer [make-error-response]]
+            [sysrev.web.app :refer [make-error-response
+                                    validation-failed-response]]
             [sysrev.web.routes.api.core :refer
              [def-webapi web-api-routes web-api-routes-order]]
             [sysrev.util :as util :refer [in? parse-integer]]))
@@ -315,6 +319,25 @@
                 {:result {:success true
                           :project-id {:project-id project-id
                                        :url (str "https://sysrev.com/p/" project-id)}}})))))
+
+(def-webapi
+  :create-notification :post
+  {:require-admin? true
+   :doc "Creates a notification.
+
+         On success, returns the newly created notification-id."}
+  (fn [{:keys [body]}]
+    (let [body (-> (dissoc body :api-token)
+                   (update :type #(when (string? %) (keyword %))))
+          ed (s/explain-data ::sntfcn/create-notification-request
+                             body)]
+      (if ed
+        (validation-failed-response :api "Request failed spec validation"
+                                    ::sntfcn/create-notification-request
+                                    ed)
+        {:result
+         {:success true
+          :notification-id (notifications/create-notification body)}}))))
 
 ;; Prevent Cider compile command from returning a huge def-webapi map
 nil
