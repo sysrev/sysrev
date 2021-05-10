@@ -51,9 +51,16 @@
            (log/warn "unable to read console errors")))))
 
 (defn assert-browser-console-clean []
-  (assert (empty? (browser-console-errors))   "errors in browser console")
-  (assert (empty? (browser-console-warnings)) "warnings in browser console")
-  nil)
+  (let [errors (browser-console-errors)]
+    (when (seq errors)
+      (throw
+       (ex-info "Errors in browser console"
+                {:errors errors}))))
+  (let [warnings (browser-console-warnings)]
+    (when (seq warnings)
+      (throw
+       (ex-info "Warnings in browser console"
+                {:warnings warnings})))))
 
 (defn log-console-messages [& [level]]
   (when *driver*
