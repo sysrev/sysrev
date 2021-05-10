@@ -53,7 +53,7 @@
     }
 
     .ui.grid.segment.article-list-article {
-        color: @text;
+        color: @textColor;
 
         .article-title {
             font-size: 13px;
@@ -117,7 +117,7 @@
         .ui.list > .item.answer-cell {
             padding: 0.4em 0;
             > .content > .header {
-                color: @text !important;
+                color: @textColor !important;
                 > div.flex-wrap {
                     > i.icon.answer-cell {
                         padding-top: 1px;
@@ -145,13 +145,13 @@
     }
 
     a.column.article-title.active {
-        background-color: mix(@background, @text, 94);
+        background-color: mix(@background0, @textColor, 94);
     }
     a.column.article-title.active:hover {
-        background-color: mix(@background, @text, 91);
+        background-color: mix(@background0, @textColor, 91);
     }
     .article-list-article:hover {
-        background-color: mix(@background, @text, 96);
+        background-color: mix(@background0, @textColor, 96);
     }
 
     .ui.grid > .row > .column.article-answers,
@@ -422,7 +422,7 @@
         cursor: pointer;
     }
     .ui.grid.segment.expander:hover {
-        background-color: mix(@background, @text, 90);
+        background-color: mix(@background0, @textColor, 90);
     }
 
     .ui.segments.export-data {
@@ -435,7 +435,7 @@
             }
         }
         > .ui.grid.segment.expander:hover {
-            background-color: mix(@background, @text, 90);
+            background-color: mix(@background0, @textColor, 90);
         }
         > .ui.segment.export-data-content {
             padding-top: 2px;
@@ -514,7 +514,7 @@
 
     .ui.segments.article-filters-column.collapsed:hover,
     .ui.segments.article-filters-column.collapsed:hover > .ui.segment {
-        background-color: mix(@background, @text, 90);
+        background-color: mix(@background0, @textColor, 90);
     }
 
     .ui.grid.article-list-grid {
@@ -593,7 +593,7 @@
     }
 }
 
-@media only screen and (max-width: 900px) {
+@media only screen and (max-width: 991px) {
     .article-list-toplevel {
         .column.article-answers > .ui.grid > .row > .column {
             padding-left: 5px;

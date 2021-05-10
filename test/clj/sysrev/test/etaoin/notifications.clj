@@ -105,9 +105,10 @@
                :user-id user-b-id)
           _ (Thread/sleep 1000)
           article-id (q/find-one [:article-data :ad]
-                                 {:ad.title "sysrev-7539906377827440850.pdf"}
+                                 {:a.project-id project-a-id
+                                  :ad.title "sysrev-7539906377827440850.pdf"}
                                  :a.article-id
-                                 :join [[:article :a] [:= :a.article-data-id :ad.article-data-id]])
+                                 :join [[:article :a] :ad.article-data-id])
           label-id (q/find-one :label
                                {:project-id project-a-id}
                                :label-id)]
@@ -193,9 +194,10 @@
           (ea/click {:fn/has-text "Mangiferin"})
           (ea/wait 1))
         (let [article-id (q/find-one [:article-data :ad]
-                                     {:ad.title "sysrev-7539906377827440850.pdf"}
+                                     {:a.project-id project-a-id
+                                      :ad.title "sysrev-7539906377827440850.pdf"}
                                      :a.article-id
-                                     :join [[:article :a] [:= :a.article-data-id :ad.article-data-id]])]
+                                     :join [[:article :a] :ad.article-data-id])]
           (is (str/ends-with? (e/get-path) (str "/p/" project-a-id "/article/" article-id))))))))
 
 (deftest-etaoin project-has-new-user-notifications

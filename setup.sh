@@ -21,7 +21,7 @@ function check_deps () {
 function install_semantic () {
   set -eu
   echo -n "Installing semantic through NPM ... "
-  install-semantic reinstall > /dev/null 2> /dev/null
+  install-semantic reinstall > /dev/null 2>&1 || (echo "failed" && false)
   echo "done"
 }
 
@@ -37,7 +37,7 @@ function install_client () {
   set -eu
   echo -n "Installing client packages from NPM ... "
   cd client
-  npm install > /dev/null 2> /dev/null
+  npm install > /dev/null 2>&1 || (echo "failed" && false)
   cd ..
   echo "done"
 }
@@ -45,25 +45,30 @@ function install_client () {
 function install_flyway () {
   set -eu
   echo -n "Installing flyway ... "
-  install-flyway > /dev/null
+  install-flyway > /dev/null || (echo "failed" && false)
   echo "done"
 }
 
 function install_clj_kondo() {
   set -eu
+  echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
   if [ -e "$PWD/scripts/clj-kondo" ] ; then
-    echo "clj-kondo already installed to ./scripts/"
+    echo "kept existing"
   else
-    echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
-    install-clj-kondo > /dev/null
+    install-clj-kondo > /dev/null || (echo "failed" && false)
     echo "done"
   fi
 }
 
-check_deps ; echo
-time install_semantic ; echo
-copy_client_semantic ; echo
-time install_client ; echo
-install_flyway ; echo
-install_clj_kondo ; echo
-echo "You will need to create file vars.sh (see vars.sh.template) and manually add the required private values."
+echo ; check_deps
+echo ; time install_semantic
+echo ; copy_client_semantic
+echo ; time install_client
+echo ; install_flyway
+echo ; install_clj_kondo
+
+echo
+echo "You will need to create file vars.sh (see vars.sh.template)
+and manually add the required private values." |
+  prefix-lines - " * "
+echo

@@ -55,6 +55,7 @@ figwheel_server.log
 
 # Semantic build directory
 resources/public/semantic
+resources/public/css/semantic
 
 # files marked local
 *.local.*

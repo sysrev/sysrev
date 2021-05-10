@@ -1,8 +1,8 @@
-@background: @segmentBackground;
-@invertedBackground: @lightBackground;
+@background                   : @segmentBackground;
+@invertedBackground           : @lightBackground;
 
-@secondaryBackground: @secondarySegmentBackground;
-@secondaryColor: @mutedTextColor;
+@secondaryBackground          : @secondarySegmentBackground;
+@secondaryColor               : @mutedTextColor;
 
-@tertiaryBackground: @tertiarySegmentBackground;
-@tertiaryColor: @mutedTextColor;
+@tertiaryBackground           : @tertiarySegmentBackground;
+@tertiaryColor                : @mutedTextColor;

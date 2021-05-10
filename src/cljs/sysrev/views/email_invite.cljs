@@ -56,7 +56,7 @@
         :on-change (util/wrap-prevent-default
                     (util/on-event-value #(dispatch-sync [::emails-text %])))}]]
      [:div.fields {:style {:margin-bottom 0}}
-      [:div.eight.wide.field
+      [:div.eight.wide.field.noselect
        [Button {:id "send-bulk-invites-button"
                 :type "submit" :primary true
                 :disabled (or running? (zero? unique-count))}

@@ -1,3 +1,6 @@
-@color: @mutedInvertedTextColor;
-@basicColor: @textColor;
-@basicBackground: inherit;
+@basicColor                   : @textColor;
+@basicBackground              : @buttonBasicBackground;
+@color                        : @darkTextColor;
+@backgroundColor              : @buttonBackgroundColor;
+
+@labelHoverBackgroundColor    : @buttonHoverBackground;

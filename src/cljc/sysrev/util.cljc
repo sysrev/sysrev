@@ -32,6 +32,7 @@
                        [cljs-http.client :as http]
                        [goog.string :as gstr :refer [unescapeEntities]]
                        [goog.string.format]
+                       [goog.uri.utils :as uri-utils]
                        [re-frame.core :refer [subscribe reg-event-db reg-fx]]
                        [sysrev.base :refer [active-route sysrev-hostname]]]))
   #?(:clj (:import [java.util UUID]
@@ -517,6 +518,28 @@
 (defn sum [xs]
   (apply + xs))
 
+(defn data-matches? [s1 s2]
+  (and s1 s2 (str/includes? (str/lower-case s1) (str/lower-case s2))))
+
+(defn data-filter [items fns text]
+  (filter
+   (fn [item]
+     (some
+      (fn [f]
+        (let [v (f item)]
+          (data-matches? (str v) (str text))))
+      fns))
+   items))
+
+(defn should-robot-index? [uri]
+  (boolean
+   (or
+    (= uri "/")
+    (= uri "/pricing")
+    (= uri "/terms-of-use")
+    (re-matches #"/p/\d+$" uri)
+    (re-matches #"/u/\d+/p/\d+$" uri))))
+
 ;;;
 ;;; CLJ code
 ;;;
@@ -811,7 +834,7 @@
            (>= (viewport-width) 992)))
 
 #?(:cljs (defn desktop-size? []
-           (>= (viewport-width) 1160)))
+           (>= (viewport-width) 1200)))
 
 #?(:cljs (defn annotator-size? []
            (>= (viewport-width) 1100)))
@@ -829,6 +852,12 @@
            (-> (some-> url http/parse-url :server-name (str/split #"\.")
                        (some->> (take-last 2) seq (str/join ".")))
                (or url))))
+
+#?(:cljs (defn url-hash
+           "Returns `url` modified with # component set to `hash`.
+  `url` is optional and defaults to current browser url."
+           [hash & [url]]
+           (uri-utils/setFragmentEncoded (or url @active-route) hash)))
 
 #?(:cljs (defn validate
            "Validate takes a map, and a map of validator/error message pairs, and
@@ -972,8 +1001,19 @@
 #?(:cljs (defn clear-text-selection-soon
            "Runs clear-text-selection after short js/setTimeout delays."
            []
-           (doseq [ms [5 25 50]]
-             (js/setTimeout #(clear-text-selection) ms))))
+           (clear-text-selection)
+           (doseq [ms (range 3 40 8)]
+             (js/setTimeout clear-text-selection ms))))
+
+#?(:cljs (defn wrap-clear-text
+           "Wraps any function to clear text selection before and after running."
+           [f]
+           (when f
+             (fn [& args]
+               (clear-text-selection)
+               (let [result (apply f args)]
+                 (clear-text-selection-soon)
+                 result)))))
 
 #?(:cljs (defn wrap-prevent-default
            "Wraps an event handler function to prevent execution of a default
@@ -1231,25 +1271,3 @@
                         (some->> (:query-string p) (str "?")))
 
                    :else href))))
-
-(defn data-matches? [s1 s2]
-  (and s1 s2 (str/includes? (str/lower-case s1) (str/lower-case s2))))
-
-(defn data-filter [items fns text]
-  (filter
-    (fn [item]
-      (some
-        (fn [f]
-          (let [v (f item)]
-            (data-matches? (str v) (str text))))
-        fns))
-    items))
-
-(defn should-robot-index? [uri]
-  (boolean
-    (or
-      (= uri "/")
-      (= uri "/pricing")
-      (= uri "/terms-of-use")
-      (re-matches #"/p/\d+$" uri)
-      (re-matches #"/u/\d+/p/\d+$" uri))))

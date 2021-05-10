@@ -20,6 +20,7 @@ clj_kondo_installed () {
   fi
 }
 
+# (re)install ./scripts/clj-kondo if not found or wrong version
 if [ -z "$(clj_kondo_installed)" ] ; then
   echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
   ./scripts/install-clj-kondo > /dev/null
@@ -27,6 +28,7 @@ if [ -z "$(clj_kondo_installed)" ] ; then
   ./scripts/clj-kondo --version
 fi
 
+# run linter
 ./scripts/clj-kondo --lint src/ test/ "$@" ||
   (set -eu
    echo

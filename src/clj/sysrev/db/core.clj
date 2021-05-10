@@ -28,6 +28,8 @@
 (extend-protocol j/ISQLParameter
   java.lang.Number
   (set-parameter [num ^java.sql.PreparedStatement s ^long i]
+    (.setObject s i num)
+    #_
     (let [_conn (.getConnection s)
           meta (.getParameterMetaData s)
           _type-name (.getParameterTypeName meta i)]
@@ -201,11 +203,13 @@
 ;; Add missing JSON write methods for some types.
 ;;
 
-(defn- write-timestamp [x out]
-  (json/write (util/write-time-string x) out))
+(defn- write-timestamp [object out options]
+  (util/apply-keyargs json/write (util/write-time-string object) out
+                      options))
 
-(defn- write-object-str [x out]
-  (json/write (str x) out))
+(defn- write-object-str [object out options]
+  (util/apply-keyargs json/write (str object) out
+                      options))
 
 (extend java.sql.Timestamp
   json/JSONWriter

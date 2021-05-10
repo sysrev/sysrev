@@ -108,11 +108,6 @@ div.label-status-help {
             box-shadow: none !important;
         }
 
-        .ui.basic.buttons > .ui.button:hover {
-            background-color: rgba(180,180,180,0.1) !important;
-            color: @text !important;
-        }
-
         > .ui.attached.segment.status-header {
             padding: 0.5em;
             border-top: none !important;
@@ -226,7 +221,7 @@ div.projects-list {
 }
 
 .projects-list .project-list-project:hover {
-    background-color: mix(@background, @text, 96);
+    background-color: mix(@background0, @textColor, 96);
 }
 
 .ui.message.project-description {
@@ -322,7 +317,7 @@ div.projects-list {
     }
 }
 
-@media only screen and (max-width: 900px) {
+@media only screen and (max-width: 991px) {
     .ui.top.attached.segment.project-header {
         text-align: justify;
         padding: 0.5em;
@@ -355,7 +350,7 @@ div.projects-list {
     }
 }
 
-@media only screen and (max-width: 900px) {
+@media only screen and (max-width: 991px) {
     .ui.segment.project-header.mobile {
         display: normal;
     }
@@ -374,7 +369,7 @@ div.projects-list {
     }
 }
 
-@media only screen and (min-width: 901px) {
+@media only screen and (min-width: 992px) {
     .ui.segment.project-header.mobile {
         display: none;
     }

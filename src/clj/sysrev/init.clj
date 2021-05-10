@@ -5,6 +5,7 @@
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.db.listeners :refer [start-listeners!
                                          start-listener-handlers!]]
+            [sysrev.db.migration :as migration]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config :refer [env]]
             [sysrev.web.routes.site :as site]
@@ -29,6 +30,8 @@
 
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
   (start-db postgres-overrides only-if-new)
+  (when (= (:profile env) :dev)
+    (migration/ensure-updated-db))
   (start-web server-port-override only-if-new)
   (start-scheduler)
   (start-listener-handlers!)

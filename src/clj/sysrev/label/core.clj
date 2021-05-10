@@ -65,8 +65,8 @@
                        :enabled enabled
                        :root-label-id-local root-label-id-local}
                 (boolean? consensus)        (assoc :consensus consensus)
-                (= name "overall include")  (assoc :consensus true))))
-  true)
+                (= name "overall include")  (assoc :consensus true))
+              :returning :*)))
 
 (defn- add-label-entry-boolean
   "Creates an entry for a boolean label definition.

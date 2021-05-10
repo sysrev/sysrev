@@ -144,13 +144,13 @@
         (case axis-type
           :concordance {:labelString "Concordance"
                         :max 1.0
-                        :ticks {:font {:color (inv-color)} }}
+                        :ticks {:color (inv-color)}}
           :count       {:labelString "Article Count"
                         :max (round (* 1.1 max-val))
                         :precision 0
                         :ticks {:precision 0
                                 :stepSize (round (/ (* 1.1 max-val) 10))
-                                :font {:color (inv-color)}}})
+                                :color (inv-color)}})
         x-scale {:x (cond-> {:position "bottom"
                              :stacked true
                              :type "linear"
@@ -206,7 +206,8 @@
     (let [val (get values i)
           active? (contains? selected-labels val)]
       ^{:key (str prefix val)}
-      [ui/RadioButton {:text (get labels i)
+      [ui/RadioButton {:class "noselect"
+                       :text (get labels i)
                        :active? active?
                        :on-click #(dispatch [click-set-event val])}])))
 
@@ -259,14 +260,17 @@
                    [{:label "concordant" :data concordance :backgroundColor blue}
                     {:label "discordant" :data discordance :backgroundColor red}])
                  (mapv #(merge % {:maxBarThickness 15 :stack "1"})))
-        options (-> {:legend  {:display true :labels {:font {:color (inv-color)}}}
-                     :scales  {:y (label-axis label-names)}
+        options (-> {:scales {:y (label-axis label-names)}
                      :onClick (on-click-chart label-ids ::set-concordance-label-selection)
                      :tooltips {:mode "y"}}
                     (merge-x-scale :axis-type (if show-counts :count :concordance)
                                    :max-val (when show-counts max-count))
-                    (charts/wrap-default-options :animate? false
-                                                 :items-clickable? true))]
+                    (charts/wrap-default-options
+                     :plugins {:legend {:display true
+                                        :labels (charts/graph-font-settings
+                                                 :color (inv-color))}}
+                     :animate? false
+                     :items-clickable? true))]
     [:div
      [:h5 "Concordant Articles by Label"]
      [:div
@@ -317,14 +321,17 @@
                              [con-count-ds dis-count-ds]
                              [con-perc-ds dis-perc-ds])
                            (mapv #(merge % {:maxBarThickness 15 :stack "1"})))
-        options       (-> {:legend {:display true :labels {:font {:color (inv-color)}}}
-                           :scales {:y (label-axis user-names)}
+        options       (-> {:scales {:y (label-axis user-names)}
                            :onClick (on-click-chart user-ids ::set-concordance-user-selection)}
                           (merge-x-scale :axis-type (if show-counts :count :concordance)
                                          :max-val (when show-counts
                                                     (reduce max counts)))
-                          (charts/wrap-default-options :items-clickable? true
-                                                       :animate? false))]
+                          (charts/wrap-default-options
+                           :plugins {:legend {:display true
+                                              :labels (charts/graph-font-settings
+                                                       :color (inv-color))}}
+                           :items-clickable? true
+                           :animate? false))]
     [:div
      [:h5 "User Concordant Articles on "
       [:span {:style {:color (:select-blue colors)}}
@@ -404,14 +411,16 @@
                               (if show-counts
                                 [con-count-ds dis-count-ds]
                                 [con-perc-ds dis-perc-ds]))
-        options         (-> {:legend {:display true
-                                      :labels {:font {:color (inv-color)}}}
-                             :scales {:y (label-axis user-names)}
-                             :onClick (on-click-chart user-ids ::set-concordance-user-selection)}
-                            (merge-x-scale :axis-type (if show-counts :count :concordance)
-                                           :max-val (when show-counts max-count))
-                            (charts/wrap-default-options :animate? false
-                                                         :items-clickable? true))]
+        options (-> {:scales {:y (label-axis user-names)}
+                     :onClick (on-click-chart user-ids ::set-concordance-user-selection)}
+                    (merge-x-scale :axis-type (if show-counts :count :concordance)
+                                   :max-val (when show-counts max-count))
+                    (charts/wrap-default-options
+                     :plugins {:legend {:display true
+                                        :labels (charts/graph-font-settings
+                                                 :color inv-color)}}
+                     :animate? false
+                     :items-clickable? true))]
     [:div
      [:h5 "User Concordant Articles"
       " vs " [:span {:style {:color select-blue}}

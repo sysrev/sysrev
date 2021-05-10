@@ -107,11 +107,11 @@ a:hover { color: darken(@blue, 8); }
 }
 
 .black-text {
-    color: @text !important;
+    color: @textColor !important;
 }
 
 .medium-weight {
-    font-weight: 600;
+    font-weight: 600 !important;
 }
 
 .bold {
@@ -225,7 +225,7 @@ span.attention {
     }
 }
 
-@media only screen and (min-width: 1160px) {
+@media only screen and (min-width: 1200px) {
     .ui.container {
         width: 1127px;
         margin-left: auto !important;
@@ -233,7 +233,7 @@ span.attention {
     }
 }
 
-@media only screen and (max-width: 1159px) and (min-width: 992px) {
+@media only screen and (max-width: 1199px) and (min-width: 992px) {
     .ui.container {
         width: 975px;
         margin-left: auto !important;
@@ -242,14 +242,14 @@ span.attention {
 }
 
 .ui.list > .item .description {
-    color: @text;
+    color: @textColor;
 }
 
 h6.ui.header {
     font-size: 13px;
 }
 
-@media only screen and (max-width: 900px) {
+@media only screen and (max-width: 991px) {
     body {
         font-size: 13px;
     }
@@ -431,7 +431,7 @@ div.dropdown > input.search {
 
 .ui.button.subtle-button {
     background: @subtleButtonColor;
-    color: @text;
+    color: @textColor;
 }
 .ui.button.subtle-button:hover {
     background: @subtleButtonHoverColor;
@@ -441,3 +441,35 @@ div.dropdown > input.search {
 .cursor-not-allowed { cursor: not-allowed; }
 
 .overflow-x-auto { overflow-x: auto; }
+
+.ui.pagination.menu {
+    .item {
+        .open-sans;
+        color: @mutedTextColor;
+    }
+    .active.item {
+        .bold;
+        color: @emphasisText;
+    }
+}
+
+.ui.basic.button:hover,
+.ui.basic.buttons > .ui.button:hover {
+    background-color: rgba(180,180,180,0.12) !important;
+    color: @emphasisText !important;
+}
+
+.no-display {
+    display: none !important;
+}
+
+.ui.buttons.radio-primary {
+    .ui.button:active {
+        color: @softTextColor;
+        background: @buttonBackgroundColor;
+    }
+    .ui.button.active:active {
+        color: @softTextColor;
+        background: @buttonActiveBackground;
+    }
+}

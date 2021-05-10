@@ -1,2 +1,2 @@
-@background: white;
-@color: @invertedTextColor;
+@background                   : white;
+@color                        : @invertedTextColor;

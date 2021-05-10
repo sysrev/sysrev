@@ -13,8 +13,8 @@
 
 
 #?(:cljs
-   (defn table [columns rows & {:keys [header]}]
-     [:table.ui.compact.striped.table
+   (defn table [columns rows & {:keys [header props]}]
+     [:table.ui.compact.striped.table (into {} props)
       (when header [:thead [:tr [:th {:colSpan (count columns)} [:h4.ui.header header]]]])
       [:thead [:tr (for [col columns] ^{:key col}[:th (name col)])]]
       [:tbody (for [row rows]

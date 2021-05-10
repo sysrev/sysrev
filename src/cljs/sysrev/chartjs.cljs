@@ -5,6 +5,8 @@
             [reagent.dom :refer [dom-node]]
             [sysrev.util :as util]))
 
+(def defaults Chart/defaults)
+
 ;; React component implementation based on core functionality from:
 ;; https://github.com/jerairrest/react-chartjs-2/blob/master/src/index.js
 
@@ -46,7 +48,7 @@
           ;; Method of getting React ref value with Reagent taken from:
           ;; https://gist.github.com/pesterhazy/4d9df2edc303e5706d547aeabe0e17e1
           [:div {:style (when height {:height (str height "px")})}
-           [:div.chart-container
+           [:div.chart-container.noselect
             {:style {:position "relative"
                      :height (when height (str height "px"))
                      :width (when width (str width "px"))}}
