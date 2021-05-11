@@ -10,7 +10,7 @@
 
 (defn uri-event [url]
   (let [^uri uri (uri/parse url)]
-    (if (.getDomain uri)
+    (if (seq (.getDomain uri))
       [:load-url url :absolute true :target "_blank"]
       [:nav url])))
 
