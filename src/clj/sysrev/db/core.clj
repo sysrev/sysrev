@@ -16,7 +16,8 @@
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
             [sysrev.util :as util :refer [map-values in?]])
-  (:import (org.joda.time DateTime)))
+  (:import (org.joda.time DateTime)
+           org.postgresql.util.PSQLException))
 
 ;; for clj-kondo
 (declare sql-identifier-to-clj)
@@ -135,10 +136,17 @@
 (defn do-query
   "Run SQL query defined by honeysql SQL map."
   [sql-map & [conn]]
-  (j/query (or conn *conn* @active-db)
-           (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
-           {:identifiers sql-identifier-to-clj
-            :result-set-fn vec}))
+  (try
+    (j/query (or conn *conn* @active-db)
+             (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
+             {:identifiers sql-identifier-to-clj
+              :result-set-fn vec})
+    (catch PSQLException e
+      (throw
+       (ex-info
+        (str "PSQLException: " (.getMessage e))
+        {:sql-map sql-map}
+        e)))))
 
 (defn raw-query
   "Run a raw sql query for when there is no HoneySQL implementation of a SQL feature"

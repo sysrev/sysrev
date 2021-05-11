@@ -177,8 +177,12 @@
             response
             (cond
               ;; Return error if body has :error field
-              error (do (when exception (slack/log-request-exception request exception))
-                        (make-error-response status type message exception response))
+              error (let [response (if (and (= #{:dev :test} (:profile env))
+                                            (ex-data exception))
+                                     (assoc response :ex-data exception)
+                                     response)]
+                      (when exception (slack/log-request-exception request exception))
+                      (make-error-response status type message exception response))
               ;; Otherwise return result if body has :result field
               result (merge-default-success-true response)
               ;; If no :error or :result key, wrap the value in :result
