@@ -2,8 +2,9 @@
   (:require [cljs-time.coerce :as tc]
             [cljs-time.format :as tf]
             [clojure.string :as str]
-            [reagent.core :refer [create-element]]
+            [reagent.core :as r :refer [create-element]]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe]]
+            [sysrev.views.components.core :refer [WrapClickOutside]]
             [sysrev.data.core :as data]
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.state.notifications]
@@ -146,25 +147,27 @@
     (some->> (remove :viewed new-notifications)
              (vector :notifications/view)
              dispatch)
-    [:div {:class "ui notifications-container"}
-     [:div {:class "ui notifications-title"}
-      "Notifications"]
-     (if (empty? new-notifications)
-       (if (empty? notifications)
-         [:div {:class "notifications-empty-message"}
-          "You don't have any notifications yet."]
-         [:div {:class "notifications-empty-message"}
-          "You don't have any new notifications. Click "
-          [:a {:href (str "/user/" user-id "/notifications")
-               :on-click #(dispatch [:notifications/set-open false])}
-           "See All"]
-          " to see older notifications."])
-       (into [:div]
-             (mapv #(-> [NotificationItem %]) new-notifications)))
-     [:div {:class "notifications-footer"
-            :on-click #(do (dispatch [:nav (str "/user/" user-id "/notifications")])
-                           (dispatch [:notifications/set-open false]))}
-      "See All"]]))
+    [WrapClickOutside {:handle-click-outside
+                       #(dispatch [:notifications/set-open false])}
+     [:div {:class "ui notifications-container"}
+      [:div {:class "ui notifications-title"}
+       "Notifications"]
+      (if (empty? new-notifications)
+        (if (empty? notifications)
+          [:div {:class "notifications-empty-message"}
+           "You don't have any notifications yet."]
+          [:div {:class "notifications-empty-message"}
+           "You don't have any new notifications. Click "
+           [:a {:href (str "/user/" user-id "/notifications")
+                :on-click #(dispatch [:notifications/set-open false])}
+            "See All"]
+           " to see older notifications."])
+        (into [:div]
+              (mapv #(-> [NotificationItem %]) new-notifications)))
+      [:div {:class "notifications-footer"
+             :on-click #(do (dispatch [:nav (str "/user/" user-id "/notifications")])
+                            (dispatch [:notifications/set-open false]))}
+       "See All"]]]))
 
 (defn NotificationsButton []
   (let [notifications @(subscribe [:notifications])
@@ -173,7 +176,8 @@
         open? (some-> (subscribe [:notifications/open?]) deref)]
     [:<>
      [:a {:class "item"
-          :on-click #(toggle-open open?)}
+          :on-click #(do (.stopPropagation %)
+                       (toggle-open open?))}
       [:i {:class "bell outline icon notifications-icon"}]
       (when-not (zero? new-count)
         [:span {:class "notifications-count"}
