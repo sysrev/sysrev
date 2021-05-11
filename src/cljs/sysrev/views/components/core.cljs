@@ -5,7 +5,7 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [reagent.core :as r]
-            [reagent.dom :refer [dom-node]]
+            [reagent.dom :as rdom :refer [dom-node]]
             [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe]]
             [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]
@@ -666,3 +666,22 @@
 
 (defn CheckboxButton [{:keys [active? on-click text title] :as options}]
   [RadioCheckboxButton (merge options {:type "checkbox"})])
+
+(defn WrapClickOutside [{:keys [handle-click-outside]} _child]
+  (let [dom-node (atom nil)
+        handler #(let [node @dom-node]
+                   (when (not (and node (.contains node (.-target %))))
+                     (handle-click-outside %)))]
+    (r/create-class
+     {:component-did-mount
+      (fn []
+        (when handle-click-outside
+          (reset! dom-node (rdom/dom-node (r/current-component)))
+          (js/document.addEventListener "click" handler)))
+      :component-will-unmount
+      (when handle-click-outside
+        (reset! dom-node nil)
+        (js/document.removeEventListener "click" handler))
+      :reagent-render
+      (fn [_ child]
+        child)})))
