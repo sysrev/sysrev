@@ -24,7 +24,7 @@
                   {col-name col-value}
                   :prepare #(assoc % :on-conflict [col-name] :do-nothing [])
                   :returning returning)
-        (x-for-y table-name col-name col-value))))))
+        (x-for-y table-name col-name col-value :returning returning))))))
 
 (def publisher-for-project
   (partial x-for-y :notification_publisher :project-id))
