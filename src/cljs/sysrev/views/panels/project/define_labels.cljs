@@ -338,7 +338,7 @@
 
 (defn FormLabelWithTooltip [text tooltip-content]
   (doall (ui/with-ui-help-tooltip
-           [:label text " " [ui/ui-help-icon]]
+           [:label text [ui/ui-help-icon]]
            :help-content tooltip-content
            :popup-options {:delay {:show 500 :hide 0}})))
 

@@ -20,6 +20,12 @@
   (xpath "//span[contains(@class,'import-label') and text()='" search-term "']"
          "/ancestor::div[@class='project-source']"))
 
+(defn search-term-edit
+  "Given a search term, return the xpath corresponding to its delete button"
+  [search-term]
+  (xpath (search-source search-term)
+         "/descendant::div[contains(@class,'button') and contains(text(),'Edit')]"))
+
 (defn search-term-delete
   "Given a search term, return the xpath corresponding to its delete button"
   [search-term]

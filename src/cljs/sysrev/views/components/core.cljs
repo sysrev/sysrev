@@ -6,7 +6,7 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [reagent.core :as r]
-            [reagent.dom :refer [dom-node]]
+            [reagent.dom :as rdom :refer [dom-node]]
             [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe]]
             [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]
@@ -263,8 +263,8 @@
       (get icons true)]]))
 
 (defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
-  [:i.circle.question.mark.icon {:class (css "grey" size class)
-                                 :style style}])
+  [:i.circle.question.mark.icon {:class (css "grey" size class "noselect")
+                                 :style (merge {:margin "0 4px"} style)}])
 
 (defn with-ui-help-tooltip [element & {:keys [help-content help-element popup-options]}]
   (list
@@ -353,7 +353,7 @@
         (if (nil? tooltip) label
             (doall (with-ui-help-tooltip
                      [:span {:style {:width "100%"}}
-                      label " " [ui-help-icon]]
+                      label [ui-help-icon]]
                      :help-content tooltip
                      :popup-options {:delay {:show 500 :hide 0}})))]
     (if-not optional
@@ -684,3 +684,22 @@
           [:> mui/Popper (assoc props :anchorEl anchorEl)
            (r/as-element
             child)]))})))
+
+(defn WrapClickOutside [{:keys [handle-click-outside]} _child]
+  (let [dom-node (atom nil)
+        handler #(let [node @dom-node]
+                   (when (not (and node (.contains node (.-target %))))
+                     (handle-click-outside %)))]
+    (r/create-class
+     {:component-did-mount
+      (fn []
+        (when handle-click-outside
+          (reset! dom-node (rdom/dom-node (r/current-component)))
+          (js/document.addEventListener "click" handler)))
+      :component-will-unmount
+      (when handle-click-outside
+        (reset! dom-node nil)
+        (js/document.removeEventListener "click" handler))
+      :reagent-render
+      (fn [_ child]
+        child)})))

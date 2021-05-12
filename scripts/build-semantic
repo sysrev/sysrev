@@ -11,7 +11,7 @@ set -eu
 
 echo "building semantic (\"$theme\")"
 
-out_dir="resources/public/semantic/$theme"
+out_dir="resources/public/css/semantic/$theme"
 cache="$HOME/.sysrev-cache/semantic/$theme"
 mkdir -p "$cache"
 

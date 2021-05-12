@@ -61,12 +61,11 @@
         on-next #(when have-next? (on-nav :next (+ offset items-per-page)))
         on-page-num (util/wrap-prevent-default
                      (fn []
-                       (let [value (parse-integer current-page-display)]
-                         (if (and (integer? value)
-                                  (< 0 value
-                                     (inc (js/Math.ceil (/ total-count items-per-page)))))
-                           (on-nav :page (* (dec value) items-per-page))
-                           (set-page-input nil)))))
+                       (if-let [value (some-> (parse-integer current-page-display)
+                                              (min (js/Math.ceil (/ total-count items-per-page)))
+                                              (max 1))]
+                         (on-nav :page (* (dec value) items-per-page))
+                         (set-page-input nil))))
         nav-loading? #(and loading? (= % recent-nav-action))
         nav-class (fn [action]
                     (let [enabled? (cond (in? [:first :previous] action)  have-previous?
@@ -80,22 +79,22 @@
         [:form.ui.small.input.page-number {:on-submit on-page-num}
          [:input.page-number {:type "text"
                               :value (str current-page-display)
-                              :on-change #(set-page-input (-> % .-target .-value))
+                              :on-change (util/on-event-value set-page-input)
                               :on-focus #(set-page-input "")
                               :on-blur #(set-page-input nil)}]]
         " of " (str max-page)])
-     [:div.ui.tiny.icon.button.nav-first {:class (nav-class :first)
-                                          :on-click on-first}
+     [:button.ui.tiny.icon.button.nav-first {:class (nav-class :first)
+                                             :on-click on-first}
       [:i.angle.double.left.icon]]
      [:div.ui.tiny.buttons.nav-prev-next
-      [:div.ui.button {:class (css (nav-class :previous) [(not full-size?) "icon"])
-                       :on-click on-previous}
+      [:button.ui.button {:class (css (nav-class :previous) [(not full-size?) "icon"])
+                          :on-click on-previous}
        [:i.chevron.left.icon] (when full-size? "Previous")]
-      [:div.ui.button {:class (css (nav-class :next) [(not full-size?) "icon"])
-                       :on-click on-next}
+      [:button.ui.button {:class (css (nav-class :next) [(not full-size?) "icon"])
+                          :on-click on-next}
        (when full-size? "Next") [:i.chevron.right.icon]]]
-     [:div.ui.tiny.icon.button.nav-last {:class (nav-class :last)
-                                         :on-click on-last}
+     [:button.ui.tiny.icon.button.nav-last {:class (nav-class :last)
+                                            :on-click on-last}
       [:i.angle.double.right.icon]]]))
 
 (defn ListPager

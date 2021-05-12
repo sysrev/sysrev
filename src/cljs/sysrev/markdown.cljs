@@ -89,7 +89,7 @@
                [:a.markdown-link.bold
                 {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
                  :target "_blank" :rel "noopener noreferrer"}
-                "Markdown Cheatsheet"]]
+                "Markdown Cheatsheet " [:i.external.link.icon]]]
               [:div.right.aligned.column.form-buttons
                [:button.ui.tiny.positive.button.save-button
                 {:class (css [(not changed?) "disabled"]

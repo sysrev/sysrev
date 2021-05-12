@@ -31,4 +31,4 @@ check_cmd() {
 [ "$cmd" == "-" ] || check_cmd $cmd
 
 (if [ "$cmd" == "-" ] ; then cat ; else bash -c "$cmd" 2>&1 ; fi) |
-  sed -Ee "s/(^.*$)/${prefix}\1/g" || show_usage
+  sed -Ee "s/(^.*$)/${prefix}\1/g"

@@ -16,7 +16,8 @@
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
             [sysrev.util :as util :refer [map-values in?]])
-  (:import (org.joda.time DateTime)))
+  (:import (org.joda.time DateTime)
+           org.postgresql.util.PSQLException))
 
 ;; for clj-kondo
 (declare sql-identifier-to-clj)
@@ -28,6 +29,8 @@
 (extend-protocol j/ISQLParameter
   java.lang.Number
   (set-parameter [num ^java.sql.PreparedStatement s ^long i]
+    (.setObject s i num)
+    #_
     (let [_conn (.getConnection s)
           meta (.getParameterMetaData s)
           _type-name (.getParameterTypeName meta i)]
@@ -133,10 +136,17 @@
 (defn do-query
   "Run SQL query defined by honeysql SQL map."
   [sql-map & [conn]]
-  (j/query (or conn *conn* @active-db)
-           (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
-           {:identifiers sql-identifier-to-clj
-            :result-set-fn vec}))
+  (try
+    (j/query (or conn *conn* @active-db)
+             (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
+             {:identifiers sql-identifier-to-clj
+              :result-set-fn vec})
+    (catch PSQLException e
+      (throw
+       (ex-info
+        (str "PSQLException: " (.getMessage e))
+        {:sql-map sql-map}
+        e)))))
 
 (defn raw-query
   "Run a raw sql query for when there is no HoneySQL implementation of a SQL feature"
@@ -201,11 +211,13 @@
 ;; Add missing JSON write methods for some types.
 ;;
 
-(defn- write-timestamp [x out]
-  (json/write (util/write-time-string x) out))
+(defn- write-timestamp [object out options]
+  (util/apply-keyargs json/write (util/write-time-string object) out
+                      options))
 
-(defn- write-object-str [x out]
-  (json/write (str x) out))
+(defn- write-object-str [object out options]
+  (util/apply-keyargs json/write (str object) out
+                      options))
 
 (extend java.sql.Timestamp
   json/JSONWriter

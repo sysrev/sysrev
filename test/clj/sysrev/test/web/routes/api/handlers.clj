@@ -4,7 +4,9 @@
             [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :as b]
             [sysrev.api :as api]
+            [sysrev.db.queries :as q]
             [sysrev.group.core :as group]
+            [sysrev.notifications.core :as notifications]
             [sysrev.project.core :as project]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.user.core :as user]
@@ -88,3 +90,43 @@
       (is (= group-id (:group-id (project/get-project-owner project-id))))
       ;; delete the group
       (group/delete-group! group-id))))
+
+(deftest create-notification-test
+  (let [handler (sysrev-handler)
+        test-user (b/create-test-user)
+        ;; make test user an admin
+        _ (user/set-user-permissions (:user-id test-user) ["user" "admin"])
+        ;; login this user
+        api-token (-> (handler
+                       (-> (mock/request :get "/web-api/get-api-token")
+                           (mock/query-string {:email (:email test-user)
+                                               :password (:password test-user)})))
+                      :body util/read-json :result :api-token)
+        create-notification-response
+        (-> (handler
+             (->  (mock/request :post "/web-api/create-notification")
+                  (mock/body (util/write-json
+                              {:api-token api-token
+                               :text "Test-System-Notification"
+                               :uri "/test-system-uri"
+                               :type :system}))
+                  (mock/header "Content-Type" "application/json")))
+            :body util/read-json)
+        {:keys [notification-id]} (:result create-notification-response)
+        subscriber-id (notifications/subscriber-for-user
+                       (:user-id test-user)
+                       :create? true
+                       :returning :subscriber-id)]
+    ;; was the notification created?
+    (is (get-in create-notification-response [:result :success]))
+    (is (= {:text "Test-System-Notification"
+            :type "system"
+            :uri "/test-system-uri"}
+           (q/find-one :notification
+                       {:notification-id notification-id}
+                       :content)))
+    (is (= {:text "Test-System-Notification"
+            :type :system
+            :uri "/test-system-uri"}
+           (-> subscriber-id notifications/unviewed-system-notifications
+               first :content)))))

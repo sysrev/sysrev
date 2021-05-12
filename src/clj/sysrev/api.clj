@@ -307,6 +307,29 @@
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 
+(defn-spec update-source (-> (req-un ::success) or-error)
+  "Toggle a source as being enabled or disabled."
+  [source-id int?, check-new-results? boolean?, import-new-results? boolean?, notes string?]
+  (if (source/source-exists? source-id)
+    (let [project-id (source/source-id->project-id source-id)]
+      (source/update-source project-id source-id check-new-results? import-new-results? notes)
+      {:success true
+       :message "Source updated"})
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exist")}}))
+
+(defn-spec re-import-source (-> (req-un ::success) or-error)
+  "Toggle a source as being enabled or disabled."
+  [source-id int?]
+  (if (source/source-exists? source-id)
+    (let [project-id (source/source-id->project-id source-id)
+          source (source/get-source source-id)]
+      (source/re-import project-id source)
+      {:success true
+       :message "Source updated"})
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exist")}}))
+
 (defn source-sample
   "Return a sample article from source"
   [source-id]
@@ -1598,17 +1621,18 @@
 
 (defn user-notifications-new [user-id {:keys [limit]}]
   (with-transaction
-    (if-let [subscriber-id (notifications/subscriber-for-user
-                          user-id :returning :subscriber-id)]
-      (let [limit (-> (try (Long/parseLong limit) (catch Exception _))
-                      (or 50) (min 50))]
-        {:success true
-         :notifications
-         (->> (notifications/notifications-for-subscriber
-               subscriber-id :where [:= :consumed nil] :limit 50)
-              combine-notifications
-              (take limit))})
-      {:success true :notifications []})))
+    (let [subscriber-id (notifications/subscriber-for-user
+                         user-id :create? true :returning :subscriber-id)
+          limit (-> (try (Long/parseLong limit) (catch Exception _))
+                    (or 50) (min 50))]
+      {:success true
+       :notifications
+       (->> (notifications/notifications-for-subscriber
+             subscriber-id :where [:= :consumed nil] :limit 50)
+            (concat (notifications/unviewed-system-notifications
+                     subscriber-id :limit limit))
+            combine-notifications
+            (take limit))})))
 
 (defn user-notifications-set-consumed [notification-ids user-id]
   {:success true

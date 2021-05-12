@@ -1,34 +1,89 @@
 /*******************************
      User Global Variables
 *******************************/
-@siteTextColor: rgba(250, 250, 250, 0.925);
-@textColor : @siteTextColor;
-@invertedTextColor: rgba(30, 30, 30, 0.925);
-@mutedTextColor : rgba(230, 230, 230, 0.85);
-@mutedInvertedTextColor: rgba(45, 45, 45, 0.85);
-// @mutedInvertedTextColor: fadeout(@invertedTextColor, 20%, relative);
 
-@pageBackground : rgba(35, 36, 37, 1.0);
-@lighterBackground : lighten(@pageBackground, 4);
-@lightBackground: rgba(200, 201, 203, 1.0);
+@darkText                     : rgba(10, 10, 10, 0.925);
+@darkestText                  : rgba(0, 0, 0, 1.0);
+@lightText                    : rgba(250, 250, 250, 0.925);
+@lightestText                 : rgba(255, 255, 255, 1.0);
+@mutedDarkText                : rgba(45, 45, 45, 0.8);
+@mutedLightText               : rgba(235, 235, 235, 0.8);
+@fadedDarkText                : rgba(45, 45, 45, 0.7);
+@fadedLightText               : rgba(235, 235, 235, 0.7);
 
-@segmentBackground: lighten(@pageBackground, 3);
-@messageBackground: lighten(@pageBackground, 8);
-@secondarySegmentBackground: lighten(@pageBackground, 6);
-@tertiarySegmentBackground: darken(@pageBackground, 3);
+@fadedText                    : @fadedLightText;
+@fadedInvertedText            : @fadedDarkText;
 
-@primaryColor : @blue;
-@lightPrimaryColor : @lightBlue;
-@secondaryColor : lighten(@pageBackground, 20);
-@lightSecondaryColor : rgba(140, 141, 142, 1.0);
-@grey: rgba(160, 160, 160, 1.0);
-@lightGrey: rgba(195, 195, 195, 1.0);
+@green                        : rgba(33, 186, 69, 1);
+@orange                       : #f2711c;
+@mediumGrey                   : rgba(100, 100, 100, 1);
+@lightGrey                    : rgba(130, 130, 130, 0.75);
 
-@inputBackground : rgba(245,245,245,1.0);
-@inputColor: @invertedTextColor;
-@inputPlaceholderColor: rgba(0, 0, 0, 0.65);
-@inputPlaceholderFocusColor: rgba(0, 0, 0, 0.725);
+@largeMonitorBreakpoint       : 1200px;
 
-@borderColor: rgba(130, 130, 130, 0.5);
-@solidBorderColor: rgba(130, 130, 130, 0.6);
-@solidInternalBorderColor: rgba(70, 70, 70, 0.125);
+@siteTextColor                : rgba(235, 235, 235, 0.925);
+@textColor                    : @siteTextColor;
+
+@darkTextColor                : rgba(235, 235, 235, 0.875);
+@softTextColor                : rgba(235, 235, 235, 0.85);
+@mutedTextColor               : @mutedLightText;
+@lightTextColor               : rgba(235, 235, 235, 0.5);
+@emphasisText                 : @lightText;
+
+@buttonBackgroundColor        : hsla(209, 0%, 26%, 1);
+@buttonSelectedBackground     : hsla(209, 0%, 29%, 1);
+@buttonActiveBackground       : hsla(209, 1%, 82%, 1);
+@buttonDownBackground         : hsla(209, 1%, 75%, 1);
+@buttonHoverBackground        : lighten( @buttonBackgroundColor, 3 );
+@buttonBasicBackground        : rgba(250, 250, 250, 0.05);
+
+@unselectedTextColor          : rgba(250, 250, 250, 0.5);
+@hoveredTextColor             : rgba(250, 250, 250, 0.85);
+@pressedTextColor             : rgba(250, 250, 250, 0.875);
+@selectedTextColor            : rgba(255, 255, 255, 0.95);
+
+@invertedTextColor            : rgba(30, 30, 30, 0.925);
+@invertedSoftTextColor        : rgba(30, 30, 30, 0.925);
+@invertedMutedTextColor       : rgba(45, 45, 45, 0.85);
+@mutedInvertedTextColor       : rgba(45, 45, 45, 0.85);
+// @invertedMutedTextColor: fadeout(@invertedTextColor, 20%, relative);
+@invertedLightTextColor       : rgba(30, 30, 30, 0.7);
+@invertedUnselectedTextColor  : rgba(30, 30, 30, 0.5);
+@invertedHoveredTextColor     : rgba(30, 30, 30, 1);
+@invertedPressedTextColor     : rgba(30, 30, 30, 1);
+@invertedSelectedTextColor    : rgba(30, 30, 30, 1);
+
+@pageBackground               : rgb(27, 29, 30);
+@lighterBackground            : lighten(@pageBackground, 4);
+@lightBackground              : rgb(200, 201, 203);
+
+@segmentBackground            : lighten(@pageBackground, 3);
+@messageBackground            : lighten(@pageBackground, 8);
+@secondarySegmentBackground   : lighten(@pageBackground, 6);
+@tertiarySegmentBackground    : darken(@pageBackground, 3);
+
+// @primaryColor                 : @blue;
+// @lightPrimaryColor            : @lightBlue;
+@secondaryColor               : lighten(@pageBackground, 20);
+@lightSecondaryColor          : rgb(140, 141, 142);
+@grey                         : rgb(160, 160, 160);
+@lightGrey                    : rgb(195, 195, 195);
+
+@inputColor                   : @textColor;
+@inputBackground              : rgb(28, 29, 30);
+@inputPlaceholderColor        : rgba(250, 250, 250, 0.65);
+@inputPlaceholderFocusColor   : rgba(250, 250, 250, 0.725);
+
+@focusedFormBorderColor       : hsla(207, 66%, 51%, 1);
+@focusedFormMutedBorderColor  : hsla(207, 60%, 51%, 1);
+
+@borderColor                  : rgba(130, 130, 130, 0.45);
+@strongBorderColor            : rgba(130, 130, 130, 0.55);
+@internalBorderColor          : rgba(70, 70, 70, 0.1);
+@selectedBorderColor          : rgba(130, 130, 130, 0.55);
+@strongSelectedBorderColor    : rgba(130, 130, 130, 0.65);
+@disabledBorderColor          : rgba(130, 130, 130, 0.35);
+
+@solidInternalBorderColor     : rgba(70, 70, 70, 0.125);
+@solidBorderColor             : rgba(130, 130, 130, 0.6);
+@solidSelectedBorderColor     : rgba(130, 130, 130, 0.7);

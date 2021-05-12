@@ -27,7 +27,12 @@
    query3 "foo bar Aung"
    query4 "foo bar Jones"
    project-id (atom nil)
-   foo-bar-count (count (pm/test-search-pmids "foo bar"))]
+   foo-bar-count (count (pm/test-search-pmids "foo bar"))
+   notes "Test notes for source"
+   check-new-results-checkbox (xpath "//label[@for='check-new-results-checkbox']")
+   source-notes-input "#source-notes-input"
+   save-source-button "#save-source-btn"
+   success-notification ".ui.toast.success"]
   (do (nav/log-in (:email test-user))
 ;;; create a project
       (nav/new-project project-name)
@@ -62,7 +67,15 @@
                #_ (set [{:overlap 1 :source "PubMed Search \"foo bar Aung\""}
                         {:overlap 1 :source "PubMed Search \"foo bar Jones\""}])}
               (pm/search-term-articles-summary query1)))
-
+;;; edit sources
+      (pm/edit-search-term-source query1)
+      (b/click check-new-results-checkbox :delay 100)
+      (b/set-input-text source-notes-input notes :delay 50)
+      (b/click save-source-button :delay 100)
+      (b/wait-until-displayed success-notification)
+      (b/click success-notification :delay 100)
+      (b/wait-until-displayed (xpath (str "//div[contains(text(),'" notes "')]")))
+      
 ;;; delete sources
       (pm/delete-search-term-source query4)
       (pm/check-source-count 2)

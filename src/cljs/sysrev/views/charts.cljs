@@ -15,7 +15,7 @@
         (set! (-> event .-native .-target .-style .-cursor) cursor)))))
 
 (defn on-legend-hover []
-  (fn [^js event _item]
+  (fn [^js event _item _legend]
     (set! (-> event .-native .-target .-style .-cursor) "pointer")))
 
 (defn graph-text-color []
@@ -31,9 +31,9 @@
 (defn graph-font-family-alternate []
   "'Open Sans', 'Lato', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif")
 
-(defn graph-font-settings [& {:keys [alternate]}]
-  {:font {:color (graph-text-color)
-          :family (if alternate (graph-font-family-alternate)
+(defn graph-font-settings [& {:keys [alternate color]}]
+  {:color (or color (graph-text-color))
+   :font {:family (if alternate (graph-font-family-alternate)
                       (graph-font-family))
           :size (if (util/mobile?) 12 13)}})
 
@@ -44,19 +44,21 @@
      :bodyFontFamily family, :bodyFontSize 13
      :xPadding 8, :yPadding 7}))
 
-(defn wrap-default-options [options & {:keys [animate? items-clickable?]
-                                       :or {animate? true items-clickable? false}}]
-  (let [animate? animate? #_ (if (util/mobile?) false animate?)]
-    (merge-with merge
-                {:animation {:duration (cond (not animate?)   0
-                                             (int? animate?)  animate?
-                                             :else            850)
-                             :active {:duration (if animate? 300 0)}
-                             :resize {:duration 0}}
-                 :legend {:onHover (on-legend-hover)}
-                 :onHover (on-graph-hover items-clickable?)
-                 :tooltips (tooltip-font-settings)}
-                options)))
+(defn wrap-default-options
+  [options & {:keys [plugins animate? items-clickable?]
+              :or {plugins {} animate? true items-clickable? false}}]
+  (merge-with merge
+              {:animation {:duration (cond (not animate?)   0
+                                           (int? animate?)  animate?
+                                           :else            850)
+                           :active {:duration (if animate? 300 0)}
+                           :resize {:duration 0}}
+               :onHover (on-graph-hover items-clickable?)
+               :tooltips (tooltip-font-settings)
+               :plugins (merge-with merge
+                                    {:legend {:onHover (on-legend-hover)}}
+                                    plugins)}
+              options))
 
 (def series-colors ["rgba(29,252,35,0.4)"   ;light green
                     "rgba(252,35,29,0.4)"   ;red
@@ -101,12 +103,12 @@
                                                       (merge {:display true
                                                               :labelString x-label-string}))}
                                  log-scale (merge {:type "logarithmic"}))
-                            :y {;; :scaleLabel font
+                            :y { ;; :scaleLabel font
                                 :stacked true
                                 :ticks (merge font {:padding 7})
                                 :gridLines {:drawTicks false
                                             :color (graph-border-color)}}}
-                   :legend {:labels font}
+
                    :tooltips {:mode "y"
                               :callbacks
                               {:label
@@ -124,6 +126,7 @@
                        (when-let [idx (and (pos-int? (.-length elts))
                                            (-> elts (aget 0) .-index))]
                          (on-click idx))))}
+                  :plugins {:legend {:labels font}}
                   :items-clickable? (boolean on-click))
                  options)]
     [chartjs/horizontal-bar {:data data :height height :options options}]))
@@ -138,11 +141,11 @@
         dataset {:data values :backgroundColor colors}
         data {:labels labels :datasets [dataset]}
         options (wrap-default-options
-                 {:legend {:display false}
-                  :onClick (when on-click
+                 {:onClick (when on-click
                              (fn [_e elts]
                                (when (pos-int? (.-length elts))
                                  (when-let [idx (-> elts (aget 0) .-index)]
                                    (on-click idx)))))}
+                 :plugins {:legend {:display false}}
                  :items-clickable? (boolean on-click))]
     [chartjs/doughnut {:data data :options options :height 245}]))

@@ -62,7 +62,7 @@
 (defn click-pager
   "Given a nav string, click the link in the pager corresponding to that position"
   [nav]
-  (b/click (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")))
+  (b/click (xpath "//button[contains(@class,'button') and contains(text(),'" nav "')]")))
 
 (defn click-button-class [class]
   (b/click (format ".ui.button.%s" class)))
@@ -70,7 +70,7 @@
 (defn disabled-pager-link?
   "Given a nav string, check to see if that pager link is disabled"
   [nav]
-  (boolean (-> (xpath "//div[contains(@class,'button') and contains(text(),'" nav "')]")
+  (boolean (-> (xpath "//button[contains(@class,'button') and contains(text(),'" nav "')]")
                (taxi/element)
                (taxi/attribute :class)
                (->> (re-matches #".*disabled.*")))))
@@ -153,6 +153,12 @@
     (if (and pmids @db/active-db (not (test/remote-test?)))
       (import-pmids-via-db pmids)
       (add-articles-from-search-term search-term))))
+
+(defn edit-search-term-source [search-term]
+  (b/wait-until-loading-completes :pre-wait 75 :inactive-ms 100 :loop 3)
+  (log/info "editing article source")
+  (b/click (x/search-term-edit search-term))
+  (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 4))
 
 (defn delete-search-term-source [search-term]
   (b/wait-until-loading-completes :pre-wait 75 :inactive-ms 100 :loop 3)

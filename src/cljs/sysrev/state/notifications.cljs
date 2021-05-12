@@ -1,11 +1,18 @@
 (ns sysrev.state.notifications
   (:require [cljs-http.client :as http]
             [cljs-time.coerce :as tc]
+            [goog.Uri :as uri]
             [re-frame.core :refer [reg-event-db reg-event-fx reg-sub]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.shared.notifications :refer [uncombine-notification]]
             [sysrev.state.identity :refer [current-user-id]]))
+
+(defn uri-event [url]
+  (let [^uri uri (uri/parse url)]
+    (if (seq (.getDomain uri))
+      [:load-url url :absolute true :target "_blank"]
+      [:nav url])))
 
 (defn notification-ids [{:keys [notification-id notification-ids]}]
   (if notification-id
@@ -27,7 +34,8 @@
 
 (defmethod consume-notification-dispatches :notify-user
   [notification]
-  [[:nav (get-in notification [:content :uri])]])
+  (when-let [uri (get-in notification [:content :uri])]
+    [(uri-event uri)]))
 
 (defmethod consume-notification-dispatches :group-has-new-project [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]))]])
@@ -51,6 +59,11 @@
 (defmethod consume-notification-dispatches :project-invitation [notification]
   [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]
 ])
+
+(defmethod consume-notification-dispatches :system
+  [notification]
+  (when-let [uri (get-in notification [:content :uri])]
+    [(uri-event uri)]))
 
 (defn merge-notifications [db notifications]
   (->> (mapcat uncombine-notification notifications)
@@ -105,7 +118,8 @@
 
 (reg-event-fx :notifications/consume
               (fn [{:keys [db]} [_ notification]]
-                (let [nids (notification-ids notification)
+                (let [nids (->> notification notification-ids
+                                (remove #(get-in db [:data :notifications % :consumed])))
                       now (js/Date.)]
                   {:db
                    (assoc-in db [:data :notifications]

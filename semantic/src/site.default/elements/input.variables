@@ -1,4 +1,4 @@
-@inputColor            : @siteTextColor;
-@placeholderColor      : @inputPlaceholderColor;
-@focusColor            : @siteTextColor;
-@placeholderFocusColor : @inputPlaceholderFocusColor;
+@inputColor                   : @textColor;
+@placeholderColor             : @inputPlaceholderColor;
+@focusColor                   : @textColor;
+@placeholderFocusColor        : @inputPlaceholderFocusColor;

@@ -16,5 +16,6 @@
 (s/def ::project-note-id ::sql-id)
 (s/def ::article-note-id ::sql-id)
 (s/def ::group-id ::sql-id)
+(s/def ::invitation-id ::sql-id)
 
 (s/def ::sql-execute (s/coll-of integer? :count 1))

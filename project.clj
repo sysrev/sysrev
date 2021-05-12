@@ -1,14 +1,14 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.10.2"]
+  :dependencies [[org.clojure/clojure "1.10.3"]
 
 ;;; clojure.spec
                  [orchestra "2021.01.01-1"]
 
 ;;; Force versions of indirect dependencies
-                 [com.fasterxml.jackson.core/jackson-databind "2.11.2"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.12.3"]
                  [cheshire "5.10.0"]
-                 [commons-io/commons-io "2.7"]
-                 [commons-codec "1.14"]
+                 [commons-io/commons-io "2.8.0"]
+                 [commons-codec "1.15"]
                  [org.apache.commons/commons-compress "1.20"]
                  [prismatic/schema "1.1.12"]
 
@@ -21,12 +21,12 @@
                  [org.clojure/test.check "1.1.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  [org.clojure/math.combinatorics "0.1.6"]
-                 [crypto-random "1.2.0"]
+                 [crypto-random "1.2.1"]
                  [me.raynes/fs "1.4.6"]
                  [eftest "0.5.9"]
 
 ;;; Data formats
-                 [org.clojure/data.json "1.0.0"]
+                 [org.clojure/data.json "2.2.2"]
                  [com.cognitect/transit-clj "1.0.324"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "1.0.0"]
@@ -38,9 +38,9 @@
 
 ;;; Postgres
                  [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.7"]
-                 [org.clojure/java.jdbc "0.7.11"]
-                 [org.postgresql/postgresql "42.2.16"]
-                 [joda-time "2.10.6"]
+                 [org.clojure/java.jdbc "0.7.12"]
+                 [org.postgresql/postgresql "42.2.20"]
+                 [joda-time "2.10.10"]
                  [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
                  [hikari-cp "2.13.0"]
@@ -49,19 +49,15 @@
                  [honeysql "0.9.8"]
                  [nilenso/honeysql-postgres "0.2.6"]
 
-;;; Cassandra
-                 [cc.qbits/alia-all "4.3.3"]
-                 [cc.qbits/hayt "4.1.0"]
-
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
                  [manifold "0.1.8"]
                  [aleph "0.4.6"]
                  [com.taoensso/sente "1.16.2"]
-                 [ring "1.8.1"]
+                 [ring "1.9.3"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
-                 [ring/ring-json "0.5.0" :exclusions [cheshire]]
+                 [ring/ring-json "0.5.1" :exclusions [cheshire]]
                  [ring/ring-mock "0.4.0" :exclusions [cheshire]]
                  [compojure "1.6.2"]
 ;;; profiling
@@ -69,9 +65,9 @@
 
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication
-                 [clj-http "3.10.2"]
+                 [clj-http "3.12.1"]
                  [com.velisco/clj-ftp "0.3.12"]
-                 [com.draines/postal "2.0.3"] ;; email client
+                 [com.draines/postal "2.0.4"] ;; email client
                  [amazonica "0.3.152"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
@@ -86,7 +82,8 @@
                  [org.clojure/core.async "1.3.610"]
                  [org.clojure/core.memoize "0.7.2"]
                  [gravatar "1.1.1"]
-                 [medley "1.3.0"]]
+                 [medley "1.3.0"]
+                 [clojurewerkz/quartzite "2.1.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-server"

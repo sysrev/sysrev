@@ -134,9 +134,7 @@
            username]]
          [ModalContent
           [ModalDescription
-           [Form {:id "edit-user-modal"
-                  :on-submit (fn [_e]
-                               )}
+           [Form {:id "edit-user-modal"}
             [:div.ui.field
              [:label "Groups"]
              [:div {:style {:margin-bottom "10px"}}
@@ -222,7 +220,7 @@
         (let [filtered-members (util/data-filter @members [#(-> % val :email)]
                                                  @members-search)
               paginated-members (->> filtered-members
-                                     (drop (* @offset items-per-page))
+                                     (drop @offset)
                                      (take items-per-page))]
           [:div
            [:div {:style {:margin-bottom "10px"}}
@@ -234,8 +232,9 @@
                :placeholder "Search users"
                :on-change (util/on-event-value #(reset! members-search %))}]
              [:i.search.icon]]]
-           [:div
-            [Table {:id "org-user-table" :basic true}
+           [:div.ui.segments
+            [Table {:id "org-user-table" :basic true
+                    :class "segment" :style {:width "100%"}}
              [TableHeader
               [TableRow
                [TableHeaderCell "User"]
@@ -246,21 +245,21 @@
               (doall
                (for [[user-id member-info] paginated-members] ^{:key user-id}
                  [UserRow user-id member-info]))]]
-
-            [:div.ui.segment
-             [ListPager
-              {:panel panel
-               :instance-key [::members/members]
-               :offset @offset
-               :total-count (count filtered-members)
-               :items-per-page items-per-page
-               :item-name-string "members"
-               :set-offset #(reset! offset %)}]]]])))))
+            (when (> (count filtered-members) items-per-page)
+              [:div.ui.segment
+               [ListPager
+                {:panel panel
+                 :instance-key [::members/members]
+                 :offset @offset
+                 :total-count (count filtered-members)
+                 :items-per-page items-per-page
+                 :item-name-string "members"
+                 :set-offset #(reset! offset %)
+                 :show-message? false}]])]])))))
 
 (defn- UsersSegment []
   [:div.ui.segment
-   [:h4.ui.dividing.header
-    "Project Members"]
+   [:h4.ui.dividing.header "Project Members"]
    [UsersTable]])
 
 (defn- NewGengroupModal []

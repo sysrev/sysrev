@@ -107,6 +107,9 @@
 (defn sente-dispatch! [client-id re-frame-event]
   (sente-send! client-id [:re-frame/dispatch re-frame-event]))
 
+(defn sente-connected-users []
+  (:any @(:connected-uids @web-server-channel-socket)))
+
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn]}]
   (-> (c/routes

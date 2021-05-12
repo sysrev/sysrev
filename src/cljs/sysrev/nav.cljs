@@ -14,16 +14,20 @@
 (defn current-url-base []
   (str js/window.location.protocol "//" js/window.location.host))
 
-(defn load-url [url & {:keys [absolute] :or {absolute false}}]
-  (set! js/window.location.href
-        (cond->> url
-          (not absolute) (str (current-url-base)))))
+(defn load-url [url & {:keys [absolute target] :or {absolute false}}]
+  (if (seq target)
+    (js/window.open url target)
+    (set! js/window.location.href
+          (cond->> url
+            (not absolute) (str (current-url-base))))))
 
-(reg-fx :load-url (fn [[url & {:keys [absolute] :or {absolute false}}]]
-                    (load-url url :absolute absolute)))
+(reg-fx :load-url (fn [[url & {:keys [absolute target]
+                               :or {absolute false}}]]
+                    (load-url url :absolute absolute :target target)))
 
-(reg-event-fx :load-url (fn [_ [_ url & {:keys [absolute] :or {absolute false}}]]
-                          {:load-url [url :absolute absolute]}))
+(reg-event-fx :load-url (fn [_ [_ url & {:keys [absolute target]
+                                         :or {absolute false}}]]
+                          {:load-url [url :absolute absolute :target target]}))
 
 (defn nav
   "Change the current url. If `redirect` is true, replace current entry in

@@ -12,7 +12,7 @@
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
             [sysrev.views.email-invite :refer [InviteEmails]]
-            [sysrev.util :as util :refer [css wrap-user-event format]]
+            [sysrev.util :as util :refer [css format wrap-user-event]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]
             [cljs-time.core :as time]
             [cljs-time.format :as time-format]
@@ -210,8 +210,7 @@
                          :data (vec xvals)}]}
             options
             (charts/wrap-default-options
-             {:legend {:display false}
-              :scales {:x {:ticks (->> {:autoSkip true
+             {:scales {:x {:ticks (->> {:autoSkip true
                                         :callback (fn [value idx values]
                                                     (if (or (= 0 (mod idx 5))
                                                             (= idx (dec (count values))))
@@ -230,7 +229,8 @@
                            :scaleLabel (->> {:display true
                                              :labelString "User Articles Labeled"
                                              :fontSize 14}
-                                            (merge font))}}})]
+                                            (merge font))}}}
+             :plugins {:legend {:display false}})]
         [:div.ui.segment
          [:h4.ui.dividing.header "Recent Progress"]
          (with-loader [[:project project-id]] {:dimmer :fixed}
@@ -300,7 +300,8 @@
                             data)}))
 
 (defn- LabelCountChart []
-  (let [color-filter (r/atom #{})]
+  (let [color-filter (r/atom #{})
+        animate? (r/atom true)]
     (fn []
       (when-let [label-counts (not-empty @(subscribe [:project/label-counts]))]
         (let [label-ids @(subscribe [:project/label-ids])
@@ -319,7 +320,8 @@
               counts (mapv :count entries)
               background-colors (mapv :color entries)
               legend-labels
-              (->> (map (fn [[_ v]] (first v)) (group-by :label-id label-counts))
+              (->> (group-by :label-id label-counts)
+                   (map (fn [[_ v]] (first v)))
                    (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
                               (:label-id %)))
                    (mapv (fn [{:keys [short-label color]}]
@@ -335,53 +337,58 @@
                                                    ["#000000"]
                                                    background-colors)
                                 :maxBarThickness 12}]}
-              options (charts/wrap-default-options
-                       {:scales
-                        {:x {:scaleLabel (->> {:display true
-                                               :labelString "User Answers"}
-                                              (merge font))
-                             ;; :type "logarithmic"
-                             :stacked false
-                             :suggestedMin 0
-                             :ticks (->> {:callback (fn [value idx values]
-                                                      (if (or (= 0 (mod idx 5))
-                                                              (= idx (dec (count values))))
-                                                        value ""))}
-                                         (merge font))
-                             :gridLines {:color (charts/graph-border-color)}}
-                         ;; this is actually controlling the labels
-                         :y {:scaleLabel font
-                             :ticks (->> {:padding 7} (merge font))
-                             :gridLines {:drawTicks false
-                                         :color (charts/graph-border-color)}}}
-                        :legend
-                        {:labels (->> {:generateLabels (fn [_] (clj->js legend-labels))}
+              options
+              (charts/wrap-default-options
+               {:scales
+                {:x {:scaleLabel (->> {:display true
+                                       :labelString "User Answers"}
                                       (merge font))
-                         :onClick
-                         (fn [_e legend-item]
-                           (let [current-legend-color
-                                 (:fillStyle (js->clj legend-item
-                                                      :keywordize-keys true))
-                                 enabled? (not (filtered-color? current-legend-color))]
-                             (if enabled?
-                               ;; filter out the associated data points
-                               (swap! color-filter #(conj % current-legend-color))
-                               ;; the associated data points should no longer be filtered out
-                               (swap! color-filter #(disj % current-legend-color)))))}
-                        :onClick
-                        (fn [_e elts]
-                          (when-let [idx (and (pos-int? (.-length elts))
-                                              (-> elts (aget 0) .-index))]
-                            (let [{:keys [label-id value]} (nth entries idx)]
-                              (articles/load-label-value-settings label-id value))))}
-                       :items-clickable? true)
+                     ;; :type "logarithmic"
+                     :stacked false
+                     :suggestedMin 0
+                     :ticks (->> {:callback (fn [value idx values]
+                                              (if (or (= 0 (mod idx 5))
+                                                      (= idx (dec (count values))))
+                                                value ""))}
+                                 (merge font))
+                     :gridLines {:color (charts/graph-border-color)}}
+                 ;; this is actually controlling the labels
+                 :y {:scaleLabel font
+                     :ticks (->> {:padding 7} (merge font))
+                     :gridLines {:drawTicks false
+                                 :color (charts/graph-border-color)}}}
+                :onClick
+                (fn [_e elts]
+                  (when-let [idx (and (pos-int? (.-length elts))
+                                      (-> elts (aget 0) .-index))]
+                    (let [{:keys [label-id value]} (nth entries idx)]
+                      (articles/load-label-value-settings label-id value))))}
+               :plugins
+               {:legend
+                {:labels (assoc font :generateLabels
+                                #(clj->js legend-labels))
+                 :onClick
+                 (fn [_e legend-item]
+                   (let [current-legend-color
+                         (:fillStyle (js->clj legend-item
+                                              :keywordize-keys true))
+                         enabled? (not (filtered-color? current-legend-color))]
+                     ;; disable animations when changing label filters
+                     (reset! animate? false)
+                     (if enabled?
+                       ;; filter out the associated data points
+                       (swap! color-filter #(conj % current-legend-color))
+                       ;; the associated data points should no longer be filtered out
+                       (swap! color-filter #(disj % current-legend-color)))))}}
+               :items-clickable? true
+               :animate? @animate?)
               height (* 2 (+ 40
                              (* 10 (Math/round (/ (inc (count label-ids)) 3)))
                              (* 10 (count counts))))]
           [:div.ui.segment
            [:h4.ui.dividing.header
             (ui/with-ui-help-tooltip
-              [:span "Answer Counts " util/nbsp [ui/ui-help-icon]]
+              [:span "Answer Counts" [ui/ui-help-icon]]
               :help-content ["Number of user answers that contain each label value"])]
            [unpad-chart [0.6 0.4]
             [chartjs/horizontal-bar
@@ -424,8 +431,8 @@
         labeled @(subscribe [:predict/labeled-count])
         total @(subscribe [:predict/article-count])
         pred-hist-filtered (filterv (fn [e] (and
-                                              (= (:short-label e) "Include")
-                                              (= (:label-value e) "TRUE")))
+                                             (= (:short-label e) "Include")
+                                             (= (:label-value e) "TRUE")))
                                     @(subscribe [::prediction-histograms]))
         pred-hist-data (mapv (fn [e] (if (nil? (:answer e)) (merge e {:answer "unreviewed"}) e)) pred-hist-filtered)
         labels (mapv #(/ (util/round (* 1000 %)) 1000) (range 0.025 1 0.025))
@@ -454,17 +461,15 @@
      [:h5 "Predictions for Inclusion model"]
      [unpad-chart [0.5 0.6]
       [chartjs/bar
-       {:data {:labels labels
-               :datasets datasets}
-
+       {:data {:labels labels :datasets datasets}
         :options (charts/wrap-default-options
-                   {:scales (util/map-values
-                              #(merge % {:ticks font
-                                         :scaleLabel font
-                                         :gridLines {:color (charts/graph-border-color)}})
-                              {:x {:stacked true}
-                               :y {}})
-                    :legend {:labels font}})
+                  {:scales (util/map-values
+                            #(merge % {:ticks font
+                                       :scaleLabel font
+                                       :gridLines {:color (charts/graph-border-color)}})
+                            {:x {:stacked true}
+                             :y {}})}
+                  :plugins {:legend {:labels font}})
         :height (* 2 150)}]]]))
 
 (defn- PredictionHistogram []

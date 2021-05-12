@@ -60,16 +60,27 @@
                        (into {}))
           articles (->> article-ids
                         (map (fn [article-id]
-                               (let [tags (->> labels
-                                               (mapcat (fn [{:keys [label-id value-type]}]
-                                                         (let [answer (get-in answers [label-id article-id])]
-                                                           (when (some? answer)
-                                                             (let [values (case value-type
-                                                                            "categorical" answer
-                                                                            "annotation" [(str answer)]
-                                                                            "boolean" [(if answer "TRUE" "FALSE")]
-                                                                            [])]
-                                                               (map #(assoc {} "label_id" (str label-id) "value" %) values)))))))]
+                               (let [tags (mapcat
+                                            (fn [{:keys [label-id value-type]}]
+                                              (let [answer (get-in answers [label-id article-id])]
+                                                (when (some? answer)
+                                                  (let [values (case value-type
+                                                                 "categorical" answer
+                                                                 "annotation" (mapv (fn [annotation-answer]
+                                                                                      {"start-offset" (get-in annotation-answer [:context :start-offset])
+                                                                                       "client-field" (get-in annotation-answer [:context :client-field])
+                                                                                       "end-offset" (get-in annotation-answer [:context :start-offset])
+                                                                                       "value" (:value annotation-answer)
+                                                                                       "semantic-class" (:semantic-class annotation-answer)})
+                                                                                    (vals answer))
+                                                                 "boolean" [(if answer "TRUE" "FALSE")]
+                                                                 [])]
+                                                    (map #(assoc {}
+                                                                 "label_id" (str label-id)
+                                                                 "label_type" value-type
+                                                                 "value" %)
+                                                         values)))))
+                                            labels)]
                                  {"text" (texts article-id)
                                   "tags" tags}))))]
 

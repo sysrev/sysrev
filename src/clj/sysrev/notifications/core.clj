@@ -1,11 +1,13 @@
 (ns sysrev.notifications.core
   (:require [clojure.edn :as edn]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [honeysql.core :as sql]
             [medley.core :as medley]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :refer [project-user-ids]]))
+            [sysrev.project.core :refer [project-user-ids]]
+            [sysrev.shared.spec.notification :as sntfcn]))
 
 (defn x-for-y [table-name col-name col-value
                & {:keys [create? returning]
@@ -22,13 +24,21 @@
                   {col-name col-value}
                   :prepare #(assoc % :on-conflict [col-name] :do-nothing [])
                   :returning returning)
-        (x-for-y table-name col-name col-value))))))
+        (x-for-y table-name col-name col-value :returning returning))))))
 
 (def publisher-for-project
   (partial x-for-y :notification_publisher :project-id))
 
 (def publisher-for-user
   (partial x-for-y :notification_publisher :user-id))
+
+(defn system-publisher [& {:keys [returning]
+                           :or {returning :*}}]
+  (x-for-y :notification-publisher
+           :unique-publisher-type
+           (sql/call :cast "system" :notification-unique-publisher-type)
+           :create? true
+           :returning returning))
 
 (def subscriber-for-user
   (partial x-for-y :notification_subscriber :user-id))
@@ -38,6 +48,28 @@
    (q/find :notification-subscriber
            {:subscriber-id subscriber-id}
            :user-id)))
+
+(defn unviewed-system-notifications [subscriber-id & {:as opts}]
+  (with-transaction
+    (let [user-created (q/find-one
+                        :web-user
+                        {:user-id (user-id-for-subscriber subscriber-id)}
+                        :date-created)]
+      (->> (apply q/find
+                  [:notification :n]
+                  {:publisher-id (system-publisher :returning :publisher-id)
+                   :subscriber-id nil}
+                  [:consumed :content :created :n.notification-id :publisher-id
+                   :subscriber-id :topic-id :viewed]
+                  :where (when user-created [:>= :created user-created])
+                  :left-join [[:notification-notification-subscriber :nns]
+                              [:and [:= :n.notification-id :nns.notification-id]
+                               [:= :nns.subscriber-id subscriber-id]]]
+                  :order-by [:created :desc]
+                  (apply concat opts))
+           (map #(-> %
+                     (assoc :subscriber-id subscriber-id)
+                     (medley/update-existing-in [:content :type] keyword)))))))
 
 (defn notifications-for-subscriber [subscriber-id & {:as opts}]
   (->> (apply q/find
@@ -159,6 +191,9 @@
 (defmethod notification-publisher :project-invitation [notification]
   (publisher-for-project (:project-id notification) :create? true))
 
+(defmethod notification-publisher :system [_]
+  (system-publisher))
+
 (defmulti notification-topic-name :type)
 
 (defmethod notification-topic-name :article-reviewed [notification]
@@ -178,6 +213,9 @@
 
 (defmethod notification-topic-name :project-invitation [notification]
   (str ":user-notify " (:user-id notification)))
+
+(defmethod notification-topic-name :system [_]
+  ":all-users")
 
 (defn notification-topic [notification]
   (topic-for-name (notification-topic-name notification) :create? true))
@@ -209,29 +247,44 @@
 
 (defn create-notification
   ([notification]
-   (with-transaction
-     (create-notification (-> notification notification-publisher :publisher-id)
-                     (notification-topic-name notification)
-                     notification)))
+   (if-let [ed (s/explain-data ::sntfcn/create-notification-request
+                               notification)]
+     (throw (ex-info
+             "Notification failed spec validation"
+             {:explain-data ed
+              :notification notification
+              :spec ::sntfcn/create-notification-request}))
+     (with-transaction
+       (create-notification (-> notification notification-publisher :publisher-id)
+                            (notification-topic-name notification)
+                            notification))))
   ([publisher-id topic-name notification]
-   (with-transaction
-     (let [topic-id (topic-for-name topic-name
-                                    :create? true
-                                    :returning :topic-id)
-           notification-id (q/create :notification
-                                {:content notification
-                                 :publisher-id publisher-id
-                                 :topic-id topic-id}
-                                :returning :notification-id)
-           nnses (->> (subscribers-for-topic topic-id)
-                      (remove (into #{} (subscriber-ids-to-skip notification)))
-                      (map #(-> {:notification-id notification-id
-                                 :subscriber-id %})))]
-       (db/notify! :notification
-                   (pr-str {:notification-id notification-id}))
-       (q/create :notification-notification-subscriber nnses)
-       (doseq [n nnses]
-         (db/notify! :notification-notification-subscriber (pr-str n)))))))
+   (if-let [ed (s/explain-data ::sntfcn/create-notification-request
+                               notification)]
+     (throw (ex-info
+             "Notification failed spec validation"
+             {:explain-data ed
+              :notification notification
+              :spec ::sntfcn/create-notification-request}))
+     (with-transaction
+       (let [topic-id (topic-for-name topic-name
+                                      :create? true
+                                      :returning :topic-id)
+             notification-id (q/create :notification
+                                       {:content notification
+                                        :publisher-id publisher-id
+                                        :topic-id topic-id}
+                                       :returning :notification-id)
+             nnses (->> (subscribers-for-topic topic-id)
+                        (remove (into #{} (subscriber-ids-to-skip notification)))
+                        (map #(-> {:notification-id notification-id
+                                   :subscriber-id %})))]
+         (db/notify! :notification
+                     (pr-str {:notification-id notification-id}))
+         (q/create :notification-notification-subscriber nnses)
+         (doseq [n nnses]
+           (db/notify! :notification-notification-subscriber (pr-str n)))
+         notification-id)))))
 
 (defn update-notifications-consumed [notification-ids subscriber-id]
   (with-transaction
@@ -241,11 +294,22 @@
                            :notification-ids notification-ids
                            :subscriber-id subscriber-id
                            :viewed now}))
-      (q/modify :notification-notification-subscriber
-                {:notification-id notification-ids
-                 :subscriber-id subscriber-id}
-                {:consumed (sql/call :now)
-                 :viewed (sql/call :now)}))))
+      (let [r (q/modify
+               :notification-notification-subscriber
+               {:notification-id notification-ids
+                :subscriber-id subscriber-id}
+               {:consumed (sql/call :now)
+                :viewed (sql/call :now)})]
+        (if-not (zero? r)
+          r
+          (q/create
+           :notification-notification-subscriber
+           (map
+            #(-> {:notification-id %
+                  :subscriber-id subscriber-id
+                  :consumed (sql/call :now)
+                  :viewed (sql/call :now)})
+            notification-ids)))))))
 
 (defn update-notifications-viewed [notification-ids subscriber-id]
   (with-transaction
@@ -254,7 +318,17 @@
                   (pr-str {:notification-ids notification-ids
                            :subscriber-id subscriber-id
                            :viewed now}))
-      (q/modify :notification-notification-subscriber
-                {:notification-id notification-ids
-                 :subscriber-id subscriber-id}
-                {:viewed (sql/call :now)}))))
+      (let [r (q/modify
+               :notification-notification-subscriber
+               {:notification-id notification-ids
+                :subscriber-id subscriber-id}
+               {:viewed (sql/call :now)})]
+        (if-not (zero? r)
+          r
+          (q/create
+           :notification-notification-subscriber
+           (map
+            #(-> {:notification-id %
+                  :subscriber-id subscriber-id
+                  :viewed (sql/call :now)})
+            notification-ids)))))))

@@ -10,7 +10,8 @@
             [sysrev.state.ui :as ui-state]
             [sysrev.state.article :as article]
             [sysrev.views.components.core :refer [UploadButton]]
-            [sysrev.views.semantic :refer [Checkbox Pagination]]
+            [sysrev.views.components.list-pager :refer [ListPager]]
+            [sysrev.views.semantic :refer [Checkbox]]
             [sysrev.util :as util :refer [wrap-user-event parse-integer css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -235,44 +236,69 @@
 
 (defonce checked? (r/atom false))
 
-(defn PDFPage [{:keys [page-number num-pages width]}]
+(defn PDFPage [{:keys [page-number page-number-preload num-pages width]}]
   (when @num-pages
-    (letfn [(pager [& [props]]
+    (letfn [(pager [& [_]]
               (when-not @checked?
-                [Pagination
-                 (merge {:style (merge {:float "right"} (:style props))
-                         :total-pages @num-pages
-                         :active-page @page-number
-                         :on-page-change (fn [_ data]
-                                           (reset! page-number (.-activePage data)))}
-                        (dissoc props :style))]))
+                [:div {:style {:float "right"}}
+                 [ListPager
+                  {:panel @(subscribe [:active-panel])
+                   :instance-key [:pdf-page]
+                   :offset (dec @page-number)
+                   :total-count @num-pages
+                   :items-per-page 1
+                   :item-name-string "pages"
+                   :set-offset (fn [offset]
+                                 (reset! page-number-preload (inc offset))
+                                 (js/setTimeout #(do (reset! page-number (inc offset))
+                                                     (reset! page-number-preload nil))
+                                                25))
+                   :show-message? false}]]
+                #_ [Pagination
+                    (merge {:style (merge {:float "right"} (:style props))
+                            :total-pages @num-pages
+                            :active-page @page-number
+                            :on-page-change (fn [_ data]
+                                              (reset! page-number (.-activePage data)))}
+                           (dissoc props :style))]))
             (single-page-checkbox [& [props]]
               [Checkbox {:label "Single Page" :as "h4" :toggle true
                          :style (merge {} (:style props))
                          :checked @checked?
                          :on-change #(swap! checked? not)}])]
       [:div.pdf-page-container
-       [:div.pdf-top-toolbar {:style {:padding "0px, auto"
-                                      :margin-bottom "1rem"}}
-        [single-page-checkbox {:style {:margin-top "0.75rem"}}]
-        [pager]
-        [:div {:style {:clear "both"}}]]
+       [:div.pdf-top-toolbar {:style {:padding "0px, auto"}}
+        [single-page-checkbox {:style {:margin-bottom "0.75rem"}}]
+        [pager]]
+       [:div {:style {:clear "both"}}]
        [:div.pdf-page
         (if @checked?
           (doall (for [i (range 1 (inc @num-pages))] ^{:key (str "page-" i)}
                    [RPage {:pageNumber i :width @width}]))
-          [RPage {:pageNumber @page-number :width @width}])]
+          (let [n @page-number
+                total @num-pages]
+            (when (and (integer? n) (integer? total))
+              ;; render hidden RPage elements to preload content
+              (doall (for [i (->> [@page-number-preload 1 (dec n) n (inc n) total]
+                                  (filter integer?)
+                                  distinct)]
+                       (when (<= 1 i total) ^{:key (str "page-" i)}
+                         [:div {:class (css [(not= i n) "no-display"])
+                                :style {:margin-top "0"
+                                        :margin-bottom "1em"}}
+                          [RPage {:pageNumber i :width @width}]]))))))]
        [:div.pdf-bottom-toolbar
-        [single-page-checkbox {:style {:margin-top "1.75rem"}}]
-        [pager {:style {:margin-top "1rem"}}]
-        [:div {:style {:clear "both"}}]]])))
+        [single-page-checkbox {:style {:margin-top "0.75rem"}}]
+        [pager]]
+       [:div {:style {:clear "both"}}]])))
 
 (defn ViewBase64PDF [{:keys [content]}]
   (let [dom-id (str "pdf-view-" (util/random-id))
         get-content-data (memoize util/base64->uint8)
         width (r/atom nil)
         num-pages (r/atom nil)
-        page-number (r/atom nil)]
+        page-number (r/atom nil)
+        page-number-preload (r/atom nil)]
     (r/create-class
      {:reagent-render
       (fn [{:keys [content]}]
@@ -282,6 +308,7 @@
                                         (reset! num-pages (.-numPages pdf))
                                         (reset! page-number 1))}
           [PDFPage {:page-number page-number
+                    :page-number-preload page-number-preload
                     :num-pages num-pages
                     :width width}]]])
       :component-did-mount
@@ -296,7 +323,8 @@
   (let [dom-id (str "pdf-view-" (util/random-id))
         width (r/atom nil)
         num-pages (r/atom nil)
-        page-number (r/atom nil)]
+        page-number (r/atom nil)
+        page-number-preload (r/atom nil)]
     (r/create-class
      {:reagent-render
       (fn [{:keys [url filename]}]
@@ -306,6 +334,7 @@
                                         (reset! num-pages (.-numPages pdf))
                                         (reset! page-number 1))}
           [PDFPage {:page-number page-number
+                    :page-number-preload page-number-preload
                     :num-pages num-pages
                     :width width}]]])
       :component-did-mount

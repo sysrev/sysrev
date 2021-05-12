@@ -1,11 +1,4 @@
-@inputColor: @invertedTextColor;
-@placeholderColor: @inputPlaceholderColor;
-@placeholderFocusColor: @inputPlaceholderFocusColor;
-
-// Dark control elements
-/*
-@inputColor: @siteInputColor;
-@placeholderColor: @inputPlaceholderColor;
-@focusColor: @siteInputColor;
-@placeholderFocusColor: @inputPlaceholderFocusColor;
-*/
+@inputColor                   : @textColor;
+@placeholderColor             : @inputPlaceholderColor;
+@inputFocusColor              : @textColor;
+@placeholderFocusColor        : @inputPlaceholderFocusColor;

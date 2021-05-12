@@ -8,7 +8,7 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :refer [load-settings-and-navigate]]
             [sysrev.views.panels.project.analytics.common :refer [BetaMessage]]
-            [sysrev.util :as util :refer [format round ellipsize sum]]
+            [sysrev.util :as util :refer [format round ellipsize sum wrap-user-event]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -238,19 +238,28 @@
         counts         (mapv (condp #(contains? %2 %1) count-type
                                "Count Every Answer" :answers
                                "Once Per Article"   :articles
-                               (constantly 0)) combined)
+                               (constantly 0))
+                             combined)
         colors         (mapv :color combined)
         dss            [{:data (if (empty? counts) [0] counts)
                          :backgroundColor (if (empty? counts) ["#000000"] colors)
                          :maxBarThickness 12}]
-        legend-labels  (->> (group-by :short-label combined)
-                            (mapv (fn [[k [v & _]]]
-                                    {:text k :fillStyle (:color v) :lineWidth 0})))
+        legend-labels  (->> (group-by :label-id combined)
+                            (map (fn [[_ v]] (first v)))
+                            (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
+                                       (:label-id %)))
+                            (mapv (fn [{:keys [short-label color]}]
+                                    {:text short-label
+                                     :fillStyle color
+                                     :lineWidth 0})))
         options        (charts/wrap-default-options
                         {:scales (merge @(subscribe [::x-axis-options]) (y-axis font))
-                         :legend {:labels (merge font {:generateLabels #(clj->js legend-labels)})}
                          :onClick (on-click-chart combined)
                          :tooltips {:mode "y"}}
+                        :plugins {:legend {:labels (assoc font :generateLabels
+                                                          #(clj->js legend-labels))
+                                           :onClick nil
+                                           :onHover nil}}
                         :animate? false
                         :items-clickable? true)
         labels         (->> combined (map :value) (map str) (mapv #(ellipsize % max-length)))
@@ -442,8 +451,9 @@
   (let [answer-filters (for [{:keys [label-id raw-answer]} @(subscribe [::filter-answers])]
                          {:label-id (uuid label-id) :value raw-answer})
         users @(subscribe [::filter-users])
-        on-click #(goto-articles-page users answer-filters)]
-    [StepSegment step-count [:a {:href "#" :on-click (util/wrap-prevent-default on-click)}
+        on-click (wrap-user-event #(goto-articles-page users answer-filters)
+                                  :prevent-default true)]
+    [StepSegment step-count [:a {:href "#" :on-click on-click}
                              "Go To Articles " [:i.arrow.right.icon]]
      [:div {:style {:margin-top "0.5em"}}
       "Open articles with label-answer and user filters."]]))

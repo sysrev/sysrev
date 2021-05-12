@@ -1,62 +1,31 @@
-@text: @darkText;
-@emphasisText: @darkestText;
-@invertedText: @lightText;
-@mutedText: @mutedDarkText;
-@mutedInvertedText: @mutedLightText;
-@fadedText: @fadedDarkText;
-@fadedInvertedText: @fadedLightText;
+@blue                         : rgba(64, 121, 191, 1);
+@brightBlue                   : rgba(70, 150, 250, 1);
+@darkerBlue                   : darken(@blue, 4);
 
-@grey: #767676;
-@emphasisGrey: #606060;
+@borderColor                  : rgba(220, 220, 220, 0.85);
 
-@blue: rgba(64, 121, 191, 1);
-@brightBlue: rgba(70, 150, 250, 1);
-@darkerBlue: darken(@blue, 4);
+@footerBackground             : rgba(252,253,254,1.0);
+@footerBorder                 : @borderColor;
 
-@pageBackground: rgba(240,241,243,1.0);
-@background: rgba(255, 255, 255, 1.0);
-@menuBackground: rgba(252,253,254, 1.0);
-@background1: rgba(246, 246, 246, 1.0);
-@background2: rgba(230, 230, 230, 1.0);
-@partialSegmentBackground: rgba(248,249,250,1.0);
-@secondarySegmentBackground: #f3f4f5;
-@borderColor: rgba(220, 220, 220, 0.85);
+@blueBackground               : rgba(230,245,255,0.5);
+@greenBackground              : rgba(235,255,225,0.5);
+@redBackground                : rgba(255,235,235,0.45);
+@purpleBackground             : rgba(235,215,255,0.35);
 
-@notificationsCountBackground: rgb(204, 0, 0);
-@notificationsCountColor: rgb(255, 255, 255);
+@notificationsCountBackground : rgb(204, 0, 0);
+@notificationsCountColor      : rgb(255, 255, 255);
 
-// @footerBackground: rgba(249,250,252, 1.0);
-@footerBackground: rgba(252,253,254,1.0);
-@footerBorder: @borderColor;
+@warningBackground            : @redBackground;
 
-@blueBackground: rgba(230,245,255,0.5);
-@greenBackground: rgba(235,255,225,0.5);
-@redBackground: rgba(255,235,235,0.45);
-@purpleBackground: rgba(235,215,255,0.35);
+@menuActiveBorder             : @blue;
+@menuActiveBackground         : rgba(240,240,240,1);
+@secondaryMenuColor           : @textColor;
+@secondaryMenuActiveColor     : @textColor;
 
-@warningBackground: @redBackground;
+@landingBackground1           : #f0f1f3;
+@landingBackground2           : #fbfcfd;
 
-@inputBackground: @background;
-@disabledInputBackground: rgba(235,235,235,1.0);
-
-@menuActiveBorder: @blue;
-@menuActiveBackground: rgba(240,240,240,1);
-@secondaryMenuColor: @text;
-@secondaryMenuActiveColor: @text;
-
-@blackButtonBackground: rgba(34, 35, 36, 1.0);
-@greyButtonBackground: rgba(144, 144, 144, 1.0);
-
-@internalBorderColor: rgba(34, 36, 38, 0.15);
-@solidInternalBorderColor: rgba(34, 36, 38, 0.15);
-
-@buttonBackground: rgb(224, 225, 226);
-
-@subtleButtonColor: @buttonBackground;
-@subtleButtonHoverColor: darken(@subtleButtonColor, 2);
-
-@landingBackground1: #f0f1f3;
-@landingBackground2: #fbfcfd;
+@boxShadowColor               : rgba(34,36,38,.08);
 
 .ui.menu {
     box-shadow: none !important;

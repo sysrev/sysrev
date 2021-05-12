@@ -1,2 +1,2 @@
-@background: @segmentBackground;
-@headerBackground: @secondarySegmentBackground;
+@background                   : @segmentBackground;
+@headerBackground             : @secondarySegmentBackground;
