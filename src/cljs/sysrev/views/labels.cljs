@@ -1,5 +1,6 @@
 (ns sysrev.views.labels
   (:require [clojure.string :as str]
+            goog.object
             [medley.core :as medley]
             [re-frame.core :refer [subscribe dispatch]]
             [cljs-time.core :as t]
@@ -8,65 +9,14 @@
              :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
-            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody
-                                           TableCell Icon Button]]
+            [sysrev.views.semantic :refer [Button Icon]]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader]]
+            ["@john-shaffer/data-grid" :as data-grid]))
 
-(defn FilterSelector [{:keys [on-remove on-select options selected title]}]
-  [:div.ui.small.form
-   [:div.field>div.fields
-    [:div.eight.wide.field
-     [:div {:style {:margin-bottom "4px"}}
-      [:b title]]
-     (map #(-> [:div {:class "ui label"
-                      :key %
-                      :on-click (util/wrap-user-event
-                                 (fn [] (on-remove (str/lower-case %))))}
-                %
-                [:i {:class "delete icon"}]])
-          selected)
-     (when (seq options)
-       [:div {:style {:margin-top "4px"}}
-        [ui/selection-dropdown
-         [:div.text "—"]
-         (map #(-> [:div.item {:key %} %]) options)
-         {:onChange #(on-select (str/lower-case %2))}]])]]])
-
-(defn FilterElement
-  "Requires a seq of unique, non-blank string options."
-  [{:keys [class filters on-change on-close options]
-    :or {on-change #(-> nil)}}]
-  (let [{:keys [exclude match]} filters
-        selected (-> #{} (into exclude) (into match))
-        match-options (remove #(contains? selected (str/lower-case %))
-                              options)
-        exclude-options (remove #(contains? selected (str/lower-case %))
-                                options)]
-    [:div.ui.secondary.segment.edit-filter {:class class}
-     (when (or (seq match) (seq match-options))
-       [FilterSelector {:on-remove
-                        #(on-change
-                          (update filters :match
-                                  (partial remove (partial contains? #{%}))))
-                        :on-select
-                        #(on-change (update filters :match conj %))
-                        :options match-options
-                        :selected match
-                        :title "Match"}])
-     (when (or (seq exclude) (seq exclude-options))
-       [FilterSelector {:on-remove
-                        #(on-change
-                          (update filters :exclude
-                                  (partial remove (partial contains? #{%}))))
-                        :on-select
-                        #(on-change filters (update filters :exclude conj %))
-                        :options exclude-options
-                        :selected exclude
-                        :title "Exclude"}]
-       [Button {:on-click #(when on-close (apply on-close %&))}
-        "Hide"])]))
+;; I forked @material-ui/data-grid to remove ECMAScript 2018 code.
+;; Don't try to use Editable grids! They probably won't work well.
 
 (defn ValueDisplay [root-label-id label-id answer]
   (let [inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])
@@ -95,150 +45,44 @@
      [:div.ui.basic.label
       [ValueDisplay root-label-id label-id answer]]]))
 
-(defn LabelHeaderCell []
-  (let [state (r/atom {:open? false})]
-    (fn [{:keys [filters group-label-id i label label-display
-                 on-change options sort toggle-sort]}]
-      (let [{:keys [open?]} @state]
-        [TableHeaderCell
-         [:div {:on-click toggle-sort
-                :style {:cursor "pointer"
-                        :width "100%"}}
-          [:i {:class (if (->> filters vals (apply concat) seq)
-                        "filter icon active"
-                        "filter icon")
-               :on-click #(do (.stopPropagation %)
-                              (swap! state update :open? not))
-               :style {:cursor "pointer"
-                       :margin "4px"}}]
-          label-display
-          [:i {:class ({:asc "arrow up icon active"
-                        :desc "arrow down icon active"
-                        nil "minus icon"}
-                       sort)
-               :style {:margin-left "8px"}}]]
-         [ui/Popper {:anchor-component (r/current-component)
-                     :props {:flip {:enabled true}
-                             :open open?
-                             :placement "top-start"}}
-          [FilterElement {:class "detached"
-                          :filters filters
-                          :on-change on-change
-                          :on-close #(swap! state assoc :open? false)
-                          :options options}]]]))))
+(defn GroupLabelDataGrid [{:keys [label-names rows]}]
+  (let [value-formatter #(let [v (.-value %)]
+                           (if (sequential? v)
+                             (str/join ", " v)
+                             (str v)))
+        cols (->> label-names
+                  (map-indexed #(-> #js{:field (pr-str %)
+                                        :flex 1
+                                        :headerName %2
+                                        :valueGetter value-formatter}))
+                  into-array)
+        rows (->> rows
+                  (map-indexed (fn [i row]
+                                 (reduce-kv
+                                  #(do (goog.object/set % (pr-str %2) %3)
+                                       %)
+                                  #js{:id (str i)}
+                                  row)))
+                  into-array)]
+    [:div {:style {:display "flex"
+                   :height "100%"
+                   :width "100%"}}
+     [:div {:style {:flex-grow "1"}}
+      [:> data-grid/DataGrid
+       {:auto-height true
+        :columns cols
+        :components {:Toolbar data-grid/GridToolbar}
+        :disable-selection-on-click true
+        :get-row-class-name (constantly "group-label-values-row")
+        :rows rows
+        :page-size 20
+        :rows-per-page-options [10 20 50 100]}]]]))
 
-(defn GroupLabelAnswerTable []
-  (let [state (r/atom {:filters {} :sorts '()})
-        current-sort (fn [sorts i]
-                       (some (fn [[j order]] (when (= i j) order)) sorts))
-        toggle-sort! (fn [i]
-                      (swap! state update :sorts
-                             (fn [sorts]
-                               (let [current (current-sort sorts i)
-                                     sorts (remove #(= i (first %)) sorts)]
-                                 (if (= :asc current)
-                                   sorts
-                                   (if (= :desc current)
-                                     (cons [i :asc] sorts)
-                                     (cons [i :desc] sorts)))))))
-        compare-cols (fn [a b [i order]]
-                       (let [av (nth a i)
-                             bv (nth b i)
-                             c (try (compare av bv)
-                                    (catch js/Error _e
-                                        0))]
-                         (({:asc identity :desc -} order) c)))
-        compare-rows (fn [a b sorts]
-                       (reduce
-                        #(if (zero? %)
-                           (compare-cols a b %2)
-                           (reduced %))
-                        0
-                        sorts))
-        value-matches? (fn [v match exclude]
-                         (and
-                          (or (empty? match) (some #(= v %) match))
-                          (or (empty? exclude) (not (some #(= v %) exclude)))))
-        row-matches? (fn [row value-types [i {:keys [exclude match]}]]
-                       (let [v (nth row i)
-                             value-type (nth value-types i)
-                             v (case value-type
-                                 "boolean" ({true "true"
-                                             false "false"
-                                             nil "—"}
-                                            v)
-                                 "categorical" (when (seq v)
-                                                 (map str/lower-case v))
-                                 "string" (if (empty? v) "—" (str/lower-case v))
-                                 v)]
-                         (if (= "categorical" value-type)
-                           (if (empty? v)
-                             (value-matches? "—" match exclude)
-                             (and (some #(value-matches? % match nil) v)
-                                  (every? #(value-matches? % nil exclude) v)))
-                           (value-matches? v match exclude))))
-        filter-rows (fn [filters value-types rows]
-                      (filter
-                       #(every? (partial row-matches? % value-types) filters)
-                       rows))
-        label-values (fn [i label rows]
-                       (case (:value-type label)
-                         "boolean" ["—" "True" "False"]
-                         "categorical" (->> label :definition :all-values
-                                            (concat
-                                             (when (some #(empty? (nth % i)) rows)
-                                               ["—"])))
-                         "string" (let [vs (->> rows
-                                                (map #(str (nth % i)))
-                                                (medley/distinct-by
-                                                 str/lower-case))]
-                                    (->> vs
-                                         (remove empty?)
-                                         (sort-by str/lower-case)
-                                         ((if (some empty? vs)
-                                            (partial cons "—")
-                                            identity))))
-                         []))]
-    (fn [{:keys [group-label-id indexed? label-name labels rows]}]
-      (let [{:keys [filters sorts]} @state
-            display-rows (->> rows
-                              (filter-rows filters (mapv :value-type labels))
-                              (sort #(compare-rows % %2 sorts)))]
-        [Table {:striped true :class "group-label-values-table"}
-         [TableHeader {:full-width true}
-          [TableRow {:text-align "center"}
-           [TableHeaderCell {:col-span (if indexed?
-                                         (+ (count labels) 1)
-                                         (count labels))} label-name]]]
-         [TableHeader
-          [TableRow
-           (when indexed? [TableHeaderCell])
-           (doall
-            (map-indexed
-             #(-> ^{:key (str group-label-id "-" (:label-id %2) "-table-header")}
-                  [LabelHeaderCell
-                   {:group-label-id group-label-id
-                    :filters (filters %)
-                    :i %
-                    :label %2
-                    :label-display @(subscribe [:label/display group-label-id (:label-id %2)])
-                    :on-change (fn [x]
-                                 (swap! state assoc-in [:filters %] x))
-                    :options (label-values % %2 rows)
-                    :sort (current-sort sorts %)
-                    :toggle-sort (fn [] (toggle-sort! %))}])
-             labels))]]
-         [TableBody
-          (for [[i row] (map-indexed vector display-rows)]
-            ^{:key (str group-label-id "-" i "-row")}
-            [TableRow
-             (when indexed? [TableCell (inc i)])
-             (for [[j answer] (map-indexed vector row)
-                   :let [label-id (:label-id (nth labels j))]]
-               ^{:key (str group-label-id "-" i "-row-" label-id "-cell")}
-               [TableCell
-                [ValueDisplay group-label-id label-id
-                 answer]])])]]))))
+(defn GroupLabelAnswerTable [{:keys [group-label-id indexed? label-name
+                                     labels rows]}]
+  (let [label-names (mapv #(deref (subscribe [:label/display group-label-id (:label-id %)])) labels)]
+    [:div {:class "group-label-values"}
+     [GroupLabelDataGrid {:label-names label-names :rows rows}]]))
 
 (defn GroupLabelAnswerTag [{:keys [group-label-id answers indexed?]
                             :or {indexed? false}
