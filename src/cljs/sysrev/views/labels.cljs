@@ -45,7 +45,7 @@
      [:div.ui.basic.label
       [ValueDisplay root-label-id label-id answer]]]))
 
-(defn GroupLabelDataGrid [{:keys [label-names rows]}]
+(defn GroupLabelDataGrid [{:keys [group-label-name label-names rows]}]
   (let [value-formatter #(let [v (.-value %)]
                            (if (sequential? v)
                              (str/join ", " v)
@@ -68,6 +68,8 @@
                    :height "100%"
                    :width "100%"}}
      [:div {:style {:flex-grow "1"}}
+      [:div {:class "group-label-name"}
+       group-label-name]
       [:> data-grid/DataGrid
        {:auto-height true
         :columns cols
@@ -82,7 +84,10 @@
                                      labels rows]}]
   (let [label-names (mapv #(deref (subscribe [:label/display group-label-id (:label-id %)])) labels)]
     [:div {:class "group-label-values"}
-     [GroupLabelDataGrid {:label-names label-names :rows rows}]]))
+     [GroupLabelDataGrid
+      {:group-label-name label-name
+       :label-names label-names
+       :rows rows}]]))
 
 (defn GroupLabelAnswerTag [{:keys [group-label-id answers indexed?]
                             :or {indexed? false}
