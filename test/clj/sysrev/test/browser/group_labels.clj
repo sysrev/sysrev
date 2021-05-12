@@ -76,8 +76,15 @@
 ;; note: this is fairly hacky, won't work with multiple values
 (defn group-label-button-value
   [short-label ith]
-  (taxi/text (xpath "(//table[contains(@class,'group-label-values-table')]/tbody/tr/td[count(//table/thead/tr/th[.='" short-label "']"
-                    "/preceding-sibling::th)+1])[" ith "]")))
+  (taxi/text
+   (xpath
+    "//*[contains(@class,'group-label-values')]//*[@data-rowindex="
+    (dec (Long/parseLong ith))
+    " and @aria-colindex="
+    "count(//*[contains(@class,'group-label-values')]"
+    "//*[contains(@class,'MuiDataGrid-colCell') and .='" short-label "']"
+    "/preceding-sibling::div)"
+    "]")))
 
 (defn group-label-div
   "Given a short-label name for group, return its root xpath"
