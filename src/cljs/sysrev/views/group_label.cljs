@@ -740,10 +740,7 @@
 (defn GroupLabelEditor [article-id]
   (let [active-group-label (subscribe [:group-label/active-group-label])]
     (when (and active-group-label @active-group-label)
-      [:div {:id "group-label-editor"
-             :style {:position "sticky"
-                     :top "10px"
-                     :z-index "1"}}
+      [:div {:class "group-label-editor"}
        [GroupLabelDiv
         {:article-id article-id
          :group-label-id @active-group-label}]])))
