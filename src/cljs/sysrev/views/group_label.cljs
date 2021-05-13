@@ -525,7 +525,10 @@
    "categorical" #(let [v (.-value (.-cell %))]
                     (if (or (array? v) (sequential? v))
                       (str/join ", " (seq v))
-                      v))})
+                      v))
+   "string" #(if (aget (.-cell %) "valid?")
+               (.-value (.-cell %))
+               (r/as-element [:div {:style {:color "red"}} "Invalid"]))})
 
 (defn DataSheet [{:keys [article-id group-label-id multi?]}
                  label-name labels rows]
@@ -642,11 +645,20 @@
                  all-values @(subscribe [:label/all-values group-label-id label-id])
                  value @(subscribe [:review/sub-group-label-answer
                                     article-id group-label-id label-id ith])
+                 valid? (if (= value-type "string")
+                          ;; we're only checking the validity of strings
+                          (or @(subscribe [:label/valid-string-value? group-label-id label-id value])
+                              (str/blank? value))
+                          true)
                  obj #js{:all-values all-values
                          :ith ith
                          :label-id label-id
+                         :valid? valid?
                          :value value
                          :value-type value-type}]
+             (if valid?
+               (dispatch [:review/delete-invalid-label article-id group-label-id label-id ith])
+               (dispatch [:review/create-invalid-label article-id group-label-id label-id ith]))
              (set! (.-dataEditor obj)
                    (when-let [editor (value-editors value-type)]
                      #(r/as-element [editor
