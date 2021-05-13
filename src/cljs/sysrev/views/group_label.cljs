@@ -740,7 +740,7 @@
 (defn GroupLabelEditor [article-id]
   (let [active-group-label (subscribe [:group-label/active-group-label])]
     (when (and active-group-label @active-group-label)
-      [:div {:class "group-label-editor"}
+      [:div {:class "group-label-editor" :id "group-label-editor"}
        [GroupLabelDiv
         {:article-id article-id
          :group-label-id @active-group-label}]])))
