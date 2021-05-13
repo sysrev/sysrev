@@ -27,9 +27,11 @@
                     (if (str/starts-with? s "F")
                       false
                       true))))
-   "categorical" #(if (string? %)
-                    (str/split % #",")
-                    (vec (seq %)))})
+   "categorical" #(if (empty? %)
+                    nil
+                    (if (string? %)
+                      (str/split % #",")
+                      (vec (seq %))))})
 
 ;; for setting the active group label
 (reg-event-db :group-label/set-active-group-label [trim-v]
