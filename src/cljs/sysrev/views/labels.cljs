@@ -45,7 +45,12 @@
      [:div.ui.basic.label
       [ValueDisplay root-label-id label-id answer]]]))
 
-(defn GroupLabelDataGrid [{:keys [group-label-name label-names rows]}]
+(defn GroupLabelSearch [{:keys [on-change value]}]
+  [:div {:class "group-label-search ui form fluid input"}
+   [:input {:on-change on-change
+            :value value}]])
+
+(defn GroupLabelDataGrid [{:keys [group-label-name label-names rows search]}]
   (let [value-formatter #(let [v (.-value %)]
                            (if (sequential? v)
                              (str/join ", " v)
@@ -68,8 +73,10 @@
                    :height "100%"
                    :width "100%"}}
      [:div {:style {:flex-grow "1"}}
-      [:div {:class "group-label-name"}
-       group-label-name]
+      [:div {:class "group-label-title-container"}
+       [:div {:class "group-label-name"}
+        group-label-name]
+       [GroupLabelSearch search]]
       [:> data-grid/DataGrid
        {:auto-height true
         :columns cols
@@ -80,14 +87,29 @@
         :page-size 20
         :rows-per-page-options [10 20 50 100]}]]]))
 
-(defn GroupLabelAnswerTable [{:keys [group-label-id indexed? label-name
-                                     labels rows]}]
-  (let [label-names (mapv #(deref (subscribe [:label/display group-label-id (:label-id %)])) labels)]
-    [:div {:class "group-label-values"}
-     [GroupLabelDataGrid
-      {:group-label-name label-name
-       :label-names label-names
-       :rows rows}]]))
+(defn GroupLabelAnswerTable []
+  (let [state (r/atom {:search-value ""})
+        value-matches? (fn [search-value v]
+                         (if (sequential? v)
+                           (util/data-matches? (str/join ", " v) search-value)
+                           (util/data-matches? (str v) search-value)))
+        row-matches? (fn [search-value row]
+                       (some #(value-matches? search-value %) row))]
+    (fn [{:keys [group-label-id indexed? label-name labels rows]}]
+      (let [{:keys [search-value]} @state
+            label-names (mapv #(deref (subscribe [:label/display group-label-id (:label-id %)])) labels)
+            rows (if (empty? search-value)
+                   rows
+                   (filterv (partial row-matches? search-value) rows))]
+        [:div {:class "group-label-values"}
+         [GroupLabelDataGrid
+          {:group-label-name label-name
+           :label-names label-names
+           :rows rows
+           :search
+           {:on-change #(swap! state assoc :search-value
+                               (.-value (.-target %)))
+            :value search-value}}]]))))
 
 (defn GroupLabelAnswerTag [{:keys [group-label-id answers indexed?]
                             :or {indexed? false}

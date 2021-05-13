@@ -14,10 +14,12 @@
     margin-top: 1rem;
 }
 
-.group-label-values .group-label-name {
+.group-label-values .group-label-title-container {
     border-bottom: 1px solid @solidInternalBorderColor;
+    display: flex;
     font-size: 0.875rem;
     font-weight: bold;
+    justify-content: space-between;
     padding: 0.5rem;
     text-align: center;
 }
@@ -28,4 +30,16 @@
 
 .group-label-values-row:nth-of-type(2n) {
     background-color: @partialSegmentBackground;
+}
+
+.group-label-name {
+    flex-grow: 2
+}
+
+.group-label-search {
+    width: 30%
+}
+
+.group-label-search input {
+    font-size: 0.875rem !important;
 }
