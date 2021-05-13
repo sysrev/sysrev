@@ -527,10 +527,14 @@
    "categorical" #(let [v (.-value (.-cell %))]
                     (if (or (array? v) (sequential? v))
                       (str/join ", " (seq v))
-                      v))
-   "string" #(if (aget (.-cell %) "valid?")
-               (.-value (.-cell %))
-               (r/as-element [:div {:style {:color "red"}} "Invalid"]))})
+                      v))})
+
+(defn value-viewer [value-type data]
+  (if-not (aget (.-cell data) "valid?")
+    (r/as-element [:div {:style {:color "red"}} "Invalid"])
+    (if-let [viewer (value-viewers value-type)]
+      (viewer data)
+      (.-value (.-cell data)))))
 
 (defn DataSheet [{:keys [article-id group-label-id multi?]}
                  label-name labels rows]
@@ -647,11 +651,18 @@
                  all-values @(subscribe [:label/all-values group-label-id label-id])
                  value @(subscribe [:review/sub-group-label-answer
                                     article-id group-label-id label-id ith])
-                 valid? (if (= value-type "string")
-                          ;; we're only checking the validity of strings
+                 valid? (case value-type
+                          "boolean"
+                          (or (boolean? value) (nil? value))
+                          "categorical"
+                          (or (empty? value)
+                              (boolean
+                               (every?
+                                #(some (partial = %) all-values)
+                                value)))
+                          "string"
                           (or @(subscribe [:label/valid-string-value? group-label-id label-id value])
-                              (str/blank? value))
-                          true)
+                              (str/blank? value)))
                  obj #js{:all-values all-values
                          :ith ith
                          :label-id label-id
@@ -667,7 +678,7 @@
                                      (assoc opts :on-close focus-me)
                                      %
                                      obj])))
-             (set! (.-valueViewer obj) (value-viewers value-type))
+             (set! (.-valueViewer obj) (partial value-viewer value-type))
              obj))
          labels))
       (->> (:labels answers) keys (map parse-integer) sort))]))
