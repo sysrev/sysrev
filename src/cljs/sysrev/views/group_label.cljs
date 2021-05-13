@@ -584,7 +584,7 @@
         [TableHeader {:fullWidth true}
          [TableRow {:textAlign "center"}
            [TableHeaderCell {:colSpan (inc (count labels))}
-            [:div {:style {:text-align "center"}}
+            [:div {:class "group-label-name"}
              label-name
              [:div {:style {:float "right"}}
               [ToggleEditorButton]
