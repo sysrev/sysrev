@@ -95,6 +95,22 @@
                               (str (.-row %)) (coerced-value %)])
                         cells)})))
 
+(defn valid-answer? [group-label-id label-id answer]
+  (let [value-type @(subscribe [:label/value-type group-label-id label-id])]
+    (case value-type
+      "boolean"
+      (or (boolean? answer) (nil? answer))
+      "categorical"
+      (or (empty? answer)
+        (let [all-values @(subscribe [:label/all-values group-label-id label-id])]
+          (boolean
+            (every?
+              #(some (partial = %) all-values)
+              answer))))
+      "string"
+      (or @(subscribe [:label/valid-string-value? group-label-id label-id answer])
+        (str/blank? answer)))))
+
 (defn delete-label-instance [db [_ article-id root-label-id ith]]
   (let [self-id @(subscribe [:self/user-id])
         labels-cursor [:state :review :labels article-id root-label-id :labels]
@@ -193,7 +209,6 @@
   (let [answer @(subscribe [:review/sub-group-label-answer
                             article-id root-label-id label-id ith])
         inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])
-        value-type @(subscribe [:label/value-type root-label-id label-id])
         color (case inclusion
                 true   "green"
                 false  "orange"
@@ -204,11 +219,7 @@
                  (cond (nil? answer)        nil
                        (sequential? answer) answer
                        :else                [answer]))
-        valid? (if (= value-type "string")
-                 ;; we're only checking the validity of strings
-                 (or @(subscribe [:label/valid-string-value? root-label-id label-id answer])
-                     (str/blank? answer))
-                 true)]
+        valid? (valid-answer? root-label-id label-id answer)]
     [:div {:class (when color (str color "-text"))
            :style {:text-align "center"}}
      (cond (not valid?)
@@ -226,13 +237,13 @@
   [{:keys [article-id root-label-id label-id ith]}]
   (let [value-type @(subscribe [:label/value-type root-label-id label-id])
         all-values @(subscribe [:label/all-values root-label-id label-id])
-        answer (subscribe [:review/sub-group-label-answer
+        answer @(subscribe [:review/sub-group-label-answer
                            article-id root-label-id label-id ith])
         props (condp = value-type
                 "boolean" {:placeholder "True or False?"
                            :search? true
                            :selection? true
-                           :value @answer
+                           :value answer
                            :options [{:key true :value true :text "True"}
                                      {:key false :value false :text "False"}
                                      {:key nil :value nil :text "NA"}]
@@ -240,33 +251,31 @@
                 "categorical" {:placeholder "Choose a label"
                                :search? true
                                :selection? true
-                               :value @answer
+                               :value answer
                                :options (->> all-values
                                              (mapv #(hash-map :key % :value % :text %)))
                                :multiple? true}
                 "string" {:placeholder "Enter a value"
                           :search? false
                           :selection? false
-                          :value (or @answer "")})
+                          :value (or answer "")})
         on-change (fn [_ data]
                     (let [value (:value (js->clj data :keywordize-keys true))]
                       (dispatch [:review/set-label-value
                                  article-id root-label-id label-id ith value])))
-        {:keys [placeholder search? selection? value options multiple?]} props]
+        {:keys [placeholder search? selection? value options multiple?]} props
+        valid? (valid-answer? root-label-id label-id answer)]
     ;; handle validity checking of string values
+    (if valid?
+      (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith])
+      (dispatch [:review/create-invalid-label article-id root-label-id label-id ith]))
     (if (= value-type "string")
-      (let [valid? (or @(subscribe [:label/valid-string-value?
-                                    root-label-id label-id @answer])
-                       (str/blank? @answer))]
-        (if valid?
-          (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith])
-          (dispatch [:review/create-invalid-label article-id root-label-id label-id ith]))
-        [Input {:placeholder placeholder
-                :style {:width "10em"}
-                :error (not valid?)
-                :autoFocus true
-                :value value
-                :onChange on-change}])
+      [Input {:placeholder placeholder
+              :style {:width "10em"}
+              :error (not valid?)
+              :autoFocus true
+              :value value
+              :onChange on-change}]
       ;; boolean and categorical
       [Dropdown {:placeholder placeholder
                  :style {:width "10em"}
@@ -627,27 +636,16 @@
          (fn [label]
            (let [label-id (:label-id label)
                  ith (str i)
-                 value-type @(subscribe [:label/value-type group-label-id label-id])
                  all-values @(subscribe [:label/all-values group-label-id label-id])
-                 value @(subscribe [:review/sub-group-label-answer
-                                    article-id group-label-id label-id ith])
-                 valid? (case value-type
-                          "boolean"
-                          (or (boolean? value) (nil? value))
-                          "categorical"
-                          (or (empty? value)
-                              (boolean
-                               (every?
-                                #(some (partial = %) all-values)
-                                value)))
-                          "string"
-                          (or @(subscribe [:label/valid-string-value? group-label-id label-id value])
-                              (str/blank? value)))
+                 value-type @(subscribe [:label/value-type group-label-id label-id])
+                 answer @(subscribe [:review/sub-group-label-answer
+                                     article-id group-label-id label-id ith])
+                 valid? (valid-answer? group-label-id label-id answer)
                  obj #js{:all-values all-values
                          :ith ith
                          :label-id label-id
                          :valid? valid?
-                         :value value
+                         :value answer
                          :value-type value-type}]
              (if valid?
                (dispatch [:review/delete-invalid-label article-id group-label-id label-id ith])
