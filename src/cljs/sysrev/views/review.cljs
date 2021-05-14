@@ -82,6 +82,10 @@
                     {::add-label-value [article-id root-label-id
                                         label-id ith label-value]}))))
 
+(reg-sub :review/labels
+         (fn [db [_ article-id]]
+           (get-in db [:state :review :labels article-id])))
+
 ;; missing labels
 (reg-event-db :review/create-missing-label [trim-v]
               (fn [db [article-id root-label-id label-id ith]]
@@ -100,21 +104,53 @@
          (fn [db [_ article-id]]
            (get-in db [:state :review :missing-labels article-id])))
 
-;; invalid labels
-(reg-event-db :review/create-invalid-label [trim-v]
-              (fn [db [article-id root-label-id label-id ith]]
-                (assoc-in db [:state :review :invalid-labels
-                              article-id root-label-id label-id ith]
-                          true)))
+(defn valid-string-value? [{:keys [max-length multi? regex] :as definition} answer]
+  (if (sequential? answer)
+    (if (or multi? (<= (count answer) 1))
+        (every? #(valid-string-value? definition %) answer)
+        false)
+    (boolean
+     (and (string? answer)
+          (<= (count answer) max-length)
+          (or (empty? regex)
+              (empty? answer)
+              (some #(re-matches (re-pattern %) answer) regex))))))
 
-(reg-event-db :review/delete-invalid-label [trim-v]
-              (fn [db [article-id root-label-id label-id ith]]
-                (dissoc-in db [:state :review :invalid-labels
-                               article-id root-label-id label-id ith])))
+(defn valid-answer? [value-type answer & [{:keys [all-values] :as definition}]]
+  (case value-type
+    "boolean"
+    (or (boolean? answer) (nil? answer))
+    "categorical"
+    (or (empty? answer)
+      (boolean
+        (every?
+          #(some (partial = %) all-values)
+          answer)))
+    "string"
+    (or (empty? answer)
+        (valid-string-value? definition answer))))
+
+(defn valid-group-answers? [group-labels group-answers]
+  (every?
+    (fn [[label-id answer]]
+      (let [label (get group-labels label-id)]
+        (valid-answer? (:value-type label) answer (:definition label))))
+    (apply concat group-answers)))
 
 (reg-sub :review/invalid-labels
-         (fn [db [_ article-id]]
-           (get-in db [:state :review :invalid-labels article-id])))
+         (fn [[_ project-id article-id]]
+           [(subscribe [:project/labels-raw project-id])
+            (subscribe [:review/labels article-id])])
+         (fn [[labels-raw labels]]
+           (->> labels
+             (remove
+               (fn [[label-id answer]]
+                 (let [label (get labels-raw label-id)]
+                   (if (:labels answer)
+                     (valid-group-answers? (:labels label)
+                                           (vals (:labels answer)))
+                     (valid-answer? (:value-type label) answer
+                                    (:definition label)))))))))
 
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]
   (let [answer (subscribe [:review/active-labels
@@ -209,107 +245,87 @@
 (defn StringLabelInput
   [[root-label-id label-id ith] article-id]
   (let [multi? @(subscribe [:label/multi? root-label-id label-id])
-        class-for-idx #(str root-label-id "_" label-id "-" ith "__value_" %)]
-    (r/create-class
-     {:reagent-render
-      (fn [[root-label-id label-id ith] article-id]
-        (let [curvals (or (not-empty @(subscribe [:review/active-labels
-                                                  article-id root-label-id label-id ith]))
-                          [""])
-              nvals (count curvals)]
-          (when (= article-id @(subscribe [:review/editing-id]))
-            [:div.inner
-             (doall
-              (->>
-               (or (not-empty @(subscribe [:review/active-labels
-                                           article-id root-label-id label-id ith]))
-                   [""])
-               (map-indexed
-                (fn [i val]
-                  (let [left-action? true
-                        right-action? (and multi? (= i (dec nvals)))
-                        valid? @(subscribe [:label/valid-string-value?
-                                            root-label-id label-id val])
-                        focus-elt (fn [value-idx]
-                                    #(js/setTimeout
-                                      (fn []
-                                        (some->
-                                         ($ (str "." (class-for-idx value-idx) ":visible"))
-                                         (.focus)))
-                                      25))
-                        focus-prev (focus-elt (dec i))
-                        focus-next (focus-elt (inc i))
-                        can-add? (and right-action? (not-empty val))
-                        add-next (when can-add?
-                                   #(do (dispatch-sync [::extend-string-answer
-                                                        article-id root-label-id label-id
-                                                        ith curvals])
-                                        (focus-next)))
-                        add-next-handler (util/wrap-user-event add-next
-                                                               :prevent-default true
-                                                               :stop-propagation true
-                                                               :timeout false)
-                        can-delete? (not (and (= i 0) (= nvals 1) (empty? val)))
-                        delete-current #(do (dispatch-sync
-                                             [::remove-string-value
-                                              article-id root-label-id label-id
-                                              ith i curvals])
-                                            (focus-prev))]
-                    ^{:key [root-label-id label-id ith i]}
-                    [:div.ui.small.form.string-label
-                     [:div.field.string-label {:class (css [(empty? val) ""
-                                                            valid?       "success"
-                                                            :else        "error"])}
-                      [:div.ui.fluid.input
-                       {:class (css [(and left-action? right-action?) "labeled right action"
-                                     left-action? "left action"])}
-                       (when left-action?
-                         [:div.ui.label.icon.button.input-remove
-                          {:class (css [(not can-delete?) "disabled"])
-                           :on-click (util/wrap-user-event delete-current
-                                                           :prevent-default true
-                                                           :timeout false)}
-                          [:i.times.icon]])
-                       [:input {:type "text"
-                                :class (class-for-idx i)
-                                :value val
-                                :on-change
-                                (util/on-event-value
-                                 #(dispatch-sync [::set-string-value
+        class-for-idx #(str root-label-id "_" label-id "-" ith "__value_" %)
+        curvals (or (not-empty @(subscribe [:review/active-labels
+                                            article-id root-label-id label-id ith]))
+                    [""])
+        nvals (count curvals)]
+    (when (= article-id @(subscribe [:review/editing-id]))
+      [:div.inner
+       (doall
+        (->>
+         (or (not-empty @(subscribe [:review/active-labels
+                                     article-id root-label-id label-id ith]))
+             [""])
+         (map-indexed
+          (fn [i val]
+            (let [left-action? true
+                  right-action? (and multi? (= i (dec nvals)))
+                  valid? @(subscribe [:label/valid-string-value?
+                                      root-label-id label-id val])
+                  focus-elt (fn [value-idx]
+                              #(js/setTimeout
+                                (fn []
+                                  (some->
+                                   ($ (str "." (class-for-idx value-idx) ":visible"))
+                                   (.focus)))
+                                25))
+                  focus-prev (focus-elt (dec i))
+                  focus-next (focus-elt (inc i))
+                  can-add? (and right-action? (not-empty val))
+                  add-next (when can-add?
+                             #(do (dispatch-sync [::extend-string-answer
                                                   article-id root-label-id label-id
-                                                  ith i % curvals]))
-                                :on-key-down
-                                #(cond (= "Enter" (.-key %))
-                                       (if add-next (add-next) (focus-next))
-                                       (and (in? ["Backspace" "Delete" "Del"] (.-key %))
-                                            (empty? val) can-delete?)
-                                       (delete-current)
-                                       :else true)}]
-                       (when right-action?
-                         [:div.ui.icon.button.input-row
-                          {:class (css [(not can-add?) "disabled"])
-                           :on-click add-next-handler}
-                          [:i.plus.icon]])]]
-                     (when (and (not valid?)
-                                (not (str/blank? val)))
-                       (dispatch [:review/create-invalid-label
-                                  article-id root-label-id label-id ith])
-                       [Message {:color "red"} "Invalid Value"])
-                     ;; check that the labels are no longer invalid, clear if they're not
-                     (when (if-let [validated-vals
-                                    (->> curvals
-                                         (filter (comp not str/blank?))
-                                         (map (fn [val]
-                                                @(subscribe [:label/valid-string-value?
-                                                             root-label-id label-id val]))))]
-                             (every? true? validated-vals)
-                             true)
-                       ;; when every value is valid, clear out invalid label setting for this label
-                       (dispatch [:review/delete-invalid-label
-                                  article-id root-label-id label-id ith]))])))))])))
-      :component-will-unmount (fn [_]
-                                (dispatch [:review/delete-invalid-label
-                                           article-id root-label-id label-id ith]))})))
+                                                  ith curvals])
+                                  (focus-next)))
+                  add-next-handler (util/wrap-user-event add-next
+                                                         :prevent-default true
+                                                         :stop-propagation true
+                                                         :timeout false)
+                  can-delete? (not (and (= i 0) (= nvals 1) (empty? val)))
+                  delete-current #(do (dispatch-sync
+                                       [::remove-string-value
+                                        article-id root-label-id label-id
+                                        ith i curvals])
+                                      (focus-prev))]
+              ^{:key [root-label-id label-id ith i]}
+              [:div.ui.small.form.string-label
+               [:div.field.string-label {:class (css [(empty? val) ""
+                                                      valid?       "success"
+                                                      :else        "error"])}
+                [:div.ui.fluid.input
+                 {:class (css [(and left-action? right-action?) "labeled right action"
+                               left-action? "left action"])}
+                 (when left-action?
+                   [:div.ui.label.icon.button.input-remove
+                    {:class (css [(not can-delete?) "disabled"])
+                     :on-click (util/wrap-user-event delete-current
+                                                     :prevent-default true
+                                                     :timeout false)}
+                    [:i.times.icon]])
+                 [:input {:type "text"
+                          :class (class-for-idx i)
+                          :value val
+                          :on-change
+                          (util/on-event-value
+                           #(dispatch-sync [::set-string-value
+                                            article-id root-label-id label-id
+                                            ith i % curvals]))
+                          :on-key-down
+                          #(cond (= "Enter" (.-key %))
+                                 (if add-next (add-next) (focus-next))
+                                 (and (in? ["Backspace" "Delete" "Del"] (.-key %))
+                                      (empty? val) can-delete?)
+                                 (delete-current)
+                                 :else true)}]
+                 (when right-action?
+                   [:div.ui.icon.button.input-row
+                    {:class (css [(not can-add?) "disabled"])
+                     :on-click add-next-handler}
+                    [:i.plus.icon]])]]
+               (when (and (not valid?)
+                          (not (str/blank? val)))
+                 [Message {:color "red"} "Invalid Value"])])))))])))
 
 (defn- inclusion-tag [article-id root-label-id label-id ith]
   (let [criteria? @(subscribe [:label/inclusion-criteria? root-label-id label-id])
@@ -498,7 +514,7 @@
         on-review-task? (subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
         missing @(subscribe [:review/missing-labels article-id])
-        invalid @(subscribe [:review/invalid-labels article-id])
+        invalid @(subscribe [:review/invalid-labels project-id article-id])
         saving? (review-task-saving? article-id)
         disabled? (or (seq missing) (seq invalid))
         project-articles-id @(subscribe [:project-articles/article-id])

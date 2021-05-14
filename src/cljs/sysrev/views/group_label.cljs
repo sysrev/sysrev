@@ -4,7 +4,9 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
+            [sysrev.state.label :as label]
             [sysrev.util :as util :refer [parse-integer]]
+            [sysrev.views.review :as review]
             [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
                                            TableBody TableHeaderCell TableCell Input Popup]]
             ["react-datasheet" :as react-datasheet :default ReactDataSheet]
@@ -96,20 +98,8 @@
                         cells)})))
 
 (defn valid-answer? [group-label-id label-id answer]
-  (let [value-type @(subscribe [:label/value-type group-label-id label-id])]
-    (case value-type
-      "boolean"
-      (or (boolean? answer) (nil? answer))
-      "categorical"
-      (or (empty? answer)
-        (let [all-values @(subscribe [:label/all-values group-label-id label-id])]
-          (boolean
-            (every?
-              #(some (partial = %) all-values)
-              answer))))
-      "string"
-      (or @(subscribe [:label/valid-string-value? group-label-id label-id answer])
-        (str/blank? answer)))))
+  (let [label @(subscribe [::label/label group-label-id label-id])]
+    (review/valid-answer? (:value-type label) answer (:definition label))))
 
 (defn delete-label-instance [db [_ article-id root-label-id ith]]
   (let [self-id @(subscribe [:self/user-id])
@@ -266,9 +256,6 @@
         {:keys [placeholder search? selection? value options multiple?]} props
         valid? (valid-answer? root-label-id label-id answer)]
     ;; handle validity checking of string values
-    (if valid?
-      (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith])
-      (dispatch [:review/create-invalid-label article-id root-label-id label-id ith]))
     (if (= value-type "string")
       [Input {:placeholder placeholder
               :style {:width "10em"}
@@ -295,37 +282,29 @@
         answer (subscribe [:review/sub-group-label-answer
                            article-id root-label-id label-id ith])
         id (str (gensym "spread-sheet-answer-cell-"))]
-    (r/create-class
-     {:reagent-render
-      (fn [_]
-        ;; handle missing label
-        (if (and @(subscribe [:label/required? root-label-id label-id])
-                 (not @(subscribe [:label/non-empty-answer?
-                                   root-label-id label-id @answer])))
-          (dispatch [:review/create-missing-label article-id root-label-id label-id ith])
-          (dispatch [:review/delete-missing-label article-id root-label-id label-id ith]))
-        [TableCell {:id id
-                    :on-click #(reset! current-position position)
-                    :style {:cursor "pointer"
-                            :max-width "10em"
-                            :min-width "7em"
-                            :word-wrap "break-word"}
-                    :vertical-align "top"
-                    :text-align "center"}
-         (if (= @current-position position)
-           [LabelInput {:article-id article-id
-                        :root-label-id root-label-id
-                        :label-id label-id
-                        :ith ith}]
-           [ValueDisplay {:article-id article-id
-                          :root-label-id root-label-id
-                          :label-id label-id
-                          :ith ith}])])
-      :component-will-unmount (fn [_this]
-                                (dispatch [:review/delete-missing-label
-                                           article-id root-label-id label-id ith])
-                                (dispatch [:review/delete-invalid-label
-                                           article-id root-label-id label-id ith]))})))
+    ;; handle missing label
+    (if (and @(subscribe [:label/required? root-label-id label-id])
+          (not @(subscribe [:label/non-empty-answer?
+                            root-label-id label-id @answer])))
+      (dispatch [:review/create-missing-label article-id root-label-id label-id ith])
+      (dispatch [:review/delete-missing-label article-id root-label-id label-id ith]))
+    [TableCell {:id id
+                :on-click #(reset! current-position position)
+                :style {:cursor "pointer"
+                        :max-width "10em"
+                        :min-width "7em"
+                        :word-wrap "break-word"}
+                :vertical-align "top"
+                :text-align "center"}
+     (if (= @current-position position)
+       [LabelInput {:article-id article-id
+                    :root-label-id root-label-id
+                    :label-id label-id
+                    :ith ith}]
+       [ValueDisplay {:article-id article-id
+                      :root-label-id root-label-id
+                      :label-id label-id
+                      :ith ith}])]))
 
 (defn GroupLabelPopup [{:keys [category required? question examples]}]
   (let [criteria? (= category "inclusion criteria")]
@@ -647,9 +626,6 @@
                          :valid? valid?
                          :value answer
                          :value-type value-type}]
-             (if valid?
-               (dispatch [:review/delete-invalid-label article-id group-label-id label-id ith])
-               (dispatch [:review/create-invalid-label article-id group-label-id label-id ith]))
              (set! (.-dataEditor obj)
                    (when-let [editor (value-editors value-type)]
                      #(r/as-element [editor
