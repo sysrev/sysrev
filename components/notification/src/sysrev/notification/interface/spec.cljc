@@ -1,4 +1,4 @@
-(ns sysrev.shared.spec.notification
+(ns sysrev.notification.interface.spec
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [sysrev.shared.spec.core :as sc]))

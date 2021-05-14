@@ -6,10 +6,10 @@
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user :refer [user-by-email]]
-            [sysrev.notifications.core :as notifications]
+            [sysrev.notification.interface :as notification]
             [sysrev.project.core :as project]
             [sysrev.project.clone :as clone]
-            [sysrev.shared.spec.notification :as sntfcn]
+            [sysrev.notification.interface.spec :as sntfcn]
             [sysrev.source.import :as import]
             [sysrev.web.app :refer [make-error-response
                                     validation-failed-response]]
@@ -337,7 +337,7 @@
                                     ed)
         {:result
          {:success true
-          :notification-id (notifications/create-notification body)}}))))
+          :notification-id (notification/create-notification body)}}))))
 
 ;; Prevent Cider compile command from returning a huge def-webapi map
 nil

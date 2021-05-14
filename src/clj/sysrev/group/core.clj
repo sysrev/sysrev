@@ -5,8 +5,8 @@
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.user.core :as user]
-            [sysrev.notifications.core :refer [subscribe-to-topic subscriber-for-user
-                                               topic-for-name unsubscribe-from-topic]]
+            [sysrev.notification.interface :refer [subscribe-to-topic subscriber-for-user
+                                                   topic-for-name unsubscribe-from-topic]]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
             [sysrev.util :as util :refer [index-by]]))

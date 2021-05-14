@@ -97,7 +97,7 @@
              #_ "-XX:+UseParallelGC"
              #_ "-XX:+UnlockExperimentalVMOptions"
              #_ "-XX:+UseZGC"]
-  :source-paths ["src/clj" "src/cljc"]
+  :source-paths ["src/clj" "src/cljc" "components/notification/src"]
   :aliases {"run-tests"              ["with-profile" "+test-config" "eftest"]
             "jenkins"                ["with-profile" "+jenkins" "eftest"]
             "junit"                  ["with-profile" "+test,+test-all" "run"]

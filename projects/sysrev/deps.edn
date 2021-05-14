@@ -1,0 +1,6 @@
+{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        org.clojure/tools.deps.alpha {:mvn/version "0.11.918"}
+        poly/notification {:local/root "../../components/notification"}
+        poly/sysrev {:local/root "."}}
+ :aliases {:test {:extra-paths []
+                  :extra-deps {}}}}

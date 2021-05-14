@@ -29,7 +29,7 @@ if [ -z "$(clj_kondo_installed)" ] ; then
 fi
 
 # run linter
-./scripts/clj-kondo --lint src/ test/ "$@" ||
+./scripts/clj-kondo --lint bases/ components/ projects/ src/ test/ "$@" ||
   (set -eu
    echo
    echo "!! fix linter warnings or"

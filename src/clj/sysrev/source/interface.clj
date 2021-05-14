@@ -6,7 +6,7 @@
             [sysrev.db.queries :as q]
             [sysrev.article.core :as article]
             [sysrev.datasource.core :as ds]
-            [sysrev.notifications.core :refer [create-notification]]
+            [sysrev.notification.interface :refer [create-notification]]
             [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.slack :refer [log-slack-custom]]

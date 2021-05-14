@@ -6,7 +6,7 @@
             [sysrev.api :as api]
             [sysrev.db.queries :as q]
             [sysrev.group.core :as group]
-            [sysrev.notifications.core :as notifications]
+            [sysrev.notification.interface :as notification]
             [sysrev.project.core :as project]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.user.core :as user]
@@ -113,7 +113,7 @@
                   (mock/header "Content-Type" "application/json")))
             :body util/read-json)
         {:keys [notification-id]} (:result create-notification-response)
-        subscriber-id (notifications/subscriber-for-user
+        subscriber-id (notification/subscriber-for-user
                        (:user-id test-user)
                        :create? true
                        :returning :subscriber-id)]
@@ -128,5 +128,5 @@
     (is (= {:text "Test-System-Notification"
             :type :system
             :uri "/test-system-uri"}
-           (-> subscriber-id notifications/unviewed-system-notifications
+           (-> subscriber-id notification/unviewed-system-notifications
                first :content)))))

@@ -1,4 +1,102 @@
-{:aliases
+{:paths ["src/clj" "src/cljc" "resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+
+;;; clojure.spec
+        orchestra/orchestra {:mvn/version "2021.01.01-1"}
+
+;;; Force versions of indirect dependencies
+        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.12.3"}
+        cheshire/cheshire {:mvn/version "5.10.0"}
+        commons-io/commons-io {:mvn/version "2.8.0"}
+        commons-codec/commons-codec {:mvn/version "1.15"}
+        org.apache.commons/commons-compress {:mvn/version "1.20"}
+        prismatic/schema {:mvn/version "1.1.12"}
+
+;;; Logging
+        org.clojure/tools.logging {:mvn/version "1.1.0"}
+        ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
+        org.slf4j/jul-to-slf4j {:mvn/version "1.7.30"}
+
+;;; Libraries
+        org.clojure/test.check {:mvn/version "1.1.0"}
+        org.clojure/math.numeric-tower {:mvn/version "0.0.4"}
+        org.clojure/math.combinatorics {:mvn/version "0.1.6"}
+        crypto-random/crypto-random {:mvn/version "1.2.1"}
+        me.raynes/fs {:mvn/version "1.4.6"}
+        eftest/eftest {:mvn/version "0.5.9"}
+
+;;; Data formats
+        org.clojure/data.json {:mvn/version "2.2.2"}
+        com.cognitect/transit-clj {:mvn/version "1.0.324"}
+        org.clojure/data.xml {:mvn/version "0.2.0-alpha3"}
+        org.clojure/data.zip {:mvn/version "1.0.0"}
+        ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
+        clojure-csv/clojure-csv {:mvn/version "2.0.1"}
+
+;;; GraphQL
+        com.walmartlabs/lacinia {:mvn/version "0.37.0"}
+        vincit/venia {:mvn/version "0.2.5"}
+
+;;; Postgres
+        com.impossibl.pgjdbc-ng/pgjdbc-ng {:mvn/version "0.8.7"}
+        org.clojure/java.jdbc {:mvn/version "0.7.12"}
+        org.postgresql/postgresql {:mvn/version "42.2.20"}
+        joda-time/joda-time {:mvn/version "2.10.10"}
+        clj-time/clj-time {:mvn/version "0.15.2" :exclusions [joda-time/joda-time]}
+        postgre-types/postgre-types {:mvn/version "0.0.4"}
+        hikari-cp/hikari-cp {:mvn/version "2.13.0"}
+        clj-postgresql/clj-postgresql {:mvn/version "0.7.0" :exclusions [org.clojure/java.jdbc cheshire/cheshire prismatic/schema]}
+        honeysql/honeysql {:mvn/version "0.9.8"}
+        nilenso/honeysql-postgres {:mvn/version "0.2.6"}
+
+;;; Web server
+        javax.servlet/servlet-api {:mvn/version "2.5"}
+        manifold/manifold {:mvn/version "0.1.8"}
+        aleph/aleph {:mvn/version "0.4.6"}
+        com.taoensso/sente {:mvn/version "1.16.2"}
+        ring/ring {:mvn/version "1.9.3"}
+        ring/ring-defaults {:mvn/version "0.3.2"}
+        ring-transit/ring-transit {:mvn/version "0.1.6"}
+        ring/ring-json {:mvn/version "0.5.1" :exclusions [cheshire/cheshire]}
+        ring/ring-mock {:mvn/version "0.4.0" :exclusions [cheshire/cheshire]} 
+        compojure/compojure {:mvn/version "1.6.2"}
+
+;;; profiling
+        criterium/criterium {:mvn/version "0.4.6"}
+
+;;; More libraries
+        buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication
+        clj-http/clj-http {:mvn/version "3.12.1"}
+        com.velisco/clj-ftp {:mvn/version "0.3.12"}
+        com.draines/postal {:mvn/version "2.0.4"} ;; email client
+        amazonica/amazonica {:mvn/version "0.3.152" :exclusions [com.taoensso/encore com.fasterxml.jackson.dataformat/jackson-dataformat-cbor com.fasterxml.jackson.core/jackson-databind org.slf4j/slf4j-api]}
+        ;; =1.23.0 because version conflict in latest (1.30.2 breaks selenium)
+        com.google.api-client/google-api-client {:mvn/version "1.23.0"}
+        environ/environ {:mvn/version "1.2.0"}
+        bouncer/bouncer {:mvn/version "1.0.1"} ;; validation
+        hickory/hickory {:mvn/version "0.7.1"} ;; html parser
+        kanwei/sitemap {:mvn/version "0.3.1"} ;; sitemap alternative with clojure.spec fix
+        org.clojure/core.async {:mvn/version "1.3.610"}
+        org.clojure/core.memoize {:mvn/version "0.7.2"}
+        clojurewerkz/quartzite {:mvn/version "2.1.0"}
+        gravatar/gravatar {:mvn/version "1.1.1"}
+        medley/medley {:mvn/version "1.3.0"}}
+ :aliases
  {:carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
-          :main-opts ["-m" "carve.main"]}}}
+          :main-opts ["-m" "carve.main"]}
+  :dev {:extra-deps {org.clojure/clojure {:mvn/version "1.10.3"}
+                     org.clojure/tools.deps.alpha {:mvn/version "0.11.918"}}
+        :extra-paths ["development/src"
+                      "components/notification/src"
+                      "components/notification/resources"
+                      "components/test-postgres/src"
+                      "components/test-postgres/resources"]}
+  :poly {:extra-deps {polyfy/polylith
+                      {:git/url "https://github.com/polyfy/polylith.git"
+                       :sha "65a7918bb6de886cda7a9b8a5fe7dbdf10996bf8"
+                       :deps/root "projects/poly"}}
+         :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
+  :test {:extra-deps {}
+         :extra-paths ["components/notification/test"
+                       "components/test-postgres/test"]}}}
