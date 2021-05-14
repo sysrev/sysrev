@@ -96,7 +96,7 @@
                       "components/test-postgres/resources"]}
   :poly {:extra-deps {polyfy/polylith
                       {:git/url "https://github.com/polyfy/polylith.git"
-                       :sha "65a7918bb6de886cda7a9b8a5fe7dbdf10996bf8"
+                       :sha "da3bccf3a13ac30be8e31fedeab4de53c1efd951"
                        :deps/root "projects/poly"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :test {:extra-deps {}
