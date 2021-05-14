@@ -6,3 +6,4 @@ rm -rf ./target
 rm -f target/junit.xml
 
 lein with-profile +jenkins eftest
+clj -M:poly test :all
