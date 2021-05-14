@@ -272,7 +272,7 @@
                  :selection selection?
                  :multiple multiple?
                  :closeOnBlur true
-                 :value value
+                 :value (or value (when multiple? #js[]))
                  :on-change on-change
                  :options options}])))
 
