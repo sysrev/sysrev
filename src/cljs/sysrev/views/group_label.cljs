@@ -353,7 +353,6 @@
             labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                         (sort-by :project-ordering <)
                         (filter :enabled))
-            label-name @(subscribe [:label/display "na" group-label-id])
             max-row (r/cursor state [:max-row])
             current-position (r/cursor state [:current-position])
             multi? (subscribe [:label/multi? "na" group-label-id])]
@@ -365,14 +364,6 @@
                 :style {:margin-bottom "0"
                         :border-bottom-left-radius "0"
                         :border-bottom-right-radius "0"}}
-         [TableHeader {:fullWidth true}
-          [TableRow
-           [TableHeaderCell {:colSpan (inc (count labels))}
-            [:div {:style {:text-align "center"}}
-             label-name
-             [:div {:style {:float "right"}}
-              [ToggleEditorButton]
-              [TogglePopoutButton]]]]]]
          [TableHeader
           [TableRow {:id "sub-labels"}
            [TableHeaderCell {:style {:max-width "10em"
@@ -536,8 +527,7 @@
       (viewer data)
       (.-value (.-cell data)))))
 
-(defn DataSheet [{:keys [article-id group-label-id multi?]}
-                 label-name labels rows]
+(defn DataSheet [{:keys [article-id group-label-id labels multi?]} rows]
   [:> ReactDataSheet
    {:data rows
     :onCellsChanged
@@ -581,14 +571,6 @@
                :style {:margin-bottom "0"
                        :border-bottom-left-radius "0"
                        :border-bottom-right-radius "0"}}
-        [TableHeader {:fullWidth true}
-         [TableRow {:textAlign "center"}
-           [TableHeaderCell {:colSpan (inc (count labels))}
-            [:div {:class "group-label-name"}
-             label-name
-             [:div {:style {:float "right"}}
-              [ToggleEditorButton]
-              [TogglePopoutButton]]]]]]
         [TableHeader
          [TableRow {:id "sub-labels"}
           [TableHeaderCell {:style {:max-width "10em"
@@ -636,11 +618,9 @@
         labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                     (sort-by :project-ordering <)
                     (filter :enabled))
-        label-name @(subscribe [:label/display "na" group-label-id])
         multi? @(subscribe [:label/multi? "na" group-label-id])
         map-arr (comp into-array map)]
-    [DataSheet (assoc opts :multi? multi?)
-     label-name labels
+    [DataSheet (assoc opts :labels labels :multi? multi?)
      (map-arr
       (fn [i]
         (map-arr
@@ -685,17 +665,7 @@
 
 (defn EditorContainer [& children]
   [:> Rnd
-   {:class-name "ui detached"
-    :enable-resizing
-    {:bottom false
-     :bottom-left false
-     :bottom-right false
-     :left true
-     :right true
-     :top false
-     :top-left false
-     :top-right false}
-    :min-width 500}
+   {:class-name "ui detached group-label-editor-rnd-container"}
    children])
 
 (defn GroupLabelDiv [{:keys [article-id group-label-id] :as opts}]
@@ -713,7 +683,8 @@
                         (swap! max-row inc)
                         (reset! current-position {:row @max-row  :col 0})))
         popped-out @(r/cursor state [:popped-out])
-        use-spreadsheet @(r/cursor state [:use-spreadsheet])]
+        use-spreadsheet @(r/cursor state [:use-spreadsheet])
+        label-name @(subscribe [:label/display "na" group-label-id])]
     (into
      (if popped-out
        [EditorContainer]
@@ -725,11 +696,19 @@
                       :resize "both"
                       :overflow "auto"
                       :height "auto"}}])
-     [(if use-spreadsheet
-        [DSTable opts]
-        [SpreadSheetAnswers opts])
+     [[:div {:class "group-label-title-container"}
+       [:div {:style {:flex-grow 2}}
+        label-name]
+       [:div
+        [ToggleEditorButton]
+        [TogglePopoutButton]]]
+      [:div {:style {:height "calc(100% - 83px)"
+                     :overflow-y "scroll"}}
+       (if use-spreadsheet
+         [DSTable opts]
+         [SpreadSheetAnswers opts])]
       (when (or multi? (= row-count 0))
-        [:div {:style {:position "sticky" :left "0"}}
+        [:div {:style {:position "sticky" :line-height "16px" :left "0"}}
          [Button {:id "add-group-label-instance"
                   :on-click on-activate
                   :onKeyPress on-activate
