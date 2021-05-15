@@ -676,8 +676,7 @@
        [:div
         [ToggleEditorButton]
         [TogglePopoutButton]]]
-      [:div {:style {:height "calc(100% - 83px)"
-                     :overflow-y "scroll"}}
+      [:div {:class "group-label-sheet-container"}
        (if use-spreadsheet
          [DSTable opts]
          [SpreadSheetAnswers opts])]
