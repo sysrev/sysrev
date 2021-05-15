@@ -279,15 +279,7 @@
 (defn SpreadSheetAnswerCell
   [{:keys [article-id root-label-id label-id ith answers position]}]
   (let [current-position (r/cursor state [:current-position])
-        answer (subscribe [:review/sub-group-label-answer
-                           article-id root-label-id label-id ith])
         id (str (gensym "spread-sheet-answer-cell-"))]
-    ;; handle missing label
-    (if (and @(subscribe [:label/required? root-label-id label-id])
-          (not @(subscribe [:label/non-empty-answer?
-                            root-label-id label-id @answer])))
-      (dispatch [:review/create-missing-label article-id root-label-id label-id ith])
-      (dispatch [:review/delete-missing-label article-id root-label-id label-id ith]))
     [TableCell {:id id
                 :on-click #(reset! current-position position)
                 :style {:cursor "pointer"

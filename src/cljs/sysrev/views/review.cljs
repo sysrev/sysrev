@@ -3,7 +3,7 @@
             ["fomantic-ui"]
             [clojure.set :as set]
             [clojure.string :as str]
-            [medley.core :as medley :refer [dissoc-in]]
+            [medley.core :as medley]
             [reagent.core :as r]
             [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
@@ -86,23 +86,31 @@
          (fn [db [_ article-id]]
            (get-in db [:state :review :labels article-id])))
 
-;; missing labels
-(reg-event-db :review/create-missing-label [trim-v]
-              (fn [db [article-id root-label-id label-id ith]]
-                (assoc-in db [:state :review :missing-labels
-                              article-id root-label-id label-id ith]
-                          true)))
+(defn missing-answer? [{:keys [required value-type]} answer]
+  (and required
+       (case value-type
+         "boolean" (not (boolean? answer))
+         "categorical" (empty? answer)
+         "string" (str/blank? answer))))
 
-(reg-event-db :review/delete-missing-label [trim-v]
-              (fn [db [article-id root-label-id label-id ith]]
-                (dissoc-in db [:state :review :missing-labels
-                               article-id root-label-id label-id ith])))
+(defn missing-group-answer? [labels answers]
+  (boolean
+   (->> labels
+        (some (fn [[label-id label]]
+                (missing-answer? label (get answers label-id)))))))
 
-;; we don't care if it is a group label or not, we are just going to check
-;; overall for missing labels
 (reg-sub :review/missing-labels
-         (fn [db [_ article-id]]
-           (get-in db [:state :review :missing-labels article-id])))
+         (fn [[_ project-id article-id]]
+           [(subscribe [:project/labels-raw project-id])
+            (subscribe [:review/labels article-id])])
+         (fn [[labels-raw labels]]
+           (->> labels-raw
+             (filter
+               (fn [[label-id label]]
+                 (if (:labels label)
+                   (some #(missing-group-answer? (:labels label) %)
+                         (-> labels (get label-id) :labels vals))
+                   (missing-answer? label (get labels label-id))))))))
 
 (defn valid-string-value? [{:keys [max-length multi? regex] :as definition} answer]
   (if (sequential? answer)
@@ -407,12 +415,13 @@
 
 ;; Component for label column in inputs grid
 (defn- LabelColumn [article-id label-id row-position n-cols label-position]
-  (let [value-type @(subscribe [:label/value-type "na" label-id])
+  (let [label @(subscribe [:sysrev.state.label/label "na" label-id])
+        value-type @(subscribe [:label/value-type "na" label-id])
         label-css-class @(subscribe [::label-css-class article-id label-id])
         label-string @(subscribe [:label/display "na" label-id])
         question @(subscribe [:label/question "na" label-id])
         on-click-help (util/wrap-user-event #(do nil) :timeout false)
-        answer (subscribe [:review/active-labels article-id "na" label-id "na"])]
+        answer @(subscribe [:review/active-labels article-id "na" label-id "na"])]
     [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
       [ui/with-tooltip
@@ -461,16 +470,11 @@
                      "annotation" [AnnotationLabelInput ["na" label-id "na"] article-id]
                      "string" [StringLabelInput ["na" label-id "na"] article-id]
                      [:div "unknown label - label-column"])]]]
-     (if (and (not= value-type "group")
-              @(subscribe [:label/required? "na" label-id])
-              (not @(subscribe [:label/non-empty-answer? "na" label-id @answer])))
-       (do
-         (dispatch [:review/create-missing-label article-id "na" label-id "na"])
-         [:div {:style {:text-align "center"
-                        :margin-bottom "0.5rem"}
-                :class  "missing-label-answer"
-                :div (str "missing-label-answer " label-id)} "Required"])
-       (dispatch [:review/delete-missing-label article-id "na" label-id "na"]))]))
+     (when (missing-answer? label answer)
+       [:div {:style {:text-align "center"
+                      :margin-bottom "0.5rem"}
+              :class  "missing-label-answer"
+              :div (str "missing-label-answer " label-id)} "Required"])]))
 
 (defn- note-input-element [note-name]
   (when @(subscribe [:project/notes nil note-name])
@@ -513,7 +517,7 @@
         resolving? @(subscribe [:review/resolving?])
         on-review-task? (subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
-        missing @(subscribe [:review/missing-labels article-id])
+        missing @(subscribe [:review/missing-labels project-id article-id])
         invalid @(subscribe [:review/invalid-labels project-id article-id])
         saving? (review-task-saving? article-id)
         disabled? (or (seq missing) (seq invalid))
