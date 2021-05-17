@@ -82,10 +82,6 @@
                     {::add-label-value [article-id root-label-id
                                         label-id ith label-value]}))))
 
-(reg-sub :review/labels
-         (fn [db [_ article-id]]
-           (get-in db [:state :review :labels article-id])))
-
 (defn missing-answer? [{:keys [required value-type]} answer]
   (and required
        (case value-type
@@ -102,7 +98,7 @@
 (reg-sub :review/missing-labels
          (fn [[_ project-id article-id]]
            [(subscribe [:project/labels-raw project-id])
-            (subscribe [:review/labels article-id])])
+            (subscribe [:review/active-labels article-id])])
          (fn [[labels-raw labels]]
            (->> labels-raw
              (filter
@@ -148,7 +144,7 @@
 (reg-sub :review/invalid-labels
          (fn [[_ project-id article-id]]
            [(subscribe [:project/labels-raw project-id])
-            (subscribe [:review/labels article-id])])
+            (subscribe [:review/active-labels article-id])])
          (fn [[labels-raw labels]]
            (->> labels
              (remove
