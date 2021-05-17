@@ -670,7 +670,8 @@
                       :overflow "auto"
                       :height "auto"}}])
      [[:div {:class "group-label-title-container"}
-       [:div {:style {:flex-grow 2}}
+       [:div {:class "group-label-title"
+              :style {:flex-grow 2}}
         label-name]
        [:div
         [ToggleEditorButton]
