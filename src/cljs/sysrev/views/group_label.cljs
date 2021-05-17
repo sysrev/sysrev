@@ -501,11 +501,16 @@
                       v))})
 
 (defn value-viewer [value-type data]
-  (if-not (aget (.-cell data) "valid?")
-    (r/as-element [:div {:style {:color "red"}} "Invalid"])
-    (if-let [viewer (value-viewers value-type)]
-      (viewer data)
-      (.-value (.-cell data)))))
+  (r/as-element
+    (if-not (aget (.-cell data) "valid?")
+      [:div {:style {:color "red"}} "Invalid"]
+      [:div {:class (case (aget (.-cell data) "inclusion") 
+                      true "green-text"
+                      false "orange-text"
+                      nil)}
+       (if-let [viewer (value-viewers value-type)]
+         (viewer data)
+         (.-value (.-cell data)))])))
 
 (defn DataSheet [{:keys [article-id group-label-id labels multi?]} rows]
   [:> ReactDataSheet
@@ -611,8 +616,10 @@
                  value-type @(subscribe [:label/value-type group-label-id label-id])
                  answer @(subscribe [:review/sub-group-label-answer
                                      article-id group-label-id label-id ith])
+                 inclusion @(subscribe [:label/answer-inclusion group-label-id label-id answer])
                  valid? (valid-answer? group-label-id label-id answer)
                  obj #js{:all-values all-values
+                         :inclusion inclusion
                          :ith ith
                          :label-id label-id
                          :valid? valid?
