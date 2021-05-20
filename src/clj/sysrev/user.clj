@@ -15,7 +15,7 @@
         sysrev.annotations
         sysrev.datasource.core
         sysrev.datasource.api
-        sysrev.notifications.core
+        sysrev.notification.interface
         sysrev.project.core
         sysrev.project.charts
         sysrev.project.member
