@@ -702,13 +702,15 @@
                       :resize "both"
                       :overflow "auto"
                       :height "auto"}}])
-     [[:div {:class "group-label-title-container"}
+     [^{:key "group-label-title-container"}
+      [:div {:class "group-label-title-container"}
        [:div {:class "group-label-title"
               :style {:flex-grow 2}}
         label-name]
        [:div
         [ToggleEditorButton]
         [TogglePopoutButton]]]
+      ^{:key "group-label-sheet-container"}
       [:div {:class "group-label-sheet-container"}
        (if use-spreadsheet
          [DSTable opts]
