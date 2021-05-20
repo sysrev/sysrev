@@ -1,5 +1,6 @@
 (ns sysrev.views.group-label
-  (:require [clojure.string :as str]
+  (:require [clojure.edn :as edn]
+            [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
             [reagent.dom :as rdom]
@@ -21,6 +22,21 @@
                         :max-row nil
                         :popped-out false
                         :use-spreadsheet false}))
+
+(defn get-editor-settings []
+  (or
+    (some-> "sysrev.views.group-label/editor-settings"
+      js/window.localStorage.getItem
+      edn/read-string)
+    {:default {:height 600
+               :x 0
+               :y 0
+               :width 400}}))
+
+(defn set-editor-settings [m]
+  (js/window.localStorage.setItem
+    "sysrev.views.group-label/editor-settings"
+    (pr-str m)))
 
 (def value-coercers
   {"boolean" #(when-not (str/blank? %)
@@ -636,10 +652,27 @@
          labels))
       (->> (:labels answers) keys (map parse-integer) sort))]))
 
-(defn EditorContainer [& children]
+(defn EditorContainer [{:keys [default]} & children]
   [:> Rnd
-   {:class-name "ui detached group-label-editor-rnd-container"}
-   children])
+   {:class-name "ui detached group-label-editor-rnd-container"
+    :default default
+    :on-drag-stop
+    (fn [_ data]
+      (-> (get-editor-settings)
+        (assoc-in [:default :x] (.-x data))
+        (assoc-in [:default :y] (.-y data))
+        set-editor-settings))
+    :on-resize-stop
+    (fn [_ _ ref _ position]
+      (let [style (.-style ref)]
+        (-> (get-editor-settings)
+          (assoc-in [:default :height] (.-height style))
+          (assoc-in [:default :width] (.-width style))
+          (assoc-in [:default :x] (.-x position))
+          (assoc-in [:default :y] (.-y position))
+          set-editor-settings)))}
+   (into [:div]
+     children)])
 
 (defn GroupLabelDiv [{:keys [article-id group-label-id] :as opts}]
   (let [multi? @(subscribe [:label/multi? "na" group-label-id])
@@ -660,7 +693,7 @@
         label-name @(subscribe [:label/display "na" group-label-id])]
     (into
      (if popped-out
-       [EditorContainer]
+       [EditorContainer (get-editor-settings)]
        [:div {:id group-label-preview-div
               :style {:overflow-x "scroll"
                       :overflow-y "visible"
