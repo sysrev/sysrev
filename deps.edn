@@ -92,16 +92,16 @@
         :extra-paths ["development/src"
                       "components/notification/src"
                       "components/notification/resources"
-                      "components/user/src"
-                      "components/user/resources"
                       "components/test-postgres/src"
-                      "components/test-postgres/resources"]}
+                      "components/test-postgres/resources"
+                      "components/user/src"
+                      "components/user/resources"]}
   :poly {:extra-deps {polyfy/polylith
                       {:git/url "https://github.com/polyfy/polylith.git"
-                       :sha "da3bccf3a13ac30be8e31fedeab4de53c1efd951"
+                       :sha "9c018fac09fe80d405229f76b703f142700a70a6"
                        :deps/root "projects/poly"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :test {:extra-deps {}
          :extra-paths ["components/notification/test"
-                       "components/user/test"
-                       "components/test-postgres/test"]}}}
+                       "components/test-postgres/test"
+                       "components/user/test"]}}}
