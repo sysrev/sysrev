@@ -6,7 +6,7 @@
         sysrev.db.core
         sysrev.db.listeners
         sysrev.db.migration
-        sysrev.user.core
+        sysrev.user.interface
         sysrev.group.core
         sysrev.article.core
         sysrev.article.assignment

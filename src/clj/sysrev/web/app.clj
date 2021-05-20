@@ -8,7 +8,8 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :refer [user-by-api-token update-member-access-time]]
+            [sysrev.user.interface :refer [user-by-api-token
+                                           update-member-access-time]]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [project-member]]
             [sysrev.web.build :as build]

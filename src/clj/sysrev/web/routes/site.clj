@@ -7,9 +7,9 @@
             [honeysql.helpers :as sqlh :refer [select from where merge-where join merge-join]]
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query]]
-            [sysrev.user.core :as user]
             [sysrev.db.queries :as q]
             [sysrev.config :refer [env]]
+            [sysrev.user.interface :as user]
             [sysrev.web.app :as app :refer [with-authorize current-user-id]]
             [sysrev.util :refer [in? map-values should-never-happen-exception]]))
 

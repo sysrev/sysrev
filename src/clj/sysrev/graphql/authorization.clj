@@ -2,7 +2,7 @@
   (:require [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.payment.stripe :as stripe]
-            [sysrev.user.core :refer [user-by-api-token user-settings]]))
+            [sysrev.user.interface :refer [user-by-api-token user-settings]]))
 
 (defn fail [message & [more]]
   (resolve-as false [(cond-> {:message message}

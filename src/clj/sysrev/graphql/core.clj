@@ -1,8 +1,8 @@
 (ns sysrev.graphql.core
   (:require [com.walmartlabs.lacinia.resolve :refer [resolve-as]]
             [sysrev.project.member :refer [member-role?]]
-            [sysrev.user.core :refer [user-by-api-token]]
             [sysrev.datasource.api :as ds-api]
+            [sysrev.user.interface :refer [user-by-api-token]]
             [sysrev.util :as util :refer [gquery]]))
 
 (defn fail [message & [more]]

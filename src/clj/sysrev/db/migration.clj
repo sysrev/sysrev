@@ -7,7 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.group.core :as group]
-            [sysrev.user.core :as user]
+            [sysrev.user.interface :as user]
             [sysrev.payment.stripe :as stripe]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.file.document :refer [migrate-filestore-table]]

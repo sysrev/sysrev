@@ -92,6 +92,8 @@
         :extra-paths ["development/src"
                       "components/notification/src"
                       "components/notification/resources"
+                      "components/user/src"
+                      "components/user/resources"
                       "components/test-postgres/src"
                       "components/test-postgres/resources"]}
   :poly {:extra-deps {polyfy/polylith
@@ -101,4 +103,5 @@
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :test {:extra-deps {}
          :extra-paths ["components/notification/test"
+                       "components/user/test"
                        "components/test-postgres/test"]}}}

@@ -4,7 +4,7 @@
             [honeysql.helpers :as sqlh]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :as user]
+            [sysrev.user.interface :as user]
             [sysrev.notification.interface :refer [subscribe-to-topic subscriber-for-user
                                                    topic-for-name unsubscribe-from-topic]]
             [sysrev.payment.stripe :as stripe]

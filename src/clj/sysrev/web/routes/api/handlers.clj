@@ -5,12 +5,12 @@
             [sysrev.api :as api]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.notification.interface :as notification]
             [sysrev.project.core :as project]
             [sysrev.project.clone :as clone]
             [sysrev.notification.interface.spec :as sntfcn]
             [sysrev.source.import :as import]
+            [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.web.app :refer [make-error-response
                                     validation-failed-response]]
             [sysrev.web.routes.api.core :refer

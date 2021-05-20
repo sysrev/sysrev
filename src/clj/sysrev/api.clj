@@ -35,7 +35,7 @@
             [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.label.define :as ldefine]
-            [sysrev.user.core :as user :refer [user-by-email]]
+            [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.group.core :as group]
             [sysrev.gengroup.core :as gengroup]
             [sysrev.file.core :as file]

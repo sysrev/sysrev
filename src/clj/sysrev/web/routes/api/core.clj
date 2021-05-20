@@ -10,7 +10,7 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :refer [user-by-api-token]]
+            [sysrev.user.interface :refer [user-by-api-token]]
             [sysrev.web.app :refer [make-error-response]]
             [sysrev.shared.spec.web-api :as swa]
             [sysrev.util :refer [in?]]))
