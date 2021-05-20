@@ -4,7 +4,8 @@
             [clojure.tools.logging :as log]
             [prestancedesign.get-port :as get-port]
             [sysrev.config :refer [env]]
-            [sysrev.db.core :as db])
+            [sysrev.db.core :as db]
+            [sysrev.test-postgres.fixtures :as fixtures])
   (:import [com.opentable.db.postgres.embedded EmbeddedPostgres]))
 
 (defonce ^:dynamic *db* nil)
@@ -66,4 +67,5 @@
         (if (ms-windows?)
           (shell ".flyway-5.2.4/flyway.cmd" "migrate")
           (shell "./flyway" "migrate")))
+      (fixtures/load-fixtures)
       (f))))
