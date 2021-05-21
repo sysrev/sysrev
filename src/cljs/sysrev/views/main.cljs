@@ -63,6 +63,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :as review]
             [sysrev.views.panels.search]
+            [sysrev.views.semantic :as S]
             [sysrev.util :as util :refer [css]]
             [sysrev.shared.components :refer [loading-content]]))
 
@@ -103,16 +104,13 @@
                           (nil? pdf-key)  (merge {:class "abstract"}))]
         [annotator/AnnotationMenu ann-context "abstract"]))}))
 
-(defn SidebarColumn []
+(defn SidebarColumn [!ref]
   (let [article-id @(subscribe [:visible-article-id])
         editing-id @(subscribe [:review/editing-id])
         interface @(subscribe [:review-interface])]
     (when (review/display-sidebar?)
-      [:div.column.panel-side-column
-       ;; keep sidebar width as 3 in test suite for now
-       ;; (changing breaks annotation test positions)
-       {:class (css "four" "wide")}
-       [ui/WrapFixedVisibility 10
+      [:div.column.panel-side-column {:class "four wide"}
+       [S/Sticky {:context @!ref :offset 10}
         [:div.review-menu
          [ui/tabbed-panel-menu
           [{:tab-id :labels
@@ -162,26 +160,30 @@
          [:div.wrapper contact-email sysrev-links "|" site-terms]]])]))
 
 (defn main-content []
-  (let [landing? @(subscribe [:landing-page?])]
-    (if-not @(subscribe [:initialized?])
-      (loading-content)
-      [dnd/wrap-dnd-app
-       [:div#toplevel {:class (css [landing? "landing"])}
-        [:div#main-content {:class (css [(review/display-sidebar?) "annotator"]
-                                        [landing? "landing"]
-                                        [(or (not @(subscribe [:data/ready?]))
-                                             (data/loading?
-                                              nil :ignore (into loading/ignore-data-names
-                                                                #{:pdf/open-access-available?
-                                                                  :pdf/article-pdfs})))
-                                         "loading"])}
-         [header-menu]
-         [:div.panel-content {:class (css [(not landing?) "ui container"])}
-          (if (review/display-sidebar?)
-            [:div.ui.grid
-             [SidebarColumn]
-             [:div.column
-              {:class (css "twelve" "wide")}
-              [active-panel-content]]]
-            [active-panel-content])]]
-        [GlobalFooter]]])))
+  (let [!ref (atom nil)]
+    (fn []
+      (let [landing? @(subscribe [:landing-page?])]
+        (if-not @(subscribe [:initialized?])
+          (loading-content)
+          [dnd/wrap-dnd-app
+           [:div#toplevel {:class (css [landing? "landing"])
+                           :ref #(reset! !ref %)}
+            [:div#main-content {:class (css [(review/display-sidebar?) "annotator"]
+                                            [landing? "landing"]
+                                            [(or (not @(subscribe [:data/ready?]))
+                                                 (data/loading?
+                                                  nil :ignore (into loading/ignore-data-names
+                                                                    #{:pdf/open-access-available?
+                                                                      :pdf/article-pdfs})))
+                                             "loading"])}
+             [header-menu]
+             [:div.panel-content {:class (css [(not landing?) "ui container"])}
+              (if (review/display-sidebar?)
+                [S/Ref {:innerRef @!ref}
+                 [:div.ui.grid
+                  [SidebarColumn !ref]
+                  [:div.twelve.wide.column
+                   [active-panel-content]]]]
+                [active-panel-content])]]
+            [ui/AlertMessageContainer]
+            [GlobalFooter]]])))))

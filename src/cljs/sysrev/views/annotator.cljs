@@ -206,7 +206,7 @@
                   (dispatch [::save context]))
         on-delete (fn []
                     (dispatch-sync [::remove-ann context ann-id])
-                    (dispatch [::save context])) 
+                    (dispatch [::save context]))
         full-width? (>= (util/viewport-width) 1340)
         button-class (css "ui fluid tiny" [full-width? "labeled"] "icon button")
         touchscreen? @(subscribe [:touchscreen?])
@@ -243,7 +243,7 @@
                            :read-only (not editing?)
                            :disabled (not editing?)
                            :placeholder (when editing? "New class name")}]
-            [ui/selection-dropdown
+            [ui/SelectionDropdown
              [:div.text (:semantic-class annotation)]
              (map-indexed (fn [i v]
                             [:div.item
@@ -272,17 +272,17 @@
          [:div.eight.wide.field
           [:button {:class (css button-class "cancel-edit")
                     :on-click (util/wrap-user-event
-                                #(set [:editing-id] nil)
-                                :prevent-default true)}
+                               #(set [:editing-id] nil)
+                               :prevent-default true)}
            [:i.times.icon]
            (when full-width? "Cancel")]]]
-        ; not editing
+        ;; not editing
         [:div.field.buttons>div.fields
          [:div.eight.wide.field
           [:button {:class (css button-class "edit-annotation")
                     :on-click (util/wrap-user-event
-                                #(set [:editing-id] ann-id)
-                                :prevent-default true)}
+                               #(set [:editing-id] ann-id)
+                               :prevent-default true)}
            [:i.blue.pencil.alternate.icon]
            (when full-width? "Edit")]]
          [:div.eight.wide.field
@@ -362,7 +362,7 @@
            (subscribe [::get context [:annotations]]))
          identity)
 
-(reg-event-fx ::save 
+(reg-event-fx ::save
               (fn [{:keys [db]} [_ context]]
                 (let [annotation-label-data @(subscribe [::annotation-label-data])
                       annotations (->> @(subscribe [::get context [:annotations]])

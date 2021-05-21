@@ -1,5 +1,5 @@
 (ns sysrev.views.panels.landing-pages.reviews
-  (:require [sysrev.views.components.core :refer [url-link]]
+  (:require [sysrev.views.components.core :refer [UrlLink]]
             [sysrev.views.panels.landing-pages.core :refer [ReviewCard TwitterUser]]))
 
 (defn GeneHunterReview []
@@ -10,9 +10,9 @@
     :description
     [:p "Gene Hunter extracted gene names from medical abstracts to create a "
      [:b "named entity recognition"] " model. Learn more at "
-     [url-link "https://blog.sysrev.com/simple-ner"]]
+     [UrlLink "https://blog.sysrev.com/simple-ner"]]
     :extra ["Tom Luechtefeld"
-            [url-link "https://insilica.co"]
+            [UrlLink "https://insilica.co"]
             [TwitterUser "tomlue"]]}])
 
 (defn SDSReview []
@@ -38,7 +38,7 @@
     [:p "An extraction of mangiferin (a mango extract) effects from publications. R and "
      [:a {:href "https://github.com/sysrev/RSysrev"} "RSysrev"]
      " were used to analyze results. "
-     [url-link "https://blog.sysrev.com/generating-insights/"]]
+     [UrlLink "https://blog.sysrev.com/generating-insights/"]]
     :extra ["TJ Bozada"
             "Insilica Managed Review Division"
             [:span [:i.envelope.icon] "info@insilica.co"]]}])
@@ -51,7 +51,7 @@
     :description
     [:p "EntoGEM is a community-driven project that aims to compile evidence about
         global insect population and biodiversity status and trends. "
-     [url-link "https://entogem.github.io"]]
+     [UrlLink "https://entogem.github.io"]]
     :extra ["Eliza Grames"
             "University of Connecticut"
             [TwitterUser "ElizaGrames"]]}])

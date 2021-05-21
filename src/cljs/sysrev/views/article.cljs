@@ -118,14 +118,15 @@
   (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
         source-info (some-> @(subscribe [:source/display-info source-id])
                             (util/ellipsis-middle 150 "[.....]"))]
-    [ui/FixedTooltipElement element
-     [:div
-      [:h5.ui.header {:class (css [(seq source-info) "dividing"])}
-       @(subscribe [:source/display-type source-id])
-       (str " - " (or article-count "?") " articles")]
-      (when (seq source-info) [:p source-info])]
-     "25em"
-     :delay 150]))
+    [ui/Tooltip
+     {:style {:min-width "25em"}
+      :mouse-enter-delay 150
+      :trigger element
+      :tooltip [:div
+                [:h5.ui.header {:class (css [(seq source-info) "dividing"])}
+                 @(subscribe [:source/display-type source-id])
+                 (str " - " (or article-count "?") " articles")]
+                (when (seq source-info) [:p source-info])]}]))
 
 (defn- SourceLinkButton [source-id text]
   [WithProjectSourceTooltip source-id
@@ -244,7 +245,7 @@
            (when (seq urls)
              [:div.ui.content.horizontal.list
               {:style {:padding-top "0.75em"}}
-              (doall (map-indexed (fn [i url] ^{:key [i]} [ui/out-link url])
+              (doall (map-indexed (fn [i url] ^{:key [i]} [ui/OutLink url])
                                   urls))])]
           [:div.four.wide.right.aligned.middle.aligned.column
            {:style {:margin "0" :padding "0"}}
@@ -306,7 +307,7 @@
                                   [:meta :cursors]))]
         [:div {:id nctid}
          [:h2 title]
-         [ui/out-link (str "https://clinicaltrials.gov/ct2/show/" nctid)]
+         [ui/OutLink (str "https://clinicaltrials.gov/ct2/show/" nctid)]
          [:br]
          [ReactJSONView (if (seq cursors)
                           (clj->js (map-from-cursors json cursors))

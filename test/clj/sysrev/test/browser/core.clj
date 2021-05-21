@@ -451,13 +451,9 @@
         ;; toast element can block position of "Log Out" button
         wait-for-toasts `(do (Thread/sleep 200)
                              (util/ignore-exceptions
-                              (b/wait-until
-                               (or (util/ignore-exceptions
-                                    (not (displayed-now? ".ui.toast")))
-                                   (util/ignore-exceptions
-                                    (b/click ".ui.toast")
-                                    true))
-                               3000))
+                              (b/wait-until (util/ignore-exceptions
+                                             (not (displayed-now? ".ui.alert-message")))
+                                            5000))
                              (Thread/sleep 100))]
     `(deftest ~name
        (when (or ~repl? ~enable)

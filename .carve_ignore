@@ -68,7 +68,7 @@ sysrev.util/number-to-word
 sysrev.util/read-sub
 sysrev.views.annotator/AddAnnotation
 sysrev.views.article-list.filters/ResetReloadForm
-sysrev.views.components.core/three-state-selection-icons
+sysrev.views.components.core/ThreeStateSelectionIcons
 sysrev.views.panels.project.add-articles/meta->source-name-vector
 sysrev.views.panels.project.add-articles/source-name
 sysrev.views.panels.project.compensation/check-pending-interval

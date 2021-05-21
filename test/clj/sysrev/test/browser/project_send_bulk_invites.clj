@@ -41,7 +41,7 @@
 (deftest-browser test-valid-emails
   true test-user
   [input "#bulk-invite-emails"
-   success-notification ".ui.toast.success"
+   success-notification ".ui.alert-message.success"
    send-button "#send-bulk-invites-button"
    test-user (if (= (:profile env) :dev)
                (b/create-test-user)
@@ -95,6 +95,6 @@
       (log/info "submitting emails")
       (b/click "#send-bulk-invites-button" :delay 200)
       (log/info "waiting for error notification")
-      (b/wait-until-displayed ".ui.toast.error"))
+      (b/wait-until-displayed ".ui.alert-message.error"))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)))

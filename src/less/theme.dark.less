@@ -25,6 +25,8 @@
 @background2                    : lighten(@pageBackground, 10);
 @partialSegmentBackground       : lighten(@pageBackground, 1);
 @secondarySegmentBackground     : lighten(@pageBackground, 6);
+@dropdownBackground             : darken(@pageBackground, 2);
+@popupBackground                : darken(@pageBackground, 2);
 
 @blueBackground                 : fade(screen(@background0, rgb(50,  100, 160)), 20%);
 @greenBackground                : fade(screen(@background0, rgb(40,  180, 40)),  20%);
@@ -64,8 +66,7 @@
 
 .ui.segment,
 .ui.segments,
-.ui.menu,
-.ui.message {
+.ui.menu {
     box-shadow: none !important;
 }
 
@@ -141,7 +142,7 @@
 }
 
 .ui.button {
-    color: rgba(0,0,0,.66);
+    // color: rgba(0,0,0,.66);
 }
 
 .ui.modal {
@@ -176,7 +177,7 @@
     .menu {
         background: lighten( @pageBackground, 2 );
         .item {
-            color: @textColor;
+            color: @textColor !important;
         }
         .item:hover {
             background: rgba(255, 255, 255, 0.04);

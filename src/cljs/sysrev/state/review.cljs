@@ -249,8 +249,6 @@
 
 (reg-sub ::review-interface-override #(get-in % [:state :review-interface]))
 
-(reg-sub ::review-interface-override #(get-in % [:state :review-interface]))
-
 (reg-sub :review-interface
          :<- [:active-project-id]
          :<- [:visible-article-id]

@@ -29,10 +29,10 @@
   :process (fn [{:keys [db]} [project-id _] {:keys [success message]}]
              (when success
                {:dispatch-n [[::set [:gengroup-modal :new :open] false]
-                             [:toast {:class "success" :message message}]
+                             [:alert {:content message :opts {:success true}}]
                              [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
+              {:dispatch [:alert {:content (:message error) :opts {:error true}}]}))
 
 (def-action :project/update-member-gengroup
   :uri (fn [_ _] "/api/update-gengroup")
@@ -44,10 +44,10 @@
   :process (fn [{:keys [db]} [project-id gengroup] {:keys [success message]}]
              (when success
                {:dispatch-n [[::set [:gengroup-modal (:gengroup-id gengroup) :open] false]
-                             [:toast {:class "success" :message message}]
+                             [:alert {:content message :opts {:success true}}]
                              [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
+              {:dispatch [:alert {:content (:message error) :opts {:error true}}]}))
 
 (def-action :project/delete-member-gengroup
   :uri (fn [_ _] "/api/delete-gengroup")
@@ -56,11 +56,11 @@
               :gengroup-id gengroup-id})
   :process (fn [{:keys [db]} [project-id gengroup-id] {:keys [success message]}]
              (when success
-               {:dispatch-n [[:toast {:class "success" :message message}]
+               {:dispatch-n [[:alert {:content message :opts {:success true}}]
                              [::set [:delete-gengroup-modal gengroup-id :open] false]
                              [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
+              {:dispatch [:alert {:content (:message error) :opts {:error true}}]}))
 
 (def-action :project/add-member-to-gengroup
   :uri (fn [_ _] "/api/add-member-to-gengroup")
@@ -70,10 +70,10 @@
               :membership-id membership-id})
   :process (fn [_ [project-id _ _] {:keys [success message]}]
              (when success
-               {:dispatch-n [[:toast {:class "success" :message message}]
+               {:dispatch-n [[:alert {:content message :opts {:success true}}]
                              [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
+              {:dispatch [:alert {:content (:message error) :opts {:error true}}]}))
 
 (def-action :project/remove-member-from-gengroup
   :uri (fn [_ _] "/api/remove-member-from-gengroup")
@@ -83,10 +83,10 @@
               :membership-id membership-id})
   :process (fn [_ [project-id _ _] {:keys [success message]}]
              (when success
-               {:dispatch-n [[:toast {:class "success" :message message}]
+               {:dispatch-n [[:alert {:content message :opts {:success true}}]
                              [:reload [:project project-id]]]}))
   :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
+              {:dispatch [:alert {:content (:message error) :opts {:error true}}]}))
 
 (defn- InviteUsersBox []
   (when-let [invite-url @(subscribe [:project/invite-url])]

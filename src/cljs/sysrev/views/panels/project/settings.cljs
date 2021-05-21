@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.project.settings
-  (:require ["jquery" :as $]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-event-db]]
             [sysrev.action.core :as action :refer [def-action]]
@@ -9,7 +8,8 @@
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.util :as util :refer [in? css parse-integer]]
+            [sysrev.views.semantic :as S]
+            [sysrev.util :as util :refer [in? css parse-integer when-test]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -212,32 +212,25 @@
 (defn- SettingsButton [{:keys [setting key label value tooltip disabled?]}]
   (let [active? (= (render-setting setting)
                    (render-setting-value setting value))]
-    (ui/FixedTooltipElementManual
-     [:button.ui.button
-      {:id (str (name setting) "_" (name key))
-       :class (css [active? "active"]
-                   [disabled? "disabled"])
-       :on-click (if (admin?) #(edit-setting setting value) nil)}
-      label]
-     [:p tooltip]
-     "20em"
-     :props {:style {:text-align "center"}})))
+    [ui/Tooltip
+     {:trigger [:button.ui.button
+                {:id (str (name setting) "_" (name key))
+                 :class (css [active? "active"]
+                             [disabled? "disabled"])
+                 :on-click (if (admin?) #(edit-setting setting value) nil)}
+                label]
+      :tooltip [:p tooltip]
+      :style {:min-width "20em" :text-align "center"}}]))
 
 (defn- SettingsField [{:keys [setting label entries disabled?]} & [content]]
-  (let [elements (->> entries
-                      (map #(SettingsButton (merge % {:setting setting
-                                                      :disabled? disabled?}))))]
-    [:div.field {:id (str "project-setting_" (name setting))
-                 :class (input-field-class setting)}
-     [:label label]
-     [:div.ui.fluid.buttons.selection
-      (doall
-       (for [[button _] elements]
-         ^{:key [:button (hash button)]} [button]))]
-     (doall
-      (for [[_ tooltip] elements]
-        ^{:key [:tooltip (hash tooltip)]} [tooltip]))
-     (when content [content])]))
+  [:div.field {:id (str "project-setting_" (name setting))
+               :class (input-field-class setting)}
+   [:label label]
+   [:div.ui.fluid.buttons.selection
+    (doall (for [[i entry] (map-indexed vector entries)] ^{:key i}
+             [SettingsButton (merge entry {:setting setting
+                                           :disabled? disabled?})]))]
+   (when content [content])])
 
 (defn- DoubleReviewPriorityField []
   [SettingsField {:setting :second-review-prob
@@ -420,10 +413,10 @@
         [:div.ui.segment.project-options
          [:h4.ui.dividing.header "Options"]
          [:div.ui.form {:class (if valid? "" "warning")}
-           [PublicAccessField project-id]
-           [DoubleReviewPriorityField]
-           [UnlimitedReviewsField]
-           [BlindReviewersField project-id]]
+          [PublicAccessField project-id]
+          [DoubleReviewPriorityField]
+          [UnlimitedReviewsField]
+          [BlindReviewersField project-id]]
          (when (admin?)
            [:div
             [:div.ui.divider]
@@ -499,8 +492,7 @@
   (swap! members-state assoc :permissions nil))
 
 (defn- reset-permissions-fields []
-  (-> ($ ".project-settings .project-members .ui.selection.dropdown")
-      (.dropdown "clear")))
+  (swap! members-state dissoc :selected-permission :selected-user))
 
 (defn save-permissions []
   (let [project-id @(subscribe [:active-project-id])
@@ -542,39 +534,34 @@
            @(subscribe [:user/display user-id])]]))]]))
 
 (defn- UserSelectDropdown []
-  (let [{:keys [selected-user]} @members-state]
-    [ui/selection-dropdown
-     [:div.default.text "User"]
-     (vec (for [user-id (all-project-user-ids)]
-            [:div.item
-             (into {:key (or user-id "none")
-                    :data-value (if user-id (str user-id) "none")}
-                   (when (= user-id selected-user)
-                     {:class "active selected"}))
-             [:span [:i.user.icon] @(subscribe [:user/display user-id])]]))
-     {:class "ui fluid search selection dropdown"
-      :onChange (fn [value _text _item]
-                  (let [user-id (parse-integer value)]
-                    (swap! members-state assoc :selected-user user-id)))}]))
+  [S/Dropdown {:selection true, :search true, :fluid true, :icon "dropdown"
+               :placeholder "User"
+               :options (for [user-id (all-project-user-ids)]
+                          (let [user-name @(subscribe [:user/display user-id])]
+                            {:key (or user-id "none")
+                             :value (if user-id (str user-id) "none")
+                             :text user-name
+                             :content (r/as-element [:span [:i.user.icon] user-name])}))
+               :on-change (fn [_event ^js x]
+                            (swap! members-state assoc :selected-user
+                                   (parse-integer (.-value x))))
+               :value (some-> (:selected-user @members-state) str not-empty)}])
 
 (def permission-values ["admin"])
 
 (defn- MemberPermissionDropdown []
-  (let [{:keys [selected-permission]} @members-state]
-    [ui/selection-dropdown
-     [:div.default.text "Permission"]
-     (vec (for [perm permission-values]
-            [:div.item
-             (into {:key (or perm "none")
-                    :data-value (if perm perm "none")}
-                   (when (= perm selected-permission)
-                     {:class "active selected"}))
-             [:span [:i.key.icon] perm]]))
-     {:class "ui fluid search selection dropdown"
-      :onChange (fn [value _text _item]
-                  (let [perm (if (in? ["" "none"] value) nil value)]
-                    (swap! members-state
-                           assoc :selected-permission perm)))}]))
+  [S/Dropdown {:selection true, :search true, :fluid true, :icon "dropdown"
+               :placeholder "Permission"
+               :options (for [perm permission-values]
+                          {:key (or perm "none")
+                           :value (or perm "none")
+                           :text (or perm "none")
+                           :content (r/as-element [:span [:i.key.icon] perm])})
+               :on-change (fn [_event ^js x]
+                            (swap! members-state assoc :selected-permission
+                                   (when-test #(not (contains? #{"" "none"} %))
+                                     (.-value x))))
+               :value (:selected-permission @members-state)}])
 
 (defn- AddPermissionButton []
   (let [{:keys [selected-user selected-permission]} @members-state

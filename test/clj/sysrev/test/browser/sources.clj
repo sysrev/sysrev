@@ -32,7 +32,7 @@
    check-new-results-checkbox (xpath "//label[@for='check-new-results-checkbox']")
    source-notes-input "#source-notes-input"
    save-source-button "#save-source-btn"
-   success-notification ".ui.toast.success"]
+   success-notification ".ui.alert-message.success"]
   (do (nav/log-in (:email test-user))
 ;;; create a project
       (nav/new-project project-name)
@@ -75,7 +75,6 @@
       (b/wait-until-displayed success-notification)
       (b/click success-notification :delay 100)
       (b/wait-until-displayed (xpath (str "//div[contains(text(),'" notes "')]")))
-      
 ;;; delete sources
       (pm/delete-search-term-source query4)
       (pm/check-source-count 2)

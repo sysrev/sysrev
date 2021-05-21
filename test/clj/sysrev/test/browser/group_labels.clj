@@ -36,7 +36,13 @@
 (defn sub-label-col-xpath
   "Given a short-label, return the nth col underneath it"
   [short-label nth]
-  (xpath "(//div[@id='group-label-editor']//table/tbody/tr/td[count(//div[@id='group-label-editor']//table/thead/tr/th[.='" short-label "']/preceding-sibling::th)+1])[" nth "]"))
+  (xpath "(//div[@id='group-label-editor']//table/tbody/tr/td["
+         (xpath "count("
+                "//div[@id='group-label-editor']//table/thead/tr"
+                "/th[.='" short-label "']"
+                "/preceding-sibling::th"
+                ")+1")
+         "])[" nth "]"))
 
 (def add-blank-row-button "div#add-group-label-instance")
 
@@ -89,38 +95,39 @@
 (defn group-label-div
   "Given a short-label name for group, return its root xpath"
   [short-label]
-  (xpath "//span[contains(text(),'" short-label "')]"
-         "/ancestor::div[contains(@class,'define-label-item')][1]"))
+  (xpath "//div[contains(@class,'define-label-item') and "
+         "@data-short-label='" short-label "']"))
 
 (defn sub-group-label-div
   "Given a root short-label for a group and its sublabel short-label, return its root xpath"
   [root-short-label sub-short-label]
   (xpath (group-label-div root-short-label)
-         "//span[contains(text(),'" sub-short-label "')]"
-         "/ancestor::div[contains(@id,'sub-label-')]"))
+         "//div[contains(@class,'sub-label') and "
+         "@data-short-label='" sub-short-label "']"))
 
 (defn group-sub-short-labels
   "Given a group label short-label, return the sub short-labels"
   [root-short-label]
   (b/get-elements-text (xpath (group-label-div root-short-label)
+                              "//div[contains(@class,'sub-label')]"
                               "//span[contains(@class,'short-label')]")))
 
 (defn group-sub-short-labels-review
   "In the review interface, return the sub short-labels"
   []
   (->> (b/get-elements-text "thead > tr#sub-labels > th")
-       (filterv (comp not str/blank?))))
+       (remove str/blank?)))
 
 (defn edit-group-label-button
   [root-short-label]
-  (->> (xpath "//span[contains(text(),'" root-short-label "')]"
-                "/ancestor::div[contains(@id,'group-label-')]"
-                "//div[contains(@class,'edit-label-button')]")))
+  (xpath "//div[contains(@class,'group-label')]"
+         "//div[contains(@class,'edit-label-button') and "
+         "@data-short-label='" root-short-label "']"))
 
 (defn group-label-edit-form
   [root-short-label]
-  (xpath "(//input[@value='" root-short-label "']"
-           "/ancestor::div[contains(@id,'group-label-')])[1]"))
+  (xpath "//div[contains(@class,'label-item') and contains(@class,'group-label')"
+         " and @data-short-label='" root-short-label "']"))
 
 (defn group-label-edit-form-sub-labels
   "Given a group label short-label, return the sub short-label values of
@@ -175,7 +182,7 @@
    include-label-value true
    pm-count (count (pubmed/test-search-pmids "foo bar"))
    group-label-definition {:value-type "group"
-                           :short-label "Group Label"
+                           :short-label "Group Label 1"
                            :definition
                            {:labels [{:value-type "boolean"
                                       :short-label "Boolean Label"
@@ -215,7 +222,7 @@
     (dlabels/define-group-label group-label-definition)
     ;; make sure the labels are in the correct order
     (is (= (->> group-label-definition :definition :labels (mapv :short-label))
-           (group-sub-short-labels "Group Label")))
+           (group-sub-short-labels "Group Label 1")))
     ;; review an article
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review))
@@ -241,7 +248,8 @@
           [article-id] (keys (label/query-public-article-labels @project-id))
           label->id (q/find :label {:project-id @project-id}
                             :label-id, :index-by :short-label)
-          group-label-settings (-> (ra/short-label-answer @project-id article-id user-id "Group Label")
+          group-label-settings (-> (ra/short-label-answer @project-id article-id user-id
+                                                          "Group Label 1")
                                    :labels (get "0"))
           group-label-setting (fn [short-label]
                                 (let [answer (->> short-label
@@ -288,7 +296,7 @@
    question-required "Question text must be provided"
    options-required "Category options must be provided"
    group-label-defintion-1 {:value-type "group"
-                            :short-label "Group Label"
+                            :short-label "Group Label 1"
                             :definition {:labels [{:value-type "boolean"
                                                    :short-label "Boolean Label"
                                                    :question "Is this true or false?"
@@ -339,7 +347,7 @@
     (b/click dlabels/save-button)
     (is (ra/have-errors? [no-display sub-label-required]))
     ;; give the label a name, does the no-display message disappear?
-    (b/set-input-text "div.field-short-label input" "Group Label")
+    (b/set-input-text "div.field-short-label input" "Group Label 1")
     (b/click dlabels/save-button)
     (is (ra/have-errors? [sub-label-required]))
     ;; add a simple boolean label, do all of the error messages go away?
@@ -352,10 +360,11 @@
     (b/click dlabels/save-button)
     ;; make sure that we can't move this label
     ;; this test is a little iffy in that it expects something NOT to exist
-    (is (not (taxi/exists? (xpath (sub-group-label-div "Group Label" "Boolean Label") "//div[contains(text(),'Move')]"))))
+    (is (not (taxi/exists? (xpath (sub-group-label-div "Group Label 1" "Boolean Label")
+                                  "//div[contains(text(),'Move')]"))))
     (is (ra/have-errors? []))
     ;; Make sure that an invalid sub label can't be saved
-    (b/click (edit-group-label-button "Group Label"))
+    (b/click (edit-group-label-button "Group Label 1"))
     (b/click (xpath (dlabels/add-label-button "categorical") "/ancestor::div[contains(@class,'group')]/button"))
     (b/click dlabels/save-button)
     (is (ra/have-errors? [no-display question-required options-required]))
@@ -445,7 +454,7 @@
    include-label-value true
    invalid-value "Invalid"
    group-label-definition {:value-type "group"
-                           :short-label "Group Label"
+                           :short-label "Group Label 1"
                            :definition
                            {:multi? true
                             :labels [{:value-type "boolean"
@@ -487,7 +496,7 @@
     (dlabels/define-group-label group-label-definition)
     ;; make sure the labels are in the correct order
     (is (= (->> group-label-definition :definition :labels (mapv :short-label))
-           (group-sub-short-labels "Group Label")))
+           (group-sub-short-labels "Group Label 1")))
     ;; review an article
     (nav/go-project-route "")
     (b/click (x/project-menu-item :review))
@@ -624,7 +633,7 @@
    include-label-value true
    project-name "Label Consensus Test (Group Labels)"
    group-label-definition {:value-type "group"
-                           :short-label "Group Label"
+                           :short-label "Group Label 1"
                            :definition
                            {:multi? true
                             :labels [{:value-type "boolean"
@@ -661,7 +670,7 @@
       (dlabels/define-group-label group-label-definition)
       ;; make sure the labels are in the correct order
       (is (= (->> group-label-definition :definition :labels (mapv :short-label))
-             (group-sub-short-labels "Group Label")))
+             (group-sub-short-labels "Group Label 1")))
       ;; add users to project
       (doseq [{:keys [user-id]} test-users]
         (add-project-member @project-id user-id))
