@@ -2,28 +2,33 @@ upstream sysrev-clj {
     server 127.0.0.1:4041;
 }
 
+map $http_upgrade $connection_upgrade {
+   default upgrade;
+   '' close;
+}
+
 server {
     listen 80;
-    server_name sysrev.us;
+    server_name www.sysrev.com sysrev.us;
     return 301 https://sysrev.com$request_uri;
 }
 
 server {
     listen 443;
-    server_name sysrev.us;
+    server_name www.sysrev.com sysrev.us;
 
     ssl on;
-    ssl_certificate /data/letsencrypt/live/sysrev.us/fullchain.pem;
-    ssl_certificate_key /data/letsencrypt/live/sysrev.us/privkey.pem;
+    ssl_certificate /data/letsencrypt/live/sysrev.us-0001/fullchain.pem;
+    ssl_certificate_key /data/letsencrypt/live/sysrev.us-0001/privkey.pem;
 
     return 301 https://sysrev.com$request_uri;
 }
 
 server {
     listen 80;
-    server_name sysrev.com
+    server_name www.sysrev.com sysrev.com;
 
-    return 301 https://$server_name$request_uri;
+    return 301 https://sysrev.com$request_uri;
 }
 
 server {
@@ -31,8 +36,8 @@ server {
     server_name sysrev.com;
 
     ssl on;
-    ssl_certificate /data/letsencrypt/live/sysrev.us/fullchain.pem;
-    ssl_certificate_key /data/letsencrypt/live/sysrev.us/privkey.pem;
+    ssl_certificate /data/letsencrypt/live/sysrev.us-0001/fullchain.pem;
+    ssl_certificate_key /data/letsencrypt/live/sysrev.us-0001/privkey.pem;
 
     access_log /var/log/nginx/sysrev.access_log;
     error_log /var/log/nginx/sysrev.error_log info;
@@ -45,6 +50,9 @@ server {
         proxy_next_upstream error;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
         proxy_pass http://sysrev-clj;
     }
 
@@ -54,18 +62,27 @@ server {
 
     location /files {
     }
-    
+
     location /robots.txt {
         add_header Content-Type text/plain;
-        return 200 "User-agent: *\nDisallow: /\n";
+        return 200 "User-agent: *\nDisallow:\nSitemap: https://sysrev.com/sitemap.xml\n";
+    }
+
+    location /sitemap.txt {
+        return 404;
     }
 
     location ~ /(out|css|semantic)/.* {
         add_header Cache-Control "no-cache, must-revalidate";
     }
 
+    # location /down {
+    #     try_files /sysrev-down.html @clj-site;
+    # }
+
     location / {
         expires -1;
         try_files $uri @clj-site;
+        # try_files $uri /sysrev-down.html @clj-site;
     }
 }
