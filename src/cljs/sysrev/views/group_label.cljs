@@ -24,14 +24,15 @@
                         :use-spreadsheet false}))
 
 (defn get-editor-settings []
-  (or
+  (->>
     (some-> "sysrev.views.group-label/editor-settings"
       js/window.localStorage.getItem
       edn/read-string)
-    {:default {:height 600
-               :x 0
-               :y 0
-               :width 400}}))
+    (medley/deep-merge
+      {:default {:height "600px"
+                 :x 0
+                 :y 0
+                 :width "400px"}})))
 
 (defn set-editor-settings [m]
   (js/window.localStorage.setItem
