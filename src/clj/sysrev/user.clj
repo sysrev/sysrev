@@ -101,10 +101,10 @@
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.users :as su]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
+            [sysrev.user.interface.spec :as su]
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
             [sysrev.formats.pubmed :as pubmed]

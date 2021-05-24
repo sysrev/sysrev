@@ -1,4 +1,6 @@
-{:source-paths ["src/cljs" "src/cljc" "resources"]
+{:source-paths ["src/cljs" "src/cljc" "resources"
+                "components/notification/src"
+                "components/user/src"]
  :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
             ;; https://github.com/thheller/shadow-cljs/issues/556
             "-Xms400m" "-Xmx1400m"]

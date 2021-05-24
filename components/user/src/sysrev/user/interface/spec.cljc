@@ -1,4 +1,4 @@
-(ns sysrev.shared.spec.users
+(ns sysrev.user.interface.spec
   (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :refer [in?]]))
