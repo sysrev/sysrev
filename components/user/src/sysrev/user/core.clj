@@ -18,7 +18,7 @@
             [sysrev.payment.stripe :as stripe]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member]]
-            [sysrev.shared.spec.users :as su]
+            [sysrev.user.interface.spec :as su]
             [sysrev.util :as util :refer [in? map-values]])
   (:import java.util.UUID))
 
