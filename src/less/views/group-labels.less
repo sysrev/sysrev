@@ -9,8 +9,53 @@
     z-index: 100;
 }
 
+.group-label-editor-rnd-container {
+    background-color: @pageBackground;
+}
+
+.group-label-editor .group-label-title-container {
+    background-color: @partialSegmentBackground;
+    border: 1px solid @solidInternalBorderColor;
+    border-bottom: none;
+    border-top-left-radius: 0.286rem;
+    border-top-right-radius: 0.286rem;
+    display: flex;
+    font-weight: bold;
+    line-height: 48px;
+    text-align: center;
+}
+
+.detached .group-label-editor {
+    min-height: 600px;
+    min-width: 400px;
+}
+
+.group-label-editor .detached .group-label-title-container {
+    background-color: @windowTitleBackgroundColor;
+    border: none;
+    color: @windowTitleColor;
+}
+
 .group-label-input {
     cursor: pointer;
+}
+
+.detached .group-label-sheet-container {
+    height: calc(100% - 83px);
+    overflow-y: scroll;
+}
+
+.group-label-title {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.group-label-title-container .button {
+    margin-right: 10px;
+}
+
+.detached .group-label-title-container .button {
+    font-size: 0.857rem;
 }
 
 .group-label-values {

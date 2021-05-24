@@ -1,10 +1,13 @@
 (ns sysrev.views.group-label
-  (:require [clojure.string :as str]
+  (:require [clojure.edn :as edn]
+            [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
+            [sysrev.state.label :as label]
             [sysrev.util :as util :refer [parse-integer]]
+            [sysrev.views.review :as review]
             [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
                                            TableBody TableHeaderCell TableCell Input Popup]]
             ["react-datasheet" :as react-datasheet :default ReactDataSheet]
@@ -19,6 +22,22 @@
                         :max-row nil
                         :popped-out false
                         :use-spreadsheet false}))
+
+(defn get-editor-settings []
+  (->>
+    (some-> "sysrev.views.group-label/editor-settings"
+      js/window.localStorage.getItem
+      edn/read-string)
+    (medley/deep-merge
+      {:default {:height "600px"
+                 :x 0
+                 :y 0
+                 :width "400px"}})))
+
+(defn set-editor-settings [m]
+  (js/window.localStorage.setItem
+    "sysrev.views.group-label/editor-settings"
+    (pr-str m)))
 
 (def value-coercers
   {"boolean" #(when-not (str/blank? %)
@@ -94,6 +113,10 @@
                               (->> (.-col %) (nth labels) :label-id)
                               (str (.-row %)) (coerced-value %)])
                         cells)})))
+
+(defn valid-answer? [group-label-id label-id answer]
+  (let [label @(subscribe [::label/label group-label-id label-id])]
+    (review/valid-answer? (:value-type label) answer (:definition label))))
 
 (defn delete-label-instance [db [_ article-id root-label-id ith]]
   (let [self-id @(subscribe [:self/user-id])
@@ -193,7 +216,6 @@
   (let [answer @(subscribe [:review/sub-group-label-answer
                             article-id root-label-id label-id ith])
         inclusion @(subscribe [:label/answer-inclusion root-label-id label-id answer])
-        value-type @(subscribe [:label/value-type root-label-id label-id])
         color (case inclusion
                 true   "green"
                 false  "orange"
@@ -204,11 +226,7 @@
                  (cond (nil? answer)        nil
                        (sequential? answer) answer
                        :else                [answer]))
-        valid? (if (= value-type "string")
-                 ;; we're only checking the validity of strings
-                 (or @(subscribe [:label/valid-string-value? root-label-id label-id answer])
-                     (str/blank? answer))
-                 true)]
+        valid? (valid-answer? root-label-id label-id answer)]
     [:div {:class (when color (str color "-text"))
            :style {:text-align "center"}}
      (cond (not valid?)
@@ -226,13 +244,13 @@
   [{:keys [article-id root-label-id label-id ith]}]
   (let [value-type @(subscribe [:label/value-type root-label-id label-id])
         all-values @(subscribe [:label/all-values root-label-id label-id])
-        answer (subscribe [:review/sub-group-label-answer
+        answer @(subscribe [:review/sub-group-label-answer
                            article-id root-label-id label-id ith])
         props (condp = value-type
                 "boolean" {:placeholder "True or False?"
                            :search? true
                            :selection? true
-                           :value @answer
+                           :value answer
                            :options [{:key true :value true :text "True"}
                                      {:key false :value false :text "False"}
                                      {:key nil :value nil :text "NA"}]
@@ -240,33 +258,28 @@
                 "categorical" {:placeholder "Choose a label"
                                :search? true
                                :selection? true
-                               :value @answer
+                               :value answer
                                :options (->> all-values
                                              (mapv #(hash-map :key % :value % :text %)))
                                :multiple? true}
                 "string" {:placeholder "Enter a value"
                           :search? false
                           :selection? false
-                          :value (or @answer "")})
+                          :value (or answer "")})
         on-change (fn [_ data]
                     (let [value (:value (js->clj data :keywordize-keys true))]
                       (dispatch [:review/set-label-value
                                  article-id root-label-id label-id ith value])))
-        {:keys [placeholder search? selection? value options multiple?]} props]
+        {:keys [placeholder search? selection? value options multiple?]} props
+        valid? (valid-answer? root-label-id label-id answer)]
     ;; handle validity checking of string values
     (if (= value-type "string")
-      (let [valid? (or @(subscribe [:label/valid-string-value?
-                                    root-label-id label-id @answer])
-                       (str/blank? @answer))]
-        (if valid?
-          (dispatch [:review/delete-invalid-label article-id root-label-id label-id ith])
-          (dispatch [:review/create-invalid-label article-id root-label-id label-id ith]))
-        [Input {:placeholder placeholder
-                :style {:width "10em"}
-                :error (not valid?)
-                :autoFocus true
-                :value value
-                :onChange on-change}])
+      [Input {:placeholder placeholder
+              :style {:width "10em"}
+              :error (not valid?)
+              :autoFocus true
+              :value value
+              :onChange on-change}]
       ;; boolean and categorical
       [Dropdown {:placeholder placeholder
                  :style {:width "10em"}
@@ -276,47 +289,31 @@
                  :selection selection?
                  :multiple multiple?
                  :closeOnBlur true
-                 :value value
+                 :value (or value (when multiple? #js[]))
                  :on-change on-change
                  :options options}])))
 
 (defn SpreadSheetAnswerCell
   [{:keys [article-id root-label-id label-id ith answers position]}]
   (let [current-position (r/cursor state [:current-position])
-        answer (subscribe [:review/sub-group-label-answer
-                           article-id root-label-id label-id ith])
         id (str (gensym "spread-sheet-answer-cell-"))]
-    (r/create-class
-     {:reagent-render
-      (fn [_]
-        ;; handle missing label
-        (if (and @(subscribe [:label/required? root-label-id label-id])
-                 (not @(subscribe [:label/non-empty-answer?
-                                   root-label-id label-id @answer])))
-          (dispatch [:review/create-missing-label article-id root-label-id label-id ith])
-          (dispatch [:review/delete-missing-label article-id root-label-id label-id ith]))
-        [TableCell {:id id
-                    :on-click #(reset! current-position position)
-                    :style {:cursor "pointer"
-                            :max-width "10em"
-                            :min-width "7em"
-                            :word-wrap "break-word"}
-                    :vertical-align "top"
-                    :text-align "center"}
-         (if (= @current-position position)
-           [LabelInput {:article-id article-id
-                        :root-label-id root-label-id
-                        :label-id label-id
-                        :ith ith}]
-           [ValueDisplay {:article-id article-id
-                          :root-label-id root-label-id
-                          :label-id label-id
-                          :ith ith}])])
-      :component-will-unmount (fn [_this]
-                                (dispatch [:review/delete-missing-label
-                                           article-id root-label-id label-id ith])
-                                (dispatch [:review/delete-invalid-label
-                                           article-id root-label-id label-id ith]))})))
+    [TableCell {:id id
+                :on-click #(reset! current-position position)
+                :style {:cursor "pointer"
+                        :max-width "10em"
+                        :min-width "7em"
+                        :word-wrap "break-word"}
+                :vertical-align "top"
+                :text-align "center"}
+     (if (= @current-position position)
+       [LabelInput {:article-id article-id
+                    :root-label-id root-label-id
+                    :label-id label-id
+                    :ith ith}]
+       [ValueDisplay {:article-id article-id
+                      :root-label-id root-label-id
+                      :label-id label-id
+                      :ith ith}])]))
 
 (defn GroupLabelPopup [{:keys [category required? question examples]}]
   (let [criteria? (= category "inclusion criteria")]
@@ -353,7 +350,6 @@
             labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                         (sort-by :project-ordering <)
                         (filter :enabled))
-            label-name @(subscribe [:label/display "na" group-label-id])
             max-row (r/cursor state [:max-row])
             current-position (r/cursor state [:current-position])
             multi? (subscribe [:label/multi? "na" group-label-id])]
@@ -365,14 +361,6 @@
                 :style {:margin-bottom "0"
                         :border-bottom-left-radius "0"
                         :border-bottom-right-radius "0"}}
-         [TableHeader {:fullWidth true}
-          [TableRow
-           [TableHeaderCell {:colSpan (inc (count labels))}
-            [:div {:style {:text-align "center"}}
-             label-name
-             [:div {:style {:float "right"}}
-              [ToggleEditorButton]
-              [TogglePopoutButton]]]]]]
          [TableHeader
           [TableRow {:id "sub-labels"}
            [TableHeaderCell {:style {:max-width "10em"
@@ -530,14 +518,18 @@
                       v))})
 
 (defn value-viewer [value-type data]
-  (if-not (aget (.-cell data) "valid?")
-    (r/as-element [:div {:style {:color "red"}} "Invalid"])
-    (if-let [viewer (value-viewers value-type)]
-      (viewer data)
-      (.-value (.-cell data)))))
+  (r/as-element
+    (if-not (aget (.-cell data) "valid?")
+      [:div {:style {:color "red"}} "Invalid"]
+      [:div {:class (case (aget (.-cell data) "inclusion") 
+                      true "green-text"
+                      false "orange-text"
+                      nil)}
+       (if-let [viewer (value-viewers value-type)]
+         (viewer data)
+         (.-value (.-cell data)))])))
 
-(defn DataSheet [{:keys [article-id group-label-id multi?]}
-                 label-name labels rows]
+(defn DataSheet [{:keys [article-id group-label-id labels multi?]} rows]
   [:> ReactDataSheet
    {:data rows
     :onCellsChanged
@@ -581,14 +573,6 @@
                :style {:margin-bottom "0"
                        :border-bottom-left-radius "0"
                        :border-bottom-right-radius "0"}}
-        [TableHeader {:fullWidth true}
-         [TableRow {:textAlign "center"}
-           [TableHeaderCell {:colSpan (inc (count labels))}
-            [:div {:class "group-label-name"}
-             label-name
-             [:div {:style {:float "right"}}
-              [ToggleEditorButton]
-              [TogglePopoutButton]]]]]]
         [TableHeader
          [TableRow {:id "sub-labels"}
           [TableHeaderCell {:style {:max-width "10em"
@@ -636,42 +620,28 @@
         labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                     (sort-by :project-ordering <)
                     (filter :enabled))
-        label-name @(subscribe [:label/display "na" group-label-id])
         multi? @(subscribe [:label/multi? "na" group-label-id])
         map-arr (comp into-array map)]
-    [DataSheet (assoc opts :multi? multi?)
-     label-name labels
+    [DataSheet (assoc opts :labels labels :multi? multi?)
      (map-arr
       (fn [i]
         (map-arr
          (fn [label]
            (let [label-id (:label-id label)
                  ith (str i)
-                 value-type @(subscribe [:label/value-type group-label-id label-id])
                  all-values @(subscribe [:label/all-values group-label-id label-id])
-                 value @(subscribe [:review/sub-group-label-answer
-                                    article-id group-label-id label-id ith])
-                 valid? (case value-type
-                          "boolean"
-                          (or (boolean? value) (nil? value))
-                          "categorical"
-                          (or (empty? value)
-                              (boolean
-                               (every?
-                                #(some (partial = %) all-values)
-                                value)))
-                          "string"
-                          (or @(subscribe [:label/valid-string-value? group-label-id label-id value])
-                              (str/blank? value)))
+                 value-type @(subscribe [:label/value-type group-label-id label-id])
+                 answer @(subscribe [:review/sub-group-label-answer
+                                     article-id group-label-id label-id ith])
+                 inclusion @(subscribe [:label/answer-inclusion group-label-id label-id answer])
+                 valid? (valid-answer? group-label-id label-id answer)
                  obj #js{:all-values all-values
+                         :inclusion inclusion
                          :ith ith
                          :label-id label-id
                          :valid? valid?
-                         :value value
+                         :value answer
                          :value-type value-type}]
-             (if valid?
-               (dispatch [:review/delete-invalid-label article-id group-label-id label-id ith])
-               (dispatch [:review/create-invalid-label article-id group-label-id label-id ith]))
              (set! (.-dataEditor obj)
                    (when-let [editor (value-editors value-type)]
                      #(r/as-element [editor
@@ -683,20 +653,27 @@
          labels))
       (->> (:labels answers) keys (map parse-integer) sort))]))
 
-(defn EditorContainer [& children]
+(defn EditorContainer [{:keys [default]} & children]
   [:> Rnd
-   {:class-name "ui detached"
-    :enable-resizing
-    {:bottom false
-     :bottom-left false
-     :bottom-right false
-     :left true
-     :right true
-     :top false
-     :top-left false
-     :top-right false}
-    :min-width 500}
-   children])
+   {:class-name "ui detached group-label-editor-rnd-container"
+    :default default
+    :on-drag-stop
+    (fn [_ data]
+      (-> (get-editor-settings)
+        (assoc-in [:default :x] (.-x data))
+        (assoc-in [:default :y] (.-y data))
+        set-editor-settings))
+    :on-resize-stop
+    (fn [_ _ ref _ position]
+      (let [style (.-style ref)]
+        (-> (get-editor-settings)
+          (assoc-in [:default :height] (.-height style))
+          (assoc-in [:default :width] (.-width style))
+          (assoc-in [:default :x] (.-x position))
+          (assoc-in [:default :y] (.-y position))
+          set-editor-settings)))}
+   (into [:div]
+     children)])
 
 (defn GroupLabelDiv [{:keys [article-id group-label-id] :as opts}]
   (let [multi? @(subscribe [:label/multi? "na" group-label-id])
@@ -713,10 +690,11 @@
                         (swap! max-row inc)
                         (reset! current-position {:row @max-row  :col 0})))
         popped-out @(r/cursor state [:popped-out])
-        use-spreadsheet @(r/cursor state [:use-spreadsheet])]
+        use-spreadsheet @(r/cursor state [:use-spreadsheet])
+        label-name @(subscribe [:label/display "na" group-label-id])]
     (into
      (if popped-out
-       [EditorContainer]
+       [EditorContainer (get-editor-settings)]
        [:div {:id group-label-preview-div
               :style {:overflow-x "scroll"
                       :overflow-y "visible"
@@ -725,11 +703,21 @@
                       :resize "both"
                       :overflow "auto"
                       :height "auto"}}])
-     [(if use-spreadsheet
-        [DSTable opts]
-        [SpreadSheetAnswers opts])
+     [^{:key "group-label-title-container"}
+      [:div {:class "group-label-title-container"}
+       [:div {:class "group-label-title"
+              :style {:flex-grow 2}}
+        label-name]
+       [:div
+        [ToggleEditorButton]
+        [TogglePopoutButton]]]
+      ^{:key "group-label-sheet-container"}
+      [:div {:class "group-label-sheet-container"}
+       (if use-spreadsheet
+         [DSTable opts]
+         [SpreadSheetAnswers opts])]
       (when (or multi? (= row-count 0))
-        [:div {:style {:position "sticky" :left "0"}}
+        [:div {:style {:position "sticky" :line-height "16px" :left "0"}}
          [Button {:id "add-group-label-instance"
                   :on-click on-activate
                   :onKeyPress on-activate
