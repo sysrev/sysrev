@@ -104,6 +104,9 @@
 (defn user-by-reset-code [reset-code]
   (user/user-by-reset-code reset-code))
 
+(defn user-by-username [username]
+  (user/user-by-username username))
+
 (defn user-email-status
   "Return true if the user has verified with this verify-code, false if the
   verify-code exists but has not been used, or nil if the verify-code does

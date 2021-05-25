@@ -13,6 +13,7 @@
              sqlh
              :refer
              [from join merge-join order-by select where]]
+            [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db :refer [do-query sql-now with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.payment.stripe :as stripe]
@@ -79,6 +80,11 @@
 
 (defn user-by-id [user-id]
   (q/find-one :web-user {:user-id user-id}))
+
+(defn-spec user-by-username (s/nilable ::su/user)
+  [username ::su/username]
+  (q/find-one :web-user
+              {[:lower :username] (str/lower-case username)}))
 
 (defn generate-api-token []
   (->> (crypto.random/bytes 16)
