@@ -20,7 +20,8 @@
                                 ;; ignore unresolved symbols from setup-panel-state macro
                                 panel-get panel-set]}
            :unused-binding {:exclude-destructured-keys-in-fn-args true}
-           :unused-namespace {:exclude [clojure.tools.logging
+           :unused-namespace {:exclude [clojure.string
+                                        clojure.tools.logging
                                         sysrev.util
                                         medley.core]}
            :unused-referred-var {:exclude {clojure.test [is deftest testing]
