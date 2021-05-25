@@ -24,3 +24,10 @@
 (s/def ::reset-code (s/nilable string?))
 (s/def ::setting (s/and keyword? (in? all-user-settings)))
 (s/def ::settings (s/nilable (s/map-of ::setting any?)))
+
+(s/def ::user
+  (s/keys :req-un [::user-id]
+          :opt-un [::email ::pw-encrypted-buddy ::verify-code ::verified
+                   ::date-created ::name ::username ::admin ::permissions
+                   ::user-uuid ::reset-code ::settings]))
+
