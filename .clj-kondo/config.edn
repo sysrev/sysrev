@@ -87,4 +87,5 @@
  :output {:exclude-files ["src/clj/sysrev/user.clj"
                           "src/cljs/sysrev/user.cljs"
                           "src/scripts/repl.clj"]}
- :lint-as {sysrev.test.etaoin.core/deftest-etaoin clojure.test/deftest}}
+ :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
+           sysrev.test.etaoin.core/deftest-etaoin clojure.test/deftest}}
