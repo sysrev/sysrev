@@ -100,6 +100,7 @@
              #_ "-XX:+UseZGC"]
   :source-paths ["src/clj" "src/cljc"
                  "components/notification/src"
+                 "components/postgres/src"
                  "components/user/src"]
   :aliases {"run-tests"              ["with-profile" "+test-config" "eftest"]
             "jenkins"                ["with-profile" "+jenkins" "eftest"]
