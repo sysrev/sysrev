@@ -102,6 +102,9 @@
   :run {:extra-paths ["components/postgres/src"
                       "components/postgres/resources"]
         :main-opts ["-m" "sysrev.user"]}
+  :run-in-mem {:extra-paths ["components/postgres-in-mem/src"
+                             "components/postgres-in-mem/resources"]
+               :main-opts ["-m" "sysrev.user"]}
   :poly {:extra-deps {polyfy/polylith
                       {:git/url "https://github.com/polyfy/polylith.git"
                        :sha "9c018fac09fe80d405229f76b703f142700a70a6"
