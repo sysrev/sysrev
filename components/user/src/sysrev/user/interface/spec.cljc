@@ -1,12 +1,20 @@
 (ns sysrev.user.interface.spec
   (:require [clojure.spec.alpha :as s]
+            [lambdaisland.regal :as regal]
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :refer [in?]]))
 
 (def all-user-settings
   [:ui-theme :dev-account-enabled?])
 
-(def re-username #"(?U)^([\w\d]+\-)*[\w\d]+")
+(def regal-username
+  [:cat
+   :start
+   [:* [:cat [:+ [:class [\A \Z] [\a \z] [\0 \9]]] \-]]
+   [:+ [:class [\A \Z] [\a \z] [\0 \9]]]
+   :end])
+
+(def re-username (regal/regex regal-username))
 
 (s/def ::user-id ::sc/sql-serial-id)
 (s/def ::email string?)

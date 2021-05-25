@@ -83,6 +83,7 @@
                  [org.clojure/core.memoize "0.7.2"]
                  [gravatar "1.1.1"]
                  [medley "1.3.0"]
+                 [lambdaisland/regal "0.0.97"] ;; portable regexes
                  [clojurewerkz/quartzite "2.1.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
