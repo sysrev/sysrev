@@ -96,6 +96,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [nrepl.server :as nrepl]
             [sysrev.config :refer [env]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
@@ -117,3 +118,9 @@
          (log/error "error in sysrev.init/start-app")
          (log/error (.getMessage e))
          (log/error (with-out-str (print-cause-trace-custom e))))))
+
+(defn -main []
+  (defonce nrepl (nrepl/start-server))
+  (spit ".nrepl-port" (:port nrepl))
+  (log/info "Started nREPL on port" (:port nrepl))
+  (clojure.main/repl :init #(in-ns 'sysrev.user)))
