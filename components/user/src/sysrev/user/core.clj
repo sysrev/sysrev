@@ -349,7 +349,7 @@
   [q & {:keys [limit]
         :or {limit 5}}]
   (with-transaction
-    (let [user-ids (->> ["SELECT user_id FROM web_user WHERE (email ilike ?) ORDER BY email LIMIT ?"
+    (let [user-ids (->> ["SELECT user_id FROM web_user WHERE (username ilike ?) ORDER BY username LIMIT ?"
                          (str q "%")
                          limit]
                         db/raw-query

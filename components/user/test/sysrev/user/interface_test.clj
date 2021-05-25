@@ -36,6 +36,22 @@
       (is (= #{test-user-1 test-user-2}
              (set (get-users-public-info [1000002 1000001 1000000])))))))
 
+(deftest test-search-users
+  (testing "Search with no results"
+    (is (empty? (search-users "69c2124b"))))
+  (let [test-user-1 {:user-id 1000001
+                     :date-created nil
+                     :username "test-user-1"
+                     :introduction nil}]
+    (testing "Exact search"
+      (is (= [test-user-1] (search-users "test-user-1"))))
+    (testing "Prefix search"
+      (is (= test-user-1 (first (search-users "test-user")))))
+    (testing "Case-insensitive exact search"
+      (is (= [test-user-1] (search-users "TEST-USER-1"))))
+    (testing "Case-insensitive prefix search"
+      (is (= test-user-1 (first (search-users "TEST-USER")))))))
+
 (deftest test-user-by-id
   (is (nil? (user-by-id 1000000)))
   (is (= "test_user_1@insilica.co" (:email (user-by-id 1000001))))

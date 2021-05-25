@@ -73,7 +73,7 @@
   (user/projects-labeled-summary user-id))
 
 (defn search-users
-  "Return users whose email matches q"
+  "Return users whose username matches q"
   [q & {:keys [limit] :or {limit 5}}]
   (user/search-users q :limit limit))
 
