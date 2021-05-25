@@ -6,4 +6,5 @@
 (use-fixtures :each wrap-embedded-postgres)
 
 (deftest test-user-by-id
-  (is (= "test_user_1@insilica.co" (:email (user-by-id 1)))))
+  (is (nil? (user-by-id 1000000)))
+  (is (= "test_user_1@insilica.co" (:email (user-by-id 1000001)))))
