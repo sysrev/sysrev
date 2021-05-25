@@ -1,7 +1,10 @@
 (ns sysrev.user.interface-test
-  (:require [sysrev.test-postgres.interface :refer [wrap-embedded-postgres]])
+  (:require [orchestra.spec.test :as st]
+            [sysrev.test-postgres.interface :refer [wrap-embedded-postgres]])
   (:use clojure.test
         sysrev.user.interface))
+
+(st/instrument)
 
 (use-fixtures :each wrap-embedded-postgres)
 
