@@ -62,15 +62,13 @@
   (doseq [{:keys [project-id]} (user-projects user-id)]
     (db/clear-project-cache project-id)))
 
-(defn get-users-public-info
+(defn-spec get-users-public-info (s/* ::su/user)
   "Given a coll of user-ids, return a coll of maps that represent the
   publicly viewable information for each user-id"
-  [user-ids]
+  [user-ids (s/* ::su/user-id)]
   (when (seq user-ids)
-    (->> (q/find :web-user {:user-id user-ids}
-                 [:user-id :email :date-created :username :introduction])
-         (map #(-> (dissoc % :email)
-                   (assoc :username (first (str/split (:email %) #"@"))))))))
+    (q/find :web-user {:user-id user-ids}
+            [:user-id :date-created :username :introduction])))
 
 (defn user-by-reset-code [reset-code]
   (q/find-one :web-user {:reset-code reset-code}))
