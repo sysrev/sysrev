@@ -322,8 +322,8 @@
      [:h4.ui.dividing.header "Amounts Earned"]
      [:div.ui.relaxed.divided.list
       (doall
-       (for [{:keys [compensation-owed last-payment #_ connected
-                     user-id admin-fee #_ username]} entries]
+       (for [{:keys [compensation-owed last-payment
+                     user-id admin-fee]} entries]
          (let [retrieving-amount-owed? @(r/cursor state [:loading :compensation-owed])
                confirming? (r/cursor state [:confirming? user-id])
                retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
