@@ -100,10 +100,27 @@
              :iterations 6
              :salt (crypto.random/bytes 16)}))
 
+(defn-spec unique-username ::su/username
+  [email ::su/email]
+  (with-transaction
+    (let [s (-> (str/split email #"@" 2)
+                first
+                (str/replace #"[^A-Za-z0-9]+" "-"))]
+      (if-not (user-by-username s)
+        s
+        (loop [sfx (str (rand-int 10))]
+          (let [t (str s \- sfx)]
+            (if (>= 40 (count t))
+              (if-not (user-by-username t)
+                t
+                (recur (str sfx (rand-int 10))))
+              (str (UUID/randomUUID)))))))))
+
 (defn create-user [email password & {:keys [project-id user-id permissions google-user-id]
                                      :or {permissions ["user"]}}]
   (with-transaction
     (let [user (q/create :web-user (cond-> {:email email
+                                            :username (unique-username email)
                                             :verify-code nil ;; (crypto.random/hex 16)
                                             :permissions (db/to-sql-array "text" permissions)
                                             :date-created :%now
