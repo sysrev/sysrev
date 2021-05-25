@@ -1,6 +1,11 @@
 (ns sysrev.user.interface
   (:require [sysrev.user.core :as user]))
 
+(defn change-username
+  "Change the user's username. Return the number of rows modified."
+  [user-id new-username]
+  (user/change-username user-id new-username))
+
 (defn change-user-setting [user-id setting new-value]
   (user/change-user-setting user-id setting new-value))
 

@@ -8,6 +8,13 @@
 
 (use-fixtures :each wrap-embedded-postgres)
 
+(deftest test-change-username
+  (testing "Changing username of nonexistent user"
+    (is (zero? (change-username 1000000 "69c2124b-7da8"))))
+  (testing "Changing username"
+    (is (= 1 (change-username 1000001 "69c2124b-7da8")))
+    (is (= "test_user_1@insilica.co" (:email (user-by-username "69c2124b-7da8"))))))
+
 (deftest test-user-by-id
   (is (nil? (user-by-id 1000000)))
   (is (= "test_user_1@insilica.co" (:email (user-by-id 1000001)))))

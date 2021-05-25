@@ -179,6 +179,11 @@
 (defn user-settings [user-id]
   (into {} (q/get-user user-id :settings)))
 
+(defn-spec change-username nat-int?
+  [user-id ::su/user-id new-username ::su/username]
+  (with-transaction
+    (q/modify :web-user {:user-id user-id} {:username new-username})))
+
 (defn change-user-setting [user-id setting new-value]
   (with-transaction
     (let [cur-settings (q/get-user user-id :settings)
