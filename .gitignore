@@ -5,6 +5,8 @@
 # files starting with a dot should be ignored by default
 .*
 
+!.keep
+
 !/.clj-kondo
 !/.clj-kondo/config.edn
 !/.clj-kondo/version.txt
