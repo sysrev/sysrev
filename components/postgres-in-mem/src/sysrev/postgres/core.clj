@@ -47,16 +47,20 @@
        (restore-flyway-config))))
 
 (defn start-db [& [postgres-overrides only-if-new]]
-  (let [db {:dbname "postgres"
+  (let [port (get-port/get-port)
+        dbname (str "postgres" port)
+        db {:dbname dbname
             :dbtype "postgres"
             :host "localhost"
-            :port (get-port/get-port)
+            :port port
             :user "postgres"}
-        _conn (-> (EmbeddedPostgres/builder)
-                  (.setPort (:port db))
-                  .start
-                  .getPostgresDatabase
-                  .getConnection)
+        conn (-> (EmbeddedPostgres/builder)
+                 (.setPort port)
+                 .start
+                 .getPostgresDatabase
+                 .getConnection)
+        _ (-> conn .createStatement
+              (.executeUpdate (str "CREATE DATABASE " dbname)))
         db-config (db/make-db-config (merge db postgres-overrides))]
     (db/set-active-db! db-config only-if-new)
     (with-flyway-config db
