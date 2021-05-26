@@ -100,8 +100,8 @@
                       "development/src"
                       "components/notification/src"
                       "components/notification/resources"
-                      "components/test-postgres/src"
-                      "components/test-postgres/resources"
+                      "components/fixtures/src"
+                      "components/fixtures/resources"
                       "components/user/src"
                       "components/user/resources"]}
   :poly {:extra-deps {polyfy/polylith
@@ -115,6 +115,6 @@
                       org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
                       org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}}
          :extra-paths ["components/notification/test"
-                       "components/test-postgres/test"
+                       "components/fixtures/test"
                        "components/user/test"
                        "test/clj"]}}}

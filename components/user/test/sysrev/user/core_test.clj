@@ -1,13 +1,13 @@
 (ns sysrev.user.core-test
   (:require [clojure.string :as str]
             [orchestra.spec.test :as st]
-            [sysrev.test-postgres.interface :refer [wrap-embedded-postgres]])
+            [sysrev.fixtures.interface :refer [wrap-fixtures]])
   (:use clojure.test
         sysrev.user.core))
 
 (st/instrument)
 
-(use-fixtures :each wrap-embedded-postgres)
+(use-fixtures :each wrap-fixtures)
 
 (deftest test-unique-username
   (testing "Unique usernames with no conflicts"

@@ -1,12 +1,12 @@
 (ns sysrev.user.interface-test
   (:require [orchestra.spec.test :as st]
-            [sysrev.test-postgres.interface :refer [wrap-embedded-postgres]])
+            [sysrev.fixtures.interface :refer [wrap-fixtures]])
   (:use clojure.test
         sysrev.user.interface))
 
 (st/instrument)
 
-(use-fixtures :each wrap-embedded-postgres)
+(use-fixtures :each wrap-fixtures)
 
 (deftest test-change-username
   (testing "Changing username of nonexistent user"
