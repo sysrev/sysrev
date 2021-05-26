@@ -381,7 +381,7 @@
   (let [selected-users @(subscribe [::filter-users])
         user-counts    @(subscribe [::sorted-user-counts])
         users          (mapv :user user-counts)
-        usernames      (mapv (fn [uuid] @(subscribe [:user/display uuid])) users)
+        usernames      (mapv (fn [uuid] @(subscribe [:user/username uuid])) users)
         max-count      (reduce max (map :count user-counts))
         colors         (mapv (fn [{:keys [user count]}]
                                (when-not (contains? (set selected-users) user)
@@ -410,7 +410,7 @@
        (condp = (count selected-users)
          0  "Select one or more users to show answer counts."
          1  (str "Only count answers from "
-                 @(subscribe [:user/display (first selected-users)]))
+                 @(subscribe [:user/username (first selected-users)]))
          (count users) "Count answers from all users."
          "Count answers from all selected users.")]]]))
 

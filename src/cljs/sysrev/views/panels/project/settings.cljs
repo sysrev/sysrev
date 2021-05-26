@@ -539,7 +539,7 @@
            {:style {:padding-top "4px"
                     :padding-bottom "4px"}}
            [:i.user.icon]
-           @(subscribe [:user/display user-id])]]))]]))
+           @(subscribe [:user/username user-id])]]))]]))
 
 (defn- UserSelectDropdown []
   (let [{:keys [selected-user]} @members-state]
@@ -551,7 +551,7 @@
                     :data-value (if user-id (str user-id) "none")}
                    (when (= user-id selected-user)
                      {:class "active selected"}))
-             [:span [:i.user.icon] @(subscribe [:user/display user-id])]]))
+             [:span [:i.user.icon] @(subscribe [:user/username user-id])]]))
      {:class "ui fluid search selection dropdown"
       :onChange (fn [value _text _item]
                   (let [user-id (parse-integer value)]

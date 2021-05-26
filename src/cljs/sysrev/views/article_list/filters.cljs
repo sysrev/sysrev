@@ -259,7 +259,7 @@
      (concat [nil] user-ids)
      #(if (or (nil? %) (= :any %))
         "Any User"
-        @(subscribe [:user/display %]))
+        @(subscribe [:user/username %]))
      value on-change multiple?
      #(parse-integer %)]))
 
@@ -548,7 +548,7 @@
                       :labels       "labels"
                       :annotations  "annotations"
                       "content")
-        user-name (and (integer? user) @(subscribe [:user/display user]))
+        user-name (and (integer? user) @(subscribe [:user/username user]))
         user-str (if-not (integer? user) "any user"
                          (space-join ["user" (pr-str user-name)]))]
     (space-join ["has" confirmed-str content-str "from" user-str])))
@@ -575,7 +575,7 @@
                                   (->> values (map pr-str) (str/join " OR ") wrap-parens)]))
         users-str (if (empty? users) "any user"
                       (space-join ["user" (->> users
-                                               (map #(pr-str @(subscribe [:user/display %])))
+                                               (map #(pr-str @(subscribe [:user/username %])))
                                                (str/join " OR ")
                                                wrap-parens)]))]
     (space-join ["has" label-str inclusion-str values-str "from" users-str])))

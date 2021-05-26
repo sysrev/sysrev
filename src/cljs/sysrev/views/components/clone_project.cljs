@@ -80,7 +80,7 @@
                :on-click #(run-action :clone-project-user project-id)
                :style {:cursor "pointer"}}
          [Avatar {:user-id user-id}]
-         [:a {:style {:font-size "1.25rem"}} @(subscribe [:user/display])]]
+         [:a {:style {:font-size "1.25rem"}} @(subscribe [:user/username])]]
         ;; TODO: orgs shown should be filtered by this?
         (when (seq (->> orgs (filter #(some #{"owner" "admin"} (:permissions %)))))
           (for [org orgs]

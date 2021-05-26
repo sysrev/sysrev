@@ -159,10 +159,10 @@
         (reset! loading? false)
         nil)})))
 
-(defn UserPublicProfileLink [{:keys [user-id display-name]}]
+(defn UserPublicProfileLink [{:keys [user-id username]}]
   [:a.user-public-profile {:href (user-uri user-id)
-                           :data-username display-name}
-   display-name])
+                           :data-username username}
+   username])
 
 (defn Avatar [{:keys [user-id]}]
   (let [reload-avatar? (r/cursor state [:reload-avatar?])]
@@ -213,7 +213,7 @@
 (defn- UserInteraction
   [{:keys [user-id username]}]
   [:div
-   [UserPublicProfileLink {:user-id user-id :display-name username}]
+   [UserPublicProfileLink {:user-id user-id :username username}]
    [:div
     (when-not (= user-id @(subscribe [:self/user-id]))
       [InviteUser user-id])
@@ -245,7 +245,7 @@
        [Column {:width 2}
         [Icon {:name "user icon" :size "huge"}]]
        [Column {:width 12}
-        [UserPublicProfileLink {:user-id user-id :display-name username}]
+        [UserPublicProfileLink {:user-id user-id :username username}]
         [:div>a {:href "#" :on-click (wrap-prevent-default #(swap! editing? not))}
          "Save Profile"]
         [:div

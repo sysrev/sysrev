@@ -88,13 +88,13 @@
   [:div.ui.divided.list
    (doall (for [entry labels]
             (let [{:keys [user-id inclusion]} entry
-                  user-name @(subscribe [:user/display user-id])]
+                  username @(subscribe [:user/username user-id])]
               (when (or (not= answer-class "resolved")
                         (= user-id (:user-id resolve)))
                 [:div.item.answer-cell {:key [:answer article-id user-id]}
                  [:div.content>div.header>div.flex-wrap
                   [Avatar {:user-id user-id}]
-                  [UserPublicProfileLink {:user-id user-id :display-name user-name}]
+                  [UserPublicProfileLink {:user-id user-id :username username}]
                   [AnswerCellIcon inclusion]]]))))])
 
 (defn ChangeLabelsButton [context article-id & {:keys [sidebar]}]
@@ -151,7 +151,7 @@
                             (index-by :label-id (get users-labels user-id))
                             {})
               user-note (when show-notes (first (get users-notes user-id)))
-              user-name @(subscribe [:user/display user-id])
+              user-name @(subscribe [:user/username user-id])
               resolved? (= user-id resolver-id)]
           (when (or user-note (not-empty user-labels))
             ^{:key [:user-labels user-id]}
@@ -252,7 +252,7 @@
                                  {:key :title :display "Title" :get-fn :primary-title}
                                  (when show-notes
                                    {:key :notes :display "Notes" :get-fn :notes})])
-        user-columns [{:key :user :display "User" :get-fn #(deref (subscribe [:user/display %]))}]
+        user-columns [{:key :user :display "User" :get-fn #(deref (subscribe [:user/username %]))}]
         label-columns (map (fn [label]
                              {:key (:label-id label) :display (:short-label label)
                               :label label

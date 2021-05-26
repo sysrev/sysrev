@@ -47,7 +47,7 @@
 (defn- OwnerDropdown []
   (let [user-id @(subscribe [:self/user-id])
         project-owner (r/cursor state [:project-owner])
-        options (vec (cons {:text @(subscribe [:user/display]) :value "current-user"}
+        options (vec (cons {:text @(subscribe [:user/username]) :value "current-user"}
                            (for [{:keys [group-name group-id]}
                                  (filter #(some #{"owner" "admin"} (:permissions %))
                                          @(subscribe [:user/orgs user-id]))]
