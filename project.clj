@@ -151,8 +151,8 @@
                               :source-paths ["src/clj" "src/cljc" "test/clj"
                                              "components/fixtures/src"
                                              "components/fixtures/resources"
-                                             "components/postgres-in-mem/src"
-                                             "components/postgres-in-mem/resources"]
+                                             "components/postgres/src"
+                                             "components/postgres/resources"]
                               :test-paths ["test/clj"]}
              ;; :test-config    {:eftest {}}
              :jenkins        {:eftest {:thread-count 4
