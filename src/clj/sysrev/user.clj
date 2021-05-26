@@ -68,7 +68,8 @@
         sysrev.test.core
         sysrev.test.browser.navigate
         sysrev.stacktrace)
-  (:require [clojure.spec.alpha :as s]
+  (:require [cider.nrepl :refer (cider-nrepl-handler)]
+            [clojure.spec.alpha :as s]
             [clojure.edn :as edn]
             [orchestra.spec.test :as t]
             [clojure.math.numeric-tower :as math]
@@ -120,7 +121,7 @@
          (log/error (with-out-str (print-cause-trace-custom e))))))
 
 (defn -main []
-  (defonce nrepl (nrepl/start-server))
+  (defonce nrepl (nrepl/start-server :handler cider-nrepl-handler))
   (spit ".nrepl-port" (:port nrepl))
   (log/info "Started nREPL on port" (:port nrepl))
   (clojure.main/repl :init #(in-ns 'sysrev.user)))
