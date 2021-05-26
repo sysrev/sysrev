@@ -243,29 +243,29 @@
   [enabled boolean?]
   (reset! query-cache-enabled enabled))
 
-(defmacro with-query-cache [field-path form]
+(defmacro with-query-cache [field-path & body]
   (let [field-path (if (keyword? field-path)
                      [field-path] field-path)]
     `(let [cache# (if (and *conn* *transaction-query-cache*)
                     *transaction-query-cache*
                     query-cache)]
        (if (not @query-cache-enabled)
-         (do ~form)
+         (do ~@body)
          (let [field-path# ~field-path
                cache-val# (get-in @cache# field-path# :not-found)]
            (if (= cache-val# :not-found)
-             (let [new-val# (do ~form)]
+             (let [new-val# (do ~@body)]
                (swap! cache# assoc-in field-path# new-val#)
                new-val#)
              cache-val#))))))
 
-(defmacro with-project-cache [project-id field-path form]
+(defmacro with-project-cache [project-id field-path & body]
   (let [field-path (if (keyword? field-path)
                      [field-path] field-path)]
     `(let [project-id# ~project-id
            field-path# ~field-path
            full-path# (concat [:project project-id#] field-path#)]
-       (with-query-cache full-path# ~form))))
+       (with-query-cache full-path# ~@body))))
 
 (defn clear-query-cache [& [field-path]]
   (let [in-transaction (and *conn* *transaction-query-cache*)]
