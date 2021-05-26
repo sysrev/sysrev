@@ -114,7 +114,10 @@
                       etaoin/etaoin {:mvn/version "0.4.1"}
                       org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
                       org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}}
-         :extra-paths ["components/notification/test"
+         :extra-paths ["components/e2e/resources"
+                       "components/e2e/src"
+                       "components/e2e/test"
+                       "components/notification/test"
                        "components/fixtures/test"
                        "components/user/test"
                        "test/clj"]}}}

@@ -143,9 +143,16 @@
                               :plugins [[lein-eftest "0.5.9"]]}
              :repl           {:dependencies []
                               :plugins [[lein-environ "1.2.0"]]}
-             :test           {:jvm-opts ["-Xmx1000m"]
+             :test           {:dependencies
+                              [[com.opentable.components/otj-pg-embedded "0.13.3"]
+                               [prestancedesign/get-port "0.1.1"]]
+                              :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"]
-                              :source-paths ["src/clj" "src/cljc" "test/clj"]
+                              :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/fixtures/src"
+                                             "components/fixtures/resources"
+                                             "components/postgres-in-mem/src"
+                                             "components/postgres-in-mem/resources"]
                               :test-paths ["test/clj"]}
              ;; :test-config    {:eftest {}}
              :jenkins        {:eftest {:thread-count 4

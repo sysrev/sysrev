@@ -8,9 +8,11 @@
             [sysrev.postgres.interface :as postgres]))
 
 (def ^{:doc "Table names specified in the order that they should be loaded in.
-             Fixtures are loaded from resources/test-postgres/{{name}}.edn"}
+             Fixtures are loaded from resources/sysrev/fixtures/{{name}}.edn"}
   table-names
-  ["web-user"])
+  ["project"
+   "web-user"
+   "project-member"])
 
 (def readers
   {'sql/array types/read-sql-array})
