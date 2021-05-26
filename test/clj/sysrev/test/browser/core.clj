@@ -205,7 +205,8 @@
     (db/with-transaction
       (delete-test-user :email email)
       (let [{:keys [user-id] :as user} (user/create-user email password)]
-        (member/add-project-member project-id user-id)
+        (when project-id
+          (member/add-project-member project-id user-id))
         (user/change-user-setting user-id :ui-theme "Dark")
         (merge user {:password password})))))
 

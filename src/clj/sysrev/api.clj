@@ -403,7 +403,8 @@
                       (try
                         (let [u (user/create-user email password
                                                   :google-user-id google-user-id)]
-                          (member/add-project-member project-id (:user-id user))
+                          (when project-id
+                            (member/add-project-member project-id (:user-id user)))
                           u)
                         true
                         (catch Throwable e e)))]
