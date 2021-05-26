@@ -17,6 +17,7 @@
             [sysrev.group.core :as group]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
+            [sysrev.project.member :as member]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -203,7 +204,8 @@
                   (format "%s+%s@%s" name (util/random-id) domain))]
     (db/with-transaction
       (delete-test-user :email email)
-      (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
+      (let [{:keys [user-id] :as user} (user/create-user email password)]
+        (member/add-project-member project-id user-id)
         (user/change-user-setting user-id :ui-theme "Dark")
         (merge user {:password password})))))
 

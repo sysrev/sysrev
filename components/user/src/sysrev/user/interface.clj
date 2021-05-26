@@ -20,8 +20,7 @@
 (defn create-password-reset-code [user-id]
   (user/create-password-reset-code user-id))
 
-(defn create-user [email password & {:keys [google-user-id permissions
-                                            project-id]
+(defn create-user [email password & {:keys [google-user-id permissions]
                                      :or {permissions ["user"]}
                                      :as opts}]
   (apply user/create-user email password

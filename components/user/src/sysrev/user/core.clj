@@ -18,7 +18,6 @@
             [sysrev.db.queries :as q]
             [sysrev.payment.stripe :as stripe]
             [sysrev.project.core :as project]
-            [sysrev.project.member :refer [add-project-member]]
             [sysrev.user.interface.spec :as su]
             [sysrev.util :as util :refer [in? map-values]])
   (:import java.util.UUID))
@@ -114,7 +113,7 @@
                 (recur (str sfx (rand-int 10))))
               (str (UUID/randomUUID)))))))))
 
-(defn create-user [email password & {:keys [project-id user-id permissions google-user-id]
+(defn create-user [email password & {:keys [user-id permissions google-user-id]
                                      :or {permissions ["user"]}}]
   (with-transaction
     (let [user (q/create :web-user (cond-> {:email email
@@ -131,7 +130,6 @@
                                                            :registered-from "google"
                                                            :date-google-login :%now))
                          :returning :*)]
-      (when project-id (add-project-member project-id (:user-id user)))
       user)))
 
 (defn set-user-password [email new-password]

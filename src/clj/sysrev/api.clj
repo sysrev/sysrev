@@ -400,11 +400,13 @@
   (with-transaction
     (let [user (user-by-email email)
           db-result (when-not user
-                      (try (user/create-user email password
-                                             :project-id project-id
-                                             :google-user-id google-user-id)
-                           true
-                           (catch Throwable e e)))]
+                      (try
+                        (let [u (user/create-user email password
+                                                  :google-user-id google-user-id)]
+                          (member/add-project-member project-id (:user-id user))
+                          u)
+                        true
+                        (catch Throwable e e)))]
       (cond user
             {:success false, :message "Account already exists for this email address"}
             (isa? (type db-result) Throwable)
