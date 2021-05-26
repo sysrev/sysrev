@@ -3,4 +3,4 @@ set -eu
 
 source vars.sh
 
-clj -M:dev:run:test
+clj -M:dev:test:repl:\+postgres-docker

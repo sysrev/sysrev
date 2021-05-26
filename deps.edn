@@ -83,7 +83,11 @@
         lambdaisland/regal {:mvn/version "0.0.97"} ;; portable regexes
         medley/medley {:mvn/version "1.3.0"}}
  :aliases
- {:carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
+ {:+default {:extra-paths ["components/postgres-in-mem/src"
+                           "components/postgres-in-mem/resources"]}
+  :+postgres-docker {:extra-paths ["components/postgres/src"
+                                   "components/postgres/resources"]}
+  :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
   :dev {:extra-deps {org.clojure/clojure {:mvn/version "1.10.3"}
@@ -99,17 +103,12 @@
                       "components/test-postgres/resources"
                       "components/user/src"
                       "components/user/resources"]}
-  :run {:extra-paths ["components/postgres/src"
-                      "components/postgres/resources"]
-        :main-opts ["-m" "sysrev.user"]}
-  :run-in-mem {:extra-paths ["components/postgres-in-mem/src"
-                             "components/postgres-in-mem/resources"]
-               :main-opts ["-m" "sysrev.user"]}
   :poly {:extra-deps {polyfy/polylith
                       {:git/url "https://github.com/polyfy/polylith.git"
                        :sha "9c018fac09fe80d405229f76b703f142700a70a6"
                        :deps/root "projects/poly"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
+  :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
                       etaoin/etaoin {:mvn/version "0.4.1"}
                       org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
