@@ -67,7 +67,7 @@
   [user-ids (s/* ::su/user-id)]
   (when (seq user-ids)
     (q/find :web-user {:user-id user-ids}
-            [:user-id :date-created :username :introduction])))
+            [:date-created :introduction :user-id :user-uuid :username])))
 
 (defn user-by-reset-code [reset-code]
   (q/find-one :web-user {:reset-code reset-code}))

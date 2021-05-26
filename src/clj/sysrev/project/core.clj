@@ -241,12 +241,6 @@
                   do-query first :count)
               0)))
 
-(defn project-users-info [project-id]
-  (with-project-cache project-id [:users-info]
-    (->> (do-query (q/select-project-members project-id [:u.*]))
-         (index-by :user-id)
-         (map-values #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
-
 (defn project-url-ids [project-id]
   (vec (q/find :project-url-id {:project-id project-id} [:url-id :user-id :date-created]
                :order-by [:date-created :desc])))

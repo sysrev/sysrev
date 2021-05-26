@@ -8,6 +8,7 @@
             [sysrev.notification.interface :as notification]
             [sysrev.project.compensation :as compensation]
             [sysrev.shared.spec.project :as sp]
+            [sysrev.user.interface :as user]
             [sysrev.util :as util :refer [in? opt-keys]]))
 
 (def valid-permissions ["member" "admin" "owner" "resolve"])
@@ -76,5 +77,10 @@
               {:permissions (db/to-sql-array "text" permissions)}
               :returning [:user-id :permissions])))
 
-
+(defn project-users-info [project-id]
+  (db/with-project-cache project-id [:users-info]
+    (->> (db/do-query (q/select-project-members project-id [:u.user-id]))
+         (map :user-id)
+         user/get-users-public-info
+         (util/index-by :user-id))))
 

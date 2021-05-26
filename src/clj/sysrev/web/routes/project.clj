@@ -111,7 +111,7 @@
            parent-project-info
            gengroups]
           (pvalues [(q/query-project-by-id project-id [:*])
-                    (project/project-users-info project-id)
+                    (member/project-users-info project-id)
                     (project/project-labels project-id true)
                     (project/project-keywords project-id)
                     (project/project-notes project-id)
