@@ -99,6 +99,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [nrepl.server :as nrepl]
             [sysrev.config :refer [env]]
+            [sysrev.fixtures.interface :as fixtures]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]
@@ -124,4 +125,5 @@
   (defonce nrepl (nrepl/start-server :handler cider-nrepl-handler))
   (spit ".nrepl-port" (:port nrepl))
   (log/info "Started nREPL on port" (:port nrepl))
+  (fixtures/load-fixtures!)
   (clojure.main/repl :init #(in-ns 'sysrev.user)))
