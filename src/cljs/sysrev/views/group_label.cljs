@@ -658,6 +658,8 @@
    {:bounds "window"
     :class-name "ui detached group-label-editor-rnd-container"
     :default default
+    :min-height "200px"
+    :min-width "360px"
     :on-drag-stop
     (fn [_ data]
       (-> (get-editor-settings)
