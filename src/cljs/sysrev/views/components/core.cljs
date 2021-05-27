@@ -692,9 +692,9 @@
                      (handle-click-outside %)))]
     (r/create-class
      {:component-did-mount
-      (fn []
+      (fn [this]
         (when handle-click-outside
-          (reset! dom-node (rdom/dom-node (r/current-component)))
+          (reset! dom-node (rdom/dom-node this))
           (js/document.addEventListener "click" handler)))
       :component-will-unmount
       (when handle-click-outside
