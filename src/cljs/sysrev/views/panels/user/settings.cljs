@@ -228,7 +228,7 @@
          (when @enabled?
            [:div
             [:p "API Key: " [:b @(subscribe [:user/api-key])]]
-            [:p "You can login at " [:a {:href "https://datasource.insilica.co" :target "_blank"} "datasource.insilica.co"] " using " [:b @(subscribe [:user/email])] " and your SysRev password."]])
+            [:p "You can login at " [:a {:href "https://datasource.insilica.co" :target "_blank"} "datasource.insilica.co"] " using " [:b @(subscribe [:self/email])] " and your SysRev password."]])
          (when (not @enabled?)
            [:div
             [:p "A developer account allows full access to SysRev and Datasource, the underlying data backend. Create your own custom datasources and import them using the SysRev and Datasource GraphQL interface."]])

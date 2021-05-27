@@ -1006,7 +1006,7 @@
         disabled-ids (sort-label-ids false)
         project-id    @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
-        group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+        group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
                                   (stripe/pro? project-plan))]
     (ensure-state)
     [:div.define-labels

@@ -49,8 +49,8 @@
          :content (content "Export" "download")
          :action (project-uri project-id "/export")})
       (when (and @(subscribe [:member/admin? true])
-                 (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
-                     (beta-compensation-user? @(subscribe [:user/email]))))
+                 (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
+                     (beta-compensation-user? @(subscribe [:self/email]))))
         {:tab-id :compensation
          :content (content "Compensation")
          :action (project-uri project-id "/compensations")})
