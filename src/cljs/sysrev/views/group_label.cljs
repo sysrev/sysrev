@@ -653,30 +653,52 @@
          labels))
       (->> (:labels answers) keys (map parse-integer) sort))]))
 
-(defn EditorContainer [{:keys [default]} & children]
-  [:> Rnd
-   {:bounds "window"
-    :class-name "ui detached group-label-editor-rnd-container"
-    :default default
-    :min-height "200px"
-    :min-width "360px"
-    :on-drag-stop
-    (fn [_ data]
-      (-> (get-editor-settings)
-        (assoc-in [:default :x] (.-x data))
-        (assoc-in [:default :y] (.-y data))
-        set-editor-settings))
-    :on-resize-stop
-    (fn [_ _ ref _ position]
-      (let [style (.-style ref)]
-        (-> (get-editor-settings)
-          (assoc-in [:default :height] (.-height style))
-          (assoc-in [:default :width] (.-width style))
-          (assoc-in [:default :x] (.-x position))
-          (assoc-in [:default :y] (.-y position))
-          set-editor-settings)))}
-   (into [:div]
-     children)])
+(defn is-visible? [node]
+  (let [rect (.getBoundingClientRect node)
+        view-height (Math/max js/document.documentElement.clientHeight
+                      js/window.innerHeight)]
+    (not (or (< (.-bottom rect) 0)
+             (>= (- (.-top rect) view-height) 0)))))
+
+(defn EditorContainer []
+  (let [rnd (atom nil)]
+    (r/create-class
+      {:component-did-mount
+       (fn [this]
+         (let [node (rdom/dom-node this)]
+           (when-not (is-visible? node)
+             (let [settings (update (get-editor-settings)
+                              :default #(assoc % :x 0 :y 0))
+                   rndc @rnd]
+               (set-editor-settings settings)
+               (when rndc
+                 (.updatePosition rndc #js{:x 0 :y 0}))))))
+       :reagent-render
+       (fn [{:keys [default]} & children]
+         [:> Rnd
+          {:bounds "window"
+           :class-name "ui detached group-label-editor-rnd-container"
+           :default default
+           :min-height "200px"
+           :min-width "360px"
+           :on-drag-stop
+           (fn [_ data]
+             (-> (get-editor-settings)
+               (assoc-in [:default :x] (.-x data))
+               (assoc-in [:default :y] (.-y data))
+               set-editor-settings))
+           :on-resize-stop
+           (fn [_ _ ref _ position]
+             (let [style (.-style ref)]
+               (-> (get-editor-settings)
+                 (assoc-in [:default :height] (.-height style))
+                 (assoc-in [:default :width] (.-width style))
+                 (assoc-in [:default :x] (.-x position))
+                 (assoc-in [:default :y] (.-y position))
+                 set-editor-settings)))
+           :ref #(reset! rnd %)}
+          (into [:div]
+            children)])})))
 
 (defn GroupLabelDiv [{:keys [article-id group-label-id] :as opts}]
   (let [multi? @(subscribe [:label/multi? "na" group-label-id])
