@@ -11,4 +11,4 @@
   (testing "usernames are correct"
     (e2e/doto-driver driver
       (go (e2e/path "/p/21696/users"))
-      (-> (e2e/wait-is-visible? {:fn/has-text "test-user-1"})))))
+      (e2e/wait-is-visible? {:fn/has-text "test-user-1"}))))
