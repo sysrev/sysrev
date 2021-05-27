@@ -1,7 +1,19 @@
 (ns sysrev.e2e.core
   (:require [clojure.test :as test]
             [etaoin.api :as ea]
-            [slingshot.slingshot :refer [try+]]))
+            [slingshot.slingshot :refer [try+]]
+            [sysrev.config :refer [env]]))
+
+(defn selenium-config []
+  (merge
+   {:protocol "http"
+    :host "localhost"
+    :port (-> env :server :port)}
+   (:selenium env)))
+
+(defn path [& args]
+  (let [{:keys [host port protocol]} (selenium-config)]
+    (apply str protocol "://" host (when port (str ":" port)) args)))
 
 (defn test-server-fixture [f]
   (f))

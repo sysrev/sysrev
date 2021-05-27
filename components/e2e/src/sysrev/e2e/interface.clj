@@ -1,6 +1,9 @@
 (ns sysrev.e2e.interface
   (:require [sysrev.e2e.core :as e2e]))
 
+(defn path [& args]
+  (apply e2e/path args))
+
 (defn test-server-fixture [f]
   (e2e/test-server-fixture f))
 

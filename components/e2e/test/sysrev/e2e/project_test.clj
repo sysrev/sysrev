@@ -10,5 +10,5 @@
 (deftest test-project-users
   (testing "usernames are correct"
     (e2e/doto-driver driver
-      (go "http://localhost:4061/p/21696/users")
+      (go (e2e/path "/p/21696/users"))
       (-> (e2e/wait-is-visible? {:fn/has-text "test-user-1"})))))

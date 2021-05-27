@@ -10,5 +10,5 @@
 (deftest test-search-users
   (testing "usernames are correct"
     (e2e/doto-driver driver
-      (go "http://localhost:4061/search?q=test-user&p=1&type=users")
+      (go (e2e/path "/search?q=test-user&p=1&type=users"))
       (-> (e2e/wait-is-visible? {:fn/has-text "test-user-1"})))))
