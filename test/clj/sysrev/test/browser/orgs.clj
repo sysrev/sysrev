@@ -28,10 +28,9 @@
   (xpath "//h3[contains(text(),'enter payment information')]"))
 
 (defn change-user-permission-dropdown [username]
-  (let [[username] (str/split username #"@")]
-    (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
-           "/ancestor::tr"
-           "/td/div[contains(@class,'change-org-user')]")))
+  (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
+         "/ancestor::tr"
+         "/td/div[contains(@class,'change-org-user')]"))
 (def change-role (xpath "//span[contains(text(),'Change role...')]"))
 (def org-change-role-button "#org-change-role-button")
 (def disabled-set-private-button (xpath "//button[@id='public-access_private' and contains(@class,'disabled')]"))
@@ -55,26 +54,24 @@
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"
   [username]
-  (let [[username] (str/split username #"@")]
-    (b/click "#org-members")
-    (b/click "#add-member-button" :delay 400)
-    (b/set-input-text-per-char "#org-search-users-input" username)
-    (b/click "button#submit-add-member")))
+  (b/click "#org-members")
+  (b/click "#add-member-button" :delay 400)
+  (b/set-input-text-per-char "#org-search-users-input" username)
+  (b/click "button#submit-add-member"))
 
 (defn change-user-permission
   "Set username to permission. Must be in Organization Settings of the
   org you wish to change permissions in. permission is either 'Owner'
   or 'Member'."
   [username permission]
-  (let [[username] (str/split username #"@")]
-    (b/click (change-user-permission-dropdown username) :delay 200)
-    (b/click change-role :delay 400)
-    (b/click (xpath "//label[contains(text(),'" permission "')]"
-                    "/ancestor::h4" "//label")
-             :delay 300)
-    (b/click org-change-role-button :delay 300)
-    (log/infof "changed org user permission (%s => %s)"
-               (pr-str username) (pr-str permission))))
+  (b/click (change-user-permission-dropdown username) :delay 200)
+  (b/click change-role :delay 400)
+  (b/click (xpath "//label[contains(text(),'" permission "')]"
+                  "/ancestor::h4" "//label")
+           :delay 300)
+  (b/click org-change-role-button :delay 300)
+  (log/infof "changed org user permission (%s => %s)"
+             (pr-str username) (pr-str permission)))
 
 (defn create-org [org-name]
   (b/click "#user-name-link")
@@ -116,7 +113,7 @@
    org-name-1-project (str "Foo Bar Article Reviews " (random-id))
    {:keys [user-id email]} test-user
    user1 (b/create-test-user :email "foo@bar.com")
-   [user1-name] (str/split (:email user1) #"@")
+   user1-name (:username user1)
    user-role #(get-in (org-user-table-entries) [% :permission])]
   (do
     (nav/log-in (:email test-user))
@@ -125,18 +122,18 @@
     (is (some #{"owner"} (user-group-permission user-id org-name-1)))
 ;;; an owner can add a user to the org
     ;; add a user
-    (add-user-to-org (:email user1))
+    (add-user-to-org user1-name)
     (b/is-soon (= "member" (user-role user1-name)) 3000 50)
     ;;an owner can change permissions of a member
-    (change-user-permission (:email user1) "Owner")
+    (change-user-permission user1-name "Owner")
     (b/is-soon (= "owner" (user-role user1-name)) 3000 50)
     ;; only an owner can change permissions, not a member
-    (change-user-permission (:email user1) "Member")
+    (change-user-permission user1-name "Member")
     (nav/log-in (:email user1))
     (b/click "#user-name-link")
     (b/click "#user-orgs")
     (b/click (xpath "//a[text()='" org-name-1 "']"))
-    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:email test-user)))))
+    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:username test-user)))))
     ;; an org is switched, the correct user list shows up
     (nav/log-in (:email test-user))
     (b/click "#user-name-link")
@@ -153,8 +150,8 @@
     ;; add user1 to Baz Qux as an owner
     (nav/go-route "/org/users")
     (switch-to-org org-name-2)
-    (add-user-to-org (:email user1))
-    (change-user-permission (:email user1) "Owner")
+    (add-user-to-org user1-name)
+    (change-user-permission user1-name "Owner")
     ;; log-in as user1 and see that they cannot create group projects
     (nav/log-in (:email user1))
     (b/click "#user-name-link")
@@ -168,7 +165,7 @@
     (b/exists? "#projects")
     (b/is-soon (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
-    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:email test-user)))))
+    (b/is-soon (not (taxi/exists? (change-user-permission-dropdown (:username test-user)))))
     ;; switch to org-name-2
     (switch-to-org org-name-2)
     ;; user can create projects here
@@ -176,7 +173,7 @@
     (b/wait-until-exists "#new-project.button")
     ;; can change user permissions for browser+test
     (b/click "#org-members")
-    (b/wait-until-exists (change-user-permission-dropdown (:email test-user)))
+    (b/wait-until-exists (change-user-permission-dropdown (:username test-user)))
     ;; billing link is available
     (b/exists? "#org-billing")
     ;; duplicate orgs can't be created
