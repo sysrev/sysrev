@@ -655,7 +655,8 @@
 
 (defn EditorContainer [{:keys [default]} & children]
   [:> Rnd
-   {:class-name "ui detached group-label-editor-rnd-container"
+   {:bounds "window"
+    :class-name "ui detached group-label-editor-rnd-container"
     :default default
     :on-drag-stop
     (fn [_ data]
