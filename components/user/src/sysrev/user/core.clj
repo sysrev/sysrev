@@ -22,6 +22,9 @@
             [sysrev.util :as util :refer [in? map-values]])
   (:import java.util.UUID))
 
+(def user-public-cols
+  [:date-created :introduction :user-id :user-uuid :username])
+
 (defn ^:repl all-users
   "Returns seq of short info on all users, for interactive use."
   []
@@ -66,8 +69,7 @@
   publicly viewable information for each user-id"
   [user-ids (s/* ::su/user-id)]
   (when (seq user-ids)
-    (q/find :web-user {:user-id user-ids}
-            [:date-created :introduction :user-id :user-uuid :username])))
+    (q/find :web-user {:user-id user-ids} user-public-cols)))
 
 (defn user-by-reset-code [reset-code]
   (q/find-one :web-user {:reset-code reset-code}))
@@ -191,7 +193,10 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [_self?]]
-  (-> (q/get-user user-id [:user-id :user-uuid :email :verified :permissions :settings :api-token])
+  (-> (q/get-user
+       user-id
+       (into user-public-cols
+             [:api-token :email :permissions :settings :verified]))
       (rename-keys {:api-token :api-key})))
 
 (defn user-self-info
