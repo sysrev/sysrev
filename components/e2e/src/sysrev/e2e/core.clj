@@ -42,3 +42,13 @@
    (catch [:type :etaoin/timeout] _
        nil))
   (test/is (ea/visible? driver q)))
+
+(defn log-in-as [driver email]
+  (doto driver
+    (ea/go (path "/login"))
+    (ea/wait-visible {:id "login-email-input"})
+    (ea/fill {:id "login-email-input"} email)
+    (ea/wait-visible {:id "login-password-input"})
+    (ea/fill {:id "login-password-input"} "override")
+    (ea/click-visible [{:id "login-register-panel"} {:tag :button}])
+    (ea/wait-visible {:fn/has-text "Your Projects"})))

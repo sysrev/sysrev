@@ -1,6 +1,9 @@
 (ns sysrev.e2e.interface
   (:require [sysrev.e2e.core :as e2e]))
 
+(defn log-in-as [driver email]
+  (e2e/log-in-as driver email))
+
 (defn path [& args]
   (apply e2e/path args))
 
