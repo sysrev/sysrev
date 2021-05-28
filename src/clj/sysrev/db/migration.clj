@@ -3,6 +3,7 @@
             [honeysql.helpers :as sqlh :refer [insert-into values]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.api :as api]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
@@ -20,13 +21,19 @@
   so that there is a record of their existence. If a plan is changed
   on the stripe, it is updated here."
   []
-  (let [plans (->> (:data (stripe/get-plans))
+  (let [plans (->> (if (#{:dev :test} (:profile env))
+                     (try
+                       (stripe/get-plans)
+                       (catch java.io.IOException e
+                         (log/error "Couldn't get plans in update-stripe-plans-table:" (class e))))
+                     (stripe/get-plans))
+                   :data
                    (mapv #(select-keys % [:nickname :created :id :interval :amount :tiers]))
                    (mapv #(update % :created (partial util/to-clj-time)))
                    (mapv #(update % :tiers db/to-jsonb)))]
     (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
       (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
-    (let [valid-plans (->> plans (remove #(nil? (:nickname %))))]
+    (when-let [valid-plans (->> plans (remove #(nil? (:nickname %))) seq)]
       (-> (insert-into :stripe-plan)
           (values valid-plans)
           (upsert (-> (on-conflict :nickname)
