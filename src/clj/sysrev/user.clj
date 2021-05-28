@@ -1,7 +1,8 @@
 #_{:clj-kondo/ignore [:unused-import :unused-namespace :unused-referred-var :use :refer-all]}
 (ns sysrev.user
   (:refer-clojure :exclude [find])
-  (:use sysrev.logging
+  (:use clojure.repl
+        sysrev.logging
         sysrev.util
         sysrev.db.core
         sysrev.db.listeners
