@@ -1,5 +1,6 @@
 (ns sysrev.file.user-image
   (:require [clj-http.client :as http]
+            [clojure.tools.logging :as log]
             [gravatar.core :as gr]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
@@ -86,8 +87,14 @@
 
 (defn gravatar-image-data [email]
   (let [gravatar-url (gr/avatar-url email :default 404 :https true)
-        response (http/get gravatar-url {:throw-exceptions false
-                                         :as :byte-array
-                                         :headers {"User-Agent" fake-user-agent}})]
+        response (try
+                   (http/get gravatar-url {:connection-timeout 1000
+                                           :socket-timeout 3000
+                                           :throw-exceptions false
+                                           :as :byte-array
+                                           :headers {"User-Agent" fake-user-agent}})
+                   (catch java.io.IOException e
+                     ;; Catch network errors like UnknownHostException
+                     (log/warn "Exception getting gravatar:" (class e))))]
     (when-not (= (:status response) 404)
       (:body response))))
