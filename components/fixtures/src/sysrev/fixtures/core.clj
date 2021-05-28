@@ -10,9 +10,11 @@
 (def ^{:doc "Table names specified in the order that they should be loaded in.
              Fixtures are loaded from resources/sysrev/fixtures/{{name}}.edn"}
   table-names
-  ["project"
+  ["groups"
+   "project"
    "web-user"
-   "project-member"])
+   "project-member"
+   "user-group"])
 
 (def readers
   {'sql/array types/read-sql-array})
