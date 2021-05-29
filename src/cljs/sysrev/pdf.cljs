@@ -48,7 +48,10 @@
     (nth (re-find #"/api/open-access/(\d+)/view/(.*)" pdf-url) 2)
     (nth (re-find #"/api/files/.*/article/(\d+)/view/(.*)/.*" pdf-url) 2)))
 
-(defn get-ann-context [pdf-url & [project-id]]
+(defn ^:unused get-ann-context
+  "This function is left over from PDF annotation functionality which was removed
+  when the PDF render library was replaced."
+  [pdf-url & [project-id]]
   (when pdf-url
     {:class "pdf"
      :project-id (or project-id @(subscribe [:active-project-id]))

@@ -112,7 +112,7 @@
       (q/find-one [:article :a] {:a.article-id article-id
                                  :lp.predict-run-id predict-run-id
                                  :lp.stage 1
-                                 :lp.label-value "TRUE" 
+                                 :lp.label-value "TRUE"
                                  :l.name "overall include"}
                   :lp.val, :join [[[:label-predicts :lp] :a.article-id]
                                   [[:label :l]           :lp.label-id]]))))
@@ -171,19 +171,6 @@
                    (get locations (name source)))))
        (apply concat)
        (filter identity)))
-
-(defn project-prediction-scores
-  "Given a project-id, return the prediction scores for all articles"
-  [project-id & {:keys [include-disabled? predict-run-id]
-                 :or {include-disabled? false}}]
-  (let [predict-run-id
-        (or predict-run-id
-            (first (q/find :predict-run {:project-id project-id} :predict-run-id
-                           :order-by [:create-time :desc] :limit 1)))]
-    (q/find [:label-predicts :lp] (cond-> {:a.project-id project-id
-                                           :lp.predict-run-id predict-run-id}
-                                    (not include-disabled?) (merge {:a.enabled true}))
-            [:a.article-id :lp.val], :join [[:article :a] :lp.article-id])))
 
 ;; FIX: get this PMCID value from somewhere other than raw xml
 (defn article-pmcid [_article-id]

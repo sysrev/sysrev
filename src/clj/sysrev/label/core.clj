@@ -431,49 +431,33 @@
                 :where (q/exists [:article-label :al]
                                  {:al.article-id :a.article-id})))
 
-(defn project-article-statuses [project-id]
-  (let [articles (query-public-article-labels project-id)
-        overall-id (project/project-overall-label-id project-id)]
-    (when overall-id
-      (vec (for [[article-id article-labels] articles]
-             (let [labels (get-in article-labels [:labels overall-id])
-                   group-status (article-consensus-status project-id article-id
-                                                          :articles articles :overall-id overall-id)
-                   #_ inclusion-status #_ (case group-status
-                                            :conflict nil
-                                            :resolved (-> (article-resolved-labels project-id article-id)
-                                                          (get overall-id))
-                                            (->> labels (map :inclusion) first))]
-               {:group-status group-status
-                :article-id article-id
-                :answer (:answer (first labels))}))))))
-
 (defn project-members-info [project-id]
   (with-project-cache project-id [:members-info]
     (let [users (-> (->>
-                      (q/find [:project-member :pm] {:pm.project-id project-id}
-                              [:u.*
-                               :pm.membership-id
-                               [:pm.permissions :project-permissions]
-                               [:g.name :gengroup-name]
-                               [:g.gengroup-id :gengroup-id]]
-                              :join [[[:web-user :u] :pm.user-id]]
-                              :left-join [[[:project-member-gengroup-member :pmgm] [:and
-                                                                                    [:= :pmgm.project-id :pm.project-id]
-                                                                                    [:= :pmgm.membership-id :pm.membership-id]]]
-                                          [[:gengroup :g] :pmgm.gengroup-id]])
+                     (q/find [:project-member :pm] {:pm.project-id project-id}
+                             [:u.*
+                              :pm.membership-id
+                              [:pm.permissions :project-permissions]
+                              [:g.name :gengroup-name]
+                              [:g.gengroup-id :gengroup-id]]
+                             :join [[[:web-user :u] :pm.user-id]]
+                             :left-join [[[:project-member-gengroup-member :pmgm]
+                                          [:and
+                                           [:= :pmgm.project-id :pm.project-id]
+                                           [:= :pmgm.membership-id :pm.membership-id]]]
+                                         [[:gengroup :g] :pmgm.gengroup-id]])
 
-                      (group-by :user-id)
-                      (map (fn [[_ items]]
-                             (let [gengroups (->> items
-                                                  (filter :gengroup-id)
-                                                  (map #(select-keys % [:gengroup-name :gengroup-id]))
-                                                  vec)]
-                               (-> (first items)
-                                   (dissoc :gengroup-name)
-                                   (dissoc :gengroup-id)
-                                   (assoc :gengroups gengroups)))))
-                      (index-by :user-id)))
+                     (group-by :user-id)
+                     (map (fn [[_ items]]
+                            (let [gengroups (->> items
+                                                 (filter :gengroup-id)
+                                                 (map #(select-keys % [:gengroup-name :gengroup-id]))
+                                                 vec)]
+                              (-> (first items)
+                                  (dissoc :gengroup-name)
+                                  (dissoc :gengroup-id)
+                                  (assoc :gengroups gengroups)))))
+                     (index-by :user-id)))
           inclusions (project-user-inclusions project-id)]
       (map-values (fn [{:keys [user-id membership-id project-permissions gengroups email]}]
                     {:email email
