@@ -23,7 +23,7 @@ clj_kondo_installed () {
 # (re)install ./scripts/clj-kondo if not found or wrong version
 if [ -z "$(clj_kondo_installed)" ] ; then
   echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
-  ./scripts/install-clj-kondo > /dev/null
+  ./scripts/install-clj-kondo > /dev/null || (echo "failed" && false)
   echo "done"
   ./scripts/clj-kondo --version
 fi
