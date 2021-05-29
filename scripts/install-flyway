@@ -6,7 +6,7 @@ if [[ -e "./flyway" ]]; then
   exit
 fi
 
-v="6.5.5"
+v="7.9.1"
 
 rm -f flyway
 rm -rf .flyway-*.* 2> /dev/null
