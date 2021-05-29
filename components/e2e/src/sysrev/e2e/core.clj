@@ -2,7 +2,9 @@
   (:require [clojure.test :as test]
             [etaoin.api :as ea]
             [slingshot.slingshot :refer [try+]]
-            [sysrev.config :refer [env]]))
+            [sysrev.config :refer [env]]
+            [sysrev.fixtures.interface :as fixtures]
+            [sysrev.init :as init]))
 
 (defn selenium-config []
   (merge
@@ -16,6 +18,8 @@
     (apply str protocol "://" host (when port (str ":" port)) args)))
 
 (defn test-server-fixture [f]
+  (init/start-app)
+  (fixtures/load-fixtures!)
   (f))
 
 ;; For REPL eval

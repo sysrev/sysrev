@@ -1,10 +1,9 @@
 (ns sysrev.e2e.search-test
-  (:require [sysrev.e2e.interface :as e2e]
-            [sysrev.fixtures.interface :as fixtures])
+  (:require [sysrev.e2e.interface :as e2e])
   (:use clojure.test
         etaoin.api))
 
-(use-fixtures :each fixtures/wrap-fixtures)
+(use-fixtures :each e2e/test-server-fixture)
 
 #_:clj-kondo/ignore
 (defn search [driver]
