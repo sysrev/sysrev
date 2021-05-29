@@ -20,10 +20,12 @@
     (is (empty? (get-users-public-info [1000000]))))
   (let [test-user-1 {:user-id 1000001
                      :date-created nil
+                     :user-uuid #uuid "f05fb191-0a28-4d37-a324-db4566128d12"
                      :username "test-user-1"
                      :introduction nil}
         test-user-2 {:user-id 1000002
                      :date-created nil
+                     :user-uuid #uuid "8845a64c-836f-46fd-8a0d-61fd50952a85"
                      :username "test-user-2"
                      :introduction nil}]
     (testing "Public info returns allowed fields"
@@ -41,6 +43,7 @@
     (is (empty? (search-users "69c2124b"))))
   (let [test-user-1 {:user-id 1000001
                      :date-created nil
+                     :user-uuid #uuid "f05fb191-0a28-4d37-a324-db4566128d12"
                      :username "test-user-1"
                      :introduction nil}]
     (testing "Exact search"
