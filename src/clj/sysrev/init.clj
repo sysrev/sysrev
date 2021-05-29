@@ -4,7 +4,8 @@
             sysrev.stacktrace
             [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.db.listeners :refer [start-listeners!
-                                         start-listener-handlers!]]
+                                         start-listener-handlers!
+                                         stop-listeners!]]
             [sysrev.db.migration :as migration]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config :refer [env]]
@@ -19,6 +20,10 @@
     (site/init-global-stats)
     (start-listeners!)
     db))
+
+(defn stop-db []
+  (db/close-active-db)
+  (stop-listeners!))
 
 (defn start-web [& [server-port-override only-if-new]]
   (let [prod? (= (:profile env) :prod)
