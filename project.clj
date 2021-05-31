@@ -66,6 +66,7 @@
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication
                  [clj-http "3.12.1"]
+                 [com.stuartsierra/component "1.0.0"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.4"] ;; email client
                  [amazonica "0.3.152"

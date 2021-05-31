@@ -1,4 +1,5 @@
-{:linters {:use {:level :off}
+{:linters {:redefined-var {:level :off}
+           :use {:level :off}
            :unresolved-var {:level :off}
            :unresolved-symbol {:exclude
                                [ ;; ignore unresolved symbols inside these macro forms

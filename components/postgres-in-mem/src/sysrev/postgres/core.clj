@@ -2,6 +2,8 @@
   (:require [clojure.java.shell :refer [sh]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [com.stuartsierra.component :as component]
+            [hikari-cp.core :as hikari-cp]
             [prestancedesign.get-port :as get-port]
             [sysrev.db.core :as db]
             [sysrev.config :refer [env]])
@@ -46,6 +48,14 @@
      (finally
        (restore-flyway-config))))
 
+(defn run-flyway! [db]
+  (with-flyway-config db
+    (log/info (str "Applying Flyway migrations...\n"
+                   (str/trimr (slurp "flyway.conf"))))
+    (if (ms-windows?)
+      (shell ".flyway-5.2.4/flyway.cmd" "migrate")
+      (shell "./flyway" "migrate"))))
+
 (defn start-db! [& [postgres-overrides only-if-new]]
   (let [port (get-port/get-port)
         dbname (str "postgres" port)
@@ -63,9 +73,47 @@
               (.executeUpdate (str "CREATE DATABASE " dbname)))
         db-config (db/make-db-config (merge db postgres-overrides))]
     (db/set-active-db! db-config only-if-new)
-    (with-flyway-config db
-      (log/info (str "Applying Flyway migrations...\n"
-                     (str/trimr (slurp "flyway.conf"))))
-      (if (ms-windows?)
-        (shell ".flyway-5.2.4/flyway.cmd" "migrate")
-        (shell "./flyway" "migrate")))))
+    (run-flyway! db)))
+
+(defn make-datasource
+  "Creates a Postgres db pool object to use with JDBC."
+  [config]
+  (-> {:minimum-idle 4
+       :maximum-pool-size 10
+       :adapter "postgresql"}
+      (assoc :username (:user config)
+             :password (:password config)
+             :database-name (:dbname config)
+             :server-name (:host config)
+             :port-number (:port config))
+      hikari-cp/make-datasource))
+
+(defrecord Postgres [config datasource pg]
+  component/Lifecycle
+  (start [this]
+    (if datasource
+      this
+      (let [pg (-> (EmbeddedPostgres/builder)
+                   (.setPort (:port config))
+                   .start)]
+        (-> pg .getPostgresDatabase .getConnection .createStatement
+            (.executeUpdate (str "CREATE DATABASE " (:dbname config))))
+        (run-flyway! config)
+        (assoc this :datasource (make-datasource config) :pg pg))))
+  (stop [this]
+    (if-not datasource
+      this
+      (do
+        (hikari-cp/close-datasource datasource)
+        (.close pg)
+        (assoc this :datasource nil :pg nil)))))
+
+(defn postgres [& [postgres-overrides]]
+  (let [port (get-port/get-port)
+        dbname (str "postgres" port)
+        db {:dbname dbname
+            :dbtype "postgres"
+            :host "localhost"
+            :port port
+            :user "postgres"}]
+    (map->Postgres {:config (merge db postgres-overrides)})))

@@ -1,2 +1,3 @@
 {:paths ["src" "resources"]
- :deps {}}
+ :deps {com.stuartsierra/component {:mvn/version "1.0.0"}
+        hikari-cp/hikari-cp {:mvn/version "2.13.0"}}}
