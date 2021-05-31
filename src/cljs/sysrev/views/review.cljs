@@ -1,11 +1,9 @@
 (ns sysrev.views.review
   (:require ["jquery" :as $]
-            ["fomantic-ui"]
             [clojure.set :as set]
             [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
-            [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
                                    reg-event-db reg-event-fx trim-v]]
             [sysrev.action.core :as action]
@@ -82,8 +80,8 @@
                     {::add-label-value [article-id root-label-id
                                         label-id ith label-value]}))))
 
-(defn missing-answer? [{:keys [required value-type]} answer]
-  (and required
+(defn missing-answer? [{:keys [enabled required value-type]} answer]
+  (and enabled required
        (case value-type
          "boolean" (not (boolean? answer))
          "categorical" (empty? answer)
@@ -159,54 +157,47 @@
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]
   (let [answer (subscribe [:review/active-labels
                            article-id root-label-id label-id ith])]
-    [ui/three-state-selection
+    [ui/ThreeStateSelection
      {:set-answer! #(dispatch [:review/set-label-value
                                article-id root-label-id label-id ith %])
       :value answer}]))
 
 (defn CategoricalLabelInput [[root-label-id label-id ith] article-id]
-  (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)
-        input-name (str "label-edit(" dom-class ")")]
-    (r/create-class
-     {;; see https://github.com/mcku/UI-Dropdown/blob/master/dropdown.js
-      ;; for dropdown class options
-      :component-did-mount
-      (fn [this]
-        (->> {:duration 125 :action "hide"
-              :onChange (fn [v _t] (dispatch [::add-label-value
-                                              article-id root-label-id label-id ith v]))}
-             (clj->js) (.dropdown ($ (dom-node this)))))
-      :reagent-render
-      (fn [[root-label-id label-id ith] article-id]
-        (when (= article-id @(subscribe [:review/editing-id]))
-          (let [required?      @(subscribe [:label/required? root-label-id label-id])
-                all-values     @(subscribe [:label/all-values root-label-id label-id])
-                current-values @(subscribe [:review/active-labels
-                                            article-id root-label-id label-id ith])
-                touchscreen?   @(subscribe [:touchscreen?])
-                unsel-values   (vec (set/difference (set all-values)
-                                                    (set current-values)))
-                on-deselect    (fn [v] #(dispatch [::remove-label-value
-                                                   article-id root-label-id label-id
-                                                   ith v]))]
-            [(if touchscreen?
-               :div.ui.small.fluid.multiple.selection.dropdown
-               :div.ui.small.fluid.search.selection.dropdown.multiple)
-             {:key [:dropdown dom-class] :class dom-class}
-             (map (fn [v] [:a.ui.label {:key [(str "sel-" label-id "-" v)]
-                                        :on-click (on-deselect v)}
-                           v [:i.delete.icon]])
-                  current-values)
-             [:input {:name input-name
-                      :value (str/join "," current-values)
-                      :type "hidden"}]
-             [:i.dropdown.icon]
-             (when (empty? current-values)
-               [:div.default.text "No answer selected"
-                (when required? [:span.default.bold "(required)"])])
-             [:div.menu (map (fn [v] ^{:key [v]}
-                               [:div.item {:data-value v} v])
-                             unsel-values)]])))})))
+  (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)]
+    (when (= article-id @(subscribe [:review/editing-id]))
+      (let [required?      @(subscribe [:label/required? root-label-id label-id])
+            all-values     @(subscribe [:label/all-values root-label-id label-id])
+            current-values @(subscribe [:review/active-labels
+                                        article-id root-label-id label-id ith])
+            touchscreen?   @(subscribe [:touchscreen?])
+            _unsel-values  (vec (set/difference (set all-values)
+                                                (set current-values)))
+            _on-deselect    (fn [v] #(dispatch [::remove-label-value
+                                                article-id root-label-id label-id
+                                                ith v]))]
+        [S/Dropdown {:key [:dropdown dom-class]
+                     :class dom-class
+                     :size "small" :fluid true
+                     :selection true :multiple true :icon "dropdown"
+                     :search (not touchscreen?)
+                     :options (vec (for [[i v] (map-indexed vector all-values)]
+                                     {:key i
+                                      :value v
+                                      :text v}))
+                     :value (into [] current-values)
+                     :close-on-change true
+                     #_ :render-label #_ (fn [x]
+                                           (js/console.log "x is" x)
+                                           {:icon "delete"
+                                            :content (str (.-text x))
+                                            :on-click (on-deselect (js->clj (.-value x)))})
+                     :placeholder (when (empty? current-values)
+                                    (str "No answer selected"
+                                         (when required? " (required)")))
+                     :on-change (fn [_e x]
+                                  (dispatch [:review/set-label-value
+                                             article-id root-label-id label-id ith
+                                             (js->clj (.-value x))]))}]))))
 
 (defn AnnotationLabelInput [[root-label-id label-id ith] article-id]
   (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)
@@ -346,11 +337,10 @@
   (let [criteria? (= category "inclusion criteria")
         required? required
         examples (:examples definition)]
-    [:div.ui.inverted.grid.popup.transition.hidden.label-help
-     {:on-click (util/wrap-user-event #(do nil))}
+    [:div.ui.grid.label-help
      [:div.middle.aligned.center.aligned.row.label-help-header
       [:div.ui.sixteen.wide.column
-       [:span {:style {:font-size "110%"}}
+       [:span #_ {:style {:font-size "110%"}}
         (str (cond (and criteria? required?)
                    "Required - Inclusion Criteria"
                    (and criteria? (not required?))
@@ -418,42 +408,42 @@
         question @(subscribe [:label/question "na" label-id])
         on-click-help (util/wrap-user-event #(do nil) :timeout false)
         answer @(subscribe [:review/active-labels article-id "na" label-id "na"])]
-    [:div.ui.column.label-edit {:class label-css-class}
+    [:div.ui.column.label-edit {:class label-css-class
+                                :data-label-id (str label-id)
+                                :data-short-label (str label-string)}
      [:div.ui.middle.aligned.grid.label-edit
-      [ui/with-tooltip
-       (let [name-content
-             [:span.name
-              {:class (css [(>= (count label-string) 30) "small-text"])}
-              [:span.inner label-string]]]
-         (if (and (util/mobile?) (>= (count label-string) 30))
-           [:div.ui.row.label-edit-name {:on-click on-click-help}
-            [inclusion-tag article-id "na" label-id "na"]
-            [:span.name " "]
-            (when (not-empty question)
-              [:i.right.floated.fitted.grey.circle.question.mark.icon])
-            [:div.clear name-content]]
-           [:div.ui.row.label-edit-name {:on-click on-click-help
-                                         :style {:cursor "help"}}
-            [inclusion-tag article-id "na" label-id "na"]
-            name-content
-            (when (not-empty question)
-              [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
-       {:variation "basic"
-        :delay {:show 350, :hide 25}
-        :duration 100
+      [ui/Tooltip
+       {:class "label-help"
+        :basic true
         :hoverable false
-        :inline true
+        :distance-away 6
         :position (if (= n-cols 1)
                     (if (<= label-position 1) "bottom center" "top center")
                     (cond (= row-position :left)   "top left"
                           (= row-position :right)  "top right"
                           :else                    "top center"))
-        :distanceAway 5}]
-      [label-help-popup {:category @(subscribe [:label/category "na" label-id])
-                         :required @(subscribe [:label/required? "na" label-id])
-                         :question @(subscribe [:label/question "na" label-id])
-                         :definition {:examples @(subscribe [:label/examples
-                                                             "na" label-id])}}]
+        :trigger (let [name-content [:span.name {:class (css [(>= (count label-string) 30)
+                                                              "small-text"])}
+                                     [:span.inner.short-label label-string]]]
+                   (if (and (util/mobile?) (>= (count label-string) 30))
+                     [:div.ui.row.label-edit-name {:on-click on-click-help}
+                      [inclusion-tag article-id "na" label-id "na"]
+                      [:span.name " "]
+                      (when (seq question)
+                        [:i.right.floated.fitted.grey.circle.question.mark.icon])
+                      [:div.clear name-content]]
+                     [:div.ui.row.label-edit-name {:on-click on-click-help
+                                                   :style {:cursor "help"}}
+                      [inclusion-tag article-id "na" label-id "na"]
+                      name-content
+                      (when (seq question)
+                        [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
+        :tooltip [label-help-popup
+                  {:category @(subscribe [:label/category "na" label-id])
+                   :required @(subscribe [:label/required? "na" label-id])
+                   :question @(subscribe [:label/question "na" label-id])
+                   :definition {:examples @(subscribe [:label/examples
+                                                       "na" label-id])}}]}]
       [:div.ui.row.label-edit-value {:class (condp = value-type
                                               "boolean"      "boolean"
                                               "categorical"  "category"
@@ -552,17 +542,18 @@
                         :on-click (when-not (or disabled? saving?) on-save)}
                        (str (if resolving? "Resolve" "Save") (when-not small? "Labels"))
                        [:i.check.circle.outline.icon]])]
-    (list (if disabled?
-            ^{:key :save-button} [ui/with-tooltip [:div [button]]]
-            ^{:key :save-button} [button])
-          ^{:key :save-button-popup}
-          [:div.ui.inverted.popup.top.left.transition.hidden
-           {:style {:min-width "20em"}}
-           [:ul {:style {:padding-left "1.25em"}}
-            (when (seq missing)
-              [:li "Answer missing for a required label"])
-            (when (seq invalid)
-              [:li "Invalid label answer(s)"])]])))
+    (if disabled?
+      [ui/Tooltip
+       {:trigger [:div [button]]
+        :tooltip [:div {:style {:min-width "20em"}}
+                  [:ul {:style {:margin 0
+                                :padding "0.15em"
+                                :padding-left "1.25em"}}
+                   (when (seq missing)
+                     [:li "Answer missing for a required label"])
+                   (when (seq invalid)
+                     [:li "Invalid label answer(s)"])]]}]
+      [button])))
 
 (defn SkipArticle [article-id & [small? fluid?]]
   (let [project-id @(subscribe [:active-project-id])
@@ -734,4 +725,3 @@
        [:div.column (SaveButton article-id true true)]
        (when review-task?
          [:div.column (SkipArticle article-id true true)])])))
-

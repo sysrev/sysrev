@@ -78,7 +78,7 @@
              [:reload [:project project-id]]
              [:reload [:project/sources project-id]]
              [::set [:edit-source-modal source-id :open] false]
-             [:toast {:class "success" :message message}])})))
+             [:alert {:content message :opts {:success true}}])})))
 
 (def-action :sources/re-import
   :uri (fn [] "/api/re-import-source")
@@ -103,19 +103,21 @@
         project-id @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
         has-pro? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
-                     (stripe/pro? project-plan)) 
+                     (stripe/pro? project-plan))
         source-check-new-results? (r/cursor state (concat modal-state-path [:form-data :check-new-results?]))
         source-import-new-results? (r/cursor state (concat modal-state-path [:form-data :import-new-results?]))
         source-notes (r/cursor state (concat modal-state-path [:form-data :notes]))]
     (fn [source]
-      [Modal {:trigger (r/as-element
-                         [:div.ui.tiny.fluid.labeled.icon.button.edit-button
-                          {:on-click #(dispatch [::set modal-state-path {:open true
-                                                                         :form-data {:check-new-results? (:check-new-results source)
-                                                                                     :import-new-results? (:import-new-results source)
-                                                                                     :notes (:notes source)}}])}
-                          "Edit"
-                          [:i.pencil.icon]])
+      [Modal {:trigger
+              (r/as-element
+               [:div.ui.tiny.fluid.labeled.icon.button.edit-button
+                {:on-click
+                 #(dispatch [::set modal-state-path
+                             {:open true
+                              :form-data {:check-new-results? (:check-new-results source)
+                                          :import-new-results? (:import-new-results source)
+                                          :notes (:notes source)}}])}
+                "Edit" [:i.pencil.icon]])
               :class "tiny"
               :open @modal-open
               :on-open #(reset! modal-open true)
@@ -125,36 +127,45 @@
        [ModalContent
         [ModalDescription
          [Form {:on-submit (util/wrap-prevent-default
-                             #(dispatch [:action [:sources/update project-id (:source-id source)
-                                                  {:check-new-results? @source-check-new-results?
-                                                   :import-new-results? @source-import-new-results?
-                                                   :notes @source-notes}]]))}
+                            #(dispatch [:action [:sources/update project-id (:source-id source)
+                                                 {:check-new-results? @source-check-new-results?
+                                                  :import-new-results? @source-import-new-results?
+                                                  :notes @source-notes}]]))}
           [FormField
            [Checkbox {:label "Check new results"
                       :id "check-new-results-checkbox"
                       :checked @source-check-new-results?
-                      :on-change (util/on-event-checkbox-value
-                                   (fn [v]
-                                     (if has-pro?
-                                       (reset! source-check-new-results? v)
-                                       (dispatch [:toast {:title "Pro plan required"
-                                                          :class "blue"
-                                                          :message "This feature is only available for pro users."
-                                                          :displayTime 0
-                                                          :actions [{:text "Maybe later"}
-                                                                    {:text "Purchase plan"
-                                                                     :class "black"
-                                                                     :click #(dispatch [:nav "/user/plans"])}]}]))
-                                     true))}]
+                      :on-change
+                      (util/on-event-checkbox-value
+                       (fn [v]
+                         (if has-pro?
+                           (reset! source-check-new-results? v)
+                           (dispatch [:alert
+                                      {:header "Pro plan required"
+                                       :content "This feature is only available for pro users."
+                                       :opts {:info true}}])
+                           #_
+                           (dispatch [:toast
+                                      {:title "Pro plan required"
+                                       :class "blue"
+                                       :message "This feature is only available for pro users."
+                                       :displayTime 0
+                                       :actions [{:text "Maybe later"}
+                                                 {:text "Purchase plan"
+                                                  :class "black"
+                                                  :click #(dispatch [:nav "/user/plans"])}]}]))
+                         true))}]
            " "
            (when-not has-pro?
              [:i.chess.king.icon.yellow {:title "Pro feature"}])]
-          ;; [FormField
-          ;;  [Checkbox {:label "Auto import new results"
-          ;;             :id "import-new-results-checkbox"
-          ;;             :disabled (not @source-check-new-results?)
-          ;;             :checked @source-import-new-results?
-          ;;             :on-change (util/on-event-checkbox-value #(reset! source-import-new-results? %))}]]
+          #_
+          [FormField
+           [Checkbox
+            {:label "Auto import new results"
+             :id "import-new-results-checkbox"
+             :disabled (not @source-check-new-results?)
+             :checked @source-import-new-results?
+             :on-change (util/on-event-checkbox-value #(reset! source-import-new-results? %))}]]
           [FormField
            [:label "Notes"]
            [TextArea {:label "Notes"
@@ -205,17 +216,20 @@
     [:div
      [:h5
       "Upload a plain text file containing a list of PubMed IDs (one per line)."
-      [Popup {:hoverable true
-              :trigger (r/as-element [Icon {:name "question circle"}])
-              :content (r/as-element
-                        [:div
-                         [:h5 [:p "Export a PMID file from PubMed"]]
-                         [ListUI
-                          [ListItem "1. Click " [:b "Send To"] " the top right of the PubMed search results"]
-                          [ListItem "2. Select 'File' for " [:b "Choose Destination"]]
-                          [ListItem "3. Select 'PMID file' for " [:b "Format"]]
-                          [ListItem "4. Click " [:b "Create File"] " button to download"]
-                          [ListItem "4. Import the downloaded txt file with the " [:b "Upload Text File..."] " import button below"]]])}]
+      [Popup
+       {:hoverable true
+        :trigger (r/as-element [Icon {:name "question circle"}])
+        :content
+        (r/as-element
+         [:div
+          [:h5 [:p "Export a PMID file from PubMed"]]
+          [ListUI
+           [ListItem "1. Click " [:b "Send To"] " the top right of the PubMed search results"]
+           [ListItem "2. Select 'File' for " [:b "Choose Destination"]]
+           [ListItem "3. Select 'PMID file' for " [:b "Format"]]
+           [ListItem "4. Click " [:b "Create File"] " button to download"]
+           [ListItem "4. Import the downloaded txt file with the "
+            [:b "Upload Text File..."] " import button below"]]])}]
       [:a {:href "https://www.youtube.com/watch?v=8XTxAbaTpIY"
            :target "_blank"} [Icon {:name "video camera"}]]]
      [ui/UploadButton
@@ -242,7 +256,9 @@
       "Upload Zip File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
-      {} :post-error-text "Try editing your file to fit the upload instructions above or contact us at info@insilica.co with a copy of your zip file."]]))
+      {}
+      :post-error-text "Try editing your file to fit the upload instructions above
+or contact us at info@insilica.co with a copy of your zip file."]]))
 
 (defn ImportJSONView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -256,7 +272,8 @@
       "Upload JSON File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
-      {} :post-error-text "Try editing your file to fit the upload instructions above or contact us at info@insilica.co with a copy of your JSON file."]]))
+      {} :post-error-text "Try editing your file to fit the upload instructions above or
+contact us at info@insilica.co with a copy of your JSON file."]]))
 
 (defn ImportRISView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -276,7 +293,8 @@
                          [:b "Note: Make sure to include abstracts when exporting files!"]])}]
       [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw"
            :target "_blank"} [Icon {:name "video camera"}]]]
-     [:p "Having difficulties? We recommend using the free citation manager " [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] ". "]
+     [:p "Having difficulties? We recommend using the free citation manager "
+      [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] "."]
      [ui/UploadButton
       (str "/api/import-articles/ris/" project-id)
       #(dispatch [:on-add-source project-id])
@@ -284,7 +302,8 @@
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
       {}
-      :post-error-text "Try processing your file with Zotero using the 'Having difficulties importing your RIS file?' instructions above."]]))
+      :post-error-text "Try processing your file with Zotero using the
+'Having difficulties importing your RIS file?' instructions above."]]))
 
 (defn DeleteArticleSource [source-id]
   (let [project-id @(subscribe [:active-project-id])]
@@ -355,7 +374,7 @@
   (when (> (:new-articles-available source) 0)
     (let [project-id @(subscribe [:active-project-id])]
       [:div.ui.blue.mt-2
-       [:span.ui.text.blue 
+       [:span.ui.text.blue
         (:new-articles-available source) " new articles found. "]
        [:div.mt-1
         [:div.ui.mini.button.blue
@@ -461,7 +480,6 @@
           (poll-project-sources project-id))
         [:div.project-source>div.ui.segments.project-source
          [SourceInfoView project-id source-id]
-         
          [:div.ui.segment.source-details {:class segment-class}
           [:div.ui.middle.aligned.stackable.grid>div.row
            (cond
@@ -518,7 +536,6 @@
                      " unique " (article-or-articles unique-articles-count)
                      " "
                      [ReImportSource source]])
-                  
                   (doall
                    (for [{shared-count :count, overlap-source-id :overlap-source-id}
                          (filter #(pos? (:count %)) (:overlap source))]
@@ -534,11 +551,8 @@
                     :class (if (util/desktop-size?) "two wide" "three wide")}
                    [ToggleArticleSource source-id enabled]
                    [EditSourceModal source]
-                   
-                   
                    (when (zero? labeled-article-count)
                      [DeleteArticleSource source-id])
-                   
                    ;; should include any JSON / XML sources
                    ;; TODO: Fix this so CT.gov uses regular article content
                    ;; this should only dispatch on mimetype, not on source-name
@@ -554,7 +568,6 @@
                    [:div.six.wide.column.placeholder    {:key :placeholder}]
                    [:div.two.wide.column.right.aligned  {:key :loader}
                     [:div.ui.small.active.loader]]))]]
-        
          (when-not (str/blank? (:notes source))
            [:div.ui.segment
             [:h4 "Notes"]
@@ -592,27 +605,23 @@
   [:div.ui.segment {:style {:margin-left "auto"
                             :margin-right "auto"
                             :max-width "600px"}}
-   [:b "Need to review something else? " [:a {:href "/managed-review"} "Talk to us"] " about integrating unique datasources including JSON, XML, and more."]])
+   [:b "Need to review something else? " [:a {:href "/managed-review"} "Talk to us"]
+    " about integrating unique datasources including JSON, XML, and more."]])
 
-(defn DatasourceIcon
-  [{:keys [text value name]}]
+(defn DatasourceIcon [{:keys [text value name]}]
   (let [active? (= @(subscribe [:add-articles/import-tab]) value)]
-    [:div {:on-click #(dispatch-sync [:add-articles/import-tab value])
-           :class (cond-> "datasource-item"
-                    active? (str " active"))
-           :style {:display "inline-block"
-                   :text-align "center"
-                   :margin "1em 1em 0 1em"}}
-     [:div {:style {:flex "0 0 120px"
-                    :cursor "pointer"}}
-      [Icon {:name name
-             :size "big"}]
-      [:p {:style {:margin-top "1em"} } text]]]))
+    [:div.datasource-item {:on-click #(dispatch-sync [:add-articles/import-tab value])
+                           :class (css [active? "active"])
+                           :style {:display "inline-block"
+                                   :text-align "center"
+                                   :margin "1em 1em 0 1em"}}
+     [:div {:style {:flex "0 0 120px" :cursor "pointer"}}
+      [Icon {:name name :size "big"}]
+      [:p {:style {:margin-top "1em"}} text]]]))
 
 (defn DatasourceIconList [options]
   [:div {:style {:padding-bottom 20}}
-   (for [option options]
-     ^{:key (:value option)}
+   (for [option options] ^{:key (:value option)}
      [DatasourceIcon option])])
 
 (defn ImportArticlesView []
@@ -654,8 +663,8 @@
           :endnote   [:div [:h3 "2. Upload an Endnote XML file export"] [ImportEndNoteView]]
           :pdfs      [:div [:h3 "2. Import PDF files"] [ImportPDFsView]]
           :json      [:div [:h3 "2. JSON file"] [ImportJSONView]]
-          :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs. An article entry will be created for each PDF."]
-                      [ImportPDFZipsView]]
+          :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.
+An article entry will be created for each PDF."] [ImportPDFZipsView]]
           :ris-file  [ImportRISView]
           :ctgov (if (and (= js/window.location.hostname "sysrev.com")
                           (not (some #{@(subscribe [:self/email])}
@@ -681,19 +690,18 @@
        :ctgov  [ctgov/SearchResultsContainer]
        nil)]))
 
-
 (defn DocumentImport []
   (let [project-id @(subscribe [:active-project-id])
         visible? @(subscribe [::add-documents-visible project-id])
         sources @(subscribe [:project/sources])]
     [:div {:style {:padding-bottom 10}}
      [Button {:id "enable-import"
-              :style {:display "inline"}
-              :disabled visible?
               :size "huge" :positive true
+              :disabled visible?
               :on-click (fn []
                           (dispatch [::add-documents-visible true])
-                          (dispatch-sync [:add-articles/import-tab nil]))}
+                          (dispatch-sync [:add-articles/import-tab nil]))
+              :style {:display "inline"}}
       "Add Documents"]
      (when (empty? sources)
        [:h3.inline {:style {:margin-left "0.75rem"}}

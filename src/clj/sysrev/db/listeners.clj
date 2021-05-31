@@ -10,7 +10,7 @@
   (:import com.impossibl.postgres.api.jdbc.PGNotificationListener
            com.impossibl.postgres.jdbc.PGDataSource))
 
-(defn pgjdbc-ng-conn []
+(defn- pgjdbc-ng-conn []
   (let [{:keys [config]} @active-db
         {:keys [dbname host password port user]} config
         ds (PGDataSource.)]
@@ -22,7 +22,7 @@
       (.setUser user))
     (.getConnection ds)))
 
-(defn build-listener
+(defn- build-listener
   "Build an async listener that subscribes to a postgres channel using
   LISTEN and executes f whenever it receives a notification.
 
@@ -39,7 +39,7 @@
     (closed [this]
       (closed-f))))
 
-(defn register-listener [channel-names f]
+(defn- register-listener [channel-names f]
   (let [conn (pgjdbc-ng-conn)
         close? (atom false)]
     (binding [*conn* conn]
@@ -59,7 +59,7 @@
       (log/info "Closing postgres notification listener.")
       (.close conn))))
 
-(defn register-channels
+(defn- register-channels
   "Takes a map of channel names to core.async channels. Registers
   postgres listeners for each channel that send each notification to
   the matching channel.
@@ -71,7 +71,7 @@
    (fn [_process-id channel-name payload]
      (go (>! (channel-map channel-name) payload)))))
 
-(def listener-handlers
+(def ^:private listener-handlers
   {"notification" #'handle-notification
    "notification_notification_subscriber" #'handle-notification-notification-subscriber})
 
@@ -87,7 +87,7 @@
      {:channels channels
       :close-f (register-channels channels)})))
 
-(defn handle-listener [f chan]
+(defn- handle-listener [f chan]
   (go
     (while true
       (try
@@ -106,3 +106,6 @@
   (let [chans (:channels @listener-state)]
     (doseq [[k f] listener-handlers]
       (handle-listener f (get chans k)))))
+
+(defn stop-listeners! []
+  (some-> (:close-f @listener-state) (apply nil)))

@@ -475,7 +475,7 @@
           [:div.content "Significant discordance. Reviewers may not understand some tasks."]])
        [BetaMessage]
        [:p "User concordance tracks how often users agree with each other." [:br]
-        "Learn more at " [ui/url-link "https://blog.sysrev.com/concordance"] "."]]
+        "Learn more at " [ui/UrlLink "https://blog.sysrev.com/concordance"] "."]]
       [Column {:width rwidth :text-align "center" :vertical-align "middle"}
        [:h3 [:a {:href (shared/links :analytics)} "Youtube Demo Video"]]] ]
      [segment

@@ -187,7 +187,7 @@
                     :on-click (util/wrap-user-event
                                #(dispatch [:article-list/set-recent-article context article-id]))}
         time-label #(when (some-> updated-time (not= 0))
-                      [ui/updated-time-label (util/time-from-epoch updated-time) true])]
+                      [ui/UpdatedTimeLabel (util/time-from-epoch updated-time) true])]
     [:div.row
      [:div.sixteen.wide.column.article-entry
       [:div.ui.middle.aligned.grid.article-main>div.row
@@ -386,9 +386,7 @@
        (if (util/full-size?)
          [:div.ui.grid.article-list-grid>div.row
           [:div.column.filters-column {:class (css [expanded? "five" :else "one"] "wide")}
-           [f/ArticleListFiltersColumn context expanded?]
-           #_ [ui/WrapFixedVisibility 10
-               [f/ArticleListFiltersColumn context expanded?]]]
+           [f/ArticleListFiltersColumn context expanded?]]
           [:div.column.content-column {:class (css [expanded? "eleven" :else "fifteen"] "wide")}
            [:div.ui.form [:div.field>div.fields>div.sixteen.wide.field
                           [f/TextSearchInput context]]]

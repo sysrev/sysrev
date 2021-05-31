@@ -3,6 +3,7 @@
             sysrev.logging
             sysrev.stacktrace
             [sysrev.config :refer [env]]
+            [sysrev.db.core :as db]
             [sysrev.db.listeners :as listeners]
             [sysrev.db.migration :as migration]
             [sysrev.postgres.interface :as postgres]
@@ -10,6 +11,10 @@
             [sysrev.web.core :refer [run-web]]
             [sysrev.web.routes.site :as site])
   (:import [java.net BindException]))
+
+(defn stop-db []
+  (db/close-active-db)
+  (listeners/stop-listeners!))
 
 (defn start-web [& [server-port-override only-if-new]]
   (let [prod? (= (:profile env) :prod)

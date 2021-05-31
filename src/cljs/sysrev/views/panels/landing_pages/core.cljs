@@ -2,7 +2,7 @@
   (:require [re-frame.core :refer [subscribe reg-sub]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.nav :as nav]
-            [sysrev.views.components.core :refer [url-link]]
+            [sysrev.views.components.core :refer [UrlLink]]
             [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [with-loader]]))
 
@@ -76,7 +76,7 @@
    (when img [:div.image [:img {:src img :alt img-alt}]])
    [:div.content
     (when header       [:a.header (when href {:href href}) header])
-    (when href         [:div.meta [url-link href]])
+    (when href         [:div.meta [UrlLink href]])
     (when description  [:div.description description])]
    (when (seq extra)
      [:div.extra.content

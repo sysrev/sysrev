@@ -6,7 +6,7 @@
             [cljs-time.core :as t]
             [reagent.core :as r]
             [sysrev.views.components.core :as ui
-             :refer [updated-time-label note-content-label]]
+             :refer [UpdatedTimeLabel NoteContentLabel]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.annotator :as ann]
             [sysrev.views.semantic :refer [Button Icon]]
@@ -172,12 +172,12 @@
         (when (real-answer? answer)
           ^{:key (str label-id)} [LabelAnswerTag "na" label-id answer])))
      (doall ;; annotation labels
-            (for [[annotation-label-id answer] (->> all-label-ids
-                                                    (filter #(= "annotation" (value-type %)))
-                                                    (map #(list % (get-in labels [% :answer]))))]
-              ^{:key (str annotation-label-id)}
-              [AnnotationLabelAnswerTag {:annotation-label-id annotation-label-id
-                                         :answer answer}]))
+      (for [[annotation-label-id answer] (->> all-label-ids
+                                              (filter #(= "annotation" (value-type %)))
+                                              (map #(list % (get-in labels [% :answer]))))]
+        ^{:key (str annotation-label-id)}
+        [AnnotationLabelAnswerTag {:annotation-label-id annotation-label-id
+                                   :answer answer}]))
      (doall ;; group labels
       (for [[group-label-id answer] (->> all-label-ids
                                          (filter #(= "group" (value-type %)))
@@ -185,14 +185,14 @@
         ^{:key (str group-label-id)}
         [GroupLabelAnswerTag {:group-label-id group-label-id
                               :answers (:labels answer)}]))
-     
+
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])
      (when resolved?
        [:div.ui.basic.purple.label.labels-status "Resolved"])
      (for [note-name (keys notes)] ^{:key [note-name]}
-       [note-content-label note-name (get notes note-name)])] ))
+       [NoteContentLabel note-name (get notes note-name)])]))
 
 (defn- ArticleLabelValuesView [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])
@@ -301,9 +301,9 @@
                                      :on-click #(copy-user-answers project-id article-id user-id)}
                              [Icon {:name "copy"}] "copy"]))])]
                    [:div.right.aligned.column
-                    [updated-time-label updated-time]]]]
+                    [UpdatedTimeLabel updated-time]]]]
                  [:div.labels
                   [ArticleLabelValuesView article-id user-id]]
                  (let [note-content @(subscribe [:article/notes article-id user-id "default"])]
                    (when (and (string? note-content) (not-empty (str/trim note-content)))
-                     [:div.notes [note-content-label "default" note-content]]))]])))))))))
+                     [:div.notes [NoteContentLabel "default" note-content]]))]])))))))))

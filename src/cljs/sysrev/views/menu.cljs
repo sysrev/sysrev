@@ -1,9 +1,10 @@
 (ns sysrev.views.menu
-  (:require [re-frame.core :refer [subscribe dispatch dispatch-sync]]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [sysrev.action.core :refer [run-action]]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [user-uri]]
-            [sysrev.views.components.core :refer [dropdown-menu with-tooltip]]
+            [sysrev.views.semantic :as S]
             [sysrev.views.panels.notifications :refer [NotificationsButton]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
             [sysrev.views.panels.search :refer [SiteSearch]]
@@ -28,30 +29,38 @@
         username @(subscribe [:user/username])
         [full? mobile?] [(util/full-size?) (util/mobile?)]
         dev-menu (when @(subscribe [:user/dev?])
-                   [dropdown-menu [{:content "Clear query cache"
-                                    :action #(run-action :dev/clear-query-cache)}]
-                    :dropdown-class "dropdown item"
-                    :label [:i.fitted.code.icon]])
+                   [S/Dropdown {:class "item"
+                                :simple true
+                                :direction "left"
+                                :icon "code"
+                                :size "small"}
+                    [S/DropdownMenu {:style {:padding "0em 0.5em"}}
+                     (for [{:keys [action content] :as entry}
+                           [{:content "Clear query cache"
+                             :action #(run-action :dev/clear-query-cache)}]]
+                       ^{:key entry}
+                       [S/DropdownItem
+                        {:text content
+                         :href (some->> action (util/when-test string?))
+                         :on-click (some->> action (util/when-test (complement string?))
+                                            util/wrap-user-event)}])]])
         settings @(subscribe [:self/settings])
-        toggle-theme-button (fn []
-                              (when-not landing?
-                                (list ^{:key "tooltip-elt"}
-                                      [with-tooltip
-                                       [:a.item.toggle-theme
-                                        {:on-click #(toggle-ui-theme logged-in? settings)}
-                                        [:span {:style {:font-size "22px"}}
-                                         [:i.fitted.lightbulb.outline.icon]]]
-                                       {:delay {:show 350 :hide 50}
-                                        :hoverable false
-                                        :position "left center"
-                                        :transition "fade"
-                                        :duration 100}]
-                                      ^{:key "tooltip-content"}
-                                      [:div.ui.small.popup.transition.hidden.tooltip
-                                       {:style {:min-width "0"
-                                                :padding "0.5em 1em"
-                                                :font-size "12px"}}
-                                       [:span.open-sans.medium-weight "Switch Theme"]])))]
+        toggle-theme-button
+        (fn []
+          (when-not landing?
+            [S/Popup
+             {:size "small" :inverted true :hoverable false
+              :position "left center"
+              :mouse-enter-delay 250 :mouse-leave-delay 50
+              :transition "fade" :duration 100
+              :trigger (r/as-element [:a.item.toggle-theme
+                                      {:on-click #(toggle-ui-theme logged-in? settings)}
+                                      [:span {:style {:font-size "22px"}}
+                                       [:i.fitted.lightbulb.outline.icon]]])
+              :content (r/as-element
+                        [:div {:style {:min-width "0"
+                                       :font-size "12px"}}
+                         [:span.open-sans.medium-weight "Switch Theme"]])}]))]
     [:div.ui.menu.site-menu {:class (when landing? "landing")}
      [:div.ui.container
       [:a.header.item {:href "/"}

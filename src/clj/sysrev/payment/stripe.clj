@@ -18,6 +18,9 @@
 
 (def default-plan "Basic")
 
+(def user-pro-plans #{"Unlimited_User" "Unlimited_User_Annual"})
+(def org-pro-plans  #{"Unlimited_Org" "Unlimited_Org_Annual"})
+
 (def default-req {:basic-auth stripe-secret-key
                   :coerce :always
                   :throw-exceptions false
@@ -326,9 +329,6 @@
 ;; "You can't delete invoices created by subscriptions."
 (defn ^:unused delete-invoice! [invoice-id]
   (stripe-delete (str "/invoices/" invoice-id)))
-
-(def user-pro-plans #{"Unlimited_User" "Unlimited_User_Annual"})
-(def org-pro-plans  #{"Unlimited_Org" "Unlimited_Org_Annual"})
 
 (defn user-has-pro? [user-id]
   (let [user-current-plan (db-plans/user-current-plan user-id)]

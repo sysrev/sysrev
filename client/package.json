@@ -22,7 +22,6 @@
     "dnd-core": "^11.0.0",
     "dompurify": "2.2.6",
     "dropzone": "5.7.6",
-    "fomantic-ui": "2.8.7",
     "form-data": "4.0.0",
     "jquery": "3.5.1",
     "moment": "2.29.1",

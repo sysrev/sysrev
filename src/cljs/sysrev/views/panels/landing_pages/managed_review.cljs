@@ -3,7 +3,7 @@
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.data.core :refer [reload load-data]]
-            [sysrev.views.components.core :refer [url-link]]
+            [sysrev.views.components.core :refer [UrlLink]]
             [sysrev.views.semantic :as S]
             [sysrev.views.panels.landing-pages.core :refer
              [IntroSegment FeaturedReviews ReviewCard TwitterUser]]
@@ -62,7 +62,7 @@
     :description
     [:p "SysRev helps companies extract therapeutic effects of substances from literature.
          In this pilot, we show how mangiferin (a mango extract) modifies disease."
-     [:br] [url-link "https://blog.sysrev.com/generating-insights"]]
+     [:br] [UrlLink "https://blog.sysrev.com/generating-insights"]]
     ;; TODO can we link to beiersdorf
     :extra ["TJ Bozada"
             "Insilica Managed Review Division"
@@ -76,7 +76,7 @@
     [:p "Safety Data Sheets lock chemical information into pdfs. "
      "SysRev Managed Review worked with the Sustainable Research Group to extract that data
       into spreadsheets to help SRG clients." [:br]
-     [url-link "https://blog.sysrev.com/srg-sysrev-chemical-transparency"]]
+     [UrlLink "https://blog.sysrev.com/srg-sysrev-chemical-transparency"]]
     :extra ["Daniel Mcgee"
             [:a {:href "https://sustainableresearchgroup.com"}
              "Sustainable Research Group"]]}])
@@ -90,9 +90,9 @@
      [:b "named entity recognition"] " model. "
      "Data extraction the first step in creating machine learning models, this project shows
       how sysrev builds models." [:br]
-     [url-link "https://blog.sysrev.com/simple-ner"]]
+     [UrlLink "https://blog.sysrev.com/simple-ner"]]
     :extra ["Tom Luechtefeld"
-            [url-link "https://insilica.co"]
+            [UrlLink "https://insilica.co"]
             [TwitterUser "tomlue"]]}])
 
 (defn- Panel []

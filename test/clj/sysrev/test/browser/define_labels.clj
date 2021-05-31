@@ -173,7 +173,8 @@
     (log/info "creating label definition")
     (nav/go-project-route "/labels/edit" :silent true)
     (b/click (if group?
-               (x/xpath (add-label-button value-type) "/ancestor::div[contains(@class,'group')]/button")
+               (x/xpath (add-label-button value-type)
+                        "/ancestor::div[contains(@class,'group')]/button")
                (add-label-button value-type)))
     (set-label-definition new-xpath label-map)
     (when-not group?
@@ -182,7 +183,9 @@
     (is (empty? (get-all-error-messages)))))
 
 (defn define-group-label
-  "Create a new label definition using the browser interface for a group label. Must only have one group label editor open at one time in order to work properly."
+  "Create a new label definition using the browser interface for a group
+  label. Must only have one group label editor open at one time in order to work
+  properly."
   [{:keys [value-type short-label definition]}]
   (let [{:keys [multi? labels]} definition
         field-path #(field-input-xpath "//div[contains(@id,'new-label-')]" (str "field-" %))]
@@ -196,7 +199,11 @@
     (set-checkbox-button (field-path "multi") multi?)
     ;; create all the labels that are required
     (doall (map-indexed (fn [idx label]
-                          (define-label label (x/xpath "(//div[contains(@class,'define-group-label')]//form[contains(@class,'define-label')])[" (+ 1 idx) "]")))
+                          (define-label label
+                            (x/xpath "("
+                                     "//div[contains(@class,'define-group-label')]"
+                                     "//form[contains(@class,'define-label')]"
+                                     ")" (format "[%d]" (inc idx)))))
                         labels))
     ;; save this label
     (b/click save-button)))

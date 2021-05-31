@@ -9,7 +9,9 @@
                   sysrev.core
                   sysrev.views.html
                   sysrev.views.reagent-json-view
-                  sysrev.views.semantic]
+                  sysrev.views.semantic
+                  ;; test
+                  sysrev.test.etaoin.core]
  :carve-ignore-file ".carve_ignore"
  :interactive? true
  :aggressive? true

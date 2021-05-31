@@ -1,27 +1,30 @@
 (ns sysrev.views.keywords
   (:require [clojure.string :as str]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.views.components.core :refer [with-tooltip dangerous]]
+            [sysrev.views.components.core :as ui]
             [sysrev.util :refer [full-size? nbsp]]))
 
-(defn- with-keyword-tooltip [content label-name label-value]
-  [[with-tooltip content {:delay {:show 50 :hide 0}
-                          :hoverable false
-                          :transition "fade up"
-                          :distanceAway 8
-                          :variation "basic"}]
-   [:div.ui.inverted.grid.popup.transition.hidden.keyword-popup
-    [:div.middle.aligned.center.aligned.row.keyword-popup-header
-     [:div.ui.sixteen.wide.column
-      [:span "Set label"]]]
-    [:div.middle.aligned.center.aligned.row
-     [:div.middle.aligned.center.aligned.three.wide.column.keyword-side
-      [:i.fitted.large.grey.exchange.icon]]
-     [:div.thirteen.wide.column.keyword-popup
-      [:div.ui.center.aligned.grid.keyword-popup
-       [:div.ui.row.label-name (str label-name)]
-       [:div.ui.row.label-separator]
-       [:div.ui.row.label-value (str label-value)]]]]]])
+(defn- KeywordTooltip [content label-name label-value]
+  [ui/Tooltip
+   {:hoverable false
+    :mouse-enter-delay 50
+    :mouse-leave-delay 0
+    :transition "fade up"
+    :distance-away 6
+    :basic true
+    :trigger content
+    :tooltip [:div.ui.grid.keyword-popup
+              [:div.middle.aligned.center.aligned.row.keyword-popup-header
+               [:div.ui.sixteen.wide.column
+                [:span "Set label"]]]
+              [:div.middle.aligned.center.aligned.row
+               [:div.middle.aligned.center.aligned.three.wide.column.keyword-side
+                [:i.fitted.large.grey.exchange.icon]]
+               [:div.thirteen.wide.column.keyword-popup
+                [:div.ui.center.aligned.grid.keyword-popup
+                 [:div.ui.row.label-name (str label-name)]
+                 [:div.ui.row.label-separator]
+                 [:div.ui.row.label-value (str label-value)]]]]]}])
 
 (defn- render-keyword
   [{:keys [keyword-id text]} article-id
@@ -29,7 +32,7 @@
   (let [{:keys [label-id label-value category] :as kw}
         (and keyword-id (get keywords keyword-id))]
     (if (nil? kw)
-      [(dangerous :span (if (empty? text) nbsp text))]
+      [(ui/dangerous :span (if (empty? text) nbsp text))]
       (let [has-value? ((comp not nil?) label-value)
             label-name @(subscribe [:label/name nil label-id])
             enabled? @(subscribe [:label/enabled? "na" label-id])
@@ -43,7 +46,7 @@
             span-content
             [:span
              " "
-             (dangerous
+             (ui/dangerous
               :span
               {:class class
                :on-click
@@ -54,8 +57,7 @@
               text)
              " "]]
         (if (and show-tooltip? enabled? editing? full-size?)
-          (with-keyword-tooltip
-            span-content label-name label-value)
+          [KeywordTooltip span-content label-name label-value]
           [span-content])))))
 
 (defn render-keywords [article-id content &

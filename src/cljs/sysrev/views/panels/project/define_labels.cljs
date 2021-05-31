@@ -1,10 +1,8 @@
 (ns sysrev.views.panels.project.define-labels
-  (:require ["jquery" :as $]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.walk :as walk]
             [medley.core :refer [find-first]]
             [reagent.core :as r]
-            [reagent.dom :refer [dom-node]]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :as action :refer [def-action]]
@@ -16,7 +14,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.semantic :refer [Divider Button Message Segment]]
+            [sysrev.views.semantic :as S :refer [Divider Button Message Segment]]
             [sysrev.dnd :as dnd]
             [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
@@ -286,11 +284,13 @@
 (defn EditLabelButton
   "label is a cursor into the state representing the label"
   [label allow-edit?]
-  (let [{:keys [editing?]} @label
+  (let [{:keys [editing? label-id short-label]} @label
         synced? (labels-synced?)]
     [:div.ui.small.icon.button.edit-label-button
      {:class (css [(not allow-edit?) "disabled"])
       :style {:margin-left 0 :margin-right 0}
+      :data-label-id (str label-id)
+      :data-short-label short-label
       :on-click (util/wrap-user-event #(do (when editing? (sync-to-server))
                                            (swap! (r/cursor label [:editing?]) not)))}
      [:i {:class (css [(not editing?) "edit"
@@ -337,10 +337,9 @@
                      "icon")}]))
 
 (defn FormLabelWithTooltip [text tooltip-content]
-  (doall (ui/with-ui-help-tooltip
-           [:label text [ui/ui-help-icon]]
-           :help-content tooltip-content
-           :popup-options {:delay {:show 500 :hide 0}})))
+  [ui/UiHelpTooltip [:label text [ui/UiHelpIcon]]
+   :help-content tooltip-content
+   :options {:mouse-enter-delay 500}])
 
 (def label-settings-config
   {:short-label  {:display "Name"}
@@ -542,10 +541,10 @@
        (let [error (get-in @errors [:definition :inclusion-values])]
          [:div.field.inclusion-values {:class (when error "error")
                                        :style {:width "100%"}}
-          (FormLabelWithTooltip
+          [FormLabelWithTooltip
            "Inclusion values"
            ["Answers containing any of these values will indicate article inclusion."
-            "Non-empty answers otherwise will indicate exclusion."])
+            "Non-empty answers otherwise will indicate exclusion."]]
           (doall (for [option-value @all-values]
                    ^{:key (gensym option-value)}
                    [ui/LabeledCheckbox
@@ -563,9 +562,9 @@
        (let [error (get-in @errors [:definition :inclusion-values])]
          [:div.field.inclusion-values {:class (when error "error")
                                        :style {:width "100%"}}
-          (FormLabelWithTooltip
+          [FormLabelWithTooltip
            "Inclusion value"
-           ["Select which value should indicate article inclusion."])
+           ["Select which value should indicate article inclusion."]]
           [ui/LabeledCheckbox
            {:checked? (contains? (set @inclusion-values) false)
             :on-change #(let [checked? (-> % .-target .-checked)]
@@ -670,124 +669,90 @@
        (when right-action?
          [:a.ui.icon.button.input-row {:class "disabled"} [:i.plus.icon]])]]]))
 
-;; this corresponds to
-;; (defmethod sysrev.views.review/label-input-el "categorical" ...)
-(defn CategoricalLabelForm [{:keys [definition label-id required value onAdd onRemove]}]
-  (r/create-class
-   {:component-did-mount
-    (fn [c]
-      (-> ($ (dom-node c))
-          (.dropdown (clj->js {:onAdd onAdd
-                               :onRemove onRemove
-                               :onChange (fn [_] (-> ($ (dom-node c))
-                                                     (.dropdown "hide")))}))))
-    :reagent-render
-    (fn [{:keys [definition label-id required value onAdd onRemove]}]
-      (let [{:keys [all-values]} definition
-            special-value? #(in? ["none" "other"] (str/lower-case %))
-            values (if (every? string? all-values)
-                     (concat
-                      (->> all-values (filter special-value?))
-                      (->> all-values (remove special-value?)
-                           (sort #(compare (str/lower-case %1) (str/lower-case %2)))))
-                     all-values)
-            dom-id (str "label-edit-" label-id)
-            search? (or (and (util/desktop-size?) (>= (count values) 25))
-                        (>= (count values) 40))]
-        [:div.ui.fluid.multiple.selection
-         {:id dom-id
-          :class (css [search? "search"] "dropdown")
-          ;; hide dropdown on click anywhere in main dropdown box
-          :on-click (util/wrap-user-event
-                     #(let [target (-> % .-target)]
-                        (when (or (= dom-id (.-id target))
-                                  (-> ($ target) (.hasClass "default"))
-                                  (-> ($ target) (.hasClass "label")))
-                          (let [dd ($ (str "#" dom-id))]
-                            (when (.dropdown dd "is visible")
-                              (.dropdown dd "hide"))))))}
-         [:input {:type "hidden"
-                  :name (str "label-edit(" dom-id ")")
-                  :value (str/join "," @value)}]
-         [:i.dropdown.icon]
-         [:div.default.text "No answer selected"
-          (when required [:span.default.bold " (required)"])]
-         [:div.menu (doall (map-indexed (fn [i lval] ^{:key i}
-                                          [:div.item {:data-value (str lval)} (str lval)])
-                                        values))]]))}))
+;; this corresponds to `sysrev.views.review/CategoricalLabelInput`
+(defn CategoricalLabelForm [{:keys [definition label-id required value on-change]}]
+  (let [{:keys [all-values]} definition
+        special-value? #(in? ["none" "other"] (str/lower-case %))
+        values (if (every? string? all-values)
+                 (concat
+                  (->> all-values (filter special-value?))
+                  (->> all-values (remove special-value?)
+                       (sort #(compare (str/lower-case %1) (str/lower-case %2)))))
+                 all-values)
+        current-values (into [] @value)
+        touchscreen?   @(subscribe [:touchscreen?])
+        dom-id (str "label-edit-" label-id)]
+    [S/Dropdown {:id dom-id
+                 :size "small" :fluid true
+                 :selection true :multiple true :icon "dropdown"
+                 :search (not touchscreen?)
+                 :options (vec (for [[i v] (map-indexed vector values)]
+                                 {:key i
+                                  :value v
+                                  :text v}))
+                 :value current-values
+                 :close-on-change true
+                 :placeholder (when (empty? current-values)
+                                (str "No answer selected"
+                                     (when required " (required)")))
+                 :on-change (fn [_e x] (on-change (js->clj (.-value x))))}]))
 
 (defn AnnotationLabelForm [{:keys [definition label-id required value onAdd onRemove]}]
-  (r/create-class
-   {:component-did-mount
-    (fn [c]
-      (-> ($ (dom-node c))
-          (.dropdown (clj->js {:onAdd onAdd
-                               :onRemove onRemove
-                               :onChange (fn [_] (-> ($ (dom-node c))
-                                                     (.dropdown "hide")))}))))
-    :reagent-render
-    (fn [{:keys [definition label-id required value onAdd onRemove]}]
-      (let [{:keys [all-values]} definition
-            special-value? #(in? ["none" "other"] (str/lower-case %))
-            values (if (every? string? all-values)
-                     (concat
-                      (->> all-values (filter special-value?))
-                      (->> all-values (remove special-value?)
-                           (sort #(compare (str/lower-case %1) (str/lower-case %2)))))
-                     all-values)
-            dom-id (str "label-edit-" label-id)
-            search? (or (and (util/desktop-size?) (>= (count values) 25))
-                        (>= (count values) 40))]
-        [:div.ui.fluid.multiple.selection
-         {:id dom-id
-          :class (css [search? "search"] "dropdown")
-          ;; hide dropdown on click anywhere in main dropdown box
-          :on-click (util/wrap-user-event
-                     #(let [target (-> % .-target)]
-                        (when (or (= dom-id (.-id target))
-                                  (-> ($ target) (.hasClass "default"))
-                                  (-> ($ target) (.hasClass "label")))
-                          (let [dd ($ (str "#" dom-id))]
-                            (when (.dropdown dd "is visible")
-                              (.dropdown dd "hide"))))))}
-         [:input {:type "hidden"
-                  :name (str "label-edit(" dom-id ")")
-                  :value (str/join "," @value)}]
-         [:i.dropdown.icon]
-         [:div.default.text "No answer selected"
-          (when required [:span.default.bold " (required)"])]
-         [:div.menu (doall (map-indexed (fn [i lval] ^{:key i}
-                                          [:div.item {:data-value (str lval)} (str lval)])
-                                        values))]]))}))
+  (let [{:keys [all-values]} definition
+        special-value? #(in? ["none" "other"] (str/lower-case %))
+        values (if (every? string? all-values)
+                 (concat
+                  (->> all-values (filter special-value?))
+                  (->> all-values (remove special-value?)
+                       (sort #(compare (str/lower-case %1) (str/lower-case %2)))))
+                 all-values)
+        current-values (into [] @value)
+        dom-id (str "label-edit-" label-id)
+        search? (or (and (util/desktop-size?) (>= (count values) 25))
+                    (>= (count values) 40))]
+    [S/Dropdown {:id dom-id
+                 :size "small" :fluid true
+                 :selection true :multiple true :icon "dropdown"
+                 :search search?
+                 :value current-values
+                 :placeholder (str "No answer selected"
+                                   (when required " (required)"))}]))
 
-;; this corresponds to sysrev.views.review/label-column
+;;; this corresponds to `sysrev.views.review/LabelColumn`
 (defn Label [label]
-  (let [{:keys [label-id value-type question short-label
-                definition]} @label
+  (let [{:keys [label-id value-type question short-label definition]} @label
         answer (r/cursor label [:answer])
         on-click-help (util/wrap-user-event #(do nil))]
     [:div.ui.middle.aligned.grid.label-edit
-     [ui/with-tooltip
-      (let [name-content [:span.name {:class (css [(>= (count short-label) 30) "small-text"])}
-                          [:span.inner.short-label (str short-label)]]]
-        (if (and (util/mobile?) (>= (count short-label) 30))
-          [:div.ui.row.label-edit-name {:on-click on-click-help}
-           [InclusionTag @label]
-           [:span.name " "]
-           (when (not-empty question)
-             [:i.right.floated.fitted.grey.circle.question.mark.icon])
-           [:div.clear name-content]]
-          [:div.ui.row.label-edit-name {:on-click on-click-help}
-           [InclusionTag @label] name-content
-           (when (not-empty question)
-             [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
-      {:variation "basic"
-       :delay {:show 650, :hide 0}
+     [ui/Tooltip
+      {:class "label-help"
+       :basic true
        :hoverable false
-       :inline true
        :position "top center"
-       :distanceAway 8}]
-     [label-help-popup @label]
+       :mouse-enter-delay 600
+       :distance-away 6
+       :trigger (let [name-content [:span.name {:class (css [(>= (count short-label) 30)
+                                                             "small-text"])}
+                                    [:span.inner.short-label (str short-label)]]]
+                  (if (and (util/mobile?) (>= (count short-label) 30))
+                    [:div.ui.row.label-edit-name {:on-click on-click-help}
+                     [InclusionTag @label]
+                     [:span.name " "]
+                     (when (seq question)
+                       [:i.right.floated.fitted.grey.circle.question.mark.icon])
+                     [:div.clear name-content]]
+                    [:div.ui.row.label-edit-name {:on-click on-click-help
+                                                  :style {:cursor "help"}}
+                     [InclusionTag @label]
+                     name-content
+                     (when (seq question)
+                       [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
+       :tooltip [label-help-popup
+                 {:category @(subscribe [:label/category "na" label-id])
+                  :required @(subscribe [:label/required? "na" label-id])
+                  :question @(subscribe [:label/question "na" label-id])
+                  :definition {:examples @(subscribe [:label/examples
+                                                      "na" label-id])}}]}]
      [:div.ui.row.label-edit-value {:class (case value-type
                                              "boolean"      "boolean"
                                              "categorical"  "category"
@@ -797,7 +762,7 @@
                                              nil)}
       [:div.inner
        (case value-type
-         "boolean"      [ui/three-state-selection
+         "boolean"      [ui/ThreeStateSelection
                          {:value answer
                           :set-answer! #(reset! answer %)}]
          "string"       [StringLabelForm
@@ -809,16 +774,14 @@
                          {:value answer
                           :definition definition
                           :label-id label-id
-                          :onAdd (fn [v _t] (swap! answer conj v))
-                          :onRemove
-                          (fn [v _t] (swap! answer #(into [] (remove (partial = v) %))))}]
+                          :on-change (fn [values _t] (reset! answer values))}]
          "annotation"  [AnnotationLabelForm
-                         {:value answer
-                          :definition definition
-                          :label-id label-id
-                          :onAdd (fn [v _t] (swap! answer conj v))
-                          :onRemove
-                          (fn [v _t] (swap! answer #(into [] (remove (partial = v) %))))}]
+                        {:value answer
+                         :definition definition
+                         :label-id label-id
+                         :onAdd (fn [v _t] (swap! answer conj v))
+                         :onRemove
+                         (fn [v _t] (swap! answer #(into [] (remove (partial = v) %))))}]
          "group"
          (let [sub-label-vals (->> (vals @(r/cursor label [:labels]))
                                    (sort-by :project-ordering <))
@@ -844,7 +807,9 @@
            (for [sub-label (filter :enabled sub-label-vals)]
              (let [sub-label-id (:label-id sub-label)]
                ^{:key sub-label-id}
-               [:div {:id (str "sub-label-" sub-label-id)}
+               [:div.sub-label {:id (str "sub-label-" sub-label-id)
+                                :data-label-id (str (:label-id sub-label))
+                                :data-short-label (:short-label sub-label)}
                 (when-not (= 0 (:project-ordering sub-label))
                   [Button {:on-click #(move-label-fn sub-label-id "up")
                            :attached "top"} "Move Up"])
@@ -855,7 +820,7 @@
          (pr-str label))]]]))
 
 (defn GroupLabel [label]
-  (let [{:keys [short-label required]} @label
+  (let [{:keys [short-label required question]} @label
         on-click-help (util/wrap-user-event #(do nil))
         sub-label-vals (->> (vals @(r/cursor label [:labels]))
                             (sort-by :project-ordering <))
@@ -876,38 +841,39 @@
                           (sync-to-server)))
         max-ordering-value (->> (map :project-ordering sub-label-vals)
                                 sort reverse first)]
-    [:div.ui.column.label-edit {:class (css [required "required"])
-                                :style {:padding "0"
-                                        :border "none"}}
-     [:div.ui.middle.aligned.grid
-      [ui/with-tooltip
-       (let [name-content [:span.name {:class (css [(>= (count short-label) 30) "small-text"])}
-                           [:span.inner (str short-label)]]]
-         (if (and (util/mobile?) (>= (count short-label) 30))
-           [:div.ui.row.label-edit-name {:on-click on-click-help}
-            [:div.clear name-content]]
-           [:div.ui.row.label-edit-name {:on-click on-click-help}
-            name-content]))
-       {:variation "basic"
-        :delay {:show 650, :hide 0}
-        :hoverable false
-        :inline true
-        :position "top center"
-        :distanceAway 8}]]
+    [:div.column.label-edit.group-label {:class (css [required "required"])
+                                         :style {:padding "0"
+                                                 :border "none"}}
+     [:div.ui.middle.aligned.grid.label-edit
+      (let [shortened? (and (util/mobile?) (>= (count short-label) 30))
+            name-content [:span.name {:class (css [(>= (count short-label) 30)
+                                                   "small-text"])}
+                          [:span.inner.short-label (str short-label)]]]
+        [:div.ui.row.label-edit-name {:on-click on-click-help
+                                      :style {:cursor "help"}}
+         [InclusionTag @label]
+         (if shortened?
+           [:span.name " "]
+           name-content)
+         (when (seq question)
+           [:i.right.floated.fitted.grey.circle.question.mark.icon])
+         (when shortened?
+           [:div.clear name-content])])]
      [:div.inner>div
       (when (and (empty? (filter :enabled sub-label-vals))
                  (filter :disabled sub-label-vals))
         [Message {:style {:margin-bottom "0.5rem"}}
          "There are disabled labels, edit label to view them"])
-      ;; enabled
       (doall (for [sub-label (filter :enabled sub-label-vals)]
                (let [sub-label-id (:label-id sub-label)
                      label (r/cursor label [:labels sub-label-id])]
                  ^{:key sub-label-id}
-                 [:div {:id (str "sub-label-" sub-label-id)
-                        :style {:border "solid 1px grey"
-                                :border-radius ".28571429rem"
-                                :margin-bottom "0.5rem"}}
+                 [:div.sub-label {:id (str "sub-label-" sub-label-id)
+                                  :style {:border "solid 1px grey"
+                                          :border-radius ".28571429rem"
+                                          :margin-bottom "0.5rem"}
+                                  :data-label-id (str sub-label-id)
+                                  :data-short-label (:short-label sub-label)}
                   (when-not (= 0 (:project-ordering sub-label))
                     [Button {:on-click #(move-label-fn sub-label-id "up")
                              :attached "top"
@@ -921,24 +887,23 @@
                              :color "grey"} "Move Down"])])))]]))
 
 (defn- LabelItem [labels-atom i label & {:keys [status]}]
-  (let [{:keys [label-id name editing? enabled value-type]} @label
+  (let [{:keys [label-id name editing? enabled value-type short-label]} @label
         admin? @(subscribe [:member/admin? true])
         allow-edit? (and admin? (not= name "overall include"))
         {:keys [draggable]} status]
     [:div.ui.middle.aligned.grid.label-item
-     {:id
-      ;; this is hacky, but needed for group label tests.
-      (if (= "group" value-type)
-        (str "group-label-" label-id)
-        (str label-id))
-      :class (css [(not enabled) "secondary"] "segment")}
+     {:id (str label-id)
+      :class (css [(= "group" value-type) "group-label"]
+                  [(not enabled) "secondary"] "segment")
+      :data-short-label short-label}
      [:div.row
       [ui/TopAlignedColumn
        [:div.ui.label {:class (css [enabled "blue" :else "gray"])} (str (inc i))]
        (css "two wide center aligned column label-index"
             [(true? draggable)  "cursor-grab"
              (false? draggable) "cursor-not-allowed"])]
-      [:div.column.define-label-item {:class "twelve wide"}
+      [:div.column.define-label-item {:class "twelve wide"
+                                      :data-short-label short-label}
        (if editing?
          (if (= (:value-type @label) "group")
            [GroupLabelEditForm labels-atom label]

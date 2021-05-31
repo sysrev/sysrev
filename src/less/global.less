@@ -178,6 +178,15 @@ h4 {
     color: @lightText;
 }
 
+.ui.popup.visible {
+    background-color: @popupBackground;
+    color: @textColor;
+}
+
+.ui.popup:before {
+    background: @popupBackground !important;
+}
+
 span.attention {
     font-size: 100%;
     font-weight: bold;

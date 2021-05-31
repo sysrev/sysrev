@@ -387,9 +387,8 @@
                              (* 10 (count counts))))]
           [:div.ui.segment
            [:h4.ui.dividing.header
-            (ui/with-ui-help-tooltip
-              [:span "Answer Counts" [ui/ui-help-icon]]
-              :help-content ["Number of user answers that contain each label value"])]
+            [ui/UiHelpTooltip [:span "Answer Counts" [ui/UiHelpIcon]]
+             :help-content ["Number of user answers that contain each label value"]]]
            [unpad-chart [0.6 0.4]
             [chartjs/horizontal-bar
              {:data data :height height :options options}]]])))))

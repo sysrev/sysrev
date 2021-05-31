@@ -87,3 +87,15 @@
 @solidInternalBorderColor     : rgba(70, 70, 70, 0.125);
 @solidBorderColor             : rgba(130, 130, 130, 0.6);
 @solidSelectedBorderColor     : rgba(130, 130, 130, 0.7);
+
+@positiveTextColor            : rgba(150, 255, 150, 1.0);
+@positiveBackgroundColor      : rgba(21, 24, 21, 1.0);
+
+@negativeTextColor            : rgba(255, 150, 150, 1.0);
+@negativeBackgroundColor      : rgba(24, 21, 21, 1.0);
+
+@warningTextColor             : rgba(255, 200, 150, 1.0);
+@warningBackgroundColor       : rgba(24, 22, 20, 1.0);
+
+@infoTextColor                : rgba(180, 225, 255, 1.0);
+@infoBackgroundColor          : rgba(20, 23, 23, 1.0);

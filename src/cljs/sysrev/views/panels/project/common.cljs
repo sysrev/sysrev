@@ -1,8 +1,7 @@
 (ns sysrev.views.panels.project.common
   (:require [re-frame.core :refer [subscribe]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.components.core :refer
-             [primary-tabbed-menu secondary-tabbed-menu]]
+            [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [in?]]))
 
 (def beta-compensation-users #{"eliza.grames@uconn.edu"})
@@ -13,7 +12,7 @@
 (defn- analytics-submenu []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) last)]
-    [secondary-tabbed-menu
+    [ui/SecondaryTabbedMenu
      [{:tab-id :concordance
        :content [:span  "Concordance"]
        :action (project-uri project-id "/analytics/concordance")}
@@ -37,7 +36,7 @@
                   [:span (when (and icon (not mobile?))
                            [:i.icon {:class icon}])
                    title])]
-    [secondary-tabbed-menu
+    [ui/SecondaryTabbedMenu
      [{:tab-id :add-articles
        :content (content "Sources" "list")
        :action (project-uri project-id "/add-articles")}
@@ -88,7 +87,7 @@
        nil?
        (list
         ^{:key [:project-primary-menu]}
-        [primary-tabbed-menu
+        [ui/PrimaryTabbedMenu
          [{:tab-id [:project :overview]
            :class "overview"
            :content [:span "Overview"]
