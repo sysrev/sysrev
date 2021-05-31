@@ -68,7 +68,7 @@
                 (= name "overall include")  (assoc :consensus true))
               :returning :*)))
 
-(defn- add-label-entry-boolean
+(defn add-label-entry-boolean
   "Creates an entry for a boolean label definition.
 
   `name` `question` `short-label` are strings describing the label.
@@ -81,10 +81,10 @@
   `custom-category` is optional, unless specified the label category will be
   determined from the value of `inclusion-value`."
   [project-id
-   {:keys [name question short-label inclusion-value required consensus custom-category]
+   {:keys [enabled name question short-label inclusion-value required consensus custom-category]
     :as entry-values}]
   (add-label-entry
-   project-id (merge (->> [:name :question :short-label :required :consensus]
+   project-id (merge (->> [:enabled :name :question :short-label :required :consensus]
                           (select-keys entry-values))
                      {:value-type "boolean"
                       :category (or custom-category (if (nil? inclusion-value)
