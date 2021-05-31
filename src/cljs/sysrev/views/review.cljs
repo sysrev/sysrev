@@ -80,8 +80,8 @@
                     {::add-label-value [article-id root-label-id
                                         label-id ith label-value]}))))
 
-(defn missing-answer? [{:keys [required value-type]} answer]
-  (and required
+(defn missing-answer? [{:keys [enabled required value-type]} answer]
+  (and enabled required
        (case value-type
          "boolean" (not (boolean? answer))
          "categorical" (empty? answer)
