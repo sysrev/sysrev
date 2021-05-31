@@ -46,7 +46,7 @@
      (finally
        (restore-flyway-config))))
 
-(defn start-db [& [postgres-overrides only-if-new]]
+(defn start-db! [& [postgres-overrides only-if-new]]
   (let [port (get-port/get-port)
         dbname (str "postgres" port)
         db {:dbname dbname

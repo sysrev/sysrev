@@ -3,7 +3,7 @@
             [sysrev.config :refer [env]]))
 
 #_:clj-kondo/ignore
-(defn start-db [& [postgres-overrides only-if-new]]
+(defn start-db! [& [postgres-overrides only-if-new]]
   (let [db-config (db/make-db-config
                    (merge (:postgres env) postgres-overrides))]
     (db/set-active-db! db-config only-if-new)))

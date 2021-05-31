@@ -25,7 +25,7 @@
            (log/errorf "start-web: port %d already in use" server-port)))))
 
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
-  (postgres/start-db postgres-overrides only-if-new)
+  (postgres/start-db! postgres-overrides only-if-new)
   (site/init-global-stats)
   (listeners/start-listeners!)
   (when (= (:profile env) :dev)

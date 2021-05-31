@@ -34,7 +34,7 @@
 (defn wrap-fixtures [f]
   (let [old-config (:config @db/active-db)]
     ;; This is hacky. It would be better to have avoided global state.
-    (postgres/start-db)
+    (postgres/start-db!)
     (load-fixtures!)
     (f)
     (db/set-active-db! (db/make-db-config old-config))))
