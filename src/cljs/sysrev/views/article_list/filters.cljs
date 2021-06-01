@@ -255,8 +255,7 @@
   "Renders a disabled placeholder for a FilterDropdown component."
   [multiple?]
   [S/Dropdown (merge (filter-dropdown-params multiple? true)
-                     {;; :options []
-                      :placeholder ""})])
+                     {:placeholder ""})])
 
 (defn- SelectUserDropdown [_context value on-change multiple?]
   (let [user-ids @(subscribe [:project/member-user-ids nil true])
@@ -893,11 +892,13 @@
           (str/capitalize (name vtype))])]]]))
 
 (defn- SelectSeparatorDropdown [context]
-  [S/Dropdown {:fluid true, :floating true, :selection true
+  [S/Dropdown {:fluid true
+               :floating true
+               :selection true
                :options (for [x csv-separator-options]
                           {:key x, :value x
                            :text (str x)
-                           :content [:div {:style {:width "100%"}} (str x)]})
+                           :content (r/as-element [:div {:style {:width "100%"}} (str x)])})
                :on-change (fn [_event x]
                             (dispatch [::set-csv-separator context (.-value x)]))}])
 
