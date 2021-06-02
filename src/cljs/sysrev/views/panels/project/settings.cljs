@@ -537,7 +537,7 @@
   [S/Dropdown {:selection true, :search true, :fluid true, :icon "dropdown"
                :placeholder "User"
                :options (for [user-id (all-project-user-ids)]
-                          (let [user-name @(subscribe [:user/display user-id])]
+                          (let [user-name @(subscribe [:user/username user-id])]
                             {:key (or user-id "none")
                              :value (if user-id (str user-id) "none")
                              :text user-name
