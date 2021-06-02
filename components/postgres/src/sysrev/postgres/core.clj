@@ -2,11 +2,13 @@
   (:require [com.stuartsierra.component :as component]
             [hikari-cp.core :as hikari-cp]
             [sysrev.db.core :as db]
-            [sysrev.config :refer [env]]))
+            [sysrev.config :refer [env]]
+            [sysrev.flyway.interface :as flyway]))
 
 (defn start-db! [& [postgres-overrides only-if-new]]
   (let [db-config (db/make-db-config
                    (merge (:postgres env) postgres-overrides))]
+    (flyway/migrate! (:datasource db-config))
     (db/set-active-db! db-config only-if-new)))
 
 (defn make-datasource
@@ -27,7 +29,9 @@
   (start [this]
     (if datasource
       this
-      (assoc this :datasource (make-datasource config))))
+      (let [datasource (make-datasource config)]
+        (flyway/migrate! datasource)
+        (assoc this :datasource datasource))))
   (stop [this]
     (if-not datasource
       this

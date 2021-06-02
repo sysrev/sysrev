@@ -1,60 +1,10 @@
 (ns sysrev.postgres.core
-  (:require [clojure.java.shell :refer [sh]]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [com.stuartsierra.component :as component]
+  (:require [com.stuartsierra.component :as component]
             [hikari-cp.core :as hikari-cp]
             [prestancedesign.get-port :as get-port]
             [sysrev.db.core :as db]
-            [sysrev.config :refer [env]])
+            [sysrev.flyway.interface :as flyway])
   (:import [com.opentable.db.postgres.embedded EmbeddedPostgres]))
-
-(defn ms-windows? []
-  (-> (System/getProperty "os.name")
-      (str/includes? "Windows")))
-
-(defn shell
-  "Runs a shell command, throwing exception on non-zero exit."
-  [& args]
-  (let [{:keys [exit] :as result}
-        (apply sh args)]
-    (if (zero? exit)
-      result
-      (throw (ex-info "shell command returned non-zero exit code"
-                      {:type :shell
-                       :command (vec args)
-                       :result result})))))
-
-(defn write-flyway-config [& [postgres-overrides]]
-  (let [{:keys [dbname user host port]}
-        (merge (:postgres env) postgres-overrides)]
-    (shell "mv" "-f" "flyway.conf" ".flyway.conf.moved")
-    (spit "flyway.conf"
-          (->> [(format "flyway.url=jdbc:postgresql://%s:%d/%s"
-                        host port dbname)
-                (format "flyway.user=%s" user)
-                "flyway.password="
-                "flyway.locations=filesystem:./resources/sql"
-                ""]
-               (str/join "\n")))))
-
-(defn restore-flyway-config []
-  (shell "mv" "-f" ".flyway.conf.moved" "flyway.conf"))
-
-(defmacro with-flyway-config [postgres-overrides & body]
-  `(try
-     (write-flyway-config ~postgres-overrides)
-     ~@body
-     (finally
-       (restore-flyway-config))))
-
-(defn run-flyway! [db]
-  (with-flyway-config db
-    (log/info (str "Applying Flyway migrations...\n"
-                   (str/trimr (slurp "flyway.conf"))))
-    (if (ms-windows?)
-      (shell ".flyway-5.2.4/flyway.cmd" "migrate")
-      (shell "./flyway" "migrate"))))
 
 (defn start-db! [& [postgres-overrides only-if-new]]
   (let [port (get-port/get-port)
@@ -72,8 +22,8 @@
         _ (-> conn .createStatement
               (.executeUpdate (str "CREATE DATABASE " dbname)))
         db-config (db/make-db-config (merge db postgres-overrides))]
-    (db/set-active-db! db-config only-if-new)
-    (run-flyway! db)))
+    (flyway/migrate! (:datasource db-config))
+    (db/set-active-db! db-config only-if-new)))
 
 (defn make-datasource
   "Creates a Postgres db pool object to use with JDBC."
@@ -95,11 +45,12 @@
       this
       (let [pg (-> (EmbeddedPostgres/builder)
                    (.setPort (:port config))
-                   .start)]
+                   .start)
+            datasource (make-datasource config)]
         (-> pg .getPostgresDatabase .getConnection .createStatement
             (.executeUpdate (str "CREATE DATABASE " (:dbname config))))
-        (run-flyway! config)
-        (assoc this :datasource (make-datasource config) :pg pg))))
+        (flyway/migrate! datasource)
+        (assoc this :datasource datasource :pg pg))))
   (stop [this]
     (if-not datasource
       this

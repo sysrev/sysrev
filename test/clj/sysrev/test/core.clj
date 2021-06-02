@@ -8,6 +8,7 @@
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
             [sysrev.db.migration :refer [ensure-updated-db]]
+            [sysrev.flyway.interface :as flyway]
             [sysrev.util :as util :refer [in? ignore-exceptions shell]]))
 
 (def test-dbname "sysrev_auto_test")
@@ -61,29 +62,6 @@
     (log/info "db-shell:" (->> args (str/join " ") pr-str))
     (apply shell args)))
 
-(defn write-flyway-config [& [postgres-overrides]]
-  (let [{:keys [dbname user host port]}
-        (merge (:postgres env) postgres-overrides)]
-    (shell "mv" "-f" "flyway.conf" ".flyway.conf.moved")
-    (spit "flyway.conf"
-          (->> [(format "flyway.url=jdbc:postgresql://%s:%d/%s"
-                        host port dbname)
-                (format "flyway.user=%s" user)
-                "flyway.password="
-                "flyway.locations=filesystem:./resources/sql"
-                ""]
-               (str/join "\n")))))
-
-(defn restore-flyway-config []
-  (shell "mv" "-f" ".flyway.conf.moved" "flyway.conf"))
-
-(defmacro with-flyway-config [postgres-overrides & body]
-  `(try
-     (write-flyway-config ~postgres-overrides)
-     ~@body
-     (finally
-       (restore-flyway-config))))
-
 (defn init-test-db []
   (when (and (db-connected?) (not (remote-test?)))
     (let [config {:dbname test-dbname :host test-db-host}]
@@ -97,14 +75,8 @@
           (db/terminate-db-connections config)
           (-> (db-shell "dropdb" [] config) (ignore-exceptions))
           (db-shell "createdb" [] config)
-          (when-not (util/ms-windows?)
-            (shell "./scripts/install-flyway"))
-          (with-flyway-config config
-            (log/info (str "Applying Flyway migrations...\n"
-                           (str/trimr (slurp "flyway.conf"))))
-            (if (util/ms-windows?)
-              (shell ".flyway-5.2.4/flyway.cmd" "migrate")
-              (shell "./flyway" "migrate")))
+          (log/info "Applying Flyway migrations...")
+          (flyway/migrate! (:datasource (db/make-db-config config)))
           (start-app config nil true)
           (log/info "Applying Clojure DB migrations...")
           (ensure-updated-db)
