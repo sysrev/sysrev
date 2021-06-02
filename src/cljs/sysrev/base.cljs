@@ -3,7 +3,8 @@
             [clojure.string :as str]
             [pushy.core :as pushy]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-event-db trim-v]]
+            [re-frame.core :refer [subscribe dispatch reg-event-db trim-v
+                                   set-loggers!]]
             [re-frame.db :refer [app-db]]
             [secretary.core :as secretary]))
 
@@ -54,8 +55,15 @@
       (set! js/console.error
             (make-console-fn :error js/console.defaultError
                              :ignore-regexps
-                             [#"no longer attached.*unable to animate"])))
-    nil))
+                             [#"no longer attached.*unable to animate"]))
+
+      ;; re-frame grabs the console.log fns on import, so we have to reset them
+      (set-loggers! {:debug js/console.debug
+                     :error js/console.error
+                     :group js/console.group
+                     :groupEnd js/console.groupEnd
+                     :log js/console.log
+                     :warn js/console.warn}))))
 
 (defn log-entry-string [entry]
   (let [[primary & other] entry]
