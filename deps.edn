@@ -107,7 +107,7 @@
                       "components/user/resources"]}
   :poly {:extra-deps {polyfy/polylith
                       {:git/url "https://github.com/polyfy/polylith.git"
-                       :sha "9c018fac09fe80d405229f76b703f142700a70a6"
+                       :sha "6c8547fa15e34ad4381b8c65e96cea39354b4814"
                        :deps/root "projects/poly"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
