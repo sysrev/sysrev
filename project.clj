@@ -146,16 +146,21 @@
                               :plugins [[lein-environ "1.2.0"]]}
              :test           {:dependencies
                               [[com.opentable.components/otj-pg-embedded "0.13.3"]
+                               [org.flywaydb/flyway-core "7.9.1"]
                                [prestancedesign/get-port "0.1.1"]]
                               :jvm-opts ["-Xmx1000m"]
-                              :resource-paths ["config/test" "resources/test"]
+                              :resource-paths ["config/test" "resources/test"
+                                               "components/e2e/resources"
+                                               "components/fixtures/resources"
+                                               "components/flyway/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/e2e/src"
                                              "components/fixtures/src"
-                                             "components/fixtures/resources"
-                                             "components/postgres/src"
-                                             "components/postgres/resources"]
-                              :test-paths ["test/clj"]}
-             ;; :test-config    {:eftest {}}
+                                             "components/flyway/src"]
+                              :test-paths ["test/clj"
+                                           "components/e2e/test"
+                                           "components/notification/test"
+                                           "components/user/test"]}
              :jenkins        {:eftest {:thread-count 4
                                        :report eftest.report.junit/report
                                        :report-to-file "target/junit.xml"}}})
