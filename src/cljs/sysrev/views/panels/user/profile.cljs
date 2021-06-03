@@ -81,12 +81,13 @@
   :uri (fn [] "/api/change-username")
   :content (fn [username] {:username username})
   :process (fn [{:keys [db]} [username] {:keys [success]}]
-             (when success
+             (if success
                {:db (-> db
                         (assoc-in
                          [:data :users (identity/current-user-id db) :username]
                          username)
-                        (panel-set [:editing-profile?] false))})))
+                        (panel-set [:editing-profile?] false))}
+               (data/reload :username/taken? username))))
 
 (defn- InvitationMessage
   [{:keys [project-id description accepted active created]}]
