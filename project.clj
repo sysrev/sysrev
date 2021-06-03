@@ -150,15 +150,12 @@
                                [prestancedesign/get-port "0.1.1"]]
                               :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"
-                                               "components/e2e/resources"
                                                "components/fixtures/resources"
                                                "components/flyway/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
-                                             "components/e2e/src"
                                              "components/fixtures/src"
                                              "components/flyway/src"]
                               :test-paths ["test/clj"
-                                           "components/e2e/test"
                                            "components/notification/test"
                                            "components/user/test"]}
              :jenkins        {:eftest {:thread-count 4
