@@ -153,6 +153,12 @@
                user-id (keyword setting) value))
             {:success true, :settings (user/user-settings user-id)})))
 
+  (POST "/api/change-username" request
+        (with-authorize request {:logged-in true}
+          (let [user-id (current-user-id request)
+                {:keys [username]} (:body request)]
+            {:success (not (zero? (user/change-username user-id username)))})))
+
   (GET "/api/terms-of-use.md" _
        (app/text-file-response
         (-> (io/resource "terms_of_use.md") io/reader)
@@ -168,10 +174,4 @@
         (api/handle-stripe-hooks request))
 
   (POST "/api/managed-review-request" request
-    (api/managed-review-request request))
-
-  #_ (POST "/api/activity" request
-           (let []))
-
-  #_ (POST "/api/error" request
-           (let [])))
+    (api/managed-review-request request)))

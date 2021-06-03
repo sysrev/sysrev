@@ -348,7 +348,7 @@
   (q/modify :web-user {:user-id user-id} {:introduction introduction}))
 
 (defn search-users
-  "Return users whose email matches q"
+  "Return users whose username matches q"
   [q & {:keys [limit]
         :or {limit 5}}]
   (with-transaction

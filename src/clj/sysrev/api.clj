@@ -35,7 +35,6 @@
             [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.label.define :as ldefine]
-            [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.group.core :as group]
             [sysrev.gengroup.core :as gengroup]
             [sysrev.file.core :as file]
@@ -55,6 +54,8 @@
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
+            [sysrev.user.interface :as user :refer [user-by-email]]
+            [sysrev.user.interface.spec :as su]
             [sysrev.util :as util :refer [in? index-by req-un parse-integer sum]])
   (:import (java.util UUID)
            (java.util.zip ZipOutputStream ZipEntry)))
@@ -1336,8 +1337,13 @@
           ;; finally, if everything went through ok, return the org-id
           {:success true :id id})))))
 
-(defn search-users [term]
-  {:success true, :users (user/search-users term)})
+(defn search-users [{:keys [exact? term]}]
+  {:success true
+   :users
+   (if exact?
+     (when (and (s/valid? ::su/username term) (seq term))
+       (-> term user/user-by-username :user-id vector user/get-users-public-info))
+     (user/search-users term))})
 
 (defn set-user-group-permissions! [user-id org-id permissions]
   (with-transaction
