@@ -100,7 +100,9 @@
   "Basic setup for all tests (db, web server, clojure.spec)."
   [f]
   (case (:profile env)
-    :test (f)
+    :test (do
+            (t/instrument)
+            (f))
     :remote-test (f)
     :dev (do (t/instrument)
              (set-web-asset-path "/out")
