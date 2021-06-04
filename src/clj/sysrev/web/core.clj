@@ -142,8 +142,9 @@
   "Root handler for web server"
   [& [sente]]
   (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) wrap-sysrev-api))
-                    (when sente
-                      (channel-socket-routes (:chsk sente)))
+                    (if sente
+                      (channel-socket-routes (:chsk sente))
+                      (constantly nil))
                     (ANY "/api/*" [] (c/wrap-routes app-routes wrap-sysrev-app))
                     (ANY "/graphql" [] graphql-routes)
                     (compojure.route/resources "/")
