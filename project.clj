@@ -123,6 +123,7 @@
                               :main sysrev.all-test-main}
              :test-aws-dev   {:resource-paths ["config/test-aws-dev"]}
              :test-aws-prod  {:resource-paths ["config/test-aws-prod"]}
+             :test-local     {:eftest {:multithread? false}}
              :test-s3-dev    {:resource-paths ["config/test-s3-dev"]}
              :dev            {:jvm-opts ["-Xmx1200m"]
                               :resource-paths ["config/dev"]
