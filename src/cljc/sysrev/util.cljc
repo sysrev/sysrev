@@ -456,8 +456,9 @@
   (->> (xml-find roots path)
        (mapv #(-> % :content first))))
 
-#?(:cljs (defn date-format [dt & [time-format]]
+#?(:cljs (defn date-format
            "Formats a date"
+           [dt & [time-format]]
            (-> (cond (keyword? time-format) (tf/formatters time-format)
                      (string? time-format)  (tf/formatter time-format)
                      :else                  (tf/formatters :basic-date))

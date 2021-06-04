@@ -5,11 +5,10 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
-            [sysrev.state.nav :refer [project-uri]]
             [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data]
             [sysrev.state.label :refer [sort-client-project-labels]]
-            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.stripe :as stripe]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
@@ -17,7 +16,7 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.semantic :as S :refer [Divider Button Message Segment
                                            Modal ModalHeader ModalContent ModalDescription Form
-                                           Input FormField TextArea]]
+                                           FormField TextArea]]
             [sysrev.dnd :as dnd]
             [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
@@ -290,8 +289,8 @@
   :uri (fn [] "/api/get-label-share-code")
   :content (fn [project-id label-id]
              {:project-id project-id :label-id label-id})
-  :process (fn [_ [project-id] {:keys [success share-code]}]
-             (if success
+  :process (fn [_ [_] {:keys [success share-code]}]
+             (when success
                {:dispatch [::set [:share-label-modal :share-code] share-code]}))
   :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:toast {:class "error"
@@ -365,7 +364,7 @@
   :uri (fn [] "/api/import-label")
   :content (fn [project-id {:keys [share-code]}] {:project-id project-id
                                                   :share-code share-code})
-  :process (fn [_ [project-id] {:keys [success labels message] :as response}]
+  :process (fn [_ [_] {:keys [success labels message]}]
              (if success
                (do
                  (set-app-db-labels! labels)

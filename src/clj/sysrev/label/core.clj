@@ -19,7 +19,7 @@
                                           sum uuid-from-string]]))
 
 ;; for clj-kondo
-(declare user-article-confirmed?)
+(declare user-article-confirmed? get-label)
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
 (def valid-label-value-types  ["boolean" "categorical" "string" "group" "annotation"])

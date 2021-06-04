@@ -562,8 +562,7 @@
 
 (dr (POST "/api/get-label-share-code" request
           (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [label-id]} (:body request)
+            (let [{:keys [label-id]} (:body request)
                   label (label/get-label label-id)]
               (if (= (:project-id label) (:owner-project-id label))
                 {:success true :share-code (label/get-share-code label-id)}
