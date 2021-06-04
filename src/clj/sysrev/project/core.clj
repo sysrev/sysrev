@@ -116,7 +116,7 @@
   (with-project-cache project-id [:labels :all include-disabled]
     (let [check-enabled #(if include-disabled % (merge % {:enabled true}))
           labels (q/find :label (check-enabled {:project-id project-id
-                                                :root-label-id-local nil})
+                                                     :root-label-id-local nil})
                          :*, :index-by :label-id, :where [:!= :value-type "group"])
           group-labels (->> (q/find :label (check-enabled {:project-id project-id
                                                            :value-type "group"})

@@ -55,7 +55,8 @@
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [in? index-by req-un parse-integer sum]])
+            [sysrev.encryption :as enc]
+            [sysrev.util :as util :refer [in? index-by req-un parse-integer sum uuid-from-string]])
   (:import (java.util UUID)
            (java.util.zip ZipOutputStream ZipEntry)))
 
@@ -1653,3 +1654,18 @@
                   user-id
                   :create? true
                   :returning :subscriber-id)))})
+
+(defn import-label [share-code project-id]
+  (let [share-data (enc/decrypt share-code)
+        label-id (uuid-from-string (:label-id share-data))
+        existing-label (q/find-one :label {:project-id project-id
+                                           :global-label-id label-id})]
+    (if existing-label
+      {:success false
+       :message "Label already imported in this project."}
+      (do
+        (label/import-label share-code project-id)
+        {:success true
+         :labels (project/project-labels project-id true)}))))
+
+
