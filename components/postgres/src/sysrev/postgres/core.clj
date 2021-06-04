@@ -5,9 +5,13 @@
             [sysrev.config :refer [env]]
             [sysrev.flyway.interface :as flyway]))
 
+(defn get-config [& [postgres-overrides]]
+  (-> env :postgres
+      (merge postgres-overrides)
+      (update :dbtype #(or % "postgres"))))
+
 (defn start-db! [& [postgres-overrides only-if-new]]
-  (let [db-config (db/make-db-config
-                   (merge (:postgres env) postgres-overrides))]
+  (let [db-config (db/make-db-config (get-config postgres-overrides))]
     (flyway/migrate! (:datasource db-config))
     (db/set-active-db! db-config only-if-new)))
 
@@ -41,4 +45,4 @@
 
 (defn postgres [& [postgres-overrides]]
   (map->Postgres
-   {:config (merge (:postgres env) postgres-overrides)}))
+   {:config (get-config postgres-overrides)}))

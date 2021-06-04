@@ -6,14 +6,18 @@
             [sysrev.flyway.interface :as flyway])
   (:import [com.opentable.db.postgres.embedded EmbeddedPostgres]))
 
-(defn start-db! [& [postgres-overrides only-if-new]]
+(defn get-config [& [postgres-overrides]]
   (let [port (get-port/get-port)
         dbname (str "postgres" port)
         db {:dbname dbname
             :dbtype "postgres"
             :host "localhost"
             :port port
-            :user "postgres"}
+            :user "postgres"}]
+    (merge db postgres-overrides)))
+
+(defn start-db! [& [postgres-overrides only-if-new]]
+  (let [{:keys [dbname port] :as config} (get-config postgres-overrides)
         conn (-> (EmbeddedPostgres/builder)
                  (.setPort port)
                  .start
@@ -21,7 +25,7 @@
                  .getConnection)
         _ (-> conn .createStatement
               (.executeUpdate (str "CREATE DATABASE " dbname)))
-        db-config (db/make-db-config (merge db postgres-overrides))]
+        db-config (db/make-db-config config)]
     (flyway/migrate! (:datasource db-config))
     (db/set-active-db! db-config only-if-new)))
 
@@ -60,11 +64,4 @@
         (assoc this :datasource nil :pg nil)))))
 
 (defn postgres [& [postgres-overrides]]
-  (let [port (get-port/get-port)
-        dbname (str "postgres" port)
-        db {:dbname dbname
-            :dbtype "postgres"
-            :host "localhost"
-            :port port
-            :user "postgres"}]
-    (map->Postgres {:config (merge db postgres-overrides)})))
+  (map->Postgres {:config (get-config postgres-overrides)}))
