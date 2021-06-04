@@ -2,7 +2,9 @@
   (:refer-clojure :exclude [read-string])
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [honeysql.types :as types]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.postgres.interface :as postgres]))
@@ -27,14 +29,26 @@
              (vector (keyword %)))
        table-names))
 
+(defn test-db? [db]
+  (and (str/includes? (:dbname db) "_test")
+       (not= 5470 (:port db)) ;; This is the port for the production DB
+       (not= "sysrev.com" (get-in env [:selenium :host]))))
+
+(defn ensure-test-db! [db]
+  (when-not (test-db? db)
+    (throw (RuntimeException.
+            "Not allowed to load fixtures on production server."))))
+
 (defn load-fixtures! []
   (doseq [[table records] (get-fixtures)]
+    (ensure-test-db! (:config @db/active-db))
     (q/create table records)))
 
 (defn wrap-fixtures [f]
   (let [old-config (:config @db/active-db)]
     ;; This is hacky. It would be better to have avoided global state.
     (postgres/start-db!)
+    (ensure-test-db! (:config @db/active-db))
     (load-fixtures!)
     (f)
     (db/set-active-db! (db/make-db-config old-config))))
