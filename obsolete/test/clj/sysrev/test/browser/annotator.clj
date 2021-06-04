@@ -19,12 +19,12 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(def review-annotator-tab
+  (x/xpath "//div[contains(@class,'review-interface')]"
+           "//a[contains(text(),'Annotations')]"))
+
 (def save-annotation-button ".ui.form.edit-annotation .ui.button.positive[type=submit]")
 (def edit-annotation-icon ".ui.form.edit-annotation i.pencil.icon")
-(def sidebar-el
-  (-> "div.panel-side-column > div.visibility-wrapper"
-      (b/not-class "placeholder")
-      (b/not-class "constraint")))
 (def annotation-value-input
   (b/not-disabled (css sidebar-el "div.field.value" "input")))
 (def semantic-class-input
@@ -237,7 +237,7 @@
           (> (count elts) 1)   (log/warn "matched multiple annotation entries" q)
           :else                (b/click (css q ".ui.button.delete-annotation")))))
 
-#_(deftest-browser annotator-interface
+(deftest-browser annotator-interface
   (test/db-connected?) test-user
   [project-name "Browser Test (annotator-interface)"
    project-id (atom nil)
@@ -410,18 +410,3 @@
           (is (= 1 (count (api/project-annotations @project-id)))))))
   :cleanup (doseq [{:keys [email]} test-users]
              (b/cleanup-test-user! :email email)))
-
-(deftest-browser test-annotation-labels
-  (test/db-connected?) test-user
-  [project-name "Browser Test (annotation labels)"
-   project-id (atom nil)
-   annotation-label-definition {:value-type "annotation"
-                                :short-label "Test Label 1"
-                                :question "Is it?"
-                                :definition {:all-values ["EntityOne" "EntityTwo" "EntityThree"]}
-                                :required false}]
-  (do (nav/log-in (:email test-user))
-      (nav/new-project project-name)
-      (define/define-label annotation-label-definition))
-  :cleanup (do (nav/delete-current-project)
-               (nav/log-out)))

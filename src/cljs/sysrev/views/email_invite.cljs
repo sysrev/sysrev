@@ -32,10 +32,12 @@
   :process  (fn [_ _ {:keys [success message] :as result}]
               (if success
                 {:dispatch-n [[::emails-text ""]
-                              [:toast {:class "success" :message message}]]}
+                              [:alert {:content message
+                                       :opts {:success true}}]]}
                 (util/log-err "error in :project/send-invites: %s" (pr-str result))))
   :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error" :message (:message error)}]}))
+              {:dispatch [:alert {:content (:message error)
+                                  :opts {:error true}}]}))
 
 (defn InviteEmails []
   (let [project-id @(subscribe [:active-project-id])

@@ -262,7 +262,7 @@
 (s/def ::class-condition (s/and vector? #(-> % count (mod 2) (= 0))))
 (s/def ::class-form (s/or :null nil? :string string? :condition ::class-condition))
 
-(defn-spec css string?
+(defn-spec css (s/nilable string?)
   "Combines class forms into a space-separated CSS classes string.
   Each value should be of type string, vector, or nil. Vector forms
   are handled as if passing the values as arguments to cond; the
@@ -280,7 +280,8 @@
                      )
                 x)))
        (remove #(contains? #{nil ""} %))
-       (str/join " ")))
+       (str/join " ")
+       (not-empty)))
 
 (defn keyword-argseq
   "Converts a keyword map to a flat sequence as used in syntax for
@@ -289,10 +290,10 @@
   (->> keyword-argmap vec (apply concat)))
 
 (defn apply-keyargs
-  "Similar to apply but convenient for [... & {:keys ...}]
-  functions. The last element of args must be a map of keyword args,
+  "Similar to `apply` but convenient for [... & {:keys ...}]
+  functions. The last element of `args` must be a map of keyword args,
   which will be combined with the other args into a flat sequence
-  before passing to apply."
+  before passing to `apply` with function `f`."
   [f & args]
   (let [keyargs (last args)
         mainargs (butlast args)]
@@ -303,7 +304,8 @@
     (apply f (concat mainargs (keyword-argseq keyargs)))))
 
 (defn space-join
-  "Joins a collection of strings after removing any empty values."
+  "Runs `clojure.string/join` on strings `coll` with `separator`, after removing
+  any empty values."
   [coll & {:keys [separator] :or {separator " "}}]
   (->> coll (map str) (remove empty?) (str/join separator)))
 

@@ -1,5 +1,6 @@
 (ns sysrev.views.group-label
-  (:require [clojure.string :as str]
+  (:require [clojure.edn :as edn]
+            [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
             [reagent.dom :as rdom]
@@ -21,6 +22,22 @@
                         :max-row nil
                         :popped-out false
                         :use-spreadsheet false}))
+
+(defn get-editor-settings []
+  (->>
+    (some-> "sysrev.views.group-label/editor-settings"
+      js/window.localStorage.getItem
+      edn/read-string)
+    (medley/deep-merge
+      {:default {:height "600px"
+                 :x 0
+                 :y 0
+                 :width "400px"}})))
+
+(defn set-editor-settings [m]
+  (js/window.localStorage.setItem
+    "sysrev.views.group-label/editor-settings"
+    (pr-str m)))
 
 (def value-coercers
   {"boolean" #(when-not (str/blank? %)
@@ -498,6 +515,10 @@
    "categorical" #(let [v (.-value (.-cell %))]
                     (if (or (array? v) (sequential? v))
                       (str/join ", " (seq v))
+                      v))
+   "string" #(let [v (.-value (.-cell %))]
+                    (if (or (array? v) (sequential? v))
+                      (str/join ", " (seq v))
                       v))})
 
 (defn value-viewer [value-type data]
@@ -636,10 +657,52 @@
          labels))
       (->> (:labels answers) keys (map parse-integer) sort))]))
 
-(defn EditorContainer [& children]
-  [:> Rnd
-   {:class-name "ui detached group-label-editor-rnd-container"}
-   children])
+(defn is-visible? [node]
+  (let [rect (.getBoundingClientRect node)
+        view-height (Math/max js/document.documentElement.clientHeight
+                      js/window.innerHeight)]
+    (not (or (< (.-bottom rect) 0)
+             (>= (- (.-top rect) view-height) 0)))))
+
+(defn EditorContainer []
+  (let [rnd (atom nil)]
+    (r/create-class
+      {:component-did-mount
+       (fn [this]
+         (let [node (rdom/dom-node this)]
+           (when-not (is-visible? node)
+             (let [settings (update (get-editor-settings)
+                              :default #(assoc % :x 0 :y 0))
+                   rndc @rnd]
+               (set-editor-settings settings)
+               (when rndc
+                 (.updatePosition rndc #js{:x 0 :y 0}))))))
+       :reagent-render
+       (fn [{:keys [default]} & children]
+         [:> Rnd
+          {:bounds "window"
+           :class-name "ui detached group-label-editor-rnd-container"
+           :default default
+           :min-height "200px"
+           :min-width "360px"
+           :on-drag-stop
+           (fn [_ data]
+             (-> (get-editor-settings)
+               (assoc-in [:default :x] (.-x data))
+               (assoc-in [:default :y] (.-y data))
+               set-editor-settings))
+           :on-resize-stop
+           (fn [_ _ ref _ position]
+             (let [style (.-style ref)]
+               (-> (get-editor-settings)
+                 (assoc-in [:default :height] (.-height style))
+                 (assoc-in [:default :width] (.-width style))
+                 (assoc-in [:default :x] (.-x position))
+                 (assoc-in [:default :y] (.-y position))
+                 set-editor-settings)))
+           :ref #(reset! rnd %)}
+          (into [:div]
+            children)])})))
 
 (defn GroupLabelDiv [{:keys [article-id group-label-id] :as opts}]
   (let [multi? @(subscribe [:label/multi? "na" group-label-id])
@@ -660,7 +723,7 @@
         label-name @(subscribe [:label/display "na" group-label-id])]
     (into
      (if popped-out
-       [EditorContainer]
+       [EditorContainer (get-editor-settings)]
        [:div {:id group-label-preview-div
               :style {:overflow-x "scroll"
                       :overflow-y "visible"
@@ -669,13 +732,15 @@
                       :resize "both"
                       :overflow "auto"
                       :height "auto"}}])
-     [[:div {:class "group-label-title-container"}
+     [^{:key "group-label-title-container"}
+      [:div {:class "group-label-title-container"}
        [:div {:class "group-label-title"
               :style {:flex-grow 2}}
         label-name]
        [:div
         [ToggleEditorButton]
         [TogglePopoutButton]]]
+      ^{:key "group-label-sheet-container"}
       [:div {:class "group-label-sheet-container"}
        (if use-spreadsheet
          [DSTable opts]

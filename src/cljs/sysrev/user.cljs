@@ -9,8 +9,6 @@
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             ["chart.js" :as Chart]
-            ["pdfjs-dist" :as pdfjs]
-            ["pdfjs-dist/web/pdf_viewer" :as pdfjsViewer]
             ["jquery" :as $]
             sysrev.base
             sysrev.core
@@ -23,6 +21,7 @@
             sysrev.loading
             sysrev.views.main
             sysrev.shared.keywords
+            [sysrev.views.semantic :as S]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]

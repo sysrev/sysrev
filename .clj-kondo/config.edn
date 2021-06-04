@@ -22,7 +22,9 @@
            :unused-binding {:exclude-destructured-keys-in-fn-args true}
            :unused-namespace {:exclude [clojure.tools.logging
                                         sysrev.util
-                                        medley.core]}
+                                        medley.core
+                                        clj-webdriver.taxi
+                                        clojure.string]}
            :unused-referred-var {:exclude {clojure.test [is deftest testing]
                                            re-frame.core [dispatch subscribe]}}
            :consistent-alias {:aliases {

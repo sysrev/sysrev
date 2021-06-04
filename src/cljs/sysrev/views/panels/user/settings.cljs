@@ -5,7 +5,7 @@
             [sysrev.views.semantic :as S :refer
              [Segment Header Grid Column Radio Message]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.components.core :refer [selection-dropdown CursorMessage]]
+            [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
@@ -96,7 +96,7 @@
 
 (defn- ThemeSelector []
   (let [active-theme (render-setting :ui-theme)]
-    [selection-dropdown
+    [ui/SelectionDropdown
      [:div.text active-theme]
      (->> ["Default" "Dark"]
           (mapv
@@ -196,7 +196,7 @@
                      :checked @active?
                      :disabled (or (not verified) @loading?)
                      :on-change (fn [_e] (put-opt-in!))}]
-             [CursorMessage error-message {:negative true}]])))
+             [ui/CursorMessage error-message {:negative true}]])))
       :get-initial-state
       (fn [_this]
         (reset! loading? true)
@@ -245,7 +245,7 @@
                  :checked @enabled?
                  :disabled (not (stripe/pro? (:nickname @plan)))
                  :on-click (fn [_e] (toggle-dev-account! enabled?))}]
-         [CursorMessage error-message {:negative true}]])
+         [ui/CursorMessage error-message {:negative true}]])
       :get-initial-state (fn [_this]
                            (reset! loading? true)
                            nil)})))

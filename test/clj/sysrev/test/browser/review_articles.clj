@@ -12,7 +12,8 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
-            [sysrev.test.browser.define-labels :as define]))
+            [sysrev.test.browser.define-labels :as define]
+            [sysrev.util :as util]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -27,22 +28,30 @@
 (declare set-boolean-value add-string-value add-categorical-value
          categorical-active-values remove-categorical-value)
 
-(defn label-div-with-name [short-label]
-  (xpath "//span[contains(@class,'name')]"
-         (format "/span[contains(@class,'inner') and text()='%s']" short-label)
-         "/ancestor::div[contains(@class,'label-edit')"
-         " and contains(@class,'column')][1]"))
+(defn label-column-xpath [& {:keys [label-id short-label]}]
+  (util/assert-single label-id short-label)
+  (xpath "//div[contains(@class,'label-edit') and contains(@class,'column') and "
+         (cond label-id    (format "@data-label-id='%s'" (str label-id))
+               short-label (format "@data-short-label='%s'" short-label))
+         "]"))
+
+(defn label-grid-xpath [& {:keys [label-id short-label] :as args}]
+  (xpath (util/apply-keyargs label-column-xpath args)
+         "/div[contains(@class,'label-edit') and contains(@class,'grid')]"))
 
 (defn-spec set-boolean-value any?
   "Sets boolean label `short-label` to `value` in review interface."
-  [short-label string?, value (s/nilable boolean?), & [xpath] any?]
-  (b/click (x/xpath xpath (label-div-with-name short-label)
-                    (format "/descendant::div[text()='%s']"
-                            (case value true "Yes" false "No" nil "?"))) )
+  [short-label string?, value (s/nilable boolean?) & [xpath] any?]
+  (b/click (x/xpath (label-grid-xpath :short-label short-label)
+                    "/div[contains(@class,'label-edit-value')]"
+                    "//div[contains(@class,'button') and "
+                    (format "text()='%s'"
+                            (case value true "Yes" false "No" nil "?"))
+                    "]"))
   (Thread/sleep 30))
 
 (defn string-plus-button-xpath [short-label]
-  (xpath (label-div-with-name short-label)
+  (xpath (label-column-xpath :short-label short-label)
          "/descendant::i[contains(@class,'plus')]"
          "/ancestor::div[contains(@class,'button')"
          " and contains(@class,'input-row')]"))
@@ -53,7 +62,7 @@
             (filterv taxi/displayed?))))
 
 (defn string-input-xpath [short-label & [value]]
-  (xpath (label-div-with-name short-label)
+  (xpath (label-column-xpath :short-label short-label)
          (if value
            (format "/descendant::input[@type='text' and @value='%s']" value)
            "/descendant::input[@type='text']")))
@@ -92,27 +101,26 @@
 (defn-spec add-categorical-value any?
   "Adds `value` to categorical label `short-label` in review interface."
   [short-label string?, value string?, & [xpath] any?]
-  (let [dropdown-div (x/xpath xpath (label-div-with-name short-label)
-                              "/descendant::div[contains(@class,'dropdown')]"
-                              "/i[contains(@class,'dropdown')]")
-        entry-div (x/xpath xpath (label-div-with-name short-label)
-                           "/descendant::div[contains(text(),'" value "')]")]
-    (b/click dropdown-div :displayed? true :delay 75)
-    (b/click entry-div :displayed? true :delay 75)))
+  (let [label-el     (label-column-xpath :short-label short-label)
+        dropdown-el  (x/xpath label-el "//div[contains(@class,'dropdown')]")
+        icon-el      (x/xpath dropdown-el "/i[contains(@class,'dropdown')]")
+        value-el     (x/xpath dropdown-el (format "//span[text()='%s']" value))]
+    (b/click icon-el :displayed? true :delay 75)
+    (b/click value-el :displayed? true :delay 75)))
 
 (defn-spec categorical-active-values (s/coll-of string? :kind vector?)
   "Returns vector of selected values in dropdown component for `short-label`."
   [short-label string?]
-  (->> (taxi/find-elements (xpath (label-div-with-name short-label)
-                                  "/descendant::a[contains(@class,'label')]"))
+  (->> (taxi/find-elements (xpath (label-column-xpath :short-label short-label)
+                                  "//a[contains(@class,'label')]"))
        (mapv taxi/text)))
 
 (defn-spec remove-categorical-value any?
   "Removes `value` from categorical label `short-label` in review interface."
   [short-label string?, value string?]
-  (b/click (xpath (label-div-with-name short-label)
-                  (format "/descendant::a[contains(@class,'label') and text()='%s']"
-                          value))))
+  (b/click (xpath (label-column-xpath :short-label short-label)
+                  (format "//a[contains(@class,'label') and text()='%s']" value)
+                  "/i[contains(@class,'delete')]")))
 
 (defn label-button-value [label]
   (taxi/text (xpath "//div[contains(@class,'button') and contains(text(),'" label "')]"
@@ -248,7 +256,7 @@
       (b/click (x/project-menu-item :review))
       (b/click x/review-labels-tab)
       (b/wait-until-displayed
-       (label-div-with-name (:short-label include-label-definition)))
+       (label-grid-xpath :short-label (:short-label include-label-definition)))
       ;; We shouldn't have any labels for this project
       (is (empty? (label/query-public-article-labels @project-id)))
       ;; set the labels
@@ -437,13 +445,13 @@
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
       (pm/import-pubmed-search-via-db "foo bar")
-      ;;; create new labels
+;;; create new labels
       (nav/go-project-route "/labels/edit")
       (define/define-label label1)
       (is (b/exists? (x/match-text "span" name1)))
       (define/define-label label2)
       (is (b/exists? (x/match-text "span" name2)))
-      ;;;; review an article
+;;; review an article
       (nav/go-project-route "")
       (b/click (x/project-menu-item :review))
       (b/click x/review-labels-tab)
@@ -455,7 +463,7 @@
       (b/click ".button.save-labels" :displayed? true)
       (nav/go-project-route "/data")
       (b/wait-until-loading-completes :pre-wait 50 :loop 2)
-      (b/wait-until-displayed (xpath (format "//div[contains(@class,'label-value') and text()='%s']" "true")))
-      (b/wait-until-displayed (xpath (format "//div[contains(@class,'label-value') and text()='%s']" "StringValue1")))
-      (b/wait-until-displayed (xpath (format "//div[contains(@class,'label-value') and text()='%s']" "CategoryValue1"))))
+      (doseq [x ["true" "StringValue1" "CategoryValue1"]]
+        (b/wait-until-displayed
+         (xpath (format "//div[contains(@class,'label-value') and text()='%s']" x)))))
   :cleanup (nav/delete-current-project))

@@ -43,10 +43,6 @@
 (defn match-text [element text]
   (xpath (format "//%s[text()='%s']" element text)))
 
-(def review-annotator-tab
-  (xpath "//div[contains(@class,'review-interface')]"
-         "//a[contains(text(),'Annotations')]"))
-
 (def review-labels-tab
   (xpath "//div[contains(@class,'review-interface')]"
          "//a[contains(text(),'Labels')]"))

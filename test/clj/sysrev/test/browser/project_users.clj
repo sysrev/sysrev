@@ -19,7 +19,7 @@
         group-name-input "#gengroup-name-input"
         group-description-input "#gengroup-description-input"
         create-gengroup-button "#create-gengroup-btn"
-        success-notification ".ui.toast.success"]
+        success-notification ".ui.alert-message.success"]
     (b/wait-until-displayed new-gengroup-btn)
     (b/click new-gengroup-btn)
     (b/wait-until-displayed group-name-input)
@@ -34,7 +34,7 @@
         group-name-input "#gengroup-name-input"
         group-description-input "#gengroup-description-input"
         save-gengroup-button "#save-gengroup-btn"
-        success-notification ".ui.toast.success"]
+        success-notification ".ui.alert-message.success"]
     (b/wait-until-displayed edit-gengroup-btn)
     (b/click edit-gengroup-btn)
     (b/wait-until-displayed group-name-input)
@@ -47,7 +47,7 @@
 (defn delete-gengroup [gengroup]
   (let [delete-gengroup-btn (format ".delete-gengroup-btn[data-gengroup-name='%s']" (:name gengroup))
         delete-gengroup-confirmation-btn "#delete-gengroup-confirmation-btn"
-        success-notification ".ui.toast.success"]
+        success-notification ".ui.alert-message.success"]
     (b/click delete-gengroup-btn)
     (b/wait-until-displayed delete-gengroup-confirmation-btn)
     (b/click delete-gengroup-confirmation-btn)
@@ -80,7 +80,7 @@
   [test-user (if (= (:profile env) :dev)
                (b/create-test-user)
                test-user)
-   success-notification ".ui.toast.success"
+   success-notification ".ui.alert-message.success"
    gengroup (first valid-gengroups)
    manage-member-btn ".manage-member-btn"
    gengroup-search-result (format ".result[name='%s']" (:name gengroup))
@@ -96,13 +96,7 @@
       (b/set-input-text-per-char search-gengroups-input (:name gengroup) :delay 50)
       (b/click gengroup-search-result)
       (b/click add-gengroup-btn)
-      (b/wait-until-displayed success-notification)
-      (b/click success-notification :delay 100))
+      (b/wait-until-displayed success-notification))
   :cleanup (do
              (nav/delete-current-project)
              (nav/log-out)))
-
-
-
-
-

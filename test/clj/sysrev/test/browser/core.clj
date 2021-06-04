@@ -23,7 +23,7 @@
             [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote UnreachableBrowserException]
-           [java.net URI URLDecoder]))
+           [java.net URI]))
 
 (defonce ^:dynamic *wd* (atom nil))
 (defonce ^:dynamic *wd-config* (atom nil))
@@ -451,13 +451,9 @@
         ;; toast element can block position of "Log Out" button
         wait-for-toasts `(do (Thread/sleep 200)
                              (util/ignore-exceptions
-                              (b/wait-until
-                               (or (util/ignore-exceptions
-                                    (not (displayed-now? ".ui.toast")))
-                                   (util/ignore-exceptions
-                                    (b/click ".ui.toast")
-                                    true))
-                               3000))
+                              (b/wait-until (util/ignore-exceptions
+                                             (not (displayed-now? ".ui.alert-message")))
+                                            5000))
                              (Thread/sleep 100))]
     `(deftest ~name
        (when (or ~repl? ~enable)
@@ -683,13 +679,3 @@
     (wait-until-exists (xpath "//div[contains(@class,'datasource-item')"
                               "      and contains(@class,'active')]"
                               "//p[contains(text(),'" datasource-name "')]"))))
-
-(defn uppy-attach-files
-  "Given a coll of file names in the resources dir, attach the files to
-  uppy file element."
-  [coll]
-  (taxi/send-keys "input[name='files[]']"
-                  (->> (for [s (util/ensure-vector coll)]
-                         (-> s io/resource .getFile URLDecoder/decode))
-                       (str/join "\n")))
-  nil)

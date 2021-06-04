@@ -2,7 +2,6 @@
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
             [re-frame.core :refer [reg-event-fx trim-v dispatch]]
-            ["jquery" :as $]
             [sysrev.ajax :refer [reg-event-ajax-fx run-ajax]]
             [sysrev.loading :as loading]
             [sysrev.util :as util :refer [apply-keyargs]]))
@@ -130,11 +129,6 @@
                 (do (js/console.error (str "action error: item = " (pr-str item)
                                            "\nerror: " (pr-str (:error cofx))))
                     {})))))))
-
-(reg-event-fx :toast
-              (fn [_ [_ opts]]
-                (-> ($ "body") (.toast (clj->js opts)))
-                {}))
 
 (defn run-action [& item]
   (dispatch [:action (into [] item)]))

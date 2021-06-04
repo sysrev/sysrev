@@ -4,6 +4,7 @@
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
+            [sysrev.project.core :refer [project-overall-label-id]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.shared.spec.article :as sa]
             [sysrev.util :as util :refer [in? map-values index-by]]))
@@ -107,15 +108,14 @@
 
 (defn article-score [article-id & {:keys [predict-run-id]}]
   (db/with-transaction
-    (let [predict-run-id (or predict-run-id (-> (q/get-article article-id :project-id)
-                                                (q/project-latest-predict-run-id)))]
-      (q/find-one [:article :a] {:a.article-id article-id
-                                 :lp.predict-run-id predict-run-id
-                                 :lp.stage 1
-                                 :lp.label-value "TRUE" 
-                                 :l.name "overall include"}
-                  :lp.val, :join [[[:label-predicts :lp] :a.article-id]
-                                  [[:label :l]           :lp.label-id]]))))
+    (let [project-id (q/get-article article-id :project-id)
+          predict-run-id (or predict-run-id (q/project-latest-predict-run-id project-id))]
+      (q/find-one :label-predicts {:article-id article-id
+                                   :label-id (project-overall-label-id project-id)
+                                   :predict-run-id predict-run-id
+                                   :stage 1
+                                   :label-value "TRUE"}
+                  :val))))
 
 (defn article-predictions [article-id & {:keys [predict-run-id]}]
   (->> (db/with-transaction
@@ -171,19 +171,6 @@
                    (get locations (name source)))))
        (apply concat)
        (filter identity)))
-
-(defn project-prediction-scores
-  "Given a project-id, return the prediction scores for all articles"
-  [project-id & {:keys [include-disabled? predict-run-id]
-                 :or {include-disabled? false}}]
-  (let [predict-run-id
-        (or predict-run-id
-            (first (q/find :predict-run {:project-id project-id} :predict-run-id
-                           :order-by [:create-time :desc] :limit 1)))]
-    (q/find [:label-predicts :lp] (cond-> {:a.project-id project-id
-                                           :lp.predict-run-id predict-run-id}
-                                    (not include-disabled?) (merge {:a.enabled true}))
-            [:a.article-id :lp.val], :join [[:article :a] :lp.article-id])))
 
 ;; FIX: get this PMCID value from somewhere other than raw xml
 (defn article-pmcid [_article-id]

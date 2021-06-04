@@ -2,18 +2,20 @@
   (:require ["jquery" :as $]
             [clojure.string :as str]
             [clojure.set :as set]
+            [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.action.core :as action]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.state.ui :as ui-state]
             [sysrev.state.label :refer [project-overall-label-id]]
-            [sysrev.views.components.core :as ui]
+            [sysrev.views.components.core :as ui :refer [UiHelpIcon]]
             [sysrev.views.article-list.base :as al]
+            [sysrev.views.semantic :as S]
             [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.util :as util :refer
              [in? map-values css space-join wrap-parens parse-integer parse-number
-              when-test]]))
+              when-test to-uuid]]))
 
 (reg-sub ::inputs
          (fn [[_ context path]]
@@ -212,43 +214,48 @@
                             (js/setTimeout 1000))))}]
      [:i.search.icon]]))
 
-(defn- filter-dropdown-class [multiple? disabled]
+(defn- filter-dropdown-params [multiple? disabled]
   (let [touchscreen? @(subscribe [:touchscreen?])]
-    (-> (if multiple?
-          (css "ui fluid multiple" [(not touchscreen?) "search"]
-               "selection dropdown filter-dropdown")
-          "ui fluid floating dropdown button filter-dropdown")
-        (css [disabled "disabled"]))))
+    (merge {:class "filter-dropdown", :fluid true, :disabled (boolean disabled)}
+           (if multiple?
+             {:multiple true, :selection true, :search (not touchscreen?)}
+             {:button true, :floating true}))))
+
+(defn- from-data-value [v & [read-value]]
+  (cond (= v "__nil")            nil
+        (= v "__boolean_true")   true
+        (= v "__boolean_false")  false
+        read-value               (read-value v)
+        :else                    v))
+
+(defn- to-data-value [v]
+  (cond (nil? v)                       "__nil"
+        (true? v)                      "__boolean_true"
+        (false? v)                     "__boolean_false"
+        (or (symbol? v) (keyword? v))  (name v)
+        :else                          (str v)))
 
 (defn- FilterDropdown [options option-name active on-change multiple? read-value
                        & [{:keys [disabled]}]]
-  (let [to-data-value #(cond (nil? %)                       "__nil"
-                             (true? %)                      "__boolean_true"
-                             (false? %)                     "__boolean_false"
-                             (or (symbol? %) (keyword? %))  (name %)
-                             :else                          (str %))]
-    [ui/selection-dropdown
-     [:div.text (option-name active)]
-     (->> options (map-indexed (fn [i x]
-                                 [:div.item {:key (str i "-" x)
-                                             :data-value (to-data-value x)
-                                             :class (css [(= x active) "active selected"])}
-                                  (option-name x)])))
-     {:class (filter-dropdown-class multiple? disabled)
-      :onChange (fn [v _t]
-                  (and on-change (on-change (cond (= v "__nil")            nil
-                                                  (= v "__boolean_true")   true
-                                                  (= v "__boolean_false")  false
-                                                  read-value               (read-value v)
-                                                  :else                    v))))}]))
+  [S/Dropdown
+   (merge (filter-dropdown-params multiple? disabled)
+          {:placeholder (when (nil? (some-> active (from-data-value read-value)))
+                          (option-name nil))
+           :options (for [[i x] (map-indexed vector options)]
+                      {:key (str i "-" x)
+                       :value (to-data-value x)
+                       :text (option-name x)})
+           :value (to-data-value active)
+           :on-change (when on-change
+                        (fn [_event x]
+                          (on-change (-> (.-value x)
+                                         (from-data-value read-value)))))})])
 
 (defn- FilterDropdownPlaceholder
   "Renders a disabled placeholder for a FilterDropdown component."
   [multiple?]
-  [ui/selection-dropdown
-   [:div.text ""]
-   [""]
-   {:class (filter-dropdown-class multiple? true)}])
+  [S/Dropdown (merge (filter-dropdown-params multiple? true)
+                     {:placeholder ""})])
 
 (defn- SelectUserDropdown [_context value on-change multiple?]
   (let [user-ids @(subscribe [:project/member-user-ids nil true])
@@ -280,8 +287,10 @@
     [FilterDropdown
      source-ids
      #(if (nil? %) "Select Source" (describe-source %))
-     (first value) on-change multiple?
-     #(parse-integer %)]))
+     (first value)
+     on-change
+     multiple?
+     parse-integer]))
 
 (defn- SelectLabelDropdown [_context value on-change]
   (let [label-ids @(subscribe [:project/label-ids])
@@ -290,8 +299,8 @@
      (concat [nil] label-ids)
      #(if (nil? %) "Any Label" (get-in labels [% :short-label]))
      value on-change false
-     #(if (in? label-ids (uuid %))
-        (uuid %) nil)]))
+     #(if (in? label-ids (to-uuid %))
+        (to-uuid %) nil)]))
 
 (defn- SelectFromLabelsDropdown [_context label-ids value on-change & [opts]]
   (let [{:keys [labels]} @(subscribe [:project/raw])]
@@ -299,8 +308,8 @@
      label-ids
      #(if (nil? %) "Any Label" (get-in labels [% :short-label]))
      value on-change false
-     #(if (in? label-ids (uuid %))
-        (uuid %) nil)
+     #(if (in? label-ids (to-uuid %))
+        (to-uuid %) nil)
      opts]))
 
 (defn- LabelValueDropdown [_context label-id value on-change include-nil?]
@@ -645,14 +654,18 @@
                  [:prediction "Prediction" "chart bar"]
                  #_ [:has-annotation "Annotation" "quote left"]]]
       [:div.ui.small.form.new-filter
-       [ui/selection-dropdown
-        [:div.text "Add Filter"]
-        (->> items (map-indexed (fn [i [ftype label icon]]
-                                  [:div.item {:key i, :data-value (name ftype)}
-                                   [:i {:class (css icon "icon")}] (str label)])))
-        {:class "ui fluid floating dropdown primary button add-filter"
-         :onChange (fn [v _t] (some-> v not-empty keyword
-                                      (#(dispatch-sync [::add-filter context %]))))}]])))
+       [S/Dropdown {:button true, :fluid true, :floating true
+                    :class "primary add-filter"
+                    :text "Add Filter"
+                    :options (for [[i [ftype label icon]] (map-indexed vector items)]
+                               {:key i
+                                :value (name ftype)
+                                :icon icon
+                                :text (str label)})
+                    :on-change (fn [_event x]
+                                 (let [v (.-value x)]
+                                   (some-> v not-empty keyword
+                                           (#(dispatch-sync [::add-filter context %])))))}]])))
 
 (reg-event-fx :article-list/load-settings [trim-v]
               (fn [{:keys [db]}
@@ -674,9 +687,11 @@
 (defn- WrapFilterDisabled [content enabled? message width]
   (if enabled?
     content
-    (list ^{:key :content} [ui/with-tooltip [:div content]]
-          ^{:key :tooltip} [:div.ui.inverted.popup.transition.hidden.inverted.filters-tooltip
-                            {:style {:min-width width}} message])))
+    [S/Popup {:class "filters-tooltip"
+              :hoverable false
+              :inverted true
+              :trigger (r/as-element [:div content])
+              :content (r/as-element [:div {:style {:min-width width}} message])}]))
 
 (defn- FilterPresetsForm [context]
   (let [filters @(subscribe [::filters-input context])
@@ -859,40 +874,28 @@
               (fn [db [_ context value]]
                 (ui-state/set-panel-field db [:csv-separator] value (:panel context))))
 
-(defn- CsvSeparatorDropdownItem [context value]
-  (let [active @(subscribe [::csv-separator context])]
-    [:div.item {:key value
-                :data-value value
-                :class (css [(= value active) "active selected"])
-                :style {:width "100%"}}
-     [:div.ui.two.column.middle.aligned.grid {:style {:margin "0" :padding "0"}}
-      [:div.column {:style {:padding "0"}}
-       [:span {:style {:font-size "15px" :font-weight "bold"}} value]]
-      [:div.right.aligned.column {:style {:padding "0"}}
-       (let [vtype (if (= value ",") :legacy :recommended)]
-         [:div.ui.small.label
-          {:class (css [(= vtype :recommended) "grey"
-                        (= vtype :legacy) "grey"])}
-          (str/capitalize (name vtype))])]]]))
+(defn- SelectSeparatorDropdown [context value]
+  [S/Dropdown {:fluid true
+               :floating true
+               :selection true
+               :value value
+               :options (for [x csv-separator-options]
+                          {:key x
+                           :value x
+                           :text (str x)
+                           :content (r/as-element [:div {:style {:width "100%"}} (str x)])})
+               :on-change (fn [_event x]
+                            (dispatch [::set-csv-separator context (.-value x)]))}])
 
-(defn- SelectSeparatorDropdown [context]
-  (let [active @(subscribe [::csv-separator context])]
-    [ui/selection-dropdown
-     [CsvSeparatorDropdownItem context active]
-     (doall (for [x csv-separator-options] ^{:key x} [CsvSeparatorDropdownItem context x]))
-     {:class "ui fluid floating selection dropdown"
-      :onChange (fn [v _t] (dispatch [::set-csv-separator context v]))}]))
-
-(defn- ExportSettingsFields [context _export-type file-format]
+(defn- ExportSettingsFields [context _export-type file-format separator]
   (->> [(when (= file-format "CSV")
           (fn []
             [:div.field.export-setting {:key :csv-separator}
              [:div.fields>div.sixteen.wide.field
-              (ui/with-ui-help-tooltip
-                [:label "Value Separator" [ui/ui-help-icon]]
-                :help-content
-                ["Internal separator for multiple values inside a column, such as label answers."])
-              [SelectSeparatorDropdown context]]]))]
+              [ui/UiHelpTooltip [:label "Value Separator" [UiHelpIcon]]
+               :help-content
+               ["Internal separator for multiple values inside a column, such as label answers."]]
+              [SelectSeparatorDropdown context separator]]]))]
        (remove nil?)))
 
 (defn- ExportTypeForm [context export-type title file-format]
@@ -919,7 +922,9 @@
      (when expanded?
        [:div.ui.secondary.segment.expanded>div.ui.small.form.export-type
         (doall (map-indexed (fn [i x] (when x ^{:key i} [x]))
-                            (ExportSettingsFields context export-type file-format)))
+                            (ExportSettingsFields
+                              context export-type file-format
+                              (:separator options))))
         [:div.field>div.fields.export-actions
          [:div.eight.wide.field
           [:button.ui.tiny.fluid.primary.labeled.icon.button

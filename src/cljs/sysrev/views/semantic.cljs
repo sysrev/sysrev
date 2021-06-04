@@ -1,6 +1,5 @@
 (ns sysrev.views.semantic
-  (:require ["fomantic-ui"]
-            ["semantic-ui-react" :as S]
+  (:require ["semantic-ui-react" :as S]
             [reagent.core :as r]))
 
 ;; from https://gist.github.com/TimoKramer/7e93758afb81dcad985fafccc613153a
@@ -15,87 +14,101 @@
      sui-class)))
 
 ;; segment
-(def Segment (component S/Segment))
-(def SegmentGroup (component S/Segment "Group"))
+(defonce Segment (component S/Segment))
+(defonce SegmentGroup (component S/Segment "Group"))
 ;; general
 
-(def Header (component S/Header))
-(def Icon (component S/Icon))
-(def Loader (component S/Loader))
-(def Dimmer (component S/Dimmer))
-(def Image (component S/Image))
-(def Divider (component S/Divider))
+(defonce Header (component S/Header))
+(defonce Icon (component S/Icon))
+(defonce Loader (component S/Loader))
+(defonce Dimmer (component S/Dimmer))
+(defonce Image (component S/Image))
+(defonce Divider (component S/Divider))
 
 ;; form
-(def Form (component S/Form))
-(def FormButton (component S/Form "Button"))
-(def FormField (component S/Form "Field"))
-(def FormGroup (component S/Form "Group"))
-(def FormInput (component S/Form "Input"))
-(def FormRadio (component S/Form "Radio"))
-(def TextArea (component S/TextArea))
-(def Checkbox (component S/Checkbox))
+(defonce Form (component S/Form))
+(defonce FormButton (component S/Form "Button"))
+(defonce FormField (component S/Form "Field"))
+(defonce FormGroup (component S/Form "Group"))
+(defonce FormInput (component S/Form "Input"))
+(defonce FormRadio (component S/Form "Radio"))
+(defonce TextArea (component S/TextArea))
+(defonce Checkbox (component S/Checkbox))
 
 ;; input
-(def Input (component S/Input))
+(defonce Input (component S/Input))
 ;; components
-(def Label (component S/Label))
-(def LabelDetail (component S/Label "Detail"))
-(def Button (component S/Button))
-(def ButtonGroup (component S/Button.Group))
-(def Dropdown (component S/Dropdown))
-(def DropdownMenu (component S/Dropdown.Menu))
-(def DropdownItem (component S/Dropdown.Item))
-(def Message (component S/Message))
-(def MessageHeader (component S/Message "Header"))
-(def Radio (component S/Radio))
-(def Select (component S/Select))
+(defonce Label (component S/Label))
+(defonce LabelDetail (component S/Label "Detail"))
+(defonce Button (component S/Button))
+(defonce ButtonGroup (component S/Button.Group))
+(defonce Dropdown (component S/Dropdown))
+(defonce DropdownMenu (component S/Dropdown.Menu))
+(defonce DropdownItem (component S/Dropdown.Item))
+(defonce DropdownHeader (component S/Dropdown.Header))
+(defonce DropdownDivider (component S/Dropdown.Divider))
+(defonce Message (component S/Message))
+(defonce MessageHeader (component S/Message "Header"))
+(defonce Radio (component S/Radio))
+(defonce Select (component S/Select))
 
 ;; grid
-(def Grid (component S/Grid))
-(def Row (component S/Grid "Row"))
-(def Column (component S/Grid "Column"))
+(defonce Grid (component S/Grid))
+(defonce Row (component S/Grid "Row"))
+(defonce Column (component S/Grid "Column"))
 
 ;; list
-(def ListUI (component S/List))
-(def ListItem (component S/List "Item"))
-(def ListIcon (component S/List "Icon"))
-(def ListContent (component S/List "Content"))
+(defonce ListUI (component S/List))
+(defonce ListItem (component S/List "Item"))
+(defonce ListIcon (component S/List "Icon"))
+(defonce ListContent (component S/List "Content"))
 
 ;; popup
-(def Popup (component S/Popup))
-(def PopupHeader (component S/Popup "Header"))
+(defonce Popup (component S/Popup))
+(defonce PopupHeader (component S/Popup "Header"))
 
 ;; modal
-(def Modal (component S/Modal))
-(def ModalHeader (component S/Modal "Header"))
-(def ModalContent (component S/Modal "Content"))
-(def ModalDescription (component S/Modal "Description"))
+(defonce Modal (component S/Modal))
+(defonce ModalHeader (component S/Modal "Header"))
+(defonce ModalContent (component S/Modal "Content"))
+(defonce ModalDescription (component S/Modal "Description"))
 
 ;; menu
-(def Menu (component S/Menu))
-(def MenuItem (component S/Menu "Item"))
+(defonce Menu (component S/Menu))
+(defonce MenuItem (component S/Menu "Item"))
 
 ;; tables
-(def Table (component S/Table))
-(def TableHeader (component S/Table "Header"))
-(def TableHeaderCell (component S/Table "HeaderCell"))
-(def TableRow (component S/Table "Row"))
-(def TableBody (component S/Table "Body"))
-(def TableCell (component S/Table "Cell"))
+(defonce Table (component S/Table))
+(defonce TableHeader (component S/Table "Header"))
+(defonce TableHeaderCell (component S/Table "HeaderCell"))
+(defonce TableRow (component S/Table "Row"))
+(defonce TableBody (component S/Table "Body"))
+(defonce TableCell (component S/Table "Cell"))
 
 ;; search
-(def Search (component S/Search))
-(def SearchResults (component S/Search "Results"))
+(defonce Search (component S/Search))
+(defonce SearchResults (component S/Search "Results"))
 
 ;; pagination
-(def Pagination (component S/Pagination))
+(defonce Pagination (component S/Pagination))
 
 ;; tab
-(def Tab (component S/Tab))
+(defonce Tab (component S/Tab))
 
 ;; accordion
-(def Accordion (component S/Accordion))
-(def AccordionContent (component S/Accordion "Content"))
-(def AccordionTitle (component S/Accordion "Title"))
+(defonce Accordion (component S/Accordion))
+(defonce AccordionContent (component S/Accordion "Content"))
+(defonce AccordionTitle (component S/Accordion "Title"))
 
+;; visibility
+(defonce Visibility (component S/Visibility))
+(defonce Sticky (component S/Sticky))
+(defonce Rail (component S/Rail))
+
+;; ref
+(defonce Ref (component S/Ref))
+
+;; transition / portal
+(defonce Portal (component S/Portal))
+(defonce Transition (component S/Transition))
+(defonce TransitionablePortal (component S/TransitionablePortal))

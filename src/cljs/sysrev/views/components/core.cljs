@@ -5,12 +5,15 @@
             ["@material-ui/core" :as mui]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
+            [medley.core :as medley]
             [reagent.core :as r]
             [reagent.dom :as rdom :refer [dom-node]]
             [reagent.ratom :as ratom]
-            [re-frame.core :refer [subscribe]]
-            [sysrev.util :as util :refer [in? css nbsp wrap-user-event]]
-            [sysrev.views.semantic :refer [Message Button Radio Checkbox]]))
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx]]
+            [sysrev.util :as util :refer [in? css nbsp wrap-user-event]
+             :refer-macros [assert-single]]
+            [sysrev.views.semantic :as S :refer
+             [Message Button Radio Checkbox Popup]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -20,44 +23,16 @@
   ([comp props content]
    [comp (assoc props :dangerouslySetInnerHTML {:__html content})]))
 
-(defn wrap-dropdown [_elt & [{:keys [onChange]}]]
-  (r/create-class
-   {:component-did-mount
-    #(.dropdown ($ (dom-node %))
-                (clj->js (cond-> {}
-                           onChange (assoc :onChange onChange))))
-    :reagent-render (fn [elt & _opts] elt)}))
-
-(defn selection-dropdown [selected-item items &
-                          [{:keys [id class onChange]
-                            :or {class "ui selection dropdown"}
-                            :as options}]]
-  [wrap-dropdown
-   [:div {:id id :class class}
-    [:i.dropdown.icon]
-    selected-item
-    (into [:div.menu] items)]
-   options])
-
-(defn dropdown-menu [entries & {:keys [icon-class dropdown-class label style]
-                                :or {icon-class "small down chevron"
-                                     dropdown-class "dropdown"
-                                     label ""
-                                     style {}}}]
-  [wrap-dropdown
-   [:div.ui {:class dropdown-class :style style}
-    label
-    [:i {:class (css icon-class "icon")
-         :style (when-not (and (seqable? label) (empty? label))
-                  {:margin-left "0.7em" :margin-right "0em"})}]
-    [:div.menu
-     (doall
-      (for [{:keys [action content] :as entry} entries]
-        (when entry ^{:key entry}
-          [:a.item {:href (when (string? action) action)
-                    :on-click (when-not (string? action)
-                                (some-> action (wrap-user-event)))}
-           content])))]]])
+(defn SelectionDropdown [options &
+                         [{:keys [id class onChange selection fluid value extra]
+                           :or {selection true}}]]
+  [S/Dropdown (cond-> {:id id :class class
+                       :selection selection :fluid fluid
+                       :options options
+                       :on-change onChange
+                       :icon "dropdown"}
+                value (merge {:value value})
+                extra (merge extra))])
 
 (s/def ::tab-id keyword?)
 (s/def ::content any?)
@@ -67,91 +42,90 @@
   (s/keys :req-un [::tab-id ::content ::action]
           :opt-un [::class]))
 
-(defn with-tooltip [_content & [popup-options]]
-  (r/create-class
-   {:component-did-mount
-    #(.popup ($ (dom-node %))
-             (clj->js
-              (merge
-               {:inline true
-                :hoverable true
-                :position "top center"
-                :delay {:show 400 :hide 0}
-                :transition "fade up"}
-               (or popup-options {}))))
-    :reagent-render
-    (fn [content] content)}))
+(defn Tooltip [{:keys [tooltip trigger
+                       hoverable position transition
+                       mouse-enter-delay mouse-leave-delay
+                       variation basic flowing
+                       class style]
+                :or {hoverable false
+                     position "top center"
+                     mouse-enter-delay 400
+                     mouse-leave-delay 0
+                     transition "fade up"}}]
+  (assert (some? tooltip) "Tooltip missing value for `tooltip`")
+  (assert (some? trigger) "Tooltip missing value for `trigger`")
+  [Popup (cond-> {:class (css "sysrev-tooltip" class)
+                  :content (r/as-element tooltip)
+                  :trigger (r/as-element trigger)}
+           ;; (some? inline)             (assoc :inline inline)
+           (some? hoverable)          (assoc :hoverable hoverable)
+           (some? position)           (assoc :position position)
+           (some? transition)         (assoc :transition transition)
+           (some? mouse-enter-delay)  (assoc :mouse-enter-delay mouse-enter-delay)
+           (some? mouse-leave-delay)  (assoc :mouse-leave-delay mouse-leave-delay)
+           (some? variation)          (assoc :variation variation)
+           (some? basic)              (assoc :basic basic)
+           (some? flowing)            (assoc :flowing flowing)
+           (some? style)              (assoc :style style))])
 
-(defn WrapMenuItemTooltip
-  [content message tab-id & {:keys [width] :or {width "10em"}}]
-  (list
-   ^{:key [tab-id :content]}
-   [with-tooltip [:div content]]
-   ^{:key [tab-id :tooltip]}
-   [:div.ui.inverted.popup.transition.hidden.inverted.filters-tooltip
-    {:style {:min-width width}}
-    message]))
-
-(defn primary-tabbed-menu [left-entries right-entries active-tab-id
-                           & [menu-class mobile?]]
+(defn PrimaryTabbedMenu [left-entries right-entries active-tab-id
+                         & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         left-entries (remove nil? left-entries)
         right-entries (remove nil? right-entries)
         render-entry
         (fn [{:keys [tab-id action content class disabled tooltip] :as entry}]
           (let [active? (= tab-id active-tab-id)
-                item
-                (when entry
-                  [:a {:key tab-id
-                       :class (css [active? "active"]
-                                   "item"
-                                   [class class]
-                                   [disabled "disabled"])
-                       :href (when (string? action) action)
-                       :on-click (when-not (string? action)
-                                   (some-> action (wrap-user-event)))}
-                   content])]
+                item (when entry
+                       [:a {:key tab-id
+                            :class (css [active? "active"]
+                                        "item"
+                                        [class class]
+                                        [disabled "disabled"])
+                            :href (when (string? action) action)
+                            :on-click (when-not (string? action)
+                                        (some-> action (wrap-user-event)))}
+                        content])]
             (if (and disabled tooltip)
-              (WrapMenuItemTooltip item tooltip tab-id)
-              (list item))))]
+              [S/Popup {:key tab-id :class "filters-tooltip"
+                        :hoverable true :inverted true
+                        :trigger (r/as-element item)
+                        :content (r/as-element [:div {:style {:min-width "10em"}}
+                                                tooltip])} ]
+              item)))]
     [:div.ui.secondary.pointing.menu.primary-menu
      {:class (css menu-class [mobile? "tiny"])}
-     (doall (for [entry left-entries]
-              (render-entry entry)))
+     (doall (for [entry left-entries] ^{:key entry}
+              [render-entry entry]))
      (when (seq right-entries)
-       (if (and false mobile?)
-         [:div.right.menu
-          [dropdown-menu right-entries
-           :dropdown-class "dropdown item"
-           :label "More"]]
-         [:div.right.menu
-          (doall (for [entry right-entries]
-                   (doall (render-entry entry))))]))]))
+       [:div.right.menu
+        (doall (for [entry right-entries] ^{:key entry}
+                 [render-entry entry]))])]))
 
-(defn secondary-tabbed-menu [left-entries right-entries active-tab-id
-                             & [menu-class mobile?]]
+(defn SecondaryTabbedMenu [left-entries right-entries active-tab-id
+                           & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
-        render-entry
-        (fn [{:keys [tab-id action content class] :as entry}]
-          (when entry
-            [:a {:key tab-id
-                 :class (css [(= tab-id active-tab-id) "active"] "item" class)
-                 :href (when (string? action) action)
-                 :on-click (when-not (string? action)
-                             (some-> action (wrap-user-event)))}
-             content]))]
+        render-entry (fn [{:keys [tab-id action content class] :as entry}]
+                       (when entry
+                         [:a {:key tab-id
+                              :class (css [(= tab-id active-tab-id) "active"]
+                                          "item" class)
+                              :href (when (string? action) action)
+                              :on-click (when-not (string? action)
+                                          (some-> action (wrap-user-event)))}
+                          content]))]
     [:div.ui.secondary.pointing.menu.secondary-menu {:class menu-class}
-     (doall (for [entry left-entries]
-              (render-entry entry)))
+     (doall (for [entry left-entries] ^{:key entry}
+              [render-entry entry]))
      (when (seq right-entries)
        (if mobile?
          [:div.right.menu
-          [dropdown-menu right-entries
-           :dropdown-class "dropdown item"
-           :label "More"]]
+          [S/Dropdown {:class "item", :simple true, :size "small", :direction "left"
+                       :label "More", :icon "down chevron"
+                       :options right-entries}]]
          [:div.right.menu
-          (doall (for [entry right-entries]
-                   (render-entry entry)))]))]))
+          (doall (for [entry right-entries] ^{:key entry}
+                   [render-entry entry]))]))]))
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class _mobile?]]
   (let [menu-class (or menu-class "")
@@ -169,22 +143,22 @@
                                 (some-> action (wrap-user-event)))}
                 content]))]]))
 
-(defn url-link
+(defn UrlLink
   "Renders a link with human-formatted text based on href value."
   [href & [props]]
   [:a (merge props {:href href})
    (util/humanize-url href)])
 
-(defn out-link [url]
+(defn OutLink [url]
   [:div.item>a {:target "_blank" :href url}
    (util/url-domain url) nbsp [:i.external.icon]])
 
-(defn updated-time-label [dt & [shorten?]]
+(defn UpdatedTimeLabel [dt & [shorten?]]
   [:div.ui.tiny.label.updated-time {:title (util/date-format dt "MMM, do yyyy hh:mm a")}
    ((if shorten? util/time-elapsed-string-short util/time-elapsed-string)
     dt)])
 
-(defn three-state-selection
+(defn ThreeStateSelection
   "props are:
   {:set-answer! <fn>     ; sets the label's answer to argument of fn
    :value       <r/atom> ; atom resolves to single value boolean or nil
@@ -213,6 +187,7 @@
                      {:id (get-domid bvalue)
                       :class (bclass (nil? bvalue) (= curval bvalue))
                       :on-click (wrap-user-event #(set-value-focus bvalue))
+                      :data-value (pr-str bvalue)
                       :on-key-down
                       (when (= curval bvalue)
                         #(cond (->> % .-key (in? ["Backspace" "Delete" "Del"]))
@@ -237,7 +212,7 @@
          [render nil]
          [render true]]))))
 
-(defn three-state-selection-icons
+(defn ThreeStateSelectionIcons
   [on-change curval &
    {:keys [icons] :or {icons {false [:i.minus.circle.icon]
                               nil   [:i.question.circle.outline.icon]
@@ -262,28 +237,26 @@
                :on-click (wrap-user-event #(on-change true))}
       (get icons true)]]))
 
-(defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
+(defn UiHelpIcon [& {:keys [size class style] :or {size ""}}]
   [:i.circle.question.mark.icon {:class (css "grey" size class "noselect")
                                  :style (merge {:margin "0 4px"} style)}])
 
-(defn with-ui-help-tooltip [element & {:keys [help-content help-element popup-options]}]
-  (list
-   ^{:key :tooltip-content}
-   [with-tooltip element
-    (merge {:delay {:show 300 :hide 0}
-            :hoverable false
-            :position "top left"}
-           popup-options)]
-   ^{:key :tooltip-help}
-   [:div.ui.flowing.popup.transition.hidden.tooltip
-    (if help-content
-      (doall (map-indexed #(if (string? %2)
-                             ^{:key %1} [:p %2]
-                             ^{:key %1} [:div %2])
-                          help-content))
-      help-element)]))
+(defn UiHelpTooltip [element & {:keys [help-content help-element options]}]
+  (assert-single help-content help-element)
+  [Tooltip (merge {:hoverable false
+                   :position "top left"
+                   :trigger element
+                   :mouse-enter-delay 300
+                   :mouse-leave-delay 0
+                   :tooltip (if help-content
+                              [:div (doall (map-indexed #(if (string? %2)
+                                                           ^{:key %1} [:p %2]
+                                                           ^{:key %1} [:div %2])
+                                                        help-content))]
+                              help-element)}
+                  options)])
 
-(defn note-content-label [_note-name content]
+(defn NoteContentLabel [_note-name content]
   (when (and (string? content) (not-empty (str/trim content)))
     [:div.ui.tiny.labeled.button.user-note
      [:div.ui.grey.button "Notes"]
@@ -349,13 +322,12 @@
   "Renders label for a form field, optionally with a tooltip and
   informational tags (optional) attached."
   [label & {:keys [tooltip optional] :or {optional false}}]
-  (let [label-with-tooltip
-        (if (nil? tooltip) label
-            (doall (with-ui-help-tooltip
-                     [:span {:style {:width "100%"}}
-                      label [ui-help-icon]]
-                     :help-content tooltip
-                     :popup-options {:delay {:show 500 :hide 0}})))]
+  (let [label-with-tooltip (if (nil? tooltip)
+                             label
+                             [UiHelpTooltip [:span {:style {:width "100%"}}
+                                             label [UiHelpIcon]]
+                              :help-content tooltip
+                              :options {:mouse-enter-delay 500}])]
     (if-not optional
       [:label label-with-tooltip]
       [:label [:div.ui.middle.aligned.grid
@@ -574,75 +546,6 @@
   [UploadContainer UploadButtonImpl upload-url on-success text
    class style {:post-error-text post-error-text}])
 
-(defn WrapFixedVisibility [offset _child]
-  (let [on-update
-        (fn [this]
-          (let [el ($ (dom-node this))]
-            (-> el (.visibility
-                    (clj->js {:type "fixed"
-                              :offset (or offset 0)
-                              :continuous true
-                              :onUnfixed #(.removeAttr el "style")
-                              :onFixed #(let [width (-> el (.parent) (.width))]
-                                          (.width el width))})))))]
-    (r/create-class
-     {:component-did-mount on-update
-      :component-did-update on-update
-      :reagent-render (fn [_offset child] [:div.visibility-wrapper child])})))
-
-(defn FixedTooltipElement
-  "Wraps element component to add a fixed-width non-inline tooltip,
-  returning a component with a div containing both element and
-  tooltip.
-
-  Using inline false allows tooltip to extend outside immediate parent
-  element, but width must be specified manually."
-  [element tooltip-content width &
-   {:keys [delay hide position hoverable options props div-props]
-    :or {delay 500, hide 0, position "top center", hoverable false}}]
-  (let [tooltip-key (name (gensym))]
-    [:div.inline-block div-props
-     [with-tooltip element
-      {:popup (str "#" tooltip-key)
-       :inline false
-       :delay {:show delay :hide hide}
-       :hoverable hoverable
-       :position position}]
-     [:div.ui.flowing.popup.transition.hidden.tooltip
-      (merge {:id tooltip-key}
-             props
-             {:style (merge {:text-align "left"}
-                            (:style props)
-                            {:min-width width :max-width width})})
-      tooltip-content]]))
-
-(defn FixedTooltipElementManual
-  "Wraps element component to add a fixed-width non-inline tooltip,
-  returning a list of two functions (element, tooltip) allowing each
-  to be rendered in an appropriate location manually.
-
-  Using inline false allows tooltip to extend outside immediate parent
-  element, but width must be specified manually."
-  [element tooltip-content width &
-   {:keys [delay hide position hoverable options props]
-    :or {delay 500, hide 0, position "top center", hoverable false}}]
-  (let [tooltip-key (name (gensym))]
-    (list (fn []
-            [with-tooltip element
-             {:popup (str "#" tooltip-key)
-              :inline false
-              :delay {:show delay :hide hide}
-              :hoverable hoverable
-              :position position}])
-          (fn []
-            [:div.ui.flowing.popup.transition.hidden.tooltip
-             (merge {:id tooltip-key}
-                    props
-                    {:style (merge {:text-align "left"}
-                                   (:style props)
-                                   {:min-width width :max-width width})})
-             tooltip-content]))))
-
 (defn CursorMessage [cursor & [props]]
   (when (seq @cursor)
     [Message (merge props {:on-dismiss #(reset! cursor nil)})
@@ -692,9 +595,9 @@
                      (handle-click-outside %)))]
     (r/create-class
      {:component-did-mount
-      (fn []
+      (fn [this]
         (when handle-click-outside
-          (reset! dom-node (rdom/dom-node (r/current-component)))
+          (reset! dom-node (rdom/dom-node this))
           (js/document.addEventListener "click" handler)))
       :component-will-unmount
       (when handle-click-outside
@@ -703,3 +606,72 @@
       :reagent-render
       (fn [_ child]
         child)})))
+
+(reg-sub ::alerts #(get-in % [:state :alerts]))
+
+(reg-sub :current-alert
+         :<- [::alerts]
+         first)
+
+(defn current-alert-id [db]
+  (:id (first (get-in db [:state :alerts]))))
+
+(def alert-message-timeout 3000)
+(def alert-message-transition 250)
+
+;; show an alert message (add to queue)
+(reg-event-fx :alert
+              (fn [{:keys [db]} [_ {:as message}]]
+                (let [alert-id (util/random-id)]
+                  (cond-> {:db (update-in db [:state :alerts]
+                                          #(conj (into [] %) {:id alert-id
+                                                              :message message
+                                                              :visible true}))}
+                    (nil? (current-alert-id db))
+                    (assoc :dispatch-later
+                           [{:ms (- alert-message-timeout
+                                    alert-message-transition
+                                    25)
+                             :dispatch [::hide-alert alert-id]}
+                            {:ms alert-message-timeout
+                             :dispatch [::next-alert alert-id]}])))))
+
+;; delete current alert message, shift to next in queue
+(reg-event-fx ::next-alert
+              (fn [{:keys [db]} [_ current-id]]
+                (when (= current-id (current-alert-id db))
+                  (let [next-db (update-in db [:state :alerts] #(into [] (rest %)))
+                        next-id (current-alert-id next-db)]
+                    (cond-> {:db next-db}
+                      next-id (assoc :dispatch-later
+                                     [{:ms (- alert-message-timeout
+                                              alert-message-transition
+                                              25)
+                                       :dispatch [::hide-alert next-id]}
+                                      {:ms alert-message-timeout
+                                       :dispatch [::next-alert next-id]}]))))))
+
+;; trigger hide animation for current alert
+(reg-event-db ::hide-alert
+              (fn [db [_ alert-id]]
+                (if (= alert-id (current-alert-id db))
+                  (update-in db [:state :alerts]
+                             #(into [] (concat [(-> (first %) (assoc :visible false))]
+                                               (rest %))))
+                  db)))
+
+(defn AlertMessageContainer [& [{:keys [opts-message opts-portal]}]]
+  (let [{:keys [message visible]} @(subscribe [:current-alert])]
+    [S/Transition {:visible (boolean visible)
+                   :duration alert-message-transition}
+     (let [{:keys [content header class style opts]} message]
+       (if (nil? content)
+         [:div]
+         [S/Message (merge opts-message opts
+                           {:class (css "alert-message" class)
+                            :style (merge style {:position "fixed"
+                                                 :top 0 :right 0
+                                                 :margin-top 10 :margin-right 10
+                                                 :z-index 1000})})
+          (when header [S/MessageHeader header])
+          content]))]))

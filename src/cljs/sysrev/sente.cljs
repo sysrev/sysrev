@@ -6,7 +6,6 @@
 
 (defonce ch-chsk (atom nil))
 (defonce chsk-send! (atom nil))
-(defonce chsk-state (atom nil))
 (defonce csrf (atom nil))
 
 (def config {:type :auto
