@@ -19,10 +19,13 @@
 (defn group-id->name [group-id]
   (q/find-one :groups {:group-id group-id} :group-name))
 
+(s/def ::permissions (s/? string?))
+
 (defn-spec add-user-to-group! nat-int?
   "Create a user-group association between group-id and user-id
   with optional :permissions vector (default of [\"member\"])"
-  [user-id ::su/user-id group-id ::sc/group-id & {:keys [permissions]} map?]
+  [user-id ::su/user-id group-id ::sc/group-id
+   & {:keys [permissions]} (util/opt-keys ::permissions)]
   (with-transaction
     (-> (subscriber-for-user user-id :create? true :returning :subscriber-id)
         (subscribe-to-topic
