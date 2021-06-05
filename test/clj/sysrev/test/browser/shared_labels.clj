@@ -35,14 +35,12 @@
       (pm/import-pubmed-search-via-db "foo bar")
 
       (doseq [label-map label-maps]
-        (do
-          (define/define-label label-map) 
-          (swap! share-codes assoc (:short-label label-map) (define/get-share-code (define/get-label-id (b/current-project-id) label-map)))))
+        (define/define-label label-map) 
+        (swap! share-codes assoc (:short-label label-map) (define/get-share-code (define/get-label-id (b/current-project-id) label-map))))
 
       (nav/new-project project-name-2)
       (pm/import-pubmed-search-via-db "foo bar")
 
       (doseq [label-map label-maps]
-        (do
-          (define/import-label (get @share-codes (:short-label label-map)))
-          (b/wait-until-displayed (xpath (str "//span[contains(@class,'short-label') and contains(text(),'" (:short-label label-map) "')]")))))))
+        (define/import-label (get @share-codes (:short-label label-map)))
+        (b/wait-until-displayed (xpath (str "//span[contains(@class,'short-label') and contains(text(),'" (:short-label label-map) "')]"))))))
