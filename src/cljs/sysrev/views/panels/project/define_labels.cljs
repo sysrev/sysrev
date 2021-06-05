@@ -293,8 +293,8 @@
              (when success
                {:dispatch [::set [:share-label-modal :share-code] share-code]}))
   :on-error (fn [{:keys [db error]} _ _]
-              {:dispatch [:toast {:class "error"
-                                  :message (str "There was an error generating the share code")}]}))
+              {:dispatch [:alert {:opts {:error true}
+                                  :content (str "There was an error generating the share code")}]}))
 
 (defn ShareLabelButton [label]
   (let [modal-state-path [:share-label-modal]
@@ -303,7 +303,7 @@
         share-code (r/cursor state (concat modal-state-path [:share-code]))]
     (fn []
       [Modal {:trigger (r/as-element
-                         [:div.ui.small.icon.button.edit-label-button
+                         [:div.ui.small.icon.button.share-label-button
                           {:style {:margin-left 0 :margin-right 0}
                            :on-click #(dispatch [:action [:labels/get-share-code project-id (:label-id @label)]])}
                           [:i.share.alternate.icon]])
@@ -318,7 +318,7 @@
            [:p "Copy this code to share your label:"]
            [:div.ui.card.fluid {:style {:margin-bottom "16px"}}
             [:div.content
-             [:code @share-code]]]]
+             [:div.share-code @share-code]]]]
           [:div.ui.segment {:style {:height "100px"}}
            [:div.ui.active.dimmer
             [:div.ui.loader]]])
@@ -369,15 +369,17 @@
                (do
                  (set-app-db-labels! labels)
                  (set-local-labels! labels)
-                 {:dispatch-n [[::set [:import-label-modal :open] false]
-                               [:toast {:class "success" :message "Label imported successfully!"}]]})
+                 {:dispatch-n [[:alert {:content "Label imported successfully!"
+                                        :opts {:success true}}]
+                               [::set [:import-label-modal :open] false]]})
                {:dispatch-n [[::set [:import-label-modal :open] false]
-                             [:toast {:class "error" :message message}]]}))
+                             [:alert {:content message
+                                      :opts {:error true}}]]}))
   :on-error (fn [{:keys [db error]} _ _]
               {:dispatch-n [[::set [:import-label-modal :open] false]
-                            [:toast {:class "error"
-                                     :message (str "There was an error importing this label, "
-                                                   "please check the share code and try again.")}]]}))
+                            [:alert {:content (str "There was an error importing this label, "
+                                                   "please check the share code and try again.")
+                                     :opts {:error true}}]]}))
 
 (defn- ImportLabelButton []
   (let [modal-state-path [:import-label-modal]

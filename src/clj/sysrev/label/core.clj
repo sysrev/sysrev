@@ -134,7 +134,11 @@
                           [:= :root-label-id-local root-label-id-local]]))
       (q/modify :label {:label-id label-id}
                 (-> (assoc values-map :project-ordering ordering)
-                    (dissoc :label-id :project-id :owner-project-id :global-label-id))))))
+                    (dissoc :label-id :project-id :owner-project-id :global-label-id)))
+      ;; Update shared labels
+      (q/modify :label {:global-label-id label-id}
+                (-> values-map
+                    (dissoc :label-id :project-id :owner-project-id :global-label-id :project-ordering))))))
 
 (defn set-project-ordering-sequence
   "Ensure the project ordering sequence is correct for project-id with optional root-label-id-local. When root-label-id-local is nil, orders the top-level labels and ignore sublabels"
