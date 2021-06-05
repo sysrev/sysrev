@@ -17,6 +17,9 @@
   (let [{:keys [host port protocol]} (selenium-config)]
     (apply str protocol "://" host (when port (str ":" port)) args)))
 
+(defn get-path [driver]
+  (-> driver ea/get-url java.net.URL. .getPath))
+
 (defn test-server-fixture [f]
   (init/start-app)
   (fixtures/load-fixtures!)
