@@ -8,7 +8,7 @@
 
 (defn get-config [& [postgres-overrides]]
   (let [port (get-port/get-port)
-        dbname (str "postgres" port)
+        dbname (str "sysrev_test" port)
         db {:dbname dbname
             :dbtype "postgres"
             :host "localhost"
