@@ -54,33 +54,6 @@
           (ea/wait 1))
         (is (= (str "/user/" user-id "/invitations") (e/get-path)))))))
 
-(deftest-etaoin notifications-page
-  (let [inviter-id (-> (account/create-account) :email user-by-email :user-id)
-        _ (swap! *cleanup-users* conj {:user-id inviter-id})
-        _ (account/log-out)
-        user (account/create-account)
-        user-id (:user-id (user-by-email (:email user)))
-        _ (swap! *cleanup-users* conj {:user-id user-id})
-        driver @e/*driver*]
-    (testing "Notifications page works when empty."
-      (doto driver
-        (ea/click-visible {:fn/has-class :notifications-icon})
-        (ea/click-visible {:fn/has-class :notifications-footer})
-        (ea/wait-visible {:fn/has-text "You don't have any notifications yet"}))
-      (is (= (str "/user/" user-id "/notifications") (e/get-path))))
-    (let [[_ project-b]
-          #__ (create-projects-and-invitations! inviter-id user-id)]
-      (testing "Notifications page works."
-        (e/go "/")
-        (doto driver
-          (ea/click-visible {:fn/has-class :notifications-icon})
-          (ea/click-visible {:fn/has-class :notifications-footer}))
-        (is (= (str "/user/" user-id "/notifications") (e/get-path)))
-        (doto driver
-          (ea/click-visible {:fn/has-text (:name project-b)})
-          (ea/wait 1))
-        (is (= (str "/user/" user-id "/invitations") (e/get-path)))))))
-
 (deftest-etaoin article-reviewed-notifications
   (let [user-b-email (:email (account/create-account))
         user-b-id (-> user-b-email user-by-email :user-id)
