@@ -318,7 +318,7 @@
            [:p "Copy this code to share your label:"]
            [:div.ui.card.fluid {:style {:margin-bottom "16px"}}
             [:div.content
-             [:div.share-code @share-code]]]]
+             [:span.share-code.ui.text.black @share-code]]]]
           [:div.ui.segment {:style {:height "100px"}}
            [:div.ui.active.dimmer
             [:div.ui.loader]]])

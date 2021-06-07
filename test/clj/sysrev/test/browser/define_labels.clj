@@ -245,7 +245,7 @@
   (nav/go-project-route "/labels/edit" :silent true)
   (b/click (edit-label-button label-id))
   (b/click (share-label-button label-id))
-  (let [share-code-block (xpath "//div[contains(@class,'share-code')]")
+  (let [share-code-block (xpath "//span[contains(@class,'share-code')]")
         _ (b/wait-until-displayed share-code-block)
         share-code (b/text share-code-block)]
     share-code))
