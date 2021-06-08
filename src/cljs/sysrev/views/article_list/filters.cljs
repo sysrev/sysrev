@@ -255,8 +255,7 @@
   "Renders a disabled placeholder for a FilterDropdown component."
   [multiple?]
   [S/Dropdown (merge (filter-dropdown-params multiple? true)
-                     {;; :options []
-                      :placeholder ""})])
+                     {:placeholder ""})])
 
 (defn- SelectUserDropdown [_context value on-change multiple?]
   (let [user-ids @(subscribe [:project/member-user-ids nil true])
@@ -875,33 +874,20 @@
               (fn [db [_ context value]]
                 (ui-state/set-panel-field db [:csv-separator] value (:panel context))))
 
-#_
-(defn- CsvSeparatorDropdownItem [context value]
-  (let [active @(subscribe [::csv-separator context])]
-    [:div.item {:key value
-                :data-value value
-                :class (css [(= value active) "active selected"])
-                :style {:width "100%"}}
-     [:div.ui.two.column.middle.aligned.grid {:style {:margin "0" :padding "0"}}
-      [:div.column {:style {:padding "0"}}
-       [:span {:style {:font-size "15px" :font-weight "bold"}} value]]
-      [:div.right.aligned.column {:style {:padding "0"}}
-       (let [vtype (if (= value ",") :legacy :recommended)]
-         [:div.ui.small.label
-          {:class (css [(= vtype :recommended) "grey"
-                        (= vtype :legacy) "grey"])}
-          (str/capitalize (name vtype))])]]]))
-
-(defn- SelectSeparatorDropdown [context]
-  [S/Dropdown {:fluid true, :floating true, :selection true
+(defn- SelectSeparatorDropdown [context value]
+  [S/Dropdown {:fluid true
+               :floating true
+               :selection true
+               :value value
                :options (for [x csv-separator-options]
-                          {:key x, :value x
+                          {:key x
+                           :value x
                            :text (str x)
-                           :content [:div {:style {:width "100%"}} (str x)]})
+                           :content (r/as-element [:div {:style {:width "100%"}} (str x)])})
                :on-change (fn [_event x]
                             (dispatch [::set-csv-separator context (.-value x)]))}])
 
-(defn- ExportSettingsFields [context _export-type file-format]
+(defn- ExportSettingsFields [context _export-type file-format separator]
   (->> [(when (= file-format "CSV")
           (fn []
             [:div.field.export-setting {:key :csv-separator}
@@ -909,7 +895,7 @@
               [ui/UiHelpTooltip [:label "Value Separator" [UiHelpIcon]]
                :help-content
                ["Internal separator for multiple values inside a column, such as label answers."]]
-              [SelectSeparatorDropdown context]]]))]
+              [SelectSeparatorDropdown context separator]]]))]
        (remove nil?)))
 
 (defn- ExportTypeForm [context export-type title file-format]
@@ -936,7 +922,9 @@
      (when expanded?
        [:div.ui.secondary.segment.expanded>div.ui.small.form.export-type
         (doall (map-indexed (fn [i x] (when x ^{:key i} [x]))
-                            (ExportSettingsFields context export-type file-format)))
+                            (ExportSettingsFields
+                              context export-type file-format
+                              (:separator options))))
         [:div.field>div.fields.export-actions
          [:div.eight.wide.field
           [:button.ui.tiny.fluid.primary.labeled.icon.button

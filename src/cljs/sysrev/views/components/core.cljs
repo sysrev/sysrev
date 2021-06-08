@@ -156,7 +156,7 @@
    (util/url-domain url) nbsp [:i.external.icon]])
 
 (defn UpdatedTimeLabel [dt & [shorten?]]
-  [:div.ui.tiny.label.updated-time
+  [:div.ui.tiny.label.updated-time {:title (util/date-format dt "MMM, do yyyy hh:mm a")}
    ((if shorten? util/time-elapsed-string-short util/time-elapsed-string)
     dt)])
 

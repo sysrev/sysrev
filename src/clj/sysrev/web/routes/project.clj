@@ -560,6 +560,20 @@
                   {:keys [labels]} (:body request)]
               (api/sync-labels project-id labels)))))
 
+(dr (POST "/api/get-label-share-code" request
+          (with-authorize request {:roles ["admin"]}
+            (let [{:keys [label-id]} (:body request)
+                  label (label/get-label label-id)]
+              (if (= (:project-id label) (:owner-project-id label))
+                {:success true :share-code (label/get-share-code label-id)}
+                {:success false})))))
+
+(dr (POST "/api/import-label" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  {:keys [share-code]} (:body request)]
+              (api/import-label share-code project-id)))))
+
 (dr (GET "/api/project-description" request
          (with-authorize request {:allow-public true}
            (let [project-id (active-project request)]

@@ -515,6 +515,10 @@
    "categorical" #(let [v (.-value (.-cell %))]
                     (if (or (array? v) (sequential? v))
                       (str/join ", " (seq v))
+                      v))
+   "string" #(let [v (.-value (.-cell %))]
+                    (if (or (array? v) (sequential? v))
+                      (str/join ", " (seq v))
                       v))})
 
 (defn value-viewer [value-type data]

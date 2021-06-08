@@ -11,7 +11,7 @@
 
 (defn used-label?
   "Has a label been set for an article?"
-  [label-id]
+  [label-id global-label-id]
   (cond
     ;; string value implies label is not yet created
     (string? label-id) false
@@ -19,7 +19,9 @@
     (uuid? label-id)
     (boolean (> (count (-> (select :article-id)
                            (from :article-label)
-                           (where [:= :label-id label-id])
+                           (where [:or
+                                   [:= :label-id label-id]
+                                   [:= :label-id global-label-id]])
                            (do-query)))
                 0))
 
@@ -43,16 +45,16 @@
   server), the label hasn't been set for an article, or all-values has
   not had entries deleted if the label does exist, return
   true. Otherwise, return false"
-  [label-id all-values]
+  [label-id global-label-id all-values]
   (cond
     ;; label-id a string, the label has not been saved yet
     (string? label-id)
     true
     ;; the label hasn't been used yet
-    (not (used-label? label-id))
+    (not (used-label? label-id global-label-id))
     true
     ;; the label has been used
-    (used-label? label-id)
+    (used-label? label-id global-label-id)
     ;; ... so determine if a category has been deleted
     (set/superset? (set all-values)
                    ;; sometimes the user inadvertently includes a space
@@ -80,7 +82,7 @@
                  :message "[Error] Invalid value for \"Entity\""]]})
 
 (defn categorical-definition-validations
-  [definition label-id]
+  [definition label-id global-label-id]
   {:multi?
    [[boolean-or-nil?
      :message "Allow multiple values must be true, false or nil"]]
@@ -92,7 +94,7 @@
      :message "[Error] Categories value is non-sequential"]
     [v/every string?
      :message "[Error] Invalid value for \"Categories\""]
-    [(partial only-deleteable-all-values-removed? label-id)
+    [(partial only-deleteable-all-values-removed? label-id global-label-id)
      :message
      (str "An option can not be removed from a category if the label has already been set for an article. "
           "The options for this label were originally "
@@ -121,7 +123,7 @@
 
 (defn label-validations
   "Given a label, return a validation map for it"
-  [{:keys [value-type required definition label-id]}]
+  [{:keys [value-type required definition label-id global-label-id]}]
   {:value-type
    [[v/required
      :message "[Error] Label type is not set"]
@@ -165,7 +167,7 @@
    :definition (condp = value-type
                  "boolean" boolean-definition-validations
                  "string" string-definition-validations
-                 "categorical" (categorical-definition-validations definition label-id)
+                 "categorical" (categorical-definition-validations definition label-id global-label-id)
                  "annotation" (annotation-definition-validations definition label-id)
                  "group" [[#(label-validations %)]]
                  {})})

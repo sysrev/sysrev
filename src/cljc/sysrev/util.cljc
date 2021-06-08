@@ -456,6 +456,14 @@
   (->> (xml-find roots path)
        (mapv #(-> % :content first))))
 
+#?(:cljs (defn date-format
+           "Formats a date"
+           [dt & [time-format]]
+           (-> (cond (keyword? time-format) (tf/formatters time-format)
+                     (string? time-format)  (tf/formatter time-format)
+                     :else                  (tf/formatters :basic-date))
+               (tf/unparse (t/to-default-time-zone dt)))))
+
 (defn today-string
   "Returns string of current date, by default in the form
   YYYYMMDD. Optional time-format value (default :basic-date) may be

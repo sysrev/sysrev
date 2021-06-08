@@ -8,13 +8,15 @@
             [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data]
             [sysrev.state.label :refer [sort-client-project-labels]]
-            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.stripe :as stripe]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.semantic :as S :refer [Divider Button Message Segment]]
+            [sysrev.views.semantic :as S :refer [Divider Button Message Segment
+                                           Modal ModalHeader ModalContent ModalDescription Form
+                                           FormField TextArea]]
             [sysrev.dnd :as dnd]
             [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
@@ -31,7 +33,8 @@
 ;; for clj-kondo
 (declare panel state)
 
-(setup-panel-state panel [:project :project :labels :edit] :state state)
+(setup-panel-state panel [:project :project :labels :edit] :state state
+                   :set [panel-set ::set])
 
 (def initial-state {:read-only-message-closed? false})
 
@@ -274,6 +277,7 @@
   (action/running? :labels/sync-project-labels))
 
 (defn SaveLabelButton [_label & {:keys [on-click]}]
+  
   [:button.ui.small.fluid.positive.labeled.icon.button
    {:type "submit"
     :class (css [(save-request-active?) "loading"]
@@ -281,12 +285,57 @@
     :on-click on-click}
    [:i.check.circle.outline.icon] "Save"])
 
+(def-action :labels/get-share-code
+  :uri (fn [] "/api/get-label-share-code")
+  :content (fn [project-id label-id]
+             {:project-id project-id :label-id label-id})
+  :process (fn [_ [_] {:keys [success share-code]}]
+             (when success
+               {:dispatch [::set [:share-label-modal :share-code] share-code]}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:dispatch [:alert {:opts {:error true}
+                                  :content (str "There was an error generating the share code")}]}))
+
+(defn ShareLabelButton [label]
+  (let [modal-state-path [:share-label-modal]
+        modal-open (r/cursor state (concat modal-state-path [:open]))
+        project-id @(subscribe [:active-project-id])
+        share-code (r/cursor state (concat modal-state-path [:share-code]))]
+    (fn []
+      [Modal {:trigger (r/as-element
+                         [:div.ui.small.icon.button.share-label-button
+                          {:style {:margin-left 0 :margin-right 0}
+                           :on-click #(dispatch [:action [:labels/get-share-code project-id (:label-id @label)]])}
+                          [:i.share.alternate.icon]])
+              :class "tiny"
+              :open @modal-open
+              :on-open #(reset! modal-open true)
+              :on-close #(reset! modal-open false)}
+       [ModalHeader "Share Label"]
+       [ModalContent
+        (if @share-code
+          [:div
+           [:p "Copy this code to share your label:"]
+           [:div.ui.card.fluid {:style {:margin-bottom "16px"}}
+            [:div.content
+             [:div.share-code @share-code]]]]
+          [:div.ui.segment {:style {:height "100px"}}
+           [:div.ui.active.dimmer
+            [:div.ui.loader]]])
+        [ModalDescription
+         [Button {:primary true
+                  :on-click (util/wrap-prevent-default
+                              #(reset! modal-open false))
+                  :id "close-share-label-btn"}
+          "OK"]]]])))
+
 (defn EditLabelButton
   "label is a cursor into the state representing the label"
   [label allow-edit?]
   (let [{:keys [editing? label-id short-label]} @label
         synced? (labels-synced?)]
-    [:div.ui.small.icon.button.edit-label-button
+    [:<>
+     [:div.ui.small.icon.button.edit-label-button
      {:class (css [(not allow-edit?) "disabled"])
       :style {:margin-left 0 :margin-right 0}
       :data-label-id (str label-id)
@@ -296,7 +345,9 @@
      [:i {:class (css [(not editing?) "edit"
                        (not synced?)  "green circle check"
                        :else          "circle check"]
-                      "icon")}]]))
+                      "icon")}]]
+     (when editing?
+       [ShareLabelButton label])]))
 
 (defn- AddLabelButton [value-type add-label-fn & [max-ordering]]
   [:button.ui.fluid.large.labeled.icon.button
@@ -308,6 +359,61 @@
                                                                 (inc (max-project-ordering))))))}
    [:i.plus.circle.icon]
    (str "Add " (str/capitalize value-type) " Label")])
+
+(def-action :labels/import
+  :uri (fn [] "/api/import-label")
+  :content (fn [project-id {:keys [share-code]}] {:project-id project-id
+                                                  :share-code share-code})
+  :process (fn [_ [_] {:keys [success labels message]}]
+             (if success
+               (do
+                 (set-app-db-labels! labels)
+                 (set-local-labels! labels)
+                 {:dispatch-n [[:alert {:content "Label imported successfully!"
+                                        :opts {:success true}}]
+                               [::set [:import-label-modal :open] false]]})
+               {:dispatch-n [[::set [:import-label-modal :open] false]
+                             [:alert {:content message
+                                      :opts {:error true}}]]}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:dispatch-n [[::set [:import-label-modal :open] false]
+                            [:alert {:content (str "There was an error importing this label, "
+                                                   "please check the share code and try again.")
+                                     :opts {:error true}}]]}))
+
+(defn- ImportLabelButton []
+  (let [modal-state-path [:import-label-modal]
+        modal-open (r/cursor state (concat modal-state-path [:open]))
+        project-id @(subscribe [:active-project-id])
+        share-code (r/atom "")]
+    (fn []
+      [Modal {:trigger (r/as-element
+                         [:button.ui.fluid.large.labeled.icon.button
+                          {:on-click  (fn [e]
+                                        (.preventDefault e)
+                                        (.stopPropagation e)
+                                        )}
+                          [:i.file.import.icon]
+                          "Import Label"])
+              :class "tiny"
+              :open @modal-open
+              :on-open #(reset! modal-open true)
+              :on-close #(reset! modal-open false)}
+       [ModalHeader "Import Label"]
+       [ModalContent
+        [ModalDescription
+         [Form {:on-submit (util/wrap-prevent-default
+                             #(dispatch [:action [:labels/import project-id
+                                                  {:share-code @share-code}]]))}
+          [FormField
+           [:label "Please input your share code:"]
+           [TextArea {:label "Share code"
+                      :id "share-code-input"
+                      :rows 5
+                      :on-change (util/on-event-value #(reset! share-code %))}]]
+          [Button {:primary true
+                   :id "import-label-btn"}
+           "Import"]]]]])))
 
 (def-action :labels/sync-project-labels
   :uri (fn [] "/api/sync-project-labels")
@@ -718,6 +824,12 @@
                  :placeholder (str "No answer selected"
                                    (when required " (required)"))}]))
 
+(defn SharedLabelNotice [{:keys [owner-project-id project-id]}]
+  (when (not= owner-project-id project-id)
+    [:a {:href (project-uri owner-project-id "")
+         :target "_blank"}
+     [:span.ui.text.small.grey {:title (str "Shared from project ID: " owner-project-id)} " [Shared P#" owner-project-id "]"]]))
+
 ;;; this corresponds to `sysrev.views.review/LabelColumn`
 (defn Label [label]
   (let [{:keys [label-id value-type question short-label definition]} @label
@@ -913,7 +1025,8 @@
            [:div.ui.column.label-edit {:class (css [(:required @label) "required"])}
             [Label label]]))]
       [ui/TopAlignedColumn
-       [EditLabelButton label allow-edit?]
+       [EditLabelButton label (and (= (:owner-project-id @label) (:project-id @label))
+                                   allow-edit?)]
        "two wide center aligned column delete-label"]]]))
 
 (defn- label-drag-spec []
@@ -1012,12 +1125,14 @@
            [:div.column [AddLabelButton "categorical" add-new-label!]]
            [:div.column [AddLabelButton "string" add-new-label!]]
            [:div.column [AddLabelButton "group" add-new-label!]]
-           [:div.column [AddLabelButton "annotation" add-new-label!]]]
+           [:div.column [AddLabelButton "annotation" add-new-label!]]
+           [:div.column [ImportLabelButton]]]
           [:div.ui.three.column.stackable.grid
            [:div.column [AddLabelButton "boolean" add-new-label!]]
            [:div.column [AddLabelButton "categorical" add-new-label!]]
            [:div.column [AddLabelButton "string" add-new-label!]]
-           [:div.column [AddLabelButton "annotation" add-new-label!]]])
+           [:div.column [AddLabelButton "annotation" add-new-label!]]
+           [:div.column [ImportLabelButton]]])
         (when-not group-labels-allowed?
           [UpgradeMessage])])]))
 

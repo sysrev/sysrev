@@ -17,10 +17,12 @@
 (s/def ::category string?)
 (s/def ::definition (s/nilable map?))
 (s/def ::enabled boolean?)
+(s/def ::owner-project-id ::sp/project-id)
+(s/def ::global-label-id (s/nilable ::sc/uuid))
 
 (defspec-keys+partial ::label ::label-partial
   [::label-id ::label-id-local ::project-id ::project-ordering ::value-type ::name
-   ::question ::short-label ::required ::category ::definition ::enabled])
+   ::question ::short-label ::required ::category ::definition ::enabled ::owner-project-id ::global-label-id])
 
 (s/def ::answer any?)
 (s/def ::confirm-time inst?)

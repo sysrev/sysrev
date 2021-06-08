@@ -85,7 +85,8 @@
        (case value-type
          "boolean" (not (boolean? answer))
          "categorical" (empty? answer)
-         "string" (str/blank? answer))))
+         "string" (str/blank? answer)
+         "annotation" (empty? answer))))
 
 (defn missing-group-answer? [labels answers]
   (boolean
@@ -128,6 +129,12 @@
         (every?
           #(some (partial = %) all-values)
           answer)))
+    "annotation"
+    (or (empty? answer)
+      (boolean
+        (every?
+          #(some? (:selection %))
+          (vals answer))))
     "string"
     (or (empty? answer)
         (valid-string-value? definition answer))))

@@ -3,6 +3,7 @@
             [clojure.test :refer [is]]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
+            [sysrev.project.core :as project]
             [sysrev.test.browser.core :as b]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]))
@@ -22,6 +23,8 @@
   (xpath "//button[contains(text(),'Add Group Label')]"))
 (def add-annotation-label-button
   (xpath "//button[contains(text(),'Add Annotation Label')]"))
+(def import-label-button
+  (xpath "//button[contains(text(),'Import Label')]"))
 
 (defn get-all-error-messages []
   (->> (taxi/find-elements (xpath "//div[contains(@class,'error')]"
@@ -215,6 +218,16 @@
   (xpath (label-definition-div label-id)
          "//div[contains(@class,'edit-label-button')]"))
 
+(defn share-label-button [label-id]
+  (xpath (label-definition-div label-id)
+         "//div[contains(@class,'share-label-button')]"))
+
+(defn get-label-id [project-id label-map]
+  (->> (vals (project/project-labels project-id))
+       (filter #(= (:short-label %)
+                   (:short-label label-map)))
+       first :label-id))
+
 (defn edit-label
   "Edit an existing label definition using browser interface."
   [label-id label-map]
@@ -225,3 +238,33 @@
   (b/click save-button)
   (b/wait-until-loading-completes :pre-wait true)
   (is (empty? (get-all-error-messages))))
+
+(defn get-share-code
+  "Edit an existing label definition using browser interface."
+  [label-id]
+  (nav/go-project-route "/labels/edit" :silent true)
+  (b/click (edit-label-button label-id))
+  (b/click (share-label-button label-id))
+  (let [share-code-block (xpath "//div[contains(@class,'share-code')]")
+        _ (b/wait-until-displayed share-code-block)
+        share-code (b/text share-code-block)]
+    share-code))
+
+(defn import-label
+  "Edit an existing label definition using browser interface."
+  [share-code]
+  (let [do-import-button "#import-label-btn"
+        share-code-text-area "#share-code-input"
+        success-notification ".ui.alert-message.success"]
+    (log/info "importing label")
+    (nav/go-project-route "/labels/edit" :silent true)
+    (b/click import-label-button)
+    (b/wait-until-displayed share-code-text-area)
+    (b/set-input-text share-code-text-area share-code :delay 50)
+    (b/click do-import-button)
+    (b/wait-until-loading-completes :pre-wait true)
+    (b/wait-until-displayed success-notification)
+    (b/click success-notification :delay 100)))
+
+
+

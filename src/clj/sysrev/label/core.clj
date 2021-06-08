@@ -12,13 +12,14 @@
             [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.db.queries :as q]
+            [sysrev.encryption :as enc]
             [sysrev.project.core :as project]
             [sysrev.shared.spec.labels :as sl]
             [sysrev.util :as util :refer [in? map-values index-by or-default sanitize-uuids
-                                          sum]]))
+                                          sum uuid-from-string]]))
 
 ;; for clj-kondo
-(declare user-article-confirmed?)
+(declare user-article-confirmed? get-label)
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
 (def valid-label-value-types  ["boolean" "categorical" "string" "group" "annotation"])
@@ -63,7 +64,8 @@
                        :category category
                        :definition (db/to-jsonb definition)
                        :enabled enabled
-                       :root-label-id-local root-label-id-local}
+                       :root-label-id-local root-label-id-local
+                       :owner-project-id project-id}
                 (boolean? consensus)        (assoc :consensus consensus)
                 (= name "overall include")  (assoc :consensus true))
               :returning :*)))
@@ -132,7 +134,11 @@
                           [:= :root-label-id-local root-label-id-local]]))
       (q/modify :label {:label-id label-id}
                 (-> (assoc values-map :project-ordering ordering)
-                    (dissoc :label-id :project-id))))))
+                    (dissoc :label-id :project-id :owner-project-id :global-label-id)))
+      ;; Update shared labels
+      (q/modify :label {:global-label-id label-id}
+                (-> values-map
+                    (dissoc :label-id :project-id :owner-project-id :global-label-id :project-ordering))))))
 
 (defn set-project-ordering-sequence
   "Ensure the project ordering sequence is correct for project-id with optional root-label-id-local. When root-label-id-local is nil, orders the top-level labels and ignore sublabels"
@@ -484,6 +490,7 @@
                             ;; create the label
                             (-> (insert-into :label)
                                 (values [{:project-id project-id
+                                          :owner-project-id project-id
                                           :project-ordering (when enabled (next-project-ordering project-id))
                                           :value-type value-type
                                           :name name
@@ -560,3 +567,22 @@
       (adjust-label-project-ordering-values project-id)
       {:valid? true
        :labels (project/project-labels project-id true)})))
+
+(defn get-share-code [label-id]
+  (enc/encrypt {:type "label-share-code"
+                :label-id (str label-id)}))
+
+(defn import-label [share-code target-project-id]
+  (db/with-clear-project-cache target-project-id
+    (let [share-data (enc/decrypt share-code)
+          label-id (uuid-from-string (:label-id share-data))
+          label (get-label label-id)
+          cloned-label (-> label
+                           (dissoc :label-id :label-id-local)
+                           (assoc :project-id target-project-id
+                                  :owner-project-id (:project-id label)
+                                  :global-label-id label-id))]
+      (q/create :label cloned-label
+                :returning :*))))
+
+;(import-label (get-share-code "f6f44bb4-2393-4c36-b935-d0bc2865b975") 34472)

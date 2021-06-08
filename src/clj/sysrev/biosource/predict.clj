@@ -61,7 +61,7 @@
           articles (->> article-ids
                         (map (fn [article-id]
                                (let [tags (mapcat
-                                            (fn [{:keys [label-id value-type]}]
+                                            (fn [{:keys [global-label-id label-id value-type]}]
                                               (let [answer (get-in answers [label-id article-id])]
                                                 (when (some? answer)
                                                   (let [values (case value-type
@@ -76,7 +76,9 @@
                                                                  "boolean" [(if answer "TRUE" "FALSE")]
                                                                  [])]
                                                     (map #(assoc {}
-                                                                 "label_id" (str label-id)
+                                                                 "label_id" (if global-label-id
+                                                                              (str global-label-id)
+                                                                              label-id)
                                                                  "label_type" value-type
                                                                  "value" %)
                                                          values)))))
