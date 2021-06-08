@@ -49,12 +49,12 @@
       this
       (let [pg (-> (EmbeddedPostgres/builder)
                    (.setPort (:port config))
-                   .start)
-            datasource (make-datasource config)]
+                   .start)]
         (-> pg .getPostgresDatabase .getConnection .createStatement
             (.executeUpdate (str "CREATE DATABASE " (:dbname config))))
-        (flyway/migrate! datasource)
-        (assoc this :datasource datasource :pg pg))))
+        (let [datasource (make-datasource config)]
+          (flyway/migrate! datasource)
+          (assoc this :datasource datasource :pg pg)))))
   (stop [this]
     (if-not datasource
       this
