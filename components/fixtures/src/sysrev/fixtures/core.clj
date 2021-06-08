@@ -3,8 +3,8 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [com.stuartsierra.component :as component]
             [honeysql.types :as types]
-            [next.jdbc :as jdbc]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
@@ -42,21 +42,16 @@
 
 (defn load-fixtures! []
   (doseq [[table records] (get-fixtures)]
-    (ensure-test-db! (:config @db/active-db))
+    (ensure-test-db! (:config @db/*active-db*))
     (q/create table records)))
 
 (defn wrap-fixtures [f]
-  (let [old-config (:config @db/active-db)]
-    ;; This is hacky. It would be better to have avoided global state.
-    (when (seq old-config)
-      (db/close-active-db)
-      (db/terminate-db-connections old-config))
-    (let [config (postgres/get-config)]
-      (ensure-test-db! config)
-      (let [ds (jdbc/get-datasource (dissoc config :dbname))]
-        (jdbc/execute! ds [(str "DROP DATABASE IF EXISTS " (:dbname config))])
-        (jdbc/execute! ds [(str "CREATE DATABASE " (:dbname config))])))
-    (postgres/start-db!)
-    (load-fixtures!)
-    (f)
-    (db/set-active-db! (db/make-db-config old-config))))
+  (let [config (-> (postgres/get-config)
+                   (update :dbname #(str % (rand-int Integer/MAX_VALUE)))
+                   (assoc :create? true :delete-on-stop? true))]
+    (ensure-test-db! config)
+    (let [pg (component/start (postgres/postgres config))]
+      (binding [db/*active-db* (atom (db/make-db-config config))]
+        (load-fixtures!)
+        (f))
+      (component/stop pg))))

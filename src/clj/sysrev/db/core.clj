@@ -39,7 +39,7 @@
 (declare clear-query-cache)
 
 ;; Active database connection pool object
-(defonce active-db (atom nil))
+(defonce ^:dynamic *active-db* (atom nil))
 
 ;; This is used to bind a transaction connection in with-transaction.
 (defonce ^:dynamic *conn* nil)
@@ -65,16 +65,16 @@
      :config postgres-config}))
 
 (defn close-active-db []
-  (when-let [ds (:datasource @active-db)]
+  (when-let [ds (:datasource @*active-db*)]
     (close-datasource ds))
-  (reset! active-db nil))
+  (reset! *active-db* nil))
 
 (defn set-active-db!
   [db & [only-if-new]]
   (clear-query-cache)
-  (when-not (and only-if-new (= (:config db) (:config @active-db)))
+  (when-not (and only-if-new (= (:config db) (:config @*active-db*)))
     (close-active-db)
-    (reset! active-db db)
+    (reset! *active-db* db)
     (when-not (in? [:test :remote-test] (:profile env))
       (let [{:keys [host port dbname]} (:config db)]
         (log/info (format "connected to postgres (%s:%d/%s)"
@@ -107,7 +107,7 @@
     elts
     (if conn
       (.createArrayOf (:connection conn) sql-type (into-array elts))
-      (j/with-db-transaction [conn (or *conn* @active-db)]
+      (j/with-db-transaction [conn (or *conn* @*active-db*)]
         (.createArrayOf (:connection conn) sql-type (into-array elts))))))
 
 (defn sql-array-contains [field val]
@@ -137,7 +137,7 @@
   "Run SQL query defined by honeysql SQL map."
   [sql-map & [conn]]
   (try
-    (j/query (or conn *conn* @active-db)
+    (j/query (or conn *conn* @*active-db*)
              (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
              {:identifiers sql-identifier-to-clj
               :result-set-fn vec})
@@ -151,7 +151,7 @@
 (defn raw-query
   "Run a raw sql query for when there is no HoneySQL implementation of a SQL feature"
   [raw-sql & [conn]]
-  (j/query (or conn *conn* @active-db)
+  (j/query (or conn *conn* @*active-db*)
            raw-sql
            {:identifiers sql-identifier-to-clj
             :result-set-fn vec}))
@@ -159,7 +159,7 @@
 (defn do-execute
   "Execute SQL command defined by honeysql SQL map."
   [sql-map & [conn]]
-  (j/execute! (or conn *conn* @active-db)
+  (j/execute! (or conn *conn* @*active-db*)
               (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
               {:transaction? (nil? (or conn *conn*))}))
 
@@ -172,7 +172,7 @@
   (assert body "with-transaction: body must not be empty")
   `(do (if *conn*
          (do ~@body)
-         (j/with-db-transaction [conn# @active-db]
+         (j/with-db-transaction [conn# @*active-db*]
            (binding [*conn* conn#
                      *transaction-query-cache* (atom {})]
              (do ~@body))))))
@@ -184,7 +184,7 @@
   (assert body "with-rollback-transaction: body must not be empty")
   `(do (assert (nil? *conn*)
                "with-rollback-transaction: can't be used within existing transaction")
-       (j/with-db-transaction [conn# @active-db]
+       (j/with-db-transaction [conn# @*active-db*]
          (j/db-set-rollback-only! conn#)
          (binding [*conn* conn#]
            (do ~@body)))))
@@ -204,7 +204,7 @@
 (defn sql-now
   "Query current time from database."
   [& [conn]]
-  (-> (j/query (or conn *conn* @active-db) "SELECT LOCALTIMESTAMP AS TIMESTAMP")
+  (-> (j/query (or conn *conn* @*active-db*) "SELECT LOCALTIMESTAMP AS TIMESTAMP")
       first :timestamp))
 
 ;;

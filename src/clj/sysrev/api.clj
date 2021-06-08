@@ -831,7 +831,7 @@
   (api-ann/get-annotations (get @annotations-atom hash)))
 
 (def db-annotations-by-hash!
-  (db-memo db/active-db annotations-by-hash!))
+  (db-memo db/*active-db* annotations-by-hash!))
 
 ;; note: this could possibly have a thread safety issue
 (defn annotations-wrapper!

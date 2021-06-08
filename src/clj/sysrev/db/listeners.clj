@@ -3,7 +3,7 @@
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
             [medley.core :refer [map-vals]]
-            [sysrev.db.core :refer [*conn* active-db]]
+            [sysrev.db.core :refer [*active-db* *conn*]]
             [sysrev.notifications.listeners
              :refer [handle-notification
                      handle-notification-notification-subscriber]]
@@ -12,7 +12,7 @@
            com.impossibl.postgres.jdbc.PGDataSource))
 
 (defn- pgjdbc-ng-conn []
-  (let [{:keys [config]} @active-db
+  (let [{:keys [config]} @*active-db*
         {:keys [dbname host password port user]} config
         ds (PGDataSource.)]
     (doto ds

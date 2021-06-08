@@ -67,7 +67,7 @@
     (let [config {:dbname test-dbname :host test-db-host}]
       (if @db-initialized?
         (do (start-app config nil true)
-            (let [{:keys [host port dbname]} (:config @db/active-db)]
+            (let [{:keys [host port dbname]} (:config @db/*active-db*)]
               (log/infof "connected to postgres (%s:%d/%s)" host port dbname)))
         (util/with-print-time-elapsed "Initialize test DB"
           (log/info "Initializing test DB...")

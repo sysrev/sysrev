@@ -469,7 +469,7 @@
            (log/infof "[[ %s started ]]" ~name-str)
            (with-webdriver
              (init-route "/" :silent true)
-             (let [~test-user (if (and (test/db-connected?) @db/active-db)
+             (let [~test-user (if (and (test/db-connected?) @db/*active-db*)
                                 (create-test-user)
                                 {:email "browser+test@insilica.co"
                                  :password test-password})

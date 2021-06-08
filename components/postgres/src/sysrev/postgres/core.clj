@@ -1,6 +1,7 @@
 (ns sysrev.postgres.core
   (:require [com.stuartsierra.component :as component]
             [hikari-cp.core :as hikari-cp]
+            [next.jdbc :as jdbc]
             [sysrev.db.core :as db]
             [sysrev.config :refer [env]]
             [sysrev.flyway.interface :as flyway]))
@@ -33,14 +34,23 @@
   (start [this]
     (if datasource
       this
-      (let [datasource (make-datasource config)]
-        (flyway/migrate! datasource)
-        (assoc this :datasource datasource))))
+      (do
+        (when (:create? config)
+          (let [ds (jdbc/get-datasource (dissoc config :dbname))]
+            (jdbc/execute! ds [(str "CREATE DATABASE " (:dbname config))])))
+        (let [datasource (make-datasource config)]
+          (flyway/migrate! datasource)
+          (assoc this :datasource datasource)))))
   (stop [this]
     (if-not datasource
       this
       (do
         (hikari-cp/close-datasource datasource)
+        (when (:delete-on-stop? config)
+          (let [ds (jdbc/get-datasource (dissoc config :dbname))]
+            (jdbc/execute! ds ["UPDATE pg_database SET datallowconn='false' WHERE datname=?" (:db-name config)])
+            (jdbc/execute! ds ["SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=?" (:dbname config)])
+            (jdbc/execute! ds [(str "DROP DATABASE IF EXISTS " (:dbname config))])))
         (assoc this :datasource nil)))))
 
 (defn postgres [& [postgres-overrides]]
