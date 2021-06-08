@@ -36,7 +36,7 @@ if [ $compile = true ]; then
 fi
 
 if [ -z $namespace ]; then
-    time lein with-profile +test-local eftest
+    time lein eftest
 else
-    time lein with-profile +test-local eftest $namespace
+    time lein eftest $namespace
 fi
