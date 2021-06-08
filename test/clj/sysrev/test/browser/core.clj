@@ -22,7 +22,8 @@
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
-  (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
+  (:import [org.openqa.selenium JavascriptException]
+           [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote UnreachableBrowserException]
            [java.net URI]))
 
@@ -316,7 +317,10 @@
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 30)."
   [& [duration]]
-  (< (ajax-activity-duration) (- (make-delay (or duration 30)))))
+  (if-let [aad (try (ajax-activity-duration)
+                    (catch JavascriptException _))]
+    (< aad (- (make-delay (or duration 30))))
+    false))
 
 (def loader-elements-css
   [(-> "div.ui.loader.active" (not-class "loading-indicator"))
