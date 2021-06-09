@@ -125,11 +125,20 @@
              :test-aws-prod  {:resource-paths ["config/test-aws-prod"]}
              :test-s3-dev    {:resource-paths ["config/test-s3-dev"]}
              :dev            {:jvm-opts ["-Xmx1200m"]
-                              :resource-paths ["config/dev"]
-                              :source-paths ["src/clj" "src/cljc" "test/clj"]
-                              :test-paths ["test/clj"]
+                              :resource-paths ["config/dev"
+                                               "components/fixtures/resources"
+                                               "components/flyway/resources"]
+                              :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/fixtures/src"
+                                             "components/flyway/src"]
+                              :test-paths ["test/clj"
+                                           "components/notification/test"
+                                           "components/user/test"]
                               :dependencies
-                              [[clj-webdriver "0.7.2"]
+                              [[cider/cider-nrepl "0.26.0"]
+                               [clj-webdriver "0.7.2"]
+                               [etaoin "0.4.1"]
+                               [org.flywaydb/flyway-core "7.9.1"]
                                [org.seleniumhq.selenium/selenium-api "3.8.1"]
                                [org.seleniumhq.selenium/selenium-support "3.8.1"]
                                [org.seleniumhq.selenium/selenium-java "3.8.1"
@@ -142,7 +151,7 @@
                                              org.bouncycastle/bcprov-jdk15on
                                              org.seleniumhq.selenium/selenium-api
                                              org.seleniumhq.selenium/selenium-support]]
-                               [etaoin "0.4.1"]]
+                               [prestancedesign/get-port "0.1.1"]]
                               :plugins [[lein-eftest "0.5.9"]]}
              :repl           {:dependencies []
                               :plugins [[lein-environ "1.2.0"]]}
