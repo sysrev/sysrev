@@ -436,10 +436,14 @@
         pred-hist-data (mapv (fn [e] (if (nil? (:answer e)) (merge e {:answer "unreviewed"}) e)) pred-hist-filtered)
         labels (mapv #(/ (util/round (* 1000 %)) 1000) (range 0.025 1 0.025))
         answer-histogram (group-by :answer pred-hist-data)
+        dataset-order {false 1
+                       true 0
+                       "unreviewed" 2}
         datasets (mapv (fn [[answer bucket-counts]]
                          (let [lbl-keys (group-by :bucket bucket-counts)]
                            {:label (str answer)
                             :data  (mapv (fn [lbl] (:count (first (get lbl-keys lbl)))) labels)
+                            :order (dataset-order answer)
                             :backgroundColor (if (= true answer)
                                                (:green colors)
                                                (if (= false answer)

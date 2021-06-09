@@ -66,7 +66,7 @@
                                                 (when (some? answer)
                                                   (let [values (case value-type
                                                                  "categorical" answer
-                                                                 "annotation" (mapv (fn [annotation-answer]
+                                                                 "annotation" [] #_(mapv (fn [annotation-answer]
                                                                                       {"start-offset" (get-in annotation-answer [:context :start-offset])
                                                                                        "client-field" (get-in annotation-answer [:context :client-field])
                                                                                        "end-offset" (get-in annotation-answer [:context :start-offset])
@@ -138,6 +138,8 @@
       (await predict-api)
       (when (true? @predict-api)
         (q/project-latest-predict-run-id project-id)))))
+
+;(update-project-predictions 34471)
 
 (defn schedule-predict-update [project-id]
   (when (= :prod (-> config/env :profile))

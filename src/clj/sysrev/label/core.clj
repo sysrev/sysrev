@@ -136,9 +136,14 @@
                 (-> (assoc values-map :project-ordering ordering)
                     (dissoc :label-id :project-id :owner-project-id :global-label-id)))
       ;; Update shared labels
-      (q/modify :label {:global-label-id label-id}
-                (-> values-map
-                    (dissoc :label-id :project-id :owner-project-id :global-label-id :project-ordering))))))
+      (let [shared-in-project-ids (map :project-id (-> (select :%distinct.project-id)
+                                                       (from :label)
+                                                       (where [:= :global-label-id label-id])
+                                                       do-query))]
+        (q/modify :label {:global-label-id label-id}
+                  (-> values-map
+                      (dissoc :label-id :label-id-local :project-id :owner-project-id :global-label-id :project-ordering :root-label-id-local)))
+        (mapv db/clear-project-cache shared-in-project-ids)))))
 
 (defn set-project-ordering-sequence
   "Ensure the project ordering sequence is correct for project-id with optional root-label-id-local. When root-label-id-local is nil, orders the top-level labels and ignore sublabels"
@@ -572,17 +577,27 @@
   (enc/encrypt {:type "label-share-code"
                 :label-id (str label-id)}))
 
+(defn clone-label [label-id target-project-id & {:keys [root-label-id-local]}]
+  (let [label (get-label label-id)
+        child-label-ids (map :label-id
+                             (-> (select :label-id)
+                                 (from :label)
+                                 (where [:= :root-label-id-local (:label-id-local label)])
+                                 do-query)) 
+        cloned-label (q/create :label (-> label
+                                          (dissoc :label-id :label-id-local)
+                                          (assoc :project-id target-project-id
+                                                 :owner-project-id (:project-id label)
+                                                 :global-label-id label-id
+                                                 :root-label-id-local root-label-id-local))
+                               :returning :*)]
+    (into [cloned-label]
+          (mapv #(clone-label % target-project-id :root-label-id-local (:label-id-local cloned-label)) child-label-ids))))
+
 (defn import-label [share-code target-project-id]
   (db/with-clear-project-cache target-project-id
     (let [share-data (enc/decrypt share-code)
-          label-id (uuid-from-string (:label-id share-data))
-          label (get-label label-id)
-          cloned-label (-> label
-                           (dissoc :label-id :label-id-local)
-                           (assoc :project-id target-project-id
-                                  :owner-project-id (:project-id label)
-                                  :global-label-id label-id))]
-      (q/create :label cloned-label
-                :returning :*))))
+          label-id (uuid-from-string (:label-id share-data))]
+      (clone-label label-id target-project-id))))
 
 ;(import-label (get-share-code "f6f44bb4-2393-4c36-b935-d0bc2865b975") 34472)

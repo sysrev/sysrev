@@ -40,7 +40,7 @@
       :count))
 
 (defn predict-run-article-count [predict-run-id label-id & [labeled? answer]]
-  (-> (select :%count.*)
+  (-> (select :%count-distinct.lp.article-id)
       (from [:label-predicts :lp])
       (join [:predict-run :pr]
             [:= :pr.predict-run-id :lp.predict-run-id])

@@ -304,7 +304,7 @@
     (fn []
       [Modal {:trigger (r/as-element
                          [:div.ui.small.icon.button.share-label-button
-                          {:style {:margin-left 0 :margin-right 0}
+                          {:style {:margin-left 12 :margin-right 0}
                            :on-click #(dispatch [:action [:labels/get-share-code project-id (:label-id @label)]])}
                           [:i.share.alternate.icon]])
               :class "tiny"
@@ -334,8 +334,7 @@
   [label allow-edit?]
   (let [{:keys [editing? label-id short-label]} @label
         synced? (labels-synced?)]
-    [:<>
-     [:div.ui.small.icon.button.edit-label-button
+    [:div.ui.small.icon.button.edit-label-button
      {:class (css [(not allow-edit?) "disabled"])
       :style {:margin-left 0 :margin-right 0}
       :data-label-id (str label-id)
@@ -345,9 +344,7 @@
      [:i {:class (css [(not editing?) "edit"
                        (not synced?)  "green circle check"
                        :else          "circle check"]
-                      "icon")}]]
-     (when editing?
-       [ShareLabelButton label])]))
+                      "icon")}]]))
 
 (defn- AddLabelButton [value-type add-label-fn & [max-ordering]]
   [:button.ui.fluid.large.labeled.icon.button
@@ -1014,7 +1011,7 @@
        (css "two wide center aligned column label-index"
             [(true? draggable)  "cursor-grab"
              (false? draggable) "cursor-not-allowed"])]
-      [:div.column.define-label-item {:class "twelve wide"
+      [:div.column.define-label-item {:class "ten wide"
                                       :data-short-label short-label}
        (if editing?
          (if (= (:value-type @label) "group")
@@ -1025,9 +1022,11 @@
            [:div.ui.column.label-edit {:class (css [(:required @label) "required"])}
             [Label label]]))]
       [ui/TopAlignedColumn
-       [EditLabelButton label (and (= (:owner-project-id @label) (:project-id @label))
-                                   allow-edit?)]
-       "two wide center aligned column delete-label"]]]))
+       [:<>
+        [EditLabelButton label (and (= (:owner-project-id @label) (:project-id @label))
+                                    allow-edit?)]
+        [ShareLabelButton label]]
+       "four wide center aligned column delete-label"]]]))
 
 (defn- label-drag-spec []
   (dnd/make-drag-spec
