@@ -139,8 +139,6 @@
       (when (true? @predict-api)
         (q/project-latest-predict-run-id project-id)))))
 
-;(update-project-predictions 34471)
-
 (defn schedule-predict-update [project-id]
   (when (= :prod (-> config/env :profile))
     (future (update-project-predictions project-id))))

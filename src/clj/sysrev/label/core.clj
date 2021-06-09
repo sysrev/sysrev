@@ -142,7 +142,14 @@
                                                        do-query))]
         (q/modify :label {:global-label-id label-id}
                   (-> values-map
-                      (dissoc :label-id :label-id-local :project-id :owner-project-id :global-label-id :project-ordering :root-label-id-local)))
+                      (dissoc :label-id
+                              :label-id-local
+                              :enabled
+                              :project-id
+                              :owner-project-id
+                              :global-label-id
+                              :project-ordering
+                              :root-label-id-local)))
         (mapv db/clear-project-cache shared-in-project-ids)))))
 
 (defn set-project-ordering-sequence
