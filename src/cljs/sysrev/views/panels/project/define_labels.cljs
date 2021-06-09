@@ -842,7 +842,8 @@
        :distance-away 6
        :trigger (let [name-content [:span.name {:class (css [(>= (count short-label) 30)
                                                              "small-text"])}
-                                    [:span.inner.short-label (str short-label)]]]
+                                    [:span.inner.short-label (str short-label)]
+                                    [SharedLabelNotice @label]]]
                   (if (and (util/mobile?) (>= (count short-label) 30))
                     [:div.ui.row.label-edit-name {:on-click on-click-help}
                      [InclusionTag @label]
@@ -957,7 +958,8 @@
       (let [shortened? (and (util/mobile?) (>= (count short-label) 30))
             name-content [:span.name {:class (css [(>= (count short-label) 30)
                                                    "small-text"])}
-                          [:span.inner.short-label (str short-label)]]]
+                          [:span.inner.short-label (str short-label)]
+                          [SharedLabelNotice @label]]]
         [:div.ui.row.label-edit-name {:on-click on-click-help
                                       :style {:cursor "help"}}
          [InclusionTag @label]
