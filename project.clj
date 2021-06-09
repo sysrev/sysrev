@@ -160,6 +160,6 @@
                               :test-paths ["test/clj"
                                            "components/notification/test"
                                            "components/user/test"]}
-             :jenkins        {:eftest {:report eftest.report.junit/report
-                                       :report-to-file "target/junit.xml"
-                                       :thread-count 4}}})
+             :jenkins        {:eftest {:multithread? false
+                                       :report eftest.report.junit/report
+                                       :report-to-file "target/junit.xml"}}})
