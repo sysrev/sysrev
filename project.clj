@@ -124,7 +124,8 @@
              :test-aws-dev   {:resource-paths ["config/test-aws-dev"]}
              :test-aws-prod  {:resource-paths ["config/test-aws-prod"]}
              :test-s3-dev    {:resource-paths ["config/test-s3-dev"]}
-             :dev            {:jvm-opts ["-Xmx1200m"]
+             :dev            {:jvm-opts ["-Xmx1200m"
+                                         "-Djdk.attach.allowAttachSelf=true"]
                               :resource-paths ["config/dev"
                                                "components/fixtures/resources"
                                                "components/flyway/resources"]
@@ -137,6 +138,7 @@
                               :dependencies
                               [[cider/cider-nrepl "0.26.0"]
                                [clj-webdriver "0.7.2"]
+                               [com.clojure-goes-fast/clj-async-profiler "0.5.0"]
                                [etaoin "0.4.1"]
                                [org.flywaydb/flyway-core "7.9.1"]
                                [org.seleniumhq.selenium/selenium-api "3.8.1"]
