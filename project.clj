@@ -116,7 +116,7 @@
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :profiles {:prod           {:resource-paths ["config/prod"]
+  :profiles {:prod           {:resource-paths ["config/prod" "flyway.conf"]
                               :main sysrev.web-main
                               :aot [sysrev.web-main]}
              :test-browser   {:resource-paths ["config/test"]

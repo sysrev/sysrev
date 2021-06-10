@@ -19,7 +19,6 @@ target/
 /out/
 /flyway-*/
 /flyway
-/flyway.conf
 /deploy/
 
 /node_modules
