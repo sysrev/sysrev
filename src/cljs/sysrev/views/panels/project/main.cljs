@@ -31,8 +31,9 @@
         [:span
          [:a {:href (or (some-> (:user-id project-owner) user-uri)
                         (some-> (:group-id project-owner) group-uri))}
-          (when (:user-id project-owner)
-            @(subscribe [:user/username (:user-id project-owner)]))]
+          (if (:user-id project-owner)
+            @(subscribe [:user/username (:user-id project-owner)])
+            (:name project-owner))]
          [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
       [:a {:href (project-uri nil "")} project-name]]
      (when parent-project
@@ -42,7 +43,9 @@
         [:a {:href (str "/p/" (:project-id parent-project))}
          [ProjectName (:project-name parent-project)
           (when parent-project-owner
-            @(subscribe [:user/username (:user-id parent-project-owner)]))]]])]))
+            (if (:user-id parent-project-owner)
+              @(subscribe [:user/username (:user-id parent-project-owner)])
+              (:name parent-project-owner)))]]])]))
 
 (reg-event-db ::set-message-dismissed-for-project
               (fn [db [_ project-id]]

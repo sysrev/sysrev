@@ -16,6 +16,7 @@
   ["groups"
    "project"
    "web-user"
+   "project-group"
    "project-member"
    "user-group"])
 

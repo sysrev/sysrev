@@ -1,5 +1,5 @@
 [{:group-id 110001
-  :permissions #sql/array ["member"]
+  :permissions #sql/array ["owner"]
   :user-id 1000001}
  {:group-id 110001
   :permissions #sql/array ["member"]
