@@ -102,8 +102,8 @@
              #_ "-XX:+UnlockExperimentalVMOptions"
              #_ "-XX:+UseZGC"]
   :source-paths ["src/clj" "src/cljc"
+                 "components/flyway/src"
                  "components/notification/src"
-                 "components/postgres/src"
                  "components/user/src"]
   :aliases {"run-tests"              ["with-profile" "+test-config" "eftest"]
             "jenkins"                ["with-profile" "+jenkins" "eftest"]
@@ -114,7 +114,9 @@
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :profiles {:prod           {:resource-paths ["config/prod"]
+  :profiles {:prod           {:resource-paths ["config/prod"
+                                               "components/postgres/resources"]
+                              :source-paths ["components/postgres/src"]
                               :main sysrev.web-main
                               :aot [sysrev.web-main]}
              :test-browser   {:resource-paths ["config/test"]
@@ -127,11 +129,9 @@
              :dev            {:jvm-opts ["-Xmx1200m"
                                          "-Djdk.attach.allowAttachSelf=true"]
                               :resource-paths ["config/dev"
-                                               "components/fixtures/resources"
-                                               "components/flyway/resources"]
+                                               "components/fixtures/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
-                                             "components/fixtures/src"
-                                             "components/flyway/src"]
+                                             "components/fixtures/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
                                            "components/user/test"]
@@ -155,19 +155,22 @@
                                              org.seleniumhq.selenium/selenium-support]]
                                [prestancedesign/get-port "0.1.1"]]
                               :plugins [[lein-eftest "0.5.9"]]}
+             :postgres       {:source-paths ["components/postgres/src"]}
              :repl           {:dependencies []
                               :plugins [[lein-environ "1.2.0"]]}
              :test           {:dependencies
                               [[com.opentable.components/otj-pg-embedded "0.13.3"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "12.6.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "12.6.0"]
                                [org.flywaydb/flyway-core "7.9.1"]
                                [prestancedesign/get-port "0.1.1"]]
                               :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"
                                                "components/fixtures/resources"
-                                               "components/flyway/resources"]
+                                               "components/postgres-in-mem/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
                                              "components/fixtures/src"
-                                             "components/flyway/src"]
+                                             "components/postgres-in-mem/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
                                            "components/user/test"]}

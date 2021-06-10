@@ -86,7 +86,10 @@
         medley/medley {:mvn/version "1.3.0"}
         org.flywaydb/flyway-core {:mvn/version "7.9.1"}}
  :aliases
- {:+default {:extra-paths ["components/postgres-in-mem/src"
+ {:+default {:extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
+                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
+                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}}
+             :extra-paths ["components/postgres-in-mem/src"
                            "components/postgres-in-mem/resources"]}
   :+postgres-docker {:extra-paths ["components/postgres/src"
                                    "components/postgres/resources"]}
@@ -96,7 +99,6 @@
   :dev {:extra-deps {org.clojure/clojure {:mvn/version "1.10.3"}
                      org.clojure/tools.deps.alpha {:mvn/version "0.11.918"}
                      cider/cider-nrepl {:mvn/version "0.26.0"}
-                     com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
                      nrepl/nrepl {:mvn/version "0.8.3"}
                      prestancedesign/get-port {:mvn/version "0.1.1"}}
         :extra-paths ["config/dev"

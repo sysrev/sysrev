@@ -3,4 +3,4 @@ set -eu
 
 source vars.sh
 
-lein with-profile +dev,+repl,+local-repl repl
+lein with-profile +dev,+postgres,+repl,+local-repl repl

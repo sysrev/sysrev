@@ -1,10 +1,22 @@
 (ns sysrev.postgres.core
-  (:require [com.stuartsierra.component :as component]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
+            [com.stuartsierra.component :as component]
             [hikari-cp.core :as hikari-cp]
             [prestancedesign.get-port :as get-port]
             [sysrev.db.core :as db]
             [sysrev.flyway.interface :as flyway])
-  (:import [com.opentable.db.postgres.embedded EmbeddedPostgres]))
+  (:import [com.opentable.db.postgres.embedded EmbeddedPostgres PgBinaryResolver]))
+
+(set! *warn-on-reflection* true)
+
+(def resolver
+  (reify PgBinaryResolver
+    (^java.io.InputStream getPgBinary [this ^String system ^String machine-hardware]
+      (-> (format "postgres-%s-%s.txz" system machine-hardware)
+          str/lower-case
+          io/resource
+          .openStream))))
 
 (defn get-config [& [postgres-overrides]]
   (let [port (get-port/get-port)
@@ -19,6 +31,7 @@
 (defn start-db! [& [postgres-overrides only-if-new]]
   (let [{:keys [dbname port] :as config} (get-config postgres-overrides)
         conn (-> (EmbeddedPostgres/builder)
+                 (.setPgBinaryResolver resolver)
                  (.setPort port)
                  .start
                  .getPostgresDatabase
@@ -42,12 +55,13 @@
              :port-number (:port config))
       hikari-cp/make-datasource))
 
-(defrecord Postgres [config datasource pg]
+(defrecord Postgres [config datasource ^EmbeddedPostgres pg]
   component/Lifecycle
   (start [this]
     (if datasource
       this
       (let [pg (-> (EmbeddedPostgres/builder)
+                   (.setPgBinaryResolver resolver)
                    (.setPort (:port config))
                    .start)]
         (-> pg .getPostgresDatabase .getConnection .createStatement
