@@ -6,10 +6,10 @@
             [sysrev.db.queries :as q]
             [sysrev.group.core :as group :refer [search-groups]]
             [sysrev.project.core :as project :refer [search-projects]]
-            [sysrev.user.core :as user :refer [search-users]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.core :as test]
+            [sysrev.user.interface :as user :refer [search-users]]
             [sysrev.util :as util]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -21,8 +21,8 @@
 (def users-count-label "#search-results-users-count")
 (def orgs-count-label "#search-results-orgs-count")
 
-(defn insert-fake-user [{:keys [email username]}]
-  (q/create :web-user {:email email :username username}))
+(defn insert-fake-user [email]
+  (user/create-user email "override"))
 
 (defn delete-projects-by-name [names]
   (when (seq names)
@@ -61,8 +61,7 @@
                         (str x " " y " " z))
                       (take 35))
    users (->> (for [x strings, y strings]
-                {:username (str x " " y)
-                 :email (str x "@" y (nth [".com" ".org" ".net"] (rand-int 3)))})
+                (str x "@" y (nth [".com" ".org" ".net"] (rand-int 3))))
               (take 10))
    group-names (->> (for [x strings, y strings, z strings]
                       (str x " " y " " z " "
@@ -81,5 +80,5 @@
       (search-for s2)
       (b/is-soon (= (search-counts) {:projects 15 :users 0 :orgs 15})))
   :cleanup (do (log/info "deleting projects:" (delete-projects-by-name project-names))
-               (log/info "deleting users:" (delete-users-by-email (map :email users)))
+               (log/info "deleting users:" (delete-users-by-email users))
                (log/info "deleting groups:" (delete-groups-by-name group-names))))

@@ -21,13 +21,9 @@
          (fn [[_ user-id]] (subscribe [::user user-id]))
          #(:user-uuid %))
 
-(reg-sub :user/email
+(reg-sub :user/username
          (fn [[_ user-id]] (subscribe [::user user-id]))
-         #(:email %))
-
-(reg-sub :user/display
-         (fn [[_ user-id]] (subscribe [:user/email user-id]))
-         #(first (str/split % #"@")))
+         #(:username %))
 
 (reg-sub :user/permissions
          (fn [[_ user-id]] (subscribe [::user user-id]))

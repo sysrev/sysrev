@@ -13,7 +13,7 @@
            [java.net URL URLDecoder]))
 
 (defonce ^:dynamic *driver* (atom {}))
-(defonce ^:dynamic *cleanup-users* (atom {}))
+(defonce ^:dynamic *cleanup-users* (atom []))
 
 (defn root-url []
   (let [{:keys [url]} (test/get-selenium-config)]

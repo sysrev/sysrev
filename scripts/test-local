@@ -38,5 +38,5 @@ fi
 if [ -z $namespace ]; then
     time lein eftest
 else
-    time lein test :only $namespace
+    time lein eftest $namespace
 fi

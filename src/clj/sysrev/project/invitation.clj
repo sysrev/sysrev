@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.notifications.core :refer [create-notification]]
+            [sysrev.notification.interface :refer [create-notification]]
             [sysrev.util :refer [in?]]))
 
 (defn create-invitation!

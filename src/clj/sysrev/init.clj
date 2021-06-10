@@ -2,28 +2,19 @@
   (:require [clojure.tools.logging :as log]
             sysrev.logging
             sysrev.stacktrace
-            [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
-            [sysrev.db.listeners :refer [start-listeners!
-                                         start-listener-handlers!
-                                         stop-listeners!]]
-            [sysrev.db.migration :as migration]
-            [sysrev.web.core :refer [run-web]]
             [sysrev.config :refer [env]]
-            [sysrev.web.routes.site :as site]
-            [sysrev.scheduler.core :refer [start-scheduler]])
+            [sysrev.db.core :as db]
+            [sysrev.db.listeners :as listeners]
+            [sysrev.db.migration :as migration]
+            [sysrev.postgres.interface :as postgres]
+            [sysrev.scheduler.core :refer [start-scheduler]]
+            [sysrev.web.core :refer [run-web]]
+            [sysrev.web.routes.site :as site])
   (:import [java.net BindException]))
-
-(defn start-db [& [postgres-overrides only-if-new]]
-  (let [db-config (make-db-config
-                   (merge (:postgres env) postgres-overrides))
-        db (set-active-db! db-config only-if-new)]
-    (site/init-global-stats)
-    (start-listeners!)
-    db))
 
 (defn stop-db []
   (db/close-active-db)
-  (stop-listeners!))
+  (listeners/stop-listeners!))
 
 (defn start-web [& [server-port-override only-if-new]]
   (let [prod? (= (:profile env) :prod)
@@ -34,10 +25,12 @@
            (log/errorf "start-web: port %d already in use" server-port)))))
 
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
-  (start-db postgres-overrides only-if-new)
+  (postgres/start-db! postgres-overrides only-if-new)
+  (site/init-global-stats)
+  (listeners/start-listeners!)
   (when (= (:profile env) :dev)
     (migration/ensure-updated-db))
   (start-web server-port-override only-if-new)
   (start-scheduler)
-  (start-listener-handlers!)
+  (listeners/start-listener-handlers!)
   true)

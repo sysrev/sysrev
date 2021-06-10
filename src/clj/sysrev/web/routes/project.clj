@@ -13,7 +13,7 @@
             [sysrev.db.core :as db :refer
              [with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :as user]
+            [sysrev.user.interface :as user]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
             [sysrev.project.description
@@ -111,7 +111,7 @@
            parent-project-info
            gengroups]
           (pvalues [(q/query-project-by-id project-id [:*])
-                    (project/project-users-info project-id)
+                    (member/project-users-info project-id)
                     (project/project-labels project-id true)
                     (project/project-keywords project-id)
                     (project/project-notes project-id)

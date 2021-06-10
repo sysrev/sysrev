@@ -276,7 +276,7 @@
         {:class "ui segments article-labels-view"}
         (doall
          (for [user-id user-ids-ordered]
-           (let [user-name @(subscribe [:user/display user-id])
+           (let [username @(subscribe [:user/username user-id])
                  all-times (->> (vals (get user-labels user-id))
                                 (map :confirm-epoch)
                                 (remove nil?)
@@ -293,7 +293,7 @@
                         [:div
                          [Avatar {:user-id user-id}]
                          [UserPublicProfileLink {:user-id user-id
-                                                 :display-name user-name}]
+                                                 :username username}]
                          (when resolving?
                            (r/as-element
                             [Button {:id "copy-label-button" :class "project-access"

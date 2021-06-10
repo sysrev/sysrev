@@ -26,7 +26,7 @@
   (let [logged-in? @(subscribe [:self/logged-in?])
         landing? @(subscribe [:landing-page?])
         user-id @(subscribe [:self/user-id])
-        user-display @(subscribe [:user/display])
+        username @(subscribe [:user/username])
         [full? mobile?] [(util/full-size?) (util/mobile?)]
         dev-menu (when @(subscribe [:user/dev?])
                    [S/Dropdown {:class "item"
@@ -79,7 +79,7 @@
          [:a.item {:id "user-name-link" :href (user-uri user-id)}
           [:div
            [Avatar {:user-id user-id}]
-           [:span.blue-text {:style {:margin-left "0.25em"}} user-display]]]
+           [:span.blue-text {:style {:margin-left "0.25em"}} username]]]
          [NotificationsButton]
          [:a.item {:id "log-out-link" :on-click #(run-action :auth/log-out)}
           "Log Out"]

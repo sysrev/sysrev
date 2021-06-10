@@ -36,8 +36,7 @@
                     (api/read-user-public-info user-id))))
     (GET "/search" request
          (with-authorize request {:logged-in true}
-           (let [{:keys [term]} (:params request)]
-             (api/search-users term)))))
+           (api/search-users (:params request)))))
    (GET "/user/:user-id" [user-id :<< as-int :as request]
         (with-authorize request {}
           (api/read-user-public-info user-id)))

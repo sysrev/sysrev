@@ -17,11 +17,13 @@
             [sysrev.group.core :as group]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
+            [sysrev.project.member :as member]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.test.core :as test :refer [succeeds?]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.util :as util :refer [parse-integer ellipsis-middle ignore-exceptions]])
-  (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
+  (:import [org.openqa.selenium JavascriptException]
+           [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote UnreachableBrowserException]
            [java.net URI]))
 
@@ -203,7 +205,9 @@
                   (format "%s+%s@%s" name (util/random-id) domain))]
     (db/with-transaction
       (delete-test-user :email email)
-      (let [{:keys [user-id] :as user} (user/create-user email password :project-id project-id)]
+      (let [{:keys [user-id] :as user} (user/create-user email password)]
+        (when project-id
+          (member/add-project-member project-id user-id))
         (user/change-user-setting user-id :ui-theme "Dark")
         (merge user {:password password})))))
 
@@ -313,7 +317,10 @@
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 30)."
   [& [duration]]
-  (< (ajax-activity-duration) (- (make-delay (or duration 30)))))
+  (if-let [aad (try (ajax-activity-duration)
+                    (catch JavascriptException _))]
+    (< aad (- (make-delay (or duration 30))))
+    false))
 
 (def loader-elements-css
   [(-> "div.ui.loader.active" (not-class "loading-indicator"))
@@ -462,7 +469,7 @@
            (log/infof "[[ %s started ]]" ~name-str)
            (with-webdriver
              (init-route "/" :silent true)
-             (let [~test-user (if (and (test/db-connected?) @db/active-db)
+             (let [~test-user (if (and (test/db-connected?) @db/*active-db*)
                                 (create-test-user)
                                 {:email "browser+test@insilica.co"
                                  :password test-password})

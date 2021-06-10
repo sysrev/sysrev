@@ -41,7 +41,7 @@
 
 (defn-spec set-boolean-value any?
   "Sets boolean label `short-label` to `value` in review interface."
-  [short-label string?, value (s/nilable boolean?) & [xpath] any?]
+  [short-label string?, value (s/nilable boolean?) & [xpath] (s/* any?)]
   (b/click (x/xpath (label-grid-xpath :short-label short-label)
                     "/div[contains(@class,'label-edit-value')]"
                     "//div[contains(@class,'button') and "
@@ -69,7 +69,7 @@
 
 (defn-spec add-string-value any?
   "Adds `value` to string label `short-label` in review interface."
-  [short-label string?, value string?, & [xpath] any?]
+  [short-label string?, value string?, & [xpath] (s/* any?)]
   (let [q-empty (x/xpath xpath (string-input-xpath short-label ""))
         q-value (x/xpath xpath (string-input-xpath short-label value""))]
     (when-not (taxi/exists? q-empty)
@@ -100,7 +100,7 @@
 
 (defn-spec add-categorical-value any?
   "Adds `value` to categorical label `short-label` in review interface."
-  [short-label string?, value string?, & [xpath] any?]
+  [short-label string?, value string?, & [xpath] (s/* any?)]
   (let [label-el     (label-column-xpath :short-label short-label)
         dropdown-el  (x/xpath label-el "//div[contains(@class,'dropdown')]")
         icon-el      (x/xpath dropdown-el "/i[contains(@class,'dropdown')]")

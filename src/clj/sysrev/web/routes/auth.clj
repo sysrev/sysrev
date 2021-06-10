@@ -8,7 +8,7 @@
             [sysrev.config :refer [env]]
             [sysrev.db.queries :as q]
             [sysrev.mail.core :refer [send-email]]
-            [sysrev.user.core :as user :refer [user-by-email]]
+            [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.web.app :as web :refer [with-authorize]]
             [sysrev.web.routes.core :refer [setup-local-routes]]))
 
@@ -128,7 +128,7 @@
                {:keys [user-id]} (:identity session)
                verified (user/primary-email-verified? user-id)]
            (if user-id
-             (-> (merge {:identity (user/user-identity-info user-id true)}
+             (-> (merge {:identity (user/user-identity-info user-id)}
                         (user/user-self-info user-id)
                         {:orgs (:orgs (api/read-orgs user-id))})
                  (assoc-in [:identity :verified] verified)

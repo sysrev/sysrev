@@ -1,12 +1,13 @@
 #_{:clj-kondo/ignore [:unused-import :unused-namespace :unused-referred-var :use :refer-all]}
 (ns sysrev.user
   (:refer-clojure :exclude [find])
-  (:use sysrev.logging
+  (:use clojure.repl
+        sysrev.logging
         sysrev.util
         sysrev.db.core
         sysrev.db.listeners
         sysrev.db.migration
-        sysrev.user.core
+        sysrev.user.interface
         sysrev.group.core
         sysrev.article.core
         sysrev.article.assignment
@@ -15,7 +16,7 @@
         sysrev.annotations
         sysrev.datasource.core
         sysrev.datasource.api
-        sysrev.notifications.core
+        sysrev.notification.interface
         sysrev.project.core
         sysrev.project.charts
         sysrev.project.member
@@ -68,7 +69,8 @@
         sysrev.test.core
         sysrev.test.browser.navigate
         sysrev.stacktrace)
-  (:require [clojure.spec.alpha :as s]
+  (:require [cider.nrepl :refer (cider-nrepl-handler)]
+            [clojure.spec.alpha :as s]
             [clojure.edn :as edn]
             [orchestra.spec.test :as t]
             [clojure.math.numeric-tower :as math]
@@ -96,15 +98,17 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [nrepl.server :as nrepl]
             [sysrev.config :refer [env]]
+            [sysrev.fixtures.interface :as fixtures]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.users :as su]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
+            [sysrev.user.interface.spec :as su]
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
             [sysrev.formats.pubmed :as pubmed]
@@ -117,3 +121,10 @@
          (log/error "error in sysrev.init/start-app")
          (log/error (.getMessage e))
          (log/error (with-out-str (print-cause-trace-custom e))))))
+
+(defn -main []
+  (defonce nrepl (nrepl/start-server :handler cider-nrepl-handler))
+  (spit ".nrepl-port" (:port nrepl))
+  (log/info "Started nREPL on port" (:port nrepl))
+  (fixtures/load-fixtures!)
+  (clojure.main/repl :init #(in-ns 'sysrev.user)))

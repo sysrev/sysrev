@@ -158,7 +158,7 @@
         visible-user-ids (->> @(subscribe [:project/member-user-ids])
                               (sort-by #(deref (subscribe [:member/article-count %])) >))
         user-names (->> visible-user-ids
-                        (mapv #(deref (subscribe [:user/display %]))))
+                        (mapv #(deref (subscribe [:user/username %]))))
         includes   (->> visible-user-ids
                         (mapv #(deref (subscribe [:member/include-count %]))))
         excludes   (->> visible-user-ids

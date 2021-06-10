@@ -35,7 +35,6 @@
             [sysrev.annotations :as ann]
             [sysrev.label.core :as label]
             [sysrev.label.define :as ldefine]
-            [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.group.core :as group]
             [sysrev.gengroup.core :as gengroup]
             [sysrev.file.core :as file]
@@ -43,7 +42,7 @@
             [sysrev.file.article :as article-file]
             [sysrev.file.user-image :as user-image]
             [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
-            [sysrev.notifications.core :as notifications]
+            [sysrev.notification.interface :as notification]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.paypal :as paypal]
             [sysrev.payment.plans :as plans]
@@ -55,6 +54,8 @@
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.shared.text :as shared]
             [sysrev.shared.spec.project :as sp]
+            [sysrev.user.interface :as user :refer [user-by-email]]
+            [sysrev.user.interface.spec :as su]
             [sysrev.encryption :as enc]
             [sysrev.util :as util :refer [in? index-by req-un parse-integer sum uuid-from-string]])
   (:import (java.util UUID)
@@ -156,7 +157,7 @@
       (sync-project-owners! project-id group-id)
       (change-project-settings project-id [{:setting :public-access
                                             :value public-access}])
-      (notifications/create-notification
+      (notification/create-notification
        {:adding-user-id user-id
         :group-id group-id
         :group-name (q/find-one :groups {:group-id group-id} :group-name)
@@ -401,11 +402,14 @@
   (with-transaction
     (let [user (user-by-email email)
           db-result (when-not user
-                      (try (user/create-user email password
-                                             :project-id project-id
-                                             :google-user-id google-user-id)
-                           true
-                           (catch Throwable e e)))]
+                      (try
+                        (let [u (user/create-user email password
+                                                  :google-user-id google-user-id)]
+                          (when project-id
+                            (member/add-project-member project-id (:user-id user)))
+                          u)
+                        true
+                        (catch Throwable e e)))]
       (cond user
             {:success false, :message "Account already exists for this email address"}
             (isa? (type db-result) Throwable)
@@ -828,7 +832,7 @@
   (api-ann/get-annotations (get @annotations-atom hash)))
 
 (def db-annotations-by-hash!
-  (db-memo db/active-db annotations-by-hash!))
+  (db-memo db/*active-db* annotations-by-hash!))
 
 ;; note: this could possibly have a thread safety issue
 (defn annotations-wrapper!
@@ -1334,8 +1338,13 @@
           ;; finally, if everything went through ok, return the org-id
           {:success true :id id})))))
 
-(defn search-users [term]
-  {:success true, :users (user/search-users term)})
+(defn search-users [{:keys [exact? term]}]
+  {:success true
+   :users
+   (if exact?
+     (when (and (s/valid? ::su/username term) (seq term))
+       (-> term user/user-by-username :user-id vector user/get-users-public-info))
+     (user/search-users term))})
 
 (defn set-user-group-permissions! [user-id org-id permissions]
   (with-transaction
@@ -1438,7 +1447,7 @@
         ;; add the project to the group
         (group/create-project-group! dest-project-id org-id)
         (sync-project-owners! dest-project-id org-id)
-        (notifications/create-notification
+        (notification/create-notification
          {:adding-user-id user-id
           :group-id org-id
           :group-name (q/find-one :groups {:group-id org-id} :group-name)
@@ -1581,9 +1590,9 @@
   as we send all notifications for each day at the same time."
   [user-id {:keys [created-after limit]}]
   (with-transaction
-    (when-let [subscriber-id (notifications/subscriber-for-user
+    (when-let [subscriber-id (notification/subscriber-for-user
                               user-id :returning :subscriber-id)]
-      (let [ntfs (notifications/notifications-for-subscriber
+      (let [ntfs (notification/notifications-for-subscriber
                   subscriber-id :where (when created-after
                                          [:< :created created-after])
                   :limit limit)
@@ -1594,7 +1603,7 @@
                                at-start-of-day .toInstant
                                java.sql.Timestamp/from))
             ntfs2 (when last-timestamp
-                    (notifications/notifications-for-subscriber
+                    (notification/notifications-for-subscriber
                      subscriber-id :where
                      [:and [:>= :created start-of-day]
                       [:<= :created last-timestamp]]))]
@@ -1622,15 +1631,15 @@
 
 (defn user-notifications-new [user-id {:keys [limit]}]
   (with-transaction
-    (let [subscriber-id (notifications/subscriber-for-user
+    (let [subscriber-id (notification/subscriber-for-user
                          user-id :create? true :returning :subscriber-id)
           limit (-> (try (Long/parseLong limit) (catch Exception _))
                     (or 50) (min 50))]
       {:success true
        :notifications
-       (->> (notifications/notifications-for-subscriber
+       (->> (notification/notifications-for-subscriber
              subscriber-id :where [:= :consumed nil] :limit 50)
-            (concat (notifications/unviewed-system-notifications
+            (concat (notification/unviewed-system-notifications
                      subscriber-id :limit limit))
             combine-notifications
             (take limit))})))
@@ -1638,22 +1647,22 @@
 (defn user-notifications-set-consumed [notification-ids user-id]
   {:success true
    :row-count (with-transaction
-                (notifications/update-notifications-consumed
-                 notification-ids
-                 (notifications/subscriber-for-user
+                (notification/update-notifications-consumed
+                 (notification/subscriber-for-user
                   user-id
                   :create? true
-                  :returning :subscriber-id)))})
+                  :returning :subscriber-id)
+                 notification-ids))})
 
 (defn user-notifications-set-viewed [notification-ids user-id]
   {:success true
    :row-count (with-transaction
-                (notifications/update-notifications-viewed
-                 notification-ids
-                 (notifications/subscriber-for-user
+                (notification/update-notifications-viewed
+                 (notification/subscriber-for-user
                   user-id
                   :create? true
-                  :returning :subscriber-id)))})
+                  :returning :subscriber-id)
+                 notification-ids))})
 
 (defn import-label [share-code project-id]
   (let [share-data (enc/decrypt share-code)
@@ -1667,5 +1676,3 @@
         (label/import-label share-code project-id)
         {:success true
          :labels (project/project-labels project-id true)}))))
-
-

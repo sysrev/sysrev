@@ -322,13 +322,13 @@
      [:h4.ui.dividing.header "Amounts Earned"]
      [:div.ui.relaxed.divided.list
       (doall
-       (for [{:keys [compensation-owed last-payment #_ connected
-                     user-id admin-fee #_ username]} entries]
+       (for [{:keys [compensation-owed last-payment
+                     user-id admin-fee]} entries]
          (let [retrieving-amount-owed? @(r/cursor state [:loading :compensation-owed])
                confirming? (r/cursor state [:confirming? user-id])
                retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
                error-message (r/cursor state [:pay-error user-id])
-               username @(subscribe [:user/display user-id])]
+               username @(subscribe [:user/username user-id])]
            [:div.item {:key username :data-username username}
             [:div.ui.grid
              [:div.five.wide.column [:i.user.icon] username]
@@ -457,7 +457,7 @@
                  (when (first (->> entries (filter #(= (:user-id %) user-id))))
                    ^{:key user-id}
                    [UserRateEntry
-                    [:span [:i.user.icon] @(subscribe [:user/display user-id])]
+                    [:span [:i.user.icon] @(subscribe [:user/username user-id])]
                     [UserCompensationDropdown user-id]])))]])))
 
 (defn- ProjectCompensationPanel []

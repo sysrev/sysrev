@@ -13,14 +13,17 @@
              sqlh
              :refer
              [from join merge-join order-by select where]]
+            [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db :refer [do-query sql-now with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.payment.stripe :as stripe]
             [sysrev.project.core :as project]
-            [sysrev.project.member :refer [add-project-member]]
-            [sysrev.shared.spec.users :as su]
+            [sysrev.user.interface.spec :as su]
             [sysrev.util :as util :refer [in? map-values]])
   (:import java.util.UUID))
+
+(def user-public-cols
+  [:date-created :introduction :user-id :user-uuid :username])
 
 (defn ^:repl all-users
   "Returns seq of short info on all users, for interactive use."
@@ -61,15 +64,12 @@
   (doseq [{:keys [project-id]} (user-projects user-id)]
     (db/clear-project-cache project-id)))
 
-(defn get-users-public-info
+(defn-spec get-users-public-info (s/* ::su/user)
   "Given a coll of user-ids, return a coll of maps that represent the
   publicly viewable information for each user-id"
-  [user-ids]
+  [user-ids (s/* ::su/user-id)]
   (when (seq user-ids)
-    (->> (q/find :web-user {:user-id user-ids}
-                 [:user-id :email :date-created :username :introduction])
-         (map #(-> (dissoc % :email)
-                   (assoc :username (first (str/split (:email %) #"@"))))))))
+    (q/find :web-user {:user-id user-ids} user-public-cols)))
 
 (defn user-by-reset-code [reset-code]
   (q/find-one :web-user {:reset-code reset-code}))
@@ -79,6 +79,11 @@
 
 (defn user-by-id [user-id]
   (q/find-one :web-user {:user-id user-id}))
+
+(defn-spec user-by-username (s/nilable ::su/user)
+  [username ::su/username]
+  (q/find-one :web-user
+              {[:lower :username] (str/lower-case username)}))
 
 (defn generate-api-token []
   (->> (crypto.random/bytes 16)
@@ -94,10 +99,27 @@
              :iterations 6
              :salt (crypto.random/bytes 16)}))
 
-(defn create-user [email password & {:keys [project-id user-id permissions google-user-id]
+(defn-spec unique-username ::su/username
+  [email ::su/email]
+  (with-transaction
+    (let [s (-> (str/split email #"@" 2)
+                first
+                (str/replace #"[^A-Za-z0-9]+" "-"))]
+      (if-not (user-by-username s)
+        s
+        (loop [sfx (str (rand-int 10))]
+          (let [t (str s \- sfx)]
+            (if (>= 40 (count t))
+              (if-not (user-by-username t)
+                t
+                (recur (str sfx (rand-int 10))))
+              (str (UUID/randomUUID)))))))))
+
+(defn create-user [email password & {:keys [user-id permissions google-user-id]
                                      :or {permissions ["user"]}}]
   (with-transaction
     (let [user (q/create :web-user (cond-> {:email email
+                                            :username (unique-username email)
                                             :verify-code nil ;; (crypto.random/hex 16)
                                             :permissions (db/to-sql-array "text" permissions)
                                             :date-created :%now
@@ -110,7 +132,6 @@
                                                            :registered-from "google"
                                                            :date-google-login :%now))
                          :returning :*)]
-      (when project-id (add-project-member project-id (:user-id user)))
       user)))
 
 (defn set-user-password [email new-password]
@@ -156,6 +177,13 @@
 (defn user-settings [user-id]
   (into {} (q/get-user user-id :settings)))
 
+(defn-spec change-username nat-int?
+  [user-id ::su/user-id new-username ::su/username]
+  (with-transaction
+    (if (user-by-username new-username)
+      0
+      (q/modify :web-user {:user-id user-id} {:username new-username}))))
+
 (defn change-user-setting [user-id setting new-value]
   (with-transaction
     (let [cur-settings (q/get-user user-id :settings)
@@ -167,7 +195,10 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [_self?]]
-  (-> (q/get-user user-id [:user-id :user-uuid :email :verified :permissions :settings :api-token])
+  (-> (q/get-user
+       user-id
+       (into user-public-cols
+             [:api-token :email :permissions :settings :verified]))
       (rename-keys {:api-token :api-key})))
 
 (defn user-self-info
@@ -319,11 +350,11 @@
   (q/modify :web-user {:user-id user-id} {:introduction introduction}))
 
 (defn search-users
-  "Return users whose email matches q"
+  "Return users whose username matches q"
   [q & {:keys [limit]
         :or {limit 5}}]
   (with-transaction
-    (let [user-ids (->> ["SELECT user_id FROM web_user WHERE (email ilike ?) ORDER BY email LIMIT ?"
+    (let [user-ids (->> ["SELECT user_id FROM web_user WHERE (username ilike ?) ORDER BY username LIMIT ?"
                          (str q "%")
                          limit]
                         db/raw-query

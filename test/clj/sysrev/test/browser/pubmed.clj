@@ -150,7 +150,7 @@
   importing by PubMed search through web interface."
   [search-term]
   (let [pmids (test-search-pmids search-term)]
-    (if (and pmids @db/active-db (not (test/remote-test?)))
+    (if (and pmids @db/*active-db* (not (test/remote-test?)))
       (import-pmids-via-db pmids)
       (add-articles-from-search-term search-term))))
 

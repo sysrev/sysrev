@@ -117,7 +117,7 @@
                                  (reset! current-gengroup nil)
                                  (reset! group-search-value nil))]
     (fn [user-id member-info]
-      (let [username @(subscribe [:user/display user-id])
+      (let [username @(subscribe [:user/username user-id])
             gengroup-ids-set (->> member-info :gengroups (map :gengroup-id) set)]
         [Modal {:trigger (r/as-element
                           [Button {:on-click #(dispatch [::set modal-state-path {:open true}])
@@ -189,13 +189,13 @@
 (defn- UserRow [user-id {:keys [permissions gengroups] :as member-info}]
   (let [max-gengroups-shown 2
         gengroups-count (count gengroups)
-        username @(subscribe [:user/display user-id])
+        username @(subscribe [:user/username user-id])
         admin? @(subscribe [:user/project-admin?])]
     [TableRow
      [TableCell
       (:username member-info)
       [Avatar {:user-id user-id}]
-      [UserPublicProfileLink {:user-id user-id :display-name username}]]
+      [UserPublicProfileLink {:user-id user-id :username username}]]
      [TableCell
       [:div
        (doall

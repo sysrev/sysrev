@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+source vars.sh
+
+clj -M:dev:test:repl:\+default

@@ -1,0 +1,10 @@
+{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        org.clojure/tools.deps.alpha {:mvn/version "0.11.918"}
+        poly/flyway {:local/root "../../components/flyway"}
+        poly/notification {:local/root "../../components/notification"}
+        poly/sysrev {:local/root "."}
+        poly/user {:local/root "../../components/user"}}
+ :aliases {:test {:extra-paths ["../../config/test"]
+                  :extra-deps {poly/e2e {:local/root "../../components/e2e"}
+                               poly/fixtures {:local/root "../../components/fixtures"}
+                               poly/postgres {:local/root "../../components/postgres-in-mem"}}}}}

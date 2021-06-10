@@ -1,19 +1,23 @@
 (ns sysrev.views.panels.user.profile
   (:require ["moment" :as moment]
+            [cljs-http.client :as http]
             [clojure.string :as str]
             [clojure.spec.alpha :as s]
             [ajax.core :refer [GET POST PUT]]
             [reagent.core :as r]
             [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data :refer [def-data]]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
-            [sysrev.state.ui]
+            [sysrev.state.identity :as identity]
             [sysrev.state.nav :refer [user-uri]]
+            [sysrev.state.ui]
+            [sysrev.user.interface.spec :as su]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Segment Header Grid Row Column Icon Image Message Button Select
+             [Segment Header Grid Row Column Image Message Button Select
               Modal ModalContent ModalHeader ModalDescription]]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.util :as util :refer [parse-integer wrap-prevent-default]]
@@ -54,6 +58,36 @@
 (reg-sub :user/info
          (fn [[_ user-id]] (subscribe [:user/get user-id]))
          (fn [user] (:info user)))
+
+(def-data :username/taken?
+  :uri (fn [username] (->> {:exact? true :term username}
+                           http/generate-query-string
+                           (str "/api/users/search?")))
+  :loaded? (fn [db username]
+             (contains? (get-in db [:data :username/taken?])
+                        (when username (str/lower-case username))))
+  :process (fn [{:keys [db]} [username] {:keys [success users]}]
+             (when success
+               {:db (assoc-in db [:data :username/taken?
+                                  (when username (str/lower-case username))]
+                              (boolean (seq users)))})))
+
+(reg-sub :username/taken?
+         (fn [db [_ username]]
+           (get-in db [:data :username/taken?
+                       (when username (str/lower-case username))])))
+
+(def-action :profile/change-username
+  :uri (fn [] "/api/change-username")
+  :content (fn [username] {:username username})
+  :process (fn [{:keys [db]} [username] {:keys [success]}]
+             (if success
+               {:db (-> db
+                        (assoc-in
+                         [:data :users (identity/current-user-id db) :username]
+                         username)
+                        (panel-set [:editing-profile?] false))}
+               (data/reload :username/taken? username))))
 
 (defn- InvitationMessage
   [{:keys [project-id description accepted active created]}]
@@ -159,10 +193,10 @@
         (reset! loading? false)
         nil)})))
 
-(defn UserPublicProfileLink [{:keys [user-id display-name]}]
+(defn UserPublicProfileLink [{:keys [user-id username]}]
   [:a.user-public-profile {:href (user-uri user-id)
-                           :data-username display-name}
-   display-name])
+                           :data-username username}
+   username])
 
 (defn Avatar [{:keys [user-id]}]
   (let [reload-avatar? (r/cursor state [:reload-avatar?])]
@@ -210,49 +244,87 @@
     [ProfileAvatar {:user-id user-id
                     :modal-open (constantly false)}]))
 
-(defn- UserInteraction
-  [{:keys [user-id username]}]
+(defn username-validity-message [username]
+  (if (empty? username)
+    "Cannot be blank."
+    (cond
+      (< 40 (count username)) "Must be 40 characters or less."
+      (re-find #"\-\-" username) "Cannot contain consecutive hyphens."
+      (or (= \- (first username)) (= \- (last username)))
+      #__ "Cannot start or end with a hyphen."
+      (not (s/valid? ::su/username username))
+      #__ "Can only contain letters, numbers, and hyphens.")))
+
+(defn- UserInteraction [{:keys [editing? on-change-username user-id username
+                                username-value]}]
   [:div
-   [UserPublicProfileLink {:user-id user-id :display-name username}]
+   (if editing?
+     (let [v (or @username-value username)
+           taken? @(subscribe [:username/taken? v])
+           message (when-not taken? (username-validity-message v))]
+       [:div (if (or taken? message)
+               {:class "ui negative message"}
+               {:class "ui message"})
+        [:input {:on-change on-change-username
+                 :value v}]
+        [:p
+         (if taken?
+           "That username is already taken."
+           (or message
+               (if (false? taken?)
+                 "That username is available."
+                 [:br])))]])
+     [UserPublicProfileLink {:user-id user-id :username username}])
    [:div
     (when-not (= user-id @(subscribe [:self/user-id]))
       [InviteUser user-id])
     [:div {:style {:margin-top "1em"}}
      [UserInvitations user-id]]]])
 
-(defn User
-  [{:keys [username user-id]}]
-  (let [mutable? (= user-id @(subscribe [:self/user-id]))
-        modal-open (r/cursor state [:avatar-model-open])]
-    [Segment {:class "user"}
-     [Grid {:columns "equal"}
-      ;; computer / tablet
-      [Row (cond-> {}
-             (util/mobile?) (assoc :columns 3))
-       [Column (cond-> {}
-                 (not (util/mobile?)) (assoc :width 2))
-        [UserAvatar
-         {:mutable? mutable? :user-id user-id :modal-open modal-open}]]
-       [Column
-        [UserInteraction {:user-id user-id :username username}]]]]]))
-
-(defn- EditingUser
-  [{:keys [user-id username]}]
-  (let [editing? (r/cursor state [:editing-profile?])]
-    [Segment {:class "editing-user"}
-     [Grid
-      [Row
-       [Column {:width 2}
-        [Icon {:name "user icon" :size "huge"}]]
-       [Column {:width 12}
-        [UserPublicProfileLink {:user-id user-id :display-name username}]
-        [:div>a {:href "#" :on-click (wrap-prevent-default #(swap! editing? not))}
-         "Save Profile"]
-        [:div
-         (when-not (= user-id @(subscribe [:self/user-id]))
-           [InviteUser user-id])
-         [:div {:style {:margin-top "1em"}}
-          [UserInvitations user-id]]]]]]]))
+(defn User [{:keys [username]}]
+  (let [username-value (r/atom nil)
+        lusername (when username (str/lower-case username))
+        username-change (fn [e]
+                          (let [v (str/trim (.-value (.-target e)))]
+                            (reset! username-value v)
+                            (when (and (not= (str/lower-case v) lusername)
+                                       (s/valid? ::su/username v))
+                              (data/require-data :username/taken? v))))
+        save-profile (fn []
+                       (let [v @username-value]
+                         (when-not (or @(subscribe [:username/taken? v])
+                                       (username-validity-message v))
+                           (if (and v (not= (str/lower-case v) lusername))
+                             (action/run-action :profile/change-username v)
+                             (swap! state assoc :editing-profile? false)))))]
+    (fn [{:keys [username user-id]}]
+      (let [editing? (r/cursor state [:editing-profile?])
+            mutable? (= user-id @(subscribe [:self/user-id]))
+            modal-open (r/cursor state [:avatar-model-open])]
+        [Segment {:class "user"}
+         [Grid {:columns "equal"}
+          ;; computer / tablet
+          [Row (cond-> {}
+                 (util/mobile?) (assoc :columns 3))
+           [Column (cond-> {}
+                     (not (util/mobile?)) (assoc :width 2))
+            [UserAvatar
+             {:mutable? mutable? :user-id user-id :modal-open modal-open}]]
+           [Column
+            [UserInteraction
+             {:editing? @editing?
+              :on-change-username username-change
+              :user-id user-id
+              :username username
+              :username-value username-value}]
+            (if @editing?
+              [:a {:href "#"
+                   :on-click (wrap-prevent-default save-profile)}
+               "Save Profile"]
+              (when mutable?
+                [:a {:href "#"
+                     :on-click (wrap-prevent-default #(reset! editing? true))}
+                 "Edit"]))]]]]))))
 
 (defn- EditIntroductionLink
   [{:keys [editing? mutable? blank?]}]
@@ -299,21 +371,16 @@
                               :mutable? mutable?
                               :blank? (str/blank? introduction)}]])))
 
-(defn- ProfileSettings [{:keys [user-id username]}]
-  (let [editing? (r/cursor state [:editing-profile?])]
-    (if @editing?
-      [EditingUser {:user-id user-id :username username }]
-      [User {:user-id user-id :username username}])))
-
 (defn UserProfile [user-id]
   (let [{:keys [introduction] :as user} @(subscribe [:user/info user-id])
+        username @(subscribe [:user/username user-id])
         info-error (r/cursor state [:user user-id :info-error])
         self? @(subscribe [:user-panel/self?])]
     (dispatch [:require [:user/info user-id]])
     [:div
      (when (and user (str/blank? @info-error))
        [:div
-        [ProfileSettings user]
+        [User {:user-id user-id :username username}]
         [Introduction {:mutable? self?
                        :introduction introduction
                        :user-id user-id}]])

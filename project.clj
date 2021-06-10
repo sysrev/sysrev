@@ -48,6 +48,8 @@
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.8"]
                  [nilenso/honeysql-postgres "0.2.6"]
+                 [org.clojure/java.data "1.0.86"] ;; next.jdbc needs latest
+                 [com.github.seancorfield/next.jdbc "1.2.659"]
 
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
@@ -66,6 +68,7 @@
 ;;; More libraries
                  [buddy "2.0.0"] ;; encryption/authentication
                  [clj-http "3.12.1"]
+                 [com.stuartsierra/component "1.0.0"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.4"] ;; email client
                  [amazonica "0.3.152"
@@ -83,6 +86,7 @@
                  [org.clojure/core.memoize "0.7.2"]
                  [gravatar "1.1.1"]
                  [medley "1.3.0"]
+                 [lambdaisland/regal "0.0.97"] ;; portable regexes
                  [clojurewerkz/quartzite "2.1.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
@@ -97,7 +101,10 @@
              #_ "-XX:+UseParallelGC"
              #_ "-XX:+UnlockExperimentalVMOptions"
              #_ "-XX:+UseZGC"]
-  :source-paths ["src/clj" "src/cljc"]
+  :source-paths ["src/clj" "src/cljc"
+                 "components/flyway/src"
+                 "components/notification/src"
+                 "components/user/src"]
   :aliases {"run-tests"              ["with-profile" "+test-config" "eftest"]
             "jenkins"                ["with-profile" "+jenkins" "eftest"]
             "junit"                  ["with-profile" "+test,+test-all" "run"]
@@ -107,7 +114,9 @@
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :profiles {:prod           {:resource-paths ["config/prod"]
+  :profiles {:prod           {:resource-paths ["config/prod"
+                                               "components/postgres/resources"]
+                              :source-paths ["components/postgres/src"]
                               :main sysrev.web-main
                               :aot [sysrev.web-main]}
              :test-browser   {:resource-paths ["config/test"]
@@ -117,12 +126,21 @@
              :test-aws-dev   {:resource-paths ["config/test-aws-dev"]}
              :test-aws-prod  {:resource-paths ["config/test-aws-prod"]}
              :test-s3-dev    {:resource-paths ["config/test-s3-dev"]}
-             :dev            {:jvm-opts ["-Xmx1200m"]
-                              :resource-paths ["config/dev"]
-                              :source-paths ["src/clj" "src/cljc" "test/clj"]
-                              :test-paths ["test/clj"]
+             :dev            {:jvm-opts ["-Xmx1200m"
+                                         "-Djdk.attach.allowAttachSelf=true"]
+                              :resource-paths ["config/dev"
+                                               "components/fixtures/resources"]
+                              :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/fixtures/src"]
+                              :test-paths ["test/clj"
+                                           "components/notification/test"
+                                           "components/user/test"]
                               :dependencies
-                              [[clj-webdriver "0.7.2"]
+                              [[cider/cider-nrepl "0.26.0"]
+                               [clj-webdriver "0.7.2"]
+                               [com.clojure-goes-fast/clj-async-profiler "0.5.0"]
+                               [etaoin "0.4.1"]
+                               [org.flywaydb/flyway-core "7.9.1"]
                                [org.seleniumhq.selenium/selenium-api "3.8.1"]
                                [org.seleniumhq.selenium/selenium-support "3.8.1"]
                                [org.seleniumhq.selenium/selenium-java "3.8.1"
@@ -135,15 +153,27 @@
                                              org.bouncycastle/bcprov-jdk15on
                                              org.seleniumhq.selenium/selenium-api
                                              org.seleniumhq.selenium/selenium-support]]
-                               [etaoin "0.4.1"]]
+                               [prestancedesign/get-port "0.1.1"]]
                               :plugins [[lein-eftest "0.5.9"]]}
+             :postgres       {:source-paths ["components/postgres/src"]}
              :repl           {:dependencies []
                               :plugins [[lein-environ "1.2.0"]]}
-             :test           {:jvm-opts ["-Xmx1000m"]
-                              :resource-paths ["config/test" "resources/test"]
-                              :source-paths ["src/clj" "src/cljc" "test/clj"]
-                              :test-paths ["test/clj"]}
-             ;; :test-config    {:eftest {}}
-             :jenkins        {:eftest {:thread-count 4
-                                       :report eftest.report.junit/report
-                                       :report-to-file "target/junit.xml"}}})
+             :test           {:dependencies
+                              [[com.opentable.components/otj-pg-embedded "0.13.3"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "12.6.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "12.6.0"]
+                               [org.flywaydb/flyway-core "7.9.1"]
+                               [prestancedesign/get-port "0.1.1"]]
+                              :jvm-opts ["-Xmx1000m"]
+                              :resource-paths ["config/test" "resources/test"
+                                               "components/fixtures/resources"
+                                               "components/postgres-in-mem/resources"]
+                              :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/fixtures/src"
+                                             "components/postgres-in-mem/src"]
+                              :test-paths ["test/clj"
+                                           "components/notification/test"
+                                           "components/user/test"]}
+             :jenkins        {:eftest {:report eftest.report.junit/report
+                                       :report-to-file "target/junit.xml"
+                                       :thread-count 4}}})

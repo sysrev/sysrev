@@ -3,10 +3,11 @@
   (:require [clojure.tools.logging :as log]
             [sysrev.init :as init]
             [sysrev.db.migration :as migration]
+            [sysrev.postgres.interface :as postgres]
             [sysrev.project.core :as project]))
 
 (defn -main [& _args]
-  (init/start-db)
+  (postgres/start-db!)
   (migration/ensure-updated-db)
   (project/cleanup-browser-test-projects)
   (init/start-app)

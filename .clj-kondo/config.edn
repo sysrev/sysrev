@@ -1,4 +1,5 @@
-{:linters {:use {:level :off}
+{:linters {:redefined-var {:level :off}
+           :use {:level :off}
            :unresolved-var {:level :off}
            :unresolved-symbol {:exclude
                                [ ;; ignore unresolved symbols inside these macro forms
@@ -20,7 +21,8 @@
                                 ;; ignore unresolved symbols from setup-panel-state macro
                                 panel-get panel-set]}
            :unused-binding {:exclude-destructured-keys-in-fn-args true}
-           :unused-namespace {:exclude [clojure.tools.logging
+           :unused-namespace {:exclude [clojure.string
+                                        clojure.tools.logging
                                         sysrev.util
                                         medley.core
                                         clj-webdriver.taxi
@@ -89,4 +91,5 @@
  :output {:exclude-files ["src/clj/sysrev/user.clj"
                           "src/cljs/sysrev/user.cljs"
                           "src/scripts/repl.clj"]}
- :lint-as {sysrev.test.etaoin.core/deftest-etaoin clojure.test/deftest}}
+ :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
+           sysrev.test.etaoin.core/deftest-etaoin clojure.test/deftest}}

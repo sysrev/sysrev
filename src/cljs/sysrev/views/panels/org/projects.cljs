@@ -57,10 +57,14 @@
      [TableCell {:text-align "center"}
       (or (some-> last-active (moment.) (.fromNow)) "never")]
      [TableCell {:text-align "center"}
-      (doall (for [user admins] ^{:key (str (:user-id user) "-" project-id)}
-               [:div [UserPublicProfileLink
-                      {:user-id (:user-id user)
-                       :display-name (first (str/split (:email user) #"@"))}]]))]
+      (doall
+       (for [user admins
+             :let [user-id (:user-id user)
+                   username @(subscribe [:user/username user-id])]]
+         ^{:key (str user-id "-" project-id)}
+         [:div [UserPublicProfileLink
+                {:user-id (:user-id user)
+                 :username username}]]))]
      [TableCell {:text-align "center"} member-count]
      [TableCell {:text-align "center"}
       [:a {:href (str (project-uri project-id) "/settings")}

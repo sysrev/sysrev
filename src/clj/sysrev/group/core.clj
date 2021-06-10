@@ -4,11 +4,13 @@
             [honeysql.helpers :as sqlh]
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.user.core :as user]
-            [sysrev.notifications.core :refer [subscribe-to-topic subscriber-for-user
-                                               topic-for-name unsubscribe-from-topic]]
+            [sysrev.notification.interface :refer [subscribe-to-topic subscriber-for-user
+                                                   topic-for-name unsubscribe-from-topic]]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.user.interface :as user]
+            [sysrev.user.interface.spec :as su]
             [sysrev.util :as util :refer [index-by]]))
 
 (defn group-name->id [group-name]
@@ -17,10 +19,13 @@
 (defn group-id->name [group-id]
   (q/find-one :groups {:group-id group-id} :group-name))
 
-(defn add-user-to-group!
+(s/def ::permissions (s/? string?))
+
+(defn-spec add-user-to-group! nat-int?
   "Create a user-group association between group-id and user-id
   with optional :permissions vector (default of [\"member\"])"
-  [user-id group-id & {:keys [permissions]}]
+  [user-id ::su/user-id group-id ::sc/group-id
+   & {:keys [permissions]} (util/opt-keys ::permissions)]
   (with-transaction
     (-> (subscriber-for-user user-id :create? true :returning :subscriber-id)
         (subscribe-to-topic

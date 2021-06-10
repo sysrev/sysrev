@@ -115,7 +115,8 @@
                                           (some-> action (wrap-user-event)))}
                           content]))]
     [:div.ui.secondary.pointing.menu.secondary-menu {:class menu-class}
-     (doall (for [entry left-entries] ^{:key entry}
+     (doall (for [entry (remove empty? left-entries)]
+              ^{:key (:tab-id entry)}
               [render-entry entry]))
      (when (seq right-entries)
        (if mobile?
@@ -124,7 +125,8 @@
                        :label "More", :icon "down chevron"
                        :options right-entries}]]
          [:div.right.menu
-          (doall (for [entry right-entries] ^{:key entry}
+          (doall (for [entry (remove empty? right-entries)]
+                   ^{:key (:tab-id entry)}
                    [render-entry entry]))]))]))
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class _mobile?]]

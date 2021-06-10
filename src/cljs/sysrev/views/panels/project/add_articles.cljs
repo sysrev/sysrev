@@ -102,7 +102,7 @@
         modal-open (r/cursor state (concat modal-state-path [:open]))
         project-id @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
-        has-pro? (or (re-matches #".*@insilica.co" @(subscribe [:user/email]))
+        has-pro? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
                      (stripe/pro? project-plan))
         source-check-new-results? (r/cursor state (concat modal-state-path [:form-data :check-new-results?]))
         source-import-new-results? (r/cursor state (concat modal-state-path [:form-data :import-new-results?]))
@@ -667,7 +667,7 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
 An article entry will be created for each PDF."] [ImportPDFZipsView]]
           :ris-file  [ImportRISView]
           :ctgov (if (and (= js/window.location.hostname "sysrev.com")
-                          (not (some #{@(subscribe [:user/email])}
+                          (not (some #{@(subscribe [:self/email])}
                                      #{"amarluniwal@gmail.com"
                                        "geoffreyweiner@gmail.com"
                                        "james@insilica.co"

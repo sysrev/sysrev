@@ -1,7 +1,7 @@
 (ns sysrev.notifications.listeners
   (:require [clojure.edn :as edn]
             [sysrev.db.queries :as q]
-            [sysrev.notifications.core :as core]
+            [sysrev.notification.interface :as notification]
             [sysrev.web.core :as web :refer [sente-dispatch!]]))
 
 (defn handle-notification [s]
@@ -11,7 +11,7 @@
                                [:content :created :publisher-id :topic-id]))
         user-ids (if (= "system" (get-in notification [:content :type]))
                    (web/sente-connected-users)
-                   (core/user-ids-for-notification notification-id))]
+                   (notification/user-ids-for-notification notification-id))]
     (doseq [uid user-ids]
       (sente-dispatch! uid [:notifications/update-notifications
                             {notification-id notification}]))))
@@ -19,7 +19,7 @@
 (defn handle-notification-notification-subscriber [s]
   (let [{:keys [notification-ids subscriber-id viewed]} (edn/read-string s)
         viewed (when viewed (java.util.Date. viewed))
-        user-id (when viewed (core/user-id-for-subscriber subscriber-id))]
+        user-id (when viewed (notification/user-id-for-subscriber subscriber-id))]
     (when user-id
       (->> notification-ids
            (reduce #(assoc % %2 {:viewed viewed}) nil)

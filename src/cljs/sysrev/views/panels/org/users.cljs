@@ -167,7 +167,7 @@
           [TableRow
            [TableCell
             [Avatar {:user-id @user-id}]
-            [UserPublicProfileLink {:user-id @user-id :display-name @username}]]]]]
+            [UserPublicProfileLink {:user-id @user-id :username @username}]]]]]
         [Button {:color "orange" :disabled running?}
          "Remove members"]
         [CursorMessage error {:negative true}]]]]]))
@@ -223,7 +223,7 @@
     [TableRow
      [TableCell
       [Avatar {:user-id user-id}]
-      [UserPublicProfileLink {:user-id user-id :display-name username}]]
+      [UserPublicProfileLink {:user-id user-id :username username}]]
      [TableCell
       [:p (some #{"admin" "owner" "member"} permissions)]]
      [TableCell

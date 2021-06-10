@@ -304,7 +304,7 @@
                            (filter #(contains? selected-labels (:label-id %))))
         user-ids      (mapv :user-id conc-data)
         user-names    (for [{:keys [user-id]} conc-data]
-                        @(subscribe [:user/display user-id]))
+                        @(subscribe [:user/username user-id]))
         concordance   (for [{:keys [count concordant]} conc-data]
                         (-> (/ concordant count) (* 100) (round) (/ 100)))
         discordance   (map #(-> (- 1.0 %) (* 100) (round) (/ 100)) concordance)
@@ -356,7 +356,7 @@
                                             (sort-by :count >)
                                             (map :user-id))))
         user-names      (vec (for [user-id user-ids]
-                               @(subscribe [:user/display user-id])))
+                               @(subscribe [:user/username user-id])))
         lbl-buttons     (make-buttons "step_3_lbl" label-names label-ids
                                       @(subscribe [::concordance-label-selection])
                                       ::set-concordance-label-selection)
@@ -391,7 +391,7 @@
                                            (contains? selected-user (:user-a %)))))
         user-ids        (mapv :user-b uul-data)
         user-names      (for [{:keys [user-b]} uul-data]
-                          @(subscribe [:user/display user-b]))
+                          @(subscribe [:user/username user-b]))
         concordance     (for [{:keys [concordant count]} uul-data]
                           (-> (/ concordant count) (* 100) (round) (/ 100)))
         discordance     (for [x concordance]
@@ -424,7 +424,7 @@
     [:div
      [:h5 "User Concordant Articles"
       " vs " [:span {:style {:color select-blue}}
-              @(subscribe [:user/display (first selected-user)])]
+              @(subscribe [:user/username (first selected-user)])]
       " on " [:span {:style {:color select-blue}}
               @(subscribe [:label/display "na" (uuid (first selected-label))])]]
      [:div

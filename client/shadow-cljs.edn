@@ -1,4 +1,6 @@
-{:source-paths ["src/cljs" "src/cljc" "resources"]
+{:source-paths ["src/cljs" "src/cljc" "resources"
+                "components/notification/src"
+                "components/user/src"]
  :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
             ;; https://github.com/thheller/shadow-cljs/issues/556
             "-Xms400m" "-Xmx1400m"]
@@ -27,6 +29,7 @@
                 [ch.qos.logback/logback-classic "1.2.3"]
                 [org.slf4j/jul-to-slf4j "1.7.30"]
                 [org.clojure/test.check "1.1.0"]
+                [lambdaisland/regal "0.0.97"]
 ;;; Client libraries (CLJS)
                 [com.cognitect/transit-cljs "0.8.264"]
                 [com.taoensso/sente "1.16.2"]

@@ -19,9 +19,9 @@
             [sysrev.shared.spec.article]
             [sysrev.shared.spec.project]
             [sysrev.shared.spec.labels]
-            [sysrev.shared.spec.users]
             [sysrev.shared.spec.keywords]
             [sysrev.shared.spec.notes]
+            sysrev.user.interface.spec
             [sysrev.util :as util]))
 
 (defonce current-width (atom nil))

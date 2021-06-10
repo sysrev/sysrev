@@ -1,4 +1,4 @@
-(ns sysrev.notifications.core
+(ns sysrev.notification.core
   (:require [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
@@ -7,7 +7,7 @@
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [project-user-ids]]
-            [sysrev.shared.spec.notification :as sntfcn]))
+            [sysrev.notification.interface.spec :as sntfcn]))
 
 (defn x-for-y [table-name col-name col-value
                & {:keys [create? returning]
@@ -286,7 +286,7 @@
            (db/notify! :notification-notification-subscriber (pr-str n)))
          notification-id)))))
 
-(defn update-notifications-consumed [notification-ids subscriber-id]
+(defn update-notifications-consumed [subscriber-id notification-ids]
   (with-transaction
     (let [now (-> "SELECT NOW()" db/raw-query first :now .getTime)]
       (db/notify! :notification-notification-subscriber
@@ -311,7 +311,7 @@
                   :viewed (sql/call :now)})
             notification-ids)))))))
 
-(defn update-notifications-viewed [notification-ids subscriber-id]
+(defn update-notifications-viewed [subscriber-id notification-ids]
   (with-transaction
     (let [now (-> "SELECT NOW()" db/raw-query first :now .getTime)]
       (db/notify! :notification-notification-subscriber
