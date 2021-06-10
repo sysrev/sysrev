@@ -9,9 +9,9 @@
             sysrev.test.all
             [sysrev.test.core :as test]
             [sysrev.config :refer [env]]
+            [sysrev.postgres.interface :as postgres]
             [sysrev.project.core :as project]
-            [sysrev.db.migration :as migration]
-            [sysrev.init :as init]))
+            [sysrev.db.migration :as migration]))
 
 (defn -main [& _args]
   (log/info (str "running database tests with config:\n"
@@ -19,7 +19,7 @@
   (log/info (str "running browser tests with config:\n"
                  (pprint/write (test/get-selenium-config) :stream nil)))
   (when (and (test/db-connected?) (= (-> env :profile) :remote-test))
-    (init/start-db)
+    (postgres/start-db!)
     (project/cleanup-browser-test-projects)
     (migration/ensure-updated-db))
   (let [fname "target/junit.xml"
