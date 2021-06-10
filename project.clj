@@ -109,9 +109,9 @@
   :aliases {"run-tests"              ["with-profile" "+postgres-embedded,+test-config" "eftest"]
             "jenkins"                ["with-profile" "+postgres-embedded,+jenkins" "eftest"]
             "junit"                  ["with-profile" "+postgres-embedded,+test,+test-all" "run"]
-            "test-aws-dev-browser"   ["with-profile" "+postgres,+test,+test-browser,+test-aws-dev" "run"]
-            "test-aws-prod-browser"  ["with-profile" "+postgres,+test,+test-browser,+test-aws-prod" "run"]
-            "test-aws-dev-all"       ["with-profile" "+postgres,+test,+test-all,+test-aws-dev" "run"]}
+            "test-aws-dev-browser"   ["with-profile" "+postgres,+test-remote,+test-browser,+test-aws-dev" "run"]
+            "test-aws-prod-browser"  ["with-profile" "+postgres,+test-remote,+test-browser,+test-aws-prod" "run"]
+            "test-aws-dev-all"       ["with-profile" "+postgres,+test-remote,+test-all,+test-aws-dev" "run"]}
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
@@ -173,6 +173,12 @@
                               :test-paths ["test/clj"
                                            "components/notification/test"
                                            "components/user/test"]}
+             :test-remote    {:dependencies
+                              [[prestancedesign/get-port "0.1.1"]]
+                              :jvm-opts ["-Xmx1000m"]
+                              :resource-paths ["config/test" "resources/test"]
+                              :source-paths ["src/clj" "src/cljc" "test/clj"]
+                              :test-paths ["test/clj"]}
              :jenkins        {:eftest {:report eftest.report.junit/report
                                        :report-to-file "target/junit.xml"
                                        :thread-count 4}}})
