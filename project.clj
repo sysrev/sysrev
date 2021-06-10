@@ -106,12 +106,12 @@
                  "components/flyway/src"
                  "components/notification/src"
                  "components/user/src"]
-  :aliases {"run-tests"              ["with-profile" "+test-config" "eftest"]
-            "jenkins"                ["with-profile" "+jenkins" "eftest"]
-            "junit"                  ["with-profile" "+test,+test-all" "run"]
-            "test-aws-dev-browser"   ["with-profile" "+test,+test-browser,+test-aws-dev" "run"]
-            "test-aws-prod-browser"  ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
-            "test-aws-dev-all"       ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
+  :aliases {"run-tests"              ["with-profile" "+postgres-embedded,+test-config" "eftest"]
+            "jenkins"                ["with-profile" "+postgres-embedded,+jenkins" "eftest"]
+            "junit"                  ["with-profile" "+postgres-embedded,+test,+test-all" "run"]
+            "test-aws-dev-browser"   ["with-profile" "+postgres,+test,+test-browser,+test-aws-dev" "run"]
+            "test-aws-prod-browser"  ["with-profile" "+postgres,+test,+test-browser,+test-aws-prod" "run"]
+            "test-aws-dev-all"       ["with-profile" "+postgres,+test,+test-all,+test-aws-dev" "run"]}
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
@@ -155,20 +155,21 @@
                               :plugins [[lein-eftest "0.5.9"]]}
              :postgres       {:resource-paths ["components/postgres/resources"]
                               :source-paths ["components/postgres/src"]}
-             :repl           {:dependencies []
-                              :plugins [[lein-environ "1.2.0"]]}
+             :postgres-embedded {:dependencies
+                                 [[com.opentable.components/otj-pg-embedded "0.13.3"]
+                                  [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "12.6.0"]
+                                  [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "12.6.0"]
+                                  [prestancedesign/get-port "0.1.1"]]
+                                 :resource-paths ["components/postgres-in-mem/resources"]
+                                 :source-paths ["components/postgres-in-mem/src"]}
+             :repl           {:plugins [[lein-environ "1.2.0"]]}
              :test           {:dependencies
-                              [[com.opentable.components/otj-pg-embedded "0.13.3"]
-                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "12.6.0"]
-                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "12.6.0"]
-                               [prestancedesign/get-port "0.1.1"]]
+                              [[prestancedesign/get-port "0.1.1"]]
                               :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"
-                                               "components/fixtures/resources"
-                                               "components/postgres-in-mem/resources"]
+                                               "components/fixtures/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
-                                             "components/fixtures/src"
-                                             "components/postgres-in-mem/src"]
+                                             "components/fixtures/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
                                            "components/user/test"]}

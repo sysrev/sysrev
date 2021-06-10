@@ -36,7 +36,7 @@ if [ $compile = true ]; then
 fi
 
 if [ -z $namespace ]; then
-    time lein eftest
+    time lein with-profile +postgres-embedded eftest
 else
-    time lein eftest $namespace
+    time lein with-profile +postgres-embedded eftest $namespace
 fi
