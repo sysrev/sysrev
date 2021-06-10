@@ -50,6 +50,7 @@
                  [nilenso/honeysql-postgres "0.2.6"]
                  [org.clojure/java.data "1.0.86"] ;; next.jdbc needs latest
                  [com.github.seancorfield/next.jdbc "1.2.659"]
+                 [org.flywaydb/flyway-core "7.9.1"]
 
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
@@ -140,7 +141,6 @@
                                [clj-webdriver "0.7.2"]
                                [com.clojure-goes-fast/clj-async-profiler "0.5.0"]
                                [etaoin "0.4.1"]
-                               [org.flywaydb/flyway-core "7.9.1"]
                                [org.seleniumhq.selenium/selenium-api "3.8.1"]
                                [org.seleniumhq.selenium/selenium-support "3.8.1"]
                                [org.seleniumhq.selenium/selenium-java "3.8.1"
@@ -162,7 +162,6 @@
                               [[com.opentable.components/otj-pg-embedded "0.13.3"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "12.6.0"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "12.6.0"]
-                               [org.flywaydb/flyway-core "7.9.1"]
                                [prestancedesign/get-port "0.1.1"]]
                               :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"
