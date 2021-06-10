@@ -7,4 +7,4 @@
  :aliases {:test {:extra-paths ["../../config/test"]
                   :extra-deps {poly/e2e {:local/root "../../components/e2e"}
                                poly/fixtures {:local/root "../../components/fixtures"}
-                               poly/postgres {:local/root "../../components/postgres-in-mem"}}}}}
+                               poly/postgres {:local/root "../../components/postgres-embedded"}}}}}
