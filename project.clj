@@ -106,7 +106,8 @@
                  "components/flyway/src"
                  "components/notification/src"
                  "components/user/src"]
-  :aliases {"run-tests"              ["with-profile" "+postgres-embedded,+test-config" "eftest"]
+  :aliases {"build-prod"             ["with-profile" "+postgres,+prod" "uberjar"]
+            "run-tests"              ["with-profile" "+postgres-embedded,+test-config" "eftest"]
             "jenkins"                ["with-profile" "+postgres-embedded,+jenkins" "eftest"]
             "junit"                  ["with-profile" "+postgres-embedded,+test,+test-all" "run"]
             "test-aws-dev-browser"   ["with-profile" "+postgres,+test-remote,+test-browser,+test-aws-dev" "run"]

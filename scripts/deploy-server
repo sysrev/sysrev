@@ -12,7 +12,7 @@ echo $SYSREV_HOST > /dev/null
 dir=`pwd`
 
 if [[ $SYSREV_REBUILD == "1" ]]; then
-    lein with-profile +prod uberjar
+    lein build-prod
     mv ./target/sysrev-web-0.1.0-SNAPSHOT-standalone.jar .
 fi
 
