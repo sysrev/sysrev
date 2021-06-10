@@ -115,9 +115,7 @@
   :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :profiles {:prod           {:resource-paths ["config/prod"
-                                               "components/postgres/resources"]
-                              :source-paths ["components/postgres/src"]
+  :profiles {:prod           {:resource-paths ["config/prod"]
                               :main sysrev.web-main
                               :aot [sysrev.web-main]}
              :test-browser   {:resource-paths ["config/test"]
@@ -155,7 +153,8 @@
                                              org.seleniumhq.selenium/selenium-support]]
                                [prestancedesign/get-port "0.1.1"]]
                               :plugins [[lein-eftest "0.5.9"]]}
-             :postgres       {:source-paths ["components/postgres/src"]}
+             :postgres       {:resource-paths ["components/postgres/resources"]
+                              :source-paths ["components/postgres/src"]}
              :repl           {:dependencies []
                               :plugins [[lein-environ "1.2.0"]]}
              :test           {:dependencies
