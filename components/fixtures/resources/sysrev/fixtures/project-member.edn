@@ -1,2 +1,6 @@
-[{:project-id 21696
+[{:permissions #sql/array ["member"]
+  :project-id 21696
+  :user-id 1000001}
+ {:permissions #sql/array ["admin" "member" "owner"]
+  :project-id 1200001
   :user-id 1000001}]

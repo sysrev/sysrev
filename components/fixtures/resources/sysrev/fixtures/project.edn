@@ -2,4 +2,9 @@
   :enabled true
   :name "Mangiferin - Data Extraction"
   :project-uuid #uuid "e55b18a-7a86-4e7b-aa1d-d16ba074b983"
+  :settings {:public-access true :second-review-prob 0.5}}
+ {:project-id 1200001
+  :enabled true
+  :name "Public Project 1200001"
+  :project-uuid #uuid "929412a9-80ff-45c4-acfb-71f3e19b40fe"
   :settings {:public-access true :second-review-prob 0.5}}]

@@ -18,6 +18,9 @@
   (let [project-owner @(subscribe [:project/owner project-id])
         project-name @(subscribe [:project/name project-id])
         parent-project @(subscribe [:project/parent-project project-id])
+        parent-project-id (:project-id parent-project)
+        parent-project-owner (when parent-project-id
+                               @(subscribe [:project/owner parent-project-id]))
         public? @(subscribe [:project/public-access?])]
     [:span.ui.header.title-header
      (if public?
@@ -28,7 +31,8 @@
         [:span
          [:a {:href (or (some-> (:user-id project-owner) user-uri)
                         (some-> (:group-id project-owner) group-uri))}
-          (:name project-owner)]
+          (when (:user-id project-owner)
+            @(subscribe [:user/username (:user-id project-owner)]))]
          [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
       [:a {:href (project-uri nil "")} project-name]]
      (when parent-project
@@ -36,7 +40,9 @@
                       :font-size "0.9rem"}}
         [:span.ui.grey.text {:font-""} "cloned from "]
         [:a {:href (str "/p/" (:project-id parent-project))}
-         [ProjectName (:project-name parent-project) (:owner-name parent-project)]]])]))
+         [ProjectName (:project-name parent-project)
+          (when parent-project-owner
+            @(subscribe [:user/username (:user-id parent-project-owner)]))]]])]))
 
 (reg-event-db ::set-message-dismissed-for-project
               (fn [db [_ project-id]]

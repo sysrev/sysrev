@@ -10,34 +10,37 @@
             [sysrev.macros :refer-macros [with-loader]]))
 
 (defn- ProjectListItem [{:keys [project-id name member? description public-access project-owner]}]
-  (if member?
-    [:a.ui.middle.aligned.grid.segment.project-list-project
-     {:href (project-uri project-id "")}
-     [:div.row>div.sixteen.wide.column
-      [:h4.ui.header
-       (if public-access
-         [:i.grey.list.alternate.outline.icon]
-         [:i.grey.lock.icon])
-       [:div.content {:display "inline-block"}
-        [:span.project-title.blue-text [ProjectName name (:name project-owner)]]
-        description]]]]
-    [:div.ui.middle.aligned.stackable.two.column.grid.segment.project-list-project.non-member
-     [:div.column {:class (css [(not (util/mobile?)) "twelve wide"])}
-      [:a {:href (project-uri project-id "")}
-       [:h4.ui.header.blue-text
-        (if (nil?  public-access)
-          [:i.grey.list.alternate.outline.icon]
-          (if public-access
+  (let [owner-id (:user-id project-owner)
+        owner-name (when owner-id
+                     @(subscribe [:user/username owner-id]))]
+    (if member?
+      [:a.ui.middle.aligned.grid.segment.project-list-project
+       {:href (project-uri project-id "")}
+       [:div.row>div.sixteen.wide.column
+        [:h4.ui.header
+         (if public-access
+           [:i.grey.list.alternate.outline.icon]
+           [:i.grey.lock.icon])
+         [:div.content {:display "inline-block"}
+          [:span.project-title.blue-text [ProjectName name owner-name]]
+          description]]]]
+      [:div.ui.middle.aligned.stackable.two.column.grid.segment.project-list-project.non-member
+       [:div.column {:class (css [(not (util/mobile?)) "twelve wide"])}
+        [:a {:href (project-uri project-id "")}
+         [:h4.ui.header.blue-text
+          (if (nil?  public-access)
             [:i.grey.list.alternate.outline.icon]
-            [:i.grey.lock.icon]))
-        [:div.content
-         [:span.project-title [ProjectName name (:name project-owner)]]]]]]
-     [:div.right.aligned.column {:class (css [(not (util/mobile?)) "four wide"])}
-      [:div.ui.tiny.button
-       {:class (css [(util/mobile?) "fluid"]
-                    [(not (util/mobile?)) "blue"])
-        :on-click #(dispatch [:action [:join-project project-id]])}
-       "Join"]]]))
+            (if public-access
+              [:i.grey.list.alternate.outline.icon]
+              [:i.grey.lock.icon]))
+          [:div.content
+           [:span.project-title [ProjectName name owner-name]]]]]]
+       [:div.right.aligned.column {:class (css [(not (util/mobile?)) "four wide"])}
+        [:div.ui.tiny.button
+         {:class (css [(util/mobile?) "fluid"]
+                      [(not (util/mobile?)) "blue"])
+          :on-click #(dispatch [:action [:join-project project-id]])}
+         "Join"]]])))
 
 (reg-sub ::projects-list-page-num
          (fn [[_ member? id]]
