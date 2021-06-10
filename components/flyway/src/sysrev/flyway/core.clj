@@ -6,7 +6,7 @@
 (defn migrate! [datasource]
   (-> (Flyway/configure)
       .loadDefaultConfigurationFiles
-      (.locations (into-array ["filesystem:./resources/sql" "filesystem:./sql"]))
+      (.locations (into-array ["classpath:/sql"]))
       (.dataSource datasource)
       .load
       .migrate))
