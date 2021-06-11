@@ -281,7 +281,7 @@
     [:div {:style {:margin-top "1em"}}
      [UserInvitations user-id]]]])
 
-(defn User [{:keys [username]}]
+(defn User [{:keys [user-id username]}]
   (let [username-value (r/atom nil)
         lusername (when username (str/lower-case username))
         username-change (fn [e]
@@ -291,10 +291,12 @@
                                        (s/valid? ::su/username v))
                               (data/require-data :username/taken? v))))
         save-profile (fn []
-                       (let [v @username-value]
-                         (if (or (empty? v) (= lusername (str/lower-case v)))
+                       (let [username @(subscribe [:user/username user-id])
+                             v @username-value]
+                         (if (or (empty? v) (= username v))
                            (swap! state assoc :editing-profile? false)
-                           (when-not (or @(subscribe [:username/taken? v])
+                           (when-not (or (when-not (= lusername (str/lower-case v))
+                                           @(subscribe [:username/taken? v]))
                                          (username-validity-message v))
                              (action/run-action :profile/change-username v)))))]
     (fn [{:keys [username user-id]}]
