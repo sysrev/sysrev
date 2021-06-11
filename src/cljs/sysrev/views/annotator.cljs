@@ -2,6 +2,7 @@
   (:require ["jquery" :as $]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
+            [sysrev.views.semantic :as S]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v reg-event-fx]]
             [sysrev.data.core :refer [def-data]]
@@ -243,18 +244,15 @@
                            :read-only (not editing?)
                            :disabled (not editing?)
                            :placeholder (when editing? "New class name")}]
-            [ui/SelectionDropdown
-             [:div.text (:semantic-class annotation)]
-             (map-indexed (fn [i v]
-                            [:div.item
-                             {:key [:value-option i]
-                              :data-value v
-                              :class (css [(= v (:semantic-class annotation)) "active selected"])}
-                             [:span v]])
-                          all-values)
-             {:class (css "ui fluid" [(not touchscreen?) "search"] "selection dropdown"
-                          [(not editing?) "disabled"])
-              :onChange (fn [v _t] (set-ann [:semantic-class] v))}])])]
+            [S/Dropdown {:selection true :fluid true
+                         :options (map-indexed (fn [i v]
+                                                 {:key [:value-option i]
+                                                  :value v
+                                                  :text v})
+                                               all-values)
+                         :on-change (fn [_ selected-option]
+                                      (set-ann [:semantic-class] (.-value selected-option)))
+                         :value (:semantic-class annotation)}])])]
       [:div.field.value
        [:label "Value"]
        [ui/TextInput {:default-value (:value annotation)

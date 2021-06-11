@@ -96,17 +96,17 @@
 
 (defn- ThemeSelector []
   (let [active-theme (render-setting :ui-theme)]
-    [ui/SelectionDropdown
-     [:div.text active-theme]
-     (->> ["Default" "Dark"]
-          (mapv
-           (fn [theme-name]
-             [:div.item
-              (into {:key theme-name
-                     :on-click #(edit-setting :ui-theme theme-name)}
-                    (when (= theme-name active-theme)
-                      {:class "active selected"}))
-              theme-name])))]))
+    [S/Dropdown {:selection true :fluid true
+                 :options (->> ["Default" "Dark"]
+                               (mapv
+                                 (fn [theme-name]
+                                   {:key theme-name
+                                    :value theme-name
+                                    :text theme-name})))
+                 :on-change (fn [_ selected-option]
+                              (edit-setting :ui-theme (.-value selected-option)))
+                 :value active-theme
+                 :icon "dropdown"}]))
 
 (defn- UserOptions []
   (let [modified? (modified?)
