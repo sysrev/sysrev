@@ -292,11 +292,11 @@
                               (data/require-data :username/taken? v))))
         save-profile (fn []
                        (let [v @username-value]
-                         (when-not (or @(subscribe [:username/taken? v])
-                                       (username-validity-message v))
-                           (if (and v (not= (str/lower-case v) lusername))
-                             (action/run-action :profile/change-username v)
-                             (swap! state assoc :editing-profile? false)))))]
+                         (if (or (empty? v) (= lusername (str/lower-case v)))
+                           (swap! state assoc :editing-profile? false)
+                           (when-not (or @(subscribe [:username/taken? v])
+                                         (username-validity-message v))
+                             (action/run-action :profile/change-username v)))))]
     (fn [{:keys [username user-id]}]
       (let [editing? (r/cursor state [:editing-profile?])
             mutable? (= user-id @(subscribe [:self/user-id]))
