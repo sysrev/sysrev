@@ -11,8 +11,9 @@
 
 (defn- ProjectListItem [{:keys [project-id name member? description public-access project-owner]}]
   (let [owner-id (:user-id project-owner)
-        owner-name (when owner-id
-                     @(subscribe [:user/username owner-id]))]
+        owner-name (if owner-id
+                     @(subscribe [:user/username owner-id])
+                     (:name project-owner))]
     (if member?
       [:a.ui.middle.aligned.grid.segment.project-list-project
        {:href (project-uri project-id "")}

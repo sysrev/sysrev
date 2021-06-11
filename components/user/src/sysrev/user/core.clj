@@ -180,9 +180,11 @@
 (defn-spec change-username nat-int?
   [user-id ::su/user-id new-username ::su/username]
   (with-transaction
-    (if (user-by-username new-username)
-      0
-      (q/modify :web-user {:user-id user-id} {:username new-username}))))
+    (let [{ex-id :user-id ex-username :username} (user-by-username new-username)]
+      (if (or (and ex-id (not= user-id ex-id))
+              (= new-username ex-username))
+        0
+        (q/modify :web-user {:user-id user-id} {:username new-username})))))
 
 (defn change-user-setting [user-id setting new-value]
   (with-transaction

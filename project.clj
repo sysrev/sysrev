@@ -161,8 +161,8 @@
                                   [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "12.6.0"]
                                   [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "12.6.0"]
                                   [prestancedesign/get-port "0.1.1"]]
-                                 :resource-paths ["components/postgres-in-mem/resources"]
-                                 :source-paths ["components/postgres-in-mem/src"]}
+                                 :resource-paths ["components/postgres-embedded/resources"]
+                                 :source-paths ["components/postgres-embedded/src"]}
              :repl           {:plugins [[lein-environ "1.2.0"]]}
              :test           {:dependencies
                               [[prestancedesign/get-port "0.1.1"]]
