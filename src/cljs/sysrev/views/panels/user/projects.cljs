@@ -91,8 +91,9 @@
    [:a {:class "project-link" :href (project-uri project-id)
         :style {:margin-bottom "0.5em" :display "inline-block"}}
     [ProjectName name
-     (when (:user-id project-owner)
-       @(subscribe [:user/username (:user-id project-owner)]))]]
+     (if (:user-id project-owner)
+       @(subscribe [:user/username (:user-id project-owner)])
+       (:name project-owner))]]
    (when (and
           ;; user page is for logged in user
           ;; TODO: is this checking that the user is a project admin?
