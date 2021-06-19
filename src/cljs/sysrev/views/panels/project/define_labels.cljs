@@ -255,6 +255,7 @@
     (when-not (string? label-id) ;; don't show this for unsaved labels
       [:button.ui.small.fluid.labeled.icon.button
        {:class (css [(not enabled) "primary"])
+        :type "button"
         :on-click (util/wrap-user-event
                    #(do (reset-local-label! labels-atom root-label-id label-id)
                         (swap! (r/cursor label [:enabled]) not)
@@ -498,6 +499,7 @@
 
 (defn LabelEditForm [labels-atom root-label-id label]
   (let [show-error-msg #(when % [:div.ui.red.message %])
+        is-owned? (= (:owner-project-id @label) (:project-id @label))
         value-type (r/cursor label [:value-type])
 ;;; all types
         ;; required, string
@@ -534,7 +536,7 @@
         errors (r/cursor label [:errors])]
     [:form.ui.form.define-label {:on-submit (util/wrap-user-event
                                              (fn [_]
-                                               (if (not (labels-synced?))
+                                               (if (and is-owned? (not (labels-synced?)))
                                                  ;; save on server
                                                  (sync-to-server)
                                                  ;; just reset editing
@@ -679,10 +681,11 @@
                           (reset! inclusion-values (if checked? [true] [])))
             :label "Yes"}]
           [show-error-msg error]]))
-     [:div.field {:style {:margin-bottom "0.75em"}}
-      [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
-       [:div.column {:style {:padding "0.5em"}} [SaveLabelButton label]]
-       [:div.column {:style {:padding "0.5em"}} [CancelDiscardButton labels-atom root-label-id label]]]]
+     (when is-owned?
+       [:div.field {:style {:margin-bottom "0.75em"}}
+        [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
+         [:div.column {:style {:padding "0.5em"}} [SaveLabelButton label]]
+         [:div.column {:style {:padding "0.5em"}} [CancelDiscardButton labels-atom root-label-id label]]]])
      [:div.field [DisableEnableLabelButton labels-atom root-label-id label]]]))
 
 (defn GroupLabelEditForm [labels-atom label]
@@ -691,7 +694,8 @@
         definition (r/cursor label [:definition])
         errors (r/cursor label [:errors])
         multi? (r/cursor definition [:multi?])
-        labels (r/cursor label [:labels])]
+        labels (r/cursor label [:labels])
+        is-owned? (= (:owner-project-id @label) (:project-id @label))]
     [:div.ui.form.define-group-label {:id (str "group-label-id-" @root-label-id)}
      ;; short-label
      [ui/TextInputField
@@ -727,26 +731,28 @@
                     [:div [LabelEditForm labels @root-label-id
                            (r/cursor labels [(:label-id label)])]]))]))
       [Divider]
-      [:div.ui.one.column.stackable.grid
-       [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)
-                           (max-group-label-ordering @root-label-id)]]
-       [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels)
-                           (max-group-label-ordering @root-label-id)]]
-       [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels)
-                           (max-group-label-ordering @root-label-id)]]]]
+      (when is-owned?
+        [:div.ui.one.column.stackable.grid
+         [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)
+                             (max-group-label-ordering @root-label-id)]]
+         [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels)
+                             (max-group-label-ordering @root-label-id)]]
+         [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels)
+                             (max-group-label-ordering @root-label-id)]]])]
      [:div.field {:style {:margin-bottom "0.75em"}}
-      [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
-       [:div.column {:id "group-id-submit" :style {:padding "0.5em"}}
-        [SaveLabelButton label :on-click (util/wrap-user-event
-                                          (fn [_]
-                                            (if (not (labels-synced?))
-                                              ;; save on server
-                                              (sync-to-server)
-                                              ;; just reset editing
-                                              (reset! (r/cursor label [:editing?]) false)))
-                                          :prevent-default true) ]]
-       [:div.column {:style {:padding "0.5em"}}
-        [CancelDiscardButton labels-atom "na" label]]]]]))
+      (when is-owned?
+        [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
+         [:div.column {:id "group-id-submit" :style {:padding "0.5em"}}
+          [SaveLabelButton label :on-click (util/wrap-user-event
+                                             (fn [_]
+                                               (if (not (labels-synced?))
+                                                 ;; save on server
+                                                 (sync-to-server)
+                                                 ;; just reset editing
+                                                 (reset! (r/cursor label [:editing?]) false)))
+                                             :prevent-default true) ]]
+         [:div.column {:style {:padding "0.5em"}}
+          [CancelDiscardButton labels-atom "na" label]]])]]))
 
 ;; this corresponds to
 ;; (defmethod sysrev.views.review/label-input-el "string" ...)
@@ -1000,6 +1006,7 @@
 (defn- LabelItem [labels-atom i label & {:keys [status]}]
   (let [{:keys [label-id name editing? enabled value-type short-label]} @label
         admin? @(subscribe [:member/admin? true])
+        is-owned? (= (:owner-project-id @label) (:project-id @label))
         allow-edit? (and admin? (not= name "overall include"))
         {:keys [draggable]} status]
     [:div.ui.middle.aligned.grid.label-item
@@ -1025,8 +1032,7 @@
             [Label label]]))]
       [ui/TopAlignedColumn
        [:<>
-        [EditLabelButton label (and (= (:owner-project-id @label) (:project-id @label))
-                                    allow-edit?)]
+        [EditLabelButton label allow-edit?]
         [ShareLabelButton label]]
        "four wide center aligned column delete-label"]]]))
 
