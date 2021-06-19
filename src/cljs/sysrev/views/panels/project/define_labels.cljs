@@ -1006,7 +1006,6 @@
 (defn- LabelItem [labels-atom i label & {:keys [status]}]
   (let [{:keys [label-id name editing? enabled value-type short-label]} @label
         admin? @(subscribe [:member/admin? true])
-        is-owned? (= (:owner-project-id @label) (:project-id @label))
         allow-edit? (and admin? (not= name "overall include"))
         {:keys [draggable]} status]
     [:div.ui.middle.aligned.grid.label-item
