@@ -37,6 +37,7 @@
                    :set [panel-set ::set])
 
 (def initial-state {:read-only-message-closed? false})
+(def new-label-id-prefix "new-label-")
 
 (defn- saved-labels
   "Get the saved label values for the active project"
@@ -161,7 +162,7 @@
    :labels {}})
 
 (defn create-blank-label [value-type project-ordering]
-  (let [label-id (str "new-label-" (util/random-id))]
+  (let [label-id (str new-label-id-prefix (util/random-id))]
     (if (= value-type "group")
       (create-blank-group-label value-type label-id)
       {:definition (case value-type
@@ -499,7 +500,6 @@
 
 (defn LabelEditForm [labels-atom root-label-id label]
   (let [show-error-msg #(when % [:div.ui.red.message %])
-        is-owned? (= (:owner-project-id @label) (:project-id @label))
         value-type (r/cursor label [:value-type])
 ;;; all types
         ;; required, string
@@ -533,7 +533,9 @@
         ;; required, integer
         max-length (r/cursor definition [:max-length])
 ;;;
-        errors (r/cursor label [:errors])]
+        errors (r/cursor label [:errors])
+        is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
+        is-owned? (or is-new? (= (:owner-project-id @label) (:project-id @label)))]
     [:form.ui.form.define-label {:on-submit (util/wrap-user-event
                                              (fn [_]
                                                (if (and is-owned? (not (labels-synced?)))
@@ -695,7 +697,8 @@
         errors (r/cursor label [:errors])
         multi? (r/cursor definition [:multi?])
         labels (r/cursor label [:labels])
-        is-owned? (= (:owner-project-id @label) (:project-id @label))]
+        is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
+        is-owned? (or is-new? (= (:owner-project-id @label) (:project-id @label)))]
     [:div.ui.form.define-group-label {:id (str "group-label-id-" @root-label-id)}
      ;; short-label
      [ui/TextInputField
