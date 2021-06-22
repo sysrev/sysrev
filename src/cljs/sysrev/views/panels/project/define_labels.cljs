@@ -265,6 +265,19 @@
        [:i {:class (css "circle" [enabled "minus" :else "plus"] "icon")}]
        (if enabled "Disable" "Enable") " Label"])))
 
+(defn DetachLabelButton [labels-atom root-label-id label]
+  (let [{:keys [label-id enabled]} @label
+        project-id @(subscribe [:active-project-id])]
+    (when-not (string? label-id) ;; don't show this for unsaved labels
+      [:button.ui.small.fluid.labeled.icon.button.secondary
+       {:type "button"
+        :on-click (util/wrap-user-event
+                    #(dispatch [:action [:labels/detach project-id
+                                        {:label-id label-id}]])
+                    :prevent-default true)}
+       [:i {:class (css "unlink" "icon")}]
+       "Detach Label"])))
+
 (defn CancelDiscardButton [labels-atom root-label-id label]
   (let [{:keys [label-id]} @label
         text (if (string? label-id) "Discard" "Cancel")]
@@ -380,6 +393,24 @@
                                                    "please check the share code and try again.")
                                      :opts {:error true}}]]}))
 
+(def-action :labels/detach
+            :uri (fn [] "/api/detach-label")
+            :content (fn [project-id {:keys [label-id]}] {:project-id project-id
+                                                          :label-id label-id})
+            :process (fn [_ [_] {:keys [success labels message]}]
+                       (if success
+                         (do
+                           (set-app-db-labels! labels)
+                           (set-local-labels! labels)
+                           {:dispatch-n [[:alert {:content "Label detached successfully!"
+                                                  :opts {:success true}}]]})
+                         {:dispatch-n [[:alert {:content message
+                                                :opts {:error true}}]]}))
+            :on-error (fn [{:keys [db error]} _ _]
+                        {:dispatch-n [[:alert {:content (str "There was an error detaching this label, "
+                                                             "please try again later.")
+                                               :opts {:error true}}]]}))
+
 (defn- ImportLabelButton []
   (let [modal-state-path [:import-label-modal]
         modal-open (r/cursor state (concat modal-state-path [:open]))
@@ -390,8 +421,7 @@
                          [:button.ui.fluid.large.labeled.icon.button
                           {:on-click  (fn [e]
                                         (.preventDefault e)
-                                        (.stopPropagation e)
-                                        )}
+                                        (.stopPropagation e))}
                           [:i.file.import.icon]
                           "Import Label"])
               :class "tiny"
@@ -501,7 +531,7 @@
 (defn LabelEditForm [labels-atom root-label-id label]
   (let [show-error-msg #(when % [:div.ui.red.message %])
         value-type (r/cursor label [:value-type])
-;;; all types
+        ;;; all types
         ;; required, string
         short-label (r/cursor label [:short-label])
         ;; boolean (default false)
@@ -512,51 +542,57 @@
         question (r/cursor label [:question])
         ;;
         definition (r/cursor label [:definition])
-;;; type=(boolean or categorical)
+        ;;; type=(boolean or categorical)
         ;; boolean, activates interface for defining inclusion-values
         inclusion (r/cursor label [:inclusion])
-;;; type=(boolean or categorical)
+        ;;; type=(boolean or categorical)
         ;; optional, vector of (boolean or string)
         ;; for categorical, the values here must also be in `:all-values`
         inclusion-values (r/cursor definition [:inclusion-values])
-;;; type=(categorical or string)
+        ;;; type=(categorical or string)
         ;; required, boolean
         multi? (r/cursor definition [:multi?])
-;;; type=categorical or annotation
+        ;;; type=categorical or annotation
         ;; required, vector of strings
         all-values (r/cursor definition [:all-values])
-;;; type=string
+        ;;; type=string
         ;; optional, vector of strings
         regex (r/cursor definition [:regex])
         ;; optional, vector of strings
         examples (r/cursor definition [:examples])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
-;;;
+        ;;;
         errors (r/cursor label [:errors])
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
         is-owned? (or is-new? (= (:owner-project-id @label) (:project-id @label)))]
     [:form.ui.form.define-label {:on-submit (util/wrap-user-event
-                                             (fn [_]
-                                               (if (and is-owned? (not (labels-synced?)))
-                                                 ;; save on server
-                                                 (sync-to-server)
-                                                 ;; just reset editing
-                                                 (reset! (r/cursor label [:editing?]) false)))
-                                             :prevent-default true)}
+                                              (fn [_]
+                                                (if (and is-owned? (not (labels-synced?)))
+                                                  ;; save on server
+                                                  (sync-to-server)
+                                                  ;; just reset editing
+                                                  (reset! (r/cursor label [:editing?]) false)))
+                                              :prevent-default true)}
      (when (string? @value-type)
        [:h5.ui.dividing.header.value-type
         (str (str/capitalize @value-type) " Label")])
+
+     (when-not is-owned?
+       [:p "This is a shared label. In order to make edits you can detach it from its parent project but you won't leverage anymore from data in other projects."])
+
      ;; short-label
      [ui/TextInputField
       (make-args :short-label
                  {:value short-label
+                  :disabled (not is-owned?)
                   :on-change #(reset! short-label (-> % .-target .-value))}
                  errors)]
      ;; question
      [ui/TextInputField
       (make-args :question
                  {:value question
+                  :disabled (not is-owned?)
                   :on-change #(reset! question (-> % .-target .-value))}
                  errors)]
      ;; max-length on a string label
@@ -564,6 +600,7 @@
        [ui/TextInputField
         (make-args :max-length
                    {:value max-length
+                    :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (reset! max-length (or (parse-integer value) value)))}
                    errors)])
@@ -572,14 +609,16 @@
        [ui/TextInputField
         (make-args :regex
                    {:default-value (or (not-empty (first @regex)) "")
+                    :disabled (not is-owned?)
                     :on-change (util/on-event-value
-                                #(reset! regex (some-> % str/trim not-empty vector)))}
+                                 #(reset! regex (some-> % str/trim not-empty vector)))}
                    errors)])
      ;; examples on a string label
      (when (= @value-type "string")
        [ui/TextInputField
         (make-args :examples
                    {:default-value (str/join "," @examples)
+                    :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! examples nil)
@@ -591,6 +630,7 @@
        [ui/TextInputField
         (make-args :all-values
                    {:default-value (str/join "," @all-values)
+                    :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! all-values nil)
@@ -604,6 +644,7 @@
                    {:default-value (str/join "," @all-values)
                     :label "Entities (comma-separated options)"
                     :tooltip ["Entities to annotate."]
+                    :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! all-values nil)
@@ -613,6 +654,7 @@
      [ui/LabeledCheckboxField
       (make-args :required
                  {:checked? @required
+                  :disabled (not is-owned?)
                   :on-change #(let [value (-> % .-target .-checked boolean)]
                                 (reset! required value)
                                 (when (false? value)
@@ -622,6 +664,7 @@
      [ui/LabeledCheckboxField
       (make-args :consensus
                  {:checked? @consensus
+                  :disabled (not is-owned?)
                   :on-change #(reset! consensus (-> % .-target .-checked boolean))}
                  errors)]
      ;; multi?
@@ -629,6 +672,7 @@
        [ui/LabeledCheckboxField
         (make-args :multi?
                    {:checked? @multi?
+                    :disabled (not is-owned?)
                     :on-change #(reset! multi? (-> % .-target .-checked boolean))}
                    errors)])
      ;; inclusion checkbox
@@ -636,6 +680,7 @@
        [ui/LabeledCheckboxField
         (make-args :inclusion
                    {:checked? @inclusion
+                    :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-checked boolean)]
                                   (reset! inclusion value)
                                   (when (false? value)
@@ -656,13 +701,15 @@
                    ^{:key (gensym option-value)}
                    [ui/LabeledCheckbox
                     {:checked? (contains? (set @inclusion-values) option-value)
+                     :disabled (not is-owned?)
                      :on-change
-                     #(reset! inclusion-values
-                              (if (-> % .-target .-checked)
-                                (into [] (conj @inclusion-values option-value))
-                                (into [] (remove (partial = option-value) @inclusion-values))))
+                               #(reset! inclusion-values
+                                        (if (-> % .-target .-checked)
+                                          (into [] (conj @inclusion-values option-value))
+                                          (into [] (remove (partial = option-value) @inclusion-values))))
                      :label option-value}]))
           [show-error-msg error]]))
+
      ;; inclusion-values for boolean label
      (when (and (= @value-type "boolean")
                 (not (false? @inclusion)))
@@ -674,11 +721,13 @@
            ["Select which value should indicate article inclusion."]]
           [ui/LabeledCheckbox
            {:checked? (contains? (set @inclusion-values) false)
+            :disabled (not is-owned?)
             :on-change #(let [checked? (-> % .-target .-checked)]
                           (reset! inclusion-values (if checked? [false] [])))
             :label "No"}]
           [ui/LabeledCheckbox
            {:checked? (contains? (set @inclusion-values) true)
+            :disabled (not is-owned?)
             :on-change #(let [checked? (-> % .-target .-checked)]
                           (reset! inclusion-values (if checked? [true] [])))
             :label "Yes"}]
@@ -688,7 +737,12 @@
         [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
          [:div.column {:style {:padding "0.5em"}} [SaveLabelButton label]]
          [:div.column {:style {:padding "0.5em"}} [CancelDiscardButton labels-atom root-label-id label]]]])
-     [:div.field [DisableEnableLabelButton labels-atom root-label-id label]]]))
+     (if is-owned?
+       [:div.field [DisableEnableLabelButton labels-atom root-label-id label]]
+       [:div.field {:style {:margin-bottom "0.75em"}}
+        [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
+         [:div.column {:style {:padding "0.5em"}} [DisableEnableLabelButton labels-atom root-label-id label]]
+         [:div.column {:style {:padding "0.5em"}} [DetachLabelButton labels-atom root-label-id label]]]])]))
 
 (defn GroupLabelEditForm [labels-atom label]
   (let [short-label (r/cursor label [:short-label])

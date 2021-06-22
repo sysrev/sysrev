@@ -574,6 +574,12 @@
                   {:keys [share-code]} (:body request)]
               (api/import-label share-code project-id)))))
 
+(dr (POST "/api/detach-label" request
+          (with-authorize request {:roles ["admin"]}
+            (let [project-id (active-project request)
+                  {:keys [label-id]} (:body request)]
+              (api/detach-label project-id label-id)))))
+
 (dr (GET "/api/project-description" request
          (with-authorize request {:allow-public true}
            (let [project-id (active-project request)]

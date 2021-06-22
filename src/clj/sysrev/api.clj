@@ -1676,3 +1676,9 @@
         (label/import-label share-code project-id)
         {:success true
          :labels (project/project-labels project-id true)}))))
+
+(defn detach-label [project-id label-id]
+  (let []
+    (label/detach-label project-id label-id)
+    {:success true
+     :labels (project/project-labels project-id true)}))

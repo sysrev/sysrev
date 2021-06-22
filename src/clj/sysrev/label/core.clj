@@ -607,4 +607,12 @@
           label-id (uuid-from-string (:label-id share-data))]
       (clone-label label-id target-project-id))))
 
-;(import-label (get-share-code "f6f44bb4-2393-4c36-b935-d0bc2865b975") 34472)
+(defn detach-label [project-id label-id]
+  (let [label (get-label label-id)]
+    (db/with-clear-project-cache project-id
+                                 (q/modify :label {:label-id (:label-id label)}
+                                           {:owner-project-id project-id
+                                            :global-label-id nil})
+                                 (q/modify :label {:root-label-id-local (:label-id-local label)}
+                                           {:owner-project-id project-id
+                                            :global-label-id nil}))))
