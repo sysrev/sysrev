@@ -265,8 +265,8 @@
        [:i {:class (css "circle" [enabled "minus" :else "plus"] "icon")}]
        (if enabled "Disable" "Enable") " Label"])))
 
-(defn DetachLabelButton [labels-atom root-label-id label]
-  (let [{:keys [label-id enabled]} @label
+(defn DetachLabelButton [label]
+  (let [{:keys [label-id]} @label
         project-id @(subscribe [:active-project-id])]
     (when-not (string? label-id) ;; don't show this for unsaved labels
       [:button.ui.small.fluid.labeled.icon.button.secondary
@@ -742,7 +742,7 @@
        [:div.field {:style {:margin-bottom "0.75em"}}
         [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
          [:div.column {:style {:padding "0.5em"}} [DisableEnableLabelButton labels-atom root-label-id label]]
-         [:div.column {:style {:padding "0.5em"}} [DetachLabelButton labels-atom root-label-id label]]]])]))
+         [:div.column {:style {:padding "0.5em"}} [DetachLabelButton label]]]])]))
 
 (defn GroupLabelEditForm [labels-atom label]
   (let [short-label (r/cursor label [:short-label])
