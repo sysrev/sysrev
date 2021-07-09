@@ -82,7 +82,7 @@
   (start [this]
     (if close-f
       this
-      (let [channels (->> this listener-handlers
+      (let [channels (->> this handlers-f
                           (map-vals (fn [_] (chan))))]
         (assoc this
                :channels channels
