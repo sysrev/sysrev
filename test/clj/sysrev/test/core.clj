@@ -66,7 +66,7 @@
   (when (and (db-connected?) (not (remote-test?)))
     (let [config {:dbname test-dbname :host test-db-host}]
       (if @db-initialized?
-        (do (start-app config nil true)
+        (do (start-app config true)
             (let [{:keys [host port dbname]} (:config @db/*active-db*)]
               (log/infof "connected to postgres (%s:%d/%s)" host port dbname)))
         (util/with-print-time-elapsed "Initialize test DB"
@@ -77,7 +77,7 @@
           (db-shell "createdb" [] config)
           (log/info "Applying Flyway migrations...")
           (flyway/migrate! (:datasource (db/make-db-config config)))
-          (start-app config nil true)
+          (start-app config true)
           (log/info "Applying Clojure DB migrations...")
           (ensure-updated-db)
           (reset! db-initialized? true))))))

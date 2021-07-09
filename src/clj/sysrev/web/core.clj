@@ -8,7 +8,7 @@
             [ring.middleware.defaults :as default]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
-            [aleph.http :as aleph]
+            [aleph.http :as http]
             [aleph.netty]
             [sysrev.config :refer [env]]
             [sysrev.web.session :refer [sysrev-session-store]]
@@ -28,10 +28,6 @@
 
 ;; for clj-kondo
 (declare html-routes)
-
-(defonce web-servers (atom {}))
-(defonce web-port (atom nil))
-(defonce web-server-config (atom nil))
 
 (defonce app-routes nil)
 
@@ -106,13 +102,15 @@
       wrap-force-json-request))
 
 (defn sente-send! [& args]
-  (apply (get-in @web-servers [:main :sente :chsk :send-fn]) args))
+  (apply (get-in @@(requiring-resolve 'sysrev.main/system)
+                 [:sente :chsk :send-fn]) args))
 
 (defn sente-dispatch! [client-id re-frame-event]
   (sente-send! client-id [:re-frame/dispatch re-frame-event]))
 
 (defn sente-connected-users []
-  (:any @(get-in @web-servers [:main :sente :chsk :connected-uids])))
+  (:any @(get-in @@(requiring-resolve 'sysrev.main/system)
+                 [:sente :chsk :connected-uids])))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn]}]
@@ -140,7 +138,7 @@
 
 (defn sysrev-handler
   "Root handler for web server"
-  [& [sente]]
+  [& [{:keys [sente] :as _web-server}]]
   (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) wrap-sysrev-api))
                     (if sente
                       (channel-socket-routes (:chsk sente))
@@ -154,14 +152,16 @@
                     (GET "*" [] (c/wrap-routes html-routes wrap-sysrev-html)))
     (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
 
-(defrecord WebServer [handler port server]
+(defrecord WebServer [bound-port handler handler-f port server]
   component/Lifecycle
   (start [this]
     (if server
       this
-      (let [server (aleph/start-server handler {:port port})]
+      (let [handler (handler-f this)
+            server (http/start-server handler {:port port})]
         (assoc this
-               :port (aleph.netty/port server)
+               :bound-port (aleph.netty/port server)
+               :handler handler
                :server server))))
   (stop [this]
     (if-not server
@@ -169,30 +169,7 @@
       (do
         (.close server)
         (aleph.netty/wait-for-close server)
-        (assoc this :server nil)))))
+        (assoc this :bound-port nil :handler nil :server nil)))))
 
-(defn web-server [handler port]
-  (map->WebServer {:handler handler :port port}))
-
-(defn stop-web-server []
-  (let [active @web-servers]
-    (doseq [id (keys active)]
-      (when-let [server (get active id)]
-        (component/stop server)
-        (swap! web-servers assoc id nil)))))
-
-(defn run-web [& [port prod? only-if-new]]
-  (let [port (or port @web-port 4041)
-        config {:port port :prod? prod?}]
-    (load-app-routes)
-    (when-not (and only-if-new (= config @web-server-config))
-      (reset! web-port port)
-      (reset! web-server-config config)
-      (stop-web-server)
-      (let [sente (component/start (sente))
-            handler (sysrev-handler sente)
-            web-server (web-server handler port)]
-        (reset! web-servers
-                {:main (assoc (component/start web-server) :sente sente)}))
-      (log/info (format "web server started (port %d)" port))
-      @web-servers)))
+(defn web-server [& {:keys [handler-f port]}]
+  (map->WebServer {:handler-f handler-f :port port}))
