@@ -4,6 +4,7 @@
             [com.stuartsierra.component :as component]
             [sysrev.config :refer [env]]
             [sysrev.db.listeners :as listeners]
+            [sysrev.scheduler.core :as scheduler]
             [sysrev.web.core :as web]))
 
 (defonce system (atom nil))
@@ -13,6 +14,7 @@
    :postgres-listener (component/using
                        (listeners/listener)
                        [:sente])
+   :scheduler (scheduler/scheduler)
    :sente (web/sente)
    :web-server (component/using
                 (web/web-server

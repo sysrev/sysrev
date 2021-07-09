@@ -83,20 +83,21 @@
   "Runs `update-global-stats` using agent, recursing to run again after
   the update iteration (with time delay) completes."
   [& [_curval]]
-  (send global-stats-agent
-        (fn [_]
-          (log/info "running global-stats update")
-          (try
-            (update-global-stats)
-            ;; Delay before next update (2 hours)
-            (Thread/sleep (* 1000 60 60 2))
-            (catch Throwable e
-              (log/warn "exception in loop-update-global-stats -- continuing")
-              (log/warn (.getMessage e))
-              (Thread/sleep (* 1000 60 60 2)))
-            (finally
-              (send global-stats-agent loop-update-global-stats)))
-          true)))
+  (send-off
+   global-stats-agent
+   (fn [_]
+     (log/info "running global-stats update")
+     (try
+       (update-global-stats)
+       ;; Delay before next update (2 hours)
+       (Thread/sleep (* 1000 60 60 2))
+       (catch Throwable e
+         (log/warn "exception in loop-update-global-stats -- continuing")
+         (log/warn (.getMessage e))
+         (Thread/sleep (* 1000 60 60 2)))
+       (finally
+         (send-off global-stats-agent loop-update-global-stats)))
+     true)))
 
 (defn init-global-stats
   "Loads initial value for `global-stats-cache` and start update loop using

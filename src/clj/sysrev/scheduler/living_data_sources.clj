@@ -31,7 +31,7 @@
   (execute [_ _]
     (check-new-articles)))
 
-(defn schedule-living-data-sources [scheduler]
+(defn schedule-living-data-sources [{:keys [quartz-scheduler]}]
   (let [job (j/build
               (j/of-type LivingDataSourcesJob)
               (j/with-identity (j/key "jobs.living-data-sources.1")))
@@ -41,5 +41,5 @@
                   (t/with-schedule (schedule
                                      (repeat-forever)
                                      (with-interval-in-hours 24))))]
-    (q/schedule scheduler job trigger)))
+    (q/schedule quartz-scheduler job trigger)))
  

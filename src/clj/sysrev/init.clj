@@ -7,7 +7,6 @@
             [sysrev.db.migration :as migration]
             [sysrev.main :as main]
             [sysrev.postgres.interface :as postgres]
-            [sysrev.scheduler.core :refer [start-scheduler]]
             [sysrev.web.routes.site :as site]))
 
 (defn stop-db []
@@ -19,5 +18,4 @@
   (when (= (:profile env) :dev)
     (migration/ensure-updated-db))
   (main/start-system!)
-  (start-scheduler)
   true)
