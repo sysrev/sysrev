@@ -1,13 +1,12 @@
 (ns sysrev.db.listeners
-  (:require [clojure.core.async :refer [<! >! chan go]]
+  (:require [clojure.core.async :refer [>! chan go]]
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
             [medley.core :refer [map-vals]]
             [sysrev.db.core :refer [*active-db* *conn*]]
             [sysrev.notifications.listeners
              :refer [handle-notification
-                     handle-notification-notification-subscriber]]
-            [sysrev.stacktrace :refer [print-cause-trace-custom]])
+                     handle-notification-notification-subscriber]])
   (:import com.impossibl.postgres.api.jdbc.PGNotificationListener
            com.impossibl.postgres.jdbc.PGDataSource))
 
@@ -72,16 +71,19 @@
    (fn [_process-id channel-name payload]
      (go (>! (channel-map channel-name) payload)))))
 
-(def ^:private listener-handlers
-  {"notification" #'handle-notification
-   "notification_notification_subscriber" #'handle-notification-notification-subscriber})
+(defn listener-handlers [listener]
+  {"notification"
+   (partial handle-notification listener)
+   "notification_notification_subscriber"
+   (partial handle-notification-notification-subscriber listener)})
 
-(defrecord Listener [channels close-f handlers]
+(defrecord Listener [channels close-f handlers-f]
   component/Lifecycle
   (start [this]
     (if close-f
       this
-      (let [channels (map-vals (fn [_] (chan)) handlers)]
+      (let [channels (->> this listener-handlers
+                          (map-vals (fn [_] (chan))))]
         (assoc this
                :channels channels
                :close-f (register-channels channels)))))
@@ -91,36 +93,4 @@
       this)))
 
 (defn listener []
-  (map->Listener {:handlers listener-handlers}))
-
-(defonce global-listener
-  (atom (listener)))
-
-(defn start-listeners! []
-  (swap! global-listener (comp component/start component/stop)))
-
-(defn stop-listeners! []
-  (swap! global-listener component/stop))
-
-(defn- handle-listener [f chan]
-  (go
-    (while true
-      (try
-        (let [x (<! chan)]
-          (try
-            (f x)
-            (catch Throwable e
-              (log/errorf "handle-listener error %s\n\n%s"
-                          (with-out-str (print-cause-trace-custom e 20))
-                          (pr-str x)))))
-        (catch Throwable e
-          (log/errorf "handle-listener error %s"
-                      (with-out-str (print-cause-trace-custom e 20))))))))
-
-(defn start-listener-handlers!
-  ([]
-   (start-listener-handlers! @global-listener))
-  ([{:keys [channels handlers]}]
-   (doseq [[k f] handlers]
-     (handle-listener f (get channels k)))))
-
+  (map->Listener {:handlers-f listener-handlers}))

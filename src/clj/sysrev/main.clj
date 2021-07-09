@@ -3,17 +3,22 @@
   (:require [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
             [sysrev.config :refer [env]]
+            [sysrev.db.listeners :as listeners]
             [sysrev.web.core :as web]))
 
 (defonce system (atom nil))
 
 (defn system-map []
   (component/system-map
+   :postgres-listener (component/using
+                       (listeners/listener)
+                       [:sente])
    :sente (web/sente)
-   :web-server (component/using (web/web-server
-                                 :handler-f web/sysrev-handler
-                                 :port (-> env :server :port))
-                                [:sente])))
+   :web-server (component/using
+                (web/web-server
+                 :handler-f web/sysrev-handler
+                 :port (-> env :server :port))
+                [:sente])))
 
 (defn start-system! []
   (log/info "Starting system")

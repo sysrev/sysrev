@@ -101,16 +101,14 @@
       (wrap-json-body {:keywords? true})
       wrap-force-json-request))
 
-(defn sente-send! [& args]
-  (apply (get-in @@(requiring-resolve 'sysrev.main/system)
-                 [:sente :chsk :send-fn]) args))
+(defn sente-send! [sente & args]
+  (apply (get-in sente [:chsk :send-fn]) args))
 
-(defn sente-dispatch! [client-id re-frame-event]
-  (sente-send! client-id [:re-frame/dispatch re-frame-event]))
+(defn sente-dispatch! [sente client-id re-frame-event]
+  (sente-send! sente client-id [:re-frame/dispatch re-frame-event]))
 
-(defn sente-connected-users []
-  (:any @(get-in @@(requiring-resolve 'sysrev.main/system)
-                 [:sente :chsk :connected-uids])))
+(defn sente-connected-users [sente]
+  (:any @(get-in sente [:chsk :connected-uids])))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn]}]
