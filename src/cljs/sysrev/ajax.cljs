@@ -25,7 +25,7 @@
 (reg-event-fx :set-csrf-token [trim-v]
               (fn [{:keys [db]} [csrf-token]]
                 {:db (assoc db :csrf-token csrf-token)
-                 :dispatch [:connect-sente csrf-token]}))
+                 :dispatch [:sysrev.sente/connect csrf-token]}))
 
 (reg-fx :set-csrf-token #(dispatch [:set-csrf-token %]))
 

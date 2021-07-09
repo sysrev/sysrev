@@ -36,7 +36,7 @@
   (start-router!)
   (reset! csrf csrf-token))
 
-(reg-event-fx :connect-sente
+(reg-event-fx ::connect
               (fn [_ [_ csrf-token]]
                 (when-not (= csrf-token @csrf)
                   (start-sente! csrf-token))

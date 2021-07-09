@@ -106,13 +106,13 @@
       wrap-force-json-request))
 
 (defn sente-send! [& args]
-  (apply (:send-fn (get-in @web-servers [:main :sente :chsk])) args))
+  (apply (get-in @web-servers [:main :sente :chsk :send-fn]) args))
 
 (defn sente-dispatch! [client-id re-frame-event]
   (sente-send! client-id [:re-frame/dispatch re-frame-event]))
 
 (defn sente-connected-users []
-  (:any @(:connected-uids (get-in @web-servers [:main :sente :chsk]))))
+  (:any @(get-in @web-servers [:main :sente :chsk :connected-uids])))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn]}]
@@ -169,7 +169,7 @@
       (do
         (.close server)
         (aleph.netty/wait-for-close server)
-        (assoc this :chsk nil :server nil)))))
+        (assoc this :server nil)))))
 
 (defn web-server [handler port]
   (map->WebServer {:handler handler :port port}))
