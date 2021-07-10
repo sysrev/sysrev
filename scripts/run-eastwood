@@ -1,4 +1,4 @@
 #!/bin/bash
 set -eux
 
-lein eastwood "{:source-paths [\"src/clj\" \"src/cljc\"] :namespaces [:source-paths] :exclude-namespaces [sysrev.user sysrev.web-main sysrev.browser-test-main] :exclude-linters [:constant-test #_ :unlimited-use]}"
+lein eastwood "{:source-paths [\"src/clj\" \"src/cljc\"] :namespaces [:source-paths] :exclude-namespaces [sysrev.user sysrev.browser-test-main] :exclude-linters [:constant-test #_ :unlimited-use]}"

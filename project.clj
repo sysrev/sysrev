@@ -117,8 +117,8 @@
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
   :profiles {:prod           {:resource-paths ["config/prod" "flyway.conf"]
-                              :main sysrev.web-main
-                              :aot [sysrev.web-main]}
+                              :main sysrev.main
+                              :aot [sysrev.main]}
              :test-browser   {:resource-paths ["config/test"]
                               :main sysrev.browser-test-main}
              :test-all       {:resource-paths ["config/test"]
