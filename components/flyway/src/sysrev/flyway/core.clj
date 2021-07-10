@@ -8,7 +8,7 @@
   (-> (Flyway/configure)
       .loadDefaultConfigurationFiles
       ^FluentConfiguration
-      (.locations (into-array ["classpath:/sql"]))
+      (.locations ^"[Ljava.lang.String;" (into-array ["classpath:/sql"]))
       (.dataSource datasource)
       .load
       .migrate))
