@@ -88,8 +88,8 @@
         org.flywaydb/flyway-core {:mvn/version "7.9.1"}}
  :aliases
  {:+default {:extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}}
+                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "11.9.0"}
+                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "11.9.0"}}
              :extra-paths ["components/postgres-embedded/src"
                            "components/postgres-embedded/resources"]}
   :+postgres {:extra-paths ["components/postgres/src"

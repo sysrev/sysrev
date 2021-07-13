@@ -160,8 +160,8 @@
                               :source-paths ["components/postgres/src"]}
              :postgres-embedded {:dependencies
                                  [[com.opentable.components/otj-pg-embedded "0.13.3"]
-                                  [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "12.6.0"]
-                                  [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "12.6.0"]
+                                  [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "11.9.0"]
+                                  [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "11.9.0"]
                                   [prestancedesign/get-port "0.1.1"]]
                                  :resource-paths ["components/postgres-embedded/resources"]
                                  :source-paths ["components/postgres-embedded/src"]}

@@ -19,7 +19,7 @@ docker run -it --rm --name sysrev-pg-clone \
  -e POSTGRES_HOST_AUTH_METHOD=trust \
  -e PGDATA=/var/lib/postgresql/data/sysrev \
  -v sysrev-pg-volume:/var/lib/postgresql/data \
- -p 5432:5432 postgres:12
+ -p 5432:5432 postgres:11.9
  ```
 3. `docker exec sysrev-pg-clone createdb -h localhost -U postgres -T template0 sysrev`
 4. `docker exec sysrev-pg-clone createdb -h localhost -U postgres -T template0 sysrev_test`
