@@ -4,10 +4,8 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
-            [honeysql.types :as types]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
             [sysrev.postgres.interface :as postgres]))
 
 (def ^{:doc "Table names specified in the order that they should be loaded in.
@@ -20,14 +18,9 @@
    "project-member"
    "user-group"])
 
-(def readers
-  {'sql/array types/read-sql-array})
-
-(defn read-string [s]
-  (edn/read-string {:readers readers} s))
-
 (defn get-fixtures []
-  (map #(->> (str "sysrev/fixtures/" % ".edn") io/resource slurp read-string
+  (map #(->> (str "sysrev/fixtures/" % ".edn") io/resource slurp
+             edn/read-string
              (vector (keyword %)))
        table-names))
 
@@ -42,9 +35,13 @@
             "Not allowed to load fixtures on production server."))))
 
 (defn load-fixtures! []
-  (doseq [[table records] (get-fixtures)]
-    (ensure-test-db! (:config @db/*active-db*))
-    (q/create table records)))
+  (let [db @db/*active-db*]
+    (ensure-test-db! (:config db))
+    (doseq [[table records] (get-fixtures)]
+      (db/execute!
+       (:datasource db)
+       {:insert-into table
+        :values records}))))
 
 (defn wrap-fixtures [f]
   (let [config (-> (postgres/get-config)

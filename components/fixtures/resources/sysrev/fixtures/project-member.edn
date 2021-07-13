@@ -1,9 +1,9 @@
-[{:permissions #sql/array ["member"]
+[{:permissions [:array ["member"]]
   :project-id 21696
   :user-id 1000001}
- {:permissions #sql/array ["admin" "member" "owner"]
+ {:permissions [:array ["admin" "member" "owner"]]
   :project-id 1200001
   :user-id 1000001}
- {:permissions #sql/array ["admin" "member" "owner"]
+ {:permissions [:array ["admin" "member" "owner"]]
   :project-id 1200002
   :user-id 1000001}]
