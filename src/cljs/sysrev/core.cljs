@@ -52,11 +52,22 @@
       (util/update-sidebar-height))
     true))
 
+(defonce last-scroll (atom nil))
+
+(defn on-window-scroll []
+  (let [current-millis (.getTime (js/Date.))
+        last-millis @last-scroll]
+    (when (or (not last-millis)
+              (<= 30000 (- current-millis last-millis)))
+      (reset! last-scroll current-millis)
+      (dispatch [:review/window-scroll]))))
+
 (defn mount-root []
   (clear-subscription-cache!)
   (let [el (.getElementById js/document "app")]
     (rdom/render [main-content] el))
-  (js/window.addEventListener "resize" on-window-resize))
+  (js/window.addEventListener "resize" on-window-resize)
+  (js/window.addEventListener "scroll" on-window-scroll))
 
 (defn dev-setup []
   (when base/debug?

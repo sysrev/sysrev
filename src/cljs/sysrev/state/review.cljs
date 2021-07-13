@@ -14,6 +14,21 @@
               (fn [_ [_ data]]
                 {:fx [[:sysrev.sente/send [[:review/record-reviewer-event data]]]]}))
 
+(reg-event-fx :review/window-scroll
+              (fn [{:keys [db]}]
+                ;; This is called everywhere, so we have to check that we
+                ;; are actually on a review page.
+                (or
+                 (when (= [:project :review] (active-panel db))
+                   (let [project-id (get-in db [:state :active-project-literal :project])
+                         article-id (get-in db [:data :review project-id :task-id])]
+                     (when (and project-id article-id)
+                       {:fx [[:dispatch [:review/record-reviewer-event
+                                         [:review/window-scroll
+                                          {:article-id article-id
+                                           :project-id project-id}]]]]})))
+                 {})))
+
 (defn- review-task-state [db & [project-id]]
   (get-in db [:data :review (or project-id (active-project-id db))]))
 
