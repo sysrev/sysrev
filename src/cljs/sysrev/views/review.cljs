@@ -27,9 +27,10 @@
 (reg-event-fx :review/set-label-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
                 {:db (set-label-value db article-id root-label-id label-id ith label-value)
-                 :dispatch-n [[:review/record-reviewer-event
-                               [kw {:article-id article-id
-                                    :project-id (nav/active-project-id db)}]]]}))
+                 :fx [[:dispatch
+                       [:review/record-reviewer-event
+                        [kw {:article-id article-id
+                             :project-id (nav/active-project-id db)}]]]]}))
 
 ;; Adds a value to an active label answer vector
 (reg-event-fx ::add-label-value
@@ -42,9 +43,10 @@
                   {:db (set-label-value db article-id root-label-id label-id ith
                                         (-> (concat current-values [label-value])
                                             distinct vec))
-                   :dispatch-n [[:review/record-reviewer-event
-                                 [kw {:article-id article-id
-                                      :project-id (nav/active-project-id db)}]]]})))
+                   :fx [[:dispatch
+                         [:review/record-reviewer-event
+                          [kw {:article-id article-id
+                               :project-id (nav/active-project-id db)}]]]]})))
 
 ;; Removes a value from an active label answer vector
 (reg-event-fx ::remove-label-value
@@ -57,34 +59,38 @@
                   {:db (set-label-value db article-id root-label-id label-id ith
                                         (vec (->> current-values
                                                   (remove (partial = label-value)))))
-                   :dispatch-n [[:review/record-reviewer-event
-                                 [kw {:article-id article-id
-                                      :project-id (nav/active-project-id db)}]]]})))
+                   :fx [[:dispatch
+                         [:review/record-reviewer-event
+                          [kw {:article-id article-id
+                               :project-id (nav/active-project-id db)}]]]]})))
 
 (reg-event-fx ::remove-string-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith value-idx curvals]]
                 {:db (set-label-value db article-id root-label-id label-id ith
                                       (->> (assoc (vec curvals) value-idx "")
                                            (filterv not-empty)))
-                 :dispatch-n [[:review/record-reviewer-event
-                               [kw {:article-id article-id
-                                    :project-id (nav/active-project-id db)}]]]}))
+                 :fx [[:dispatch
+                       [:review/record-reviewer-event
+                        [kw {:article-id article-id
+                             :project-id (nav/active-project-id db)}]]]]}))
 
 (reg-event-fx ::set-string-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith value-idx label-value curvals]]
                 {:db (set-label-value db article-id root-label-id label-id ith
                                       (assoc (vec curvals) value-idx label-value))
-                 :dispatch-n [[:review/record-reviewer-event
-                               [kw {:article-id article-id
-                                    :project-id (nav/active-project-id db)}]]]}))
+                 :fx [[:dispatch
+                       [:review/record-reviewer-event
+                        [kw {:article-id article-id
+                             :project-id (nav/active-project-id db)}]]]]}))
 
 (reg-event-fx ::extend-string-answer
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith curvals]]
                 {:db (set-label-value db article-id root-label-id label-id ith
                                       (assoc (vec curvals) (count curvals) ""))
-                 :dispatch-n [[:review/record-reviewer-event
-                               [kw {:article-id article-id
-                                    :project-id (nav/active-project-id db)}]]]}))
+                 :fx [[:dispatch
+                       [:review/record-reviewer-event
+                        [kw {:article-id article-id
+                             :project-id (nav/active-project-id db)}]]]]}))
 
 ;; Simulates an "enable value" label input component event
 (reg-event-fx :review/trigger-enable-label-value

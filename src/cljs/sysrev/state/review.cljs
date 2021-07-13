@@ -225,20 +225,21 @@
                 (let [label-values (-> @(subscribe [:review/active-labels article-id])
                                        (filter-blank-string-labels))
                       change? (= :confirmed (article/article-user-status db article-id))]
-                  {:fx [[:dispatch-n
-                         (->> [(when confirm?
-                                 [:review/mark-saving article-id (active-panel db)])
-                               [:action [:review/send-labels
-                                         project-id {:article-id article-id
-                                                     :label-values label-values
-                                                     :confirm? confirm?
-                                                     :resolve? resolve?
-                                                     :change? change?
-                                                     :on-success on-success}]]]
-                              (remove nil?))]
-                        [:review/record-reviewer-event
-                         [kw {:article-id article-id
-                              :project-id project-id}]]]})))
+                  {:fx [(when confirm?
+                          [:dispatch
+                           [:review/mark-saving article-id (active-panel db)]])
+                        [:dispatch
+                         [:action
+                          [:review/send-labels
+                           project-id {:article-id article-id
+                                       :label-values label-values
+                                       :confirm? confirm?
+                                       :resolve? resolve?
+                                       :change? change?
+                                       :on-success on-success}]]]
+                        [:dispatch                         [:review/record-reviewer-event
+                          [kw {:article-id article-id
+                               :project-id project-id}]]]]})))
 
 ;; Reset state of locally changed label values in review interface
 (reg-event-db :review/reset-ui-labels
