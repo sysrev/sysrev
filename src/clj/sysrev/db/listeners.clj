@@ -1,12 +1,13 @@
 (ns sysrev.db.listeners
-  (:require [clojure.core.async :refer [>! chan go]]
+  (:require [clojure.core.async :refer [<! >! chan go]]
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
             [medley.core :refer [map-vals]]
             [sysrev.db.core :refer [*active-db* *conn*]]
             [sysrev.notifications.listeners
              :refer [handle-notification
-                     handle-notification-notification-subscriber]])
+                     handle-notification-notification-subscriber]]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]])
   (:import com.impossibl.postgres.api.jdbc.PGNotificationListener
            com.impossibl.postgres.jdbc.PGDataSource))
 
@@ -77,13 +78,30 @@
    "notification_notification_subscriber"
    (partial handle-notification-notification-subscriber listener)})
 
+(defn- handle-listener [f chan]
+  (go
+    (while true
+      (try
+        (let [x (<! chan)]
+          (try
+            (f x)
+            (catch Throwable e
+              (log/errorf "handle-listener error %s\n\n%s"
+                          (with-out-str (print-cause-trace-custom e 20))
+                          (pr-str x)))))
+        (catch Throwable e
+          (log/errorf "handle-listener error %s"
+                      (with-out-str (print-cause-trace-custom e 20))))))))
+
 (defrecord Listener [channels close-f handlers-f]
   component/Lifecycle
   (start [this]
     (if close-f
       this
-      (let [channels (->> this handlers-f
-                          (map-vals (fn [_] (chan))))]
+      (let [handlers (handlers-f this)
+            channels (map-vals (fn [_] (chan)) handlers)]
+        (doseq [[k f] handlers]
+          (handle-listener f (get channels k)))
         (assoc this
                :channels channels
                :close-f (register-channels channels)))))
