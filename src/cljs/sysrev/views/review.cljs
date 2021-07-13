@@ -90,9 +90,10 @@
 (reg-event-fx :review/trigger-enable-label-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
                 (let [{:keys [value-type]} (get-label-raw db label-id)
-                      record-fx [:review/record-reviewer-event
-                                 [kw {:article-id article-id
-                                      :project-id (nav/active-project-id db)}]]]
+                      record-fx [:dispatch
+                                 [:review/record-reviewer-event
+                                  [kw {:article-id article-id
+                                       :project-id (nav/active-project-id db)}]]]]
                   (condp = value-type
                     "boolean"
                     {:db (set-label-value db article-id root-label-id
