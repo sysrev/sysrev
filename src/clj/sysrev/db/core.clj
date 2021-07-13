@@ -9,10 +9,13 @@
             clj-postgresql.core
             clj-postgresql.types
             [hikari-cp.core :refer [make-datasource close-datasource]]
+            honey.sql
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer [select from where]]
             [honeysql.format :as sqlf]
             honeysql-postgres.format
+            [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as result-set]
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
             [sysrev.util :as util :refer [map-values in?]])
@@ -35,6 +38,17 @@
           meta (.getParameterMetaData s)
           _type-name (.getParameterTypeName meta i)]
       (.setObject s i num))))
+
+(honey.sql/register-op! (keyword "@@"))
+
+(def jdbc-opts
+  {:builder-fn result-set/as-kebab-maps})
+
+(defn execute! [connectable sqlmap]
+  (jdbc/execute! connectable (honey.sql/format sqlmap) jdbc-opts))
+
+(defn execute-one! [connectable sqlmap]
+  (jdbc/execute-one! connectable (honey.sql/format sqlmap) jdbc-opts))
 
 (declare clear-query-cache)
 

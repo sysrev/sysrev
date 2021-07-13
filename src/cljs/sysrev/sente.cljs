@@ -1,5 +1,5 @@
 (ns sysrev.sente
-  (:require [re-frame.core :refer [dispatch reg-event-fx]]
+  (:require [re-frame.core :refer [dispatch reg-event-fx reg-fx]]
             [taoensso.sente :as sente]))
 
 (defonce router (atom nil))
@@ -41,3 +41,18 @@
                 (when-not (= csrf-token @csrf)
                   (start-sente! csrf-token))
                 {}))
+
+(reg-fx ::send
+        (fn [[data {:keys [on-failure on-success]
+                    :or {on-failure (fn [reply]
+                                      (dispatch [::failure reply]))}}]]
+          (@chsk-send! data 8000
+           (fn [reply]
+             (if (sente/cb-success? reply)
+               (when on-success (on-success reply))
+               (when on-failure (on-failure reply)))))))
+
+(reg-event-fx ::failure
+              (fn [_ [_ reply]]
+                (js/console.error "Failure in sente send:" (pr-str reply))))
+

@@ -21,11 +21,8 @@
             [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
             [sysrev.web.routes.graphql :refer [graphql-routes]]
             sysrev.web.routes.api.handlers
-            [sysrev.web.app :as app :refer [current-user-id]]
-            [sysrev.util :as util :refer [in?]]
-            [taoensso.sente :refer [chsk-disconnect! make-channel-socket!]]
-            [taoensso.sente.server-adapters.aleph :refer [get-sch-adapter]]))
-
+            [sysrev.web.app :as app]
+            [sysrev.util :as util :refer [in?]]))
 ;; for clj-kondo
 (declare html-routes)
 
@@ -101,38 +98,12 @@
       (wrap-json-body {:keywords? true})
       wrap-force-json-request))
 
-(defn sente-send! [sente & args]
-  (apply (get-in sente [:chsk :send-fn]) args))
-
-(defn sente-dispatch! [sente client-id re-frame-event]
-  (sente-send! sente client-id [:re-frame/dispatch re-frame-event]))
-
-(defn sente-connected-users [sente]
-  (:any @(get-in sente [:chsk :connected-uids])))
-
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn]}]
   (-> (c/routes
        (GET "/api/chsk" request (ajax-get-or-ws-handshake-fn request))
        (POST "/api/chsk" request (ajax-post-fn request)))
       (c/wrap-routes wrap-sysrev-app)))
-
-(defrecord Sente [chsk]
-  component/Lifecycle
-  (start [this]
-    (if chsk
-      this
-      (assoc this :chsk (make-channel-socket! (get-sch-adapter)
-                                              {:user-id-fn current-user-id}))))
-  (stop [this]
-    (if-not chsk
-      this
-      (do
-        (chsk-disconnect! chsk)
-        (assoc this :chsk nil)))))
-
-(defn sente []
-  (map->Sente {}))
 
 (defn sysrev-handler
   "Root handler for web server"

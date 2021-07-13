@@ -5,7 +5,7 @@
             [medley.core :as medley]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
-                                   reg-event-db reg-event-fx trim-v]]
+                                   reg-event-fx]]
             [sysrev.action.core :as action]
             [sysrev.data.core :as data]
             [sysrev.loading :as loading]
@@ -24,61 +24,84 @@
     (assoc-in db [:state :review :labels article-id root-label-id :labels ith label-id]
               label-value)))
 
-(reg-event-db :review/set-label-value [trim-v]
-              (fn [db [article-id root-label-id label-id ith label-value]]
-                (set-label-value db article-id root-label-id label-id ith label-value)))
+(reg-event-fx :review/set-label-value
+              (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
+                {:db (set-label-value db article-id root-label-id label-id ith label-value)
+                 :dispatch-n [[:review/record-reviewer-event
+                               [kw {:article-id article-id
+                                    :project-id (nav/active-project-id db)}]]]}))
 
 ;; Adds a value to an active label answer vector
-(reg-event-db ::add-label-value [trim-v]
-              (fn [db [article-id root-label-id label-id ith label-value]]
+(reg-event-fx ::add-label-value
+              (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
                 (let [current-values
                       (if (= root-label-id "na")
                         (get @(subscribe [:review/active-labels article-id]) label-id)
                         (get-in @(subscribe [:review/active-labels article-id])
                                 [root-label-id :labels ith label-id]))]
-                  (set-label-value db article-id root-label-id label-id ith
-                                   (-> (concat current-values [label-value])
-                                       distinct vec)))))
+                  {:db (set-label-value db article-id root-label-id label-id ith
+                                        (-> (concat current-values [label-value])
+                                            distinct vec))
+                   :dispatch-n [[:review/record-reviewer-event
+                                 [kw {:article-id article-id
+                                      :project-id (nav/active-project-id db)}]]]})))
 
 ;; Removes a value from an active label answer vector
-(reg-event-db ::remove-label-value [trim-v]
-              (fn [db [article-id root-label-id label-id ith label-value]]
+(reg-event-fx ::remove-label-value
+              (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
                 (let [current-values
                       (if (= root-label-id "na")
                         (get @(subscribe [:review/active-labels article-id]) label-id)
                         (get-in @(subscribe [:review/active-labels article-id])
                                 [root-label-id :labels ith label-id]))]
-                  (set-label-value db article-id root-label-id label-id ith
-                                   (vec (->> current-values
-                                             (remove (partial = label-value))))))))
+                  {:db (set-label-value db article-id root-label-id label-id ith
+                                        (vec (->> current-values
+                                                  (remove (partial = label-value)))))
+                   :dispatch-n [[:review/record-reviewer-event
+                                 [kw {:article-id article-id
+                                      :project-id (nav/active-project-id db)}]]]})))
 
-(reg-event-db ::remove-string-value [trim-v]
-              (fn [db [article-id root-label-id label-id ith value-idx curvals]]
-                (set-label-value db article-id root-label-id label-id ith
-                                 (->> (assoc (vec curvals) value-idx "")
-                                      (filterv not-empty)))))
+(reg-event-fx ::remove-string-value
+              (fn [{:keys [db]} [kw article-id root-label-id label-id ith value-idx curvals]]
+                {:db (set-label-value db article-id root-label-id label-id ith
+                                      (->> (assoc (vec curvals) value-idx "")
+                                           (filterv not-empty)))
+                 :dispatch-n [[:review/record-reviewer-event
+                               [kw {:article-id article-id
+                                    :project-id (nav/active-project-id db)}]]]}))
 
-(reg-event-db ::set-string-value [trim-v]
-              (fn [db [article-id root-label-id label-id ith value-idx label-value curvals]]
-                (set-label-value db article-id root-label-id label-id ith
-                                 (assoc (vec curvals) value-idx label-value))))
+(reg-event-fx ::set-string-value
+              (fn [{:keys [db]} [kw article-id root-label-id label-id ith value-idx label-value curvals]]
+                {:db (set-label-value db article-id root-label-id label-id ith
+                                      (assoc (vec curvals) value-idx label-value))
+                 :dispatch-n [[:review/record-reviewer-event
+                               [kw {:article-id article-id
+                                    :project-id (nav/active-project-id db)}]]]}))
 
-(reg-event-db ::extend-string-answer [trim-v]
-              (fn [db [article-id root-label-id label-id ith curvals]]
-                (set-label-value db article-id root-label-id label-id ith
-                                 (assoc (vec curvals) (count curvals) ""))))
+(reg-event-fx ::extend-string-answer
+              (fn [{:keys [db]} [kw article-id root-label-id label-id ith curvals]]
+                {:db (set-label-value db article-id root-label-id label-id ith
+                                      (assoc (vec curvals) (count curvals) ""))
+                 :dispatch-n [[:review/record-reviewer-event
+                               [kw {:article-id article-id
+                                    :project-id (nav/active-project-id db)}]]]}))
 
 ;; Simulates an "enable value" label input component event
-(reg-event-fx :review/trigger-enable-label-value [trim-v]
-              (fn [{:keys [db]} [article-id root-label-id label-id ith label-value]]
-                (let [{:keys [value-type]} (get-label-raw db label-id)]
+(reg-event-fx :review/trigger-enable-label-value
+              (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
+                (let [{:keys [value-type]} (get-label-raw db label-id)
+                      record-fx [:review/record-reviewer-event
+                                 [kw {:article-id article-id
+                                      :project-id (nav/active-project-id db)}]]]
                   (condp = value-type
                     "boolean"
                     {:db (set-label-value db article-id root-label-id
-                                          label-id ith label-value)}
+                                          label-id ith label-value)
+                     :fx [record-fx]}
                     "categorical"
-                    {::add-label-value [article-id root-label-id
-                                        label-id ith label-value]}))))
+                    {:fx [[::add-label-value [article-id root-label-id
+                                              label-id ith label-value]]
+                          record-fx]}))))
 
 (defn missing-answer? [{:keys [enabled required value-type]} answer]
   (and enabled required

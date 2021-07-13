@@ -9,6 +9,7 @@
             [sysrev.postgres.core :as postgres]
             [sysrev.project.core :as project]
             [sysrev.scheduler.core :as scheduler]
+            [sysrev.sente :as sente]
             [sysrev.web.core :as web]))
 
 (defrecord PostgresRunAfterStart [done?]
@@ -44,7 +45,9 @@
    :scheduler (component/using
                (scheduler/scheduler)
                [:postgres])
-   :sente (web/sente)
+   :sente (component/using
+           (sente/sente :receive-f sente/receive-sente-channel!)
+           [:postgres])
    :web-server (component/using
                 (web/web-server
                  :handler-f web/sysrev-handler

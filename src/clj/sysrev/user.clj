@@ -26,6 +26,7 @@
         sysrev.formats.pubmed
         sysrev.export.core
         sysrev.export.endnote
+        [sysrev.main :exclude [-main]]
         sysrev.source.core
         sysrev.source.endnote
         sysrev.source.pdf-zip

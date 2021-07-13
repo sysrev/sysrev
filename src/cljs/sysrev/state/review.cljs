@@ -10,6 +10,10 @@
             [sysrev.state.article :as article]
             [sysrev.util :as util :refer [in? map-values]]))
 
+(reg-event-fx :review/record-reviewer-event
+              (fn [_ [_ data]]
+                {:fx [[:sysrev.sente/send [[:review/record-reviewer-event data]]]]}))
+
 (defn- review-task-state [db & [project-id]]
   (get-in db [:data :review (or project-id (active-project-id db))]))
 
@@ -216,22 +220,25 @@
 
 ;; Runs the :review/send-labels POST action using label values
 ;; taken from active review interface.
-(reg-event-fx :review/send-labels [trim-v]
-              (fn [{:keys [db]} [{:keys [project-id article-id confirm? resolve? on-success]}]]
+(reg-event-fx :review/send-labels
+              (fn [{:keys [db]} [kw {:keys [project-id article-id confirm? resolve? on-success]}]]
                 (let [label-values (-> @(subscribe [:review/active-labels article-id])
                                        (filter-blank-string-labels))
                       change? (= :confirmed (article/article-user-status db article-id))]
-                  {:dispatch-n
-                   (->> [(when confirm?
-                           [:review/mark-saving article-id (active-panel db)])
-                         [:action [:review/send-labels
-                                   project-id {:article-id article-id
-                                               :label-values label-values
-                                               :confirm? confirm?
-                                               :resolve? resolve?
-                                               :change? change?
-                                               :on-success on-success}]]]
-                        (remove nil?))})))
+                  {:fx [[:dispatch-n
+                         (->> [(when confirm?
+                                 [:review/mark-saving article-id (active-panel db)])
+                               [:action [:review/send-labels
+                                         project-id {:article-id article-id
+                                                     :label-values label-values
+                                                     :confirm? confirm?
+                                                     :resolve? resolve?
+                                                     :change? change?
+                                                     :on-success on-success}]]]
+                              (remove nil?))]
+                        [:review/record-reviewer-event
+                         [kw {:article-id article-id
+                              :project-id project-id}]]]})))
 
 ;; Reset state of locally changed label values in review interface
 (reg-event-db :review/reset-ui-labels
