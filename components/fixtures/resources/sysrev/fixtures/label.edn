@@ -1,0 +1,13 @@
+[{:category "inclusion criteria"
+  :consensus true
+  :definition [:lift {:inclusion-values [true]}]
+  :enabled true
+  :label-id #uuid "c4f5481e-6008-4011-8210-ce6d3bc0f1e8"
+  :label-id-local 15100001
+  :name "overall include"
+  :owner-project-id 1200002
+  :project-id 1200002
+  :question "Include this article?"
+  :short-label "Include"
+  :required true
+  :value-type "boolean"}]

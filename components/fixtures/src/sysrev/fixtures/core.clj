@@ -11,8 +11,11 @@
 (def ^{:doc "Table names specified in the order that they should be loaded in.
              Fixtures are loaded from resources/sysrev/fixtures/{{name}}.edn"}
   table-names
-  ["groups"
+  ["article-data"
+   "groups"
    "project"
+   "article"
+   "label"
    "web-user"
    "project-group"
    "project-member"

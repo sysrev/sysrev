@@ -1,0 +1,30 @@
+[{:article-data-id 36800001
+  :article-subtype "pubmed"
+  :article-type "academic"
+  :datasource-name "pubmed"
+  :external-id [:cast "24427187" :jsonb]
+  :title "Emotional face recognition, empathic trait (BEES), and cortical contribution in response to positive and negative cues. The effect of rTMS on dorsal medial prefrontal cortex."}
+ {:article-data-id 36800002
+  :article-subtype "pubmed"
+  :article-type "academic"
+  :datasource-name "pubmed"
+  :external-id [:cast "24860522" :jsonb]
+  :title "Do ambient urban odors evoke basic emotions?"}
+ {:article-data-id 36800003
+  :article-subtype "pubmed"
+  :article-type "academic"
+  :datasource-name "pubmed"
+  :external-id [:cast "31203899" :jsonb]
+  :title "The Beehive Theory: Role of microorganisms in late sequelae of traumatic brain injury and chronic traumatic encephalopathy."}
+ {:article-data-id 36800004
+  :article-subtype "pubmed"
+  :article-type "academic"
+  :datasource-name "pubmed"
+  :external-id [:cast "31021106" :jsonb]
+  :title "Preserved rapid conceptual processing of emotional expressions despite reduced neuropsychological performance following traumatic brain injury."}
+ {:article-data-id 36800005
+  :article-subtype "pubmed"
+  :article-type "academic"
+  :datasource-name "pubmed"
+  :external-id [:cast "16999303" :jsonb]
+  :title "All abuzz. Angry bees ignite an unexpected MCI."}]
