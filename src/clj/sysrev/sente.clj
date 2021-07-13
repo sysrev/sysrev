@@ -46,14 +46,15 @@
 
 (defn- handle-message! [sente item]
   (let [event (:event item)
-        [_ [reframe-event {:keys [article-id project-id]}]] event]
-    (when (= :review/record-reviewer-event type)
-      (reviewer-time/create-events!
-       (get-in sente [:postgres :datasource])
-       [{:article-id article-id
-         :event-type (full-name reframe-event)
-         :project-id project-id
-         :user-id (:uid item)}]))))
+        [kind data] event]
+    (when (= :review/record-reviewer-event kind)
+      (let [[reframe-event {:keys [article-id project-id]}] data]
+        (reviewer-time/create-events!
+         (get-in sente [:postgres :datasource])
+         [{:article-id article-id
+           :event-type (full-name reframe-event)
+           :project-id project-id
+           :user-id (:uid item)}])))))
 
 (defn receive-sente-channel! [sente chan]
   (go
