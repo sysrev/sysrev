@@ -38,11 +38,17 @@
   (fn [{:keys [db]} [project-id] {:keys [article labels notes today-count] :as result}]
     (if (= result :none)
       {:db (load-review-task db project-id :none nil)}
-      (let [article (merge article {:labels labels :notes notes})]
+      (let [{:keys [article-id] :as article}
+            #__ (merge article {:labels labels :notes notes})]
         (cond-> {:db (-> (load-review-task db project-id (:article-id article) today-count)
                          (article/load-article article))}
           (= (active-panel db) [:project :review])
-          (merge {:scroll-top true}))))))
+          #__ (merge {:fx [[:scroll-top true]
+                           [:dispatch
+                            [:review/record-reviewer-event
+                             [:review/task
+                              {:article-id article-id
+                               :project-id project-id}]]]]}))))))
 
 (def-action :review/send-labels
   :uri (constantly "/api/set-labels")
