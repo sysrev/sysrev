@@ -17,6 +17,7 @@
    "article"
    "label"
    "web-user"
+   "session"
    "project-group"
    "project-member"
    "user-group"])

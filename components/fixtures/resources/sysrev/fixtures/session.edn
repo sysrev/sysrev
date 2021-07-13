@@ -1,0 +1,7 @@
+[{:sdata [:lift {:anti-forgery-token "7Q9kcMbZOh1Jkf0JvsFvIzK80sfeY+DIl3+DCWE3yR4ztMhAAZJwW7ntR16rxf21UqvLc/IvhUw4GFL/"
+                 :identity {:email "test_user_1@insilica.co"
+                            :user-id 1000001
+                            :user-uuid "f05fb191-0a28-4d37-a324-db4566128d12"}}]
+  :skey #uuid "ea944675-6772-4acb-aa8c-687cf1ff92b5"
+  :update-time [:now]
+  :user-id 1000001}]
