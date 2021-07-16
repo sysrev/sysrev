@@ -1,8 +1,10 @@
 (ns sysrev.reviewer-time.core
-  (:require [medley.core :as medley]
+  (:require [com.walmartlabs.lacinia.executor :as executor]
+            [com.walmartlabs.lacinia.selection :as selection]
+            [medley.core :as medley]
             [sysrev.db.core :as db])
   (:import (java.sql Timestamp)
-           (java.time Duration Instant LocalDateTime ZoneId)))
+           (java.time Duration Instant LocalDateTime ZoneId ZoneOffset)))
 
 (set! *warn-on-reflection* true)
 
@@ -119,3 +121,45 @@
                       (-> itvl
                           (update :start #(if (.isBefore ^LocalDateTime % start) start %))
                           (update :end #(if (.isAfter ^LocalDateTime % end) end %))))))))))))
+
+(defn ->epoch-millis [^LocalDateTime ldt]
+  (-> (.toEpochSecond ldt (ZoneOffset/UTC))
+      (* 1000)
+      (+ (quot (.getNano ldt) 1000000))))
+
+(defn get-selection-path [context path]
+  (loop [selections (-> context
+                        executor/selection
+                        selection/selections)
+         [k & more] path]
+    (let [v (some #(when (= k (selection/field-name %)) %) selections)]
+      (cond
+        (empty? v) nil
+        (empty? more) v
+        :else (recur (selection/selections v) more)))))
+
+(defn Project-reviewerTime [context {:keys [end start reviewerIds]} {:keys [id]}]
+  (let [conn (:datasource @db/*active-db*)
+        intervals-map (get-project-intervals
+                       conn id
+                       :end (when end (->LocalDateTime end))
+                       :start (when start (->LocalDateTime start))
+                       :user-ids reviewerIds)
+        intervals (mapcat (fn [[k v]] (map #(assoc % :user-id k) v)) intervals-map)
+        usernames (when (get-selection-path context [:intervals :reviewer :name])
+                    (->> (db/execute!
+                          conn
+                          {:select [:user-id :username] :from :web-user
+                           :where [:in :user-id [:lift (keys intervals-map)]]})
+                         (map (juxt :web-user/user-id :web-user/username))
+                         (into {})))]
+    {:intervals (map
+                 (fn [{:keys [article-id end start user-id]}]
+                   {:article {:id article-id}
+                    :end (->epoch-millis end)
+                    :reviewer {:id user-id
+                               :name (get usernames user-id)}
+                    :start (->epoch-millis start)})
+                 intervals)
+     :totalSeconds (-> intervals intervals->total-duration
+                       .toMillis (quot 1000))}))

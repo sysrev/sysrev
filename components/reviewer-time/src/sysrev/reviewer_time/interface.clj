@@ -7,6 +7,11 @@
   [connectable events]
   (reviewer-time/create-events! connectable events))
 
+(defn Project-reviewerTime
+  "GraphQL resolver for the reviewerTime field on a Project."
+  [context args value]
+  (reviewer-time/Project-reviewerTime context args value))
+
 (defn to-intervals
   "Takes a seq of events, all for a single user, and returns a seq of
   maps representing time intervals spent on each article. Each returned map

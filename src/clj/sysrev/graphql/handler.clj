@@ -10,6 +10,7 @@
             [com.walmartlabs.lacinia.util :refer [attach-resolvers]]
             [sysrev.graphql.authorization :refer [authorized?]]
             [sysrev.project.graphql :as project]
+            [sysrev.reviewer-time.interface :as reviewer-time]
             [sysrev.source.datasource
              :refer
              [import-dataset
@@ -19,16 +20,26 @@
             [sysrev.source.project-filter :refer [import-article-filter-url!]]
             [sysrev.util :as util]))
 
+(def scalars
+  {:Timestamp {:parse (fn [x]
+                        (if (and (nat-int? x) (<= x Long/MAX_VALUE))
+                          x
+                          (throw (ex-info "Must be a non-negative long representing Unix epoch time."
+                                          {:value x}))))
+               :serialize identity}})
+
 (defn compile-sysrev-schema []
   (-> (io/resource "edn/graphql-schema.edn")
       slurp
       edn/read-string
-      (attach-resolvers {:resolve-project project/project
+      (attach-resolvers {:Project/reviewerTime reviewer-time/Project-reviewerTime
+                         :resolve-project project/project
                          :resolve-import-articles! import-ds-query
                          :resolve-import-dataset! import-dataset
                          :resolve-import-datasource! import-datasource
                          :resolve-import-datasource-flattened! import-datasource-flattened
                          :resolve-import-article-filter-url! import-article-filter-url!})
+      (assoc :scalars scalars)
       (schema/compile {:default-field-resolver schema/hyphenating-default-field-resolver})))
 
 (def sysrev-schema (atom (compile-sysrev-schema)))

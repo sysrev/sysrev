@@ -119,7 +119,20 @@
                      :labelDefinitions {:type (list :LabelDefinition)
                                         :description "The labels associated with this project"}
                      :groupLabelDefinitions {:type (list :GroupLabelDefinition)
-                                             :description "The group labels associated with this project"}}}}
+                                             :description "The group labels associated with this project"}
+                     :reviewerTime {:type :ReviewerTime
+                                    :description "The reviewer time spent on this project"
+                                    :args {:start {:type Timestamp}
+                                           :end {:type Timestamp}
+                                           :reviewerIds {:type (list Int)}}
+                                    :resolve :Project/reviewerTime}}}
+  :ReviewerTime {:fields {:intervals {:type (list :ReviewerTimeInterval)}
+                          :totalSeconds {:type Int
+                                         :description "Total reviewer time in seconds"}}}
+  :ReviewerTimeInterval {:fields {:article {:type :Article}
+                                  :reviewer {:type :Reviewer}
+                                  :start {:type Timestamp}
+                                  :end {:type Timestamp}}}}
  :queries {:project {:type :Project
                      :description "Read a project by its id"
                      :args {:id {:type (non-null Int)}}

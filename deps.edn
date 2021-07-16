@@ -34,7 +34,7 @@
         clojure-csv/clojure-csv {:mvn/version "2.0.1"}
 
 ;;; GraphQL
-        com.walmartlabs/lacinia {:mvn/version "0.37.0"}
+        com.walmartlabs/lacinia {:mvn/version "0.38.0"}
         vincit/venia {:mvn/version "0.2.5"}
 
 ;;; Postgres
