@@ -19,7 +19,7 @@
 (defn- AnalyticsVideoEmbed []
   [:div {:style {:height "50vh" :margin-top "1em"}}
    [:iframe {:width "100%" :height "100%"
-             :frameborder "0" :allowfullscreen "true"
+             :frame-border 0 :allow-full-screen true
              :src (shared/links :analytics-embed)
              :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"}]])
 
