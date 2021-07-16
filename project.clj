@@ -175,6 +175,7 @@
                                              "components/fixtures/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
+                                           "components/reviewer-time/test"
                                            "components/user/test"]}
              :test-remote    {:dependencies
                               [[prestancedesign/get-port "0.1.1"]]
