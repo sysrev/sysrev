@@ -5,7 +5,7 @@
             [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :as data]
             [sysrev.nav :refer [make-url]]
-            [sysrev.stripe :as stripe]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.views.semantic :refer [Divider Dropdown Form Grid Input Row Column
                                            Button Icon Radio Header]]
@@ -68,7 +68,7 @@
         plan (if (= @project-owner "current-user")
                @(subscribe [:user/current-plan])
                (:plan (->> orgs (find-first #(= @project-owner (:group-id %))))))
-        owner-has-pro? (stripe/pro? (:nickname plan))]
+        owner-has-pro? (plans-info/pro? (:nickname plan))]
     [Form {:id "create-project"
            :on-submit #(when @project-name
                          (if (= @project-owner "current-user")

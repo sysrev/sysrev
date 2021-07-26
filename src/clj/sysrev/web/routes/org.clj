@@ -49,6 +49,9 @@
                  (with-authorize request {}
                    (-> (group/group-id->name org-id)
                        (api/users-in-group))))
+            (POST "/get-share-code" request
+                 (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
+                   {:share-code (group/get-share-hash org-id)}))
             (POST "/user" request
                   (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
                     (let [user-id (get-in request [:body :user-id])]

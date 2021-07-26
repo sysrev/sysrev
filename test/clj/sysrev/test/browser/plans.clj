@@ -3,6 +3,7 @@
             [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [sysrev.payment.plans :as plans]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -22,7 +23,7 @@
 ;; pricing workflow elements
 (def choose-pro-button (xpath "//a[contains(text(),'Choose Pro')]"))
 (def create-account (xpath "//h3[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
-(def upgrade-plan (xpath "//h1[contains(text(),'Upgrade from Basic to Pro')]"))
+(def upgrade-plan (xpath "//h1[contains(text(),'Upgrade from Basic to Premium')]"))
 (def pricing-link (xpath "//a[@id='pricing-link']"))
 
 (defn click-use-card [& {:keys [wait delay]
@@ -107,10 +108,10 @@
       (wait-until-stripe-id email)
       (is (= email (:email (get-customer))))
       ;; does stripe think the customer is registered to a basic plan?
-      (wait-until-plan email stripe/default-plan)
-      (is (= stripe/default-plan (user-stripe-plan email)))
+      (wait-until-plan email plans-info/default-plan)
+      (is (= plans-info/default-plan (user-stripe-plan email)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= stripe/default-plan (user-db-plan email))))
+      (is (= plans-info/default-plan (user-db-plan email))))
   :cleanup (b/cleanup-test-user! :email email))
 
 ;; need to disable sending emails in this test
@@ -129,10 +130,10 @@
       ;; after registering, does the stripe customer exist?
       (is (= email (:email (get-customer))))
       ;; does stripe think the customer is registered to a basic plan?
-      (wait-until-plan email stripe/default-plan)
-      (is (= stripe/default-plan (get-stripe-plan)))
+      (wait-until-plan email plans-info/default-plan)
+      (is (= plans-info/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= stripe/default-plan (get-db-plan)))
+      (is (= plans-info/default-plan (get-db-plan)))
       (nav/log-in email)
 ;;; upgrade plan
       (b/click "#user-name-link")
@@ -225,10 +226,10 @@
       (b/click ".button.unsubscribe-plan")
       (b/click ".button.nav-plans.subscribe" :displayed? true)
       ;; does stripe think the customer is registered to a basic plan?
-      (wait-until-plan email stripe/default-plan)
-      (is (= stripe/default-plan (get-stripe-plan)))
+      (wait-until-plan email plans-info/default-plan)
+      (is (= plans-info/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= stripe/default-plan (get-db-plan)))))
+      (is (= plans-info/default-plan (get-db-plan)))))
 
 (deftest-browser subscribe-to-unlimited-through-pricing-no-account
   (and (test/db-connected?) (not (test/remote-test?))) test-user

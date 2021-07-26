@@ -7,6 +7,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.semantic :as S :refer
              [Segment SegmentGroup Grid Column Row ListUI ListItem Button Loader Radio]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
@@ -185,14 +186,14 @@
     (fn [available-plans]
       (when (and (not (nil? @available-plans))
                  (nil? @new-plan ))
-        (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_User") @available-plans)))
+        (reset! new-plan (medley/find-first #(= (:nickname %) plans-info/unlimited-user) @available-plans)))
       (if (empty? @available-plans)
         [Loader {:active true
                  :inline "centered"}]
         [:div
          (when-not (and (not mobile?)
                         changing-interval?)
-           [:h1 "Upgrade from Basic to Pro"])
+           [:h1 "Upgrade from Basic to Premium"])
          [Grid {:stackable true :columns 2 :class "upgrade-plan"}
           [Column
            [Grid [Row [Column
@@ -278,7 +279,7 @@
           [UpgradePlan (subscribe [:user/available-plans])]
           (= (:nickname current-plan) "Basic")
           [UpgradePlan (subscribe [:user/available-plans])]
-          (contains? #{"Unlimited_User" "Unlimited_User_Annual"} (:nickname current-plan))
+          (contains? #{plans-info/unlimited-user plans-info/unlimited-user-annual} (:nickname current-plan))
           [DowngradePlan]
           :else
           [Loader {:active true :inline "centered"}])))))

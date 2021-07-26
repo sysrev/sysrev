@@ -16,18 +16,24 @@
 
 (def register-panel [:register])
 
-(def-data :register-project
+(def-data :consume-register-hash
   :loaded? (fn [db register-hash]
              ((comp not nil?)
               (get-panel-field db [:project register-hash] register-panel)))
-  :uri (fn [_] "/api/query-register-project")
+  :uri (fn [_] "/api/consume-register-hash")
   :prereqs (fn [_] nil)
   :content (fn [register-hash] {:register-hash register-hash})
   :process
-  (fn [_ [register-hash] {:keys [project]}]
-    {:dispatch-n
-     (list [:register/project-id register-hash (:project-id project)]
-           [:register/project-name register-hash (:name project)])}))
+  (fn [_ [register-hash] {:keys [project org]}]
+    (println org)
+    (if project
+      {:dispatch-n
+       (list [:register/project-id register-hash (:project-id project)]
+             [:register/project-name register-hash (:name project)])}
+      {:dispatch-n [[:set-panel-field [:project register-hash :name]
+                     (:name org) register-panel]
+                    [:set-panel-field [:project register-hash :project-id]
+                     (:group-id org) register-panel]]})))
 
 ;; TODO: change this to def-action, doesn't using loaded concept
 (def-data :nav-google-login
@@ -239,7 +245,7 @@
         redirect-message (uri-utils/getParamValue @active-route "redirect_message")
         _dark? @(subscribe [:self/dark-theme?])]
     (with-loader (if register-hash
-                   [[:register-project register-hash]]
+                   [[:consume-register-hash register-hash]]
                    []) {}
       [:div
        [:h3 {:style {:text-align "center"}}
@@ -335,7 +341,7 @@
             project-id @(subscribe [:register/project-id])
             project-name @(subscribe [:register/project-name])
             member? @(subscribe [:self/member? project-id])]
-        (with-loader [[:register-project register-hash]] {}
+        (with-loader [[:consume-register-hash register-hash]] {}
           (cond
             (nil? project-id)
             [wrap-join-project
@@ -380,7 +386,10 @@
               {:key [3]}
               [:button.ui.fluid.primary.button
                {:on-click #(dispatch [:action [:join-project project-id]])}
-               "Join Project"]]]))))))
+               ;"Join Project"
+               "Join Organization"
+               
+               ]]]))))))
 
 (defn- redirect-root-content []
   (nav/nav "/")

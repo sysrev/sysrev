@@ -2,11 +2,11 @@
   (:require [cljs-time.core :as time]
             [re-frame.core :refer [dispatch subscribe]]
             [reagent.core :as r]
-            [sysrev.nav :refer [nav make-url]]
-            [sysrev.stripe :as stripe]
+            [sysrev.nav :refer [make-url]]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.semantic :refer [Segment Column Row Grid Icon Button Popup Divider
-                                           ListUI ListItem ListContent Dropdown Header]]
-            [sysrev.util :as util :refer [when-test css]]
+                                           ListUI ListItem ListContent Header]]
+            [sysrev.util :as util :refer [css]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 (declare panel)
@@ -69,7 +69,7 @@
 
 (defn- EnterpriseBenefits []
   [ListUI
-   [PricingItem {:content "Everything included in Team Pro"}]
+   [PricingItem {:content "Everything included in Premium"}]
    [Divider]
    [PricingItem {:content "Self-hosted or cloud-hosted"}]
    [PricingItem {:content "Priority support"}]
@@ -93,8 +93,7 @@
 
 (defn Pricing []
   (let [logged-in? (subscribe [:self/logged-in?])
-        user-id (subscribe [:self/user-id])
-        selected-org (r/atom nil)]
+        user-id (subscribe [:self/user-id])]
     (when (and @logged-in? (nil? (:nickname @(subscribe [:user/current-plan]))))
       (dispatch [:data/load [:user/current-plan @user-id]])
       (dispatch [:fetch [:user/orgs @user-id]]))
@@ -105,7 +104,7 @@
          (when (< (time/now) (time/date-time 2020 9 1))
            [Header {:as "h3" :align "center"
                     :style {:margin-top "0px" :margin-bottom "0.5em"}}
-            "Sign up for Team Pro before August 31" [:sup "th"]
+            "Sign up for Premium before August 31" [:sup "th"]
             " 2020 and " [:a {:href "/promotion"} " apply here"]
             " to be eligible for a $500 project award."])
          [Grid {:columns "equal" :id "pricing-plans" :stackable true}
@@ -123,60 +122,25 @@
                            :fluid true :primary true}
                    (if @logged-in? "Create a Free Team" "Choose Free")]))
            (PricingSegment
-            :class "pricing-pro"
-            :title "Pro" :price "$10" :per-item "Per month"
-            :intro "Pro tools for researchers with advanced requirements"
-            :benefits [ProBenefits]
-            :content
-            (list [Button {:key :button
-                           :href (if @logged-in?
-                                   "/user/plans"
-                                   (make-url "/register"
-                                             {:redirect "/user/plans"
-                                              :redirect_message
-                                              "Create a free account to upgrade to Pro Plan"}))
-                           :fluid true :primary true
-                           :disabled (stripe/user-pro? current-plan)}
-                   (if (stripe/user-pro? current-plan)
-                     "Already signed up!" "Choose Pro")]))
-           (PricingSegment
             :class "pricing-team-pro"
-            :title "Team Pro" :price "$10" :per-item "Per member / month"
+            :title "Premium" :price "$10" :per-item "Per member / month"
             :intro "Advanced collaboration and management tools for teams"
             :benefits [TeamProBenefits]
             :content
             (list
              [:p.team-pricing {:key :team-pricing}
               "Starts at " [:b "$30 / month"] " and includes your first 5 team members"]
-             (if @logged-in?
-               [Dropdown {:key :button
-                          :value @selected-org
-                          :options (->> @(subscribe [:user/orgs @user-id])
-                                        ;; get the orgs you have permission to modify
-                                        (filter #(some #{"owner" "admin"} (:permissions %)))
-                                        ;; and the orgs who aren't pro plans
-                                        (remove #(stripe/pro? (-> % :plan :nickname)))
-                                        (map (fn [{:keys [group-name group-id]}]
-                                               {:text group-name :value group-id}))
-                                        (cons {:text "+ Create Organization"
-                                               :value "create-org"}))
-                          :on-change
-                          (fn [_e data]
-                            (if-let [value (when-test int? (.-value data))]
-                              (nav (str "/org/" value "/plans"))
-                              (nav "/create/org" :params {:panel-type "existing-account"
-                                                          :plan "pro"})))
-                          :text "Continue with Team Pro"
-                          :fluid true :button true :select-on-blur false
-                          :class "primary"}]
-               [Button {:key :button
-                        :href (make-url
-                               "/register"
-                               {:redirect (make-url "/create/org" {:panel-type "new-account"
-                                                                   :plan "pro"})
-                                :redirect_message
-                                "Create a free account before moving on to team creation"})
-                        :fluid true :primary true} "Choose Team Pro"])))
+             [Button {:key :button
+                      :href (if @logged-in?
+                              "/user/plans"
+                              (make-url "/register"
+                                        {:redirect "/user/plans"
+                                         :redirect_message
+                                         "Create a free account to upgrade to Premium Plan"}))
+                      :fluid true :primary true
+                      :disabled (plans-info/user-pro? current-plan)}
+              (if (plans-info/user-pro? current-plan)
+                "Already signed up!" "Choose Premium")]))
            (PricingSegment
             :class "pricing-enterprise"
             :title "Enterprise" :price [:a {:href "mailto:sales@sysrev.com"}

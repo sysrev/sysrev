@@ -16,19 +16,6 @@
 (setup-panel-state panel [:stripe]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
-(def user-pro-plans #{"Unlimited_User" "Unlimited_User_Annual"})
-(def org-pro-plans  #{"Unlimited_Org" "Unlimited_Org_Annual"})
-(def pro-plans      (set (concat user-pro-plans org-pro-plans)))
-(def basic-plans    #{"Basic"})
-
-(defn pro? [plan-nickname]
-  (contains? pro-plans plan-nickname))
-(defn user-pro? [plan-nickname]
-  (contains? user-pro-plans plan-nickname))
-(defn org-pro? [plan-nickname]
-  (contains? org-pro-plans plan-nickname))
-(defn basic? [plan-nickname]
-  (contains? basic-plans plan-nickname))
 
 ;;; based on: https://github.com/stripe/react-stripe-elements
 ;;;           https://jsfiddle.net/g9rm5qkt/

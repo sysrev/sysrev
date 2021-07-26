@@ -12,6 +12,7 @@
             [sysrev.test.browser.xpath :refer [xpath]]
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.plans :as plans]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.test.core :as test]
             [sysrev.util :as util :refer [index-by random-id]]))
 
@@ -19,8 +20,8 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 ;; pricing workflow elements
-(def choose-team-pro-button (xpath "//a[contains(text(),'Choose Team Pro')]"))
-(def continue-with-team-pro (xpath "//div[contains(text(),'Continue with Team Pro')]"))
+(def choose-team-pro-button (xpath "//a[contains(text(),'Choose Premium')]"))
+(def continue-with-team-pro (xpath "//div[contains(text(),'Continue with Premium')]"))
 (def create-organization (xpath "//span[contains(text(),'Create Organization')]"))
 (def create-account (xpath "//h3[contains(text(),'Create a free account before moving on to team creation')]"))
 (def create-team (xpath "//h3[contains(text(),'create a Sysrev organization for your team')]"))
@@ -203,7 +204,7 @@
       (user/create-user-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
-    (b/is-soon (= stripe/default-plan (:nickname (user-current-plan user-id))) 5000 250)
+    (b/is-soon (= plans-info/default-plan (:nickname (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
     (nav/log-in (:email test-user))
 ;;; user pay wall
@@ -286,7 +287,7 @@
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
     ;; current plan
-    (b/is-soon (= stripe/default-plan (:nickname (user-current-plan user-id))) 5000 250)
+    (b/is-soon (= plans-info/default-plan (:nickname (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
     ;; start tests
     (nav/log-in (:email test-user))

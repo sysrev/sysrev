@@ -11,6 +11,7 @@
             [sysrev.project.clone :as clone]
             [sysrev.notification.interface.spec :as sntfcn]
             [sysrev.source.import :as import]
+            [sysrev.payment.stripe :as stripe]
             [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.web.app :refer [make-error-response
                                     validation-failed-response]]
@@ -322,6 +323,13 @@
                 {:result {:success true
                           :project-id {:project-id project-id
                                        :url (str "https://sysrev.com/p/" project-id)}}})))))
+
+(def-webapi
+  :stripe-hook :post
+  {:require-token? false
+   :doc "Stripe webhook handler"}
+  (fn [request]
+    (stripe/handle-webhook (:body request))))
 
 (def-webapi
   :create-notification :post

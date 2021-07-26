@@ -4,8 +4,13 @@
             [clojure.walk :as walk]
             [sysrev.config :refer [env]]
             [sysrev.payment.plans :as db-plans]
+            [honeysql.helpers :as sqlh :refer [select from insert-into values]]
+            [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
             [sysrev.project.funds :as funds]
-            [sysrev.util :as util :refer [current-function-name]]))
+            [sysrev.shared.plans-info :refer [default-plan user-pro-plans]]
+            [sysrev.util :as util :refer [index-by current-function-name]]))
 
 (def stripe-secret-key (env :stripe-secret-key))
 
@@ -15,11 +20,6 @@
 (def stripe-client-id (env :stripe-client-id))
 
 (def stripe-url "https://api.stripe.com/v1")
-
-(def default-plan "Basic")
-
-(def user-pro-plans #{"Unlimited_User" "Unlimited_User_Annual"})
-(def org-pro-plans  #{"Unlimited_Org" "Unlimited_Org_Annual"})
 
 (def default-req {:basic-auth stripe-secret-key
                   :coerce :always
@@ -135,6 +135,11 @@
   "Get all site plans"
   []
   (stripe-get "/plans"))
+
+(defn get-products
+  "Get all site products"
+  []
+  (stripe-get "/products"))
 
 (defn get-plan-id [nickname]
   (:id (first (->> (:data (get-plans))
@@ -333,3 +338,66 @@
 (defn user-has-pro? [user-id]
   (let [user-current-plan (db-plans/user-current-plan user-id)]
     (contains? user-pro-plans (:nickname user-current-plan))))
+
+(defn update-subscription [subscription-id]
+  (let [subscription (get-subscription subscription-id)]
+    (q/modify :plan-user
+              {:sub-id (:id subscription)}
+              {:status (:status subscription)
+               :current-period-start (some-> (:current_period_start subscription) util/to-clj-time)
+               :current-period-end (some-> (:current_period_end subscription) util/to-clj-time)})))
+
+(defn update-subscriptions []
+  (let [subscriptions (-> (select :sub-id)
+                          (from :plan-user)
+                          db/do-query)]
+    (doseq [subscription-id subscriptions]
+      (update-subscription subscription-id))))
+
+(defn update-stripe-plans-table
+  "Update the stripe_plans table based upon what is stored on stripe. We
+  never delete plans, even though they may no longer exist on stripe
+  so that there is a record of their existence. If a plan is changed
+  on the stripe, it is updated here."
+  []
+  (let [products (->> (if (#{:dev :test} (:profile env))
+                     (try
+                       (get-products)
+                       (catch java.io.IOException e
+                         (log/error "Couldn't get products" (class e))))
+                     (get-products))
+                   :data
+                   (index-by :id))
+        plans (->> (if (#{:dev :test} (:profile env))
+                     (try
+                       (get-plans)
+                       (catch java.io.IOException e
+                         (log/error "Couldn't get plans in update-stripe-plans-table:" (class e))))
+                     (get-plans))
+                   :data
+                   (mapv #(-> (select-keys % [:nickname :created :id :product :interval :amount :tiers])
+                              (assoc :product-name (get-in products [(:product %) :name]))))
+                   (mapv #(update % :created (partial util/to-clj-time)))
+                   (mapv #(update % :tiers db/to-jsonb)))]
+    (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
+      (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
+    (when-let [valid-plans (->> plans (remove #(nil? (:nickname %))) seq)]
+      (-> (insert-into :stripe-plan)
+          (values valid-plans)
+          (upsert (-> (on-conflict :nickname)
+                      (do-update-set :id :created :interval :amount :tiers :product :product-name)))
+          db/do-execute))))
+
+(defn handle-webhook [body]
+  (case (:type body)
+    "customer.subscription.updated"
+    (do
+      (update-subscription (get-in body [:data :object :id]))
+      {:success true :handled true})
+    {:success true :handled false}))
+
+;(get-products)
+;(update-subscriptions)
+;(update-stripe-plans-table)
+;(get-plans)
+;(get-subscription "sub_JlqOdbkXYobkjf")

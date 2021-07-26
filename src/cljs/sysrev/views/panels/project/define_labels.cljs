@@ -9,7 +9,7 @@
             [sysrev.data.core :as data]
             [sysrev.state.label :refer [sort-client-project-labels]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
-            [sysrev.stripe :as stripe]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.review :refer [label-help-popup]]
@@ -1148,7 +1148,7 @@
         project-id    @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
         group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
-                                  (stripe/pro? project-plan))]
+                                  (plans-info/pro? project-plan))]
     (ensure-state)
     [:div.define-labels
      [ReadOnlyMessage

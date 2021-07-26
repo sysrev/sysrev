@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [is use-fixtures]]
             [sysrev.payment.plans :refer [group-current-plan]]
             [sysrev.payment.stripe :as stripe]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.orgs :as orgs]
@@ -21,7 +22,7 @@
   (do (user/create-user-stripe-customer! (user-by-email (:email test-user)))
       (stripe/create-subscription-user! (user-by-email (:email test-user)))
       (plans/wait-until-stripe-id (:email test-user))
-      (plans/wait-until-plan (:email test-user) stripe/default-plan)
+      (plans/wait-until-plan (:email test-user) plans-info/default-plan)
       (nav/log-in (:email test-user))
       (b/click "#new-project.button")
       ;; private is disabled
@@ -61,7 +62,7 @@
   (do (user/create-user-stripe-customer! (user-by-email (:email test-user)))
       (stripe/create-subscription-user! (user-by-email (:email test-user)))
       (plans/wait-until-stripe-id (:email test-user))
-      (plans/wait-until-plan (:email test-user) stripe/default-plan)
+      (plans/wait-until-plan (:email test-user) plans-info/default-plan)
       (nav/log-in (:email test-user))
       (orgs/create-org org-name)
       (b/click "#new-project.button")

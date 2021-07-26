@@ -1,44 +1,16 @@
 (ns sysrev.db.migration
   (:require [clojure.tools.logging :as log]
-            [honeysql.helpers :as sqlh :refer [insert-into values]]
-            [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.api :as api]
-            [sysrev.config :refer [env]]
-            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
             [sysrev.group.core :as group]
             [sysrev.user.interface :as user]
-            [sysrev.payment.stripe :as stripe]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.file.document :refer [migrate-filestore-table]]
             [sysrev.annotations :refer [delete-invalid-annotations migrate-old-annotations]]
+            [sysrev.payment.stripe :as stripe :refer [update-stripe-plans-table]]
             [sysrev.util :as util]))
 
-(defn update-stripe-plans-table
-  "Update the stripe_plans table based upon what is stored on stripe. We
-  never delete plans, even though they may no longer exist on stripe
-  so that there is a record of their existence. If a plan is changed
-  on the stripe, it is updated here."
-  []
-  (let [plans (->> (if (#{:dev :test} (:profile env))
-                     (try
-                       (stripe/get-plans)
-                       (catch java.io.IOException e
-                         (log/error "Couldn't get plans in update-stripe-plans-table:" (class e))))
-                     (stripe/get-plans))
-                   :data
-                   (mapv #(select-keys % [:nickname :created :id :interval :amount :tiers]))
-                   (mapv #(update % :created (partial util/to-clj-time)))
-                   (mapv #(update % :tiers db/to-jsonb)))]
-    (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
-      (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
-    (when-let [valid-plans (->> plans (remove #(nil? (:nickname %))) seq)]
-      (-> (insert-into :stripe-plan)
-          (values valid-plans)
-          (upsert (-> (on-conflict :nickname)
-                      (do-update-set :id :created :interval :amount :tiers)))
-          db/do-execute))))
 
 (defn ensure-user-email-entries
   "Migrate to new email verification system, should only be run when the

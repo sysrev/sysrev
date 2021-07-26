@@ -88,10 +88,15 @@
   "Return the plan name for the project owner of project-id"
   [project-id]
   (with-transaction
-    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
-      (cond user-id   (:nickname (plans/user-current-plan user-id))
-            group-id  (:nickname (plans/group-current-plan group-id))
-            :else     "Basic"))))
+    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)
+          owner-user-id (or user-id (group/get-group-owner group-id))]
+      (if owner-user-id
+        (let [plan (plans/user-current-plan owner-user-id)]
+          (if (or (nil? (:status plan)) ;legacy plan
+                  (= (:status plan) "active"))
+            (:product-name plan) 
+            "Basic"))
+        "Basic"))))
 
 (defn- project-grandfathered? [project-id]
   (let [{:keys [date-created]} (q/find-one :project {:project-id project-id})]
@@ -101,7 +106,7 @@
 (defn project-unlimited-access? [project-id]
   (with-transaction
     (or (project-grandfathered? project-id)
-        (contains? #{"Unlimited_Org" "Unlimited_User" "Unlimited_User_Annual" "Unlimited_Org_Annual"} (project-owner-plan project-id)))))
+        (contains? #{"Premium"} (project-owner-plan project-id)))))
 
 (defn change-project-settings [project-id changes]
   (with-transaction
@@ -455,7 +460,8 @@
   {:success true, :plan (plans/user-current-plan user-id)})
 
 (defn group-current-plan [group-id]
-  {:success true, :plan (plans/group-current-plan group-id)})
+  (let [owner-user-id (group/get-group-owner group-id)]
+    (user-current-plan owner-user-id)))
 
 ;; manually add:
 ;; 1. connect to prod database
@@ -465,8 +471,7 @@
 ;; 3. Check the plan id matches the one on stripe.com
 ;; (stripe/get-plan-id "Unlimited_User")
 ;; 4. subscribe the user
-;; (subscribe-user-to-plan <user-id> "Unlimited_User") or
-;; (subscribe-user-to-plan <user-id> "Unlimited_Org")
+;; (subscribe-user-to-plan <user-id> "Unlimited_User")
 (defn subscribe-user-to-plan [user-id plan]
   (with-transaction
     (let [{:keys [sub-id]} (plans/user-current-plan user-id)
@@ -581,19 +586,6 @@
     (stripe/cancel-subscription! id)
     {:success true}))
 
-(defn user-available-plans
-  []
-  {:success true
-   :plans
-   (->> (stripe/get-plans)
-        :data
-        (map #(select-keys % [:amount :nickname :id :interval]))
-        (filter #(let [nickname (:nickname %)]
-                   (when-not (nil? nickname)
-                     (or (re-matches #"Unlimited_User.*" nickname)
-                         (= "Basic" nickname)))))
-        (into []))})
-
 (defn org-available-plans
   []
   {:success true
@@ -606,6 +598,9 @@
                      (or (re-matches #"Unlimited_Org.*" nickname)
                          (= "Basic" nickname)))))
         (into []))})
+
+;; Everyone is Premium (formerly team pro) now
+(def user-available-plans org-available-plans)
 
 (defn ^:unused finalize-stripe-user!
   "Save a stripe user in our database for payouts"

@@ -84,7 +84,7 @@
             [MenuItem {:id "org-members" :name "Members"
                        :href (uri-fn "users")
                        :class (css [(active? :users) "active"])} "Members"]
-            (when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
+            #_(when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
               [MenuItem {:id "org-billing" :name "Billing"
                          :href (uri-fn "billing")
                          :class (css [(active? :billing) "active"])

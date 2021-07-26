@@ -36,6 +36,7 @@
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.formats.ctgov :as ctgov]
+            [sysrev.encryption :as enc]
             [sysrev.slack :as slack]
             [sysrev.util :as util :refer [parse-integer]]
             [ring.util.io :as ring-io])
@@ -305,13 +306,19 @@
                         project-id      {:project-id project-id}
                         :else        nil))})))
 
-(dr (GET "/api/query-register-project" request
+(dr (GET "/api/consume-register-hash" request
          (with-authorize request {}
-           (let [register-hash (-> request :params :register-hash)
-                 project-id (project/project-id-from-register-hash register-hash)]
-             {:project (when project-id
-                         (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-                           {:project-id project-id :name name}))}))))
+           (let [register-hash (-> request :params :register-hash)]
+             (if-let [data (enc/try-decrypt-wrapped64 register-hash)]
+               (case (:type data)
+                 "org-invite-hash"
+                 ;;#_(api/set-user-group! user-id (group/group-id->name (:org-id data)) true)
+                 {:org {:group-id (:org-id data)
+                        :name (group/group-id->name (:org-id data))}})
+               (let [project-id (project/project-id-from-register-hash register-hash)]
+                 {:project (when project-id
+                             (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
+                               {:project-id project-id :name name}))}))))))
 
 ;; Returns map with full information on an article
 (dr (GET "/api/article-info/:article-id" request
