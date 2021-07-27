@@ -11,8 +11,8 @@
             [sysrev.views.semantic :as S :refer
              [Segment SegmentGroup Grid Column Row ListUI ListItem Button Loader Radio]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
-            [sysrev.views.panels.pricing :refer [FreeBenefits ProBenefits]]
-            [sysrev.util :as util]
+            [sysrev.views.panels.pricing :as pricing :refer [FreeBenefits ProBenefits]]
+            [sysrev.util :as util :refer [sum]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -100,7 +100,7 @@
                      (:amount @plan)) " / " (:interval @plan))
            ")")])
 
-(defn Unlimited [{:keys [amount interval] :as _plan}]
+(defn Unlimited2 [{:keys [amount interval] :as _plan}]
   [Segment
    (if-not amount
      [Loader {:active true :inline "centered"}]
@@ -111,6 +111,31 @@
         [ProBenefits]]
        [Column {:width 6 :align "right"}
         [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
+
+(defn price-summary [member-count tiers]
+  (let [base (->> tiers (map :flat_amount) (filter int?) sum)
+        per-user (->> tiers (map :unit_amount) (filter int?) sum)]
+    {:base base :per-user per-user
+     :up-to (->> tiers (map :up_to) (filter int?) first)
+     :monthly-bill (+ base (* (max 0 (- member-count 5)) per-user))}))
+
+(defn Unlimited [{:keys [tiers interval] :as _plan}]
+  [Segment
+   (if-not tiers
+     [Loader {:active true :inline "centered"}]
+     [Grid {:stackable true}
+      [Row
+       [Column {:width 10}
+        [:b "Premium Plan"]
+        [pricing/TeamProBenefits]]
+       [Column {:width 6 :align "right"}
+        (let [{:keys [base per-user up-to]} (price-summary 0 tiers)]
+          [:div
+           [Row [:h3 (str "$" (util/cents->dollars base) " / " interval)]]
+           [Row [:h3 (str "up to " up-to " members")]]
+           [:br]
+           [Row [:h3 "$ " (util/cents->dollars per-user) " / " interval]]
+           [Row [:h3 "per additional member"]]])]]])])
 
 (defn BasicPlan [{:keys [amount interval] :as _plan}]
   [Segment
@@ -279,7 +304,7 @@
           [UpgradePlan (subscribe [:user/available-plans])]
           (= (:nickname current-plan) "Basic")
           [UpgradePlan (subscribe [:user/available-plans])]
-          (contains? #{plans-info/unlimited-user plans-info/unlimited-user-annual} (:nickname current-plan))
+          (plans-info/pro? (:nickname current-plan))
           [DowngradePlan]
           :else
           [Loader {:active true :inline "centered"}])))))

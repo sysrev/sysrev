@@ -83,12 +83,7 @@
                        :class (css [(active? :projects) "active"])} "Projects"]
             [MenuItem {:id "org-members" :name "Members"
                        :href (uri-fn "users")
-                       :class (css [(active? :users) "active"])} "Members"]
-            #_(when (some #{"admin" "owner"} @(subscribe [:org/permissions org-id]))
-              [MenuItem {:id "org-billing" :name "Billing"
-                         :href (uri-fn "billing")
-                         :class (css [(active? :billing) "active"])
-                         :position "right"} "Billing"])]]])
+                       :class (css [(active? :users) "active"])} "Members"]]]])
        [:div#org-content child]
        #_
        (when (nil? child)

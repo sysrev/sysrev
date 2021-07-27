@@ -89,7 +89,7 @@
   [project-id]
   (with-transaction
     (let [{:keys [user-id group-id]} (project/get-project-owner project-id)
-          owner-user-id (or user-id (group/get-group-owner group-id))]
+          owner-user-id (or user-id (and group-id (group/get-group-owner group-id)))]
       (if owner-user-id
         (let [plan (plans/user-current-plan owner-user-id)]
           (if (or (nil? (:status plan)) ;legacy plan

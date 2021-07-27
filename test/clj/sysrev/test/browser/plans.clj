@@ -10,6 +10,7 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.payment.stripe :as stripe]
             [sysrev.util :as util]))
 
@@ -21,8 +22,8 @@
 (def back-to-user-settings (xpath "//a[contains(text(),'Back to user settings')]"))
 
 ;; pricing workflow elements
-(def choose-pro-button (xpath "//a[contains(text(),'Choose Pro')]"))
-(def create-account (xpath "//h3[contains(text(),'Create a free account to upgrade to Pro Plan')]"))
+(def choose-pro-button (xpath "//a[contains(text(),'Choose Premium')]"))
+(def create-account (xpath "//h3[contains(text(),'Create a free account to upgrade to Premium Plan')]"))
 (def upgrade-plan (xpath "//h1[contains(text(),'Upgrade from Basic to Premium')]"))
 (def pricing-link (xpath "//a[@id='pricing-link']"))
 
@@ -218,9 +219,9 @@
       (b/wait-until-displayed ".button.nav-plans.unsubscribe")
       (log/info "found \"Unsubscribe\" button")
       ;; Let's check to see if our db thinks the customer is subscribed to the Unlimited
-      (is (= "Unlimited_User" (get-db-plan)))
+      (is (= plans-info/unlimited-user (get-db-plan)))
       ;; Let's check that stripe.com thinks the customer is subscribed to the Unlimited plan
-      (is (= "Unlimited_User" (get-stripe-plan)))
+      (is (= plans-info/unlimited-user (get-stripe-plan)))
 ;;; Subscribe back down to the Basic Plan
       (b/click ".button.nav-plans.unsubscribe")
       (b/click ".button.unsubscribe-plan")
@@ -257,7 +258,7 @@
     (click-upgrade-plan)
     ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
-    (is (= "Unlimited_User" (get-db-plan))))
+    (is (= plans-info/unlimited-user (get-db-plan))))
   :cleanup (b/cleanup-test-user! :email email))
 
 ;; the user changes their mind in the filling
@@ -300,7 +301,7 @@
     (click-upgrade-plan)
     ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
-    (is (= "Unlimited_User" (get-db-plan))))
+    (is (= plans-info/unlimited-user (get-db-plan))))
   :cleanup (b/cleanup-test-user! :email email))
 
 (deftest-browser subscribe-to-unlimited-annual-through-pricing-no-account

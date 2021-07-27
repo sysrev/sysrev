@@ -160,7 +160,6 @@
     (b/click (xpath "//a[text()='" org-name-1 "']"))
     ;; org-users and projects links exists, but billing link doesn't exist
     (b/is-soon (and (taxi/exists? "#org-members") (taxi/exists? "#org-projects")))
-    (b/is-soon (not (taxi/exists? "#org-billing")))
     ;; group projects exists, but not the create project input
     (b/click "#org-projects")
     (b/exists? "#projects")
@@ -176,7 +175,6 @@
     (b/click "#org-members")
     (b/wait-until-exists (change-user-permission-dropdown (:username test-user)))
     ;; billing link is available
-    (b/exists? "#org-billing")
     ;; duplicate orgs can't be created
     (nav/log-in (:email test-user))
     (b/click "#user-name-link")
@@ -311,10 +309,6 @@
 ;;; org paywall
     ;; go to org, subscribe to basic
     (switch-to-org org-name-1)
-    (b/click "#org-billing")
-    (b/click ".button.nav-plans.unsubscribe")
-    (b/click ".button.unsubscribe-plan")
-    (is (b/exists? ".button.nav-plans.subscribe"))
     ;; go to org projects
     (b/click "#org-projects")
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
@@ -324,12 +318,6 @@
     (b/click ".button.set-publicly-viewable")
     (b/click ".confirm-cancel-form-confirm")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-    ;; renew subscription to unlimited
-    (switch-to-org org-name-1 :silent true)
-    (b/click "#org-billing")
-    (b/click ".button.nav-plans.subscribe")
-    (plans/click-upgrade-plan)
-    (is (b/exists? ".button.nav-plans.unsubscribe"))
     ;; set project to private again
     (switch-to-org org-name-1 :silent true)
     (b/click "#org-projects")
@@ -339,11 +327,6 @@
     (b/click save-options-button)
     ;; downgrade to basic plan again
     (switch-to-org org-name-1 :silent true)
-    (b/click "#org-billing")
-    (b/click ".button.nav-plans.unsubscribe")
-    (b/click ".button.unsubscribe-plan")
-    (log/info "downgraded org plan")
-    (b/exists? ".button.nav-plans.subscribe")
     ;; go to project again
     (b/click "#org-projects")
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
