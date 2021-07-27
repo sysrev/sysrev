@@ -3,7 +3,6 @@
             [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
             [sysrev.payment.plans :as plans]
-            [sysrev.shared.plans-info :as plans-info]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
