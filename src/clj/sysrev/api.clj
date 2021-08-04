@@ -218,7 +218,7 @@
             group-id  (mapv #(change-project-owner % :group-id group-id) users-projects)))))
 
 (defn wrap-import-api [f args]
-  (let [{:keys [error]}
+  (let [{:keys [error import]}
         (try (f args)
              (catch Throwable e
                (log/warn "wrap-import-handler -" (.getMessage e))
@@ -226,7 +226,7 @@
                {:error {:message "Import error"}}))]
     (if error
       {:error error}
-      {:result {:success true}})))
+      {:result {:success @import}})))
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."

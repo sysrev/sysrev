@@ -123,24 +123,24 @@
                   (when on-article-added
                     (try
                       (on-article-added (get new-articles-map article-id))
-                      (catch Throwable e
-                        (log/warn "import-articles-impl: exception in on-article-added")
-                        (log/warn (with-out-str (strace/print-cause-trace-custom e)))
+                      (catch Exception e
+                        (log/error "import-articles-impl: exception in on-article-added")
+                        (log/error (with-out-str (strace/print-cause-trace-custom e)))
                         (throw e))))))))]
     (try (doseq [articles (partition-all 10 (get-articles article-refs))]
            (try (import-group articles)
-                (catch Throwable e
-                  (log/warn "import-articles-impl: error importing group -" (.getMessage e))
-                  (log/warn (with-out-str (strace/print-cause-trace-custom e)))
+                (catch Exception e
+                  (log/error "import-articles-impl: error importing group -" (.getMessage e))
+                  (log/error (with-out-str (strace/print-cause-trace-custom e)))
                   (log/warn "attempting again with individual articles")
                   (doseq [article articles]
                     (try (import-group [article])
-                         (catch Throwable e1
-                           (log/warn "import error for article -" (.getMessage e1))))))))
+                         (catch Exception e1
+                           (log/error "import error for article -" (.getMessage e1))))))))
          true
-         (catch Throwable e
-           (log/warn "import-articles-impl:" (.getMessage e))
-           (log/warn (with-out-str (strace/print-cause-trace-custom e)))
+         (catch Exception e
+           (log/error "import-articles-impl:" (.getMessage e))
+           (log/error (with-out-str (strace/print-cause-trace-custom e)))
            false)
          (finally (db/clear-project-cache project-id)))))
 
@@ -151,19 +151,20 @@
   [project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added types] :as impl}
    {:keys [threads] :as opts}]
-  (if (and (> threads 1) (nil? *conn*))
-    (try (let [group-size (->> (quot (count article-refs) threads) (max 1))
-               thread-groups (->> article-refs (partition-all group-size))
-               threads (doall (for [thread-refs thread-groups]
-                                (future (import-articles-impl
-                                         project-id source-id
-                                         (assoc impl :article-refs thread-refs)
-                                         opts))))]
-           (every? true? (mapv deref threads)))
-         (catch Throwable e
-           (log/warn "Error in import-source-articles:" (.getMessage e))
-           false))
-    (import-articles-impl project-id source-id impl opts)))
+  (db/with-transaction
+    (if (> threads 1)
+      (try (let [group-size (->> (quot (count article-refs) threads) (max 1))
+                 thread-groups (->> article-refs (partition-all group-size))
+                 threads (doall (for [thread-refs thread-groups]
+                                  (future (import-articles-impl
+                                           project-id source-id
+                                           (assoc impl :article-refs thread-refs)
+                                           opts))))]
+             (every? true? (mapv deref threads)))
+           (catch Exception e
+             (log/error "Error in import-source-articles:" (.getMessage e))
+             false))
+      (import-articles-impl project-id source-id impl opts))))
 
 (defn after-source-import
   "Handles success or failure after an import attempt has finished."
@@ -239,26 +240,25 @@
    {:keys [get-article-refs get-articles prepare-article on-article-added types] :as impl}
    {:keys [use-future? user-id threads] :or {use-future? true threads 4}}
    & {:keys [filename file]}]
-  (let [blocking? (boolean (or (not use-future?) *conn*))
-        source-id (source/create-source project-id (assoc source-meta :importing-articles? true))
+  (let [source-id (source/create-source project-id (assoc source-meta :importing-articles? true))
         do-import
         (fn []
-          (->> (try (when (and filename file)
-                      (try (source/save-import-file source-id filename file)
-                           (catch Throwable e
-                             (log/warn "failed to save import file -" (.getMessage e)))))
-                    (import-source-articles
-                     project-id source-id
-                     (-> (assoc impl :article-refs (get-article-refs))
-                         (dissoc :get-article-refs))
-                     {:threads threads :user-id user-id})
-                    (catch Throwable e
-                      (log/warn "import-source-impl failed -" (.getMessage e))
-                      (.printStackTrace e)
-                      false))
-               (after-source-import project-id source-id)))]
+          (db/with-transaction
+            (->> (try
+                   (when (and filename file)
+                     (source/save-import-file source-id filename file))
+                   (import-source-articles
+                    project-id source-id
+                    (-> (assoc impl :article-refs (get-article-refs))
+                        (dissoc :get-article-refs))
+                    {:threads threads :user-id user-id})
+                   (catch Exception e
+                     (log/error "import-source-impl failed -" (.getMessage e))
+                     (.printStackTrace e)
+                     false))
+                 (after-source-import project-id source-id))))]
     {:source-id source-id
-     :import (if blocking? (do-import) (future (do-import)))}))
+     :import (if use-future? (future (do-import)) (do-import))}))
 
 (defmulti import-source
   "Multimethod for import implementation per source type."
