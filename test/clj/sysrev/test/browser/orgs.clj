@@ -211,6 +211,7 @@
     (b/click plans/upgrade-link)
     (b/is-current-path "/user/plans")
     ;; get a plan for user
+    (b/wait-until-displayed ".form.StripeForm")
     (bstripe/enter-cc-information user-cc)
     (plans/click-use-card)
     (plans/click-upgrade-plan)
@@ -293,7 +294,7 @@
     (b/click "#org-projects")
     (create-project-org org-name-1-project)
     (nav/go-project-route "/user/plans")
-    (b/wait-until-loading-completes :pre-wait 100)
+    (b/wait-until-displayed ".form.StripeForm")
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card)
     (plans/click-upgrade-plan)
@@ -322,6 +323,7 @@
     ;; renew subscription to unlimited
     (switch-to-org org-name-1 :silent true)
     (nav/go-project-route "/user/plans")
+    (b/wait-until-displayed ".form.StripeForm")
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card)
     (plans/click-upgrade-plan)
