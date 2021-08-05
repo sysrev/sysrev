@@ -94,7 +94,7 @@
         (let [plan (plans/user-current-plan owner-user-id)]
           (if (or (nil? (:status plan)) ;legacy plan
                   (= (:status plan) "active"))
-            (:product-name plan) 
+            (:product-name plan)
             "Basic"))
         "Basic"))))
 
@@ -1311,7 +1311,7 @@
           ;; set the user as group owner
           (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
           (stripe/create-subscription-org! new-org-id stripe-id)
-          {:success true, :id new-org-id})))))
+          {:success true, :id new-org-id :user-id user-id})))))
 
 (defn create-org-pro!
   "Create a org for user-id using plan and payment method, all in one shot"
@@ -1497,7 +1497,7 @@
         email       (:email (:body request))
         description (:description (:body request))]
     (sendgrid/send-template-email
-     "info@insilica.co"
+     "tom@insilica.co"
      (format "%s - MANAGED REVIEW REQUEST " name)
      (format "Name %s email %s\n%s." name email description))
     {:success true}))

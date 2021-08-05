@@ -546,7 +546,7 @@
     (b/click add-blank-row-button)
     (b/text-is? (sub-label-col-xpath "Categorical Label" 3) "Required")
     ;; has to be done twice in order to actually register
-    (b/click (delete-row-icon 3))
+    ;(b/click (delete-row-icon 3))
     (b/click (delete-row-icon 3))
     (b/is-soon (not (taxi/exists? (delete-row-icon 3))))
     (b/click ".button.save-labels" :displayed? true)
@@ -765,19 +765,7 @@
       (orgs/create-org org-name)
       (b/click "#org-projects")
       (orgs/create-project-org org-project-name)
-      ;; paywall in place?
-      (nav/go-project-route "/labels/edit")
-      (b/exists? "#group-label-paywall")
-      ;; let's sign up for org Pro account
-      (b/click (xpath "//a[contains(text(),'" org-name "')]"))
-      (b/click "#org-billing")
-      (b/click ".subscribe")
-      (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (plans/click-use-card)
-      (plans/click-upgrade-plan)
       ;; now let's check that the paywall is lifted
-      (b/click "#org-projects")
-      (b/click (xpath "//a[contains(text(),'" org-project-name "')]"))
       (nav/go-project-route "/labels/edit")
       (b/exists? (xpath "//button[contains(text(),'Add Group Label')]")))
   :cleanup (b/cleanup-test-user! :email (:email test-user) :groups true))

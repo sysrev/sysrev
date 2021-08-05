@@ -25,15 +25,13 @@
   :content (fn [register-hash] {:register-hash register-hash})
   :process
   (fn [_ [register-hash] {:keys [project org]}]
-    (println org)
     (if project
       {:dispatch-n
        (list [:register/project-id register-hash (:project-id project)]
              [:register/project-name register-hash (:name project)])}
-      {:dispatch-n [[:set-panel-field [:project register-hash :name]
-                     (:name org) register-panel]
-                    [:set-panel-field [:project register-hash :project-id]
-                     (:group-id org) register-panel]]})))
+      {:dispatch-n
+       (list [:register/org-id register-hash (:org-id org)]
+             [:register/org-name register-hash (:name org)])})))
 
 ;; TODO: change this to def-action, doesn't using loaded concept
 (def-data :nav-google-login
@@ -84,6 +82,30 @@
                (reaction
                 (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
                   @(subscribe [:panel-field [:project hash :name] register-panel])))))
+
+(reg-event-fx :register/org-id [trim-v]
+              (fn [_ [register-hash org-id]]
+                {:dispatch [:set-panel-field [:org register-hash :org-id]
+                            org-id register-panel]}))
+
+(reg-sub-raw :register/org-id
+             (fn [_ [_ register-hash]]
+               (reaction
+                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                  @(subscribe [:panel-field [:org hash :org-id]
+                               register-panel])))))
+
+(reg-event-fx :register/org-name [trim-v]
+              (fn [_ [register-hash org-name]]
+                {:dispatch [:set-panel-field [:org register-hash :name]
+                            org-name register-panel]}))
+
+(reg-sub-raw :register/org-name
+             (fn [_ [_ register-hash]]
+               (reaction
+                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                  @(subscribe [:panel-field [:org hash :name] register-panel])))))
+
 
 (reg-event-fx :register/login? [trim-v]
               (fn [_ [login?]]
@@ -148,7 +170,7 @@
            {:email email :password password}))
 
 (reg-event-fx ::submit-form [trim-v]
-              (fn [_ [{:keys [email password register? project-id redirect]}]]
+              (fn [_ [{:keys [email password register? project-id org-id redirect]}]]
                 (let [fields {:email email :password password}
                       errors (validate fields login-validation)]
                   (cond (or (empty? email) (empty? password))
@@ -161,7 +183,7 @@
                         {:dispatch-n
                          (list [::set-submitted]
                                [::set-submitted-fields fields]
-                               [:action [:auth/register email password project-id redirect]])}
+                               [:action [:auth/register email password project-id org-id redirect]])}
                         :else
                         {:dispatch-n
                          (list [::set-submitted]
@@ -235,6 +257,8 @@
         register? @(subscribe [::register?])
         project-id @(subscribe [:register/project-id])
         project-name @(subscribe [:register/project-name])
+        org-id @(subscribe [:register/org-id])
+        org-name @(subscribe [:register/org-name])
         register-hash @(subscribe [:register/register-hash])
         form-errors @(subscribe [::form-errors])
         field-class #(if (get form-errors %) "error" "")
@@ -266,6 +290,7 @@
                                         :password password
                                         :register? register?
                                         :project-id project-id
+                                        :org-id org-id
                                         :redirect redirect}])))}
          [:h1 {:style {:margin-top 5 :font-size "48px"}}
           (if register? "Try Sysrev for Free" "Log In to Sysrev")]
@@ -334,16 +359,21 @@
   [:div.ui.padded.segments.auto-margin.join-project-panel
    (doall children)])
 
-(defn join-project-panel []
+(defn join-object-panel []
   (let [redirecting? (atom nil)]
     (fn []
       (let [register-hash @(subscribe [:register/register-hash])
             project-id @(subscribe [:register/project-id])
             project-name @(subscribe [:register/project-name])
+            org-id @(subscribe [:register/org-id])
+            org-name @(subscribe [:register/org-name])
+            object-id (or project-id org-id)
+            object-name (or project-name org-name)
             member? @(subscribe [:self/member? project-id])]
         (with-loader [[:consume-register-hash register-hash]] {}
           (cond
-            (nil? project-id)
+            (and (nil? project-id)
+                 (nil? org-id))
             [wrap-join-project
              [:h3.ui.center.aligned.header.segment
               {:key [1]}
@@ -360,7 +390,7 @@
               {:key [1]}
               [:h4.ui.header
                [:i.grey.list.alternate.outline.icon]
-               [:div.content project-name]]]
+               [:div.content object-name]]]
              [:div.ui.center.aligned.segment
               {:key [2]}
               (when-not @redirecting?
@@ -381,15 +411,14 @@
               {:key [2]}
               [:h4.ui.header
                [:i.grey.list.alternate.outline.icon]
-               [:div.content project-name]]]
+               [:div.content object-name]]]
              [:div.ui.center.aligned.segment
               {:key [3]}
               [:button.ui.fluid.primary.button
                {:on-click #(dispatch [:action [:join-project project-id]])}
-               ;"Join Project"
-               "Join Organization"
-               
-               ]]]))))))
+               (if project-id
+                 "Join Project"
+                 "Join Organization")]]]))))))
 
 (defn- redirect-root-content []
   (nav/nav "/")
@@ -397,9 +426,10 @@
 
 (defn- register-logged-in-content []
   (if (and (nil? @(subscribe [:register/project-id]))
+           (nil? @(subscribe [:register/org-id]))
            (nil? @(subscribe [:register/register-hash])))
     [redirect-root-content]
-    [join-project-panel]))
+    [join-object-panel]))
 
 (def-panel :uri "/login" :panel [:login]
   :on-route (dispatch [:set-active-panel [:login]])

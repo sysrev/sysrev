@@ -11,7 +11,7 @@
 (defn user-current-plan
   "Get the plan for which user is currently subscribed"
   [user-id]
-  (first (q/find [:plan-user :pu] {:user-id user-id} [:pu.* :sp.nickname :sp.interval :sp.id :sp.amount]
+  (first (q/find [:plan-user :pu] {:user-id user-id} [:pu.* :sp.nickname :sp.interval :sp.id :sp.amount :sp.tiers :sp.product-name]
                  :join [[:stripe-plan :sp] [:= :pu.plan :sp.id]]
                  :order-by [:pu.created :desc], :limit 1)))
 

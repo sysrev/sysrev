@@ -313,7 +313,7 @@
                (case (:type data)
                  "org-invite-hash"
                  ;;#_(api/set-user-group! user-id (group/group-id->name (:org-id data)) true)
-                 {:org {:group-id (:org-id data)
+                 {:org {:org-id (:org-id data)
                         :name (group/group-id->name (:org-id data))}})
                (let [project-id (project/project-id-from-register-hash register-hash)]
                  {:project (when project-id

@@ -11,7 +11,7 @@
             [sysrev.views.semantic :as S :refer
              [Segment SegmentGroup Grid Column Row ListUI ListItem Button Loader Radio]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
-            [sysrev.views.panels.pricing :as pricing :refer [FreeBenefits ProBenefits]]
+            [sysrev.views.panels.pricing :as pricing :refer [FreeBenefits]]
             [sysrev.util :as util :refer [sum]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
@@ -99,18 +99,6 @@
            (str "$" (util/cents->dollars
                      (:amount @plan)) " / " (:interval @plan))
            ")")])
-
-(defn Unlimited2 [{:keys [amount interval] :as _plan}]
-  [Segment
-   (if-not amount
-     [Loader {:active true :inline "centered"}]
-     [Grid {:stackable true}
-      [Row
-       [Column {:width 10}
-        [:b "Pro Plan"]
-        [ProBenefits]]
-       [Column {:width 6 :align "right"}
-        [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
 
 (defn price-summary [member-count tiers]
   (let [base (->> tiers (map :flat_amount) (filter int?) sum)

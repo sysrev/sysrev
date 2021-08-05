@@ -325,12 +325,12 @@
     (is (= "Basic" (get-db-plan)))
     ;; pay yearly
     (b/click (xpath "//label[contains(text(),'Pay Yearly')]"))
-    (b/wait-until-displayed (xpath "//h3[contains(text(),'$120.00 / year')]"))
+    (b/wait-until-displayed (xpath "//h3[contains(text(),'$360.00 / year')]"))
     ;; update payment method
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (click-use-card)
     (click-upgrade-plan)
     ;; we have an unlimited plan
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
-    (is (= "Unlimited_User_Annual" (get-db-plan))))
+    (is (= plans-info/unlimited-user-annual (get-db-plan))))
   :cleanup (b/cleanup-test-user! :email email))
