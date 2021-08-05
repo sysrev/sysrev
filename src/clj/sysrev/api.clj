@@ -220,9 +220,9 @@
 (defn wrap-import-api [f args]
   (let [{:keys [error import]}
         (try (f args)
-             (catch Throwable e
-               (log/warn "wrap-import-handler -" (.getMessage e))
-               (log/warn (with-out-str (print-cause-trace-custom e)))
+             (catch Exception e
+               (log/error "wrap-import-handler -" (.getMessage e))
+               (log/error (with-out-str (print-cause-trace-custom e)))
                {:error {:message "Import error"}}))]
     (if error
       {:error error}
