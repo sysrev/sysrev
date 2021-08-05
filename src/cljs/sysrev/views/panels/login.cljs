@@ -258,7 +258,7 @@
         project-id @(subscribe [:register/project-id])
         project-name @(subscribe [:register/project-name])
         org-id @(subscribe [:register/org-id])
-        org-name @(subscribe [:register/org-name])
+        _org-name @(subscribe [:register/org-name])
         register-hash @(subscribe [:register/register-hash])
         form-errors @(subscribe [::form-errors])
         field-class #(if (get form-errors %) "error" "")
@@ -367,7 +367,7 @@
             project-name @(subscribe [:register/project-name])
             org-id @(subscribe [:register/org-id])
             org-name @(subscribe [:register/org-name])
-            object-id (or project-id org-id)
+            _object-id (or project-id org-id)
             object-name (or project-name org-name)
             member? @(subscribe [:self/member? project-id])]
         (with-loader [[:consume-register-hash register-hash]] {}

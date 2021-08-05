@@ -7,9 +7,7 @@
             [sysrev.nav :as nav :refer [nav]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util]
-            [sysrev.data.core :refer [load-data]]
             [sysrev.views.panels.org.main :as orgmain]
-            [sysrev.state.identity :as iden]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.org.plans :refer [Unlimited ToggleInterval TeamProPlanPrice]]
             [sysrev.views.semantic :refer [Form FormField Button Segment Header Input

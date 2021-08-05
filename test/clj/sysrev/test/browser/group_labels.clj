@@ -22,7 +22,6 @@
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.pubmed :as pubmed]
             [sysrev.test.browser.review-articles :as ra]
-            [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.sources :refer [unique-count-span]]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]))
