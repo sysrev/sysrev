@@ -5,6 +5,7 @@
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :as data :refer [def-data load-data reload]]
+            [sysrev.nav :as nav]
             [sysrev.views.semantic :as S :refer
              [Table TableBody TableRow TableCell Search Button
               Modal ModalHeader ModalContent ModalDescription Form FormGroup Checkbox
@@ -27,6 +28,17 @@
                                (contains? :users)))
   :process (fn [{:keys [db]} [org-id] {:keys [users]}]
              {:db (assoc-in db [:org org-id :users] users)}))
+
+(def-action :org/get-share-code
+  :uri (fn [org-id] (str "/api/org/" org-id "/get-share-code"))
+  :content (fn [org-id]
+             {:org-id org-id})
+  :process (fn [_ [_] {:keys [success share-code]}]
+             (when success
+               {:dispatch [::set [:org-invite-url-modal :share-code] share-code]}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:dispatch [:alert {:opts {:error true}
+                                  :content (str "There was an error generating the invite URL")}]}))
 
 (defn org-users [db org-id] (get-in db [:org org-id :users]))
 
@@ -85,6 +97,39 @@
                :dispatch [:data/load [:org/users org-id]]})
   :on-error (fn [{:keys [db error]} _ _]
               {:db (panel-set db [:change-role :error] (:message error))}))
+
+(defn OrgInviteUrlModal [org-id]
+  (let [modal-state-path [:org-invite-url-modal]
+        modal-open (r/cursor state (concat modal-state-path [:open]))
+        share-code (r/cursor state (concat modal-state-path [:share-code]))]
+    (fn []
+      [Modal {:trigger (r/as-element
+                         [:div.ui.button.org-invite-url-button
+                          {:style {:margin-left 12 :margin-right 0}
+                           :on-click #(dispatch [:action [:org/get-share-code org-id]])}
+                          "Invite URL"])
+              ;:class "tiny"
+              :open @modal-open
+              :on-open #(reset! modal-open true)
+              :on-close #(reset! modal-open false)}
+       [ModalHeader "Invite URL"]
+       [ModalContent
+        (if @share-code
+          [:div
+           [:p "Copy this URL to invite members:"]
+           [:div.ui.card.fluid {:style {:margin-bottom "16px"}}
+            [:div.content
+             [:span.share-code.ui.text.black
+              (str (nav/current-url-base) "/register/" @share-code)]]]]
+          [:div.ui.segment {:style {:height "100px"}}
+           [:div.ui.active.dimmer
+            [:div.ui.loader]]])
+        [ModalDescription
+         [Button {:primary true
+                  :on-click (util/wrap-prevent-default
+                              #(reset! modal-open false))
+                  :id "close-invite-org-btn"}
+          "OK"]]]])))
 
 (defn- AddModal [org-id]
   (let [modal-open      (r/cursor state [:add-user :open])
@@ -263,7 +308,9 @@
     (with-loader [[:org/users org-id]] {}
       [:div
        (when (some #{"owner"} @(subscribe [:org/permissions org-id]))
-         [AddModal org-id])
+         [:<>
+          [AddModal org-id] 
+          [OrgInviteUrlModal org-id]])
        [ChangeRoleModal org-id]
        [RemoveModal org-id]
        [UsersTable org-id]])))

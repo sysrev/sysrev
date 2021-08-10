@@ -84,14 +84,21 @@
 
 (s/def ::project ::sp/project-partial)
 
+(declare set-user-group!)
+
 (defn project-owner-plan
   "Return the plan name for the project owner of project-id"
   [project-id]
   (with-transaction
-    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)]
-      (cond user-id   (:nickname (plans/user-current-plan user-id))
-            group-id  (:nickname (plans/group-current-plan group-id))
-            :else     "Basic"))))
+    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)
+          owner-user-id (or user-id (and group-id (group/get-group-owner group-id)))]
+      (if owner-user-id
+        (let [plan (plans/user-current-plan owner-user-id)]
+          (if (or (nil? (:status plan)) ;legacy plan
+                  (= (:status plan) "active"))
+            (:product-name plan)
+            "Basic"))
+        "Basic"))))
 
 (defn- project-grandfathered? [project-id]
   (let [{:keys [date-created]} (q/find-one :project {:project-id project-id})]
@@ -101,7 +108,7 @@
 (defn project-unlimited-access? [project-id]
   (with-transaction
     (or (project-grandfathered? project-id)
-        (contains? #{"Unlimited_Org" "Unlimited_User" "Unlimited_User_Annual" "Unlimited_Org_Annual"} (project-owner-plan project-id)))))
+        (contains? #{"Premium"} (project-owner-plan project-id)))))
 
 (defn change-project-settings [project-id changes]
   (with-transaction
@@ -397,7 +404,7 @@
 
 (defn register-user!
   "Register a user and add them as a stripe customer"
-  [email password & {:keys [project-id google-user-id]}]
+  [email password & {:keys [project-id org-id google-user-id]}]
   (assert (string? email))
   (with-transaction
     (let [user (user-by-email email)
@@ -406,7 +413,9 @@
                         (let [u (user/create-user email password
                                                   :google-user-id google-user-id)]
                           (when project-id
-                            (member/add-project-member project-id (:user-id user)))
+                            (member/add-project-member project-id (:user-id u)))
+                          (when org-id
+                            (set-user-group! (:user-id u) (group/group-id->name org-id) true))
                           u)
                         true
                         (catch Throwable e e)))]
@@ -455,7 +464,8 @@
   {:success true, :plan (plans/user-current-plan user-id)})
 
 (defn group-current-plan [group-id]
-  {:success true, :plan (plans/group-current-plan group-id)})
+  (let [owner-user-id (group/get-group-owner group-id)]
+    (user-current-plan owner-user-id)))
 
 ;; manually add:
 ;; 1. connect to prod database
@@ -465,8 +475,7 @@
 ;; 3. Check the plan id matches the one on stripe.com
 ;; (stripe/get-plan-id "Unlimited_User")
 ;; 4. subscribe the user
-;; (subscribe-user-to-plan <user-id> "Unlimited_User") or
-;; (subscribe-user-to-plan <user-id> "Unlimited_Org")
+;; (subscribe-user-to-plan <user-id> "Unlimited_User")
 (defn subscribe-user-to-plan [user-id plan]
   (with-transaction
     (let [{:keys [sub-id]} (plans/user-current-plan user-id)
@@ -581,19 +590,6 @@
     (stripe/cancel-subscription! id)
     {:success true}))
 
-(defn user-available-plans
-  []
-  {:success true
-   :plans
-   (->> (stripe/get-plans)
-        :data
-        (map #(select-keys % [:amount :nickname :id :interval]))
-        (filter #(let [nickname (:nickname %)]
-                   (when-not (nil? nickname)
-                     (or (re-matches #"Unlimited_User.*" nickname)
-                         (= "Basic" nickname)))))
-        (into []))})
-
 (defn org-available-plans
   []
   {:success true
@@ -606,6 +602,9 @@
                      (or (re-matches #"Unlimited_Org.*" nickname)
                          (= "Basic" nickname)))))
         (into []))})
+
+;; Everyone is Premium (formerly team pro) now
+(def user-available-plans org-available-plans)
 
 (defn ^:unused finalize-stripe-user!
   "Save a stripe user in our database for payouts"
@@ -1316,7 +1315,7 @@
           ;; set the user as group owner
           (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
           (stripe/create-subscription-org! new-org-id stripe-id)
-          {:success true, :id new-org-id})))))
+          {:success true, :id new-org-id :user-id user-id})))))
 
 (defn create-org-pro!
   "Create a org for user-id using plan and payment method, all in one shot"
@@ -1502,7 +1501,7 @@
         email       (:email (:body request))
         description (:description (:body request))]
     (sendgrid/send-template-email
-     "info@insilica.co"
+     "tom@insilica.co"
      (format "%s - MANAGED REVIEW REQUEST " name)
      (format "Name %s email %s\n%s." name email description))
     {:success true}))

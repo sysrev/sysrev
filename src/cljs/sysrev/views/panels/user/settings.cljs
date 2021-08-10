@@ -4,7 +4,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.views.semantic :as S :refer
              [Segment Header Grid Column Radio Message]]
-            [sysrev.stripe :as stripe]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
@@ -236,14 +236,14 @@
           [:br]
           [:p "In addition to the SysRev and Datasource GraphQL interface, we provide an " [:a {:href "https://github.com/sysrev/RSysrev" :target "_blank"} "R library"] "."]
           [:br]]
-         (when (and (not (stripe/pro? (:nickname @plan)))
+         (when (and (not (plans-info/pro? (:nickname @plan)))
                     (not @enabled?))
            [:p [:b "Developer Accounts can only be activated by paid subscribers"]])
          [Radio {:toggle true
                  :id "enable-dev-account"
                  :label "Developer Account"
                  :checked @enabled?
-                 :disabled (not (stripe/pro? (:nickname @plan)))
+                 :disabled (not (plans-info/pro? (:nickname @plan)))
                  :on-click (fn [_e] (toggle-dev-account! enabled?))}]
          [ui/CursorMessage error-message {:negative true}]])
       :get-initial-state (fn [_this]

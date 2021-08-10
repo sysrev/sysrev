@@ -5,7 +5,8 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.group.core :as group]
             [sysrev.payment.stripe :as stripe]
-            [sysrev.payment.plans :refer [user-current-plan group-current-plan]]
+            [sysrev.payment.plans :refer [user-current-plan]]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
@@ -19,8 +20,8 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 ;; pricing workflow elements
-(def choose-team-pro-button (xpath "//a[contains(text(),'Choose Team Pro')]"))
-(def continue-with-team-pro (xpath "//div[contains(text(),'Continue with Team Pro')]"))
+(def choose-team-pro-button (xpath "//a[contains(text(),'Choose Team Premium')]"))
+(def continue-with-team-pro (xpath "//div[contains(text(),'Continue with Team Premium')]"))
 (def create-organization (xpath "//span[contains(text(),'Create Organization')]"))
 (def create-account (xpath "//h3[contains(text(),'Create a free account before moving on to team creation')]"))
 (def create-team (xpath "//h3[contains(text(),'create a Sysrev organization for your team')]"))
@@ -157,9 +158,8 @@
     (b/click "#user-name-link")
     (b/click "#user-orgs")
     (b/click (xpath "//a[text()='" org-name-1 "']"))
-    ;; org-users and projects links exists, but billing link doesn't exist
+    ;; org-users and projects links exists
     (b/is-soon (and (taxi/exists? "#org-members") (taxi/exists? "#org-projects")))
-    (b/is-soon (not (taxi/exists? "#org-billing")))
     ;; group projects exists, but not the create project input
     (b/click "#org-projects")
     (b/exists? "#projects")
@@ -174,8 +174,6 @@
     ;; can change user permissions for browser+test
     (b/click "#org-members")
     (b/wait-until-exists (change-user-permission-dropdown (:username test-user)))
-    ;; billing link is available
-    (b/exists? "#org-billing")
     ;; duplicate orgs can't be created
     (nav/log-in (:email test-user))
     (b/click "#user-name-link")
@@ -203,7 +201,7 @@
       (user/create-user-stripe-customer! (user-by-email email)))
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
-    (b/is-soon (= stripe/default-plan (:nickname (user-current-plan user-id))) 5000 250)
+    (b/is-soon (= plans-info/default-plan (:nickname (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
     (nav/log-in (:email test-user))
 ;;; user pay wall
@@ -213,6 +211,7 @@
     (b/click plans/upgrade-link)
     (b/is-current-path "/user/plans")
     ;; get a plan for user
+    (b/wait-until-displayed ".form.StripeForm")
     (bstripe/enter-cc-information user-cc)
     (plans/click-use-card)
     (plans/click-upgrade-plan)
@@ -286,7 +285,7 @@
     (when-not (user-current-plan user-id)
       (stripe/create-subscription-user! (user-by-email email)))
     ;; current plan
-    (b/is-soon (= stripe/default-plan (:nickname (user-current-plan user-id))) 5000 250)
+    (b/is-soon (= plans-info/default-plan (:nickname (user-current-plan user-id))) 5000 250)
     (plans/wait-until-stripe-id email)
     ;; start tests
     (nav/log-in (:email test-user))
@@ -296,39 +295,37 @@
     (create-project-org org-name-1-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
-    (b/click plans/upgrade-link)
-    ;; subscribe to plans
-    (log/info "attempting plan subscription")
-    ;; enter payment information
-    (bstripe/enter-cc-information org-cc)
+    (nav/go-route "/user/plans")
+    (b/wait-until-displayed ".form.StripeForm")
+    (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (plans/click-use-card)
     (plans/click-upgrade-plan)
-    ;; should be back at project settings
+    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+    (switch-to-org org-name-1)
+    (b/click "#org-projects")
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
+    (nav/go-project-route "/settings")
     (b/click set-private-button :delay 100)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button))
 ;;; org paywall
     ;; go to org, subscribe to basic
-    (switch-to-org org-name-1)
-    (b/click "#org-billing")
-    (b/click ".button.nav-plans.unsubscribe")
+    (b/click "#user-name-link")
+    (b/click "#user-billing")
+    (b/click ".button.nav-plans.unsubscribe" :displayed? true)
     (b/click ".button.unsubscribe-plan")
     (is (b/exists? ".button.nav-plans.subscribe"))
+    (switch-to-org org-name-1)
     ;; go to org projects
     (b/click "#org-projects")
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
-    ;; should redirect to /org/<org-id>/plans
-    (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     ;; set the project publicly viewable
     (b/click ".button.set-publicly-viewable")
     (b/click ".confirm-cancel-form-confirm")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-    ;; renew subscription to unlimited
-    (switch-to-org org-name-1 :silent true)
-    (b/click "#org-billing")
-    (b/click ".button.nav-plans.subscribe")
+    (nav/go-route "/user/plans")
     (plans/click-upgrade-plan)
-    (is (b/exists? ".button.nav-plans.unsubscribe"))
+    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
     ;; set project to private again
     (switch-to-org org-name-1 :silent true)
     (b/click "#org-projects")
@@ -337,114 +334,16 @@
     (b/click set-private-button)
     (b/click save-options-button)
     ;; downgrade to basic plan again
-    (switch-to-org org-name-1 :silent true)
-    (b/click "#org-billing")
-    (b/click ".button.nav-plans.unsubscribe")
+    (b/click "#user-name-link")
+    (b/click "#user-billing")
+    (b/click ".button.nav-plans.unsubscribe" :displayed? true)
     (b/click ".button.unsubscribe-plan")
     (log/info "downgraded org plan")
-    (b/exists? ".button.nav-plans.subscribe")
-    ;; go to project again
-    (b/click "#org-projects")
-    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
-    ;; paywall is in place
-    (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]"))
-    (b/click (xpath "//a[contains(text(),'Upgrade your plan')]"))
-    (log/info "got paywall on org project")
-    (plans/click-upgrade-plan)
-    ;; paywall has been lifted
-    (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
+    (b/exists? ".button.nav-plans.subscribe"))
   :cleanup (b/cleanup-test-user! :email email :groups true))
 
 (defn user-groups [email]
   (-> (user-by-email email :user-id)
       (group/read-groups)))
 
-;; test no-account pricing org sign up
-(deftest-browser subscribe-to-org-unlimited-through-pricing-no-account
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [org-name (str "Foo Bar Inc. " (random-id))
-   email (format "foo+%s@bar.com" (random-id))]
-  (do
-    (nav/go-route "/pricing")
-    (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
-    (b/wait-until-displayed choose-team-pro-button)
-    (b/click choose-team-pro-button)
-    ;; register
-    (b/wait-until-displayed create-account)
-    (b/set-input-text "input[name='email']" email)
-    (b/set-input-text "input[name='password']" b/test-password)
-    (b/click "button[name='submit']")
-    ;; create a team
-    (b/wait-until-displayed create-team)
-    (b/set-input-text-per-char "#create-org-input" org-name)
-    (b/click "#create-org-button")
-    ;; upgrade plan
-    (b/wait-until-displayed enter-payment-information)
-    ;; update payment method
-    (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-    (plans/click-use-card)
-    ;; ;; we have an unlimited plan
-    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
-    (is (= "Unlimited_Org" (-> (user-groups email)
-                               first
-                               :group-id
-                               group-current-plan
-                               :nickname))))
-  :cleanup (b/cleanup-test-user! :email email :groups true))
 
-;; test that pricing works from any point in the workflow
-(deftest-browser org-pricing-flow-intermittent
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
-  [email (format "baz+%s@qux.com" (random-id))
-   org-name (str "Foo Bar Inc. " (random-id))]
-  (do
-    (nav/go-route "/pricing")
-    (taxi/execute-script "window.scrollTo(0,document.body.scrollHeight);")
-    (b/wait-until-displayed choose-team-pro-button)
-    (b/click choose-team-pro-button)
-    (b/wait-until-displayed create-account)
-    (b/set-input-text "input[name='email']" email)
-    (b/set-input-text "input[name='password']" b/test-password)
-    (b/click "button[name='submit']")
-    ;; don't create a team
-    (b/wait-until-displayed create-team)
-    (nav/go-route "/")
-    ;; let's go through pricing again for a team pro account
-    (b/wait-until-displayed plans/pricing-link)
-    (b/click plans/pricing-link)
-    (b/wait-until-displayed continue-with-team-pro)
-    (b/click continue-with-team-pro)
-    (b/click create-organization)
-    ;; create a team
-    (b/wait-until-displayed create-team)
-    (b/set-input-text-per-char "#create-org-input" org-name)
-    (b/click "#create-org-button")
-    (b/wait-until-displayed enter-payment-information)
-    (b/wait-until-loading-completes :pre-wait 100)
-    ;; whoops nevermind, got cold feet
-    (nav/go-route "/")
-    ;; let's try to pay again
-    (b/click plans/pricing-link)
-    ;; click the existing team
-    (taxi/refresh)
-    (b/wait-until-displayed continue-with-team-pro)
-    (b/click continue-with-team-pro)
-    ;; we have to create an org again our last one didn't save
-    (b/click create-organization)
-    (b/wait-until-displayed create-team)
-    (b/set-input-text-per-char "#create-org-input" org-name)
-    (b/click "#create-org-button")
-    ;; upgrade plan
-    (b/wait-until-displayed enter-payment-information)
-    ;; update payment method
-    (bstripe/enter-cc-information
-     {:cardnumber bstripe/valid-visa-cc})
-    (plans/click-use-card)
-    ;; ;; we have an unlimited plan
-    (b/wait-until-displayed ".button.nav-plans.unsubscribe")
-    (is (= "Unlimited_Org" (-> (user-groups email)
-                               first
-                               :group-id
-                               group-current-plan
-                               :nickname))))
-  :cleanup (b/cleanup-test-user! :email email :groups true))

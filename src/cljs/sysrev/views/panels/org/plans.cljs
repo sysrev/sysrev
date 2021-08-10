@@ -93,7 +93,7 @@
      [Grid {:stackable true}
       [Row
        [Column {:width 10}
-        [:b "Team Pro Plan"]
+        [:b "Premium Plan"]
         [pricing/TeamProBenefits]]
        [Column {:width 6 :align "right"}
         (let [{:keys [base per-user up-to]} (price-summary 0 tiers)]
@@ -144,7 +144,7 @@
                           [:p msg]])]]]]]]]])))
 
 (defn TeamProPlanPrice [plan]
-  [:p (str "Team Pro Plan ("
+  [:p (str "Premium Plan ("
            (str "$" (-> plan
                         :tiers
                         ;; this needs to be changed to actually
@@ -170,7 +170,7 @@
           [Loader {:active true :inline "centered"}]
           [:div
            (when-not (and (not mobile?) changing-interval?)
-             [:h1 "Upgrade from Basic to Team Pro"])
+             [:h1 "Upgrade from Basic to Premium"])
            [:h2 "Team: " @(subscribe [:org/name org-id])]
            [Grid {:stackable true :columns 2 :class "upgrade-plan"}
             [Column

@@ -87,8 +87,8 @@
               {:session {:settings (select-keys settings [:ui-theme])}}))))
 
 (dr (POST "/api/auth/register" request
-          (let [{:keys [email password project-id]} (:body request)]
-            (api/register-user! email password :project-id project-id))))
+          (let [{:keys [email password project-id org-id]} (:body request)]
+            (api/register-user! email password :project-id project-id :org-id org-id))))
 
 (dr (GET "/api/auth/register/google" request
          #_ (log/infof "auth/register/google:\n%s" (util/pp-str request))

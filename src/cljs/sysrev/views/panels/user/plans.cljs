@@ -7,11 +7,12 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.semantic :as S :refer
              [Segment SegmentGroup Grid Column Row ListUI ListItem Button Loader Radio]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
-            [sysrev.views.panels.pricing :refer [FreeBenefits ProBenefits]]
-            [sysrev.util :as util]
+            [sysrev.views.panels.pricing :as pricing :refer [FreeBenefits]]
+            [sysrev.util :as util :refer [sum]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
 ;; for clj-kondo
@@ -99,17 +100,30 @@
                      (:amount @plan)) " / " (:interval @plan))
            ")")])
 
-(defn Unlimited [{:keys [amount interval] :as _plan}]
+(defn price-summary [member-count tiers]
+  (let [base (->> tiers (map :flat_amount) (filter int?) sum)
+        per-user (->> tiers (map :unit_amount) (filter int?) sum)]
+    {:base base :per-user per-user
+     :up-to (->> tiers (map :up_to) (filter int?) first)
+     :monthly-bill (+ base (* (max 0 (- member-count 5)) per-user))}))
+
+(defn Unlimited [{:keys [tiers interval] :as _plan}]
   [Segment
-   (if-not amount
+   (if-not tiers
      [Loader {:active true :inline "centered"}]
      [Grid {:stackable true}
       [Row
        [Column {:width 10}
-        [:b "Pro Plan"]
-        [ProBenefits]]
+        [:b "Premium Plan"]
+        [pricing/TeamProBenefits]]
        [Column {:width 6 :align "right"}
-        [Row [:h3 (str "$" (util/cents->dollars amount) " / " interval)]]]]])])
+        (let [{:keys [base per-user up-to]} (price-summary 0 tiers)]
+          [:div
+           [Row [:h3 (str "$" (util/cents->dollars base) " / " interval)]]
+           [Row [:h3 (str "up to " up-to " members")]]
+           [:br]
+           [Row [:h3 "$ " (util/cents->dollars per-user) " / " interval]]
+           [Row [:h3 "per additional member"]]])]]])])
 
 (defn BasicPlan [{:keys [amount interval] :as _plan}]
   [Segment
@@ -185,14 +199,14 @@
     (fn [available-plans]
       (when (and (not (nil? @available-plans))
                  (nil? @new-plan ))
-        (reset! new-plan (medley/find-first #(= (:nickname %) "Unlimited_User") @available-plans)))
+        (reset! new-plan (medley/find-first #(= (:nickname %) plans-info/unlimited-user) @available-plans)))
       (if (empty? @available-plans)
         [Loader {:active true
                  :inline "centered"}]
         [:div
          (when-not (and (not mobile?)
                         changing-interval?)
-           [:h1 "Upgrade from Basic to Pro"])
+           [:h1 "Upgrade from Basic to Premium"])
          [Grid {:stackable true :columns 2 :class "upgrade-plan"}
           [Column
            [Grid [Row [Column
@@ -278,7 +292,7 @@
           [UpgradePlan (subscribe [:user/available-plans])]
           (= (:nickname current-plan) "Basic")
           [UpgradePlan (subscribe [:user/available-plans])]
-          (contains? #{"Unlimited_User" "Unlimited_User_Annual"} (:nickname current-plan))
+          (plans-info/pro? (:nickname current-plan))
           [DowngradePlan]
           :else
           [Loader {:active true :inline "centered"}])))))

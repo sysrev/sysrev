@@ -7,6 +7,7 @@
             [sysrev.nav :as nav :refer [nav]]
             [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util]
+            [sysrev.views.panels.org.main :as orgmain]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.org.plans :refer [Unlimited ToggleInterval TeamProPlanPrice]]
             [sysrev.views.semantic :refer [Form FormField Button Segment Header Input
@@ -26,8 +27,9 @@
 (def-action :org/create
   :uri (constantly "/api/org")
   :content (fn [org-name _] {:org-name org-name})
-  :process (fn [_ [_ redirect-subpath] {:keys [id]}]
-             {:nav [(str "/org/" id (or redirect-subpath "/projects"))]})
+  :process (fn [_ [_ redirect-subpath] {:keys [id user-id]}]
+             {:nav [(str "/org/" id (or redirect-subpath "/projects"))]
+              :dispatch [:reload [::orgmain/orgs]]})
   :on-error (fn [{:keys [error]} _ _]
               {:dispatch [::set :create-org-error (:message error)]}))
 

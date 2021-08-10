@@ -6,6 +6,7 @@
             [sysrev.db.queries :as q]
             [sysrev.notification.interface :refer [subscribe-to-topic subscriber-for-user
                                                    topic-for-name unsubscribe-from-topic]]
+            [sysrev.encryption :as enc]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
             [sysrev.shared.spec.core :as sc]
@@ -163,3 +164,8 @@
                      limit])]
       ;; check to see if we have results before returning the public info
       user-ids)))
+
+(defn get-share-hash [org-id]
+  (enc/encrypt-wrap64 {:type "org-invite-hash"
+                       :org-id org-id}))
+

@@ -13,7 +13,7 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :as source-view]
             [sysrev.views.uppy :as uppy]
-            [sysrev.stripe :as stripe]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button
                                            Modal ModalHeader ModalContent ModalDescription
@@ -103,7 +103,7 @@
         project-id @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
         has-pro? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
-                     (stripe/pro? project-plan))
+                     (plans-info/pro? project-plan))
         source-check-new-results? (r/cursor state (concat modal-state-path [:form-data :check-new-results?]))
         source-import-new-results? (r/cursor state (concat modal-state-path [:form-data :import-new-results?]))
         source-notes (r/cursor state (concat modal-state-path [:form-data :notes]))]

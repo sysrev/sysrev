@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.analytics
   (:require [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.core :refer [reload]]
-            [sysrev.stripe :as stripe]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.shared.text :as shared]))
 
@@ -62,7 +62,7 @@
        (= project-id 40169)   [:div [DemoMessage] child]
        (not admin?)           [NotAdminDescription]
        ;; project admins of paid plan projects can see analytics
-       (and admin? (stripe/pro? project-plan))  child
+       (and admin? (plans-info/pro? project-plan))  child
        :else                  [Paywall])]))
 
 (def-panel :project? true :panel panel

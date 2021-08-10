@@ -22,7 +22,6 @@
             [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.pubmed :as pubmed]
             [sysrev.test.browser.review-articles :as ra]
-            [sysrev.test.browser.stripe :as bstripe]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.sources :refer [unique-count-span]]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]))
@@ -765,19 +764,7 @@
       (orgs/create-org org-name)
       (b/click "#org-projects")
       (orgs/create-project-org org-project-name)
-      ;; paywall in place?
-      (nav/go-project-route "/labels/edit")
-      (b/exists? "#group-label-paywall")
-      ;; let's sign up for org Pro account
-      (b/click (xpath "//a[contains(text(),'" org-name "')]"))
-      (b/click "#org-billing")
-      (b/click ".subscribe")
-      (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
-      (plans/click-use-card)
-      (plans/click-upgrade-plan)
       ;; now let's check that the paywall is lifted
-      (b/click "#org-projects")
-      (b/click (xpath "//a[contains(text(),'" org-project-name "')]"))
       (nav/go-project-route "/labels/edit")
       (b/exists? (xpath "//button[contains(text(),'Add Group Label')]")))
   :cleanup (b/cleanup-test-user! :email (:email test-user) :groups true))

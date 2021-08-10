@@ -5,6 +5,7 @@
             [sysrev.data.core :refer [load-data]]
             [sysrev.nav :as nav]
             [sysrev.stripe :as stripe]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.semantic :refer
              [Segment Grid Column Button Icon Loader Header ListUI ListItem]]
             [sysrev.util :as util :refer [css parse-integer]]
@@ -55,7 +56,7 @@
 (defn Plan [{:keys [plans-url current-plan]}]
   (let [basic? (= (:nickname current-plan) "Basic")
         {:keys [nickname interval]} current-plan
-        unlimited? (stripe/pro? nickname)
+        unlimited? (plans-info/pro? nickname)
         mobile? (util/mobile?)]
     (if (nil? nickname)
       [Grid {:stackable true}

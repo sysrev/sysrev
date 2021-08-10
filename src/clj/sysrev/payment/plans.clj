@@ -1,9 +1,11 @@
 (ns sysrev.payment.plans
   (:require [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]))
 
 (defn add-user-to-plan! [user-id plan-id sub-id]
-  (q/create :plan-user {:user-id user-id :plan plan-id :sub-id sub-id}))
+  (q/create :plan-user {:user-id user-id :plan plan-id :sub-id sub-id})
+  (db/clear-query-cache))
 
 (defn add-group-to-plan! [group-id plan-id sub-id]
   (q/create :plan-group {:group-id group-id :plan plan-id :sub-id sub-id}))
@@ -11,16 +13,16 @@
 (defn user-current-plan
   "Get the plan for which user is currently subscribed"
   [user-id]
-  (first (q/find [:plan-user :pu] {:user-id user-id} [:pu.* :sp.nickname :sp.interval :sp.id :sp.amount]
+  (first (q/find [:plan-user :pu] {:user-id user-id} [:pu.* :sp.nickname :sp.interval :sp.id :sp.amount :sp.tiers :sp.product-name]
                  :join [[:stripe-plan :sp] [:= :pu.plan :sp.id]]
                  :order-by [:pu.created :desc], :limit 1)))
 
 (defn group-current-plan
   "Get the plan for which group is currently subscribed"
   [group-id]
-  (first (q/find [:plan-group :pg] {:group-id group-id} [:pg.* :sp.nickname :sp.interval :sp.id :sp.tiers]
-                 :join [[:stripe-plan :sp] [:= :pg.plan :sp.id]]
-                 :order-by [:pg.created :desc], :limit 1)))
+  (let [owner-id (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
+                                :user-id, :order-by :created, :limit 1))]
+    (user-current-plan owner-id)))
 
 (defn stripe-support-project-plan
   "Returns information for the stripe plan used to subscribe users to

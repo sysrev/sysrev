@@ -80,7 +80,7 @@
   (e/go "/user/plans")
   (e/wait-exists "//a[contains(text(),'Back to user settings')]")
   ;; are we subscribe or unsubscribing?
-  (cond (e/exists? "//h1[contains(text(),'Upgrade from Basic to Pro')]" :wait false)
+  (cond (e/exists? "//h1[contains(text(),'Upgrade from Basic to Premium')]" :wait false)
         ;; currently on basic plan
         (do (when (and enter-payment-information?
                        (not (e/exists? upgrade-plan-button :wait false)))
