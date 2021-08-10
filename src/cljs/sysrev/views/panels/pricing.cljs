@@ -143,7 +143,7 @@
                 "Already signed up!" "Choose Premium")]))
            (PricingSegment
             :class "pricing-enterprise"
-            :title "Enterprise" :price [:a {:href "mailto:sales@sysrev.com"}
+            :title "Enterprise" :price [:a {:href "mailto:info@sysrev.com"}
                                         "Contact Sales for pricing"]
             :intro "Customized plans tailored to your organization's needs"
             :benefits [EnterpriseBenefits]

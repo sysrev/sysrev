@@ -71,7 +71,7 @@
                         "/descendant::div[contains(@class,'radio') and contains(@class,'disabled')]"))
       ;; create the private project
       (b/set-input-text "#create-project .project-name input" project-name)
-      (b/exists? (xpath "//p[contains(text(),'Private')]"
+      (b/click (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
                         "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
       (b/click (xpath "//button[contains(text(),'Create Project')]") :displayed? true)

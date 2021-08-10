@@ -84,6 +84,8 @@
 
 (s/def ::project ::sp/project-partial)
 
+(declare set-user-group!)
+
 (defn project-owner-plan
   "Return the plan name for the project owner of project-id"
   [project-id]
@@ -402,7 +404,7 @@
 
 (defn register-user!
   "Register a user and add them as a stripe customer"
-  [email password & {:keys [project-id google-user-id]}]
+  [email password & {:keys [project-id org-id google-user-id]}]
   (assert (string? email))
   (with-transaction
     (let [user (user-by-email email)
@@ -411,7 +413,9 @@
                         (let [u (user/create-user email password
                                                   :google-user-id google-user-id)]
                           (when project-id
-                            (member/add-project-member project-id (:user-id user)))
+                            (member/add-project-member project-id (:user-id u)))
+                          (when org-id
+                            (set-user-group! (:user-id u) (group/group-id->name org-id) true))
                           u)
                         true
                         (catch Throwable e e)))]

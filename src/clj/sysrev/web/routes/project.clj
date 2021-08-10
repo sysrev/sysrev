@@ -312,7 +312,6 @@
              (if-let [data (enc/try-decrypt-wrapped64 register-hash)]
                (case (:type data)
                  "org-invite-hash"
-                 ;;#_(api/set-user-group! user-id (group/group-id->name (:org-id data)) true)
                  {:org {:org-id (:org-id data)
                         :name (group/group-id->name (:org-id data))}})
                (let [project-id (project/project-id-from-register-hash register-hash)]

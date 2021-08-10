@@ -60,8 +60,8 @@
 
 (def-action :auth/register
   :uri (fn [& _] "/api/auth/register")
-  :content (fn [email password project-id _org-id _redirect]
-             {:email email :password password :project-id project-id})
+  :content (fn [email password project-id org-id _redirect]
+             {:email email :password password :project-id project-id :org-id org-id})
   :process
   (fn [_ [email password _project-id _org-id redirect] {:keys [success message]}]
     (if success

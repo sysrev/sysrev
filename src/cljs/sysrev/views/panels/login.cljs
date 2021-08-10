@@ -18,8 +18,11 @@
 
 (def-data :consume-register-hash
   :loaded? (fn [db register-hash]
-             ((comp not nil?)
-              (get-panel-field db [:project register-hash] register-panel)))
+             (or
+               ((comp not nil?)
+                (get-panel-field db [:project register-hash] register-panel))
+               ((comp not nil?)
+                (get-panel-field db [:org register-hash] register-panel))))
   :uri (fn [_] "/api/consume-register-hash")
   :prereqs (fn [_] nil)
   :content (fn [register-hash] {:register-hash register-hash})
@@ -258,7 +261,9 @@
         project-id @(subscribe [:register/project-id])
         project-name @(subscribe [:register/project-name])
         org-id @(subscribe [:register/org-id])
-        _org-name @(subscribe [:register/org-name])
+        org-name @(subscribe [:register/org-name])
+        object-id (or project-id org-id)
+        object-name (or project-name org-name)
         register-hash @(subscribe [:register/register-hash])
         form-errors @(subscribe [::form-errors])
         field-class #(if (get form-errors %) "error" "")
@@ -280,7 +285,7 @@
           [:h4.ui.header
            [:i.grey.list.alternate.outline.icon]
            [:div.content
-            (if project-name project-name "< Project not found >")]])
+            (if object-name object-name "< Project not found >")]])
         [:form.ui.form.login-register-form
          {:class form-class
           :on-submit
