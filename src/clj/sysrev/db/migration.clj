@@ -52,8 +52,7 @@
                       #'migrate-all-project-article-resolve
                       #'migrate-filestore-table
                       #'delete-invalid-annotations
-                      #'migrate-old-annotations
-                      #'migrate-group-subscriptions]]
+                      #'migrate-old-annotations]]
     (log/info "Running " (str migrate-fn))
     (time (try ((var-get migrate-fn))
                (catch Throwable e

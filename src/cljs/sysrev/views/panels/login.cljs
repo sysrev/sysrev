@@ -262,7 +262,6 @@
         project-name @(subscribe [:register/project-name])
         org-id @(subscribe [:register/org-id])
         org-name @(subscribe [:register/org-name])
-        object-id (or project-id org-id)
         object-name (or project-name org-name)
         register-hash @(subscribe [:register/register-hash])
         form-errors @(subscribe [::form-errors])
