@@ -69,6 +69,20 @@
       (b/exists? (xpath "//p[contains(text(),'Private')]"
                         "/ancestor::div[contains(@class,'row')]"
                         "/descendant::div[contains(@class,'radio') and contains(@class,'disabled')]"))
+
+      ;signup for plan
+      (nav/go-route "/user/plans")
+      (b/wait-until-displayed ".form.StripeForm")
+      (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
+      (plans/click-use-card)
+      (plans/click-upgrade-plan)
+      (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+      (b/click "#user-name-link")
+      (b/click "#user-orgs")
+      (b/click (xpath "//a[text()='" org-name "']"))
+      (b/wait-until-exists "#org-projects")
+      (b/click "#new-project")
+
       ;; create the private project
       (b/set-input-text "#create-project .project-name input" project-name)
       (b/click (xpath "//p[contains(text(),'Private')]"
@@ -77,5 +91,6 @@
       (b/click (xpath "//button[contains(text(),'Create Project')]") :displayed? true)
       ;; is this project private?
       (b/exists? "i.grey.lock")
+      (sysrev.test.browser.core/take-screenshot)
       (b/exists? (xpath "//span[contains(text(),'Private')]")))
   :cleanup (b/cleanup-test-user! :email (:email test-user) :groups true))

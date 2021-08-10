@@ -301,7 +301,6 @@
     (plans/click-use-card)
     (plans/click-upgrade-plan)
     (b/wait-until-displayed ".button.nav-plans.unsubscribe")
-    (sysrev.test.browser.core/take-screenshot)
     (switch-to-org org-name-1)
     (b/click "#org-projects")
     (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
