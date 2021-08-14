@@ -81,7 +81,6 @@
                       (some-> external-id parse-integer str)
                       external-id))
      :title primary-title
-     :helper-text helper-text
      :content (when-not datasource-name
                 (->> (dissoc article
                              :source-meta :text-search :enabled :article-data-id

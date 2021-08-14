@@ -43,7 +43,9 @@
                        (listeners/listener)
                        [:postgres :sente])
    :scheduler (component/using
-               (scheduler/scheduler)
+                (if (#{:test :remote-test} (:profile env))
+                  (scheduler/mock-scheduler)
+                  (scheduler/scheduler))
                [:postgres])
    :sente (component/using
            (sente/sente :receive-f sente/receive-sente-channel!)

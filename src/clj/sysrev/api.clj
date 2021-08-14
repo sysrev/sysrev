@@ -231,9 +231,10 @@
                (log/error "wrap-import-handler -" (.getMessage e))
                (log/error (with-out-str (print-cause-trace-custom e)))
                {:error {:message "Import error"}}))]
+
     (if error
       {:error error}
-      {:result {:success @import}})))
+      {:result {:success (when import @import)}})))
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."

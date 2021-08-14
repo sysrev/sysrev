@@ -22,6 +22,13 @@
         (assoc this :quartz-scheduler nil)))))
 
 (defn scheduler []
-  (map->Scheduler {:schedule-f schedule-plans-job})
-  (map->Scheduler {:schedule-f schedule-subscriptions-job})
-  (map->Scheduler {:schedule-f schedule-living-data-sources}))
+  (map->Scheduler {:schedule-f
+                   (fn [scheduler]
+                     (schedule-plans-job scheduler)
+                     (schedule-subscriptions-job scheduler)
+                     (schedule-living-data-sources scheduler))}))
+
+
+(defn mock-scheduler []
+  (map->Scheduler {:schedule-f :noop}))
+

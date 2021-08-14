@@ -46,6 +46,8 @@
       (testing "Notifications button and drop-down work."
         (doto driver
           (ea/refresh)
+          (ea/wait 2))
+        (doto driver
           (ea/wait-visible {:fn/has-class :notifications-count
                             :fn/has-text "2"})
           (ea/click-visible {:fn/has-class :notifications-icon})
