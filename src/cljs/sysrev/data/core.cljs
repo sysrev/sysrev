@@ -57,7 +57,7 @@
   item becomes not-loaded (data entry removed from db) after
   `:require` was called previously.
 
-  `:process` - (fn [cofx item-args result] ...)
+  `:process` - (fn [cofx item-args result response] ...)
   * `cofx` is normal re-frame cofx map for reg-event-fx
     (ex: {:keys [db]}).
   * `item-args` provides the `::item-args` from the item vector passed to
@@ -65,6 +65,8 @@
   * `result` provides the value returned from server on HTTP success.
     The value is unwrapped, having already been extracted from the raw
     {:result value, ...} returned by the server.
+  * `response` provides the response body from the server, for APIs that
+    don't use the {:result value} format.
 
   Optional parameters:
 
@@ -236,7 +238,7 @@
 
 (reg-event-ajax-fx
  ::on-success
- (fn [{:keys [db] :as cofx} [item result]]
+ (fn [{:keys [db] :as cofx} [item result response]]
    (let [[name & args] item
          spammed? (loading/item-spammed? item)]
      (merge {:data-returned item}
@@ -246,7 +248,7 @@
             (when (not spammed?)
               (when-let [entry (get @data-defs name)]
                 (when-let [process (:process entry)]
-                  (merge (apply process [cofx args result])
+                  (merge (apply process [cofx args result response])
                          ;; Run :fetch-missing in case this request provided any
                          ;; missing data prerequisites.
                          {:fetch-missing [true item]}
