@@ -2,8 +2,15 @@
   (:require [re-frame.core :refer [reg-sub]]
             [sysrev.data.core :refer [def-data]]))
 
-(def api-endpoint "https://www.datapub.dev/api")
-(def websocket-endpoint "wss//www.datapub.dev/ws")
+(def api-endpoint
+  (delay
+    (some-> (.getElementById js/document "datapub-api")
+            (.getAttribute "data-datapub-api"))))
+
+(def websocket-endpoint
+  (delay
+    (some-> (.getElementById js/document "datapub-ws")
+            (.getAttribute "data-datapub-ws"))))
 
 (defn dataset-entity [return]
   (str "query($id: PositiveInt!){datasetEntity(id: $id){" return "}}"))
@@ -18,7 +25,7 @@
   :loaded? (fn [db entity-id]
              (boolean (get-in db [:data :datapub :entities entity-id])))
   :method :post
-  :uri (constantly api-endpoint)
+  :uri #(deref api-endpoint)
   :content-type "application/json"
   :content (fn [entity-id]
              {:query (dataset-entity "content externalId mediaType")
@@ -33,7 +40,7 @@
            (get-in db [:data :datapub :entities entity-id])))
 
 (defn subscribe! [& {:keys [on-complete on-data payload]}]
-  (if-let [ws (js/WebSocket. websocket-endpoint)]
+  (if-let [ws (js/WebSocket. @websocket-endpoint)]
     (do
       (set!
        (.-onopen ws)
@@ -61,4 +68,4 @@
              "data" (-> message .-data js/JSON.parse .-payload on-data)
              "ka" nil))))
       ws)
-    (throw (ex-info "Failed to create WebSocket" {:url websocket-endpoint}))))
+    (throw (ex-info "Failed to create WebSocket" {:url @websocket-endpoint}))))
