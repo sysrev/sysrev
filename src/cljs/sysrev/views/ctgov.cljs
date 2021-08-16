@@ -2,13 +2,13 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db trim-v]]
-            [sysrev.data.core :as data :refer [def-data]]
+             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.datapub :as datapub]
+            [sysrev.macros :refer-macros [setup-panel-state]]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
-            [sysrev.util :as util :refer [wrap-prevent-default]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+            [sysrev.util :as util :refer [wrap-prevent-default]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -24,30 +24,48 @@
 
 (defn pmids-per-page [] 10)
 
-(def-data :ctgov-search
-  :loaded? (fn [db search-term page-number]
-             (let [result-count (get-in db [:data :ctgov-search search-term :count])]
-               ;; the result-count hasn't been updated, so the search term results
-               ;; still need to be populated
-               (if (nil? result-count)
-                 false
-                 ;; the page number exists
-                 (if (<= page-number
-                         (Math/ceil (/ result-count (pmids-per-page))))
-                   (not-empty (get-in db [:data :ctgov-search search-term
-                                          :pages page-number :summaries]))
-                   ;; the page number doesn't exist, retrieve nothing
-                   true))))
+(reg-event-fx
+ :ctgov-search-add-entity
+ (fn [{:keys [db]} [_ search-terms entity-id]]
+   {:db (update-in db [:data :ctgov-search search-terms :entity-ids] conj entity-id)
+    :fx [[:dispatch [:require [:datapub-entity entity-id]]]]}))
 
-  :uri (constantly "/api/ctgov/search")
-  :content (fn [search-term page-number]
-             {:term search-term :page-number page-number})
-  :process (fn [{:keys [db]} [search-term page-number] {:keys [results count]}]
-             {:db (-> db
-                      (assoc-in [:data :ctgov-search search-term :pages page-number :summaries]
-                                results)
-                      (assoc-in [:data :ctgov-search search-term :count]
-                                count))}))
+(reg-event-db
+ :ctgov-search-complete
+ (fn [db [_ search-terms]]
+   (assoc-in db [:data :ctgov-search search-terms :complete?] true)))
+
+(reg-event-fx
+ :ctgov-search
+ (fn [{:keys [db]} [_ search-terms]]
+   (when-not (or (get-in db [:data :ctgov-search search-terms :complete?])
+                 (= search-terms (get-in db [:data :ctgov-search :current-search])))
+     (when-let [ws (get-in db [:data :ctgov-search :websocket])]
+       (when-not (#{js/WebSocket.CLOSED js/WebSocket.CLOSING} (.-readyState ws))
+         (.close ws 1000 "complete")))
+     (as-> (datapub/subscribe!
+            :on-complete
+            (fn []
+              (dispatch [:ctgov-search-complete search-terms]))
+            :on-data
+            (fn [^js/Object data]
+              (let [entity-id (-> data .-data .-searchDataset .-id)]
+                (dispatch [:ctgov-search-add-entity search-terms entity-id])))
+            :payload
+            {:query (datapub/subscribe-search-dataset "id")
+             :variables
+             {:input
+              {:datasetId 1
+               :uniqueExternalIds true
+               :query
+               {:type "AND"
+                :text [{:search search-terms
+                        :useEveryIndex true}]}}}})
+         $
+       {:db (-> (update-in db [:data :ctgov-search] assoc
+                           :current-search search-terms
+                           :websocket $)
+                (assoc-in [:data :ctgov-search search-terms :entity-ids] []))}))))
 
 (def-action :project/import-trials-from-search
   :uri (fn [] "/api/import-trials/ctgov")
@@ -61,9 +79,14 @@
                 (when (string? message)
                   {:dispatch [:ctgov/set-import-error message]}))))
 
+(reg-sub :ctgov/search-complete?
+         (fn [db [_ search-terms]]
+           (boolean
+            (get-in db [:data :ctgov-search search-terms :complete?]))))
+
 (reg-sub :ctgov/search-term-result
-         (fn [db [_ search-term]]
-           (-> db :data :ctgov-search (get search-term))))
+         (fn [db [_ search-terms]]
+           (get-in db [:data :ctgov-search search-terms :entity-ids])))
 
 ;; A DB map representing a search term in :data :search-term <term>
 ;;
@@ -90,16 +113,15 @@
         current-page (subscribe [::page-number])
         current-search-term (r/cursor state [:current-search-term])
         search-results @(subscribe [:ctgov/search-term-result @current-search-term])
-        n-results (get-in search-results [:count])
         on-navigate (fn [_ _offset]
-                      (dispatch [:require [:ctgov-search @current-search-term @current-page]]))
+                      (dispatch [:ctgov-search @current-search-term @current-page]))
         offset (* (dec @current-page) items-per-page)]
     [:div.ui.segment
      [ListPager
       {:panel panel
        :instance-key [:ctgov-search-results]
        :offset offset
-       :total-count n-results
+       :total-count (count search-results)
        :items-per-page items-per-page
        :item-name-string "articles"
        :set-offset #(dispatch [::page-number (inc (quot % items-per-page))])
@@ -109,8 +131,13 @@
 
 (defn ArticleSummary
   "Display an article summary item"
-  [article]
-  (let [{:keys [status study-title conditions interventions locations]} article]
+  [entity-id]
+  (let [entity @(subscribe [:datapub/entity entity-id])
+        protocol (get-in entity [:content "ProtocolSection"])
+        status (get-in protocol ["StatusModule" "OverallStatus"])
+        interventions (get-in protocol ["ArmsInterventionsModule" "InterventionList" "Intervention"])
+        locations (get-in protocol ["ContactsLocationsModule" "LocationList" "Location"])]
+    (when (nil? entity) (dispatch [:require [:datapub-entity entity-id]]))
     [TableRow
      [TableCell {:style {:color (cond (or (= status "Recruiting")
                                           (= status "Not yet recruiting"))
@@ -120,30 +147,23 @@
                                       "#f5c88a"
                                       :else
                                       "red")}} status]
-     [TableCell study-title]
-     [TableCell (clojure.string/join "," conditions)]
-     [TableCell (let [amt (count (:type interventions))]
-                  [:ul (map (fn [x y] ^{:key (gensym)}
-                              [:li (str x ": " y)])
-                            (take 3 (:type interventions))
-                            (take 3 (:name interventions)))
+     [TableCell (get-in protocol ["IdentificationModule" "OfficialTitle"])]
+     [TableCell (str/join "," (get-in protocol ["ConditionsModule" "ConditionList" "Condition"]))]
+     [TableCell (let [amt (count interventions)]
+                  [:ul (map (fn [{:strs [InterventionName InterventionType]}]
+                              ^{:key (gensym)} [:li (str InterventionType ": " InterventionName)])
+                            (take 3 interventions))
                    (when (> amt 3)
                      [:li (str "(and " (- amt 3) " more...)")])])]
-     [TableCell (let [locs (nth locations 0)
-                      locs-count (count locs)]
-                  [:ul
-                   (map-indexed
-                    (fn [idx facility]
-                      (let [city (get (nth locations 1) idx)
-                            state (get (nth locations 2) idx)
-                            country (get (nth locations 3) idx)]
-                        ^{:key (gensym)}
-                        [:li (str facility ", " city ", "
-                                  (when (= country "United States") (str state ", "))
-                                  country)]))
-                    (take 3 locs))
-                   (when (> locs-count 3)
-                     [:li (str "(and " (- locs-count 3)  " more..)")])])]]))
+     [TableCell
+      [:ul
+       (for [{:strs [LocationCity LocationCountry LocationFacility LocationState]} (take 3 locations)]
+          ^{:key (gensym)}
+          [:li (str LocationFacility ", " LocationCity ", "
+                    (when (= LocationCountry "United States") (str LocationState ", "))
+                    LocationCountry)])
+       (when (> (count locations) 3)
+         [:li (str "(and " (- (count locations) 3)  " more..)")])]]]))
 
 (defn ImportArticlesButton
   "Add articles to a project from a ctgov search"
@@ -151,8 +171,7 @@
   (let [current-search-term (r/cursor state [:current-search-term])
         project-id (subscribe [:active-project-id])
         search-results @(subscribe [:ctgov/search-term-result
-                                    @current-search-term])
-        n-results (get-in search-results [:count])]
+                                    @current-search-term])]
     [:div.ui.fluid.left.labeled.button.search-results
      {:on-click #(do (dispatch [:action [:project/import-trials-from-search
                                          @project-id @current-search-term]])
@@ -161,7 +180,7 @@
                                 false])
                      (reset! state {}))}
      [:div.ui.fluid.right.pointing.label
-      (str "Found " n-results " articles")]
+      (str "Found " (count search-results) " articles")]
      [:button.ui.blue.button
       {:class (when disable-import? "disabled")}
       [:i.download.icon] " Import"]]))
@@ -186,7 +205,7 @@
                            (reset! page-number 1)
                            (reset! show-results? true)
                            (reset! import-error nil)
-                           (dispatch [:require [:ctgov-search @current-search-term 1]]))]
+                           (dispatch [:ctgov-search @current-search-term 1]))]
     [:form {:id "search-bar"
             :class "ctgov-search"
             :on-submit (wrap-prevent-default fetch-results)
@@ -202,12 +221,9 @@
        "Search"]]]))
 
 (defn SearchActions [& [disable-import?]]
-  (let [current-search-term (r/cursor state [:current-search-term])
-        search-results @(subscribe [:ctgov/search-term-result
-                                    @current-search-term])
-        n-results (get-in search-results [:count])
-        show-results? (r/cursor state [:show-results?])]
-    (when (and n-results @show-results?)
+  (let [current-search-term @(r/cursor state [:current-search-term])
+        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
+    (when (and search-results @(r/cursor state [:show-results?]))
       [:div.ui.top.attached.segment.aligned.stackable.grid
        {:style {:border-bottom-width "0"}}
        [:div.eight.wide.column.results-header
@@ -217,23 +233,16 @@
          [:div.column [CloseSearchResultsButton]]]]])))
 
 (defn SearchResultsView []
-  (let [current-search-term (r/cursor state [:current-search-term])
-        page-number (subscribe [::page-number])
-        show-results? (r/cursor state [:show-results?])
-        search-results @(subscribe [:ctgov/search-term-result
-                                    @current-search-term])
-        n-results (get-in search-results [:count])
-        have-entries?
-        (not-empty (get-in search-results [:pages @page-number :summaries]))]
-    (when (and n-results @show-results?)
+  (let [current-search-term @(r/cursor state [:current-search-term])
+        show-results? @(r/cursor state [:show-results?])
+        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
+    (when show-results?
       [:div.ctgov-search-results
-       (when (and @page-number (not-empty @current-search-term))
-         (dispatch [:require [:ctgov-search @current-search-term @page-number]]))
        [:div.ui.bottom.attached.segment.ctgov-articles
-        {:style (if have-entries? {} {:min-height "800px"})}
+        {:style (if (seq search-results) {} {:min-height "800px"})}
         [SearchResultArticlesPager]
-        (if have-entries?
-          (doall
+        (if (seq search-results)
+          [:<>
            [Table {:striped true}
             [TableHeader
              [TableRow
@@ -243,32 +252,26 @@
               [TableHeaderCell "Interventions"]
               [TableHeaderCell "Locations"]]]
             [TableBody
-             (doall (for [{:keys [nctid] :as doc}
-                          (get-in search-results [:pages @page-number :summaries])]
-                      ^{:key nctid} [ArticleSummary doc]))]])
-          [:div.ui.active.inverted.dimmer>div.ui.loader])
-        (when have-entries?
-          [SearchResultArticlesPager])]])))
+             (for [entity-id search-results]
+               ^{:key entity-id} [ArticleSummary entity-id])]]]
+          [:<>
+           [:div.ui.active.inverted.dimmer>div.ui.loader]
+           [SearchResultArticlesPager]])]])))
 
 (defn SearchResultsContainer []
-  (let [current-search-term (r/cursor state [:current-search-term])
-        page-number (subscribe [::page-number])
-        import-error (r/cursor state [:import-error])
-        search-results (subscribe [:ctgov/search-term-result
-                                   @current-search-term])]
-    (cond @import-error
+  (let [current-search-term @(r/cursor state [:current-search-term])
+        import-error @(r/cursor state [:import-error])
+        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
+    (cond import-error
           [:div.ui.segment.bottom.attached.search-results-container.margin
            [:div.ui.error.message
-            (str @import-error)]]
+            (str import-error)]]
           ;; search input form is empty
-          (or (nil? @current-search-term)
-              (empty? @current-search-term))
+          (empty? current-search-term)
           nil
           ;; valid search is completed with no results
-          (and (not (nil? @current-search-term))
-               (= (get-in @search-results [:count]) 0)
-               (not (data/loading?
-                     [:ctgov-search @current-search-term @page-number])))
+          (and (zero? (count search-results))
+               @(subscribe [:ctgov/search-complete? current-search-term]))
           [:div.ui.segment.bottom.attached.search-results-container.margin
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
