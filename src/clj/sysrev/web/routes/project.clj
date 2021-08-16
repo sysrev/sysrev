@@ -442,10 +442,10 @@
 
 (dr (POST "/api/import-trials/ctgov" request
           (with-authorize request {:roles ["admin"]}
-            (let [{:keys [search-term]} (:body request)
+            (let [{:keys [entity-ids search-term]} (:body request)
                   project-id (active-project request)
                   user-id (current-user-id request)]
-              (api/import-trials-from-search project-id search-term :user-id user-id)))))
+              (api/import-trials-from-search project-id search-term entity-ids :user-id user-id)))))
 ;;;
 ;;; Article review
 ;;;

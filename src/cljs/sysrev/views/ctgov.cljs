@@ -69,8 +69,10 @@
 
 (def-action :project/import-trials-from-search
   :uri (fn [] "/api/import-trials/ctgov")
-  :content (fn [project-id search-term]
-             {:search-term search-term :project-id project-id})
+  :content (fn [project-id search-term entity-ids]
+             {:entity-ids entity-ids
+              :project-id project-id
+              :search-term search-term})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
                {:dispatch [:on-add-source project-id]}))
@@ -168,13 +170,12 @@
 (defn ImportArticlesButton
   "Add articles to a project from a ctgov search"
   [& [disable-import?]]
-  (let [current-search-term (r/cursor state [:current-search-term])
-        project-id (subscribe [:active-project-id])
-        search-results @(subscribe [:ctgov/search-term-result
-                                    @current-search-term])]
+  (let [current-search-term @(r/cursor state [:current-search-term])
+        project-id @(subscribe [:active-project-id])
+        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
     [:div.ui.fluid.left.labeled.button.search-results
      {:on-click #(do (dispatch [:action [:project/import-trials-from-search
-                                         @project-id @current-search-term]])
+                                         project-id current-search-term search-results]])
                      (dispatch [(keyword 'sysrev.views.panels.project.add-articles
                                          :add-documents-visible)
                                 false])
