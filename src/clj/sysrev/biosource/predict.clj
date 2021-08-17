@@ -141,7 +141,9 @@
 
 (defn schedule-predict-update [project-id]
   (when (= :prod (-> config/env :profile))
-    (future (update-project-predictions project-id))))
+    (future
+      (binding [db/*conn* nil]
+        (update-project-predictions project-id)))))
 
 (defn ^:repl force-predict-update-all-projects []
   (let [project-ids (project/all-project-ids)]
