@@ -1,27 +1,14 @@
 (ns sysrev.source.ctgov
   (:require [cheshire.core :as json]
-            [clj-http.client :as http]
             [sysrev.config :refer [env]]
+            [sysrev.datapub-client.interface :as datapub]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))
-
-(defn dataset-entity [return]
-  (str "query($id: PositiveInt!){datasetEntity(id: $id){" return "}}"))
-
-(defn get-entity [id]
-  (-> (:datapub-api env "https://www.datapub.dev/api")
-      (http/post
-       {:as :json
-        :content-type :json
-        :form-params
-        {:query (dataset-entity "content")
-         :variables {:id id}}})
-      :body :data :datasetEntity))
 
 (defn get-entities [ids]
   (map
    (fn [id]
-     (let [content (-> (get-entity id)
+     (let [content (-> (datapub/get-dataset-entity id "content")
                        :content
                        (json/parse-string keyword))]
        {:external-id id

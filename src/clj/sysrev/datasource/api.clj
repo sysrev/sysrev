@@ -6,9 +6,9 @@
             [orchestra.core :refer [defn-spec]]
             [venia.core :as venia]
             [sysrev.config :refer [env]]
+            [sysrev.datapub-client.interface :as datapub]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.source.ctgov :as ctgov]
             [sysrev.util :as util :refer
              [assert-pred
               gquery
@@ -180,8 +180,9 @@
               (->> ids (filter number?)
                    (map
                     (fn [id]
-                      (let [content (-> id ctgov/get-entity :content
-                                        (json/read-str :key-fn keyword))]
+                      (let [content (-> id (datapub/get-dataset-entity
+                                            "content" :endpoint (:datapub-api env))
+                                        :content (json/read-str :key-fn keyword))]
                         {:external-id id
                          :nctid (get-in content [:ProtocolSection :IdentificationModule :NTCId])
                          :json content})))

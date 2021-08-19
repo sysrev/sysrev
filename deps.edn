@@ -104,6 +104,7 @@
                      prestancedesign/get-port {:mvn/version "0.1.1"}}
         :extra-paths ["config/dev"
                       "development/src"
+                      "components/datapub-client/src"
                       "components/flyway/resources"
                       "components/flyway/src"
                       "components/notification/resources"
