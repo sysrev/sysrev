@@ -1,6 +1,9 @@
 (ns sysrev.datapub-client.core
-  (:require [clj-http.client :as http]
-            [clojure.string :as str]))
+  (:require [aleph.http :as ahttp]
+            [cheshire.core :as json]
+            [clj-http.client :as http]
+            [clojure.string :as str]
+            [manifold.stream :as stream]))
 
 (defn return->string [return]
   (cond
@@ -12,6 +15,11 @@
 
 (defn q-dataset-entity [return]
   (str "query($id: PositiveInt!){datasetEntity(id: $id){"
+       (return->string return)
+       "}}"))
+
+(defn q-subscribe-search-dataset [return]
+  (str "subscription ($input: SearchDatasetInput!){searchDataset(input: $input){"
        (return->string return)
        "}}"))
 
@@ -35,3 +43,37 @@
   (-> (execute! :query (q-dataset-entity return) :variables {:id id}
                 :auth-token auth-token :endpoint endpoint)
       :data :datasetEntity))
+
+(defn consume-subscription! [& {:keys [auth-token endpoint query variables]}]
+  (with-open [conn @(ahttp/websocket-client
+                     (or endpoint "wss://www.datapub.dev/ws")
+                     {:sub-protocols "graphql-ws"})]
+    (stream/put! conn (json/generate-string {:type "connection_init" :payload {}}))
+    (loop [acc (transient [])]
+      (let [{:keys [payload type]} (json/parse-string @(stream/take! conn) keyword)]
+        (case type
+          "complete" (persistent! acc)
+          "connection_ack"
+          (do
+            (stream/put! conn (json/generate-string {:id "1"
+                                                     :type "start"
+                                                     :payload
+                                                     {:query query
+                                                      :variables variables}}))
+            (recur acc))
+          "data"
+          (do
+            (conj! acc payload)
+            (recur acc))
+          "error"
+          (throw (ex-info (str "Error in GraphQL subscription: " (:message payload))
+                          {:error payload})))))))
+
+(defn search-dataset [input return & {:keys [auth-token endpoint]}]
+  (mapv
+   (comp :searchDataset :data)
+   (consume-subscription!
+    :auth-token auth-token
+    :endpoint endpoint
+    :query (q-subscribe-search-dataset return)
+    :variables {:input input})))

@@ -9,3 +9,10 @@
   (datapub-client/get-dataset-entity
    id return
    :auth-token auth-token :endpoint endpoint))
+
+(defn search-dataset
+  "Return a vector of DatasetEntity maps matching the search input."
+  [input return & {:keys [auth-token endpoint]}]
+  (datapub-client/search-dataset
+   input return
+   :auth-token auth-token :endpoint endpoint))
