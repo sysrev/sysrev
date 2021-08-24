@@ -73,6 +73,7 @@
                  [com.stuartsierra/component "1.0.0"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.4"] ;; email client
+                 [hashp "0.2.1"]
                  [amazonica "0.3.152"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor

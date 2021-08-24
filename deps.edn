@@ -72,6 +72,7 @@
         com.stuartsierra/component {:mvn/version "1.0.0"}
         com.velisco/clj-ftp {:mvn/version "0.3.12"}
         com.draines/postal {:mvn/version "2.0.4"} ;; email client
+        hashp/hashp {:mvn/version "0.2.1"}
         amazonica/amazonica {:mvn/version "0.3.152" :exclusions [com.taoensso/encore com.fasterxml.jackson.dataformat/jackson-dataformat-cbor com.fasterxml.jackson.core/jackson-databind org.slf4j/slf4j-api]}
         ;; =1.23.0 because version conflict in latest (1.30.2 breaks selenium)
         com.google.api-client/google-api-client {:mvn/version "1.23.0"}
