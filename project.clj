@@ -47,7 +47,7 @@
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.8"]
-                 [com.github.seancorfield/honeysql "2.0.0-rc3"]
+                 [com.github.seancorfield/honeysql "2.0.783"]
                  [nilenso/honeysql-postgres "0.2.6"]
                  [org.clojure/java.data "1.0.86"] ;; next.jdbc needs latest
                  [com.github.seancorfield/next.jdbc "1.2.659"]
