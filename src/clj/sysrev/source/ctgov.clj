@@ -11,7 +11,8 @@
 (defn get-entities [ids]
   (map
    (fn [id]
-     (let [content (-> (datapub/get-dataset-entity id "content")
+     (let [content (-> (datapub/get-dataset-entity id "content"
+                                                   :endpoint (:datapub-api env))
                        :content
                        (json/parse-string keyword))]
        {:external-id id
