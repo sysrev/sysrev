@@ -265,6 +265,8 @@
                               "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"
                               ;; another (jeff chromium linux wayland/sway)
                               "cec7c07b3259529052801ed1714f5d059326151c"
+                              ;; staging
+                              "441036789c551efdf5d04c8a7e120cd25b1c311a"
                               ;; after library updates
                               "24e6c82660c56ab1ed297eab7c5561f96e21acd3"
                               ;; chrome 90, linux
