@@ -149,7 +149,7 @@
                                       "#f5c88a"
                                       :else
                                       "red")}} status]
-     [TableCell (get-in protocol ["IdentificationModule" "OfficialTitle"])]
+     [TableCell (get-in protocol ["IdentificationModule" "BriefTitle"])]
      [TableCell (str/join "," (get-in protocol ["ConditionsModule" "ConditionList" "Condition"]))]
      [TableCell (let [amt (count interventions)]
                   [:ul (map (fn [{:strs [InterventionName InterventionType]}]
