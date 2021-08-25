@@ -594,7 +594,7 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
     [:a {:href "https://clinicaltrials.gov" :target "_blank"} "ClinicalTrials.gov"]
     " integration. To unlock direct access, please"
     [:a {:href
-         (str "mailto:info@sysrev.com?"
+         (str "mailto:info@insilica.co?"
               "subject=How can I use ClinicalTrials.gov with sysrev?"
               "&body=Hi, I would like to know more about using"
               " ClinicalTrials.gov in sysrev to conduct reviews."
