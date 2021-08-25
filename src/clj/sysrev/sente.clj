@@ -1,5 +1,5 @@
 (ns sysrev.sente
-  (:require [clojure.core.async :refer [<! go]]
+  (:require [clojure.core.async :refer [<!!]]
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
             [sysrev.reviewer-time.interface :as reviewer-time]
@@ -57,10 +57,10 @@
            :user-id (:uid item)}])))))
 
 (defn receive-sente-channel! [sente chan]
-  (go
+  (future
     (while true
       (try
-        (let [x (<! chan)]
+        (let [x (<!! chan)]
           (try
             (handle-message! sente x)
             (catch Throwable e
