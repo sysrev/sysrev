@@ -59,6 +59,8 @@
 (defn start-system! [& {:keys [only-if-new postgres-overrides]}]
   (when (or (not only-if-new) (nil? @system))
     (log/info "Starting system")
+    (when (:datapub-embedded env)
+      ((requiring-resolve 'datapub.main/reload-with-fixtures!)))
     (->> (system-map :postgres-overrides postgres-overrides)
          component/start
          (reset! system))
@@ -67,6 +69,8 @@
 (defn stop-system! []
   (log/info "Stopping system")
   (swap! system component/stop)
+  (when (:datapub-embedded env)
+    ((requiring-resolve 'datapub.main/stop!)))
   (log/info "System stopped"))
 
 (defn -main []

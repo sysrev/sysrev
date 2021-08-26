@@ -1,0 +1,15 @@
+[Unit]
+Description=Datapub Server
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+User=ubuntu
+Group=ubuntu
+EnvironmentFile=/home/ubuntu/datapub/env
+ExecStart=/usr/bin/java -Xms1024m -Xmx1024m -server -cp /home/ubuntu/datapub/datapub.jar clojure.main -m datapub.main
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

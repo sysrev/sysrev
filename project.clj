@@ -54,16 +54,16 @@
                  [org.flywaydb/flyway-core "7.9.1"]
 
 ;;; Web server
-                 [javax.servlet/servlet-api "2.5"]
-                 [manifold "0.1.8"]
                  [aleph "0.4.6"]
                  [com.taoensso/sente "1.16.2"]
-                 [ring "1.9.3"]
+                 [compojure "1.6.2"]
+                 [javax.servlet/javax.servlet-api "4.0.1"]
+                 [manifold "0.1.8"]
+                 [ring "1.9.4"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.5.1" :exclusions [cheshire]]
                  [ring/ring-mock "0.4.0" :exclusions [cheshire]]
-                 [compojure "1.6.2"]
 ;;; profiling
                  [criterium "0.4.6"]
 
@@ -133,9 +133,12 @@
              :dev            {:jvm-opts ["-Xmx1200m"
                                          "-Djdk.attach.allowAttachSelf=true"]
                               :resource-paths ["config/dev"
-                                               "components/fixtures/resources"]
+                                               "components/fixtures/resources"
+                                               "projects/datapub/resources"
+                                               "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
-                                             "components/fixtures/src"]
+                                             "components/fixtures/src"
+                                             "projects/datapub/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
                                            "components/user/test"]
@@ -143,7 +146,21 @@
                               [[cider/cider-nrepl "0.26.0"]
                                [clj-webdriver "0.7.2"]
                                [com.clojure-goes-fast/clj-async-profiler "0.5.0"]
+                               [com.opentable.components/otj-pg-embedded "0.13.3"]
+                               [com.walmartlabs/lacinia-pedestal "0.15.0"]
                                [etaoin "0.4.1"]
+                               [io.replikativ/hasch "0.3.7"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
+                               [javax.servlet/javax.servlet-api "4.0.1"]
+                               [org.eclipse.jetty/jetty-alpn-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-servlet "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-util "9.4.42.v20210604"]
+                               [org.eclipse.jetty.http2/http2-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty.websocket/websocket-api "9.4.42.v20210604"]
+                               [org.eclipse.jetty.websocket/websocket-servlet "9.4.42.v20210604"]
+                               [org.eclipse.jetty.websocket/websocket-server "9.4.42.v20210604"]
                                [org.seleniumhq.selenium/selenium-api "3.8.1"]
                                [org.seleniumhq.selenium/selenium-support "3.8.1"]
                                [org.seleniumhq.selenium/selenium-java "3.8.1"
@@ -161,20 +178,34 @@
              :postgres       {:resource-paths ["components/postgres/resources"]
                               :source-paths ["components/postgres/src"]}
              :postgres-embedded {:dependencies
-                                 [[com.opentable.components/otj-pg-embedded "0.13.3"]
-                                  [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "11.9.0"]
-                                  [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "11.9.0"]
-                                  [prestancedesign/get-port "0.1.1"]]
+                                 [[prestancedesign/get-port "0.1.1"]]
                                  :resource-paths ["components/postgres-embedded/resources"]
                                  :source-paths ["components/postgres-embedded/src"]}
              :repl           {:plugins [[lein-environ "1.2.0"]]}
              :test           {:dependencies
-                              [[prestancedesign/get-port "0.1.1"]]
+                              [[com.opentable.components/otj-pg-embedded "0.13.3"]
+                               [com.walmartlabs/lacinia-pedestal "0.15.0"]
+                               [io.replikativ/hasch "0.3.7"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
+                               [javax.servlet/javax.servlet-api "4.0.1"]
+                               [org.eclipse.jetty/jetty-alpn-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-servlet "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-util "9.4.42.v20210604"]
+                               [org.eclipse.jetty.http2/http2-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty.websocket/websocket-api "9.4.42.v20210604"]
+                               [org.eclipse.jetty.websocket/websocket-servlet "9.4.42.v20210604"]
+                               [org.eclipse.jetty.websocket/websocket-server "9.4.42.v20210604"]
+                               [prestancedesign/get-port "0.1.1"]]
                               :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"
-                                               "components/fixtures/resources"]
+                                               "components/fixtures/resources"
+                                               "projects/datapub/resources"
+                                               "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
-                                             "components/fixtures/src"]
+                                             "components/fixtures/src"
+                                             "projects/datapub/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
                                            "components/reviewer-time/test"

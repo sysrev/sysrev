@@ -1,0 +1,124 @@
+# Guidelines for schema design:
+# https://graphqlmastery.com/blog/graphql-best-practices-for-graphql-schema-design
+
+# *Connection, *Edge, and PageInfo from the GraphQL Cursor Connections Specification:
+# https://relay.dev/graphql/connections.htm
+
+scalar NonNegativeInt
+scalar PositiveInt
+
+enum DatasetIndexType {
+  TEXT
+}
+
+enum SearchDatasetQueryInputType {
+  AND
+  OR
+}
+
+"A Dataset is a searchable set of DatasetEntity objects."
+type Dataset {
+  "The unique id of the Dataset."
+  id: PositiveInt!
+
+  "A description of the Dataset."
+  description: String
+
+  "The indices on the Dataset."
+  indices: [DatasetIndex]
+
+  "The name of the Dataset."
+  name: String!
+
+  public: Boolean!
+}
+
+type DatasetEntity {
+  "The unique id."
+  id: PositiveInt!
+
+  "The string representation of the content."
+  content: String!
+
+  "An opaque external id."
+  externalId: String
+
+  "The media type, such as \"application/json\"."
+  mediaType: String!
+}
+
+type DatasetIndex {
+  "The path to index, i.e., [\"Article\" \"Abstract\"]."
+  path: String!
+
+  "The type of value to index."
+  type: DatasetIndexType!
+}
+
+type ListDatasetsConnection {
+  edges: [ListDatasetsEdge]
+  pageInfo: PageInfo!
+  totalCount: NonNegativeInt
+}
+
+type ListDatasetsEdge {
+  cursor: String!
+  node: Dataset
+}
+
+type PageInfo {
+  endCursor: String!
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String!
+}
+
+input CreateDatasetInput {
+  description: String
+  name: String!
+  public: Boolean
+}
+
+input SearchDatasetInput {
+  datasetId: PositiveInt!
+  query: SearchDatasetQueryInput!
+  uniqueExternalIds: Boolean
+}
+
+input SearchDatasetQueryInput {
+  text: [SearchDatasetQueryTextInput]
+  type: SearchDatasetQueryInputType!
+}
+
+"Do a text search against the specified text indices, or every text index."
+input SearchDatasetQueryTextInput {
+  paths: [String]
+  search: String!
+  useEveryIndex: Boolean
+}
+
+type Query {
+  dataset(id: PositiveInt!) : Dataset
+  datasetEntity(id: PositiveInt!) : DatasetEntity
+  listDatasets(
+    after: String
+    first: NonNegativeInt
+  ) : ListDatasetsConnection
+}
+
+type Mutation {
+  createDataset(input: CreateDatasetInput!) : Dataset
+  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!) : DatasetEntity
+  createDatasetIndex(datasetId: PositiveInt!, path: String!, type: DatasetIndexType!) : DatasetIndex
+}
+
+type Subscription {
+  datasetEntities(datasetId: PositiveInt!, uniqueExternalIds: Boolean): DatasetEntity
+  searchDataset(input: SearchDatasetInput): DatasetEntity
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

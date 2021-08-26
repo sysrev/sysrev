@@ -52,16 +52,15 @@
         com.github.seancorfield/next.jdbc {:mvn/version "1.2.659"}
 
 ;;; Web server
-        javax.servlet/servlet-api {:mvn/version "2.5"}
-        manifold/manifold {:mvn/version "0.1.8"}
         aleph/aleph {:mvn/version "0.4.6"}
         com.taoensso/sente {:mvn/version "1.16.2"}
-        ring/ring {:mvn/version "1.9.3"}
+        compojure/compojure {:mvn/version "1.6.2"}
+        manifold/manifold {:mvn/version "0.1.8"}
+        ring/ring {:mvn/version "1.9.4"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         ring-transit/ring-transit {:mvn/version "0.1.6"}
         ring/ring-json {:mvn/version "0.5.1" :exclusions [cheshire/cheshire]}
         ring/ring-mock {:mvn/version "0.4.0" :exclusions [cheshire/cheshire]} 
-        compojure/compojure {:mvn/version "1.6.2"}
 
 ;;; profiling
         criterium/criterium {:mvn/version "0.4.6"}
@@ -89,8 +88,8 @@
         org.flywaydb/flyway-core {:mvn/version "7.9.1"}}
  :aliases
  {:+default {:extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "11.9.0"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "11.9.0"}}
+                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.2.0"}
+                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.2.0"}}
              :extra-paths ["components/postgres-embedded/src"
                            "components/postgres-embedded/resources"]}
   :+postgres {:extra-paths ["components/postgres/src"
@@ -98,10 +97,18 @@
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
-  :dev {:extra-deps {org.clojure/clojure {:mvn/version "1.10.3"}
-                     org.clojure/tools.deps.alpha {:mvn/version "0.11.918"}
-                     cider/cider-nrepl {:mvn/version "0.26.0"}
+  :dev {:extra-deps {cider/cider-nrepl {:mvn/version "0.26.0"}
+                     com.walmartlabs/lacinia-pedestal {:mvn/version "0.15.0"}
+                     io.replikativ/hasch {:mvn/version "0.3.7"}
                      nrepl/nrepl {:mvn/version "0.8.3"}
+                     org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty/jetty-server {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty/jetty-servlet {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty/jetty-util {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty.http2/http2-server {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
                      prestancedesign/get-port {:mvn/version "0.1.1"}}
         :extra-paths ["config/dev"
                       "development/src"
@@ -115,13 +122,26 @@
                       "components/reviewer-time/resources"
                       "components/reviewer-time/src"
                       "components/user/resources"
-                      "components/user/src"]}
+                      "components/user/src"
+                      "projects/datapub/resources"
+                      "projects/datapub/src"
+                      "projects/datapub/datapub-test/resources"]}
   :poly {:extra-deps {polylith/clj-poly
                       {:mvn/version "0.2.0-alpha11"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
+                      com.walmartlabs/lacinia-pedestal {:mvn/version "0.15.0"}
+                      io.replikativ/hasch {:mvn/version "0.3.7"}
                       etaoin/etaoin {:mvn/version "0.4.1"}
+                      org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.42.v20210604"}
+                      org.eclipse.jetty/jetty-server {:mvn/version "9.4.42.v20210604"}
+                      org.eclipse.jetty/jetty-servlet {:mvn/version "9.4.42.v20210604"}
+                      org.eclipse.jetty/jetty-util {:mvn/version "9.4.42.v20210604"}
+                      org.eclipse.jetty.http2/http2-server {:mvn/version "9.4.42.v20210604"}
+                      org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.42.v20210604"}
+                      org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
+                      org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
                       org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
                       org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}}
          :extra-paths ["components/e2e/resources"
@@ -132,4 +152,7 @@
                        "components/flyway/test"
                        "components/reviewer-time/test"
                        "components/user/test"
+                       "projects/datapub/resources"
+                       "projects/datapub/src"
+                       "projects/datapub/datapub-test/resources"
                        "test/clj"]}}}
