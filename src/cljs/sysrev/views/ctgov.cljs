@@ -24,11 +24,10 @@
 
 (defn pmids-per-page [] 10)
 
-(reg-event-fx
+(reg-event-db
  :ctgov-search-add-entity
- (fn [{:keys [db]} [_ search-terms entity-id]]
-   {:db (update-in db [:data :ctgov-search search-terms :entity-ids] conj entity-id)
-    :fx [[:dispatch [:require [:datapub-entity entity-id]]]]}))
+ (fn [db [_ search-terms entity-id]]
+   (update-in db [:data :ctgov-search search-terms :entity-ids] conj entity-id)))
 
 (reg-event-db
  :ctgov-search-complete
@@ -90,22 +89,6 @@
          (fn [db [_ search-terms]]
            (get-in db [:data :ctgov-search search-terms :entity-ids])))
 
-;; A DB map representing a search term in :data :search-term <term>
-;;
-;;{:count <integer> ; total amount of documents that match a search term
-;; :pages {<page-number> ; an integer
-;;         {:pmids [PMIDS] ; a vector of PMID integers associated with page_no
-;;          :summaries {<pmid> ; an integer, should be in [PMIDS] vector above
-;;                      { Ctgov Summary map} ; contains many key/val pairs
-;;                     }
-;;         }
-;;}
-
-(reg-event-db :ctgov/save-search-term-summaries [trim-v]
-              (fn [db [search-term page-number response]]
-                (assoc-in db [:data :ctgov-search search-term :pages page-number :summaries]
-                          response)))
-
 (reg-event-db :ctgov/set-import-error [trim-v]
               (fn [db [message]]
                 (panel-set db :import-error message)))
@@ -139,7 +122,6 @@
         status (get-in protocol ["StatusModule" "OverallStatus"])
         interventions (get-in protocol ["ArmsInterventionsModule" "InterventionList" "Intervention"])
         locations (get-in protocol ["ContactsLocationsModule" "LocationList" "Location"])]
-    (when (nil? entity) (dispatch [:require [:datapub-entity entity-id]]))
     [TableRow
      [TableCell {:style {:color (cond (or (= status "Recruiting")
                                           (= status "Not yet recruiting"))
@@ -236,8 +218,13 @@
 (defn SearchResultsView []
   (let [current-search-term @(r/cursor state [:current-search-term])
         show-results? @(r/cursor state [:show-results?])
-        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
+        items-per-page (pmids-per-page)
+        current-page @(subscribe [::page-number])
+        search-results (->> @(subscribe [:ctgov/search-term-result current-search-term])
+                            (drop (* items-per-page (dec current-page))))]
     (when show-results?
+      (doseq [entity-id (take (* 2 items-per-page) search-results)]
+        (dispatch [:require [:datapub-entity entity-id]]))
       [:div.ctgov-search-results
        [:div.ui.bottom.attached.segment.ctgov-articles
         {:style (if (seq search-results) {} {:min-height "800px"})}
@@ -253,7 +240,7 @@
               [TableHeaderCell "Interventions"]
               [TableHeaderCell "Locations"]]]
             [TableBody
-             (for [entity-id search-results]
+             (for [entity-id (take items-per-page search-results)]
                ^{:key entity-id} [ArticleSummary entity-id])]]]
           [:<>
            [:div.ui.active.inverted.dimmer>div.ui.loader]
