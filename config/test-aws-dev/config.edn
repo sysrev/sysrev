@@ -2,6 +2,7 @@
  :datapub-embedded "true"
  :datapub-ws "ws://localhost:8888/ws"
  :dbembedded "true"
+ :env "test"
  :postgres
  {:dbname "sysrev"
   :user "postgres"
