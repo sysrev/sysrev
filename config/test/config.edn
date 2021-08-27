@@ -1,4 +1,8 @@
-{:postgres
+{:datapub-api "http://localhost:8888/api"
+ :datapub-embedded "true"
+ :datapub-ws "ws://localhost:8888/ws"
+ :dbembedded "true"
+ :postgres
  {:dbname "sysrev_test"
   :user "postgres"
   :password ""
