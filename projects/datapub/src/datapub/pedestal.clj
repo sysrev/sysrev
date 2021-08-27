@@ -144,10 +144,7 @@
                         #(cors-preflight % (allowed-origins env))
                         :route-name ::graphql-api-cors-preflight]
                        ["/api" :post interceptors :route-name ::graphql-api]
-                       ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]
-                       ["/ws" :options
-                        #(cors-preflight % (allowed-origins env))
-                        :route-name ::graphql-ws-cors-preflight]}
+                       ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env
          :graphql-schema compiled-schema
