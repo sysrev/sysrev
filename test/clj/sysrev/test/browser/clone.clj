@@ -104,7 +104,7 @@
     ;; PubMed search
     (is (b/exists? (unique-count-span pm-count)))
     ;; ctgov
-    (is (b/exists? (unique-count-span 2)))
+    (is (b/exists? (unique-count-span 1)))
     ;; pmid file
     (is (b/exists? (unique-count-span 7)))
     ;; endnote
