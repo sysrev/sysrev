@@ -544,8 +544,6 @@
     ;; add a group label instance, then just delete it
     (b/click add-blank-row-button)
     (b/text-is? (sub-label-col-xpath "Categorical Label" 3) "Required")
-    ;; has to be done twice in order to actually register
-    (b/click (delete-row-icon 3))
     (b/click (delete-row-icon 3))
     (b/is-soon (not (taxi/exists? (delete-row-icon 3))))
     (b/click ".button.save-labels" :displayed? true)
