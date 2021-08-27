@@ -62,11 +62,11 @@
     ;; Import Clinical Trials
     (log/info "importing from clinicaltrials")
     (b/select-datasource "ClinicalTrials (beta)")
-    (ctgov/search-ctgov "foo olive")
+    (ctgov/search-ctgov "breast cancer")
     (b/click x/import-button-xpath)
     (b/wait-until-loading-completes :pre-wait 100 :inactive-ms 100 :loop 3
                                     :timeout 10000 :interval 30)
-    (is (b/exists? (unique-count-span 2)))
+    (is (b/exists? (unique-count-span 1)))
 
     ;; Import from PMIDs file
     (log/info "importing from PMIDS")
