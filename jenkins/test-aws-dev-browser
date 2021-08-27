@@ -4,5 +4,6 @@ set -eux
 rm -rf ./target
 
 rm -f target/junit.xml
+ENV=test
 testcmd1='lein test-aws-dev-browser'
 $testcmd1 || $testcmd1

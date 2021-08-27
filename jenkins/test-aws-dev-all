@@ -3,6 +3,7 @@ set -eux
 
 rm -rf ./target
 
+ENV=test
 SYSREV_FULL_TESTS=1
 testcmd1='lein test-aws-dev-all'
 $testcmd1 || (cat target/junit.xml && $testcmd1)
