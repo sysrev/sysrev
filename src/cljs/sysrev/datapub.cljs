@@ -65,7 +65,7 @@
                (str/starts-with? js/location.host "localhost:")))
     (localhost-subscribe! :on-complete on-complete :on-data on-data
                           :payload payload)
-    (if-let [ws (js/WebSocket. @websocket-endpoint)]
+    (if-let [ws (js/WebSocket. @websocket-endpoint #js["graphql-ws"])]
       (do
         (set!
          (.-onopen ws)
