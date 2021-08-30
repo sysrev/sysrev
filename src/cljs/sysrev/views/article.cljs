@@ -316,7 +316,10 @@
            :src
            (if (seq cursors)
              (clj->js (map-from-cursors json cursors))
-             (clj->js json))}]]))))
+             (clj->js json))
+           :theme (if @(subscribe [:self/dark-theme?])
+                    "monokai"
+                    "rjv-default")}]]))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})
