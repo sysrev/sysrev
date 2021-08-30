@@ -11,12 +11,15 @@
 (defn get-entities [ids]
   (map
    (fn [id]
-     (let [content (-> (datapub/get-dataset-entity id "content"
-                                                   :endpoint (:datapub-api env))
-                       :content
-                       (json/parse-string keyword))]
-       {:external-id id
-        :primary-title (get-in content [:ProtocolSection :IdentificationModule :BriefTitle])}))
+     (let [ps (-> (datapub/get-dataset-entity id "content"
+                                              :endpoint (:datapub-api env))
+                  :content
+                  (json/parse-string keyword)
+                  :ProtocolSection)]
+       {:abstract (get-in ps [:DescriptionModule :BriefSummary])
+        :external-id id
+        :primary-title (get-in ps [:IdentificationModule :BriefTitle])
+        :secondary-title (get-in ps [:IdentificationModule :OfficialTitle])}))
    ids))
 
 (defmethod make-source-meta :ctgov [_ {:keys [search-term results-count]}]
