@@ -1,13 +1,13 @@
 (ns sysrev.views.article
-  (:require #_ ["react-json-view" :default ReactJson]
-            ["xml2js" :as xml2js]
+  (:require ["react-json-view" :default ReactJson]
+            ["react-markdown" :as ReactMarkdown]
             ["react-xml-viewer" :as XMLViewer]
+            ["remark-gfm" :as gfm]
+            ["xml2js" :as xml2js]
             [clojure.string :as str]
             goog.object
             [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
-            ["react-markdown" :as ReactMarkdown]
-            ["remark-gfm" :as gfm]
             [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.data.cursors :refer [map-from-cursors]]
             [sysrev.state.nav :refer [project-uri]]
@@ -300,7 +300,6 @@
                     :DerivedSection (:DerivedSection ct-json)})
             nctid (get-in json [:ProtocolSection :IdentificationModule :NCTId])
             title (get-in json [:ProtocolSection :IdentificationModule :BriefTitle])
-            ;; brief-summary (get-in json [:ProtocolSection :DescriptionModule :BriefSummary])
             source-id (first @(subscribe [:article/sources article-id]))
             cursors (mapv #(mapv keyword %)
                           (get-in @(subscribe [:project/sources source-id])
@@ -309,10 +308,15 @@
          [:h2 title]
          [ui/OutLink (str "https://clinicaltrials.gov/ct2/show/" nctid)]
          [:br]
-         [ReactJSONView (if (seq cursors)
-                          (clj->js (map-from-cursors json cursors))
-                          (clj->js json))
-          json {:collapsed 3}]]))))
+         [:> ReactJson
+          {:display-array-key false
+           :display-data-types false
+           :name nil
+           :quotes-on-keys false
+           :src
+           (if (seq cursors)
+             (clj->js (map-from-cursors json cursors))
+             (clj->js json))}]]))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})
