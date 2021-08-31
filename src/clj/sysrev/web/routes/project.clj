@@ -35,7 +35,6 @@
             [sysrev.predict.report :as predict-report]
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.formats.ctgov :as ctgov]
             [sysrev.encryption :as enc]
             [sysrev.slack :as slack]
             [sysrev.util :as util :refer [parse-integer]]
@@ -442,10 +441,10 @@
 
 (dr (POST "/api/import-trials/ctgov" request
           (with-authorize request {:roles ["admin"]}
-            (let [{:keys [search-term]} (:body request)
+            (let [{:keys [entity-ids search-term]} (:body request)
                   project-id (active-project request)
                   user-id (current-user-id request)]
-              (api/import-trials-from-search project-id search-term :user-id user-id)))))
+              (api/import-trials-from-search project-id search-term entity-ids :user-id user-id)))))
 ;;;
 ;;; Article review
 ;;;
@@ -525,10 +524,6 @@
            (let [{:keys [pmids]} (-> :params request)]
              (pubmed/get-pmids-summary (mapv parse-integer (str/split pmids #",")))))))
 
-(dr (GET "/api/ctgov/search" request
-         (with-authorize request {}
-           (let [{:keys [term page-number]} (-> :params request)]
-             (ctgov/search term (parse-integer page-number))))))
 ;;;
 ;;; Project settings
 ;;;

@@ -73,6 +73,7 @@
   (:require [cider.nrepl :refer (cider-nrepl-handler)]
             [clojure.spec.alpha :as s]
             [clojure.edn :as edn]
+            hashp.core
             [orchestra.spec.test :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]

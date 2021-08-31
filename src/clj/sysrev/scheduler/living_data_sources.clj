@@ -3,10 +3,16 @@
             [clojurewerkz.quartzite.jobs :as j]
             [clojurewerkz.quartzite.schedule.simple :refer [schedule repeat-forever with-interval-in-hours]]
             [clojurewerkz.quartzite.triggers :as t]
+            [sysrev.source.ctgov :as ctgov]
             [sysrev.source.pubmed :as pubmed]
             [sysrev.source.core :as source]
             [honeysql.helpers :as sqlh :refer [select from where]]
             [sysrev.db.core :as db :refer [do-query]]))
+
+(defn check-new-articles-ctgov [{:keys [source-id] :as source}]
+  (let [new-article-ids (ctgov/get-new-articles-available source)
+        project-id (source/source-id->project-id source-id)]
+    (source/set-new-articles-available project-id source-id (count new-article-ids))))
 
 (defn check-new-articles-pubmed [{:keys [source-id] :as source}]
   (let [new-article-ids (pubmed/get-new-articles-available source)
@@ -23,6 +29,7 @@
       (let [source-type (-> source :meta :source)]
         (Thread/sleep 5000)
         (case source-type
+          "CT.gov search" (check-new-articles-ctgov source)
           "PubMed search" (check-new-articles-pubmed source)
           :noop)))))
 

@@ -81,6 +81,12 @@
     (when @lucky-orange-enabled (page/include-js "/lo.js"))]
    [:body
     [:div {:style "display: none;"
+           :id "datapub-api"
+           :data-datapub-api (:datapub-api env "https://www.datapub.dev/api")}]
+    [:div {:style "display: none;"
+           :id "datapub-ws"
+           :data-datapub-ws (:datapub-ws env "wss://www.datapub.dev/ws")}]
+    [:div {:style "display: none;"
            :id "stripe-public-key"
            :data-stripe-public-key stripe-public-key}]
     [:div {:style "display: none;"

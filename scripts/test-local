@@ -36,7 +36,7 @@ if [ $compile = true ]; then
 fi
 
 if [ -z $namespace ]; then
-    time lein with-profile +postgres eftest
+    ENV=test time lein with-profile +postgres eftest
 else
-    time lein with-profile +postgres eftest $namespace
+    ENV=test time lein with-profile +postgres eftest $namespace
 fi

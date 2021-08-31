@@ -1,4 +1,9 @@
-{:postgres
+{:datapub-api "http://localhost:8888/api"
+ :datapub-embedded "true"
+ :datapub-ws "ws://localhost:8888/ws"
+ :dbembedded "true"
+ :env "test"
+ :postgres
  {:dbname "sysrev_test"
   :user "postgres"
   :password ""
@@ -6,6 +11,7 @@
   :port 5432}
  :server
  {:port 4131}
+ :sysrev-dev-key "***REMOVED***"
  :profile :test
  :max-import-articles 100000
  :max-bulk-invitations 100

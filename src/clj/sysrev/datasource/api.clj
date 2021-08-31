@@ -6,6 +6,7 @@
             [orchestra.core :refer [defn-spec]]
             [venia.core :as venia]
             [sysrev.config :refer [env]]
+            [sysrev.datapub-client.interface :as datapub]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.util :as util :refer
@@ -173,7 +174,19 @@
                   (select-keys x [:article-id :project-id]))))))
 
 (defmethod enrich-articles "ctgov" [_ articles]
-  (let [data (->> articles (map :external-id) fetch-nct-entities)]
+  (let [ids (map :external-id articles)
+        data (merge
+              (->> ids (filter string?) fetch-nct-entities)
+              (->> ids (filter number?)
+                   (map
+                    (fn [id]
+                      (let [content (-> id (datapub/get-dataset-entity
+                                            "content" :endpoint (:datapub-api env))
+                                        :content (json/read-str :key-fn keyword))]
+                        {:external-id id
+                         :nctid (get-in content [:ProtocolSection :IdentificationModule :NTCId])
+                         :json content})))
+                   (index-by :external-id)))]
     (vec (for [{:keys [external-id] :as x} articles]
            (merge (get data external-id)
                   (select-keys x [:article-id :project-id :datasource-name :primary-title]))))))

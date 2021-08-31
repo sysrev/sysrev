@@ -1,7 +1,9 @@
 (ns sysrev.sente
-  (:require [clojure.core.async :refer [<! go]]
+  (:require [clojure.core.async :refer [<!!]]
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
+            [sysrev.config :refer [env]]
+            [sysrev.datapub-client.interface :as datapub]
             [sysrev.reviewer-time.interface :as reviewer-time]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.web.app :refer [current-user-id]]
@@ -45,22 +47,37 @@
         (str (namespace x) "/" (name x))))))
 
 (defn- handle-message! [sente item]
-  (let [event (:event item)
+  (let [{:keys [?reply-fn event]} item
         [kind data] event]
-    (when (= :review/record-reviewer-event kind)
+    (case kind
+      :datapub/subscribe!
+      (when (#{:dev :test} (:profile env))
+        ; Workaround for Chrome's restrictions on local dev. We can't open a websocket to
+        ; datapub on localhost, so we proxy the requests here.
+        (let [{:keys [query variables]} data]
+          (?reply-fn
+           (datapub/consume-subscription!
+            :auth-token (:sysrev-dev-token env)
+            :endpoint (:datapub-ws env)
+            :query query
+            :variables variables))))
+
+      :review/record-reviewer-event
       (let [[reframe-event {:keys [article-id project-id]}] data]
         (reviewer-time/create-events!
          (get-in sente [:postgres :datasource])
          [{:article-id article-id
            :event-type (full-name reframe-event)
            :project-id project-id
-           :user-id (:uid item)}])))))
+           :user-id (:uid item)}]))
+
+      nil)))
 
 (defn receive-sente-channel! [sente chan]
-  (go
+  (future
     (while true
       (try
-        (let [x (<! chan)]
+        (let [x (<!! chan)]
           (try
             (handle-message! sente x)
             (catch Throwable e

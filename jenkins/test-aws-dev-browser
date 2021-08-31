@@ -5,4 +5,4 @@ rm -rf ./target
 
 rm -f target/junit.xml
 testcmd1='lein test-aws-dev-browser'
-$testcmd1 || $testcmd1
+DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** $testcmd1 || $testcmd1

@@ -1,4 +1,9 @@
-{:postgres
+{:datapub-api "http://localhost:8888/api"
+ :datapub-embedded "true"
+ :datapub-ws "ws://localhost:8888/ws"
+ :dbembedded "true"
+ :env "test"
+ :postgres
  {:dbname "sysrev"
   :user "postgres"
   :password ""
@@ -6,6 +11,7 @@
   :port 5471}
  :server
  {:port 4132}
+ :sysrev-dev-key "***REMOVED***"
  :selenium
  {:protocol "https"
   :host "staging.sysrev.com"}

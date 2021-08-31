@@ -37,8 +37,8 @@
 (deftest-browser ctgov-search-import
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (clinicaltrials.gov)"
-   search-term "foo olive"
-   article-title "Bioactivity of Olive Oils Enriched With Their Own Phenolic Compounds"
+   search-term "\"single oral dose\""
+   article-title "Single Ascending Dose Study of SAR443820 in Healthy Adult Chinese and Japanese Female and Male Participants"
    article-search-result (xpath "//div[contains(@class,'article-title') and contains(text(),'"
                                 article-title "')]")
    article-title-element (xpath "//h2[contains(text(),'" article-title "')]")]

@@ -1,5 +1,6 @@
 {:deps {org.clojure/clojure {:mvn/version "1.10.3"}
         org.clojure/tools.deps.alpha {:mvn/version "0.11.918"}
+        poly/datapub-client {:local/root "../../components/datapub-client"}
         poly/flyway {:local/root "../../components/flyway"}
         poly/notification {:local/root "../../components/notification"}
         poly/reviewer-time {:local/root "../../components/reviewer-time"}

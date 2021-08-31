@@ -3,4 +3,4 @@ set -eu
 
 source vars.sh
 
-clj -M:dev:test:repl:\+default
+ENV=dev clj -M:dev:test:repl:\+default

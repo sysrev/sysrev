@@ -6,4 +6,4 @@
         honeysql/honeysql {:mvn/version "1.0.461"}
         medley/medley {:mvn/version "1.3.0"}}
  :aliases {:test {:extra-paths ["test"]
-                  :extra-deps {poly/fixtures {:local/root "components/fixtures"}}}}}
+                  :extra-deps {poly/fixtures {:local/root "../fixtures"}}}}}

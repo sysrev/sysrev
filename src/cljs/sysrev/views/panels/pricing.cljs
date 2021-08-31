@@ -46,9 +46,13 @@
    [PricingItem {:icon "check" :content "Project management"}]
    [PricingItem {:icon "check"
                  :content [:span "Sysrev Analytics - "
-                           [:a {:href "https://blog.syssrev.com/analytics"}
-                            "analytics blog"]]}]
-   [PricingItem {:icon "tags" :content "Group Labels"}]
+                           [:a {:href "https://youtu.be/FgxJ4zTVUn4"
+                                :target "_blank"}
+                            "analytics demo"]]}]
+   [PricingItem {:icon "tags" :content [:span "Group Labels - "
+                                        [:a {:href "https://youtu.be/3FzJIXGOXq0"
+                                             :target "_blank"}
+                                         "group labels demo"]]}]
    [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
    [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]])
 
@@ -60,9 +64,13 @@
    [PricingItem {:icon "check" :content "Project management"}]
    [PricingItem {:icon "check"
                  :content [:span "Sysrev Analytics - "
-                           [:a {:href "https://blog.syssrev.com/analytics"}
-                            "analytics blog"]]}]
-   [PricingItem {:icon "tags" :content "Group Labels"}]
+                           [:a {:href "https://youtu.be/FgxJ4zTVUn4"
+                                :target "_blank"}
+                            "analytics demo"]]}]
+   [PricingItem {:icon "tags" :content [:span "Group Labels - "
+                                        [:a {:href "https://youtu.be/3FzJIXGOXq0"
+                                             :target "_blank"}
+                                         "group labels demo"]]}]
    [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
    [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]
    [PricingItem {:icon "users" :content "Group adminstration tools"}]])
@@ -143,14 +151,14 @@
                 "Already signed up!" "Choose Premium")]))
            (PricingSegment
             :class "pricing-enterprise"
-            :title "Enterprise" :price [:a {:href "mailto:info@sysrev.com"}
+            :title "Enterprise" :price [:a {:href "mailto:info@insilica.co"}
                                         "Contact Sales for pricing"]
             :intro "Customized plans tailored to your organization's needs"
             :benefits [EnterpriseBenefits]
             :content
             (list
              [:p.team-pricing {:key :team-pricing}
-              [:a {:href "mailto:sales@sysrev.com"} "Contact us"]
+              [:a {:href "mailto:info@insilica.co"} "Contact us"]
               " about designing a custom data processing and analysis solution to meet your needs today!"]))]]]))))
 
 (def-panel :uri "/pricing" :panel panel

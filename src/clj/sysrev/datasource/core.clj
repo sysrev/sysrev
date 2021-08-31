@@ -81,7 +81,7 @@
                       (some-> external-id parse-integer str)
                       external-id))
      :title primary-title
-     :content (when-not datasource-name
+     :content (when (or (not datasource-name) (= "ctgov" datasource-name))
                 (->> (dissoc article
                              :source-meta :text-search :enabled :article-data-id
                              :article-id :article-uuid :parent-article-uuid)

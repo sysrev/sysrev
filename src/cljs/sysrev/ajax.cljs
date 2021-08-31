@@ -85,7 +85,7 @@
                            (:csrf-token response))]
        (-> context
            (update-in [:coeffects :event]
-                      #(vec (concat (butlast %) [result])))
+                      #(vec (concat (butlast %) [result response])))
            (#(if (nil? error)
                %
                (assoc-in % [:coeffects :error] error)))
