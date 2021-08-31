@@ -42,7 +42,7 @@
   (or
     ; Try to find an owner with Prmium plan first
     (first
-      (q/find [:user-group :ug] {:group-id 762, "owner" :%any.permissions
+      (q/find [:user-group :ug] {:group-id group-id, "owner" :%any.permissions
                                  :sp.product-name plans-info/premium-product}
 
               :ug.user-id, :order-by :ug.created, :limit 1
