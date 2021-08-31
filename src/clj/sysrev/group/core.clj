@@ -6,6 +6,7 @@
             [sysrev.db.queries :as q]
             [sysrev.notification.interface :refer [subscribe-to-topic subscriber-for-user
                                                    topic-for-name unsubscribe-from-topic]]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.encryption :as enc]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
@@ -38,8 +39,17 @@
 (defn-spec get-group-owner (s/nilable int?)
   "Return earliest owner `user-id` among current owners of `group-id`."
   [group-id int?]
-  (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
-                 :user-id, :order-by :created, :limit 1)))
+  (or
+    ; Try to find an owner with Prmium plan first
+    (first
+      (q/find [:user-group :ug] {:group-id 762, "owner" :%any.permissions
+                                 :sp.product-name plans-info/premium-product}
+
+              :ug.user-id, :order-by :ug.created, :limit 1
+              :join [[[:plan-user :pu] [:= :pu.user-id :ug.user-id]]
+                     [[:stripe-plan :sp] [:= :pu.plan :sp.id]]]))
+    (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
+                   :user-id, :order-by :created, :limit 1))))
 
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"

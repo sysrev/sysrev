@@ -111,7 +111,7 @@
           [Row
            (PricingSegment
             :class "pricing-free"
-            :title "Free" :price "$0" :per-item "Per Month"
+            :title "Basic" :price "$0" :per-item "Per Month"
             :intro "The basics of Sysrev for every researcher"
             :benefits [FreeBenefits]
             :content

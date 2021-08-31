@@ -2,6 +2,8 @@
   (:require [clojure.string :as str]))
 
 
+(def premium-product "Premium")
+
 (def default-plan "Basic")
 (def unlimited-org "Unlimited_Org")
 (def unlimited-org-annual "Unlimited_Org_Annual")

@@ -4,12 +4,12 @@
             [clojure.walk :as walk]
             [sysrev.config :refer [env]]
             [sysrev.payment.plans :as db-plans]
-            [honeysql.helpers :as sqlh :refer [select from insert-into values]]
+            [honeysql.helpers :as sqlh :refer [select from insert-into values join where]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :as funds]
-            [sysrev.shared.plans-info :refer [default-plan user-pro-plans]]
+            [sysrev.shared.plans-info :as plans-info  :refer [default-plan user-pro-plans]]
             [sysrev.util :as util :refer [index-by current-function-name]]))
 
 (def stripe-secret-key (env :stripe-secret-key))
@@ -349,7 +349,9 @@
 
 (defn update-subscriptions []
   (let [subscriptions (-> (select :sub-id)
-                          (from :plan-user)
+                          (from [:plan-user :pu])
+                          (join [:stripe-plan :sp] [:= :pu.plan :sp.id])
+                          (where [:= :sp.product-name plans-info/premium-product])
                           db/do-query)]
     (doseq [subscription-id subscriptions]
       (update-subscription subscription-id))))
@@ -396,8 +398,3 @@
       {:success true :handled true})
     {:success true :handled false}))
 
-;(get-products)
-;(update-subscriptions)
-;(update-stripe-plans-table)
-;(get-plans)
-;(get-subscription "sub_JlqOdbkXYobkjf")
