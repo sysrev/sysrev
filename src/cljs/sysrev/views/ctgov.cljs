@@ -274,8 +274,24 @@
           :else [SearchResultsView])))
 
 (defn SearchFilters []
-  [comp/MultiSelect
-   {:cursor (r/cursor state [:filters :recruitment])
-    :label "Recruitment"
-    :on-change #(dispatch [::fetch-results])
-    :options ctgov/recruitment-options}])
+  [:<>
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :recruitment])
+     :label "Recruitment"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/recruitment-options}]
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :gender])
+     :label "Gender"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/gender-options}]
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :study-type])
+     :label "Study Type"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/study-type-options}]
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :sponsor-class])
+     :label "Sponsor Class"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/sponsor-class-options}]])
