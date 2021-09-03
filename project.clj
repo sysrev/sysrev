@@ -24,7 +24,7 @@
                  [crypto-random "1.2.1"]
                  [me.raynes/fs "1.4.6"]
                  [eftest "0.5.9"]
- 
+
 ;;; Data formats
                  [org.clojure/data.json "2.2.2"]
                  [com.cognitect/transit-clj "1.0.324"]

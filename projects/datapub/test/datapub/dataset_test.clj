@@ -4,6 +4,16 @@
   (:use clojure.test
         datapub.dataset))
 
+(defn parse-json
+  "Convert a String or PGObject to keywordized json.
+
+  The type returned by queries is affected by global state, so this should handle
+  both argument types properly to remain robust."
+  [x]
+  (json/parse-string
+   (if (string? x) x (.getValue x))
+   true))
+
 (deftest test-dataset-ops
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
@@ -70,7 +80,7 @@
              (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
                   (map (fn [m] (-> m
                                    (select-keys #{:content :externalId})
-                                   (update :content #(json/parse-string (.getValue %) true)))))
+                                   (update :content parse-json))))
                   frequencies)))
       (testing "uniqueExternalIds: true returns latest versions only"
         (is (= {{:content ["A1" 3] :externalId "A1"} 1
@@ -81,7 +91,7 @@
                (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id :uniqueExternalIds true} {:timeout-ms 1000})
                     (map (fn [m] (-> m
                                      (select-keys #{:content :externalId})
-                                     (update :content #(json/parse-string (.getValue %) true)))))
+                                     (update :content parse-json))))
                     frequencies)))))))
 
 (deftest test-dataset-entities-subscription
@@ -102,7 +112,7 @@
              (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
                   (map (fn [m] (-> m
                                    (select-keys #{:content :mediaType})
-                                   (update :content #(json/parse-string (.getValue %) true)))))
+                                   (update :content parse-json))))
                   (into #{})))))))
 
 (deftest test-search-dataset-subscription
