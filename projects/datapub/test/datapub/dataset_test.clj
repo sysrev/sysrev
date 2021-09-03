@@ -181,8 +181,6 @@
                      (map (fn [m] (select-keys m #{:externalId})))
                      (into #{})))))
       (testing "OR search"
-        (test/throw-errors
-         (ex test/create-dataset-index primary-outcome))
         (is (= #{{:externalId "NCT04982926"} {:externalId "NCT04982939"}}
                (->> (test/execute-subscription
                      system search-dataset-subscription test/subscribe-search-dataset
@@ -199,8 +197,6 @@
                     (map (fn [m] (select-keys m #{:externalId})))
                     (into #{})))))
       (testing "Complex search with nested ANDs and ORs"
-        (test/throw-errors
-         (ex test/create-dataset-index primary-outcome))
         (is (= #{{:externalId "NCT04982900"} {:externalId "NCT04983004"}}
                (->> (test/execute-subscription
                      system search-dataset-subscription test/subscribe-search-dataset
