@@ -219,4 +219,49 @@
                             :search "tele-rehabilitation"}]}]}}}
                      {:timeout-ms 1000})
                     (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{})))))
+      (testing "String equality search (case-sensitive)"
+        (is (= #{{:externalId "NCT04982978"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :AND
+                        :string
+                        [{:eq "Completed"
+                          :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{}))))
+        (is (= #{}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :AND
+                        :string
+                        [{:eq "not yet recruiting"
+                          :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{})))))
+      (testing "String equality search (case-insensitive)"
+        (is (= #{{:externalId "NCT04983004"} {:externalId "NCT04982991"}
+                 {:externalId "NCT04982965"} {:externalId "NCT04982952"}
+                 {:externalId "NCT04982926"} {:externalId "NCT04982913"}
+                 {:externalId "NCT04982900"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :AND
+                        :string
+                        [{:eq "not yet recruiting"
+                          :ignoreCase true
+                          :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
                     (into #{}))))))))
