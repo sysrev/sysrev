@@ -86,6 +86,7 @@ input SearchDatasetInput {
 }
 
 input SearchDatasetQueryInput {
+  query: [SearchDatasetQueryInput]
   text: [SearchDatasetQueryTextInput]
   type: SearchDatasetQueryInputType!
 }

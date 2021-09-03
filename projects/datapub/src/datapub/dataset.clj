@@ -406,13 +406,15 @@
              seq
              (apply vector :or))))
 
-(defn search-dataset-query->sqlmap [context {:keys [text type]}]
+(defn search-dataset-query->sqlmap [context {:keys [query text type]}]
   (apply
    vector
    (case type
      :AND :and
      :OR :or)
-   (map (partial text-query->sqlmap context) text)))
+   (concat
+    (map (partial search-dataset-query->sqlmap context) query)
+    (map (partial text-query->sqlmap context) text))))
 
 (defn search-dataset-subscription
   [context

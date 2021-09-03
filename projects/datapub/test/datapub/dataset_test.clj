@@ -123,6 +123,9 @@
           brief-summary {:datasetId ds-id
                          :path (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])
                          :type :TEXT}
+          condition {:datasetId ds-id
+                     :path (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])
+                     :type :TEXT}
           primary-outcome {:datasetId ds-id
                            :path (pr-str ["ProtocolSection" "OutcomesModule" "PrimaryOutcomeList" "PrimaryOutcome" :* "PrimaryOutcomeDescription"])
                            :type :TEXT}
@@ -176,4 +179,48 @@
                       (search-q brief-summary "\"single oral doses\"")
                       {:timeout-ms 1000})
                      (map (fn [m] (select-keys m #{:externalId})))
-                     (into #{}))))))))
+                     (into #{})))))
+      (testing "OR search"
+        (test/throw-errors
+         (ex test/create-dataset-index primary-outcome))
+        (is (= #{{:externalId "NCT04982926"} {:externalId "NCT04982939"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :OR
+                        :text
+                        [{:paths [(:path condition)]
+                          :search "\"breast cancer\""}
+                         {:paths [(:path brief-summary)]
+                          :search "sintilimab"}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{})))))
+      (testing "Complex search with nested ANDs and ORs"
+        (test/throw-errors
+         (ex test/create-dataset-index primary-outcome))
+        (is (= #{{:externalId "NCT04982900"} {:externalId "NCT04983004"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :OR
+                        :query
+                        [{:type :AND
+                          :text
+                          [{:paths [(:path condition)]
+                            :search "cancer"}
+                           {:paths [(:path brief-summary)]
+                            :search "EGFR-TKI"}]}
+                         {:type :AND
+                          :text
+                          [{:useEveryIndex true
+                            :search "treatment"}
+                           {:paths [(:path brief-summary)]
+                            :search "tele-rehabilitation"}]}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{}))))))))
