@@ -68,8 +68,10 @@
 (defn postgres [{:keys [config]}]
   (map->Postgres {:config config}))
 
-;; Register postgres text search operator
-(sql/register-op! (keyword "@@"))
+(doseq [op [(keyword "@@") ;; Register postgres text search operator
+            ;; Register JSON operators
+            (keyword "->") (keyword "->>") (keyword "#>") (keyword "#>>")]]
+  (sql/register-op! op))
 
 (def jdbc-opts
   {:builder-fn result-set/as-kebab-maps})

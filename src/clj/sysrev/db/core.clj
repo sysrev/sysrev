@@ -41,7 +41,9 @@
           _type-name (.getParameterTypeName meta i)]
       (.setObject s i num))))
 
-(honey.sql/register-op! (keyword "@@"))
+(doseq [op [(keyword "@@") (keyword "->") (keyword "->>")
+            (keyword "#>") (keyword "#>>")]]
+  (honey.sql/register-op! op))
 
 (def jdbc-opts
   {:builder-fn result-set/as-kebab-maps})
