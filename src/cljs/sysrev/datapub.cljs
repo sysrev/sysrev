@@ -90,7 +90,8 @@
                "complete"
                #__ (do (.close ws 1000 "complete")
                        (when on-complete (on-complete)))
-               "data" (-> message .-data js/JSON.parse .-payload on-data)
+               "data" (-> data .-payload on-data)
+               "error" (js/console.error "Error in datapub subscription:" data)
                "ka" nil))))
         ws)
       (throw (ex-info "Failed to create WebSocket" {:url @websocket-endpoint})))))
