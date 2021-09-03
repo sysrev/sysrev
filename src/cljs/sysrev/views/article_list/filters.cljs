@@ -722,28 +722,23 @@
 
 (defn- DisplayOptionsForm [context]
   (let [options @(subscribe [::al/display-options context])
-        make-button
-        (fn [key text _icon-class]
-          (let [enabled? (true? (get options key))]
-            [:button.ui.tiny.fluid.icon.labeled.button.toggle
-             {:on-click
-              (util/wrap-user-event
-               #(dispatch-sync [::al/set-display-option context key (not enabled?)]))}
-             (if enabled?
-               [:i.green.circle.icon]
-               [:i.grey.circle.icon])
-             #_ [:span [:i {:class (css icon-class "icon")}]]
-             text]))]
-    [:div.ui.segments>div.ui.segment.display-options
-     [:div.ui.small.form
-      [:div.sixteen.wide.field
-       [:label "Display Options"]
-       [:div.ui.two.column.grid
-        [:div.column [make-button :show-labels "Labels" "tags"]]
-        [:div.column [make-button :show-notes "Notes" "pencil alternate"]]
-        [:div.column [make-button :show-inclusion "Inclusion" "circle plus"]]
-        [:div.column [make-button :show-unconfirmed "Unconfirmed" nil]]
-        [:div.column [make-button :self-only "Self Only" "user"]]]]]]))
+        on (reduce (fn [s [k v]] (if v (conj s k) s)) #{} options)
+        cursor (r/wrap
+                on
+                (fn [on']
+                  (doseq [[k v] options]
+                    (when-not (= v (contains? on' k))
+                      (dispatch-sync [::al/set-display-option
+                                      context k (contains? on' k)])))))]
+    [ui/MultiSelect
+     {:cursor cursor
+      :label "Display Options"
+      :options
+      [[:show-labels "Labels"]
+       [:show-notes "Notes"]
+       [:show-inclusion "Inclusion"]
+       [:show-unconfirmed "Unconfirmed"]
+       [:self-only "Self Only"]]}]))
 
 (defn- SortOptionsForm [context]
   (let [sort-by @(subscribe [::al/sort-by context])

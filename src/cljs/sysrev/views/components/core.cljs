@@ -609,6 +609,32 @@
       (fn [_ child]
         child)})))
 
+(defn MultiSelect [{:keys [cursor label on-change options]}]
+  (let [on (when cursor @cursor)
+        make-button
+        (fn [key text]
+          [:button.ui.tiny.fluid.icon.labeled.button.toggle
+           {:on-click
+            (when cursor
+              (util/wrap-user-event
+               (fn []
+                 (-> (if (get on key)
+                       (swap! cursor disj key)
+                       (swap! cursor #(conj (or % #{}) key)))
+                     ((or on-change identity))))))}
+           (if (get on key)
+             [:i.green.circle.icon]
+             [:i.grey.circle.icon])
+           text])]
+    [:div.ui.segments>div.ui.segment.multiselect
+     [:div.ui.small.form
+      [:div.sixteen.wide.field
+       [:label label]
+       [:div.ui.two.column.grid
+        (for [[key label] options]
+          ^{:key (pr-str key)}
+          [:div.column [make-button key label]])]]]]))
+
 (reg-sub ::alerts #(get-in % [:state :alerts]))
 
 (reg-sub :current-alert
