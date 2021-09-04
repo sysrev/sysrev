@@ -10,6 +10,7 @@
             [sysrev.encryption :as enc]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
+            [sysrev.shared.plans-info :as plans-info]
             [sysrev.shared.spec.core :as sc]
             [sysrev.user.interface :as user]
             [sysrev.user.interface.spec :as su]
@@ -23,6 +24,40 @@
 
 (s/def ::permissions (s/? string?))
 
+(defn read-users-in-group
+  "Return all of the users in group-name"
+  [group-name]
+  (with-transaction
+    (let [users-in-group (q/find :user-group {:enabled true
+                                              :group-id (group-name->id group-name)}
+                                 [:user-id :permissions])
+          users-public-info (->> (map :user-id users-in-group)
+                                 (user/get-users-public-info)
+                                 (index-by :user-id))]
+      (vec (some->> (seq users-in-group)
+                    (map #(assoc % :primary-email-verified
+                                 (user/primary-email-verified? (:user-id %))))
+                    (map #(merge % (get users-public-info (:user-id %)))))))))
+
+(defn get-premium-members-count [user-id]
+  (let [group-ids (q/find [:user-group :ug] {"owner" :%any.permissions :ug.user-id user-id}
+                          :ug.group-id, :order-by :ug.created)
+        user-ids (-> (sqlh/select :%distinct.ug.user-id)
+                     (sqlh/from [:user-group :ug])
+                     (sqlh/where [:in :group-id group-ids])
+                     db/do-query)]
+    (map :user-id user-ids)))
+
+
+(defn update-premium-members-count! [user-id]
+  (let [{:keys [sub-id nickname] :as plan} (plans/user-current-plan user-id)
+        plan-id (:id plan)
+        sub-item-id (stripe/get-subscription-item sub-id)]
+    (when (contains? #{plans-info/unlimited-org plans-info/unlimited-org-annual} nickname)
+      (stripe/update-subscription-item!
+        {:id sub-item-id :plan plan-id
+         :quantity (get-premium-members-count user-id)}))))
+
 (defn-spec add-user-to-group! nat-int?
   "Create a user-group association between group-id and user-id
   with optional :permissions vector (default of [\"member\"])"
@@ -34,22 +69,14 @@
          (topic-for-name (str ":group " group-id) :create? true :returning :topic-id)))
     (q/create :user-group (cond-> {:user-id user-id :group-id group-id}
                             permissions (assoc :permissions (db/to-sql-array "text" permissions)))
-              :returning :id)))
+              :returning :id))
+  (update-premium-members-count! user-id))
 
 (defn-spec get-group-owner (s/nilable int?)
   "Return earliest owner `user-id` among current owners of `group-id`."
   [group-id int?]
-  (or
-    ; Try to find an owner with Prmium plan first
-    (first
-      (q/find [:user-group :ug] {:group-id group-id, "owner" :%any.permissions
-                                 :sp.product-name plans-info/premium-product}
-
-              :ug.user-id, :order-by :ug.created, :limit 1
-              :join [[[:plan-user :pu] [:= :pu.user-id :ug.user-id]]
-                     [[:stripe-plan :sp] [:= :pu.plan :sp.id]]]))
-    (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
-                   :user-id, :order-by :created, :limit 1))))
+  (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
+                 :user-id, :order-by :created, :limit 1)))
 
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"
@@ -77,20 +104,7 @@
   (q/modify :user-group {:id user-group-id}
             {:permissions (db/to-sql-array "text" permissions), :updated :%now}))
 
-(defn read-users-in-group
-  "Return all of the users in group-name"
-  [group-name]
-  (with-transaction
-    (let [users-in-group (q/find :user-group {:enabled true
-                                              :group-id (group-name->id group-name)}
-                                 [:user-id :permissions])
-          users-public-info (->> (map :user-id users-in-group)
-                                 (user/get-users-public-info)
-                                 (index-by :user-id))]
-      (vec (some->> (seq users-in-group)
-                    (map #(assoc % :primary-email-verified
-                                 (user/primary-email-verified? (:user-id %))))
-                    (map #(merge % (get users-public-info (:user-id %)))))))))
+
 
 (defn user-active-in-group?
   "Test for presence of enabled user-group entry"

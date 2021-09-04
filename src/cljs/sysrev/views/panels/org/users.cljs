@@ -231,16 +231,6 @@
      [ModalContent
       [ModalDescription
        [Form {:on-submit #(run-action :org/change-user-role org-id @user-id [@new-role])}
-        [:h4 {:style {:margin-left "-0.5rem"}} "Select a new role"]
-        [FormGroup
-         [Checkbox {:label "Owner"
-                    :as "h4", :radio true, :style {:display "block"}
-                    :checked (= @new-role "owner")
-                    :on-change #(reset! new-role "owner")}]]
-        [:p {:style {:margin-top "0" :margin-left "1.5rem"}}
-         "Has full administrative access to the entire organization. "
-         "Can update payment information. "
-         "Can add, remove, and edit users and projects."]
         [FormGroup
          [Checkbox {:label "Admin"
                     :as "h4", :radio true, :style {:display "block"}

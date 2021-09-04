@@ -28,7 +28,7 @@
   [:div "Unlimited "
    [Popup {:trigger (r/as-element [:a {:href "https://github.com/sysrev/Sysrev_Documentation/wiki/FAQ#what-is-the-difference-between-a-public-and-private-project"}
                                    "private projects"])
-           :content "Private project content can only be viewed by project members "}]])
+           :content "Private project content can only be viewed by project members"}]])
 
 (defn FreeBenefits []
   [ListUI
@@ -136,8 +136,6 @@
             :benefits [TeamProBenefits]
             :content
             (list
-             [:p.team-pricing {:key :team-pricing}
-              "Starts at " [:b "$30 / month"] " and includes your first 5 team members"]
              [Button {:key :button
                       :href (if @logged-in?
                               "/user/plans"

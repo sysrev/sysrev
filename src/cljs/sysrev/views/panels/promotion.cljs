@@ -26,7 +26,7 @@
       [:li "Provide $500 to your selected project."]]
      "This review budget expires in August 2021 and per article payments cannot exceed $2. Reviewer payments are subject to the standard 20% overhead rate."]
     [:h2 "Can I apply?"]
-    [:p "Awarded applications are required to either sign up for Team Pro at $30/month or already have a team pro account."]
+    [:p "Awarded applications are required to either sign up for Premium at $10/month or already have a team pro account."]
     [:p "Priority is given to new team pro accounts, but anybody can apply!"]
     [:h2 "Apply Below"]
     [:iframe {:src "https://docs.google.com/forms/d/e/1FAIpQLSfwwGo-rbzxZAurT3CmW0pdpcw82a3kYSQbFpsJ41-o5zpJDw/viewform?embedded=true"
