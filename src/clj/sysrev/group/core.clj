@@ -10,7 +10,6 @@
             [sysrev.encryption :as enc]
             [sysrev.payment.stripe :as stripe]
             [sysrev.payment.plans :as plans]
-            [sysrev.shared.plans-info :as plans-info]
             [sysrev.shared.spec.core :as sc]
             [sysrev.user.interface :as user]
             [sysrev.user.interface.spec :as su]
