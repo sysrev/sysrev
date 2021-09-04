@@ -4,6 +4,16 @@
   (:use clojure.test
         datapub.dataset))
 
+(defn parse-json
+  "Convert a String or PGObject to keywordized json.
+
+  The type returned by queries is affected by global state, so this should handle
+  both argument types properly to remain robust."
+  [x]
+  (json/parse-string
+   (if (string? x) x (.getValue x))
+   true))
+
 (deftest test-dataset-ops
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
@@ -70,7 +80,7 @@
              (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
                   (map (fn [m] (-> m
                                    (select-keys #{:content :externalId})
-                                   (update :content #(json/parse-string (.getValue %) true)))))
+                                   (update :content parse-json))))
                   frequencies)))
       (testing "uniqueExternalIds: true returns latest versions only"
         (is (= {{:content ["A1" 3] :externalId "A1"} 1
@@ -81,7 +91,7 @@
                (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id :uniqueExternalIds true} {:timeout-ms 1000})
                     (map (fn [m] (-> m
                                      (select-keys #{:content :externalId})
-                                     (update :content #(json/parse-string (.getValue %) true)))))
+                                     (update :content parse-json))))
                     frequencies)))))))
 
 (deftest test-dataset-entities-subscription
@@ -102,7 +112,7 @@
              (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
                   (map (fn [m] (-> m
                                    (select-keys #{:content :mediaType})
-                                   (update :content #(json/parse-string (.getValue %) true)))))
+                                   (update :content parse-json))))
                   (into #{})))))))
 
 (deftest test-search-dataset-subscription
@@ -113,6 +123,9 @@
           brief-summary {:datasetId ds-id
                          :path (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])
                          :type :TEXT}
+          condition {:datasetId ds-id
+                     :path (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])
+                     :type :TEXT}
           primary-outcome {:datasetId ds-id
                            :path (pr-str ["ProtocolSection" "OutcomesModule" "PrimaryOutcomeList" "PrimaryOutcome" :* "PrimaryOutcomeDescription"])
                            :type :TEXT}
@@ -166,4 +179,89 @@
                       (search-q brief-summary "\"single oral doses\"")
                       {:timeout-ms 1000})
                      (map (fn [m] (select-keys m #{:externalId})))
-                     (into #{}))))))))
+                     (into #{})))))
+      (testing "OR search"
+        (is (= #{{:externalId "NCT04982926"} {:externalId "NCT04982939"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :OR
+                        :text
+                        [{:paths [(:path condition)]
+                          :search "\"breast cancer\""}
+                         {:paths [(:path brief-summary)]
+                          :search "sintilimab"}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{})))))
+      (testing "Complex search with nested ANDs and ORs"
+        (is (= #{{:externalId "NCT04982900"} {:externalId "NCT04983004"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :OR
+                        :query
+                        [{:type :AND
+                          :text
+                          [{:paths [(:path condition)]
+                            :search "cancer"}
+                           {:paths [(:path brief-summary)]
+                            :search "EGFR-TKI"}]}
+                         {:type :AND
+                          :text
+                          [{:useEveryIndex true
+                            :search "treatment"}
+                           {:paths [(:path brief-summary)]
+                            :search "tele-rehabilitation"}]}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{})))))
+      (testing "String equality search (case-sensitive)"
+        (is (= #{{:externalId "NCT04982978"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :AND
+                        :string
+                        [{:eq "Completed"
+                          :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{}))))
+        (is (= #{}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :AND
+                        :string
+                        [{:eq "not yet recruiting"
+                          :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{})))))
+      (testing "String equality search (case-insensitive)"
+        (is (= #{{:externalId "NCT04983004"} {:externalId "NCT04982991"}
+                 {:externalId "NCT04982965"} {:externalId "NCT04982952"}
+                 {:externalId "NCT04982926"} {:externalId "NCT04982913"}
+                 {:externalId "NCT04982900"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :AND
+                        :string
+                        [{:eq "not yet recruiting"
+                          :ignoreCase true
+                          :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{}))))))))

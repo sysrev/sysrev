@@ -1,11 +1,14 @@
 (ns sysrev.views.ctgov
   (:require [clojure.string :as str]
+            [medley.core :as medley]
             [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.datapub :as datapub]
             [sysrev.macros :refer-macros [setup-panel-state]]
+            [sysrev.shared.ctgov :as ctgov]
+            [sysrev.views.components.core :as comp]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.util :as util :refer [wrap-prevent-default]]))
@@ -24,54 +27,70 @@
 
 (defn pmids-per-page [] 10)
 
+(reg-sub ::current-query
+         (fn [db]
+           (let [state (get-in db [:state :panels [:ctgov-search]])]
+             (ctgov/canonicalize-query
+              {:filters (:filters state)
+               :search (:current-search-term state)}))))
+
 (reg-event-db
  :ctgov-search-add-entity
- (fn [db [_ search-terms entity-id]]
-   (update-in db [:data :ctgov-search search-terms :entity-ids] conj entity-id)))
+ (fn [db [_ query entity-id]]
+   (update-in db [:data :ctgov-search query :entity-ids] conj entity-id)))
 
 (reg-event-db
  :ctgov-search-complete
- (fn [db [_ search-terms]]
-   (assoc-in db [:data :ctgov-search search-terms :complete?] true)))
+ (fn [db [_ query]]
+   (assoc-in db [:data :ctgov-search query :complete?] true)))
 
 (reg-event-fx
  :ctgov-search
- (fn [{:keys [db]} [_ search-terms]]
-   (when-not (or (get-in db [:data :ctgov-search search-terms :complete?])
-                 (= search-terms (get-in db [:data :ctgov-search :current-search])))
+ (fn [{:keys [db]} [_ query]]
+   (when-not (or (get-in db [:data :ctgov-search query :complete?])
+                 (= query (get-in db [:data :ctgov-search :current-query])))
      (when-let [ws (get-in db [:data :ctgov-search :websocket])]
        (when-not (#{js/WebSocket.CLOSED js/WebSocket.CLOSING} (.-readyState ws))
          (.close ws 1000 "complete")))
      (as-> (datapub/subscribe!
             :on-complete
             (fn []
-              (dispatch [:ctgov-search-complete search-terms]))
+              (dispatch [:ctgov-search-complete query]))
             :on-data
             (fn [^js/Object data]
               (let [entity-id (-> data .-data .-searchDataset .-id)]
-                (dispatch [:ctgov-search-add-entity search-terms entity-id])))
+                (dispatch [:ctgov-search-add-entity query entity-id])))
             :payload
             {:query (datapub/subscribe-search-dataset "id")
              :variables
-             {:input
-              {:datasetId 1
-               :uniqueExternalIds true
-               :query
-               {:type "AND"
-                :text [{:search search-terms
-                        :useEveryIndex true}]}}}})
+             {:input (ctgov/query->datapub-input query)}})
          $
        {:db (-> (update-in db [:data :ctgov-search] assoc
-                           :current-search search-terms
+                           :current-query query
                            :websocket $)
-                (assoc-in [:data :ctgov-search search-terms :entity-ids] []))}))))
+                (assoc-in [:data :ctgov-search query :entity-ids] []))}))))
+
+(reg-event-fx
+ ::fetch-results
+ (fn [{:keys [db]}]
+   (let [state (get-in db [:state :panels [:ctgov-search]])
+         state (assoc state
+                      :current-search-term (:on-change-search-term state)
+                      :import-error nil
+                      :page-number 1
+                      :show-results? true)]
+     {:db (assoc-in db [:state :panels [:ctgov-search]] state)
+      :fx [[:dispatch [:ctgov-search
+                       (ctgov/canonicalize-query
+                        {:filters (:filters state)
+                         :search (:current-search-term state)})]]]})))
 
 (def-action :project/import-trials-from-search
   :uri (fn [] "/api/import-trials/ctgov")
-  :content (fn [project-id search-term entity-ids]
+  :content (fn [project-id query entity-ids]
              {:entity-ids entity-ids
               :project-id project-id
-              :search-term search-term})
+              :query query})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
                {:dispatch [:on-add-source project-id]}))
@@ -85,9 +104,9 @@
            (boolean
             (get-in db [:data :ctgov-search search-terms :complete?]))))
 
-(reg-sub :ctgov/search-term-result
-         (fn [db [_ search-terms]]
-           (get-in db [:data :ctgov-search search-terms :entity-ids])))
+(reg-sub :ctgov/query-result
+         (fn [db [_ query]]
+           (get-in db [:data :ctgov-search query :entity-ids])))
 
 (reg-event-db :ctgov/set-import-error [trim-v]
               (fn [db [message]]
@@ -95,12 +114,10 @@
 
 (defn SearchResultArticlesPager []
   (let [items-per-page (pmids-per-page)
-        current-page (subscribe [::page-number])
-        current-search-term (r/cursor state [:current-search-term])
-        search-results @(subscribe [:ctgov/search-term-result @current-search-term])
-        on-navigate (fn [_ _offset]
-                      (dispatch [:ctgov-search @current-search-term @current-page]))
-        offset (* (dec @current-page) items-per-page)]
+        current-page @(subscribe [::page-number])
+        query @(subscribe [::current-query])
+        search-results @(subscribe [:ctgov/query-result query])
+        offset (* (dec current-page) items-per-page)]
     [:div.ui.segment
      [ListPager
       {:panel panel
@@ -110,7 +127,6 @@
        :items-per-page items-per-page
        :item-name-string "articles"
        :set-offset #(dispatch [::page-number (inc (quot % items-per-page))])
-       :on-nav-action on-navigate
        :recent-nav-action nil
        :loading? nil}]]))
 
@@ -152,12 +168,12 @@
 (defn ImportArticlesButton
   "Add articles to a project from a ctgov search"
   [& [disable-import?]]
-  (let [current-search-term @(r/cursor state [:current-search-term])
-        project-id @(subscribe [:active-project-id])
-        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
+  (let [query @(subscribe [::current-query])
+        search-results @(subscribe [:ctgov/query-result query])]
     [:div.ui.fluid.left.labeled.button.search-results
      {:on-click #(do (dispatch [:action [:project/import-trials-from-search
-                                         project-id current-search-term search-results]])
+                                         @(subscribe [:active-project-id])
+                                         query search-results]])
                      (dispatch [(keyword 'sysrev.views.panels.project.add-articles
                                          :add-documents-visible)
                                 false])
@@ -179,19 +195,11 @@
 (defn SearchBar
   "The search input for a ctgov query"
   []
-  (let [current-search-term (r/cursor state [:current-search-term])
-        on-change-search-term (r/cursor state [:on-change-search-term])
-        page-number (r/cursor state [:page-number])
-        show-results? (r/cursor state [:show-results?])
-        import-error (r/cursor state [:import-error])
-        fetch-results #(do (reset! current-search-term @on-change-search-term)
-                           (reset! page-number 1)
-                           (reset! show-results? true)
-                           (reset! import-error nil)
-                           (dispatch [:ctgov-search @current-search-term 1]))]
+  (let [on-change-search-term (r/cursor state [:on-change-search-term])]
     [:form {:id "search-bar"
             :class "ctgov-search"
-            :on-submit (wrap-prevent-default fetch-results)
+            :on-submit (wrap-prevent-default
+                        #(dispatch [::fetch-results]))
             :style {:margin-top "1em"
                     :margin-bottom "1em"}}
      [:div.ui.fluid.left.icon.action.input
@@ -204,8 +212,8 @@
        "Search"]]]))
 
 (defn SearchActions [& [disable-import?]]
-  (let [current-search-term @(r/cursor state [:current-search-term])
-        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
+  (let [query @(subscribe [::current-query])
+        search-results @(subscribe [:ctgov/query-result query])]
     (when (and search-results @(r/cursor state [:show-results?]))
       [:div.ui.top.attached.segment.aligned.stackable.grid
        {:style {:border-bottom-width "0"}}
@@ -216,11 +224,11 @@
          [:div.column [CloseSearchResultsButton]]]]])))
 
 (defn SearchResultsView []
-  (let [current-search-term @(r/cursor state [:current-search-term])
+  (let [query @(subscribe [::current-query])
         show-results? @(r/cursor state [:show-results?])
         items-per-page (pmids-per-page)
         current-page @(subscribe [::page-number])
-        search-results (->> @(subscribe [:ctgov/search-term-result current-search-term])
+        search-results (->> @(subscribe [:ctgov/query-result query])
                             (drop (* items-per-page (dec current-page))))]
     (when show-results?
       (doseq [entity-id (take (* 2 items-per-page) search-results)]
@@ -247,9 +255,10 @@
            [SearchResultArticlesPager]])]])))
 
 (defn SearchResultsContainer []
-  (let [current-search-term @(r/cursor state [:current-search-term])
+  (let [query @(subscribe [::current-query])
+        current-search-term @(r/cursor state [:current-search-term])
         import-error @(r/cursor state [:import-error])
-        search-results @(subscribe [:ctgov/search-term-result current-search-term])]
+        search-results @(subscribe [:ctgov/query-result query])]
     (cond import-error
           [:div.ui.segment.bottom.attached.search-results-container.margin
            [:div.ui.error.message
@@ -259,7 +268,30 @@
           nil
           ;; valid search is completed with no results
           (and (zero? (count search-results))
-               @(subscribe [:ctgov/search-complete? current-search-term]))
+               @(subscribe [:ctgov/search-complete? query]))
           [:div.ui.segment.bottom.attached.search-results-container.margin
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
+
+(defn SearchFilters []
+  [:<>
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :recruitment])
+     :label "Recruitment"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/recruitment-options}]
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :gender])
+     :label "Gender"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/gender-options}]
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :study-type])
+     :label "Study Type"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/study-type-options}]
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :sponsor-class])
+     :label "Sponsor Class"
+     :on-change #(dispatch [::fetch-results])
+     :options ctgov/sponsor-class-options}]])

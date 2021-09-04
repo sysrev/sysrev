@@ -693,31 +693,37 @@ An article entry will be created for each PDF."] [ImportPDFZipsView]]
 (defn DocumentImport []
   (let [project-id @(subscribe [:active-project-id])
         visible? @(subscribe [::add-documents-visible project-id])
-        sources @(subscribe [:project/sources])]
+        sources @(subscribe [:project/sources])
+        show-filters? (= :ctgov @(subscribe [:add-articles/import-tab]))]
     [:div {:style {:padding-bottom 10}}
-     [Button {:id "enable-import"
-              :size "huge" :positive true
-              :disabled visible?
-              :on-click (fn []
-                          (dispatch [::add-documents-visible true])
-                          (dispatch-sync [:add-articles/import-tab nil]))
-              :style {:display "inline"}}
-      "Add Documents"]
-     (when (empty? sources)
-       [:h3.inline {:style {:margin-left "0.75rem"}}
-        "Add documents to get started."])
-     (when visible?
-       [:div.ui.segment.raised
-        [:div
-         [Button {:id "enable-import-dismiss"
-                  :style {:float "right"}
-                  :size "small" :color "red"
-                  :on-click (fn []
-                              (dispatch [::add-documents-visible false])
-                              (dispatch-sync [:add-articles/import-tab nil]))}
-          "dismiss"]
-         [:h1 {:style {:padding-top 0 :margin-top 0}} "Adding Documents"]
-         [ImportArticlesView]]])]))
+     [(if show-filters? :div.ui.grid>div.row :div)
+      (when show-filters?
+        [:div.column.filters-column.five.wide
+         [ctgov/SearchFilters]])
+      [(if show-filters? :div.column.content-column.eleven.wide :div)
+       [Button {:id "enable-import"
+                :size "huge" :positive true
+                :disabled visible?
+                :on-click (fn []
+                            (dispatch [::add-documents-visible true])
+                            (dispatch-sync [:add-articles/import-tab nil]))
+                :style {:display "inline"}}
+        "Add Documents"]
+       (when (empty? sources)
+         [:h3.inline {:style {:margin-left "0.75rem"}}
+          "Add documents to get started."])
+       (when visible?
+         [:div.ui.segment.raised
+          [:div
+           [Button {:id "enable-import-dismiss"
+                    :style {:float "right"}
+                    :size "small" :color "red"
+                    :on-click (fn []
+                                (dispatch [::add-documents-visible false])
+                                (dispatch-sync [:add-articles/import-tab nil]))}
+            "dismiss"]
+           [:h1 {:style {:padding-top 0 :margin-top 0}} "Adding Documents"]
+           [ImportArticlesView]]])]]]))
 
 (defn ProjectSourcesPanel []
   (let [project-id @(subscribe [:active-project-id])

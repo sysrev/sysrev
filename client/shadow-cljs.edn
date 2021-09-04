@@ -10,6 +10,7 @@
                 :modules {:sysrev {:entries [sysrev.user]
                                    :init-fn sysrev.core/on-jsload}}
                 :devtools {:loader-mode :eval
+                           :preloads [hashp.core]
                            :watch-path "/css"
                            :watch-dir "resources/public/css"}}
           :prod {:target :browser
@@ -24,6 +25,7 @@
                 [commons-codec/commons-codec "1.15"]
                 [org.apache.commons/commons-lang3 "3.9"]
 ;;; CLJ/CLJS libraries
+                [hashp "0.2.1"]
                 [orchestra "2021.01.01-1"]
                 [org.clojure/tools.logging "1.1.0"]
                 [ch.qos.logback/logback-classic "1.2.3"]

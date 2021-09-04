@@ -372,6 +372,16 @@
                :index-spec-id index-spec-id}]})
            (resolve-dataset-index context {:datasetId datasetId :path path :type type} nil)))))))
 
+(defn string-query->sqlmap [context {:keys [eq ignoreCase path]}]
+  (let [path-vec (try (edn/read-string path)
+                      (catch Exception _
+                        (throw (ex-info "Invalid path."
+                                        {:path path}))))
+        v [(keyword "#>>") :indexed-data [:array path-vec]]]
+    (if ignoreCase
+      [:= [:lower eq] [:lower v]]
+      [:= eq v])))
+
 (defn text-query->sqlmap [context {:keys [paths search useEveryIndex]}]
   (when (if useEveryIndex paths (not paths))
     (throw (RuntimeException. "Either paths or useEveryIndex must be specified, but not both.")))
@@ -406,13 +416,16 @@
              seq
              (apply vector :or))))
 
-(defn search-dataset-query->sqlmap [context {:keys [text type]}]
+(defn search-dataset-query->sqlmap [context {:keys [query string text type]}]
   (apply
    vector
    (case type
      :AND :and
      :OR :or)
-   (map (partial text-query->sqlmap context) text)))
+   (concat
+    (map (partial search-dataset-query->sqlmap context) query)
+    (map (partial string-query->sqlmap context) string)
+    (map (partial text-query->sqlmap context) text))))
 
 (defn search-dataset-subscription
   [context

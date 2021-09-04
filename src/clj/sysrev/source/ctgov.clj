@@ -4,6 +4,7 @@
             [sysrev.config :refer [env]]
             [sysrev.datapub-client.interface :as datapub]
             [sysrev.db.core :as db]
+            [sysrev.shared.ctgov :as ctgov]
             [sysrev.source.core :as source :refer [make-source-meta re-import]]
             [sysrev.source.interface :refer [after-source-import import-source
                                              import-source-articles import-source-impl]]))
@@ -22,25 +23,35 @@
         :secondary-title (get-in ps [:IdentificationModule :OfficialTitle])}))
    ids))
 
-(defmethod make-source-meta :ctgov [_ {:keys [search-term results-count]}]
-  {:source "CT.gov search"
+(defmethod make-source-meta :ctgov
+  [_ {:keys [filters search-term results-count]}]
+  {:filters filters
    :search-term search-term
+   :source "CT.gov search"
    :results-count results-count})
 
-(defmethod import-source :ctgov [_ project-id {:keys [entity-ids search-term]} options]
-  (assert (string? search-term))
+(defmethod import-source :ctgov [_ project-id {:keys [entity-ids query]} options]
+  (assert (map? query))
   (let [{:keys [max-import-articles]} env
-        source-exists? (->> (source/project-sources project-id)
-                            (filter #(and (= (get-in % [:meta :search-term]) search-term)
-                                          (= (get-in % [:meta :source]) "CT.gov search"))))]
-    (cond (seq source-exists?)
-          {:error {:message (format "Source already exists for %s" search-term)}}
+        query (ctgov/canonicalize-query query)
+        {:keys [filters search]} query]
+    (cond (->> (source/project-sources project-id)
+               (some
+                (fn [{{:keys [filters search-term source]} :meta}]
+                  (and (= "CT.gov search" source)
+                       (= query (ctgov/canonicalize-query
+                                 {:filters filters
+                                  :search search-term}))))))
+          {:error {:message (format "Source already exists for %s" search)}}
+
           (> (count entity-ids) max-import-articles)
           {:error {:message (format "Too many entities (max %d; got %d)"
                                     max-import-articles (count entity-ids))}}
+
           :else (let [source-meta (source/make-source-meta
-                                   :ctgov {:search-term search-term
-                                           :results-count (count entity-ids)})]
+                                   :ctgov {:filters filters
+                                           :results-count (count entity-ids)
+                                           :search-term search})]
                   (import-source-impl
                    project-id source-meta
                    {:types {:article-type "json"
@@ -58,16 +69,11 @@
                                   db/do-query)
                               (map :external-id)
                               (filter number?)
-                              set)]
-    (->> (datapub/search-dataset
-          {:datasetId 1
-           :uniqueExternalIds true
-           :query
-           {:type "AND"
-            :text [{:search (:search-term meta)
-                    :useEveryIndex true}]}}
-          "id"
-          :endpoint (:datapub-ws env))
+                              set)
+        {:keys [filters search-term]} meta
+        query (ctgov/query->datapub-input
+               {:filters filters :search search-term})]
+    (->> (datapub/search-dataset query "id" :endpoint (:datapub-ws env))
          (map :id)
          (remove prev-article-ids))))
 

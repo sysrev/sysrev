@@ -86,8 +86,16 @@ input SearchDatasetInput {
 }
 
 input SearchDatasetQueryInput {
+  query: [SearchDatasetQueryInput]
+  string: [SearchDatasetQueryStringInput]
   text: [SearchDatasetQueryTextInput]
   type: SearchDatasetQueryInputType!
+}
+
+input SearchDatasetQueryStringInput {
+  eq: String!
+  ignoreCase: Boolean
+  path: String!
 }
 
 "Do a text search against the specified text indices, or every text index."

@@ -285,10 +285,10 @@
 
 (defn import-trials-from-search
   "Import trials resulting from CT.gov search"
-  [project-id search-term entity-ids & {:keys [threads] :as options}]
+  [project-id query entity-ids & {:keys [threads] :as options}]
   (wrap-import-api #(import/import-ctgov-search project-id % options)
                    {:entity-ids entity-ids
-                    :search-term search-term}))
+                    :query query}))
 
 (s/def ::sources vector?)
 
