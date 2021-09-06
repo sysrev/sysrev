@@ -38,18 +38,25 @@
                                  (user/primary-email-verified? (:user-id %))))
                     (map #(merge % (get users-public-info (:user-id %)))))))))
 
+(defn-spec get-group-owner (s/nilable int?)
+  "Return earliest owner `user-id` among current owners of `group-id`."
+  [group-id int?]
+  (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
+                 :user-id, :order-by :created, :limit 1)))
+
 (defn get-premium-members-count [user-id]
   (let [group-ids (q/find [:user-group :ug] {"owner" :%any.permissions :ug.user-id user-id}
                           :ug.group-id, :order-by :ug.created)
         user-ids (-> (sqlh/select :%distinct.ug.user-id)
                      (sqlh/from [:user-group :ug])
-                     (sqlh/where [:in :group-id group-ids])
+                     (sqlh/where [:in :group-id group-ids]
+                                 [:= :enabled true])
                      db/do-query)]
-    (map :user-id user-ids)))
+    (count user-ids)))
 
-
-(defn update-premium-members-count! [user-id]
-  (let [{:keys [sub-id nickname] :as plan} (plans/user-current-plan user-id)
+(defn update-premium-members-count! [group-id]
+  (let [user-id (get-group-owner group-id)
+        {:keys [sub-id nickname] :as plan} (plans/user-current-plan user-id)
         plan-id (:id plan)
         sub-item-id (stripe/get-subscription-item sub-id)]
     (when (contains? #{plans-info/unlimited-org plans-info/unlimited-org-annual} nickname)
@@ -68,14 +75,8 @@
          (topic-for-name (str ":group " group-id) :create? true :returning :topic-id)))
     (q/create :user-group (cond-> {:user-id user-id :group-id group-id}
                             permissions (assoc :permissions (db/to-sql-array "text" permissions)))
-              :returning :id))
-  (update-premium-members-count! user-id))
-
-(defn-spec get-group-owner (s/nilable int?)
-  "Return earliest owner `user-id` among current owners of `group-id`."
-  [group-id int?]
-  (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
-                 :user-id, :order-by :created, :limit 1)))
+              :returning :id)
+    (update-premium-members-count! group-id)))
 
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"
@@ -95,7 +96,8 @@
               topic-id (topic-for-name (str ":group " group-id) :create? true :returning :topic-id)]
           ((if enabled subscribe-to-topic unsubscribe-from-topic) subscriber-id topic-id)))
       (q/modify :user-group {:id user-group-id}
-                {:enabled enabled, :updated :%now}))))
+                {:enabled enabled, :updated :%now})
+      (update-premium-members-count! group-id))))
 
 (defn set-user-group-permissions!
   "Set the permissions for user-group-id"
