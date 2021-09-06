@@ -9,7 +9,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :as funds]
-            [sysrev.shared.plans-info :as plans-info  :refer [default-plan user-pro-plans]]
+            [sysrev.shared.plans-info :as plans-info  :refer [default-plan pro-plans]]
             [sysrev.util :as util :refer [index-by current-function-name]]))
 
 (def stripe-secret-key (env :stripe-secret-key))
@@ -337,7 +337,7 @@
 
 (defn user-has-pro? [user-id]
   (let [user-current-plan (db-plans/user-current-plan user-id)]
-    (contains? user-pro-plans (:nickname user-current-plan))))
+    (contains? pro-plans (:nickname user-current-plan))))
 
 (defn update-subscription [subscription-id]
   (let [subscription (get-subscription subscription-id)]
