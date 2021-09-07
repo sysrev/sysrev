@@ -100,6 +100,17 @@
            :from :dataset
            :where [:= :id id]}))))))
 
+(defn internal-path-vec
+  "Returns a path vector with the :* keyword replaced with the string
+  \":datapub/*\" for use in postgres."
+  [path-seq]
+  (mapv #(if (= :* %) ":datapub/*" %) path-seq))
+
+(defn external-path-vec
+  "The reverse of internal-path-vec."
+  [path-seq]
+  (mapv #(if (= ":datapub/*" %) :* %) path-seq))
+
 (defn resolve-Dataset-indices [context _ {:keys [id]}]
   (with-tx-context [context context]
     (when-not (public-dataset? context id)
@@ -113,7 +124,7 @@
          (map
           (fn [{:index-spec/keys [path type-name]}]
             {:path (->> path .getArray
-                        (mapv #(if (= ":datapub/*" %) :* %))
+                        internal-path-vec
                         pr-str)
              :type (keyword (str/upper-case type-name))})))))
 
@@ -304,7 +315,7 @@
                path-vec)))
 
 (defn get-index-spec [context path-vec type]
-  (let [path-vec (mapv #(if (= :* %) ":datapub/*" %) path-vec)]
+  (let [path-vec (internal-path-vec path-vec)]
     (with-tx-context [context context]
       (execute-one!
        context
@@ -315,7 +326,7 @@
 
 (defn get-or-create-index-spec! [context path-vec type]
   (or (get-index-spec context path-vec type)
-      (let [path-vec (mapv #(if (= :* %) ":datapub/*" %) path-vec)]
+      (let [path-vec (internal-path-vec path-vec)]
         (with-tx-context [context context]
           (execute-one!
            context
