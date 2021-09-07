@@ -384,14 +384,19 @@
            (resolve-dataset-index context {:datasetId datasetId :path path :type type} nil)))))))
 
 (defn string-query->sqlmap [context {:keys [eq ignoreCase path]}]
-  (let [path-vec (try (edn/read-string path)
-                      (catch Exception _
-                        (throw (ex-info "Invalid path."
-                                        {:path path}))))
-        v [(keyword "#>>") :indexed-data [:array path-vec]]]
-    (if ignoreCase
-      [:= [:lower eq] [:lower v]]
-      [:= eq v])))
+  (let [path-vec (-> (try (edn/read-string path)
+                          (catch Exception _
+                            (throw (ex-info "Invalid path." {:path path}))))
+                     internal-path-vec)
+        v [(keyword "#>>") :indexed-data [:array path-vec]]
+        maybe-lower #(if ignoreCase [:lower %] %)]
+    [:in
+     (maybe-lower (pr-str eq))
+     {:select
+      [[(maybe-lower
+         [:unnest [:cast
+                   [:get_in_jsonb :indexed-data [:array path-vec]]
+                   [:raw "text[]"]]])]]}]))
 
 (defn text-query->sqlmap [context {:keys [paths search useEveryIndex]}]
   (when (if useEveryIndex paths (not paths))

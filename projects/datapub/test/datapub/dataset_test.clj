@@ -264,4 +264,18 @@
                           :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])}]}}}
                      {:timeout-ms 1000})
                     (map (fn [m] (select-keys m #{:externalId})))
+                    (into #{})))))
+      (testing "String equality search with wildcard in path"
+        (is (= #{{:externalId "NCT04982978"}}
+               (->> (test/execute-subscription
+                     system search-dataset-subscription test/subscribe-search-dataset
+                     {:input
+                      {:datasetId ds-id
+                       :query
+                       {:type :AND
+                        :string
+                        [{:eq "Vaping Related Disorder"
+                          :path (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])}]}}}
+                     {:timeout-ms 1000})
+                    (map (fn [m] (select-keys m #{:externalId})))
                     (into #{}))))))))
