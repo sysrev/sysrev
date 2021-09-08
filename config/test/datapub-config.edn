@@ -1,0 +1,10 @@
+{:env :test
+ :pedestal {:port 8888
+            :sysrev-dev-key "***REMOVED***"}
+ :postgres {:create-if-not-exists? true
+            :embedded? true
+            :dbname "datapub"
+            :dbtype "postgres"
+            :host "localhost"
+            :port 0
+            :user "postgres"}}

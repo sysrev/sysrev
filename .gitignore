@@ -2,6 +2,8 @@
 ################################# Local config #################################
 ################################################################################
 
+/projects/datapub/config/prod
+
 # files starting with a dot should be ignored by default
 .*
 

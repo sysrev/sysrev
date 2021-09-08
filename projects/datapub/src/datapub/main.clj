@@ -1,5 +1,7 @@
 (ns datapub.main
   (:require hashp.core ; Load #p data reader
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
             [datapub.pedestal :as pedestal]
@@ -8,19 +10,9 @@
 (def envs #{:dev :prod :staging :test})
 
 (defn get-config []
-  (let [embedded? (boolean (System/getenv "DBEMBEDDED"))]
-    {:env (some-> (System/getenv "ENV") str/lower-case keyword)
-     :pedestal {:port (or (System/getenv "PORT") 8888)
-                :sysrev-dev-key (System/getenv "SYSREV_DEV_KEY")}
-     :postgres {:create-if-not-exists? true
-                :embedded? embedded?
-                :dbname (or (System/getenv "DBNAME") "datapub")
-                :dbtype "postgres"
-                :host (System/getenv "DBHOST")
-                :password (System/getenv "DBPASSWORD")
-                :port (or (System/getenv "DBPORT")
-                          (if embedded? 0 5432))
-                :user (or (System/getenv "DBUSER") "postgres")}}))
+  (if-let [r (io/resource "datapub-config.edn")]
+   (edn/read-string (slurp r))
+   (throw (RuntimeException. "The datapub-config.edn resource was not found."))))
 
 (defn system-map [{:keys [env] :as config}]
   (if-not (envs env)
