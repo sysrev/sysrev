@@ -444,7 +444,9 @@
             (let [{:keys [entity-ids query]} (:body request)
                   project-id (active-project request)
                   user-id (current-user-id request)]
-              (api/import-trials-from-search project-id query entity-ids :user-id user-id)))))
+              (api/import-trials-from-search project-id query entity-ids
+                                             :web-server (:web-server request)
+                                             :user-id user-id)))))
 ;;;
 ;;; Article review
 ;;;
@@ -644,7 +646,7 @@
           (with-authorize request {:roles ["admin"]}
             (let [{:keys [source-id]} (-> request :body)
                   _user-id (current-user-id request)]
-              (api/re-import-source source-id)))))
+              (api/re-import-source source-id (:web-server request))))))
 
 (dr (GET "/api/sources/download/:project-id/:source-id" request
          (with-authorize request {:allow-public true}

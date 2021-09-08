@@ -331,11 +331,11 @@
 
 (defn-spec re-import-source (-> (req-un ::success) or-error)
   "Toggle a source as being enabled or disabled."
-  [source-id int?]
+  [source-id int? web-server map?]
   (if (source/source-exists? source-id)
     (let [project-id (source/source-id->project-id source-id)
           source (source/get-source source-id)]
-      (source/re-import project-id source)
+      (source/re-import project-id source {:web-server web-server})
       {:success true
        :message "Source updated"})
     {:error {:status not-found
