@@ -82,10 +82,12 @@
    [:body
     [:div {:style "display: none;"
            :id "datapub-api"
-           :data-datapub-api (:datapub-api env "https://www.datapub.dev/api")}]
+           :data-datapub-api
+           (get-in request [:web-server :config :datapub-api])}]
     [:div {:style "display: none;"
            :id "datapub-ws"
-           :data-datapub-ws (:datapub-ws env "wss://www.datapub.dev/ws")}]
+           :data-datapub-ws
+           (get-in request [:web-server :config :datapub-ws])}]
     [:div {:style "display: none;"
            :id "stripe-public-key"
            :data-stripe-public-key stripe-public-key}]

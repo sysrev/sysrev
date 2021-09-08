@@ -33,8 +33,9 @@
 
 (defonce system (atom nil))
 
-(defn system-map [& {:keys [postgres-overrides]}]
+(defn system-map [& {:keys [config postgres-overrides]}]
   (component/system-map
+   :config config
    :postgres (postgres/postgres postgres-overrides)
    :postgres-run-after-start (component/using
                               (postgres-run-after-start)
@@ -49,21 +50,31 @@
                [:postgres])
    :sente (component/using
            (sente/sente :receive-f sente/receive-sente-channel!)
-           [:postgres])
+           [:config :postgres])
    :web-server (component/using
                 (web/web-server
                  :handler-f web/sysrev-handler
                  :port (-> env :server :port))
-                [:postgres :sente])))
+                [:config :postgres :sente])))
 
 (defn start-system! [& {:keys [only-if-new postgres-overrides]}]
   (when (or (not only-if-new) (nil? @system))
     (log/info "Starting system")
-    (when (:datapub-embedded env)
-      ((requiring-resolve 'datapub.main/reload-with-fixtures!)))
-    (->> (system-map :postgres-overrides postgres-overrides)
-         component/start
-         (reset! system))
+    (let [datapub (when (:datapub-embedded env)
+                    ((requiring-resolve 'datapub.main/reload-with-fixtures!)))
+          config (if datapub
+                   (let [port (get-in datapub [:pedestal :bound-port])]
+                     (assoc env
+                            :datapub-api (str "http://localhost:" port "/api")
+                            :datapub-ws (str "ws://localhost:" port "/ws")))
+                   (assoc env
+                          :datapub-api "https://www.datapub.dev/api"
+                          :datapub-ws "wss://www.datapub.dev/ws"))]
+      (->> (system-map
+            :config config
+            :postgres-overrides postgres-overrides)
+           component/start
+           (reset! system)))
     (log/info "System started")))
 
 (defn stop-system! []
