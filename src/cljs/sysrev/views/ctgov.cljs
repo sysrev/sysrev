@@ -10,7 +10,7 @@
             [sysrev.shared.ctgov :as ctgov]
             [sysrev.views.components.core :as comp]
             [sysrev.views.components.list-pager :refer [ListPager]]
-            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
+            [sysrev.views.semantic :as S :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.util :as util :refer [wrap-prevent-default]]))
 
 ;; for clj-kondo
@@ -273,8 +273,27 @@
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
 
+(defn CountryFilter [{:keys [cursor]}]
+  [:div.ui.segments>div.ui.segment
+   [:div.ui.small.form
+    [:div.sixteen.wide.field
+     [:label "Country"]
+     [:div.nine.wide.field
+      [S/Dropdown
+       {:on-change (fn [_event x]
+                     (let [v (.-value x)]
+                       (reset! cursor (if (= "Any" v) #{} #{v}))))
+        :options
+        (->> ctgov/country-vec
+             (remove #{"United States"})
+             (concat ["Any" "United States"])
+             (map #(-> {:key % :value % :text %})))
+        :value (or (first @cursor) "Any")}]]]]])
+
 (defn SearchFilters []
   [:<>
+   [CountryFilter
+    {:cursor (r/cursor state [:filters :countries])}]
    [comp/MultiSelect
     {:cursor (r/cursor state [:filters :recruitment])
      :label "Recruitment"
