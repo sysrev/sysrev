@@ -304,16 +304,17 @@
                              "LocationList" "Location" :* "LocationCountry"]))
                    (string-set-filters
                     gender gender-options-map
-                    "[\"ProtocolSection\" \"EligibilityModule\" \"Gender\"]")
+                    (pr-str ["ProtocolSection" "EligibilityModule" "Gender"]))
                    (string-set-filters
                     recruitment recruitment-options-map
-                    "[\"ProtocolSection\" \"StatusModule\" \"OverallStatus\"]")
+                    (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"]))
                    (string-set-filters
                     sponsor-class identity
-                    "[\"ProtocolSection\" \"SponsorCollaboratorsModule\" \"LeadSponsor\" \"LeadSponsorClass\"]")
+                    (pr-str ["ProtocolSection" "SponsorCollaboratorsModule"
+                             "LeadSponsor" "LeadSponsorClass"]))
                    (string-set-filters
                     study-type study-type-options-map
-                    "[\"ProtocolSection\" \"DesignModule\" \"StudyType\"]")]
+                    (pr-str ["ProtocolSection" "DesignModule" "StudyType"]))]
            :text [{:search search
                    :useEveryIndex true}]}
           (medley/map-vals
