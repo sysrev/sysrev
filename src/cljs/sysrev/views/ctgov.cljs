@@ -273,6 +273,19 @@
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
 
+(defn TextFilter [{:keys [cursor label]}]
+  [:div.ui.segments>div.ui.segment
+   [:div.ui.small.form
+    [:div.sixteen.wide.field
+     [:label label]
+     [:div.nine.wide.field
+      [S/FormInput
+       {:on-change (fn [_event x]
+                     (let [v (.-value x)]
+                       (reset! cursor v)
+                       (dispatch [::fetch-results])))
+        :value (or @cursor "")}]]]]])
+
 (defn CountryFilter [{:keys [cursor]}]
   [:div.ui.segments>div.ui.segment
    [:div.ui.small.form
@@ -292,6 +305,12 @@
 
 (defn SearchFilters []
   [:<>
+   [TextFilter
+    {:cursor (r/cursor state [:filters :condition])
+     :label "Condition"}]
+   [TextFilter
+    {:cursor (r/cursor state [:filters :intervention])
+     :label "Intervention"}]
    [CountryFilter
     {:cursor (r/cursor state [:filters :countries])}]
    [comp/MultiSelect

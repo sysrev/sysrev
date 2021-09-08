@@ -272,15 +272,26 @@
     :else (ex-info "Argument must be nil, an IPersistentSet, or a Sequential."
                    {:x x})))
 
+(defn not-blank
+  "Returns s if s is non-blank, else nil."
+  [^String s]
+  (when-not (or (nil? s) (str/blank? s)) s))
+
+(defn canonicalize-search-string [^String s]
+  (when (not-blank s)
+    (str/trim (str/lower-case s))))
+
 (defn canonicalize-query [{:keys [filters search]}]
   {:filters (-> filters
+                (update :condition canonicalize-search-string)
                 (update :countries (comp not-empty ensure-set))
                 (update :gender (comp not-empty ensure-set))
+                (update :intervention canonicalize-search-string)
                 (update :recruitment (comp not-empty ensure-set))
                 (update :sponsor-class (comp not-empty ensure-set))
                 (update :study-type (comp not-empty ensure-set))
                 (->> (medley/remove-vals nil?) not-empty))
-   :search (str/lower-case (str/trim (or search "")))})
+   :search (canonicalize-search-string search)})
 
 (defn string-set-filters [st f path]
   (when (seq st)
@@ -293,7 +304,9 @@
 
 (defn query->datapub-input [query]
   (let [{:keys [filters search]} (canonicalize-query query)
-        {:keys [countries gender recruitment sponsor-class study-type]} filters]
+        {:keys [condition countries gender intervention
+                recruitment sponsor-class study-type]}
+        #__ filters]
     {:datasetId 1
      :uniqueExternalIds true
      :query
@@ -315,8 +328,19 @@
                    (string-set-filters
                     study-type study-type-options-map
                     (pr-str ["ProtocolSection" "DesignModule" "StudyType"]))]
-           :text [{:search search
-                   :useEveryIndex true}]}
+           :text [(when condition
+                    {:search condition
+                     :paths [(pr-str ["ProtocolSection" "ConditionsModule"
+                                      "ConditionList" "Condition" :*])]})
+                  (when intervention
+                    {:search intervention
+                     :paths [(pr-str ["ProtocolSection"
+                                      "ArmsInterventionsModule"
+                                      "InterventionList" "Intervention" :*
+                                      "InterventionName"])]})
+                  (when search
+                    {:search search
+                     :useEveryIndex true})]}
           (medley/map-vals
            (fn [v]
              (if (string? v)

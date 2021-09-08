@@ -95,11 +95,12 @@
          (component/stop system#)))))
 
 (def ctgov-indices
-  [[:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])]
+  [[:TEXT (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])]
+   [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])]
    [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "DetailedDescription"])]
    [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "BriefTitle"])]
    [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "OfficialTitle"])]
-   [:TEXT (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])]])
+   [:TEXT (pr-str ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"])]])
 
 (defn load-ctgov-dataset! [system]
   (let [ds-id (-> system
