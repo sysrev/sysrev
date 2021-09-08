@@ -294,22 +294,22 @@
 ;;
 ;; Facility for caching results of expensive data queries
 ;;
-(defonce query-cache (atom {}))
+(defonce ^:dynamic *query-cache* (atom {}))
 (defonce ^:dynamic *transaction-query-cache* nil)
 
-(defonce query-cache-enabled (atom true))
+(defonce ^:dynamic *query-cache-enabled* (atom true))
 
 (defn-spec ^:repl enable-query-cache boolean?
   [enabled boolean?]
-  (reset! query-cache-enabled enabled))
+  (reset! *query-cache-enabled* enabled))
 
 (defmacro with-query-cache [field-path & body]
   (let [field-path (if (keyword? field-path)
                      [field-path] field-path)]
     `(let [cache# (if (and *conn* *transaction-query-cache*)
                     *transaction-query-cache*
-                    query-cache)]
-       (if (not @query-cache-enabled)
+                    *query-cache*)]
+       (if (not @*query-cache-enabled*)
          (do ~@body)
          (let [field-path# ~field-path
                cache-val# (get-in @cache# field-path# :not-found)]
@@ -330,7 +330,7 @@
 (defn clear-query-cache [& [field-path]]
   (let [in-transaction (and *conn* *transaction-query-cache*)]
     (if (nil? field-path)
-      (do (reset! query-cache {})
+      (do (reset! *query-cache* {})
           (when in-transaction
             (reset! *transaction-query-cache* {})))
       (let [update-cache
@@ -340,7 +340,7 @@
                 (update-in cache-state
                            (butlast field-path)
                            #(dissoc % (last field-path)))))]
-        (swap! query-cache update-cache)
+        (swap! *query-cache* update-cache)
         (when in-transaction
           (swap! *transaction-query-cache* update-cache)))))
   nil)
@@ -357,13 +357,13 @@
                        {:protected
                         (if clear-protected? {}
                             (get-in % [:project project-id :protected]))})]
-        (swap! query-cache update-cache)
+        (swap! *query-cache* update-cache)
         (when in-transaction
           (swap! *transaction-query-cache* update-cache)))
 
       :else
       (let [update-cache #(assoc % :project {})]
-        (swap! query-cache update-cache)
+        (swap! *query-cache* update-cache)
         (when in-transaction
           (swap! *transaction-query-cache* update-cache))))
     nil))

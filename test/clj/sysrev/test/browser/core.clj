@@ -595,7 +595,7 @@
   (let [local? (= "localhost" (:host (test/get-selenium-config)))
         ;; cache? @db/query-cache-enabled
         ]
-    (when-not local? (reset! db/query-cache-enabled false))
+    (when-not local? (reset! db/*query-cache-enabled* false))
     #_ (when (test/db-connected?) (create-test-user))
     #_ (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
     #_ (if (reuse-webdriver?)
