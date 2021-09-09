@@ -14,5 +14,6 @@
            :dynamic true}
   env (let [{:keys [private-config] :as config} (read-config-file "config.edn")]
         (merge config
-               environ/env
+               ;; Remove some large values that we don't need to aid debugging.
+               (dissoc environ/env :java-class-path :ls-colors)
                (some-> private-config read-config-file))))
