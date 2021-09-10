@@ -54,7 +54,7 @@
    :web-server (component/using
                 (web/web-server
                  :handler-f web/sysrev-handler
-                 :port (-> env :server :port))
+                 :port (-> config :server :port))
                 [:config :postgres :sente])))
 
 (defn start-system! [& {:keys [only-if-new postgres-overrides]}]

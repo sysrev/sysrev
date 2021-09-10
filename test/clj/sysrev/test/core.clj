@@ -5,6 +5,7 @@
             [clj-time.core :as time]
             [sysrev.config :refer [env]]
             [sysrev.init :refer [start-app]]
+            [sysrev.main :as main]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
             [sysrev.db.migration :refer [ensure-updated-db]]
@@ -32,7 +33,7 @@
   (let [{:keys [protocol host port] :as config}
         (or @raw-selenium-config {:protocol "http"
                                   :host "localhost"
-                                  :port (-> env :server :port)})]
+                                  :port (-> @sysrev.main/system :web-server :bound-port)})]
     (assoc config
            :url (str protocol "://" host (if port (str ":" port) "") "/")
            :safe (db-connected?))))
