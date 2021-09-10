@@ -70,7 +70,7 @@
           (flyway/migrate! datasource)
           (assoc this
                  :datasource datasource :pg pg
-                 :query-cache (atom {}) :query-cache-enabled (atom true))))))
+                 :query-cache db/*query-cache* :query-cache-enabled db/*query-cache-enabled*)))))
   (stop [this]
     (if-not datasource
       this
