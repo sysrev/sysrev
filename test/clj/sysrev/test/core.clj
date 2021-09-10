@@ -1,8 +1,9 @@
 (ns sysrev.test.core
-  (:require [orchestra.spec.test :as t]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-time.core :as time]
+            [orchestra.spec.test :as t]
+            [prestancedesign.get-port :as get-port]
             [sysrev.config :refer [env]]
             [sysrev.init :refer [start-app]]
             [sysrev.main :as main]
@@ -11,6 +12,9 @@
             [sysrev.db.migration :refer [ensure-updated-db]]
             [sysrev.flyway.interface :as flyway]
             [sysrev.util :as util :refer [in? ignore-exceptions shell]]))
+
+(def ^:dynamic ^{:doc "Should be bound to an atom containing a system-map."}
+  *test-system* nil)
 
 (def test-dbname "sysrev_auto_test")
 (def test-db-host (get-in env [:postgres :host]))
@@ -97,20 +101,42 @@
     (.addShutdownHook (Runtime/getRuntime) (Thread. close-db-resources))
     (reset! db-shutdown-hook true)))
 
+(defmacro with-test-system [[name-sym] & body]
+  `(binding [db/*active-db* (atom nil)
+             db/*conn* nil
+             db/*query-cache* (atom {})
+             db/*query-cache-enabled* (atom true)
+             db/*transaction-query-cache* nil]
+     (let [system# (main/start-system-non-global!
+                    :config
+                    {:server {:port (get-port/get-port)}}
+                    :postgres-overrides
+                    {:dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                     :host test-db-host}
+                    :system-map-f
+                    #(-> (apply main/system-map %&)
+                         (dissoc :scheduler)))
+           ~name-sym system#]
+       (binding [*test-system* (atom system#)]
+         (let [result# (do ~@body)]
+           (swap! *test-system* main/stop-system!)
+           result#)))))
+
 (defn default-fixture
   "Basic setup for all tests (db, web server, clojure.spec)."
   [f]
   (case (:profile env)
-    :test (do
+    :test (binding [*test-system* main/system]
             (t/instrument)
             (f))
     :remote-test (f)
-    :dev (do (t/instrument)
-             (set-web-asset-path "/out")
-             (if (db-connected?)
-               (init-test-db)
-               (db/close-active-db))
-             (f))
+    :dev (binding [*test-system* main/system]
+           (t/instrument)
+           (set-web-asset-path "/out")
+           (if (db-connected?)
+             (init-test-db)
+             (db/close-active-db))
+           (f))
     (assert false "default-fixture: invalid profile value")))
 
 ;; note: If there is a field (e.g. id) that is auto-incremented
