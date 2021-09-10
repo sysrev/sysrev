@@ -3,11 +3,8 @@
             [orchestra.core :refer [defn-spec]]
             [clojure.string :as str]
             [clojure.walk :as walk]
-            [clojure.data.json :as json]
             [compojure.core :as c]
-            [clj-http.client :as http]
             [honeysql.helpers :as sqlh :refer [merge-where]]
-            [sysrev.config :refer [env]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.user.interface :refer [user-by-api-token]]
@@ -147,26 +144,3 @@
       wrap-web-api-auth
       wrap-check-project-id
       wrap-web-api-check-args))
-
-;; HTTP client functions for testing API handlers
-(defn webapi-request [method route body & {:keys [host port url]}]
-  (let [port (or port (-> env :server :port))
-        host (or host "localhost")
-        request (cond-> {:method method
-                         :url (if url
-                                (format "%sweb-api/%s" url route)
-                                (format "http://%s:%d/web-api/%s" host port route))
-                         :content-type "application/json"
-                         :as :application/json
-                         :throw-exceptions false}
-                  (= method :get)   (assoc :query-params body)
-                  (= method :post)  (assoc :body (json/write-str body)))
-        {:keys [body]} (http/request request)]
-    (try (json/read-str body :key-fn keyword)
-         (catch Throwable _ body))))
-
-(defn webapi-get [route body & opts]
-  (apply webapi-request :get route body opts))
-(defn webapi-post [route body & opts]
-  (apply webapi-request :post route body opts))
-
