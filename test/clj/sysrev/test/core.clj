@@ -41,7 +41,7 @@
   (let [{:keys [protocol host port] :as config}
         (or @raw-selenium-config {:protocol "http"
                                   :host "localhost"
-                                  :port (-> @sysrev.main/system :web-server :bound-port)})]
+                                  :port (-> @*test-system* :web-server :bound-port)})]
     (assoc config
            :url (str protocol "://" host (if port (str ":" port) "") "/")
            :safe (db-connected?))))
