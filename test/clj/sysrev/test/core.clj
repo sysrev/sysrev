@@ -14,7 +14,7 @@
             [sysrev.util :as util :refer [in? ignore-exceptions shell]]))
 
 (def ^:dynamic ^{:doc "Should be bound to an atom containing a system-map."}
-  *test-system* nil)
+  *test-system* main/system)
 
 (def test-dbname "sysrev_auto_test")
 (def test-db-host (get-in env [:postgres :host]))
@@ -126,11 +126,11 @@
   "Basic setup for all tests (db, web server, clojure.spec)."
   [f]
   (case (:profile env)
-    :test (binding [*test-system* main/system]
+    :test (do
             (t/instrument)
             (f))
     :remote-test (f)
-    :dev (binding [*test-system* main/system]
+    :dev (do
            (t/instrument)
            (set-web-asset-path "/out")
            (if (db-connected?)
