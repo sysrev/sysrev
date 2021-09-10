@@ -67,7 +67,7 @@
         #_ sysrev.custom.insilica
         sysrev.init
         sysrev.shared.keywords
-        sysrev.test.core
+        [sysrev.test.core :exclude [sysrev-handler]]
         sysrev.test.browser.navigate
         sysrev.stacktrace)
   (:require [cider.nrepl :refer (cider-nrepl-handler)]
