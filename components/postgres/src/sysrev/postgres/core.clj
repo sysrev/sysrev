@@ -40,7 +40,9 @@
             (jdbc/execute! ds [(str "CREATE DATABASE " (:dbname config))])))
         (let [datasource (make-datasource config)]
           (flyway/migrate! datasource)
-          (assoc this :datasource datasource)))))
+          (assoc this
+                 :datasource datasource
+                 :query-cache (atom {}) :query-cache-enabled (atom true))))))
   (stop [this]
     (if-not datasource
       this

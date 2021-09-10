@@ -214,6 +214,17 @@
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))
 
+(defn wrap-dynamic-vars
+  "Bind dynamic vars to the appropriate values from the Postgres record."
+  [handler postgres]
+  (fn [request]
+    (binding [db/*active-db* (atom postgres)
+              db/*conn* nil
+              db/*query-cache* (:query-cache postgres)
+              db/*query-cache-enabled* (:query-cache-enabled postgres)
+              db/*transaction-query-cache* nil]
+      (handler request))))
+
 (defn wrap-web-server
   "Add a :web-server key to the request whose value is the WebServer component."
   [handler web-server]

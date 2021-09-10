@@ -65,6 +65,7 @@
   (-> handler
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))
+      (app/wrap-dynamic-vars (:postgres web-server))
       (app/wrap-web-server web-server)))
 
 (defn wrap-sysrev-app
@@ -79,6 +80,7 @@
       (wrap-transit-body {:opts {}})
       app/wrap-robot-noindex
       (app/wrap-log-request)
+      (app/wrap-dynamic-vars (:postgres web-server))
       (app/wrap-web-server web-server)))
 
 (defn wrap-force-json-request
@@ -90,7 +92,7 @@
 
 (defn wrap-sysrev-api
   "Ring handler wrapper for JSON API (non-browser) routes"
-  [handler]
+  [handler & {:keys [web-server]}]
   (-> handler
       wrap-web-api
       app/wrap-sysrev-response
@@ -98,7 +100,8 @@
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session false :anti-forgery false}))
       (wrap-json-body {:keywords? true})
-      wrap-force-json-request))
+      wrap-force-json-request
+      (app/wrap-dynamic-vars (:postgres web-server))))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn
@@ -111,7 +114,7 @@
 (defn sysrev-handler
   "Root handler for web server"
   [& [{:keys [sente] :as web-server}]]
-  (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) wrap-sysrev-api))
+  (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) #(wrap-sysrev-api % :web-server web-server)))
                     (if sente
                       (channel-socket-routes (assoc (:chsk sente)
                                                     :web-server web-server))

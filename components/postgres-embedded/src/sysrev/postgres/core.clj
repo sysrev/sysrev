@@ -68,7 +68,9 @@
             (.executeUpdate (str "CREATE DATABASE " (:dbname config))))
         (let [datasource (make-datasource config)]
           (flyway/migrate! datasource)
-          (assoc this :datasource datasource :pg pg)))))
+          (assoc this
+                 :datasource datasource :pg pg
+                 :query-cache (atom {}) :query-cache-enabled (atom true))))))
   (stop [this]
     (if-not datasource
       this
