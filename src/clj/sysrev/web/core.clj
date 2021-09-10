@@ -114,6 +114,7 @@
 (defn sysrev-handler
   "Root handler for web server"
   [& [{:keys [sente] :as web-server}]]
+  (assert (map? web-server))
   (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) #(wrap-sysrev-api % :web-server web-server)))
                     (if sente
                       (channel-socket-routes (assoc (:chsk sente)

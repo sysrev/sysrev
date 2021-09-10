@@ -8,8 +8,7 @@
             [sysrev.source.import :as import]
             [sysrev.user.core :as user]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.web.core :refer [sysrev-handler]]
-            [sysrev.test.core :as test :refer [default-fixture]]
+            [sysrev.test.core :as test :refer [default-fixture sysrev-handler]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
             [sysrev.util :as util :refer [sum]]))

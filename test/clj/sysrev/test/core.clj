@@ -7,11 +7,12 @@
             [sysrev.config :refer [env]]
             [sysrev.init :refer [start-app]]
             [sysrev.main :as main]
-            [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
             [sysrev.db.migration :refer [ensure-updated-db]]
             [sysrev.flyway.interface :as flyway]
-            [sysrev.util :as util :refer [in? ignore-exceptions shell]]))
+            [sysrev.util :as util :refer [in? ignore-exceptions shell]]
+            [sysrev.web.core :as web]
+            [sysrev.web.index :refer [set-web-asset-path]]))
 
 (def ^:dynamic ^{:doc "Should be bound to an atom containing a system-map."}
   *test-system* main/system)
@@ -22,6 +23,9 @@
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
 (defonce db-initialized? (atom nil))
+
+(defn sysrev-handler []
+  (web/sysrev-handler (:web-server @*test-system*)))
 
 (defn cpu-count []
   (.availableProcessors (Runtime/getRuntime)))
