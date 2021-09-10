@@ -57,32 +57,46 @@
                  :port (-> config :server :port))
                 [:config :postgres :sente])))
 
-(defn start-system! [& {:keys [only-if-new postgres-overrides]}]
-  (when (or (not only-if-new) (nil? @system))
-    (log/info "Starting system")
-    (let [datapub (when (:datapub-embedded env)
-                    ((requiring-resolve 'datapub.main/reload-with-fixtures!)))
-          config (if datapub
-                   (let [port (get-in datapub [:pedestal :bound-port])]
-                     (assoc env
-                            :datapub-api (str "http://localhost:" port "/api")
-                            :datapub-ws (str "ws://localhost:" port "/ws")))
-                   (assoc env
-                          :datapub-api "https://www.datapub.dev/api"
-                          :datapub-ws "wss://www.datapub.dev/ws"))]
-      (->> (system-map
-            :config config
-            :postgres-overrides postgres-overrides)
-           component/start
-           (reset! system)))
-    (log/info "System started")))
+(defn start-system-non-global!
+  "Start a system and return it without touching the sysrev.main/system atom."
+  [& {:keys [config postgres-overrides system-map-f]}]
+  (log/info "Starting system")
+  (let [datapub (when (:datapub-embedded env)
+                  ((requiring-resolve 'datapub.main/reload-with-fixtures!)))
+        config (or config env)
+        config (if datapub
+                 (let [port (get-in datapub [:pedestal :bound-port])]
+                   (assoc config
+                          :datapub-api (str "http://localhost:" port "/api")
+                          :datapub-ws (str "ws://localhost:" port "/ws")))
+                 (assoc config
+                        :datapub-api "https://www.datapub.dev/api"
+                        :datapub-ws "wss://www.datapub.dev/ws"))
+        system (->> ((or system-map-f system-map)
+                     :config config
+                     :postgres-overrides postgres-overrides)
+                    component/start)]
+    (log/info "System started")
+    system))
 
-(defn stop-system! []
+(defn start-system!
+  "Start a system and assign it to the sysrev.main/system atom."
+  [& {:keys [only-if-new postgres-overrides]}]
+  (when (or (not only-if-new) (nil? @system))
+    (reset! system (start-system-non-global!
+                    :postgres-overrides postgres-overrides))))
+
+(defn stop-system!
+  "Stop the provided system or, by default, sysrev.main/system."
+  [& [m]]
   (log/info "Stopping system")
-  (swap! system component/stop)
-  (when (:datapub-embedded env)
-    ((requiring-resolve 'datapub.main/stop!)))
-  (log/info "System stopped"))
+  (let [system (if m
+                 (component/stop m)
+                 (swap! system component/stop))]
+    (when (:datapub-embedded env)
+      ((requiring-resolve 'datapub.main/stop!)))
+    (log/info "System stopped")
+    system))
 
 (defn -main []
   (start-system!))
