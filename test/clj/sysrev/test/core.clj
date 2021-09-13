@@ -111,20 +111,25 @@
              db/*query-cache* (atom {})
              db/*query-cache-enabled* (atom true)
              db/*transaction-query-cache* nil]
-     (let [system# (main/start-system-non-global!
+     (let [postgres# (:postgres env)
+           system# (main/start-system-non-global!
                     :config
                     {:server {:port (get-port/get-port)}}
                     :postgres-overrides
-                    {:dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                    {:create-if-not-exists? true
+                     :delete-on-stop? true
+                     :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                     :embedded? true
                      :host test-db-host}
                     :system-map-f
                     #(-> (apply main/system-map %&)
                          (dissoc :scheduler)))
            ~name-sym system#]
        (binding [*test-system* (atom system#)]
-         (let [result# (do ~@body)]
-           (swap! *test-system* main/stop-system!)
-           result#)))))
+         (try
+           (do ~@body)
+           (finally
+             (swap! *test-system* main/stop-system!)))))))
 
 (defn default-fixture
   "Basic setup for all tests (db, web server, clojure.spec)."

@@ -50,7 +50,8 @@
 (defn wrap-fixtures [f]
   (let [config (-> (postgres/get-config)
                    (update :dbname #(str % (rand-int Integer/MAX_VALUE)))
-                   (assoc :create? true :delete-on-stop? true))]
+                   (assoc :create-if-not-exists? true
+                          :delete-on-stop? true))]
     (ensure-test-db! config)
     (let [pg (component/start (postgres/postgres config))]
       (binding [db/*active-db* (atom (db/make-db-config config))]
