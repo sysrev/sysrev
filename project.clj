@@ -54,11 +54,10 @@
                  [org.flywaydb/flyway-core "7.9.1"]
 
 ;;; Web server
-                 [aleph "0.4.6"]
+                 [aleph "0.4.7-alpha7"]
                  [com.taoensso/sente "1.16.2"]
                  [compojure "1.6.2"]
                  [javax.servlet/javax.servlet-api "4.0.1"]
-                 [manifold "0.1.8"]
                  [ring "1.9.4"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
