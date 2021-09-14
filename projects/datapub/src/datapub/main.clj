@@ -47,3 +47,21 @@
 
 (defn -main []
   (start!))
+
+(defrecord DatapubSystem [options system]
+  component/Lifecycle
+  (start [this]
+    (if system
+      this
+      (let [system (-> (get-config) system-map component/start)]
+        (when (:load-fixtures? options)
+          ((requiring-resolve 'datapub.test/load-ctgov-dataset!) system))
+        (assoc this :system system))))
+  (stop [this]
+    (if-not system
+      this
+      (do (component/stop system)
+          (assoc this :system nil)))))
+
+(defn datapub-system [options]
+  (map->DatapubSystem {:options options}))

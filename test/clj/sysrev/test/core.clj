@@ -114,13 +114,14 @@
      (let [postgres# (:postgres env)
            system# (main/start-system-non-global!
                     :config
-                    {:server {:port (get-port/get-port)}}
+                    {:datapub-embedded true
+                     :server {:port (get-port/get-port)}}
                     :postgres-overrides
                     {:create-if-not-exists? true
-                     :delete-on-stop? true
                      :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
                      :embedded? true
-                     :host test-db-host}
+                     :host test-db-host
+                     :port (get-port/get-port)}
                     :system-map-f
                     #(-> (apply main/system-map %&)
                          (dissoc :scheduler)))

@@ -61,11 +61,12 @@
   "Start a system and return it without touching the sysrev.main/system atom."
   [& {:keys [config postgres-overrides system-map-f]}]
   (log/info "Starting system")
-  (let [datapub (when (:datapub-embedded env)
-                  ((requiring-resolve 'datapub.main/reload-with-fixtures!)))
+  (let [datapub (when (:datapub-embedded config)
+                  ((requiring-resolve 'datapub.main/datapub-system)
+                   {:load-fixtures? true}))
         config (or config env)
         config (if datapub
-                 (let [port (get-in datapub [:pedestal :bound-port])]
+                 (let [port (get-in datapub [:datapub :pedestal :bound-port])]
                    (assoc config
                           :datapub-api (str "http://localhost:" port "/api")
                           :datapub-ws (str "ws://localhost:" port "/ws")))
@@ -74,6 +75,7 @@
                         :datapub-ws "wss://www.datapub.dev/ws"))
         system (->> ((or system-map-f system-map)
                      :config config
+                     :datapub (or datapub {})
                      :postgres-overrides postgres-overrides)
                     component/start)]
     (log/info "System started")
@@ -93,8 +95,6 @@
   (let [system (if m
                  (component/stop m)
                  (swap! system component/stop))]
-    (when (:datapub-embedded env)
-      ((requiring-resolve 'datapub.main/stop!)))
     (log/info "System stopped")
     system))
 
