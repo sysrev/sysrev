@@ -73,10 +73,11 @@
     (-> (subscriber-for-user user-id :create? true :returning :subscriber-id)
         (subscribe-to-topic
          (topic-for-name (str ":group " group-id) :create? true :returning :topic-id)))
-    (q/create :user-group (cond-> {:user-id user-id :group-id group-id}
-                            permissions (assoc :permissions (db/to-sql-array "text" permissions)))
-              :returning :id)
-    (update-premium-members-count! group-id)))
+    (let [group-id (q/create :user-group (cond-> {:user-id user-id :group-id group-id}
+                                           permissions (assoc :permissions (db/to-sql-array "text" permissions)))
+                             :returning :id)]
+      (update-premium-members-count! group-id)
+      group-id)))
 
 (defn read-user-group-name
   "Read the id for the user-group for user-id and group-name"
