@@ -20,6 +20,7 @@
    "session"
    "project-group"
    "project-member"
+   "user-email"
    "user-group"])
 
 (defn get-fixtures []
