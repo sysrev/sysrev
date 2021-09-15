@@ -325,7 +325,7 @@
     (is (= "Basic" (get-db-plan)))
     ;; pay yearly
     (b/click (xpath "//label[contains(text(),'Pay Yearly')]"))
-    (b/wait-until-displayed (xpath "//h3[contains(text(),'$360.00 / year')]"))
+    (b/wait-until-displayed (xpath "//h3[contains(text(),'$110.00 / year')]"))
     ;; update payment method
     (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc})
     (click-use-card)
