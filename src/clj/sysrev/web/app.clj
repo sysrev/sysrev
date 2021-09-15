@@ -216,13 +216,14 @@
 
 (defn wrap-dynamic-vars
   "Bind dynamic vars to the appropriate values from the Postgres record."
-  [handler postgres]
+  [handler {:keys [config postgres]}]
   (fn [request]
     (binding [db/*active-db* (atom postgres)
               db/*conn* nil
               db/*query-cache* (:query-cache postgres)
               db/*query-cache-enabled* (:query-cache-enabled postgres)
-              db/*transaction-query-cache* nil]
+              db/*transaction-query-cache* nil
+              env (merge env config)]
       (handler request))))
 
 (defn wrap-web-server

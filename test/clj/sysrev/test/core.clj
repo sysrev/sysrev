@@ -126,7 +126,8 @@
                     #(-> (apply main/system-map %&)
                          (dissoc :scheduler)))
            ~name-sym system#]
-       (binding [*test-system* (atom system#)]
+       (binding [env (merge env (:config system#))
+                 *test-system* (atom system#)]
          (try
            (do ~@body)
            (finally

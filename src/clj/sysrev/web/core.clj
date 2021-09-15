@@ -65,7 +65,7 @@
   (-> handler
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))
-      (app/wrap-dynamic-vars (:postgres web-server))
+      (app/wrap-dynamic-vars web-server)
       (app/wrap-web-server web-server)))
 
 (defn wrap-sysrev-app
@@ -80,7 +80,7 @@
       (wrap-transit-body {:opts {}})
       app/wrap-robot-noindex
       (app/wrap-log-request)
-      (app/wrap-dynamic-vars (:postgres web-server))
+      (app/wrap-dynamic-vars web-server)
       (app/wrap-web-server web-server)))
 
 (defn wrap-force-json-request
@@ -101,7 +101,7 @@
       (default/wrap-defaults (sysrev-config {:session false :anti-forgery false}))
       (wrap-json-body {:keywords? true})
       wrap-force-json-request
-      (app/wrap-dynamic-vars (:postgres web-server))))
+      (app/wrap-dynamic-vars web-server)))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn
