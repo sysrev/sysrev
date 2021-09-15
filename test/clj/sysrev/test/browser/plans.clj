@@ -2,6 +2,7 @@
   (:require [clj-webdriver.taxi :as taxi]
             [clojure.test :refer [use-fixtures is]]
             [clojure.tools.logging :as log]
+            [sysrev.config :refer [env]]
             [sysrev.payment.plans :as plans]
             [sysrev.user.core :as user :refer [user-by-email]]
             [sysrev.test.core :as test]
@@ -98,7 +99,7 @@
 
 ;; need to disable sending emails in this test (for register user via web)
 (deftest-browser register-and-check-basic-plan-subscription
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  (and (test/db-connected?) (not (test/remote-test?))  (not (:skip-stripe-tests env))) test-user
   [{:keys [email]} test-user
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)]
@@ -116,7 +117,7 @@
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  (and (test/db-connected?) (not (test/remote-test?)) (not (:skip-stripe-tests env))) test-user
   [{:keys [email]} test-user
    get-test-user #(user-by-email email)
    get-customer #(get-user-customer email)
@@ -232,7 +233,7 @@
       (is (= plans-info/default-plan (get-db-plan)))))
 
 (deftest-browser subscribe-to-unlimited-through-pricing-no-account
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  (and (test/db-connected?) (not (test/remote-test?)) (not (:skip-stripe-tests env))) test-user
   [email (format "baz+%s@qux.com" (util/random-id))
    password "bazqux"
    get-test-user #(user-by-email email)
@@ -264,7 +265,7 @@
 ;; out information but eventually does sign up anyway
 ;; through the pricing workflow
 (deftest-browser subscribe-to-unlimited-through-pricing-cold-feet
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  (and (test/db-connected?) (not (test/remote-test?)) (not (:skip-stripe-tests env))) test-user
   [email (format "baz+%s@qux.com" (util/random-id))
    password "bazqux"
    get-test-user #(user-by-email email)
@@ -304,7 +305,7 @@
   :cleanup (b/cleanup-test-user! :email email))
 
 (deftest-browser subscribe-to-unlimited-annual-through-pricing-no-account
-  (and (test/db-connected?) (not (test/remote-test?))) test-user
+  (and (test/db-connected?) (not (test/remote-test?)) (not (:skip-stripe-tests env))) test-user
   [email (format "baz+%s@example.com" (util/random-id))
    password "bazqux"
    get-test-user #(user-by-email email)
