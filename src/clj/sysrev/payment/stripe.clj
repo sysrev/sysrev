@@ -134,12 +134,12 @@
 (defn get-plans
   "Get all site plans"
   []
-  (stripe-get "/plans"))
+  (stripe-get "/plans" {:limit 100}))
 
 (defn get-products
   "Get all site products"
   []
-  (stripe-get "/products"))
+  (stripe-get "/products" {:limit 100}))
 
 (defn get-plan-id [nickname]
   (:id (first (->> (:data (get-plans))
