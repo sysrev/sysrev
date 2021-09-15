@@ -1,6 +1,8 @@
 (ns sysrev.source.ctgov
   (:require [cheshire.core :as json]
+            [clojure.spec.alpha :as s]
             [honeysql.helpers :as sqlh :refer [select from where join]]
+            [orchestra.core :refer [defn-spec]]
             [sysrev.config :refer [env]]
             [sysrev.datapub-client.interface :as datapub]
             [sysrev.db.core :as db]
@@ -9,7 +11,8 @@
             [sysrev.source.interface :refer [after-source-import import-source
                                              import-source-articles import-source-impl]]))
 
-(defn get-entities [endpoint ids]
+(defn-spec get-entities (s/coll-of map?)
+  [endpoint string?, ids (s/coll-of nat-int?)]
   (map
    (fn [id]
      (let [ps (-> (datapub/get-dataset-entity id "content"
@@ -84,7 +87,8 @@
                     (->> (import-source-articles
                            project-id source-id
                            {:types {:article-type "json" :article-subtype "ctgov"}
-                            :article-refs (get-new-articles-available source)
+                            :article-refs (get-new-articles-available
+                                           source :config (:config web-server))
                             :get-articles (partial get-entities (get-in web-server [:config :datapub-api]))}
                            {:threads 1})
                          (after-source-import project-id source-id)))]

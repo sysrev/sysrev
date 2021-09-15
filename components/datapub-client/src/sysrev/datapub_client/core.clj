@@ -30,8 +30,8 @@
     graphql-response))
 
 (defn execute! [& {:keys [auth-token endpoint query variables]}]
-  (-> (or endpoint "https://www.datapub.dev/api")
-      (http/post
+  (-> (http/post
+       endpoint
        {:as :json
         :content-type :json
         :form-params {:query query :variables variables}
@@ -46,7 +46,7 @@
 
 (defn consume-subscription! [& {:keys [auth-token endpoint query variables]}]
   (with-open [conn @(ahttp/websocket-client
-                     (or endpoint "wss://www.datapub.dev/ws")
+                     endpoint
                      {:sub-protocols "graphql-ws"})]
     (stream/put! conn (json/generate-string {:type "connection_init" :payload {}}))
     (loop [acc (transient [])]
