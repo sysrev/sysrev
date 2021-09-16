@@ -202,81 +202,107 @@
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                      :datasetId dataset-id}))))))))
 
-(defn create-dataset-entity! [context {:keys [datasetId content externalId mediaType]} _]
+(defn create-entity-helper!
+  "To be called by the create-dataset-entity! methods. Takes the context,
+  args, and a map like
+  {:content \"{\"a\": 2}\"
+   :content-hash (byte-array (hasch/edn-hash {:a 2}))
+   :content-table :content-json}
+
+  Handles checking for dataset existence, for existing content with the same
+  hash, and existing entities in the dataset with the same externalId."
+  [context
+   {:keys [datasetId externalId]}
+   {:keys [content content-hash content-table]}]
   (ensure-sysrev-dev
    context
-   (let [media-type (str/lower-case mediaType)]
-     (if (not= "application/json" media-type)
-       (resolve/resolve-as nil {:message "Invalid media type."
-                                :mediaType mediaType})
-       (let [json (try
-                    (json/parse-string content)
-                    (catch Exception e))]
-         (if (empty? json)
-           (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."
-                                    :content content})
-           (with-tx-context [context context]
-             (if (empty? (execute-one! context {:select :id
-                                                :from :dataset
-                                                :where [:= :id datasetId]}))
-               (resolve/resolve-as nil {:message "There is no dataset with that id."
-                                        :datasetId datasetId})
-               (let [hash (byte-array (hasch/edn-hash json))
-                     existing-content-id
-                     #__ (:content-json/content-id
-                          (execute-one!
-                           context
-                           {:select :content-id
-                            :from :content-json
-                            :where [:= :hash hash]}))
-                     values [(-> {:dataset-id datasetId
-                                  :content-id (or existing-content-id
-                                                  {:select :id :from :content})}
-                                 ((if externalId
-                                    #(assoc % :external-id externalId)
-                                    identity)))]]
-                 (if existing-content-id
-                   (if-let [ety (and externalId
-                                     (execute-one!
-                                      context
-                                      {:select :id
-                                       :from :entity
-                                       :where [:and
-                                               [:= :dataset-id datasetId]
-                                               [:= :external-id externalId]
-                                               [:= :content-id existing-content-id]
-                                               [:in :created
-                                                {:select :%max.created
-                                                 :from [[:entity :e]]
-                                                 :where [:and
-                                                         [:= :e.dataset-id datasetId]
-                                                         [:= :e.external-id externalId]]}]]}))]
-                     (resolve-dataset-entity context {:id (:entity/id ety)} nil)
-                     (-> context
-                         (execute-one!
-                          {:insert-into :entity
-                           :returning :id
-                           :values values})
-                         :entity/id
-                         (#(resolve-dataset-entity context {:id %} nil))))
-                   (-> context
-                       (execute-one!
-                        {:with
-                         [[:content
-                           {:insert-into :content
-                            :values [{:created [:now]}]
-                            :returning :id}]
-                          [:content-json
-                           {:insert-into :content-json
-                            :values
-                            [{:content-id {:select :id :from :content}
-                              :content (jsonb-pgobject json)
-                              :hash hash}]}]]
-                         :insert-into :entity
-                         :returning :id
-                         :values values})
-                       :entity/id
-                       (#(resolve-dataset-entity context {:id %} nil)))))))))))))
+   (with-tx-context [context context]
+     (if (empty? (execute-one! context {:select :id
+                                        :from :dataset
+                                        :where [:= :id datasetId]}))
+       (resolve/resolve-as nil {:message "There is no dataset with that id."
+                                :datasetId datasetId})
+       (let [existing-content-id
+             #__ ((keyword (name content-table) "content-id")
+                  (execute-one!
+                   context
+                   {:select :content-id
+                    :from content-table
+                    :where [:= :hash content-hash]}))
+             values [(-> {:dataset-id datasetId
+                          :content-id (or existing-content-id
+                                          {:select :id :from :content})}
+                         ((if externalId
+                            #(assoc % :external-id externalId)
+                            identity)))]]
+         (if existing-content-id
+           (if-let [ety (and externalId
+                             (execute-one!
+                              context
+                              {:select :id
+                               :from :entity
+                               :where [:and
+                                       [:= :dataset-id datasetId]
+                                       [:= :external-id externalId]
+                                       [:= :content-id existing-content-id]
+                                       [:in :created
+                                        {:select :%max.created
+                                         :from [[:entity :e]]
+                                         :where [:and
+                                                 [:= :e.dataset-id datasetId]
+                                                 [:= :e.external-id externalId]]}]]}))]
+             (resolve-dataset-entity context {:id (:entity/id ety)} nil)
+             (-> context
+                 (execute-one!
+                  {:insert-into :entity
+                   :returning :id
+                   :values values})
+                 :entity/id
+                 (#(resolve-dataset-entity context {:id %} nil))))
+           (-> context
+               (execute-one!
+                {:with
+                 [[:content
+                   {:insert-into :content
+                    :values [{:created [:now]}]
+                    :returning :id}]
+                  [content-table
+                   {:insert-into content-table
+                    :values
+                    [{:content-id {:select :id :from :content}
+                      :content content
+                      :hash content-hash}]}]]
+                 :insert-into :entity
+                 :returning :id
+                 :values values})
+               :entity/id
+               (#(resolve-dataset-entity context {:id %} nil)))))))))
+
+(defmulti create-dataset-entity! (fn [_ {:keys [mediaType]} _]
+                                   (when mediaType
+                                     (str/lower-case mediaType))))
+
+(defmethod create-dataset-entity! :default
+  [_ {:keys [mediaType]} _]
+  (resolve/resolve-as nil {:message "Invalid media type."
+                           :mediaType mediaType}))
+
+(defmethod create-dataset-entity! "application/json"
+  [context {:as args :keys [content]} _]
+  (ensure-sysrev-dev
+   context
+   (let [json (try
+                (json/parse-string content)
+                (catch Exception e))]
+     (if (empty? json)
+       (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."
+                                :content content})
+       (with-tx-context [context context]
+         (create-entity-helper!
+          context args
+          {:content (jsonb-pgobject json)
+           :content-hash (byte-array (hasch/edn-hash json))
+           :content-table :content-json}))))))
 
 (defn dataset-entities-subscription [context {:keys [datasetId uniqueExternalIds]} source-stream]
   (ensure-sysrev-dev
