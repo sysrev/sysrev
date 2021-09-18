@@ -4,6 +4,7 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
+            [datapub.file :as file]
             [datapub.pedestal :as pedestal]
             [datapub.postgres :as postgres]))
 
@@ -14,7 +15,7 @@
    (edn/read-string (slurp r))
    (throw (RuntimeException. "The datapub-config.edn resource was not found."))))
 
-(defn system-map [{:keys [env] :as config}]
+(defn system-map [{:keys [aws env] :as config}]
   (if-not (envs env)
     (throw (ex-info
             (if env ":env unrecognized" ":env missing")
@@ -24,8 +25,9 @@
      :config config
      :pedestal (component/using
                 (pedestal/pedestal {:config (assoc (:pedestal config) :env env)})
-                [:postgres])
-     :postgres (postgres/postgres {:config (:postgres config)}))))
+                [:postgres :s3])
+     :postgres (postgres/postgres {:config (:postgres config)})
+     :s3 (component/using (file/s3-client aws) [:config]))))
 
 (defonce system (atom nil))
 

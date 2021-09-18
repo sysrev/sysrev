@@ -12,6 +12,11 @@
 (def create-dataset
   "mutation($input: CreateDatasetInput!){createDataset(input: $input){id}}")
 
+(def create-dataset-entity
+  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String) {
+     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId){id content externalId mediaType}
+  }")
+
 (def create-dataset-index
   "mutation($datasetId: PositiveInt!, $path: String!, $type: DatasetIndexType!){createDatasetIndex(datasetId: $datasetId, path: $path, type: $type){path type}}")
 

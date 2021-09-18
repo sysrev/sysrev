@@ -6,13 +6,17 @@
             [com.walmartlabs.lacinia.executor :as executor]
             [com.walmartlabs.lacinia.resolve :as resolve]
             [com.walmartlabs.lacinia.selection :as selection]
+            [datapub.file :as file]
             [datapub.postgres :as pg]
             [hasch.core :as hasch]
             [medley.core :as me]
-            [next.jdbc :as jdbc]))
+            [next.jdbc :as jdbc])
+  (:import (java.security MessageDigest)
+           (java.util Base64)
+           (org.postgresql.util PGobject)))
 
 (defn jsonb-pgobject [x]
-  (doto (org.postgresql.util.PGobject.)
+  (doto (PGobject.)
     (.setType "jsonb")
     (.setValue (json/generate-string x))))
 
@@ -175,17 +179,38 @@
     (with-tx-context [context context]
       (->>
        (if (or (:content ks) (:mediaType ks))
-         (some->
-          context
-          (execute-one!
-           {:select (->> (if (:content ks)
-                           (conj (disj ks :content) [[:raw "content::text"]])
-                           ks)
-                         (remove #{:mediaType}))
-            :from :entity
-            :where [:= :id id]
-            :join [:content-json [:= :content-json.content-id :entity.content-id]]})
-          (assoc :mediaType "application/json"))
+         (or
+          (as-> context $
+           (execute-one!
+            $
+            {:select (->> (if (:content ks)
+                            (conj (disj ks :content) :hash)
+                            ks)
+                          (remove #{:mediaType}))
+             :from :entity
+             :where [:= :id id]
+             :join [:content-file [:= :content-file.content-id :entity.content-id]]})
+           (some-> $
+                   (assoc :content (when (:content ks)
+                                     (-> (file/get-entity-content
+                                          (get-in context [:pedestal :s3])
+                                          (:content-file/hash $))
+                                         :Body
+                                         slurp
+                                         .getBytes
+                                         (->> (.encodeToString (Base64/getEncoder)))))
+                          :mediaType "application/pdf")))
+          (some->
+           (execute-one!
+            context
+            {:select (->> (if (:content ks)
+                            (conj (disj ks :content) [[:raw "content::text"]])
+                            ks)
+                          (remove #{:mediaType}))
+             :from :entity
+             :where [:= :id id]
+             :join [:content-json [:= :content-json.content-id :entity.content-id]]})
+           (assoc :mediaType "application/json")))
          (if (= #{:id} ks)
            {:id id}
            (execute-one!
@@ -205,15 +230,19 @@
 (defn create-entity-helper!
   "To be called by the create-dataset-entity! methods. Takes the context,
   args, and a map like
-  {:content \"{\"a\": 2}\"
+  {:content {:a 2}
    :content-hash (byte-array (hasch/edn-hash {:a 2}))
    :content-table :content-json}
+  or
+  {:data {:text \"...\"
+   :content-hash (byte-array ...))
+   :content-table :content-file}
 
   Handles checking for dataset existence, for existing content with the same
   hash, and existing entities in the dataset with the same externalId."
   [context
-   {:keys [datasetId externalId]}
-   {:keys [content content-hash content-table]}]
+   {:keys [datasetId externalId mediaType]}
+   {:keys [content content-hash content-table indexed-data]}]
   (ensure-sysrev-dev
    context
    (with-tx-context [context context]
@@ -269,9 +298,14 @@
                   [content-table
                    {:insert-into content-table
                     :values
-                    [{:content-id {:select :id :from :content}
-                      :content content
-                      :hash content-hash}]}]]
+                    [(if (= :content-json content-table)
+                       {:content (jsonb-pgobject content)
+                        :content-id {:select :id :from :content}
+                        :hash content-hash}
+                       {:content-id {:select :id :from :content}
+                        :hash content-hash
+                        :data (jsonb-pgobject indexed-data)
+                        :media-type mediaType})]}]]
                  :insert-into :entity
                  :returning :id
                  :values values})
@@ -300,9 +334,29 @@
        (with-tx-context [context context]
          (create-entity-helper!
           context args
-          {:content (jsonb-pgobject json)
+          {:content json
            :content-hash (byte-array (hasch/edn-hash json))
            :content-table :content-json}))))))
+
+(defmethod create-dataset-entity! "application/pdf"
+  [context {:as args :keys [content]} _]
+  (ensure-sysrev-dev
+   context
+   (let [pdf (try
+                (.decode (Base64/getDecoder) content)
+                (catch Exception e))]
+     (if (empty? pdf)
+       (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
+                                :content content})
+       (let [hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
+         (file/put-entity-content! (get-in context [:pedestal :s3])
+                                   {:content pdf :content-hash hash})
+         (with-tx-context [context context]
+           (create-entity-helper!
+            context args
+            {:content-hash hash
+             :content-table :content-file
+             :data {:text ""}})))))))
 
 (defn dataset-entities-subscription [context {:keys [datasetId uniqueExternalIds]} source-stream]
   (ensure-sysrev-dev

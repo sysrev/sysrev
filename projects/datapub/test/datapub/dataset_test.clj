@@ -1,6 +1,9 @@
 (ns datapub.dataset-test
   (:require [cheshire.core :as json]
+            [clojure.java.io :as io]
             [datapub.test :as test])
+  (:import (java.util Base64)
+           (org.apache.commons.io IOUtils))
   (:use clojure.test
         datapub.dataset))
 
@@ -279,3 +282,30 @@
                      {:timeout-ms 1000})
                     (map (fn [m] (select-keys m #{:externalId})))
                     (into #{}))))))))
+
+(deftest test-pdf-entities
+  (test/with-test-system [system {}]
+    (let [ex (fn [query & [variables]]
+               (:body (test/execute system query variables)))
+          ds-id (-> (ex test/create-dataset {:input {:name "test-pdf-entities"}})
+                    test/throw-errors
+                    (get-in [:data :createDataset :id]))
+          create-entity
+          #__ (fn [filename]
+                (let [content (->> (str "datapub/file-uploads/" filename)
+                                   io/resource io/reader
+                                   IOUtils/toByteArray
+                                   (.encodeToString (Base64/getEncoder)))
+                      id (-> (ex test/create-dataset-entity
+                                 {:datasetId ds-id
+                                  :content content
+                                  :mediaType "application/pdf"})
+                             test/throw-errors
+                             (get-in [:data :createDatasetEntity :id]))]
+                  {:content content :id id}))
+          armstrong (create-entity "armstrong-thesis-2003-abstract.pdf")]
+      (testing "Can create and retrieve a PDF entity"
+        (is (pos-int? (:id armstrong)))
+        (is (= {:data {:datasetEntity {:content (:content armstrong) :mediaType "application/pdf"}}}
+               (ex "query Q($id: PositiveInt!){datasetEntity(id: $id){content mediaType}}"
+                   {:id (:id armstrong)})))))))
