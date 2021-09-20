@@ -137,6 +137,7 @@
                                                "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
                                              "components/fixtures/src"
+                                             "components/pdf-read/src"
                                              "projects/datapub/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
@@ -156,6 +157,7 @@
                                [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
                                [javax.servlet/javax.servlet-api "4.0.1"]
+                               [org.apache.pdfbox/pdfbox "2.0.22"]
                                [org.eclipse.jetty/jetty-alpn-server "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-client "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-http "9.4.42.v20210604"]
@@ -198,6 +200,7 @@
                                [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
                                [javax.servlet/javax.servlet-api "4.0.1"]
+                               [org.apache.pdfbox/pdfbox "2.0.22"]
                                [org.eclipse.jetty/jetty-alpn-server "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-client "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-http "9.4.42.v20210604"]
@@ -216,6 +219,7 @@
                                                "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
                                              "components/fixtures/src"
+                                             "components/pdf-read/src"
                                              "projects/datapub/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"

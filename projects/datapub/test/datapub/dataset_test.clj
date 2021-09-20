@@ -290,22 +290,64 @@
           ds-id (-> (ex test/create-dataset {:input {:name "test-pdf-entities"}})
                     test/throw-errors
                     (get-in [:data :createDataset :id]))
-          create-entity
+          create-entity-raw
           #__ (fn [filename]
                 (let [content (->> (str "datapub/file-uploads/" filename)
-                                   io/resource io/reader
+                                   io/resource
+                                   .openStream
                                    IOUtils/toByteArray
-                                   (.encodeToString (Base64/getEncoder)))
-                      id (-> (ex test/create-dataset-entity
+                                   (.encodeToString (Base64/getEncoder)))]
+                  {:content content
+                   :response (ex test/create-dataset-entity
                                  {:datasetId ds-id
                                   :content content
-                                  :mediaType "application/pdf"})
-                             test/throw-errors
-                             (get-in [:data :createDatasetEntity :id]))]
-                  {:content content :id id}))
-          armstrong (create-entity "armstrong-thesis-2003-abstract.pdf")]
+                                  :externalId filename
+                                  :mediaType "application/pdf"})}))
+          create-entity
+          #__ (fn [filename]
+                (let [{:keys [content response]} (create-entity-raw filename)]
+                  {:content content
+                   :id (-> (test/throw-errors response)
+                           (get-in [:data :createDatasetEntity :id]))}))
+          armstrong (create-entity "armstrong-thesis-2003-abstract.pdf")
+          ctgov (create-entity "ctgov-Prot_SAP_000.pdf")
+          fda (create-entity "fda-008372Orig1s044ltr.pdf")]
       (testing "Can create and retrieve a PDF entity"
         (is (pos-int? (:id armstrong)))
         (is (= {:data {:datasetEntity {:content (:content armstrong) :mediaType "application/pdf"}}}
                (ex "query Q($id: PositiveInt!){datasetEntity(id: $id){content mediaType}}"
-                   {:id (:id armstrong)})))))))
+                   {:id (:id armstrong)}))))
+      (testing "Invalid PDFs are rejected"
+        (is (= "Invalid content: Not a valid PDF file."
+               (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
+                   (get-in [:response :errors 0 :message])))))
+      (let [text {:datasetId ds-id
+                  :path (pr-str ["text"])
+                  :type :TEXT}
+            search-q (fn [idx search]
+                       {:input
+                        {:datasetId ds-id
+                         :query
+                         {:type :AND
+                          :text
+                          [{:paths [(:path idx)]
+                            :search search}]}}})
+            ex-search (fn [q]
+                        (->> (test/execute-subscription
+                              system search-dataset-subscription
+                              test/subscribe-search-dataset
+                              q
+                              {:timeout-ms 1000})
+                             (map (fn [m] (select-keys m #{:externalId})))
+                             (into #{})))]
+        (test/throw-errors
+         (ex test/create-dataset-index text))
+        (testing "Can search PDFs based on their text content"
+          (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}
+                   {:externalId "ctgov-Prot_SAP_000.pdf"}}
+                 (ex-search (search-q text "systems"))))
+          (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}}
+                 (ex-search (search-q text "\"reliable distributed systems\""))))
+          (is (= #{{:externalId "fda-008372Orig1s044ltr.pdf"}}
+                 (ex-search (search-q text "sNDA"))))
+          (is (empty? (ex-search (search-q text "eueuoxuexau")))))))))

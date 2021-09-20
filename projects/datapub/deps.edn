@@ -31,7 +31,8 @@
         org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
         org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
         org.flywaydb/flyway-core {:mvn/version "7.15.0"}
-        org.postgresql/postgresql {:mvn/version "42.2.23"}}
+        org.postgresql/postgresql {:mvn/version "42.2.23"}
+        sysrev/pdf-read {:local/root "../../components/pdf-read"}}
  :aliases {:dev {:extra-paths ["test" "config/dev"]
                  :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}}}
            :prod {:extra-paths ["config/prod"]}

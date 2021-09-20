@@ -1,6 +1,7 @@
 (ns datapub.dataset
   (:require [cheshire.core :as json]
             [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [com.walmartlabs.lacinia.constants :as constants]
             [com.walmartlabs.lacinia.executor :as executor]
@@ -10,9 +11,13 @@
             [datapub.postgres :as pg]
             [hasch.core :as hasch]
             [medley.core :as me]
-            [next.jdbc :as jdbc])
-  (:import (java.security MessageDigest)
+            [next.jdbc :as jdbc]
+            [sysrev.pdf-read.interface :as pdf-read])
+  (:import (java.io IOException)
+           (java.nio.file Files StandardCopyOption)
+           (java.security MessageDigest)
            (java.util Base64)
+           (org.apache.commons.io IOUtils)
            (org.postgresql.util PGobject)))
 
 (defn jsonb-pgobject [x]
@@ -196,8 +201,7 @@
                                           (get-in context [:pedestal :s3])
                                           (:content-file/hash $))
                                          :Body
-                                         slurp
-                                         .getBytes
+                                         IOUtils/toByteArray
                                          (->> (.encodeToString (Base64/getEncoder)))))
                           :mediaType "application/pdf")))
           (some->
@@ -242,7 +246,7 @@
   hash, and existing entities in the dataset with the same externalId."
   [context
    {:keys [datasetId externalId mediaType]}
-   {:keys [content content-hash content-table indexed-data]}]
+   {:keys [content content-hash content-table data]}]
   (ensure-sysrev-dev
    context
    (with-tx-context [context context]
@@ -304,7 +308,7 @@
                         :hash content-hash}
                        {:content-id {:select :id :from :content}
                         :hash content-hash
-                        :data (jsonb-pgobject indexed-data)
+                        :data (jsonb-pgobject data)
                         :media-type mediaType})]}]]
                  :insert-into :entity
                  :returning :id
@@ -338,6 +342,12 @@
            :content-hash (byte-array (hasch/edn-hash json))
            :content-table :content-json}))))))
 
+(defn condense-whitespace [s]
+  (as-> (str/split s #"\-\n") $
+      (str/join "" $)
+      (str/split $ #"\s+")
+      (str/join " " $)))
+
 (defmethod create-dataset-entity! "application/pdf"
   [context {:as args :keys [content]} _]
   (ensure-sysrev-dev
@@ -349,14 +359,30 @@
        (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
                                 :content content})
        (let [hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
+         ;; We put the file before parsing to minimize memory usage,
+         ;; since we can let go of the pdf byte array earlier.
          (file/put-entity-content! (get-in context [:pedestal :s3])
                                    {:content pdf :content-hash hash})
-         (with-tx-context [context context]
-           (create-entity-helper!
-            context args
-            {:content-hash hash
-             :content-table :content-file
-             :data {:text ""}})))))))
+         (let [file-opts (into-array [StandardCopyOption/REPLACE_EXISTING])
+               text (file/with-temp-file [path {:suffix ".pdf"}]
+                      (Files/copy (io/input-stream pdf) path file-opts)
+                      (try
+                        (pdf-read/with-PDDocument [doc (.toFile path)]
+                          (pdf-read/get-text doc {:sort-by-position true}))
+                        (catch IOException e
+                          (if (= "Error: Header doesn't contain versioninfo"
+                                 (.getMessage e))
+                            :invalid-pdf
+                            (throw e)))))]
+           (if (= :invalid-pdf text)
+             (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."
+                                      :content content})
+             (with-tx-context [context context]
+               (create-entity-helper!
+                context args
+                {:content-hash hash
+                 :content-table :content-file
+                 :data {:text (condense-whitespace text)}})))))))))
 
 (defn dataset-entities-subscription [context {:keys [datasetId uniqueExternalIds]} source-stream]
   (ensure-sysrev-dev
