@@ -4,23 +4,9 @@
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
             [com.stuartsierra.component :as component])
-  (:import (java.nio.file Files Path)
-           (java.nio.file.attribute FileAttribute)
-           (java.util Base64)))
+  (:import (java.util Base64)))
 
 (set! *warn-on-reflection* true)
-
-(defn ^Path create-temp-file! [suffix]
-  (Files/createTempFile "datapub-" suffix (make-array FileAttribute 0)))
-
-(defmacro with-temp-file
-  "Creates a file and binds name-sym to its Path."
-  [[name-sym {:keys [suffix]}] & body]
-  `(let [~name-sym (create-temp-file! ~suffix)]
-     (try
-       ~@body
-       (finally
-         (Files/delete ~name-sym)))))
 
 (defrecord AwsClient [after-start client client-opts]
   component/Lifecycle

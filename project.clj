@@ -136,6 +136,7 @@
                                                "projects/datapub/resources"
                                                "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/file-util/src"
                                              "components/fixtures/src"
                                              "components/pdf-read/src"
                                              "projects/datapub/src"]
@@ -218,6 +219,7 @@
                                                "projects/datapub/resources"
                                                "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/file-util/src"
                                              "components/fixtures/src"
                                              "components/pdf-read/src"
                                              "projects/datapub/src"]

@@ -12,9 +12,9 @@
             [hasch.core :as hasch]
             [medley.core :as me]
             [next.jdbc :as jdbc]
+            [sysrev.file-util.interface :as file-util]
             [sysrev.pdf-read.interface :as pdf-read])
   (:import (java.io IOException)
-           (java.nio.file Files StandardCopyOption)
            (java.security MessageDigest)
            (java.util Base64)
            (org.apache.commons.io IOUtils)
@@ -363,9 +363,10 @@
          ;; since we can let go of the pdf byte array earlier.
          (file/put-entity-content! (get-in context [:pedestal :s3])
                                    {:content pdf :content-hash hash})
-         (let [file-opts (into-array [StandardCopyOption/REPLACE_EXISTING])
-               text (file/with-temp-file [path {:suffix ".pdf"}]
-                      (Files/copy (io/input-stream pdf) path file-opts)
+         (let [text (file-util/with-temp-file [path {:prefix "datapub-"
+                                                     :suffix ".pdf"}]
+                      (file-util/copy! (io/input-stream pdf) path
+                                       #{:replace-existing})
                       (try
                         (pdf-read/with-PDDocument [doc (.toFile path)]
                           (pdf-read/get-text doc {:sort-by-position true}))
