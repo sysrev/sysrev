@@ -28,6 +28,7 @@
 ;;; Data formats
                  [org.clojure/data.json "2.2.2"]
                  [com.cognitect/transit-clj "1.0.324"]
+                 [org.clojure/data.csv "1.0.0"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "1.0.0"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
