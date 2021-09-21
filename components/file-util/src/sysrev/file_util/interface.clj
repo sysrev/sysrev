@@ -12,6 +12,11 @@
   [^InputStream input-stream ^Path path copy-options]
   (core/copy! input-stream path copy-options))
 
+(defn read-zip-entries
+  "Returns a map of {filename byte-array}."
+  [^Path path]
+  (core/read-zip-entries path))
+
 (defmacro with-temp-file
   "Creates a file and binds name-sym to its Path."
   [[name-sym {:keys [prefix suffix]}] & body]

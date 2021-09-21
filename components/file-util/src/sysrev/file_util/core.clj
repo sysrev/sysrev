@@ -1,7 +1,9 @@
 (ns sysrev.file-util.core
   (:import (java.io InputStream)
-           (java.nio.file Files Path StandardCopyOption)
-           (java.nio.file.attribute FileAttribute)))
+           (java.nio.file CopyOption Files Path StandardCopyOption)
+           (java.nio.file.attribute FileAttribute)
+           (java.util.zip ZipEntry ZipFile)
+           (org.apache.commons.io IOUtils)))
 
 (set! *warn-on-reflection* true)
 
@@ -22,5 +24,16 @@
 
 (defn copy! [^InputStream input-stream ^Path path copy-options]
   (->> (map #(standard-copy-options % %) copy-options)
-       ^"[Ljava.nio.file.StandardCopyOption;" (into-array StandardCopyOption)
+       ^"[Ljava.nio.file.CopyOption;" (into-array CopyOption)
        (Files/copy input-stream path)))
+
+; We use ZipFile instead of ZipInputstream because zips have a central
+; directory at the end, which ZipInputStream incorrectly ignores:
+; https://en.wikipedia.org/wiki/ZIP_(file_format)#Structure
+(defn read-zip-entries [^Path path]
+  (with-open [zip (ZipFile. (.toFile path))]
+    (->> zip .entries iterator-seq
+         (map (fn [^ZipEntry entry]
+                (let [name (.getName entry)]
+                  [name (IOUtils/toByteArray (.getInputStream zip entry))])))
+         (into {}))))
