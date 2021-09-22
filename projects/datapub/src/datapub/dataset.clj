@@ -183,13 +183,14 @@
              ks)]
     (with-tx-context [context context]
       (->>
-       (if (or (:content ks) (:mediaType ks))
+       (if (some #{:content :mediaType :metadata} ks)
          (or
           (as-> context $
            (execute-one!
             $
-            {:select (->> (if (:content ks)
-                            (conj (disj ks :content) :hash)
+            {:select (->> (if (or (:content ks) (:metadata ks))
+                            (conj (disj ks :content :metadata)
+                                  :file-hash [[:raw "data::text"]])
                             ks)
                           (remove #{:mediaType}))
              :from :entity
@@ -199,11 +200,13 @@
                    (assoc :content (when (:content ks)
                                      (-> (file/get-entity-content
                                           (get-in context [:pedestal :s3])
-                                          (:content-file/hash $))
+                                          (:content-file/file-hash $))
                                          :Body
                                          IOUtils/toByteArray
                                          (->> (.encodeToString (Base64/getEncoder)))))
-                          :mediaType "application/pdf")))
+                          :mediaType "application/pdf"
+                          :metadata (some-> $ :data json/parse-string
+                                            (get "metadata")))))
           (some->
            (execute-one!
             context
@@ -237,7 +240,8 @@
     context
     {:select :content-id
      :from content-table
-     :where [:= :hash content-hash]})))
+     :where [:= content-hash
+             (if (= :content-json content-table) :hash :content-hash)]})))
 
 (defn get-latest-entity [context {:keys [content-id dataset-id external-id]}]
   (execute-one!
@@ -262,15 +266,16 @@
    :content-hash (byte-array (hasch/edn-hash {:a 2}))
    :content-table :content-json}
   or
-  {:data {:text \"...\"
+  {:data {:metadata {...} :text \"...\"}
    :content-hash (byte-array ...))
-   :content-table :content-file}
+   :content-table :content-file
+   :file-hash (byte-array ...)}
 
   Handles checking for dataset existence, for existing content with the same
   hash, and existing entities in the dataset with the same externalId."
   [context
    {:keys [datasetId externalId mediaType]}
-   {:keys [content content-hash content-table data]}]
+   {:keys [content content-hash content-table data file-hash]}]
   (ensure-sysrev-dev
    context
    (with-tx-context [context context]
@@ -316,9 +321,10 @@
                        {:content (jsonb-pgobject content)
                         :content-id {:select :id :from :content}
                         :hash content-hash}
-                       {:content-id {:select :id :from :content}
-                        :hash content-hash
+                       {:content-hash content-hash
+                        :content-id {:select :id :from :content}
                         :data (jsonb-pgobject data)
+                        :file-hash file-hash
                         :media-type mediaType})]}]]
                  :insert-into :entity
                  :returning :id
@@ -341,7 +347,7 @@
                            :mediaType mediaType}))
 
 (defmethod create-dataset-entity! "application/json"
-  [context {:as args :keys [content]} _]
+  [context {:as args :keys [content metadata]} _]
   (ensure-sysrev-dev
    context
    (let [json (try
@@ -350,12 +356,14 @@
      (if (empty? json)
        (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."
                                 :content content})
-       (with-tx-context [context context]
-         (create-entity-helper!
-          context args
-          {:content json
-           :content-hash (byte-array (hasch/edn-hash json))
-           :content-table :content-json}))))))
+       (if (seq metadata)
+         (resolve/resolve-as nil {:message "JSON entities cannot have metadata."})
+         (with-tx-context [context context]
+           (create-entity-helper!
+            context args
+            {:content json
+             :content-hash (byte-array (hasch/edn-hash json))
+             :content-table :content-json})))))))
 
 (defn condense-whitespace [s]
   (as-> (str/split s #"\-\n") $
@@ -364,7 +372,7 @@
       (str/join " " $)))
 
 (defmethod create-dataset-entity! "application/pdf"
-  [context {:as args :keys [content]} _]
+  [context {:as args :keys [content metadata]} _]
   (ensure-sysrev-dev
    context
    (let [pdf (try
@@ -373,11 +381,11 @@
      (if (empty? pdf)
        (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
                                 :content content})
-       (let [hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
+       (let [file-hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
          ;; We put the file before parsing to minimize memory usage,
          ;; since we can let go of the pdf byte array earlier.
          (file/put-entity-content! (get-in context [:pedestal :s3])
-                                   {:content pdf :content-hash hash})
+                                   {:content pdf :file-hash file-hash})
          (let [text (file-util/with-temp-file [path {:prefix "datapub-"
                                                      :suffix ".pdf"}]
                       (file-util/copy! (io/input-stream pdf) path
@@ -393,12 +401,21 @@
            (if (= :invalid-pdf text)
              (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."
                                       :content content})
-             (with-tx-context [context context]
-               (create-entity-helper!
-                context args
-                {:content-hash hash
-                 :content-table :content-file
-                 :data {:text (condense-whitespace text)}})))))))))
+             (let [data (->> {:metadata metadata
+                              :text (condense-whitespace text)}
+                             (me/remove-vals nil?))
+                   content-hash (-> {:data data
+                                     :file-hash
+                                     (.encode (Base64/getEncoder) file-hash)}
+                                    hasch/edn-hash
+                                    byte-array)]
+               (with-tx-context [context context]
+                 (create-entity-helper!
+                  context args
+                  {:content-hash content-hash
+                   :content-table :content-file
+                   :data data
+                   :file-hash file-hash}))))))))))
 
 (defn dataset-entities-subscription [context {:keys [datasetId uniqueExternalIds]} source-stream]
   (ensure-sysrev-dev

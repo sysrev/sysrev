@@ -13,8 +13,8 @@
   "mutation($input: CreateDatasetInput!){createDataset(input: $input){id}}")
 
 (def create-dataset-entity
-  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId){id content externalId mediaType}
+  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String, $metadata: String) {
+     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId, metadata: $metadata){id content externalId mediaType metadata}
   }")
 
 (def create-dataset-index
@@ -24,6 +24,9 @@
   "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String) {
      createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalId: $externalId){id content externalId mediaType}
   }")
+
+(def dataset-entity
+  "query($id: PositiveInt!) {datasetEntity(id: $id){id content externalId mediaType metadata}}")
 
 (def subscribe-dataset-entities
   "subscription($id: PositiveInt!, $uniqueExternalIds: Boolean){datasetEntities(datasetId: $id, uniqueExternalIds: $uniqueExternalIds){content externalId mediaType}}")

@@ -45,6 +45,9 @@ type DatasetEntity {
 
   "The media type, such as \"application/json\"."
   mediaType: String!
+
+  "The string representation of the metadata in JSON format."
+  metadata: String
 }
 
 type DatasetIndex {
@@ -116,7 +119,7 @@ type Query {
 
 type Mutation {
   createDataset(input: CreateDatasetInput!) : Dataset
-  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!) : DatasetEntity
+  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!, metadata: String) : DatasetEntity
   createDatasetIndex(datasetId: PositiveInt!, path: String!, type: DatasetIndexType!) : DatasetIndex
 }
 

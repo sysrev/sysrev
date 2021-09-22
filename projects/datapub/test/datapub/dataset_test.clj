@@ -291,7 +291,7 @@
                     test/throw-errors
                     (get-in [:data :createDataset :id]))
           create-entity-raw
-          #__ (fn [filename]
+          #__ (fn [filename & [metadata]]
                 (let [content (->> (str "datapub/file-uploads/" filename)
                                    io/resource
                                    .openStream
@@ -302,21 +302,42 @@
                                  {:datasetId ds-id
                                   :content content
                                   :externalId filename
-                                  :mediaType "application/pdf"})}))
+                                  :mediaType "application/pdf"
+                                  :metadata (when metadata
+                                              (json/generate-string metadata))})}))
           create-entity
-          #__ (fn [filename]
-                (let [{:keys [content response]} (create-entity-raw filename)]
-                  {:content content
-                   :id (-> (test/throw-errors response)
-                           (get-in [:data :createDatasetEntity :id]))}))
-          armstrong (create-entity "armstrong-thesis-2003-abstract.pdf")
+          #__ (fn [filename & [metadata]]
+                (let [{:keys [content response]} (create-entity-raw filename metadata)]
+                  (-> (test/throw-errors response)
+                      (get-in [:data :createDatasetEntity])
+                      (assoc :content content))))
+          armstrong (create-entity "armstrong-thesis-2003-abstract.pdf"
+                                   {:title "Armstrong Thesis Abstract"})
           ctgov (create-entity "ctgov-Prot_SAP_000.pdf")
           fda (create-entity "fda-008372Orig1s044ltr.pdf")]
       (testing "Can create and retrieve a PDF entity"
         (is (pos-int? (:id armstrong)))
+        (is (= {"title" "Armstrong Thesis Abstract"}
+               (some-> armstrong :metadata json/parse-string)))
         (is (= {:data {:datasetEntity {:content (:content armstrong) :mediaType "application/pdf"}}}
                (ex "query Q($id: PositiveInt!){datasetEntity(id: $id){content mediaType}}"
                    {:id (:id armstrong)}))))
+      (testing "Identical files with different metadata are separate entities, but identical files with identical metadata are the same entity"
+        (let [armstrong2 (create-entity "armstrong-thesis-2003-abstract.pdf"
+                                        {:title "Armstrong Thesis Abstract2"})
+              armstrong* (-> (ex test/dataset-entity {:id (:id armstrong)})
+                             test/throw-errors
+                             (get-in [:data :datasetEntity]))]
+          (is (pos-int? (:id armstrong*)))
+          (is (pos-int? (:id armstrong2)))
+          (is (not= (:id armstrong*) (:id armstrong2)))
+          (is (= {"title" "Armstrong Thesis Abstract"}
+                 (some-> armstrong* :metadata json/parse-string)))
+          (is (= {"title" "Armstrong Thesis Abstract2"}
+                 (some-> armstrong2 :metadata json/parse-string)))
+          (is (= (:id armstrong2)
+                 (:id (create-entity "armstrong-thesis-2003-abstract.pdf"
+                                          {:title "Armstrong Thesis Abstract2"}))))))
       (testing "Invalid PDFs are rejected"
         (is (= "Invalid content: Not a valid PDF file."
                (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")

@@ -18,7 +18,7 @@
                           (assoc client-opts :credentials-provider
                                  (credentials/basic-credentials-provider creds))
                           client-opts)
-client-opts (select-keys client-opts [:api :credentials-provider :endpoint-override])
+            client-opts (select-keys client-opts [:api :credentials-provider :endpoint-override])
             this (assoc this :client (aws/client client-opts))]
         (if after-start
           (after-start this)
@@ -50,8 +50,8 @@ client-opts (select-keys client-opts [:api :credentials-provider :endpoint-overr
 (defn bucket-name [s3]
   (get-in s3 [:config :s3 :datapub-bucket :name]))
 
-(defn content-key [^bytes content-hash]
-  (-> (.encodeToString (Base64/getUrlEncoder) content-hash)
+(defn content-key [^bytes file-hash]
+  (-> (.encodeToString (Base64/getUrlEncoder) file-hash)
       (str/replace "=" "")
       (->> (str "entity-content/"))))
 
@@ -64,12 +64,12 @@ client-opts (select-keys client-opts [:api :credentials-provider :endpoint-overr
    :ETag \"\\\"e1faffb3e614e6c2fba74296962386b7\\\"\",
    :LastModified #inst \"2021-09-17T22:38:11.000-00:00\"
    :Metadata {}}"
-  [s3 ^bytes content-hash]
+  [s3 ^bytes file-hash]
   (let [r (aws/invoke
            (:client s3)
            {:op :HeadObject
             :request {:Bucket (bucket-name s3)
-                      :Key (content-key content-hash)}})]
+                      :Key (content-key file-hash)}})]
     (if-let [anom (:cognitect.anomalies/category r)]
       (when-not (= :cognitect.anomalies/not-found)
         (throw (aaf/->ex-info r)))
@@ -87,12 +87,12 @@ client-opts (select-keys client-opts [:api :credentials-provider :endpoint-overr
    :ETag \"\\\"e1faffb3e614e6c2fba74296962386b7\\\"\",
    :LastModified #inst 2021-09-17T23:14:34.000-00:00,
    :Metadata {}}"
-  [s3 ^bytes content-hash]
+  [s3 ^bytes file-hash]
   (let [r (aws/invoke
            (:client s3)
            {:op :GetObject
             :request {:Bucket (bucket-name s3)
-                      :Key (content-key content-hash)}})]
+                      :Key (content-key file-hash)}})]
     (if-let [anom (:cognitect.anomalies/category r)]
       (when-not (= :cognitect.anomalies/not-found)
         (throw (aaf/->ex-info r)))
@@ -101,13 +101,13 @@ client-opts (select-keys client-opts [:api :credentials-provider :endpoint-overr
 (defn put-entity-content!
   "PUTs the entity content to S3 and returns a map like this:
   {:ETag \"\\\"e1faffb3e614e6c2fba74296962386b7\\\"\"}"
-  [s3 {:keys [^bytes content ^bytes content-hash]}]
+  [s3 {:keys [^bytes content ^bytes file-hash]}]
   (or
-   (some-> (entity-content-head s3 content-hash)
+   (some-> (entity-content-head s3 file-hash)
            (select-keys [:ETag]))
    (invoke!
     s3
     {:op :PutObject
      :request {:Body content
                :Bucket (bucket-name s3)
-               :Key (content-key content-hash)}})))
+               :Key (content-key file-hash)}})))
