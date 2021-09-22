@@ -231,6 +231,30 @@
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                      :datasetId dataset-id}))))))))
 
+(defn get-existing-content-id [context {:keys [content-hash content-table]}]
+  ((keyword (name content-table) "content-id")
+   (execute-one!
+    context
+    {:select :content-id
+     :from content-table
+     :where [:= :hash content-hash]})))
+
+(defn get-latest-entity [context {:keys [content-id dataset-id external-id]}]
+  (execute-one!
+   context
+   {:select :id
+    :from :entity
+    :where [:and
+            [:= :dataset-id dataset-id]
+            [:= :external-id external-id]
+            [:= :content-id content-id]
+            [:in :created
+             {:select :%max.created
+              :from [[:entity :e]]
+              :where [:and
+                      [:= :e.dataset-id dataset-id]
+                      [:= :e.external-id external-id]]}]]}))
+
 (defn create-entity-helper!
   "To be called by the create-dataset-entity! methods. Takes the context,
   args, and a map like
@@ -256,42 +280,28 @@
        (resolve/resolve-as nil {:message "There is no dataset with that id."
                                 :datasetId datasetId})
        (let [existing-content-id
-             #__ ((keyword (name content-table) "content-id")
-                  (execute-one!
-                   context
-                   {:select :content-id
-                    :from content-table
-                    :where [:= :hash content-hash]}))
-             values [(-> {:dataset-id datasetId
-                          :content-id (or existing-content-id
-                                          {:select :id :from :content})}
-                         ((if externalId
-                            #(assoc % :external-id externalId)
-                            identity)))]]
+             #__ (get-existing-content-id
+                  context
+                  {:content-hash content-hash :content-table content-table})]
          (if existing-content-id
-           (if-let [ety (and externalId
-                             (execute-one!
-                              context
-                              {:select :id
-                               :from :entity
-                               :where [:and
-                                       [:= :dataset-id datasetId]
-                                       [:= :external-id externalId]
-                                       [:= :content-id existing-content-id]
-                                       [:in :created
-                                        {:select :%max.created
-                                         :from [[:entity :e]]
-                                         :where [:and
-                                                 [:= :e.dataset-id datasetId]
-                                                 [:= :e.external-id externalId]]}]]}))]
-             (resolve-dataset-entity context {:id (:entity/id ety)} nil)
+           (if-let [existing-entity (and externalId
+                                         (get-latest-entity
+                                          context
+                                          {:content-id existing-content-id
+                                           :dataset-id datasetId
+                                           :external-id externalId}))]
+             (resolve-dataset-entity context {:id (:entity/id existing-entity)} nil)
+             ;; Insert entity referencing existing content
              (-> context
                  (execute-one!
                   {:insert-into :entity
                    :returning :id
-                   :values values})
+                   :values [{:content-id existing-content-id
+                             :dataset-id datasetId
+                             :external-id externalId}]})
                  :entity/id
                  (#(resolve-dataset-entity context {:id %} nil))))
+           ;; Create new content and insert entity referencing it
            (-> context
                (execute-one!
                 {:with
@@ -312,7 +322,12 @@
                         :media-type mediaType})]}]]
                  :insert-into :entity
                  :returning :id
-                 :values values})
+                 :values [(-> {:dataset-id datasetId
+                               :content-id (or existing-content-id
+                                               {:select :id :from :content})}
+                              ((if externalId
+                                 #(assoc % :external-id externalId)
+                                 identity)))]})
                :entity/id
                (#(resolve-dataset-entity context {:id %} nil)))))))))
 
