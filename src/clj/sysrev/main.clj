@@ -65,7 +65,15 @@
         datapub (when (:datapub-embedded config)
                   (component/start
                    ((requiring-resolve 'datapub.main/datapub-system)
-                    {:load-fixtures? true})))
+                    {:options {:load-fixtures? true}
+                     :system-f
+                     (fn []
+                       (-> ((requiring-resolve 'datapub.main/get-config))
+                           ((requiring-resolve 'datapub.main/system-map))
+                           (dissoc :s3)
+                           (update :pedestal
+                                   #(vary-meta % update ::component/dependencies
+                                               dissoc :s3))))})))
         config (if datapub
                  (let [port (get-in datapub [:system :pedestal :bound-port])]
                    (assoc config
