@@ -183,7 +183,14 @@
                                              org.bouncycastle/bcprov-jdk15on
                                              org.seleniumhq.selenium/selenium-api
                                              org.seleniumhq.selenium/selenium-support]]
-                               [prestancedesign/get-port "0.1.1"]]
+                               [prestancedesign/get-port "0.1.1"]
+                               ;; pdf-read deps
+                               [com.github.jai-imageio/jai-imageio-core "1.4.0"]
+                               [com.github.jai-imageio/jai-imageio-jpeg2000 "1.4.0"]
+                               [org.apache.pdfbox/jbig2-imageio "3.0.3"]
+                               [org.bouncycastle/bcmail-jdk15on "1.69"]
+                               [org.bouncycastle/bcpkix-jdk15on "1.69"]
+                               [org.bouncycastle/bcprov-jdk15on "1.69"]]
                               :plugins [[lein-eftest "0.5.9"]]}
              :postgres       {:resource-paths ["components/postgres/resources"]
                               :source-paths ["components/postgres/src"]}
@@ -214,7 +221,14 @@
                                [org.eclipse.jetty.websocket/websocket-api "9.4.42.v20210604"]
                                [org.eclipse.jetty.websocket/websocket-servlet "9.4.42.v20210604"]
                                [org.eclipse.jetty.websocket/websocket-server "9.4.42.v20210604"]
-                               [prestancedesign/get-port "0.1.1"]]
+                               [prestancedesign/get-port "0.1.1"]
+                               ;; pdf-read deps
+                               [com.github.jai-imageio/jai-imageio-core "1.4.0"]
+                               [com.github.jai-imageio/jai-imageio-jpeg2000 "1.4.0"]
+                               [org.apache.pdfbox/jbig2-imageio "3.0.3"]
+                               [org.bouncycastle/bcmail-jdk15on "1.69"]
+                               [org.bouncycastle/bcpkix-jdk15on "1.69"]
+                               [org.bouncycastle/bcprov-jdk15on "1.69"]]
                               :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"
                                                "components/fixtures/resources"
