@@ -45,7 +45,7 @@
                              :content (json/generate-string {:a 1})})
                         test/throw-errors
                         (get-in [:data :createDatasetEntity :id]))]
-      (is (integer? entity-id))
+      (is (pos-int? entity-id))
       (is (= {:data {:datasetEntity {:content "{\"a\": 1}" :mediaType "application/json"}}}
              (ex "query Q($id: PositiveInt!){datasetEntity(id: $id){content mediaType}}"
                  {:id entity-id})))
@@ -56,7 +56,18 @@
                         :content "{\"b\": 2}"
                         :externalId "exid"})
                    (update-in [:data :createDatasetEntity]
-                              select-keys #{:content :externalId :mediaType}))))))))
+                              select-keys #{:content :externalId :mediaType})))))
+      (testing "Can create entities after creating an index"
+        (test/throw-errors
+         (ex test/create-dataset-index
+             {:datasetId ds-id :path (pr-str ["a"]) :type "TEXT"}))
+        (-> (ex test/create-json-dataset-entity
+                {:datasetId ds-id
+                 :content (json/generate-string {:a 1})})
+            test/throw-errors
+            (get-in [:data :createDatasetEntity :id])
+            pos-int?
+            is)))))
 
 (deftest test-entity-ops-with-external-ids
   (test/with-test-system [system {}]
