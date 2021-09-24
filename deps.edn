@@ -1,4 +1,12 @@
-{:paths ["src/clj" "src/cljc" "resources"]
+{:paths ["src/clj"
+         "src/cljc"
+         "components/config/src"
+         "components/datapub-client/src"
+         "components/flyway/src"
+         "components/notification/src"
+         "components/reviewer-time/src"
+         "components/user/src"
+         "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
 
 ;;; clojure.spec

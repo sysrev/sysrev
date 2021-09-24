@@ -105,6 +105,7 @@
              #_ "-XX:+UnlockExperimentalVMOptions"
              #_ "-XX:+UseZGC"]
   :source-paths ["src/clj" "src/cljc"
+                 "components/config/src"
                  "components/datapub-client/src"
                  "components/flyway/src"
                  "components/notification/src"

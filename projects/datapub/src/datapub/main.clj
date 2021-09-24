@@ -6,14 +6,13 @@
             [com.stuartsierra.component :as component]
             [datapub.file :as file]
             [datapub.pedestal :as pedestal]
-            [datapub.postgres :as postgres]))
+            [datapub.postgres :as postgres]
+            [sysrev.config.interface :as config]))
 
 (def envs #{:dev :prod :staging :test})
 
 (defn get-config []
-  (if-let [r (io/resource "datapub-config.edn")]
-   (edn/read-string (slurp r))
-   (throw (RuntimeException. "The datapub-config.edn resource was not found."))))
+  (config/get-config "datapub-config.edn"))
 
 (defn system-map [{:keys [aws env] :as config}]
   (if-not (envs env)
