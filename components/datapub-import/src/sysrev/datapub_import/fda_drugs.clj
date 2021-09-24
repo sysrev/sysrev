@@ -57,5 +57,10 @@
 
 (defn import-fda-drugs-docs! [opts]
   (doseq [doc (docs-with-applications (get-applications!))]
-    (log/info (str "fda-drugs upload successful: "
-                   (pr-str (upload-doc! doc opts))))))
+    (try
+      (log/info (str "FDA@Drugs upload successful: "
+                     (pr-str (upload-doc! doc opts))))
+      (catch Exception e
+        (log/error
+         (str "FDA@Drugs doc upload failed for \"" (:ApplicationDocsURL doc)
+              "\": " (.getMessage e)))))))
