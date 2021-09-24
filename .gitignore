@@ -3,6 +3,7 @@
 ################################################################################
 
 /projects/datapub/config/prod
+/projects/datapub-importer/config/prod
 
 # files starting with a dot should be ignored by default
 .*

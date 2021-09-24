@@ -4,5 +4,7 @@
  :default-profile-name "default"
  :compact-views #{}
  :tag-patterns {:table "stable-*" :release "v[0-9]*" }
- :projects {"development" {:alias "dev"}
+ :projects {"datapub" {:alias "dp"}
+            "datapub-importer" {:alias "dpi"}
+            "development" {:alias "dev"}
             "sysrev" {:alias "sys"}}}
