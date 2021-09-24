@@ -13,12 +13,18 @@
                       (str/join \space))
     :else (throw (ex-info "Should be a string or seq." {:value return}))))
 
+(defn m-create-dataset-entity [return]
+  (str "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String, $metadata: String) {
+     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId, metadata: $metadata){"
+       (return->string return)
+       "}}"))
+
 (defn q-dataset-entity [return]
   (str "query($id: PositiveInt!){datasetEntity(id: $id){"
        (return->string return)
        "}}"))
 
-(defn q-subscribe-search-dataset [return]
+(defn s-search-dataset [return]
   (str "subscription ($input: SearchDatasetInput!){searchDataset(input: $input){"
        (return->string return)
        "}}"))
@@ -38,6 +44,11 @@
         :headers {"Authorization" (str "Bearer " auth-token)}})
       throw-errors
       :body))
+
+(defn create-dataset-entity! [input return & {:keys [auth-token endpoint]}]
+  (-> (execute! :query (m-create-dataset-entity return) :variables input
+                :auth-token auth-token :endpoint endpoint)
+      :data :createDatasetEntity))
 
 (defn get-dataset-entity [^Long id return & {:keys [auth-token endpoint]}]
   (-> (execute! :query (q-dataset-entity return) :variables {:id id}
@@ -75,5 +86,5 @@
    (consume-subscription!
     :auth-token auth-token
     :endpoint endpoint
-    :query (q-subscribe-search-dataset return)
+    :query (s-search-dataset return)
     :variables {:input input})))
