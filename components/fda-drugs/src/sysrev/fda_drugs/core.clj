@@ -112,7 +112,7 @@
                     (-> (dissoc sub :ApplNo :SubmissionClassCodeID
                                 :SubmissionNo)
                         (assoc :SubmissionClass (classes SubmissionClassCodeID)
-                               :SubmissionDocs
+                               :Docs
                                (docs [ApplNo SubmissionNo SubmissionType])))))
           {}))))
 
@@ -126,3 +126,5 @@
                      (assoc :Products (products ApplNo)
                             :Submissions (submissions ApplNo)))]))
          (into {}))))
+
+(def parse-applications (comp applications parse-data))
