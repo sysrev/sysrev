@@ -34,7 +34,8 @@
         org.postgresql/postgresql {:mvn/version "42.2.23"}
         sysrev/config {:local/root "../../components/config"}
         sysrev/file-util {:local/root "../../components/file-util"}
-        sysrev/pdf-read {:local/root "../../components/pdf-read"}}
+        sysrev/pdf-read {:local/root "../../components/pdf-read"}
+        sysrev/tesseract {:local/root "../../components/tesseract"}}
  :aliases {:dev {:extra-paths ["test" "config/dev"]
                  :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}}}
            :prod {:extra-paths ["config/prod"]}
