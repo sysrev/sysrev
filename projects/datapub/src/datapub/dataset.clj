@@ -138,7 +138,12 @@
                         pr-str)
              :type (keyword (str/upper-case type-name))})))))
 
-(defn list-datasets [context {first* :first :keys [after]} _]
+(defn connection-helper
+  "Helper to resolve GraphQL Cursor Connections as specified by
+  https://relay.dev/graphql/connections.htm
+
+  Look at list-datasets for an example implementation."
+  [context {first* :first :keys [after]} {:keys [count-f edges-f]}]
   (ensure-sysrev-dev
    context
    (let [cursor (if (empty? after)
@@ -150,21 +155,13 @@
        (with-tx-context [context context]
          (let [ks (current-selection-names context)
                ct (when (:totalCount ks)
-                    (:count
-                     (execute-one! context {:select :%count.id :from :dataset})))
+                    (count-f {:context context}))
                limit (inc (min 100 (or first* 100)))
-               [edges more]
-               #__ (when (and (or (nil? first*) (pos? first*))
-                              (or (:edges ks) (:pageInfo ks)))
-                     (->> (execute!
-                           context
-                           {:select :id
-                            :from :dataset
-                            :limit limit
-                            :where [:> :id cursor]})
-                          (map (fn [{:dataset/keys [id]}]
-                                 {:cursor (str id) :node {:id id}}))
-                          (split-at (dec limit))))]
+               [edges more] (when (and (or (nil? first*) (pos? first*))
+                                       (or (:edges ks) (:pageInfo ks)))
+                              (edges-f {:context context
+                                        :cursor cursor
+                                        :limit limit}))]
            {:edges edges
             :pageInfo
             {:endCursor (:cursor (last edges) "")
@@ -173,6 +170,25 @@
              :hasPreviousPage (not (or (zero? cursor) (= ct (count edges))))
              :startCursor (:cursor (first edges) "")}
             :totalCount ct}))))))
+
+(defn list-datasets [context args _]
+  (connection-helper
+   context args
+   {:count-f
+    (fn [{:keys [context]}]
+      (:count
+       (execute-one! context {:select :%count.id :from :dataset})))
+    :edges-f
+    (fn [{:keys [context cursor limit]}]
+      (->> {:select :id
+            :from :dataset
+            :limit limit
+            :where [:> :id cursor]
+            :order-by [:id]}
+           (execute! context)
+           (map (fn [{:dataset/keys [id]}]
+                  {:cursor (str id) :node {:id id}}))
+           (split-at (dec limit))))}))
 
 (defn resolve-ListDatasetsEdge-node [context _ {:keys [node]}]
   (resolve-dataset context node _))
