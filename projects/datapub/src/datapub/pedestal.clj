@@ -134,9 +134,9 @@
       "Access-Control-Allow-Methods" "OPTIONS, POST"
       "Access-Control-Allow-Origin" (when (allowed-origins origin) origin)}}))
 
-(defn service-map [{:keys [env port] :as config} pedestal]
+(defn service-map [{:keys [env port] :as opts} pedestal]
   (let [compiled-schema (graphql/load-schema)
-        app-context {:config config :pedestal pedestal}
+        app-context {:opts opts :pedestal pedestal}
         interceptors (into
                       [(cors/allow-origin (allowed-origins env))]
                       (pedestal2/default-interceptors compiled-schema app-context))
@@ -161,17 +161,17 @@
           #__ (subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
-(defrecord Pedestal [bound-port config service service-map service-map-fn]
+(defrecord Pedestal [bound-port opts service service-map service-map-fn]
   component/Lifecycle
   (start [this]
     (if service
       this
-      (if (and (nil? (:port config)) (not= :test (:env config)))
+      (if (and (nil? (:port opts)) (not= :test (:env opts)))
         (throw (RuntimeException. "Port cannot be nil outside of :test env."))
         (let [service-map (service-map-fn
-                           (update config :port #(or % 0)) ; Prevent pedestal exception
+                           (update opts :port #(or % 0)) ; Prevent pedestal exception
                            this)
-              service (if (:port config)
+              service (if (:port opts)
                         (http/start (http/create-server service-map))
                         (http/create-server (assoc service-map :port 0)))
               bound-port (some-> service :io.pedestal.http/server
@@ -187,10 +187,10 @@
     (if-not service-map
       this
       (do
-        (when (:port config)
+        (when (:port opts)
           (http/stop service)
           (t/info "Stopped Pedestal"))
         (assoc this :bound-port nil :service nil :service-map nil)))))
 
-(defn pedestal [{:keys [config]}]
-  (map->Pedestal {:config config :service-map-fn service-map}))
+(defn pedestal [{:keys [opts]}]
+  (map->Pedestal {:opts opts :service-map-fn service-map}))

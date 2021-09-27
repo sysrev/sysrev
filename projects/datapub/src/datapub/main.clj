@@ -23,8 +23,8 @@
     (component/system-map
      :config config
      :pedestal (component/using
-                (pedestal/pedestal {:config (assoc (:pedestal config) :env env)})
-                [:postgres :s3])
+                (pedestal/pedestal {:opts (assoc (:pedestal config) :env env)})
+                [:config :postgres :s3])
      :postgres (postgres/postgres {:config (:postgres config)})
      :s3 (component/using (file/s3-client aws) [:config]))))
 
