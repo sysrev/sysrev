@@ -21,7 +21,9 @@
   value)
 
 (def resolvers
-  {:Dataset {:indices #'dataset/resolve-Dataset-indices}
+  {:Dataset {:entities #'dataset/resolve-Dataset-entities
+             :indices #'dataset/resolve-Dataset-indices}
+   :DatasetEntitiesEdge {:node #'dataset/resolve-DatasetEntitiesEdge-node}
    :ListDatasetsEdge {:node #'dataset/resolve-ListDatasetsEdge-node}
    :Query {:dataset #'dataset/resolve-dataset
            :datasetEntity #'dataset/resolve-dataset-entity

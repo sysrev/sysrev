@@ -101,12 +101,12 @@
     (when-not (public-dataset? context id)
       (ensure-sysrev-dev context))
     (let [ks (conj (current-selection-names context) :id)]
-      (if (= ks #{:id :indices})
+      (if (#{#{:id :entities} #{:id :indices}} ks)
         {:id id}
         (denamespace-keys
          (execute-one!
           context
-          {:select (seq (disj ks :indices))
+          {:select (seq (disj ks :entities :indices))
            :from :dataset
            :where [:= :id id]}))))))
 
@@ -250,6 +250,35 @@
             entity
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                      :datasetId dataset-id}))))))))
+
+(defn resolve-Dataset-entities [context {:keys [externalId :as args]} {:keys [id]}]
+  (let [where [:and
+               [:= :dataset-id id]
+               (when externalId
+                 [:= :external-id externalId])]]
+    (connection-helper
+     context args
+     {:count-f
+      (fn [{:keys [context]}]
+        (->> {:select :%count.id
+              :from :entity
+              :where where}
+             (execute-one! context)
+             :count))
+      :edges-f
+      (fn [{:keys [context cursor limit]}]
+        (->> {:select :id
+              :from :entity
+              :limit limit
+              :where [:and [:> :id cursor] where]
+              :order-by [:id]}
+             (execute! context)
+             (map (fn [{:entity/keys [id]}]
+                    {:cursor (str id) :node {:id id}}))
+             (split-at (dec limit))))})))
+
+(defn resolve-DatasetEntitiesEdge-node [context _ {:keys [node]}]
+  (resolve-dataset-entity context node _))
 
 (defn get-existing-content-id [context {:keys [content-hash content-table]}]
   ((keyword (name content-table) "content-id")

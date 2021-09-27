@@ -67,7 +67,23 @@
             test/throw-errors
             (get-in [:data :createDatasetEntity :id])
             pos-int?
-            is)))))
+            is))
+      (testing "Can list entities"
+        (is (= {:data
+                {:dataset
+                 {:entities
+                  {:edges [{:node {:id 1}} {:node {:id 2}} {:node {:id 3}}]
+                   :totalCount 3}}}}
+               (ex "query($id: PositiveInt){dataset(id:$id){entities {totalCount edges{node{id}}}}}"
+                   {:id ds-id}))))
+      (testing "Can list entities by externalId"
+        (is (= {:data
+                {:dataset
+                 {:entities
+                  {:edges [{:node {:id 2}}]
+                   :totalCount 1}}}}
+               (ex "query($externalId: String, $id: PositiveInt){dataset(id:$id){entities(externalId: $externalId) {totalCount edges{node{id}}}}}"
+                   {:externalId "exid" :id ds-id})))))))
 
 (deftest test-entity-ops-with-external-ids
   (test/with-test-system [system {}]
