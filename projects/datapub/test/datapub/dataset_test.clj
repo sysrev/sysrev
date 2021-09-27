@@ -353,7 +353,10 @@
         (is (= "Invalid content: Not a valid PDF file."
                (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
                    (get-in [:response :errors 0 :message])))))
-      (let [text {:datasetId ds-id
+      (let [ocr-text {:datasetId ds-id
+                      :path (pr-str ["ocr-text"])
+                      :type :TEXT}
+            text {:datasetId ds-id
                   :path (pr-str ["text"])
                   :type :TEXT}
             search-q (fn [idx search]
@@ -373,6 +376,8 @@
                              (map (fn [m] (select-keys m #{:externalId})))
                              (into #{})))]
         (test/throw-errors
+         (ex test/create-dataset-index ocr-text))
+        (test/throw-errors
          (ex test/create-dataset-index text))
         (testing "Can search PDFs based on their text content"
           (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}
@@ -382,4 +387,11 @@
                  (ex-search (search-q text "\"reliable distributed systems\""))))
           (is (= #{{:externalId "fda-008372Orig1s044ltr.pdf"}}
                  (ex-search (search-q text "sNDA"))))
-          (is (empty? (ex-search (search-q text "eueuoxuexau")))))))))
+          (is (empty? (ex-search (search-q text "eueuoxuexau")))))
+        (testing "Scanned PDFs are processed with OCR and are searchable"
+          (let [ziagen (create-entity "020978_S016_ZIAGEN.pdf")]
+            (is (pos-int? (:id ziagen)))
+            (is (= #{{:externalId "020978_S016_ZIAGEN.pdf"}}
+                   (ex-search (search-q ocr-text "abacavir"))))
+            (is (= #{{:externalId "020978_S016_ZIAGEN.pdf"}}
+                   (ex-search (search-q ocr-text "\"tanima sinha\""))))))))))

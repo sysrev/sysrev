@@ -13,7 +13,8 @@
             [medley.core :as me]
             [next.jdbc :as jdbc]
             [sysrev.file-util.interface :as file-util]
-            [sysrev.pdf-read.interface :as pdf-read])
+            [sysrev.pdf-read.interface :as pdf-read]
+            [sysrev.tesseract.interface :as tesseract])
   (:import (java.io IOException)
            (java.security MessageDigest)
            (java.util Base64)
@@ -371,6 +372,30 @@
       (str/split $ #"\s+")
       (str/join " " $)))
 
+(defn pdf-text [pdf tesseract]
+  (file-util/with-temp-file [path {:prefix "datapub-"
+                                   :suffix ".pdf"}]
+    (file-util/copy! (io/input-stream pdf) path
+                     #{:replace-existing})
+    (try
+      (pdf-read/with-PDDocument [doc (.toFile path)]
+        (let [text (condense-whitespace
+                    (pdf-read/get-text doc {:sort-by-position true}))]
+          (if-not (str/blank? text)
+            {:text text}
+            (when (:enabled? tesseract)
+              {:ocr-text
+               (let [tess (tesseract/get-tesseract (:data-path tesseract))]
+                 (->> doc pdf-read/->image-seq
+                      (map #(.doOCR tess %))
+                      (apply str)
+                      condense-whitespace))}))))
+      (catch IOException e
+        (if (= "Error: Header doesn't contain versioninfo"
+               (.getMessage e))
+          :invalid-pdf
+          (throw e))))))
+
 (defmethod create-dataset-entity! "application/pdf"
   [context {:as args :keys [content metadata]} _]
   (ensure-sysrev-dev
@@ -386,23 +411,11 @@
          ;; since we can let go of the pdf byte array earlier.
          (file/put-entity-content! (get-in context [:pedestal :s3])
                                    {:content pdf :file-hash file-hash})
-         (let [text (file-util/with-temp-file [path {:prefix "datapub-"
-                                                     :suffix ".pdf"}]
-                      (file-util/copy! (io/input-stream pdf) path
-                                       #{:replace-existing})
-                      (try
-                        (pdf-read/with-PDDocument [doc (.toFile path)]
-                          (pdf-read/get-text doc {:sort-by-position true}))
-                        (catch IOException e
-                          (if (= "Error: Header doesn't contain versioninfo"
-                                 (.getMessage e))
-                            :invalid-pdf
-                            (throw e)))))]
+         (let [text (pdf-text pdf (get-in context [:pedestal :config :tesseract]))]
            (if (= :invalid-pdf text)
              (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."
                                       :content content})
-             (let [data (->> {:metadata metadata
-                              :text (condense-whitespace text)}
+             (let [data (->> (assoc text :metadata metadata)
                              (me/remove-vals nil?))
                    content-hash (-> {:data data
                                      :file-hash
