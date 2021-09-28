@@ -55,12 +55,26 @@
    :auth-token auth-token
    :endpoint endpoint))
 
+(defn import-fda-drugs-docs!*
+  [{:keys [auth-token dataset-id endpoint] :as opts} docs]
+  (doseq [{:keys [ApplicationDocsURL] :as doc} docs]
+    (if (-> (dpc/get-dataset
+             dataset-id
+             (str "entities(externalId:"
+                  (pr-str ApplicationDocsURL)
+                  "){edges{node{id}}}")
+             :auth-token auth-token
+             :endpoint endpoint)
+            :entities :edges seq)
+      (log/info (str "FDA@Drugs doc already uploaded: " ApplicationDocsURL))
+      (try
+        (log/info (str "FDA@Drugs upload successful: "
+                       (pr-str (upload-doc! doc opts))))
+        (catch Exception e
+          (log/error
+           (str "FDA@Drugs doc upload failed for \"" (:ApplicationDocsURL doc)
+                "\": " (.getMessage e))))))))
+
 (defn import-fda-drugs-docs! [opts]
-  (doseq [doc (docs-with-applications (get-applications!))]
-    (try
-      (log/info (str "FDA@Drugs upload successful: "
-                     (pr-str (upload-doc! doc opts))))
-      (catch Exception e
-        (log/error
-         (str "FDA@Drugs doc upload failed for \"" (:ApplicationDocsURL doc)
-              "\": " (.getMessage e)))))))
+  (let [docs (docs-with-applications (get-applications!))]
+    (import-fda-drugs-docs!* opts docs)))

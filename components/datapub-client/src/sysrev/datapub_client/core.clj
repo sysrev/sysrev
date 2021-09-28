@@ -19,6 +19,11 @@
        (return->string return)
        "}}"))
 
+(defn q-dataset [return]
+  (str "query($id: PositiveInt!){dataset(id: $id){"
+       (return->string return)
+       "}}"))
+
 (defn q-dataset-entity [return]
   (str "query($id: PositiveInt!){datasetEntity(id: $id){"
        (return->string return)
@@ -49,6 +54,11 @@
   (-> (execute! :query (m-create-dataset-entity return) :variables input
                 :auth-token auth-token :endpoint endpoint)
       :data :createDatasetEntity))
+
+(defn get-dataset [^Long id return & {:keys [auth-token endpoint]}]
+  (-> (execute! :query (q-dataset return) :variables {:id id}
+                :auth-token auth-token :endpoint endpoint)
+      :data :dataset))
 
 (defn get-dataset-entity [^Long id return & {:keys [auth-token endpoint]}]
   (-> (execute! :query (q-dataset-entity return) :variables {:id id}

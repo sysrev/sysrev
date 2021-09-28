@@ -18,6 +18,13 @@
    input return
    :auth-token auth-token :endpoint endpoint))
 
+(defn get-dataset
+  "Retrieve a Dataset by its id."
+  [^Long id return & {:keys [auth-token endpoint]}]
+  (core/get-dataset
+   id return
+   :auth-token auth-token :endpoint endpoint))
+
 (defn get-dataset-entity
   "Retrieve a DatasetEntity by its id. return may be a string like
   \"content mediaType\" or a collection of keywords like
