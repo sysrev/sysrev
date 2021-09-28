@@ -15,5 +15,4 @@
             :user "postgres"}
  :s3 {:datapub-bucket {:create? true
                        :name "datapub.dev"}}
-  :tesseract {:data-path "../../components/tesseract/tessdata_best"
-             :enabled? true}}
+ :tesseract {:enabled? true}}

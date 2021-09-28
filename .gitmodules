@@ -2,9 +2,3 @@
 	path = datasource
 	url = git@github.com:/insilica/datasource
 	branch = dev
-[submodule "tessdata_best"]
-	path = components/tesseract/tessdata_best
-	url = https://github.com/tesseract-ocr/tessdata_best.git
-[submodule "components/tesseract/tessdata_best"]
-	path = components/tesseract/tessdata_best
-	url = https://github.com/tesseract-ocr/tessdata_best.git

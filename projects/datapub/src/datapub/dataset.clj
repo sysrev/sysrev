@@ -430,7 +430,8 @@
             {:text text}
             (when (:enabled? tesseract)
               {:ocr-text
-               (let [tess (tesseract/get-tesseract (:data-path tesseract))]
+               (let [tess (tesseract/tesseract
+                           {:data-path (System/getenv "TESSDATA_PREFIX")})]
                  (->> doc pdf-read/->image-seq
                       (map #(.doOCR tess %))
                       (apply str)
