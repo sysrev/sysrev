@@ -7,7 +7,8 @@ StartLimitIntervalSec=0
 User=ubuntu
 Group=ubuntu
 EnvironmentFile=/home/ubuntu/datapub/env
-ExecStart=/usr/bin/java -Xms1024m -Xmx1024m -server -cp /home/ubuntu/datapub/datapub.jar clojure.main -m datapub.main
+ExecStart=/home/ubuntu/.nix-profile/bin/nix-shell --run "java -Xms1024m -Xmx1024m -server -cp /home/ubuntu/datapub/datapub.jar clojure.main -m datapub.main"
+WorkingDirectory=/home/ubuntu/datapub
 Restart=always
 RestartSec=1
 

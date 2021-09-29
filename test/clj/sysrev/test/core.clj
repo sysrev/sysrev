@@ -1,15 +1,21 @@
 (ns sysrev.test.core
-  (:require [orchestra.spec.test :as t]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-time.core :as time]
+            [orchestra.spec.test :as t]
+            [prestancedesign.get-port :as get-port]
             [sysrev.config :refer [env]]
             [sysrev.init :refer [start-app]]
-            [sysrev.web.index :refer [set-web-asset-path]]
+            [sysrev.main :as main]
             [sysrev.db.core :as db]
             [sysrev.db.migration :refer [ensure-updated-db]]
             [sysrev.flyway.interface :as flyway]
-            [sysrev.util :as util :refer [in? ignore-exceptions shell]]))
+            [sysrev.util :as util :refer [in? ignore-exceptions shell]]
+            [sysrev.web.core :as web]
+            [sysrev.web.index :refer [set-web-asset-path]]))
+
+(def ^:dynamic ^{:doc "Should be bound to an atom containing a system-map."}
+  *test-system* main/system)
 
 (def test-dbname "sysrev_auto_test")
 (def test-db-host (get-in env [:postgres :host]))
@@ -17,6 +23,9 @@
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
 (defonce db-initialized? (atom nil))
+
+(defn sysrev-handler []
+  (web/sysrev-handler (:web-server @*test-system*)))
 
 (defn cpu-count []
   (.availableProcessors (Runtime/getRuntime)))
@@ -32,7 +41,7 @@
   (let [{:keys [protocol host port] :as config}
         (or @raw-selenium-config {:protocol "http"
                                   :host "localhost"
-                                  :port (-> env :server :port)})]
+                                  :port (-> @*test-system* :web-server :bound-port)})]
     (assoc config
            :url (str protocol "://" host (if port (str ":" port) "") "/")
            :safe (db-connected?))))
@@ -96,6 +105,34 @@
     (.addShutdownHook (Runtime/getRuntime) (Thread. close-db-resources))
     (reset! db-shutdown-hook true)))
 
+(defmacro with-test-system [[name-sym] & body]
+  `(binding [db/*active-db* (atom nil)
+             db/*conn* nil
+             db/*query-cache* (atom {})
+             db/*query-cache-enabled* (atom true)
+             db/*transaction-query-cache* nil]
+     (let [postgres# (:postgres env)
+           system# (main/start-system-non-global!
+                    :config
+                    {:datapub-embedded true
+                     :server {:port (get-port/get-port)}}
+                    :postgres-overrides
+                    {:create-if-not-exists? true
+                     :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                     :embedded? true
+                     :host test-db-host
+                     :port (get-port/get-port)}
+                    :system-map-f
+                    #(-> (apply main/system-map %&)
+                         (dissoc :scheduler)))
+           ~name-sym system#]
+       (binding [env (merge env (:config system#))
+                 *test-system* (atom system#)]
+         (try
+           (do ~@body)
+           (finally
+             (swap! *test-system* main/stop-system!)))))))
+
 (defn default-fixture
   "Basic setup for all tests (db, web server, clojure.spec)."
   [f]
@@ -104,12 +141,13 @@
             (t/instrument)
             (f))
     :remote-test (f)
-    :dev (do (t/instrument)
-             (set-web-asset-path "/out")
-             (if (db-connected?)
-               (init-test-db)
-               (db/close-active-db))
-             (f))
+    :dev (do
+           (t/instrument)
+           (set-web-asset-path "/out")
+           (if (db-connected?)
+             (init-test-db)
+             (db/close-active-db))
+           (f))
     (assert false "default-fixture: invalid profile value")))
 
 ;; note: If there is a field (e.g. id) that is auto-incremented

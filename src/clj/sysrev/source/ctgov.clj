@@ -1,6 +1,8 @@
 (ns sysrev.source.ctgov
   (:require [cheshire.core :as json]
+            [clojure.spec.alpha :as s]
             [honeysql.helpers :as sqlh :refer [select from where join]]
+            [orchestra.core :refer [defn-spec]]
             [sysrev.config :refer [env]]
             [sysrev.datapub-client.interface :as datapub]
             [sysrev.db.core :as db]
@@ -9,11 +11,12 @@
             [sysrev.source.interface :refer [after-source-import import-source
                                              import-source-articles import-source-impl]]))
 
-(defn get-entities [ids]
+(defn-spec get-entities (s/coll-of map?)
+  [endpoint string?, ids (s/coll-of nat-int?)]
   (map
    (fn [id]
      (let [ps (-> (datapub/get-dataset-entity id "content"
-                                              :endpoint (:datapub-api env))
+                                              :endpoint endpoint)
                   :content
                   (json/parse-string keyword)
                   :ProtocolSection)]
@@ -57,10 +60,11 @@
                    {:types {:article-type "json"
                             :article-subtype "ctgov"}
                     :get-article-refs (constantly entity-ids)
-                    :get-articles get-entities}
+                    :get-articles
+                    (partial get-entities (get-in options [:web-server :config :datapub-api]))}
                    options)))))
 
-(defn get-new-articles-available [{:keys [source-id meta]}]
+(defn get-new-articles-available [{:keys [source-id meta]} & {:keys [config]}]
   (let [prev-article-ids (->> (-> (select :article-data.external-id)
                                   (from [:article-source :asrc])
                                   (join :article [:= :asrc.article-id :article.article-id]
@@ -73,17 +77,19 @@
         {:keys [filters search-term]} meta
         query (ctgov/query->datapub-input
                {:filters filters :search search-term})]
-    (->> (datapub/search-dataset query "id" :endpoint (:datapub-ws env))
+    (->> (datapub/search-dataset query "id" :endpoint (:datapub-ws config))
          (map :id)
          (remove prev-article-ids))))
 
-(defmethod re-import "CT.gov search" [project-id {:keys [source-id] :as source}]
+(defmethod re-import "CT.gov search"
+  [project-id {:keys [source-id] :as source} {:keys [web-server]}]
   (let [do-import (fn []
                     (->> (import-source-articles
                            project-id source-id
                            {:types {:article-type "json" :article-subtype "ctgov"}
-                            :article-refs (get-new-articles-available source)
-                            :get-articles get-entities}
+                            :article-refs (get-new-articles-available
+                                           source :config (:config web-server))
+                            :get-articles (partial get-entities (get-in web-server [:config :datapub-api]))}
                            {:threads 1})
                          (after-source-import project-id source-id)))]
     (source/alter-source-meta source-id #(assoc % :importing-articles? true))

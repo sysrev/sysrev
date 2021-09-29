@@ -2,8 +2,7 @@
   (:require [clojure.test :refer [deftest is use-fixtures]]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [add-project-member]]
-            [sysrev.web.core :refer [sysrev-handler]]
-            [sysrev.test.core :as test :refer [default-fixture]]
+            [sysrev.test.core :as test :refer [default-fixture sysrev-handler]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
             [sysrev.util :as util]))

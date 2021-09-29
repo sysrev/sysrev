@@ -28,7 +28,8 @@
                           (get-in system [:pedestal :bound-port])
                           "/ws")
             ds-id (load-ctgov-dataset! system)]
-        (is (= #{"NCT04982900" "NCT04982952" "NCT04982965" "NCT04982978"}
+        (is (= #{"NCT04982900" "NCT04982952" "NCT04982965" "NCT04982978"
+                 "NCT04983004"}
                (->> (search-dataset
                      {:datasetId ds-id
                       :uniqueExternalIds true

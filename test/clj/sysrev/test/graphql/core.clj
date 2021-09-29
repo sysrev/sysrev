@@ -2,7 +2,7 @@
   (:require [clojure.data.json :as json]
             [ring.mock.request :as mock]
             [sysrev.datasource.api :refer [ds-auth-key]]
-            [sysrev.web.core :refer [sysrev-handler]]
+            [sysrev.test.core :refer [sysrev-handler]]
             [sysrev.util :as util]))
 
 (defonce api-key (atom nil))

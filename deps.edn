@@ -1,4 +1,12 @@
-{:paths ["src/clj" "src/cljc" "resources"]
+{:paths ["src/clj"
+         "src/cljc"
+         "components/config/src"
+         "components/datapub-client/src"
+         "components/flyway/src"
+         "components/notification/src"
+         "components/reviewer-time/src"
+         "components/user/src"
+         "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
 
 ;;; clojure.spec
@@ -28,6 +36,7 @@
 ;;; Data formats
         org.clojure/data.json {:mvn/version "2.2.2"}
         com.cognitect/transit-clj {:mvn/version "1.0.324"}
+        org.clojure/data.csv {:mvn/version "1.0.0"}
         org.clojure/data.xml {:mvn/version "0.2.0-alpha3"}
         org.clojure/data.zip {:mvn/version "1.0.0"}
         ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
@@ -98,10 +107,19 @@
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
   :dev {:extra-deps {cider/cider-nrepl {:mvn/version "0.26.0"}
+                     com.cognitect.aws/api {:mvn/version "0.8.524"},
+                     com.cognitect.aws/endpoints {:mvn/version "1.1.12.65"}
+                     com.cognitect.aws/s3 {:mvn/version "814.2.978.0"}
                      com.walmartlabs/lacinia-pedestal {:mvn/version "0.15.0"}
                      io.replikativ/hasch {:mvn/version "0.3.7"}
+                     io.staticweb/aws-api-failjure {:mvn/version "1.1.0"}
+                     net.sourceforge.tess4j/tess4j {:mvn/version "4.5.5"
+                                                    :exclusions [bouncycastle/bctsp-jdk14]}
                      nrepl/nrepl {:mvn/version "0.8.3"}
+                     org.apache.pdfbox/pdfbox {:mvn/version "2.0.22"}
                      org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty/jetty-client {:mvn/version "9.4.42.v20210604"}
+                     org.eclipse.jetty/jetty-http {:mvn/version "9.4.42.v20210604"}
                      org.eclipse.jetty/jetty-server {:mvn/version "9.4.42.v20210604"}
                      org.eclipse.jetty/jetty-servlet {:mvn/version "9.4.42.v20210604"}
                      org.eclipse.jetty/jetty-util {:mvn/version "9.4.42.v20210604"}
@@ -109,7 +127,14 @@
                      org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.42.v20210604"}
                      org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
                      org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
-                     prestancedesign/get-port {:mvn/version "0.1.1"}}
+                     prestancedesign/get-port {:mvn/version "0.1.1"}
+                     ;; pdf-read deps
+                     com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
+                     com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
+                     org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.3"}
+                     org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
+                     org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
+                     org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}}
         :extra-paths ["config/dev"
                       "development/src"
                       "components/datapub-client/src"
@@ -117,23 +142,29 @@
                       "components/flyway/src"
                       "components/notification/resources"
                       "components/notification/src"
+                      "components/file-util/src"
                       "components/fixtures/resources"
                       "components/fixtures/src"
+                      "components/pdf-read/src"
                       "components/reviewer-time/resources"
                       "components/reviewer-time/src"
+                      "components/tesseract/src"
                       "components/user/resources"
                       "components/user/src"
                       "projects/datapub/resources"
                       "projects/datapub/src"
                       "projects/datapub/datapub-test/resources"]}
   :poly {:extra-deps {polylith/clj-poly
-                      {:mvn/version "0.2.0-alpha11"}}
+                      {:mvn/version "0.2.12-alpha"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
                       com.walmartlabs/lacinia-pedestal {:mvn/version "0.15.0"}
                       io.replikativ/hasch {:mvn/version "0.3.7"}
                       etaoin/etaoin {:mvn/version "0.4.1"}
+                      net.sourceforge.tess4j/tess4j {:mvn/version "4.5.5"
+                                                     :exclusions [bouncycastle/bctsp-jdk14]}
+                      org.apache.pdfbox/pdfbox {:mvn/version "2.0.22"}
                       org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.42.v20210604"}
                       org.eclipse.jetty/jetty-server {:mvn/version "9.4.42.v20210604"}
                       org.eclipse.jetty/jetty-servlet {:mvn/version "9.4.42.v20210604"}
@@ -143,14 +174,24 @@
                       org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
                       org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
                       org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
-                      org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}}
+                      org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}
+                     ;; pdf-read deps
+                     com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
+                     com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
+                     org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.3"}
+                     org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
+                     org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
+                     org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}}
          :extra-paths ["components/e2e/resources"
                        "components/e2e/src"
                        "components/e2e/test"
                        "components/notification/test"
+                       "components/file-util/src"
                        "components/fixtures/test"
                        "components/flyway/test"
+                       "components/pdf-read/src"
                        "components/reviewer-time/test"
+                       "components/tesseract/src"
                        "components/user/test"
                        "projects/datapub/resources"
                        "projects/datapub/src"

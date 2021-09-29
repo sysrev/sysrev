@@ -1,18 +1,28 @@
 (ns datapub.dataset
   (:require [cheshire.core :as json]
             [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [com.walmartlabs.lacinia.constants :as constants]
             [com.walmartlabs.lacinia.executor :as executor]
             [com.walmartlabs.lacinia.resolve :as resolve]
             [com.walmartlabs.lacinia.selection :as selection]
+            [datapub.file :as file]
             [datapub.postgres :as pg]
             [hasch.core :as hasch]
             [medley.core :as me]
-            [next.jdbc :as jdbc]))
+            [next.jdbc :as jdbc]
+            [sysrev.file-util.interface :as file-util]
+            [sysrev.pdf-read.interface :as pdf-read]
+            [sysrev.tesseract.interface :as tesseract])
+  (:import (java.io IOException)
+           (java.security MessageDigest)
+           (java.util Base64)
+           (org.apache.commons.io IOUtils)
+           (org.postgresql.util PGobject)))
 
 (defn jsonb-pgobject [x]
-  (doto (org.postgresql.util.PGobject.)
+  (doto (PGobject.)
     (.setType "jsonb")
     (.setValue (json/generate-string x))))
 
@@ -21,7 +31,7 @@
                  (or (-> context
                          :com.walmartlabs.lacinia/connection-params
                          :authorization)))
-        sysrev-dev-key (-> context :pedestal :config :sysrev-dev-key)]
+        sysrev-dev-key (-> context :pedestal :opts :sysrev-dev-key)]
     (and sysrev-dev-key (= auth (str "Bearer " sysrev-dev-key)))))
 
 (defmacro ensure-sysrev-dev [context & body]
@@ -91,14 +101,25 @@
     (when-not (public-dataset? context id)
       (ensure-sysrev-dev context))
     (let [ks (conj (current-selection-names context) :id)]
-      (if (= ks #{:id :indices})
+      (if (#{#{:id :entities} #{:id :indices}} ks)
         {:id id}
         (denamespace-keys
          (execute-one!
           context
-          {:select (seq (disj ks :indices))
+          {:select (seq (disj ks :entities :indices))
            :from :dataset
            :where [:= :id id]}))))))
+
+(defn internal-path-vec
+  "Returns a path vector with the :* keyword replaced with the string
+  \":datapub/*\" for use in postgres."
+  [path-seq]
+  (mapv #(if (= :* %) ":datapub/*" %) path-seq))
+
+(defn external-path-vec
+  "The reverse of internal-path-vec."
+  [path-seq]
+  (mapv #(if (= ":datapub/*" %) :* %) path-seq))
 
 (defn resolve-Dataset-indices [context _ {:keys [id]}]
   (with-tx-context [context context]
@@ -113,11 +134,16 @@
          (map
           (fn [{:index-spec/keys [path type-name]}]
             {:path (->> path .getArray
-                        (mapv #(if (= ":datapub/*" %) :* %))
+                        internal-path-vec
                         pr-str)
              :type (keyword (str/upper-case type-name))})))))
 
-(defn list-datasets [context {first* :first :keys [after]} _]
+(defn connection-helper
+  "Helper to resolve GraphQL Cursor Connections as specified by
+  https://relay.dev/graphql/connections.htm
+
+  Look at list-datasets for an example implementation."
+  [context {first* :first :keys [after]} {:keys [count-f edges-f]}]
   (ensure-sysrev-dev
    context
    (let [cursor (if (empty? after)
@@ -129,21 +155,13 @@
        (with-tx-context [context context]
          (let [ks (current-selection-names context)
                ct (when (:totalCount ks)
-                    (:count
-                     (execute-one! context {:select :%count.id :from :dataset})))
+                    (count-f {:context context}))
                limit (inc (min 100 (or first* 100)))
-               [edges more]
-               #__ (when (and (or (nil? first*) (pos? first*))
-                              (or (:edges ks) (:pageInfo ks)))
-                     (->> (execute!
-                           context
-                           {:select :id
-                            :from :dataset
-                            :limit limit
-                            :where [:> :id cursor]})
-                          (map (fn [{:dataset/keys [id]}]
-                                 {:cursor (str id) :node {:id id}}))
-                          (split-at (dec limit))))]
+               [edges more] (when (and (or (nil? first*) (pos? first*))
+                                       (or (:edges ks) (:pageInfo ks)))
+                              (edges-f {:context context
+                                        :cursor cursor
+                                        :limit limit}))]
            {:edges edges
             :pageInfo
             {:endCursor (:cursor (last edges) "")
@@ -152,6 +170,25 @@
              :hasPreviousPage (not (or (zero? cursor) (= ct (count edges))))
              :startCursor (:cursor (first edges) "")}
             :totalCount ct}))))))
+
+(defn list-datasets [context args _]
+  (connection-helper
+   context args
+   {:count-f
+    (fn [{:keys [context]}]
+      (:count
+       (execute-one! context {:select :%count.id :from :dataset})))
+    :edges-f
+    (fn [{:keys [context cursor limit]}]
+      (->> {:select :id
+            :from :dataset
+            :limit limit
+            :where [:> :id cursor]
+            :order-by [:id]}
+           (execute! context)
+           (map (fn [{:dataset/keys [id]}]
+                  {:cursor (str id) :node {:id id}}))
+           (split-at (dec limit))))}))
 
 (defn resolve-ListDatasetsEdge-node [context _ {:keys [node]}]
   (resolve-dataset context node _))
@@ -163,18 +200,41 @@
              ks)]
     (with-tx-context [context context]
       (->>
-       (if (or (:content ks) (:mediaType ks))
-         (some->
-          context
-          (execute-one!
-           {:select (->> (if (:content ks)
-                           (conj (disj ks :content) [[:raw "content::text"]])
-                           ks)
-                         (remove #{:mediaType}))
-            :from :entity
-            :where [:= :id id]
-            :join [:content-json [:= :content-json.content-id :entity.content-id]]})
-          (assoc :mediaType "application/json"))
+       (if (some #{:content :mediaType :metadata} ks)
+         (or
+          (as-> context $
+           (execute-one!
+            $
+            {:select (->> (if (or (:content ks) (:metadata ks))
+                            (conj (disj ks :content :metadata)
+                                  :file-hash [[:raw "data::text"]])
+                            ks)
+                          (remove #{:mediaType}))
+             :from :entity
+             :where [:= :id id]
+             :join [:content-file [:= :content-file.content-id :entity.content-id]]})
+           (some-> $
+                   (assoc :content (when (:content ks)
+                                     (-> (file/get-entity-content
+                                          (get-in context [:pedestal :s3])
+                                          (:content-file/file-hash $))
+                                         :Body
+                                         IOUtils/toByteArray
+                                         (->> (.encodeToString (Base64/getEncoder)))))
+                          :mediaType "application/pdf"
+                          :metadata (some-> $ :data json/parse-string
+                                            (get "metadata")))))
+          (some->
+           (execute-one!
+            context
+            {:select (->> (if (:content ks)
+                            (conj (disj ks :content) [[:raw "content::text"]])
+                            ks)
+                          (remove #{:mediaType}))
+             :from :entity
+             :where [:= :id id]
+             :join [:content-json [:= :content-json.content-id :entity.content-id]]})
+           (assoc :mediaType "application/json")))
          (if (= #{:id} ks)
            {:id id}
            (execute-one!
@@ -191,81 +251,230 @@
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                      :datasetId dataset-id}))))))))
 
-(defn create-dataset-entity! [context {:keys [datasetId content externalId mediaType]} _]
+(defn resolve-Dataset-entities [context {:keys [externalId :as args]} {:keys [id]}]
+  (let [where [:and
+               [:= :dataset-id id]
+               (when externalId
+                 [:= :external-id externalId])]]
+    (connection-helper
+     context args
+     {:count-f
+      (fn [{:keys [context]}]
+        (->> {:select :%count.id
+              :from :entity
+              :where where}
+             (execute-one! context)
+             :count))
+      :edges-f
+      (fn [{:keys [context cursor limit]}]
+        (->> {:select :id
+              :from :entity
+              :limit limit
+              :where [:and [:> :id cursor] where]
+              :order-by [:id]}
+             (execute! context)
+             (map (fn [{:entity/keys [id]}]
+                    {:cursor (str id) :node {:id id}}))
+             (split-at (dec limit))))})))
+
+(defn resolve-DatasetEntitiesEdge-node [context _ {:keys [node]}]
+  (resolve-dataset-entity context node _))
+
+(defn get-existing-content-id [context {:keys [content-hash content-table]}]
+  ((keyword (name content-table) "content-id")
+   (execute-one!
+    context
+    {:select :content-id
+     :from content-table
+     :where [:= content-hash
+             (if (= :content-json content-table) :hash :content-hash)]})))
+
+(defn get-latest-entity [context {:keys [content-id dataset-id external-id]}]
+  (execute-one!
+   context
+   {:select :id
+    :from :entity
+    :where [:and
+            [:= :dataset-id dataset-id]
+            [:= :external-id external-id]
+            [:= :content-id content-id]
+            [:in :created
+             {:select :%max.created
+              :from [[:entity :e]]
+              :where [:and
+                      [:= :e.dataset-id dataset-id]
+                      [:= :e.external-id external-id]]}]]}))
+
+(defn create-entity-helper!
+  "To be called by the create-dataset-entity! methods. Takes the context,
+  args, and a map like
+  {:content {:a 2}
+   :content-hash (byte-array (hasch/edn-hash {:a 2}))
+   :content-table :content-json}
+  or
+  {:data {:metadata {...} :text \"...\"}
+   :content-hash (byte-array ...))
+   :content-table :content-file
+   :file-hash (byte-array ...)}
+
+  Handles checking for dataset existence, for existing content with the same
+  hash, and existing entities in the dataset with the same externalId."
+  [context
+   {:keys [datasetId externalId mediaType]}
+   {:keys [content content-hash content-table data file-hash]}]
   (ensure-sysrev-dev
    context
-   (let [media-type (str/lower-case mediaType)]
-     (if (not= "application/json" media-type)
-       (resolve/resolve-as nil {:message "Invalid media type."
-                                :mediaType mediaType})
-       (let [json (try
-                    (json/parse-string content)
-                    (catch Exception e))]
-         (if (empty? json)
-           (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."
-                                    :content content})
-           (with-tx-context [context context]
-             (if (empty? (execute-one! context {:select :id
-                                                :from :dataset
-                                                :where [:= :id datasetId]}))
-               (resolve/resolve-as nil {:message "There is no dataset with that id."
-                                        :datasetId datasetId})
-               (let [hash (byte-array (hasch/edn-hash json))
-                     existing-content-id
-                     #__ (:content-json/content-id
-                          (execute-one!
-                           context
-                           {:select :content-id
-                            :from :content-json
-                            :where [:= :hash hash]}))
-                     values [(-> {:dataset-id datasetId
-                                  :content-id (or existing-content-id
-                                                  {:select :id :from :content})}
-                                 ((if externalId
-                                    #(assoc % :external-id externalId)
-                                    identity)))]]
-                 (if existing-content-id
-                   (if-let [ety (and externalId
-                                     (execute-one!
-                                      context
-                                      {:select :id
-                                       :from :entity
-                                       :where [:and
-                                               [:= :dataset-id datasetId]
-                                               [:= :external-id externalId]
-                                               [:= :content-id existing-content-id]
-                                               [:in :created
-                                                {:select :%max.created
-                                                 :from [[:entity :e]]
-                                                 :where [:and
-                                                         [:= :e.dataset-id datasetId]
-                                                         [:= :e.external-id externalId]]}]]}))]
-                     (resolve-dataset-entity context {:id (:entity/id ety)} nil)
-                     (-> context
-                         (execute-one!
-                          {:insert-into :entity
-                           :returning :id
-                           :values values})
-                         :entity/id
-                         (#(resolve-dataset-entity context {:id %} nil))))
-                   (-> context
-                       (execute-one!
-                        {:with
-                         [[:content
-                           {:insert-into :content
-                            :values [{:created [:now]}]
-                            :returning :id}]
-                          [:content-json
-                           {:insert-into :content-json
-                            :values
-                            [{:content-id {:select :id :from :content}
-                              :content (jsonb-pgobject json)
-                              :hash hash}]}]]
-                         :insert-into :entity
-                         :returning :id
-                         :values values})
-                       :entity/id
-                       (#(resolve-dataset-entity context {:id %} nil)))))))))))))
+   (with-tx-context [context context]
+     (if (empty? (execute-one! context {:select :id
+                                        :from :dataset
+                                        :where [:= :id datasetId]}))
+       (resolve/resolve-as nil {:message "There is no dataset with that id."
+                                :datasetId datasetId})
+       (let [existing-content-id
+             #__ (get-existing-content-id
+                  context
+                  {:content-hash content-hash :content-table content-table})]
+         (if existing-content-id
+           (if-let [existing-entity (and externalId
+                                         (get-latest-entity
+                                          context
+                                          {:content-id existing-content-id
+                                           :dataset-id datasetId
+                                           :external-id externalId}))]
+             (resolve-dataset-entity context {:id (:entity/id existing-entity)} nil)
+             ;; Insert entity referencing existing content
+             (-> context
+                 (execute-one!
+                  {:insert-into :entity
+                   :returning :id
+                   :values [{:content-id existing-content-id
+                             :dataset-id datasetId
+                             :external-id externalId}]})
+                 :entity/id
+                 (#(resolve-dataset-entity context {:id %} nil))))
+           ;; Create new content and insert entity referencing it
+           (-> context
+               (execute-one!
+                {:with
+                 [[:content
+                   {:insert-into :content
+                    :values [{:created [:now]}]
+                    :returning :id}]
+                  [content-table
+                   {:insert-into content-table
+                    :values
+                    [(if (= :content-json content-table)
+                       {:content (jsonb-pgobject content)
+                        :content-id {:select :id :from :content}
+                        :hash content-hash}
+                       {:content-hash content-hash
+                        :content-id {:select :id :from :content}
+                        :data (jsonb-pgobject data)
+                        :file-hash file-hash
+                        :media-type mediaType})]}]]
+                 :insert-into :entity
+                 :returning :id
+                 :values [(-> {:dataset-id datasetId
+                               :content-id (or existing-content-id
+                                               {:select :id :from :content})}
+                              ((if externalId
+                                 #(assoc % :external-id externalId)
+                                 identity)))]})
+               :entity/id
+               (#(resolve-dataset-entity context {:id %} nil)))))))))
+
+(defmulti create-dataset-entity! (fn [_ {:keys [mediaType]} _]
+                                   (when mediaType
+                                     (str/lower-case mediaType))))
+
+(defmethod create-dataset-entity! :default
+  [_ {:keys [mediaType]} _]
+  (resolve/resolve-as nil {:message "Invalid media type."
+                           :mediaType mediaType}))
+
+(defmethod create-dataset-entity! "application/json"
+  [context {:as args :keys [content metadata]} _]
+  (ensure-sysrev-dev
+   context
+   (let [json (try
+                (json/parse-string content)
+                (catch Exception e))]
+     (if (empty? json)
+       (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."
+                                :content content})
+       (if (seq metadata)
+         (resolve/resolve-as nil {:message "JSON entities cannot have metadata."})
+         (with-tx-context [context context]
+           (create-entity-helper!
+            context args
+            {:content json
+             :content-hash (byte-array (hasch/edn-hash json))
+             :content-table :content-json})))))))
+
+(defn condense-whitespace [s]
+  (as-> (str/split s #"\-\n") $
+      (str/join "" $)
+      (str/split $ #"\s+")
+      (str/join " " $)))
+
+(defn pdf-text [pdf tesseract]
+  (file-util/with-temp-file [path {:prefix "datapub-"
+                                   :suffix ".pdf"}]
+    (file-util/copy! (io/input-stream pdf) path
+                     #{:replace-existing})
+    (try
+      (pdf-read/with-PDDocument [doc (.toFile path)]
+        (let [text (condense-whitespace
+                    (pdf-read/get-text doc {:sort-by-position true}))]
+          (if-not (str/blank? text)
+            {:text text}
+            (when (:enabled? tesseract)
+              {:ocr-text
+               (let [tess (tesseract/tesseract
+                           {:data-path (System/getenv "TESSDATA_PREFIX")})]
+                 (->> doc pdf-read/->image-seq
+                      (map #(.doOCR tess %))
+                      (apply str)
+                      condense-whitespace))}))))
+      (catch IOException e
+        (if (= "Error: Header doesn't contain versioninfo"
+               (.getMessage e))
+          :invalid-pdf
+          (throw e))))))
+
+(defmethod create-dataset-entity! "application/pdf"
+  [context {:as args :keys [content metadata]} _]
+  (ensure-sysrev-dev
+   context
+   (let [pdf (try
+                (.decode (Base64/getDecoder) content)
+                (catch Exception e))]
+     (if (empty? pdf)
+       (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
+                                :content content})
+       (let [file-hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
+         ;; We put the file before parsing to minimize memory usage,
+         ;; since we can let go of the pdf byte array earlier.
+         (file/put-entity-content! (get-in context [:pedestal :s3])
+                                   {:content pdf :file-hash file-hash})
+         (let [text (pdf-text pdf (get-in context [:pedestal :config :tesseract]))]
+           (if (= :invalid-pdf text)
+             (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."
+                                      :content content})
+             (let [data (->> (assoc text :metadata metadata)
+                             (me/remove-vals nil?))
+                   content-hash (-> {:data data
+                                     :file-hash
+                                     (.encode (Base64/getEncoder) file-hash)}
+                                    hasch/edn-hash
+                                    byte-array)]
+               (with-tx-context [context context]
+                 (create-entity-helper!
+                  context args
+                  {:content-hash content-hash
+                   :content-table :content-file
+                   :data data
+                   :file-hash file-hash}))))))))))
 
 (defn dataset-entities-subscription [context {:keys [datasetId uniqueExternalIds]} source-stream]
   (ensure-sysrev-dev
@@ -304,7 +513,7 @@
                path-vec)))
 
 (defn get-index-spec [context path-vec type]
-  (let [path-vec (mapv #(if (= :* %) ":datapub/*" %) path-vec)]
+  (let [path-vec (internal-path-vec path-vec)]
     (with-tx-context [context context]
       (execute-one!
        context
@@ -315,7 +524,7 @@
 
 (defn get-or-create-index-spec! [context path-vec type]
   (or (get-index-spec context path-vec type)
-      (let [path-vec (mapv #(if (= :* %) ":datapub/*" %) path-vec)]
+      (let [path-vec (internal-path-vec path-vec)]
         (with-tx-context [context context]
           (execute-one!
            context
@@ -373,14 +582,19 @@
            (resolve-dataset-index context {:datasetId datasetId :path path :type type} nil)))))))
 
 (defn string-query->sqlmap [context {:keys [eq ignoreCase path]}]
-  (let [path-vec (try (edn/read-string path)
-                      (catch Exception _
-                        (throw (ex-info "Invalid path."
-                                        {:path path}))))
-        v [(keyword "#>>") :indexed-data [:array path-vec]]]
-    (if ignoreCase
-      [:= [:lower eq] [:lower v]]
-      [:= eq v])))
+  (let [path-vec (-> (try (edn/read-string path)
+                          (catch Exception _
+                            (throw (ex-info "Invalid path." {:path path}))))
+                     internal-path-vec)
+        v [(keyword "#>>") :indexed-data [:array path-vec]]
+        maybe-lower #(if ignoreCase [:lower %] %)]
+    [:in
+     (maybe-lower (pr-str eq))
+     {:select
+      [[(maybe-lower
+         [:unnest [:cast
+                   [:get_in_jsonb :indexed-data [:array path-vec]]
+                   [:raw "text[]"]]])]]}]))
 
 (defn text-query->sqlmap [context {:keys [paths search useEveryIndex]}]
   (when (if useEveryIndex paths (not paths))

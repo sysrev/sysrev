@@ -28,6 +28,7 @@
 ;;; Data formats
                  [org.clojure/data.json "2.2.2"]
                  [com.cognitect/transit-clj "1.0.324"]
+                 [org.clojure/data.csv "1.0.0"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "1.0.0"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
@@ -54,11 +55,10 @@
                  [org.flywaydb/flyway-core "7.9.1"]
 
 ;;; Web server
-                 [aleph "0.4.6"]
+                 [aleph "0.4.7-alpha7"]
                  [com.taoensso/sente "1.16.2"]
                  [compojure "1.6.2"]
                  [javax.servlet/javax.servlet-api "4.0.1"]
-                 [manifold "0.1.8"]
                  [ring "1.9.4"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
@@ -105,6 +105,7 @@
              #_ "-XX:+UnlockExperimentalVMOptions"
              #_ "-XX:+UseZGC"]
   :source-paths ["src/clj" "src/cljc"
+                 "components/config/src"
                  "components/datapub-client/src"
                  "components/flyway/src"
                  "components/notification/src"
@@ -137,7 +138,10 @@
                                                "projects/datapub/resources"
                                                "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/file-util/src"
                                              "components/fixtures/src"
+                                             "components/pdf-read/src"
+                                             "components/tesseract/src"
                                              "projects/datapub/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"
@@ -146,14 +150,22 @@
                               [[cider/cider-nrepl "0.26.0"]
                                [clj-webdriver "0.7.2"]
                                [com.clojure-goes-fast/clj-async-profiler "0.5.0"]
+                               [com.cognitect.aws/api "0.8.524"]
+                               [com.cognitect.aws/endpoints "1.1.12.65"]
+                               [com.cognitect.aws/s3 "814.2.978.0"]
                                [com.opentable.components/otj-pg-embedded "0.13.3"]
                                [com.walmartlabs/lacinia-pedestal "0.15.0"]
                                [etaoin "0.4.1"]
                                [io.replikativ/hasch "0.3.7"]
+                               [io.staticweb/aws-api-failjure "1.1.0"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
                                [javax.servlet/javax.servlet-api "4.0.1"]
+                               [net.sourceforge.tess4j/tess4j "4.5.5"]
+                               [org.apache.pdfbox/pdfbox "2.0.22"]
                                [org.eclipse.jetty/jetty-alpn-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-client "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-http "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-server "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-servlet "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-util "9.4.42.v20210604"]
@@ -173,7 +185,14 @@
                                              org.bouncycastle/bcprov-jdk15on
                                              org.seleniumhq.selenium/selenium-api
                                              org.seleniumhq.selenium/selenium-support]]
-                               [prestancedesign/get-port "0.1.1"]]
+                               [prestancedesign/get-port "0.1.1"]
+                               ;; pdf-read deps
+                               [com.github.jai-imageio/jai-imageio-core "1.4.0"]
+                               [com.github.jai-imageio/jai-imageio-jpeg2000 "1.4.0"]
+                               [org.apache.pdfbox/jbig2-imageio "3.0.3"]
+                               [org.bouncycastle/bcmail-jdk15on "1.69"]
+                               [org.bouncycastle/bcpkix-jdk15on "1.69"]
+                               [org.bouncycastle/bcprov-jdk15on "1.69"]]
                               :plugins [[lein-eftest "0.5.9"]]}
              :postgres       {:resource-paths ["components/postgres/resources"]
                               :source-paths ["components/postgres/src"]}
@@ -183,13 +202,21 @@
                                  :source-paths ["components/postgres-embedded/src"]}
              :repl           {:plugins [[lein-environ "1.2.0"]]}
              :test           {:dependencies
-                              [[com.opentable.components/otj-pg-embedded "0.13.3"]
+                              [[com.cognitect.aws/api "0.8.524"]
+                               [com.cognitect.aws/endpoints "1.1.12.65"]
+                               [com.cognitect.aws/s3 "814.2.978.0"]
+                               [com.opentable.components/otj-pg-embedded "0.13.3"]
                                [com.walmartlabs/lacinia-pedestal "0.15.0"]
                                [io.replikativ/hasch "0.3.7"]
+                               [io.staticweb/aws-api-failjure "1.1.0"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
                                [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
                                [javax.servlet/javax.servlet-api "4.0.1"]
+                               [net.sourceforge.tess4j/tess4j "4.5.5"]
+                               [org.apache.pdfbox/pdfbox "2.0.22"]
                                [org.eclipse.jetty/jetty-alpn-server "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-client "9.4.42.v20210604"]
+                               [org.eclipse.jetty/jetty-http "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-server "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-servlet "9.4.42.v20210604"]
                                [org.eclipse.jetty/jetty-util "9.4.42.v20210604"]
@@ -197,14 +224,24 @@
                                [org.eclipse.jetty.websocket/websocket-api "9.4.42.v20210604"]
                                [org.eclipse.jetty.websocket/websocket-servlet "9.4.42.v20210604"]
                                [org.eclipse.jetty.websocket/websocket-server "9.4.42.v20210604"]
-                               [prestancedesign/get-port "0.1.1"]]
+                               [prestancedesign/get-port "0.1.1"]
+                               ;; pdf-read deps
+                               [com.github.jai-imageio/jai-imageio-core "1.4.0"]
+                               [com.github.jai-imageio/jai-imageio-jpeg2000 "1.4.0"]
+                               [org.apache.pdfbox/jbig2-imageio "3.0.3"]
+                               [org.bouncycastle/bcmail-jdk15on "1.69"]
+                               [org.bouncycastle/bcpkix-jdk15on "1.69"]
+                               [org.bouncycastle/bcprov-jdk15on "1.69"]]
                               :jvm-opts ["-Xmx1000m"]
                               :resource-paths ["config/test" "resources/test"
                                                "components/fixtures/resources"
                                                "projects/datapub/resources"
                                                "projects/datapub/datapub-test/resources"]
                               :source-paths ["src/clj" "src/cljc" "test/clj"
+                                             "components/file-util/src"
                                              "components/fixtures/src"
+                                             "components/pdf-read/src"
+                                             "components/tesseract/src"
                                              "projects/datapub/src"]
                               :test-paths ["test/clj"
                                            "components/notification/test"

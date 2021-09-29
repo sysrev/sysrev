@@ -1,4 +1,5 @@
-{:postgres
+{:datapub-embedded "true"
+ :postgres
  {:dbname "sysrev"
   :user "postgres"
   :password ""

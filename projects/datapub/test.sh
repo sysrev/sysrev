@@ -1,1 +1,2 @@
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** clojure -X:test
+sudo docker-compose -f datapub-test/docker-compose.yml up -d
+clojure -X:test

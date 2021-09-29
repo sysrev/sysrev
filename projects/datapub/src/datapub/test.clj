@@ -12,6 +12,11 @@
 (def create-dataset
   "mutation($input: CreateDatasetInput!){createDataset(input: $input){id}}")
 
+(def create-dataset-entity
+  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String, $metadata: String) {
+     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId, metadata: $metadata){id content externalId mediaType metadata}
+  }")
+
 (def create-dataset-index
   "mutation($datasetId: PositiveInt!, $path: String!, $type: DatasetIndexType!){createDatasetIndex(datasetId: $datasetId, path: $path, type: $type){path type}}")
 
@@ -19,6 +24,9 @@
   "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String) {
      createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalId: $externalId){id content externalId mediaType}
   }")
+
+(def dataset-entity
+  "query($id: PositiveInt!) {datasetEntity(id: $id){id content externalId mediaType metadata}}")
 
 (def subscribe-dataset-entities
   "subscription($id: PositiveInt!, $uniqueExternalIds: Boolean){datasetEntities(datasetId: $id, uniqueExternalIds: $uniqueExternalIds){content externalId mediaType}}")
@@ -38,7 +46,7 @@
     graphql-response))
 
 (defn execute [system query & [variables]]
-  (let [sysrev-dev-key (-> system :pedestal :config :sysrev-dev-key)]
+  (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)]
     (-> (response-for system
                       :post "/api"
                       :headers {"Authorization" (str "Bearer " sysrev-dev-key)
@@ -51,7 +59,7 @@
   (-> query :selections first selection/arguments))
 
 (defn execute-subscription [system f query & [variables opts]]
-  (let [sysrev-dev-key (-> system :pedestal :config :sysrev-dev-key)
+  (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)
         {:keys [timeout-ms]
          :or {timeout-ms 30000}} opts
         schema (-> system :pedestal :service-map :graphql-schema)
@@ -95,11 +103,12 @@
          (component/stop system#)))))
 
 (def ctgov-indices
-  [[:TEXT "[\"ProtocolSection\" \"DescriptionModule\" \"BriefSummary\"]"]
-   [:TEXT "[\"ProtocolSection\" \"DescriptionModule\" \"DetailedDescription\"]"]
-   [:TEXT "[\"ProtocolSection\" \"IdentificationModule\" \"BriefTitle\"]"]
-   [:TEXT "[\"ProtocolSection\" \"IdentificationModule\" \"OfficialTitle\"]"]
-   [:TEXT "[\"ProtocolSection\" \"ConditionsModule\" \"ConditionList\" \"Condition\" :*]"]])
+  [[:TEXT (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])]
+   [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])]
+   [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "DetailedDescription"])]
+   [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "BriefTitle"])]
+   [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "OfficialTitle"])]
+   [:TEXT (pr-str ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"])]])
 
 (defn load-ctgov-dataset! [system]
   (let [ds-id (-> system

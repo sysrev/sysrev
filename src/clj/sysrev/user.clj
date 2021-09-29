@@ -67,7 +67,7 @@
         #_ sysrev.custom.insilica
         sysrev.init
         sysrev.shared.keywords
-        sysrev.test.core
+        [sysrev.test.core :exclude [sysrev-handler]]
         sysrev.test.browser.navigate
         sysrev.stacktrace)
   (:require [cider.nrepl :refer (cider-nrepl-handler)]
@@ -94,6 +94,7 @@
             [clojure.string :as str]
             [cognitect.transit :as transit]
             [clojure-csv.core :as csv]
+            [com.stuartsierra.component :refer (start stop)]
             [amazonica.core :as aws]
             [amazonica.aws.s3 :as s3]
             [honeysql.core :as sql]

@@ -1,15 +1,13 @@
-{:paths ["src" "resources"]
+{:paths ["src"]
  :deps {aleph/aleph {:mvn/version "0.4.7-alpha7"}
+        cheshire/cheshire {:mvn/version "5.10.0"}
         clj-http/clj-http {:mvn/version "3.12.3"}}
  :aliases {:test {:extra-paths ["test"]
                   :extra-deps {com.cognitect/test-runner
                                {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                 :sha "4e7e1c0dfd5291fa2134df052443dc29695d8cbe"}
                                co.insilica/datapub
-                               {:git/url "git@github.com:insilica/datapub.git"
-                                :sha "2c81d4e9e733218f8aacc846d841278b3064410b"}
+                               {:local/root "../../projects/datapub"}
                                co.insilica/datapub-test
-                               {:git/url "git@github.com:insilica/datapub.git"
-                                :sha "2c81d4e9e733218f8aacc846d841278b3064410b"
-                                :deps/root "datapub-test"}}
+                               {:local/root "../../projects/datapub/datapub-test"}}
                   :exec-fn cognitect.test-runner.api/test}}}

@@ -61,14 +61,16 @@
 
 (defn wrap-sysrev-html
   "Ring handler wrapper for web HTML responses"
-  [handler]
+  [handler & {:keys [web-server]}]
   (-> handler
       app/wrap-no-cache
-      (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))))
+      (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))
+      (app/wrap-dynamic-vars web-server)
+      (app/wrap-web-server web-server)))
 
 (defn wrap-sysrev-app
   "Ring handler wrapper for web app routes"
-  [handler]
+  [handler & {:keys [web-server]}]
   (-> handler
       app/wrap-sysrev-response
       app/wrap-add-anti-forgery-token
@@ -77,7 +79,9 @@
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery true}))
       (wrap-transit-body {:opts {}})
       app/wrap-robot-noindex
-      (app/wrap-log-request)))
+      (app/wrap-log-request)
+      (app/wrap-dynamic-vars web-server)
+      (app/wrap-web-server web-server)))
 
 (defn wrap-force-json-request
   "Modifies request map to set header \"Content-Type\" as
@@ -88,7 +92,7 @@
 
 (defn wrap-sysrev-api
   "Ring handler wrapper for JSON API (non-browser) routes"
-  [handler]
+  [handler & {:keys [web-server]}]
   (-> handler
       wrap-web-api
       app/wrap-sysrev-response
@@ -96,29 +100,33 @@
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session false :anti-forgery false}))
       (wrap-json-body {:keywords? true})
-      wrap-force-json-request))
+      wrap-force-json-request
+      (app/wrap-dynamic-vars web-server)))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
-                                     ajax-post-fn]}]
+                                     ajax-post-fn
+                                     web-server]}]
   (-> (c/routes
        (GET "/api/chsk" request (ajax-get-or-ws-handshake-fn request))
        (POST "/api/chsk" request (ajax-post-fn request)))
-      (c/wrap-routes wrap-sysrev-app)))
+      (c/wrap-routes wrap-sysrev-app :web-server web-server)))
 
 (defn sysrev-handler
   "Root handler for web server"
-  [& [{:keys [sente] :as _web-server}]]
-  (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) wrap-sysrev-api))
+  [& [{:keys [sente] :as web-server}]]
+  (assert (map? web-server))
+  (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) #(wrap-sysrev-api % :web-server web-server)))
                     (if sente
-                      (channel-socket-routes (:chsk sente))
+                      (channel-socket-routes (assoc (:chsk sente)
+                                                    :web-server web-server))
                       (constantly nil))
-                    (ANY "/api/*" [] (c/wrap-routes app-routes wrap-sysrev-app))
+                    (ANY "/api/*" [] (c/wrap-routes app-routes #(wrap-sysrev-app % :web-server web-server)))
                     (ANY "/graphql" [] graphql-routes)
                     (compojure.route/resources "/")
                     (GET "/sitemap.xml" []
                          (-> (r/response (index/sysrev-sitemap))
                              (r/header "Content-Type" "application/xml; charset=utf-8")))
-                    (GET "*" [] (c/wrap-routes html-routes wrap-sysrev-html)))
+                    (GET "*" [] (c/wrap-routes html-routes #(wrap-sysrev-html % :web-server web-server))))
     (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
 
 (defrecord WebServer [bound-port handler handler-f port server]

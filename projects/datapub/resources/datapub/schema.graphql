@@ -24,13 +24,32 @@ type Dataset {
   "A description of the Dataset."
   description: String
 
-  "The indices on the Dataset."
+  "The entities belonging to this Dataset."
+  entities(
+    after: String
+    externalId: String
+    first: NonNegativeInt
+  ): DatasetEntitiesConnection!
+
+  "The indices on the DatasetEntity objects of this Dataset."
   indices: [DatasetIndex]
 
   "The name of the Dataset."
   name: String!
 
+  "Whether the Dataset is public."
   public: Boolean!
+}
+
+type DatasetEntitiesConnection {
+  edges: [DatasetEntitiesEdge]
+  pageInfo: PageInfo!
+  totalCount: NonNegativeInt
+}
+
+type DatasetEntitiesEdge {
+  cursor: String!
+  node: DatasetEntity
 }
 
 type DatasetEntity {
@@ -45,6 +64,9 @@ type DatasetEntity {
 
   "The media type, such as \"application/json\"."
   mediaType: String!
+
+  "The string representation of the metadata in JSON format."
+  metadata: String
 }
 
 type DatasetIndex {
@@ -116,7 +138,7 @@ type Query {
 
 type Mutation {
   createDataset(input: CreateDatasetInput!) : Dataset
-  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!) : DatasetEntity
+  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!, metadata: String) : DatasetEntity
   createDatasetIndex(datasetId: PositiveInt!, path: String!, type: DatasetIndexType!) : DatasetIndex
 }
 

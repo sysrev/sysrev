@@ -58,7 +58,7 @@
           (?reply-fn
            (datapub/consume-subscription!
             :auth-token (:sysrev-dev-token env)
-            :endpoint (:datapub-ws env)
+            :endpoint (get-in sente [:config :datapub-ws])
             :query query
             :variables variables))))
 

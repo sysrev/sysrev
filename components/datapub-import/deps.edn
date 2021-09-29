@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps {org.clojure/tools.logging {:mvn/version "1.1.0"}
+        sysrev/datapub-client {:local/root "../datapub-client"}
+        sysrev/fda-drugs {:local/root "../fda-drugs"}}}

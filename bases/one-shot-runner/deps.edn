@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {sysrev/config {:local/root "../../components/config"}}}

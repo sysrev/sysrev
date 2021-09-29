@@ -1,0 +1,9 @@
+{:paths ["config/dev"]
+ :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        sysrev/datapub-import {:local/root "../../components/datapub-import"}
+        sysrev/one-shot-runner {:local/root "../../bases/one-shot-runner"}}
+ :aliases {:prod {:replace-paths ["config/prod"]}
+           :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+                     :exec-fn hf.depstar/uberjar
+                     :exec-args {:aliases [:prod]
+                                 :jar "target/datapub-importer.jar"}}}}
