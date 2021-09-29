@@ -565,9 +565,7 @@
           (with-authorize request {:roles ["admin"]}
             (let [{:keys [label-id]} (:body request)
                   label (label/get-label label-id)]
-              (if (= (:project-id label) (:owner-project-id label))
-                {:success true :share-code (label/get-share-code label-id)}
-                {:success false})))))
+              {:success true :share-code (label/get-share-code label-id)}))))
 
 (dr (POST "/api/import-label" request
           (with-authorize request {:roles ["admin"]}
