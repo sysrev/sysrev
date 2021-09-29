@@ -6,11 +6,9 @@
             [re-frame.core :refer [subscribe dispatch-sync dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
             ["@material-ui/core" :as mui]
-            ["@john-shaffer/data-grid" :as data-grid]
-            ["material-table" :refer [default MTableToolbar] :rename {default MaterialTable}]
+            ["@insilica-org/material-table" :refer [default] :rename {default MaterialTable}]
             [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data]
-            [sysrev.state.label :refer [sort-client-project-labels]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.base :refer [panel-content]]
@@ -20,7 +18,6 @@
             [sysrev.views.semantic :as S :refer [Divider Button Message Segment
                                            Modal ModalHeader ModalContent ModalDescription Form
                                            FormField TextArea]]
-            [sysrev.dnd :as dnd]
             [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
@@ -41,7 +38,7 @@
                    :set [panel-set ::set])
 
 (defn find-label [label-id labels]
-  (some #(if (= (:label-id %) label-id) %) labels))
+  (some #(when (= (:label-id %) label-id) %) labels))
 
 (reg-sub ::editing-label
          (fn []
@@ -339,7 +336,6 @@
 (defn ShareLabelButton []
   (let [modal-state-path [:share-label-modal]
         modal-open (r/cursor state (concat modal-state-path [:open]))
-        project-id @(subscribe [:active-project-id])
         share-code (r/cursor state (concat modal-state-path [:share-code]))]
     (fn []
       [Modal {:class "tiny"
@@ -1082,66 +1078,6 @@
                              :attached "bottom"
                              :color "grey"} "Move Down"])])))]]))
 
-(defn- LabelItem [labels-atom i label & {:keys [status]}]
-  (let [{:keys [label-id name editing? enabled value-type short-label]} @label
-        admin? @(subscribe [:member/admin? true])
-        allow-edit? (and admin? (not= name "overall include"))
-        {:keys [draggable]} status]
-    [:div.ui.middle.aligned.grid.label-item
-     {:id (str label-id)
-      :class (css [(= "group" value-type) "group-label"]
-                  [(not enabled) "secondary"] "segment")
-      :data-short-label short-label}
-     [:div.row
-      [ui/TopAlignedColumn
-       [:div.ui.label {:class (css [enabled "blue" :else "gray"])} (str (inc i))]
-       (css "two wide center aligned column label-index"
-            [(true? draggable)  "cursor-grab"
-             (false? draggable) "cursor-not-allowed"])]
-      [:div.column.define-label-item {:class "ten wide"
-                                      :data-short-label short-label}
-       (if editing?
-         (if (= (:value-type @label) "group")
-           [GroupLabelEditForm labels-atom label]
-           [LabelEditForm labels-atom "na" label])
-         (if (= (:value-type @label) "group")
-           [GroupLabel label]
-           [:div.ui.column.label-edit {:class (css [(:required @label) "required"])}
-            [Label label]]))]
-      [ui/TopAlignedColumn
-       [:<>
-        [EditLabelButton label allow-edit?]
-        [ShareLabelButton label]]
-       "four wide center aligned column delete-label"]]]))
-
-(defn- label-drag-spec []
-  (dnd/make-drag-spec
-   {:begin-drag (fn [props _monitor _component]
-                  {:label-id (-> props :id-spec :label-id)})}))
-
-(defn- label-drop-spec []
-  (dnd/make-drop-spec
-   {:drop (fn [props monitor _component]
-            (sync-to-server)
-            {:label-id (-> props :id-spec :label-id)
-             :item (.getItem monitor)})}))
-
-(defn- wrap-label-dnd [id-spec content-fn]
-  [dnd/wrap-dnd
-   id-spec
-   {:item-type    "label-edit"
-    :drag-spec    (label-drag-spec)
-    :drop-spec    (label-drop-spec)
-    :content      (fn [props]
-                    (content-fn props))
-    :on-enter    (fn [props]
-                   (let [src-id (-> props :item :label-id)
-                         dest-id (-> props :id-spec :label-id)]
-                     (when (not= src-id dest-id)
-                       (move-label-to src-id dest-id))))
-    :on-exit     (fn [_props]
-                   nil)}])
-
 (defn- UpgradeMessage []
   [Segment {:style {:text-align "center"}
             :id "group-label-paywall"}
@@ -1178,7 +1114,7 @@
                               (vals (get-in @labels-atom [root-label-id :labels])))
                             (sort-by (juxt #(not (:enabled %)) :project-ordering))
                             (map-indexed vector))
-        label-idx (some #(if (= (-> % second :label-id) label-id)
+        label-idx (some #(when (= (-> % second :label-id) label-id)
                            (-> % first))
                         indexed-labels)
         new-label-idx (-> (+ label-idx diff)
@@ -1289,12 +1225,10 @@
       [:div.column
        [:> MaterialTable
         {:title "Labels "
-         :components {:Toolbar (fn [props]
+         :components {:Toolbar (fn []
                                 (r/as-element
                                   [:div.ui.attached.stackable
-                                   {:style {:padding "5px 10px"}
-                                    }
-                                   ;[:> MTableToolbar (js->clj props)]
+                                   {:style {:padding "5px 10px"}}
                                    [:h3 "Labels "
                                     [:select.ui.dropdown
                                      {:style {:margin-left "5px"}
@@ -1339,10 +1273,9 @@
                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
                                      (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
                                      (sync-to-server))})))]
-         :onRowClick (fn [event rowData]
-                       (do
-                         (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])
-                         (dispatch [::set :editing-label-id (.-id ^js rowData)])))
+         :onRowClick (fn [_event rowData]
+                       (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])
+                       (dispatch [::set :editing-label-id (.-id ^js rowData)]))
          :options {:actionsColumnIndex -1}}]]
       [SideEditableView labels-atom]]]))
 
@@ -1350,11 +1283,6 @@
   (let [admin? @(subscribe [:member/admin? true])
         labels (r/cursor state [:labels])
         read-only-message-closed? (r/cursor state [:read-only-message-closed?])
-        sort-label-ids (fn [enabled?]
-                         (->> (sort-client-project-labels @labels (not enabled?))
-                              (filter #(= enabled? (:enabled (get @labels %))))))
-        active-ids (sort-label-ids true)
-        disabled-ids (sort-label-ids false)
         project-id    @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
         group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))

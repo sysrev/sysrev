@@ -565,8 +565,7 @@
 
 (dr (POST "/api/get-label-share-code" request
           (with-authorize request {:roles ["admin"]}
-            (let [{:keys [label-id]} (:body request)
-                  label (label/get-label label-id)]
+            (let [{:keys [label-id]} (:body request)]
               {:success true :share-code (label/get-share-code label-id)}))))
 
 (dr (POST "/api/import-label" request

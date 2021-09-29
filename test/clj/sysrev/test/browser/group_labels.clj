@@ -6,11 +6,14 @@
             [clj-webdriver.taxi :as taxi]
             [medley.core :as medley]
             [ring.mock.request :as mock]
-            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.label.core :as label]
-            [sysrev.project.core :as project]
-            [sysrev.project.member :refer [add-project-member set-member-permissions]]
+            ;; TODO: uncomment when addressing new labels UI tests
+            ;[sysrev.db.core :as db]
+            ;[sysrev.label.core :as label]
+            ;[sysrev.project.core :as project]
+            ;[sysrev.test.browser.pubmed :as pubmed]
+            ;[sysrev.test.browser.sources :refer [unique-count-span]]
+            [sysrev.project.member :refer [add-project-member]]
             [sysrev.source.import :as import]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.define-labels :as dlabels]
@@ -18,10 +21,8 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.orgs :as orgs]
             [sysrev.test.browser.plans :as plans]
-            [sysrev.test.browser.pubmed :as pubmed]
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.test.browser.sources :refer [unique-count-span]]
             [sysrev.test.core :as test :refer [sysrev-handler]]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]))
 
@@ -172,7 +173,8 @@
       (str/join ", " value)
       value)))
 
-(deftest-browser group-labels-happy-path
+;; TODO: Update tests to new UI
+#_(deftest-browser group-labels-happy-path
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (group-labels-happy-path-test)"
    project-id (atom nil)
@@ -283,7 +285,7 @@
       (is (= (group-label-value "Categorical Label" group-label-definition)
              (group-label-button-value "Categorical Label" "1"))))))
 
-(deftest-browser group-labels-error-handling-test
+#_(deftest-browser group-labels-error-handling-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (group-labels-error-handling-test)"
    {:keys [user-id email]} test-user
@@ -444,7 +446,8 @@
     (b/click (group-label-div-with-name "Group Label 2"))
     (b/is-soon (= ["Boolean Label" "String Label"] (group-sub-short-labels-review)))))
 
-(deftest-browser group-labels-in-depth
+;; TODO: Update tests to new UI
+#_(deftest-browser group-labels-in-depth
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (group-labels-in-depth)"
    project-id (atom nil)
@@ -563,7 +566,8 @@
     (is (= "Qux"   (group-label-button-value "Categorical Label" "1")))
     (is (= "Foo"   (group-label-button-value "Categorical Label" "2")))))
 
-(deftest-browser consistent-label-ordering
+;; TODO: Update tests to new UI
+#_(deftest-browser consistent-label-ordering
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-name "SysRev Browser Test (consistent-label-ordering)"
    group-label-definition {:value-type "group"
@@ -619,7 +623,8 @@
   (is (b/exists? resolved))
   (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved))))
 
-(deftest-browser label-consensus-test
+;; TODO: Update tests to new UI
+#_(deftest-browser label-consensus-test
   (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-id (atom nil)
    label-id-1 (atom nil)
