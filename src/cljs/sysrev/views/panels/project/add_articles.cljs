@@ -9,6 +9,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
             [sysrev.views.ctgov :as ctgov]
+            [sysrev.views.fda-drugs-docs :as fda-drugs-docs]
             [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :as source-view]
@@ -625,7 +626,17 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
      [DatasourceIcon option])])
 
 (defn ImportArticlesView []
-  (let [active-tab (subscribe [:add-articles/import-tab])]
+  (let [active-tab (subscribe [:add-articles/import-tab])
+        beta-access? (or (not= js/window.location.hostname "sysrev.com")
+                         (boolean
+                          (some #{@(subscribe [:self/email])}
+                                #{"amarluniwal@gmail.com"
+                                  "geoffreyweiner@gmail.com"
+                                  "james@insilica.co"
+                                  "tom@insilica.co"
+                                  "jeff@insilica.co"
+                                  "tj@insilica.co"
+                                  "g.callegaro@lacdr.leidenuniv.nl"})))]
     [:div#import-articles {:style {:margin-bottom "1em"}}
      [:div
       [:h3 "1. Select a document source"]
@@ -650,6 +661,10 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
                            {:value :ctgov
                             :text "ClinicalTrials (beta)"
                             :name "hospital outline"}
+                           (when beta-access?
+                             {:value :fda-drugs-docs
+                              :text "Drugs@FDA Documents (beta)"
+                              :name "at"})
                            {:value :json
                             :text "JSON file"
                             :name "file outline"}
@@ -666,28 +681,25 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.
 An article entry will be created for each PDF."] [ImportPDFZipsView]]
           :ris-file  [ImportRISView]
-          :ctgov (if (and (= js/window.location.hostname "sysrev.com")
-                          (not (some #{@(subscribe [:self/email])}
-                                     #{"amarluniwal@gmail.com"
-                                       "geoffreyweiner@gmail.com"
-                                       "james@insilica.co"
-                                       "tom@insilica.co"
-                                       "jeff@insilica.co"
-                                       "tj@insilica.co"
-                                       "g.callegaro@lacdr.leidenuniv.nl"})))
+          :ctgov (if-not beta-access?
                    [EnableCTNotice]
                    [:div
                     [:h3 "2. Search and import clinicaltrials.gov documents."]
                     [ctgov/SearchBar]])
+          :fda-drugs-docs [:div
+                           [:h3 "2. Search and import Drugs@FDA application documents."]
+                           [fda-drugs-docs/SearchBar]]
           :custom [CustomDatasource]
           nil))
       (condp =  @active-tab
         :pubmed [pubmed/SearchActions (any-source-processing?)]
         :ctgov  [ctgov/SearchActions (any-source-processing?)]
+        :fda-drugs-docs  [fda-drugs-docs/SearchActions (any-source-processing?)]
         nil)]
      (condp =  @active-tab
        :pubmed [pubmed/SearchResultsContainer]
        :ctgov  [ctgov/SearchResultsContainer]
+       :fda-drugs-docs  [fda-drugs-docs/SearchResultsContainer]
        nil)]))
 
 (defn DocumentImport []
