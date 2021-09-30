@@ -655,7 +655,7 @@
       (constantly nil))
     (let [fut (future
                 (try
-                  (with-tx-context [context (assoc context ::dataset-id 1)]
+                  (with-tx-context [context (assoc context ::dataset-id datasetId)]
                     (let [indexed-entity-table (keyword (str "indexed-entity-" datasetId))
                           q (search-dataset-query->sqlmap context query)]
                       (when (some identity (rest q))
