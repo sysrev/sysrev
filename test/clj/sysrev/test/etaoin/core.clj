@@ -24,8 +24,8 @@
   []
   (reset! *driver* (ea/chrome)))
 
-(defn js-execute [script]
-  (ea/js-execute @*driver* script))
+(defn js-execute [driver script]
+  (ea/js-execute driver script))
 
 (defn get-url []
   (ea/get-url @*driver*))
@@ -37,42 +37,42 @@
   (when-let [url (util/ignore-exceptions (get-url))]
     (some #(str/includes? url %) #{"localhost" "sysrev"})))
 
-(defn browser-console-logs []
+(defn browser-console-logs [driver]
   (when (sysrev-url?)
-    (try (not-empty (js-execute "return sysrev.base.get_console_logs();"))
+    (try (not-empty (js-execute driver "return sysrev.base.get_console_logs();"))
          (catch Throwable _
            (log/warn "unable to read console logs")))))
 
-(defn browser-console-warnings []
+(defn browser-console-warnings [driver]
   (when (sysrev-url?)
-    (try (not-empty (js-execute "return sysrev.base.get_console_warnings();"))
+    (try (not-empty (js-execute driver "return sysrev.base.get_console_warnings();"))
          (catch Throwable _
            (log/warn "unable to read console warnings")))))
 
-(defn browser-console-errors []
+(defn browser-console-errors [driver]
   (when (sysrev-url?)
-    (try (not-empty (js-execute "return sysrev.base.get_console_errors();"))
+    (try (not-empty (js-execute driver "return sysrev.base.get_console_errors();"))
          (catch Throwable _
            (log/warn "unable to read console errors")))))
 
 (defn log-console-messages [& [level]]
   (when *driver*
     (let [level (or level :info)]
-      (if-let [logs (browser-console-logs)]
+      (if-let [logs (browser-console-logs *driver*)]
         (log/logf level "browser console logs:\n\n%s" logs)
         (log/logp level "browser console logs: (none)"))
-      (if-let [warnings (browser-console-warnings)]
+      (if-let [warnings (browser-console-warnings *driver*)]
         (log/logf level "browser console warnings:\n\n%s" warnings)
         (log/logp level "browser console warnings: (none)"))
-      (if-let [errors (browser-console-errors)]
+      (if-let [errors (browser-console-errors *driver*)]
         (log/logf level "browser console errors:\n\n%s" errors)
         (log/logp level "browser console errors: (none)")))))
 
-(defn check-browser-console-clean []
-  (when-not (and (empty? (browser-console-errors))
-                 (empty? (browser-console-warnings)))
-    (is (empty? (browser-console-errors)) "errors in browser console" )
-    (is (empty? (browser-console-warnings)) "warnings in browser console")
+(defn check-browser-console-clean [driver]
+  (when-not (and (empty? (browser-console-errors driver))
+                 (empty? (browser-console-warnings driver)))
+    (is (empty? (browser-console-errors driver)) "errors in browser console" )
+    (is (empty? (browser-console-warnings driver)) "warnings in browser console")
     (log-console-messages :warn))
   nil)
 
@@ -85,21 +85,21 @@
   (when wait (wait-exists q))
   (ea/exists? @*driver* q))
 
-(defn ajax-pending-requests []
-  (some-> (js-execute "return sysrev.loading.all_pending_requests();")
+(defn ajax-pending-requests [driver]
+  (some-> (js-execute driver "return sysrev.loading.all_pending_requests();")
           (util/read-transit-str)))
 
 (defn ajax-activity-duration
   "Query browser for duration in milliseconds that ajax requests have
   been active (positive) or inactive (negative)."
-  []
-  (js-execute "return sysrev.loading.ajax_status();"))
+  [driver]
+  (js-execute driver "return sysrev.loading.ajax_status();"))
 
 (defn ajax-inactive?
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 30)."
-  [& [duration]]
-  (< (ajax-activity-duration) (- (b/make-delay (or duration 30)))))
+  [driver & [duration]]
+  (< (ajax-activity-duration driver) (- (b/make-delay (or duration 30)))))
 
 (defn wait-loading
   [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
@@ -109,14 +109,14 @@
       (when pre-wait (Thread/sleep (b/make-delay
                                     (if (integer? pre-wait) pre-wait 25))))
       (try (test/wait-until
-            (fn [] (and (ajax-inactive? inactive-ms)
+            (fn [] (and (ajax-inactive? @*driver* inactive-ms)
                         (every? #(not (ea/exists? @*driver* {:css %}))
                                 b/loader-elements-css)))
             timeout interval)
            (catch ExceptionInfo e
-             (when-not (ajax-inactive? inactive-ms)
+             (when-not (ajax-inactive? @*driver* inactive-ms)
                (log/warnf "[wait-loading] ajax blocking =>\n%s"
-                          (try (-> (ajax-pending-requests) util/pp-str str/trim-newline)
+                          (try (-> (ajax-pending-requests @*driver*) util/pp-str str/trim-newline)
                                (catch Throwable _
                                  "<error while trying to read pending requests>"))))
              (when-let [q-blocking (seq (filterv #(ea/exists? @*driver* {:css %})
@@ -133,13 +133,13 @@
         (log/info "loading" full-url)
         (log/info "navigating to" relative-url)))
     (when-not init (wait-loading :pre-wait true))
-    (when-not init (check-browser-console-clean))
+    (when-not init (check-browser-console-clean @*driver*))
     (if init
       (ea/go @*driver* full-url)
-      (js-execute (format "sysrev.nav.set_token(\"%s\")" relative-url)))
+      (js-execute @*driver* (format "sysrev.nav.set_token(\"%s\")" relative-url)))
     (wait-exists :app)
     (wait-loading :pre-wait true)
-    (check-browser-console-clean)))
+    (check-browser-console-clean @*driver*)))
 
 (defn click [q & {:keys [if-not-exists delay timeout external?]
                   :or {if-not-exists :wait, delay 50}}]
@@ -164,7 +164,7 @@
                (wait (+ delay 200))
                (ea/click @*driver* q))))
       (wait delay)
-      (check-browser-console-clean))))
+      (check-browser-console-clean @*driver*))))
 
 (defn fill [q string & {:keys [delay clear?]
                         :or {delay 40, clear? false}}]
@@ -192,7 +192,7 @@
 
 (defn postmortem-handler
   "Based on etaoin postmortem handler, but using a different logging level"
-  [{:keys [dir dir-src dir-img dir-log date-format]}]
+  [driver {:keys [dir dir-src dir-img dir-log date-format]}]
   (let [dir     (or dir (ea/get-pwd))
         dir-img (or dir-img dir)
         dir-src (or dir-src dir)
@@ -218,26 +218,26 @@
     (clojure.java.io/make-parents path-src)
     (clojure.java.io/make-parents path-log)
 
-    (when-not (and (empty? (browser-console-errors))
-                   (empty? (browser-console-warnings)))
+    (when-not (and (empty? (browser-console-errors driver))
+                   (empty? (browser-console-warnings driver)))
       (log-console-messages :error))
 
     (log/errorf "Writing screenshot: %s" path-img)
-    (ea/screenshot @*driver* path-img)
+    (ea/screenshot driver path-img)
 
     (log/errorf "Writing HTML source: %s" path-src)
-    (spit path-src (ea/get-source @*driver*))
+    (spit path-src (ea/get-source driver))
 
-    (when (ea/supports-logs? @*driver*)
+    (when (ea/supports-logs? driver)
       (log/errorf "Writing console logs: %s" path-log)
-      (dump-logs (ea/get-logs @*driver*) path-log))))
+      (dump-logs (ea/get-logs driver) path-log))))
 
 (defmacro with-postmortem
   "Copied from etaoin, but we are using a custom postmortem-handler"
-  [opt & body]
+  [driver opts & body]
   `(try ~@body
         (catch Exception e#
-          (postmortem-handler ~opt)
+          (postmortem-handler ~driver ~opts)
           (throw e#))))
 
 (defmacro deftest-etaoin
@@ -249,11 +249,11 @@
          (util/with-print-time-elapsed ~name-str
            (log/infof "")
            (log/infof "[[ %s started ]]" ~name-str)
-           (try (with-postmortem {:dir "/tmp/sysrev/etaoin"}
+           (try (with-postmortem @*driver* {:dir "/tmp/sysrev/etaoin"}
                   (ea/with-wait-timeout 15
                     (go "/" :init true)
                     ~body
-                    (check-browser-console-clean)))
+                    (check-browser-console-clean @*driver*)))
                 (finally
                   (doseq [{user-id# :user-id} @*cleanup-users*]
                     (b/cleanup-test-user! :user-id user-id# :groups true)))))))))
