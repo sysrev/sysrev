@@ -258,15 +258,32 @@
                   (doseq [{user-id# :user-id} @*cleanup-users*]
                     (b/cleanup-test-user! :user-id user-id# :groups true)))))))))
 
+(defn run-headless? []
+  (not (System/getenv "TEST_SHOW_BROWSER")))
+
+(defmacro with-driver [[driver-sym opts] & body]
+  `(if-not (test/remote-test?)
+     (let [headless?# (run-headless?)]
+       (doseq [driver# [:chrome]]
+         (ea/with-driver driver#
+           (merge {:headless headless?# :size [1600 1000]} ~opts)
+           ~driver-sym
+           (with-postmortem ~driver-sym {:dir "/tmp/sysrev/etaoin"}
+             ~@body))))
+     (log/info "In a remote environment etaoin browser tests are not run")))
+
+(defmacro doto-with-driver [[driver-sym opts] & body]
+  `(with-driver [~driver-sym ~opts]
+     (doto ~driver-sym
+       ~@body)))
+
+#_:clj-kondo/ignore
 (defn etaoin-fixture
   "A fixture for running browser tests with etaoin. Used in tandem with deftest-etaoin."
   [f]
-  (if-not (test/remote-test?)
-    (binding [*driver* (atom (ea/chrome {:headless true
-                                         :size [1600 1000]}))]
-      (f)
-      (ea/quit @*driver*))
-    (log/info "In a remote environment etaoin browser tests are not run")))
+  (with-driver [driver]
+    (binding [*driver* (atom driver)]
+      (f))))
 
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
