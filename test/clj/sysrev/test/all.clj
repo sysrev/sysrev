@@ -22,7 +22,6 @@
             sysrev.test.browser.review-settings
             sysrev.test.browser.label-settings
             sysrev.test.browser.user-profiles
-            sysrev.test.browser.ctgov
             sysrev.test.browser.json-viewer
             sysrev.test.browser.clone
             sysrev.test.browser.blinding
