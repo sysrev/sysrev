@@ -194,56 +194,52 @@
   (resolve-dataset context node _))
 
 (defn resolve-dataset-entity [context {:keys [id]} _]
-  (let [ks (conj (current-selection-names context) :dataset-id :id)
-        ks (if (:externalId ks)
-             (-> ks (disj :externalId) (conj :external-id))
-             ks)]
+  (let [ks (conj (current-selection-names context) :dataset-id)
+        cols-all {:dataset-id :dataset-id
+                  :externalId :external-id}
+        cols-file (assoc cols-all
+                         :content :file-hash
+                         :metadata [[:raw "data->>'metadata' as metadata"]])
+        cols-json (assoc cols-all
+                         :content [[:raw "content::text"]]
+                         :externalId :external-id)]
     (with-tx-context [context context]
-      (->>
+      (->
        (if (some #{:content :mediaType :metadata} ks)
          (or
           (as-> context $
            (execute-one!
             $
-            {:select (->> (if (or (:content ks) (:metadata ks))
-                            (conj (disj ks :content :metadata)
-                                  :file-hash [[:raw "data::text"]])
-                            ks)
-                          (remove #{:mediaType}))
+            {:select (keep cols-file ks)
              :from :entity
              :where [:= :id id]
              :join [:content-file [:= :content-file.content-id :entity.content-id]]})
-           (some-> $
-                   (assoc :content (when (:content ks)
-                                     (-> (file/get-entity-content
-                                          (get-in context [:pedestal :s3])
-                                          (:content-file/file-hash $))
-                                         :Body
-                                         IOUtils/toByteArray
-                                         (->> (.encodeToString (Base64/getEncoder)))))
-                          :mediaType "application/pdf"
-                          :metadata (some-> $ :data json/parse-string
-                                            (get "metadata")))))
+           (some->
+            $
+            (assoc :content (when (:content ks)
+                              (-> (file/get-entity-content
+                                   (get-in context [:pedestal :s3])
+                                   (:content-file/file-hash $))
+                                  :Body
+                                  IOUtils/toByteArray
+                                  (->> (.encodeToString (Base64/getEncoder)))))
+                   :mediaType "application/pdf")))
           (some->
            (execute-one!
             context
-            {:select (->> (if (:content ks)
-                            (conj (disj ks :content) [[:raw "content::text"]])
-                            ks)
-                          (remove #{:mediaType}))
+            {:select (keep cols-json ks)
              :from :entity
              :where [:= :id id]
              :join [:content-json [:= :content-json.content-id :entity.content-id]]})
            (assoc :mediaType "application/json")))
-         (if (= #{:id} ks)
-           {:id id}
-           (execute-one!
-            context
-            {:select (seq ks)
-             :from :entity
-             :where [:= :id id]})))
+         (execute-one!
+          context
+          {:select (keep cols-all ks)
+           :from :entity
+           :where [:= :id id]}))
        denamespace-keys
-       (me/map-keys #(or ({:external-id :externalId} %) %))
+       (->> (me/map-keys #(or ({:external-id :externalId} %) %)))
+       (assoc :id id)
        ((fn [{:keys [dataset-id] :as entity}]
           (if (or (sysrev-dev? context)
                   (call-memo context :public-dataset? dataset-id))
