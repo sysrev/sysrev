@@ -7,8 +7,11 @@
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.user-image :as user-image]
             [sysrev.group.core :as group]
-            [sysrev.user.core :as user :refer [user-by-email]]
-            ;;[sysrev.test.browser.annotator :as annotator]
+            ;; TODO: uncomment when addressing new labels UI tests
+            [sysrev.user.core :as user :refer [
+                                               ;user-by-email
+                                               ]]
+            ;[sysrev.test.browser.annotator :as annotator]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.markdown :as markdown]
             [sysrev.test.browser.navigate :as nav]
