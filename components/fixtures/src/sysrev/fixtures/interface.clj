@@ -1,8 +1,8 @@
 (ns sysrev.fixtures.interface
   (:require [sysrev.fixtures.core :as fixtures]))
 
-(defn load-fixtures! []
-  (fixtures/load-fixtures!))
+(defn load-fixtures! [& [db]]
+  (fixtures/load-fixtures! db))
 
 (defn wrap-fixtures
   "Wrap a test function in a fixture that creates an embedded

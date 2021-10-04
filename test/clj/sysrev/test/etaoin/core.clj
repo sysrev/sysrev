@@ -5,6 +5,7 @@
             [clojure.tools.logging :as log]
             [cheshire.core :refer [generate-stream]]
             [etaoin.api :as ea]
+            [sysrev.config :refer [env]]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b]
             [sysrev.util :as util])
@@ -15,9 +16,12 @@
 (defonce ^:dynamic *driver* (atom {}))
 (defonce ^:dynamic *cleanup-users* (atom []))
 
-(defn root-url []
-  (let [{:keys [url]} (test/get-selenium-config)]
+(defn root-url [& [system]]
+  (let [{:keys [url]} (test/get-selenium-config system)]
     (subs url 0 (dec (count url)))))
+
+(defn absolute-url [system path]
+  (str (root-url system) path))
 
 (defn setup-visual-chromedriver!
   "Used to setup for testing at repl"
@@ -55,25 +59,24 @@
          (catch Throwable _
            (log/warn "unable to read console errors")))))
 
-(defn log-console-messages [& [level]]
-  (when *driver*
-    (let [level (or level :info)]
-      (if-let [logs (browser-console-logs *driver*)]
-        (log/logf level "browser console logs:\n\n%s" logs)
-        (log/logp level "browser console logs: (none)"))
-      (if-let [warnings (browser-console-warnings *driver*)]
-        (log/logf level "browser console warnings:\n\n%s" warnings)
-        (log/logp level "browser console warnings: (none)"))
-      (if-let [errors (browser-console-errors *driver*)]
-        (log/logf level "browser console errors:\n\n%s" errors)
-        (log/logp level "browser console errors: (none)")))))
+(defn log-console-messages [driver level]
+  (let [level (or level :info)]
+    (if-let [logs (browser-console-logs driver)]
+      (log/logf level "browser console logs:\n\n%s" logs)
+      (log/logp level "browser console logs: (none)"))
+    (if-let [warnings (browser-console-warnings driver)]
+      (log/logf level "browser console warnings:\n\n%s" warnings)
+      (log/logp level "browser console warnings: (none)"))
+    (if-let [errors (browser-console-errors driver)]
+      (log/logf level "browser console errors:\n\n%s" errors)
+      (log/logp level "browser console errors: (none)"))))
 
 (defn check-browser-console-clean [driver]
+  (is (empty? (browser-console-errors driver)) "errors in browser console" )
+  (is (empty? (browser-console-warnings driver)) "warnings in browser console")
   (when-not (and (empty? (browser-console-errors driver))
                  (empty? (browser-console-warnings driver)))
-    (is (empty? (browser-console-errors driver)) "errors in browser console" )
-    (is (empty? (browser-console-warnings driver)) "warnings in browser console")
-    (log-console-messages :warn))
+    (log-console-messages driver :warn))
   nil)
 
 (defn wait-exists [q & [timeout interval]]
@@ -201,9 +204,9 @@
         file-tpl "%s-%s-%s-%s.%s"
 
         date-format (or date-format "yyyy-MM-dd-HH-mm-ss")
-        params      [(-> @*driver* :type name)
-                     (-> @*driver* :host)
-                     (-> @*driver* :port)
+        params      [(-> driver :type name)
+                     (-> driver :host)
+                     (-> driver :port)
                      (ea/format-date (Date.) date-format)]
 
         file-img (apply format file-tpl (conj params "png"))
@@ -220,7 +223,7 @@
 
     (when-not (and (empty? (browser-console-errors driver))
                    (empty? (browser-console-warnings driver)))
-      (log-console-messages :error))
+      (log-console-messages driver :error))
 
     (log/errorf "Writing screenshot: %s" path-img)
     (ea/screenshot driver path-img)
@@ -259,23 +262,28 @@
                     (b/cleanup-test-user! :user-id user-id# :groups true)))))))))
 
 (defn run-headless? []
-  (not (System/getenv "TEST_SHOW_BROWSER")))
+  (not (:test-browser-show env)))
 
 (defmacro with-driver [[driver-sym opts] & body]
   `(if-not (test/remote-test?)
      (let [headless?# (run-headless?)]
-       (doseq [driver# [:chrome]]
-         (ea/with-driver driver#
+       (doseq [driver-type# [:chrome]]
+         (ea/with-driver driver-type#
            (merge {:headless headless?# :size [1600 1000]} ~opts)
-           ~driver-sym
-           (with-postmortem ~driver-sym {:dir "/tmp/sysrev/etaoin"}
-             ~@body))))
+           driver#
+           (with-postmortem driver# {:dir "/tmp/sysrev/etaoin"}
+             (let [~driver-sym driver#
+                   result# ~@body]
+               (check-browser-console-clean driver#)
+               result#)))))
      (log/info "In a remote environment etaoin browser tests are not run")))
 
-(defmacro doto-with-driver [[driver-sym opts] & body]
-  `(with-driver [~driver-sym ~opts]
-     (doto ~driver-sym
-       ~@body)))
+(defmacro with-test-resources [[bindings opts] & body]
+  `(let [opts# ~opts]
+     (test/with-test-system [system# (:system opts#)]
+       (with-driver [driver# (:driver opts#)]
+         (let [~bindings {:driver driver# :system system#}]
+           ~@body)))))
 
 #_:clj-kondo/ignore
 (defn etaoin-fixture
