@@ -84,7 +84,7 @@
                         {:filters (:filters state)
                          :search (:current-search-term state)})]]]})))
 
-(def-action :project/import-trials-from-search
+(def-action :project/import-fda-drugs-docs-search
   :uri (fn [] "/api/import-trials/fda-drugs-docs")
   :content (fn [project-id query entity-ids]
              {:entity-ids entity-ids
@@ -165,7 +165,7 @@
   (let [query @(subscribe [::current-query])
         search-results @(subscribe [:fda-drugs-docs/query-result query])]
     [:div.ui.fluid.left.labeled.button.search-results
-     {:on-click #(do (dispatch [:action [:project/import-trials-from-search
+     {:on-click #(do (dispatch [:action [:project/import-fda-drugs-docs-search
                                          @(subscribe [:active-project-id])
                                          query search-results]])
                      (dispatch [(keyword 'sysrev.views.panels.project.add-articles
