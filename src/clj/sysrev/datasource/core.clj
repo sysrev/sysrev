@@ -64,6 +64,8 @@
                  nil)
     "json" (condp = article-subtype
              "ctgov" "ctgov")
+    "pdf" (condp = article-subtype
+             "fda-drugs-docs" "fda-drugs-docs")
     "datasource" "entity"
     nil))
 
