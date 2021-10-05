@@ -88,7 +88,8 @@
             (recur acc))
           "error"
           (throw (ex-info (str "Error in GraphQL subscription: " (:message payload))
-                          {:error payload})))))))
+                          {:error payload}))
+          "ka" (recur acc))))))
 
 (defn search-dataset [input return & {:keys [auth-token endpoint]}]
   (mapv
