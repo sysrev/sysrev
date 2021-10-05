@@ -7,7 +7,9 @@
             [com.walmartlabs.lacinia.parser :as parser]
             [com.walmartlabs.lacinia.selection :as selection]
             [datapub.main :as main]
-            [io.pedestal.test :as test]))
+            [io.pedestal.test :as test])
+  (:import (java.util Base64)
+           (org.apache.commons.io IOUtils)))
 
 (def create-dataset
   "mutation($input: CreateDatasetInput!){createDataset(input: $input){id}}")
@@ -139,3 +141,47 @@
          :path path
          :type (name type)})))
     ds-id))
+
+(def fda-drugs-docs-indices
+  [[:TEXT (pr-str ["text"])]])
+
+(defn load-fda-drugs-docs-dataset! [system]
+  (let [ds-id (-> system
+                  (execute
+                   create-dataset
+                   {:input
+                    {:name "Drugs@FDA Application Documents"
+                     :public true}})
+                  :body
+                  throw-errors
+                  (get-in [:data :createDataset :id]))]
+    (doseq [{:keys [filename metadata]}
+            #__ (-> "datapub/fda-drugs-docs-entities.edn"
+                    io/resource
+                    slurp
+                    edn/read-string)]
+      (throw-errors
+       (execute
+        system create-dataset-entity
+        {:content (->> (str "datapub/file-uploads/" filename)
+                       io/resource
+                       .openStream
+                       IOUtils/toByteArray
+                       (.encodeToString (Base64/getEncoder)))
+         :datasetId ds-id
+         :externalId filename
+         :mediaType "application/pdf"
+         :metadata (json/generate-string metadata)})))
+    (doseq [[type path] fda-drugs-docs-indices]
+      (throw-errors
+       (execute
+        system create-dataset-index
+        {:datasetId ds-id
+         :path path
+         :type (name type)})))
+    ds-id))
+
+(defn load-all-fixtures! [system]
+  (load-ctgov-dataset! system)
+  (load-fda-drugs-docs-dataset! system)
+  nil)

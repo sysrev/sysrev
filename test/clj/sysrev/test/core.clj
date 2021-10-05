@@ -37,11 +37,12 @@
   (and (not= "sysrev.com" (:host @raw-selenium-config))
        (not= 5470 (-> env :postgres :port))))
 
-(defn get-selenium-config []
+(defn get-selenium-config [& [system]]
   (let [{:keys [protocol host port] :as config}
         (or @raw-selenium-config {:protocol "http"
                                   :host "localhost"
-                                  :port (-> @*test-system* :web-server :bound-port)})]
+                                  :port (-> (or system @*test-system*)
+                                            :web-server :bound-port)})]
     (assoc config
            :url (str protocol "://" host (if port (str ":" port) "") "/")
            :safe (db-connected?))))

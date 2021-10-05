@@ -39,8 +39,8 @@
     (throw (RuntimeException.
             "Not allowed to load fixtures on production server."))))
 
-(defn load-fixtures! []
-  (let [db @db/*active-db*]
+(defn load-fixtures! [& [db]]
+  (let [db (or db @db/*active-db*)]
     (ensure-test-db! (:config db))
     (doseq [[table records] (get-fixtures)]
       (db/execute!

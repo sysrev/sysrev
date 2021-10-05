@@ -1,0 +1,225 @@
+[{:filename "armstrong-thesis-2003-abstract.pdf"}
+ {:filename "ctgov-Prot_SAP_000.pdf"}
+ {:filename "fda-008372Orig1s044ltr.pdf"
+  :metadata
+  {:ApplType "NDA"
+   :ApplicationDocsDate "2015-03-25 00:00:00"
+   :SponsorName "MALLINCKRODT ARD"
+   :ApplicationDocsDescription "Letter"
+   :ApplNo "008372"
+   :ApplPublicNotes ""
+   :Submissions
+   [{:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2015-03-24 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "ORIG"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1952-04-29 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "TYPE 5"
+      :Description "Type 5 - New Formulation or New Manufacturer"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1977-06-01 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1977-10-05 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1978-03-14 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1979-06-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1979-06-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1979-06-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1979-06-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1981-03-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1983-08-24 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1984-08-29 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1985-01-15 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1985-03-25 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1992-04-22 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority ""
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1993-03-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1994-04-05 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1998-12-15 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1999-07-15 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2002-11-06 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2012-07-05 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "N/A"
+     :SubmissionClass {:Code "REMS" :Description "REMS"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2014-01-17 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2016-03-04 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2016-03-11 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2016-03-14 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2016-04-19 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "MANUF (CMC)" :Description "Manufacturing (CMC)"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2017-07-31 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2018-04-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2019-03-26 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}
+    {:SubmissionType "SUPPL"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "2021-03-02 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass {:Code "LABELING" :Description "Labeling"}}]
+   :ApplicationDocsTitle "0"
+   :Products
+   [{:ProductNo "006"
+     :Form "INJECTABLE;INJECTION"
+     :Strength "40 UNITS/ML"
+     :ReferenceDrug "0"
+     :DrugName "H.P. ACTHAR GEL"
+     :ActiveIngredient "CORTICOTROPIN"
+     :ReferenceStandard "0"
+     :MarketingStatus [{:Description "Discontinued" :TECodes nil}]}
+    {:ProductNo "008"
+     :Form "INJECTABLE;INJECTION"
+     :Strength "80 UNITS/ML"
+     :ReferenceDrug "1"
+     :DrugName "H.P. ACTHAR GEL"
+     :ActiveIngredient "CORTICOTROPIN"
+     :ReferenceStandard "1"
+     :MarketingStatus [{:Description "Prescription" :TECodes nil}]}]}}]

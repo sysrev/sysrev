@@ -171,7 +171,8 @@
 (defn- ArticleInfoMain [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
-      (let [authors @(subscribe [:article/authors article-id])
+      (let [{:keys [external-id]} @(subscribe [:article/raw article-id])
+            authors @(subscribe [:article/authors article-id])
             journal-name @(subscribe [:article/journal-name article-id])
             title @(subscribe [:article/title article-id])
             title-render @(subscribe [:article/title-render article-id])
@@ -220,6 +221,10 @@
                 [ArticleAnnotatedField article-id "primary-title" title
                  :reader-error-render [render-title-keywords]]
                 [render-title-keywords])))]
+         ;; render external link
+         (when (str/starts-with? "http" external-id)
+           [:a {:href external-id :target "_blank"}
+            [:i.icon.share] external-id])
          ;; render keywords
          (when-not (or pdf-only? (empty? journal-name))
            [:h3.header {:style {:margin-top "0px"}}

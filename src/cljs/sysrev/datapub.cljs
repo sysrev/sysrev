@@ -30,12 +30,18 @@
   :uri #(deref api-endpoint)
   :content-type "application/json"
   :content (fn [entity-id]
-             {:query (dataset-entity "content externalId mediaType")
+             {:query (dataset-entity "content externalId mediaType metadata")
               :variables {:id entity-id}})
   :process (fn [{:keys [db]} [entity-id] _ result]
-             {:db (assoc-in db [:data :datapub :entities entity-id]
-                            (-> result :data :datasetEntity
-                                (update :content (comp js->clj js/JSON.parse))))}))
+             (let [{:keys [mediaType metadata] :as entity} (-> result :data :datasetEntity)
+                   mediaType (str/lower-case mediaType)
+                   entity (if (not= "application/json" mediaType)
+                            entity
+                            (update entity :content (comp js->clj js/JSON.parse)))
+                   entity (if-not metadata
+                            entity
+                            (update entity :metadata (comp js->clj js/JSON.parse)))]
+               {:db (assoc-in db [:data :datapub :entities entity-id] entity)})))
 
 (reg-sub :datapub/entity
          (fn [db [_ entity-id]]

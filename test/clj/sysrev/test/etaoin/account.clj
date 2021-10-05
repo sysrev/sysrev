@@ -39,18 +39,27 @@
     (e/click :log-out-link, :if-not-exists :skip)
     (e/wait-loading :pre-wait true)))
 
-(defn log-in [{:keys [email password]}]
-  (log/info "logging in" (str "(" email ")"))
-  (e/go "/" :silent true)
-  (log-out :silent true)
-  (e/click :log-in-link)
-  (e/wait-exists :login-email-input)
-  (ea/fill-multi @*driver* {:login-email-input email
-                            :login-password-input password})
-  (e/click {:css "button[name='submit']"})
-  (e/wait-loading :pre-wait 40 :loop 2)
-  (e/go "/" :silent true)
-  (e/wait-loading :pre-wait 40 :loop 2))
+(defn log-in
+  ([{:keys [email password]}]
+   (log/info "logging in" (str "(" email ")"))
+   (e/go "/" :silent true)
+   (log-out :silent true)
+   (e/click :log-in-link)
+   (e/wait-exists :login-email-input)
+   (ea/fill-multi @*driver* {:login-email-input email
+                             :login-password-input password})
+   (e/click {:css "button[name='submit']"})
+   (e/wait-loading :pre-wait 40 :loop 2)
+   (e/go "/" :silent true)
+   (e/wait-loading :pre-wait 40 :loop 2))
+  ([{:keys [driver system]} {:keys [email password]}]
+   (log/info "logging in" (str "(" email ")"))
+   (doto driver
+     (ea/go (e/absolute-url system "/login"))
+     (ea/wait-exists :login-email-input)
+     (ea/fill-multi {:login-email-input email
+                     :login-password-input password})
+     (ea/click-visible {:css "button[name='submit']"}))))
 
 (defn get-stripe-iframe-names []
   (mapv #(ea/get-element-attr-el @*driver* % :name)

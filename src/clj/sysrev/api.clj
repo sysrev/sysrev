@@ -290,6 +290,13 @@
                    {:entity-ids entity-ids
                     :query query}))
 
+(defn import-trials-from-fda-drugs-docs
+  "Import trials resulting from Drugs@FDA search"
+  [project-id query entity-ids & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-fda-drugs-docs-search project-id % options)
+                   {:entity-ids entity-ids
+                    :query query}))
+
 (s/def ::sources vector?)
 
 (defn-spec project-sources (req-un ::sources)
@@ -892,9 +899,15 @@
   files associated with article-id"
   [article-id]
   (let [pmcid-s3-id (some-> article-id article/article-pmcid article-file/pmcid->s3-id)]
-    {:success true, :files (->> (article-file/get-article-file-maps article-id)
-                                (mapv #(assoc % :open-access?
-                                              (= (:s3-id %) pmcid-s3-id))))}))
+    {:success true
+     :files (->> (article-file/get-article-file-maps article-id)
+                 (mapv #(assoc % :open-access?
+                               (= (:s3-id %) pmcid-s3-id)))
+                 (concat
+                  (q/find [:s3store :s3]
+          {:s3.s3-id (q/find [:article-pdf :apdf] {:apdf.article-id article-id}
+                             :apdf.s3-id, :return :query)}
+          [:s3.s3-id :s3.key :s3.filename])))}))
 
 
 (defn project-article-pdfs-zip
