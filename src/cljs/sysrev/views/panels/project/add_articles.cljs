@@ -640,37 +640,40 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
     [:div#import-articles {:style {:margin-bottom "1em"}}
      [:div
       [:h3 "1. Select a document source"]
-      [DatasourceIconList [{:value :pdfs
-                            :text "PDF files"
-                            :name "file pdf outline"}
-                           {:value :pdf-zip
-                            :text "PDF.zip"
-                            :name "file archive outline"}
-                           {:text "PubMed"
-                            :value :pubmed
-                            :name "search"}
-                           {:value :pmid
-                            :text "PMID file"
-                            :name "file outline"}
-                           {:value :ris-file
-                            :text "RIS / RefMan"
-                            :name "file alternate outline"}
-                           {:value :endnote
-                            :text "EndNote XML"
-                            :name "file code outline"}
-                           {:value :ctgov
-                            :text "ClinicalTrials (beta)"
-                            :name "hospital outline"}
-                           (when beta-access?
-                             {:value :fda-drugs-docs
-                              :text "Drugs@FDA Documents (beta)"
-                              :name "at"})
-                           {:value :json
-                            :text "JSON file"
-                            :name "file outline"}
-                           {:value :custom
-                            :text "Custom Datasource"
-                            :name "database"}]]
+      [DatasourceIconList
+       (filter
+        seq
+        [{:value :pdfs
+          :text "PDF files"
+          :name "file pdf outline"}
+         {:value :pdf-zip
+          :text "PDF.zip"
+          :name "file archive outline"}
+         {:text "PubMed"
+          :value :pubmed
+          :name "search"}
+         {:value :pmid
+          :text "PMID file"
+          :name "file outline"}
+         {:value :ris-file
+          :text "RIS / RefMan"
+          :name "file alternate outline"}
+         {:value :endnote
+          :text "EndNote XML"
+          :name "file code outline"}
+         {:value :ctgov
+          :text "ClinicalTrials (beta)"
+          :name "hospital outline"}
+         (when beta-access?
+           {:value :fda-drugs-docs
+            :text "Drugs@FDA Documents (beta)"
+            :name "at"})
+         {:value :json
+          :text "JSON file"
+          :name "file outline"}
+         {:value :custom
+          :text "Custom Datasource"
+          :name "database"}])]
       (when @active-tab
         (condp =  @active-tab
           :pubmed    [:div [:h3 "2. Search pubmed to review medical abstracts"] [pubmed/SearchBar]]
