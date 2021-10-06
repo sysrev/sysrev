@@ -1,5 +1,6 @@
 (ns sysrev.source.fda-drugs-docs
-  (:require [clojure.spec.alpha :as s]
+  (:require [cheshire.core :as json]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [honeysql.helpers :as sqlh :refer [select from where join]]
             [orchestra.core :refer [defn-spec]]
@@ -11,13 +12,25 @@
             [sysrev.source.interface :refer [after-source-import import-source
                                              import-source-articles import-source-impl]]))
 
+(defn title [{:keys [ApplicationDocsDescription ApplType Products SponsorName]}]
+  (str/join
+   " — "
+   [ApplType ApplicationDocsDescription SponsorName
+    (str/join
+     ", "
+     (distinct
+      (map #(str (:DrugName %) " / " (:ActiveIngredient %)) Products)))]))
+
 (defn-spec get-entities (s/coll-of map?)
   [endpoint string?, ids (s/coll-of nat-int?)]
   (map
    (fn [id]
-     (let [entity (datapub/get-dataset-entity id "externalId" :endpoint endpoint)]
+     (let [entity (datapub/get-dataset-entity id "externalId metadata" :endpoint endpoint)]
        {:external-id (:externalId entity)
-        :primary-title (some-> entity :externalId (str/split #"/") last)}))
+        :primary-title (some-> entity
+                               :metadata
+                               (json/parse-string keyword)
+                               title)}))
    ids))
 
 (defmethod make-source-meta :fda-drugs-docs
