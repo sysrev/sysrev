@@ -442,35 +442,41 @@
   [context {:as args :keys [content metadata]} _]
   (ensure-sysrev-dev
    context
-   (let [pdf (try
-                (.decode (Base64/getDecoder) content)
+   (let [json (try
+                (when metadata (json/parse-string metadata))
                 (catch Exception e))]
-     (if (empty? pdf)
-       (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
-                                :content content})
-       (let [file-hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
-         ;; We put the file before parsing to minimize memory usage,
-         ;; since we can let go of the pdf byte array earlier.
-         (file/put-entity-content! (get-in context [:pedestal :s3])
-                                   {:content pdf :file-hash file-hash})
-         (let [text (pdf-text pdf (get-in context [:pedestal :config :tesseract]))]
-           (if (= :invalid-pdf text)
-             (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."
-                                      :content content})
-             (let [data (->> (assoc text :metadata metadata)
-                             (me/remove-vals nil?))
-                   content-hash (-> {:data data
-                                     :file-hash
-                                     (.encode (Base64/getEncoder) file-hash)}
-                                    hasch/edn-hash
-                                    byte-array)]
-               (with-tx-context [context context]
-                 (create-entity-helper!
-                  context args
-                  {:content-hash content-hash
-                   :content-table :content-file
-                   :data data
-                   :file-hash file-hash}))))))))))
+     (if (and metadata (empty? json))
+       (resolve/resolve-as nil {:message "Invalid metadata: Not valid JSON."
+                                :metadata metadata})
+       (let [pdf (try
+                   (.decode (Base64/getDecoder) content)
+                   (catch Exception e))]
+         (if (empty? pdf)
+           (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
+                                    :content content})
+           (let [file-hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
+             ;; We put the file before parsing to minimize memory usage,
+             ;; since we can let go of the pdf byte array earlier.
+             (file/put-entity-content! (get-in context [:pedestal :s3])
+                                       {:content pdf :file-hash file-hash})
+             (let [text (pdf-text pdf (get-in context [:pedestal :config :tesseract]))]
+               (if (= :invalid-pdf text)
+                 (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."
+                                          :content content})
+                 (let [data (->> (assoc text :metadata json)
+                                 (me/remove-vals nil?))
+                       content-hash (-> {:data data
+                                         :file-hash
+                                         (.encode (Base64/getEncoder) file-hash)}
+                                        hasch/edn-hash
+                                        byte-array)]
+                   (with-tx-context [context context]
+                     (create-entity-helper!
+                      context args
+                      {:content-hash content-hash
+                       :content-table :content-file
+                       :data data
+                       :file-hash file-hash}))))))))))))
 
 (defn dataset-entities-subscription [context {:keys [datasetId uniqueExternalIds]} source-stream]
   (ensure-sysrev-dev

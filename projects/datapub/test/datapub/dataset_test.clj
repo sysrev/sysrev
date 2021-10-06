@@ -369,12 +369,24 @@
         (is (= "Invalid content: Not a valid PDF file."
                (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
                    (get-in [:response :errors 0 :message])))))
+      (testing "Invalid metadata is rejected"
+        (is (= "Invalid metadata: Not valid JSON."
+               (-> (ex test/create-dataset-entity
+                       {:datasetId ds-id
+                        :content (:content armstrong)
+                        :externalId "armstrong-thesis-2003-abstract.pdf"
+                        :mediaType "application/pdf"
+                        :metadata "{"})
+                   (get-in [:errors 0 :message])))))
       (let [ocr-text {:datasetId ds-id
                       :path (pr-str ["ocr-text"])
                       :type :TEXT}
             text {:datasetId ds-id
                   :path (pr-str ["text"])
                   :type :TEXT}
+            title {:datasetId ds-id
+                   :path (pr-str ["metadata" "title"])
+                   :type :TEXT}
             search-q (fn [idx search]
                        {:input
                         {:datasetId ds-id
@@ -391,10 +403,13 @@
                               {:timeout-ms 1000})
                              (map (fn [m] (select-keys m #{:externalId})))
                              (into #{})))]
-        (test/throw-errors
-         (ex test/create-dataset-index ocr-text))
-        (test/throw-errors
-         (ex test/create-dataset-index text))
+        (doseq [idx [ocr-text text title]]
+          (test/throw-errors
+           (ex test/create-dataset-index idx)))
+        (testing "Can search PDFs based on metadata"
+          (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}}
+                 (ex-search (search-q title "\"Armstrong Thesis Abstract\""))))
+          "Armstrong Thesis Abstract")
         (testing "Can search PDFs based on their text content"
           (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}
                    {:externalId "ctgov-Prot_SAP_000.pdf"}}
