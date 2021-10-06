@@ -222,7 +222,7 @@
                  :reader-error-render [render-title-keywords]]
                 [render-title-keywords])))]
          ;; render external link
-         (when (str/starts-with? external-id "http")
+         (when (and external-id (str/starts-with? external-id "http"))
            [:a {:href external-id :target "_blank"}
             [:i.icon.share] external-id])
          ;; render keywords
