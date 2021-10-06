@@ -105,12 +105,12 @@
          (component/stop system#)))))
 
 (def ctgov-indices
-  [[:TEXT (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])]
-   [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])]
-   [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "DetailedDescription"])]
-   [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "BriefTitle"])]
-   [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "OfficialTitle"])]
-   [:TEXT (pr-str ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"])]])
+  [[:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
+   [:TEXT ["ProtocolSection" "DescriptionModule" "BriefSummary"]]
+   [:TEXT ["ProtocolSection" "DescriptionModule" "DetailedDescription"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "BriefTitle"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]
+   [:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]])
 
 (defn load-ctgov-dataset! [system]
   (let [ds-id (-> system
@@ -138,12 +138,12 @@
        (execute
         system create-dataset-index
         {:datasetId ds-id
-         :path path
+         :path (pr-str path)
          :type (name type)})))
     ds-id))
 
 (def fda-drugs-docs-indices
-  [[:TEXT (pr-str ["text"])]])
+  [[:TEXT ["text"]]])
 
 (defn load-fda-drugs-docs-dataset! [system]
   (let [ds-id (-> system
@@ -177,7 +177,7 @@
        (execute
         system create-dataset-index
         {:datasetId ds-id
-         :path path
+         :path (pr-str path)
          :type (name type)})))
     ds-id))
 
