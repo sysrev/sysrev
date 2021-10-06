@@ -8,6 +8,7 @@
             [sysrev.datapub :as datapub]
             [sysrev.macros :refer-macros [setup-panel-state]]
             [sysrev.shared.fda-drugs-docs :as fda-drugs-docs]
+            [sysrev.views.components.core :as comp]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :as S :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.util :as util :refer [wrap-prevent-default]]))
@@ -269,4 +270,8 @@
 
 (defn SearchFilters []
   [:<>
-   ])
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :application-type])
+     :label "Application Type"
+     :on-change #(dispatch [::fetch-results])
+     :options fda-drugs-docs/application-type-options}]])

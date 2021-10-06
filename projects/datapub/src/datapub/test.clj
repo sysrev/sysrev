@@ -143,7 +143,8 @@
     ds-id))
 
 (def fda-drugs-docs-indices
-  [[:TEXT ["text"]]])
+  [[:TEXT ["text"]]
+   [:TEXT ["metadata" "ApplType"]]])
 
 (defn load-fda-drugs-docs-dataset! [system]
   (let [ds-id (-> system
