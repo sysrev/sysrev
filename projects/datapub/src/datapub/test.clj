@@ -155,7 +155,7 @@
                   :body
                   throw-errors
                   (get-in [:data :createDataset :id]))]
-    (doseq [{:keys [filename metadata]}
+    (doseq [{:keys [external-id filename metadata]}
             #__ (-> "datapub/fda-drugs-docs-entities.edn"
                     io/resource
                     slurp
@@ -169,7 +169,7 @@
                        IOUtils/toByteArray
                        (.encodeToString (Base64/getEncoder)))
          :datasetId ds-id
-         :externalId filename
+         :externalId external-id
          :mediaType "application/pdf"
          :metadata (json/generate-string metadata)})))
     (doseq [[type path] fda-drugs-docs-indices]
