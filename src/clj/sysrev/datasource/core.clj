@@ -44,6 +44,7 @@
 (defn project-source-meta->article-type [meta]
   (condp = (:source meta)
     "Datasource API"   ["datasource" "entity"]
+    "Drugs@FDA Application Documents search" ["pdf" "fda-drugs-docs"]
     "RIS file"         ["academic"  "RIS"]
     "CT.gov search"    ["json" "ctgov"]
     "PubMed search"    ["academic"  "pubmed"]
