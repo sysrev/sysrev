@@ -1,31 +1,27 @@
 (ns sysrev.sqlite.interface
-  (:require [com.stuartsierra.component :as component]
-            [honey.sql :as sql]
-            [next.jdbc :as jdbc]
-            [next.jdbc.result-set :as result-set]))
+  (:require [sysrev.sqlite.core :as core]))
 
-(defrecord SQLite [datasource db-spec]
-  component/Lifecycle
-  (start [this]
-    (if datasource
-      this
-      (assoc this :datasource (jdbc/get-datasource db-spec))))
-  (stop [this]
-    (if datasource
-      (assoc this :datasource nil)
-      this)))
+(defn execute!
+  "Returns the result of `next.jdbc/execute!` on the connectable and
+  the result of (`honey.sql/format` sqlmap)."
+  [connectable sqlmap]
+  (core/execute! connectable sqlmap))
 
-(defn sqlite [dbname]
-  (map->SQLite {:db-spec {:dbname dbname :dbtype "sqlite"}}))
+(defn execute-one!
+  "Returns the result of `next.jdbc/execute!` on the connectable and
+  the result of (`honey.sql/format` sqlmap)."
+  [connectable sqlmap]
+  (core/execute-one! connectable sqlmap))
 
-(def jdbc-opts
-  {:builder-fn result-set/as-kebab-maps})
+(defn plan
+  "Returns the result of `next.jdbc/plan` on the connectable and
+  the result of (`honey.sql/format` sqlmap)."
+  [connectable sqlmap]
+  (core/plan connectable sqlmap))
 
-(defn execute! [connectable sqlmap]
-  (jdbc/execute! connectable (sql/format sqlmap) jdbc-opts))
-
-(defn execute-one! [connectable sqlmap]
-  (jdbc/execute-one! connectable (sql/format sqlmap) jdbc-opts))
-
-(defn plan [connectable sqlmap]
-  (jdbc/plan connectable (sql/format sqlmap) jdbc-opts))
+(defn sqlite
+  "Returns a record implementing `com.stuartsierra.component/Lifecycle`
+  which contains a `next.jdbc` :datasource for a SQLite database at
+  filename. The file will be created if it does not exist."
+  [filename]
+  (sqlite filename))
