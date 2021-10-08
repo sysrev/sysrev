@@ -60,6 +60,14 @@
   (cond (map? map-or-seq) (me/map-keys (comp keyword name) map-or-seq)
         (sequential? map-or-seq) (map denamespace-keys map-or-seq)))
 
+(defn remap-keys
+  "Removes namespaces from keys and remaps the keys by key-f."
+  [key-f map-or-seq]
+  (cond (map? map-or-seq) (->> map-or-seq
+                               denamespace-keys
+                               (me/map-keys key-f))
+        (sequential? map-or-seq) (map (partial remap-keys key-f) map-or-seq)))
+
 (defn public-dataset? [context id]
   (-> context
       (execute-one! {:select :* :from :dataset :where [:= :id id]})
@@ -85,6 +93,28 @@
                ~name-sym (assoc context# :memos (context-memos context#))]
            ~@body)))))
 
+(let [cols {:created :created
+            :description :description
+            :externalIdSortPath :external-id-sort-path
+            :name :name
+            :public :public}
+      inv-cols (me/map-kv (fn [k v] [v k]) cols)]
+  (defn resolve-dataset [context {:keys [id]} _]
+    (with-tx-context [context context]
+      (when-not (public-dataset? context id)
+        (ensure-sysrev-dev context))
+      (let [ks (conj (current-selection-names context) :id)
+            select (keep cols ks)]
+        (-> (when (seq select)
+              (remap-keys
+               inv-cols
+               (execute-one!
+                context
+                {:select select
+                 :from :dataset
+                 :where [:= :id id]})))
+            (assoc :id id))))))
+
 (defn create-dataset! [context {:keys [input]} _]
   (ensure-sysrev-dev
    context
@@ -96,19 +126,6 @@
         :values [input]
         :returning (-> context current-selection-names (conj :id) seq)})))))
 
-(defn resolve-dataset [context {:keys [id]} _]
-  (with-tx-context [context context]
-    (when-not (public-dataset? context id)
-      (ensure-sysrev-dev context))
-    (let [ks (conj (current-selection-names context) :id)]
-      (if (#{#{:id :entities} #{:id :indices}} ks)
-        {:id id}
-        (denamespace-keys
-         (execute-one!
-          context
-          {:select (seq (disj ks :entities :indices))
-           :from :dataset
-           :where [:= :id id]}))))))
 
 (defn internal-path-vec
   "Returns a path vector with the :* keyword replaced with the string
@@ -237,8 +254,7 @@
           {:select (keep cols-all ks)
            :from :entity
            :where [:= :id id]}))
-       denamespace-keys
-       (->> (me/map-keys #(or ({:external-id :externalId} %) %)))
+       (->> (remap-keys #(or ({:external-id :externalId} %) %)))
        (assoc :id id)
        ((fn [{:keys [dataset-id] :as entity}]
           (if (or (sysrev-dev? context)
