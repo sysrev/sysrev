@@ -113,18 +113,31 @@
                 {:select select
                  :from :dataset
                  :where [:= :id id]})))
-            (assoc :id id))))))
+            (assoc :id id)))))
 
-(defn create-dataset! [context {:keys [input]} _]
+  (defn create-dataset! [context {:keys [input]} _]
+    (ensure-sysrev-dev
+     context
+     (with-tx-context [context context]
+       (let [{:dataset/keys [id]}
+             #__ (execute-one!
+                  context
+                  {:insert-into :dataset
+                   :values [(me/map-keys cols input)]
+                   :returning :id})]
+         (when id
+           (resolve-dataset context {:id id} nil)))))))
   (ensure-sysrev-dev
    context
    (with-tx-context [context context]
-     (denamespace-keys
-      (execute-one!
-       context
-       {:insert-into :dataset
-        :values [input]
-        :returning (-> context current-selection-names (conj :id) seq)})))))
+     (let [{:dataset/keys [id]}
+           #__ (execute-one!
+                context
+                {:insert-into :dataset
+                 :values [input]
+                 :returning :id})]
+       (when id
+         (resolve-dataset context {:id id} nil))))))
 
 
 (defn internal-path-vec
