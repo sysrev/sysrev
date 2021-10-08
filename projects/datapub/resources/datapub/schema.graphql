@@ -31,6 +31,9 @@ type Dataset {
     first: NonNegativeInt
   ): DatasetEntitiesConnection!
 
+  "The path in each entity used to determine sort order when there are multiple entities with the same externalId."
+  externalIdSortPath: String
+
   "The indices on the DatasetEntity objects of this Dataset."
   indices: [DatasetIndex]
 
@@ -96,6 +99,7 @@ type PageInfo {
 }
 
 input CreateDatasetInput {
+  externalIdSortPath: String
   description: String
   name: String!
   public: Boolean
@@ -127,6 +131,14 @@ input SearchDatasetQueryTextInput {
   useEveryIndex: Boolean
 }
 
+input UpdateDatasetInput {
+  description: String
+  externalIdSortPath: String
+  id: PositiveInt!
+  name: String
+  public: Boolean
+}
+
 type Query {
   dataset(id: PositiveInt!) : Dataset
   datasetEntity(id: PositiveInt!) : DatasetEntity
@@ -140,6 +152,7 @@ type Mutation {
   createDataset(input: CreateDatasetInput!) : Dataset
   createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!, metadata: String) : DatasetEntity
   createDatasetIndex(datasetId: PositiveInt!, path: String!, type: DatasetIndexType!) : DatasetIndex
+  updateDataset(input: UpdateDatasetInput!) : Dataset
 }
 
 type Subscription {

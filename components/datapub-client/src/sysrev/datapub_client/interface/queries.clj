@@ -1,6 +1,13 @@
 (ns sysrev.datapub-client.interface.queries
   (:require [sysrev.datapub-client.queries :as q]))
 
+(defn q-dataset
+  "Returns the string representation of a dataset query.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (q/q-dataset return))
+
 (defn m-update-dataset
   "Returns the string representation of an updateDataset mutation.
 

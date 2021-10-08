@@ -1,7 +1,8 @@
 (ns datapub.dataset-test
   (:require [cheshire.core :as json]
             [clojure.java.io :as io]
-            [datapub.test :as test])
+            [datapub.test :as test]
+            [sysrev.datapub-client.interface.queries :as dpcq])
   (:import (java.util Base64)
            (org.apache.commons.io IOUtils))
   (:use clojure.test
@@ -20,18 +21,28 @@
 (deftest test-dataset-ops
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
-               (:body (test/execute system query variables)))
+               (test/throw-errors
+                (:body (test/execute system query variables))))
           ds-id (-> (ex test/create-dataset {:input {:name "test-dataset"}})
-                    test/throw-errors
                     (get-in [:data :createDataset :id]))]
       (is (integer? ds-id))
-      (is (= {:data {:dataset {:name "test-dataset"}}}
-             (ex "query Q($id: PositiveInt){dataset(id: $id){name}}"
+      (is (= {:data {:dataset {:name "test-dataset" :public false}}}
+             (ex (dpcq/q-dataset [:name :public])
                  {:id ds-id})))
       (is (= {:data {:listDatasets
                      {:edges [{:node {:name "test-dataset"}}]
                       :totalCount 1}}}
-             (ex "{listDatasets{totalCount edges{node{name}}}}"))))))
+             (ex "{listDatasets{totalCount edges{node{name}}}}")))
+      (testing "updateDataset works"
+        (is (= {:externalIdSortPath (pr-str ["metadata" "date"])
+                :id ds-id
+                :public true}
+             (-> (ex (dpcq/m-update-dataset [:externalIdSortPath :id :public])
+                     {:input {:externalIdSortPath
+                              (pr-str ["metadata" "date"])
+                              :id ds-id
+                              :public true}})
+                 (get-in [:data :updateDataset]))))))))
 
 (deftest test-entity-ops
   (test/with-test-system [system {}]

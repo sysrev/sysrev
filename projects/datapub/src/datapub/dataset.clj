@@ -126,19 +126,24 @@
                    :values [(me/map-keys cols input)]
                    :returning :id})]
          (when id
-           (resolve-dataset context {:id id} nil)))))))
-  (ensure-sysrev-dev
-   context
-   (with-tx-context [context context]
-     (let [{:dataset/keys [id]}
-           #__ (execute-one!
-                context
-                {:insert-into :dataset
-                 :values [input]
-                 :returning :id})]
-       (when id
-         (resolve-dataset context {:id id} nil))))))
+           (resolve-dataset context {:id id} nil))))))
 
+  (defn update-dataset! [context {{:keys [id] :as input} :input} _]
+    (ensure-sysrev-dev
+     context
+     (with-tx-context [context context]
+       (let [set (me/map-keys cols (dissoc input :id))
+             {:dataset/keys [id]}
+             #__ (if (empty? set)
+                   {:dataset/id id}
+                   (execute-one!
+                    context
+                    {:update :dataset
+                     :set set
+                     :where [:= :id id]
+                     :returning :id}))]
+         (when id
+           (resolve-dataset context {:id id} nil)))))))
 
 (defn internal-path-vec
   "Returns a path vector with the :* keyword replaced with the string

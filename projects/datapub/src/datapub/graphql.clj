@@ -30,7 +30,8 @@
            :listDatasets #'dataset/list-datasets}
    :Mutation {:createDataset #'dataset/create-dataset!
               :createDatasetEntity #'dataset/create-dataset-entity!
-              :createDatasetIndex #'dataset/create-dataset-index!}
+              :createDatasetIndex #'dataset/create-dataset-index!
+              :updateDataset #'dataset/update-dataset!}
    :Subscription {:datasetEntities resolve-value
                   :searchDataset resolve-value}})
 
