@@ -319,7 +319,7 @@
      :where [:= content-hash
              (if (= :content-json content-table) :hash :content-hash)]})))
 
-(defn get-latest-entity [context {:keys [content-id dataset-id external-id]}]
+(defn get-existing-entity [context {:keys [content-id dataset-id external-id]}]
   (execute-one!
    context
    {:select :id
@@ -327,13 +327,7 @@
     :where [:and
             [:= :dataset-id dataset-id]
             [:= :external-id external-id]
-            [:= :content-id content-id]
-            [:in :created
-             {:select :%max.created
-              :from [[:entity :e]]
-              :where [:and
-                      [:= :e.dataset-id dataset-id]
-                      [:= :e.external-id external-id]]}]]}))
+            [:= :content-id content-id]]}))
 
 (defn create-entity-helper!
   "To be called by the create-dataset-entity! methods. Takes the context,
@@ -365,12 +359,11 @@
                   context
                   {:content-hash content-hash :content-table content-table})]
          (if existing-content-id
-           (if-let [existing-entity (and externalId
-                                         (get-latest-entity
-                                          context
-                                          {:content-id existing-content-id
-                                           :dataset-id datasetId
-                                           :external-id externalId}))]
+           (if-let [existing-entity (get-existing-entity
+                                     context
+                                     {:content-id existing-content-id
+                                      :dataset-id datasetId
+                                      :external-id externalId})]
              (resolve-dataset-entity context {:id (:entity/id existing-entity)} nil)
              ;; Insert entity referencing existing content
              (-> context

@@ -8,6 +8,13 @@
   [return]
   (q/q-dataset return))
 
+(defn m-create-dataset-entity
+  "Returns the string representation of a createDatasetEntity mutation.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (q/m-create-dataset-entity return))
+
 (defn m-update-dataset
   "Returns the string representation of an updateDataset mutation.
 

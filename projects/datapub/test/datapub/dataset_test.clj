@@ -74,7 +74,7 @@
              {:datasetId ds-id :path (pr-str ["a"]) :type "TEXT"}))
         (-> (ex test/create-json-dataset-entity
                 {:datasetId ds-id
-                 :content (json/generate-string {:a 1})})
+                 :content (json/generate-string {:a 3})})
             test/throw-errors
             (get-in [:data :createDatasetEntity :id])
             pos-int?
@@ -99,35 +99,47 @@
 (deftest test-entity-ops-with-external-ids
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
-               (:body (test/execute system query variables)))
+               (test/throw-errors
+                (:body (test/execute system query variables))))
           ds-id (-> (ex test/create-dataset {:input {:name "test-entity"}})
-                    test/throw-errors
                     (get-in [:data :createDataset :id]))]
       (doseq [[id v] [["A1" 1] ["A1" 1] ["A2" 1] ["A3" 1] ["B1" 1] ["B2" 1]
                       ["A1" 2] ["B1" 2] ["B2" 1] ["B1" 1] ["A1" 3]]]
-        (test/throw-errors
-         (ex test/create-json-dataset-entity
-             {:datasetId ds-id
-              :content (json/generate-string [id v])
-              :externalId id})))
-      (is (= {{:content ["A1" 1] :externalId "A1"} 1
-              {:content ["A1" 2] :externalId "A1"} 1
-              {:content ["A1" 3] :externalId "A1"} 1
-              {:content ["A2" 1] :externalId "A2"} 1
-              {:content ["A3" 1] :externalId "A3"} 1
-              {:content ["B1" 1] :externalId "B1"} 2
-              {:content ["B1" 2] :externalId "B1"} 1
-              {:content ["B2" 1] :externalId "B2"} 1}
-             (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
-                  (map (fn [m] (-> m
-                                   (select-keys #{:content :externalId})
-                                   (update :content parse-json))))
-                  frequencies)))
+        (ex test/create-json-dataset-entity
+            {:datasetId ds-id
+             :content (json/generate-string [id v])
+             :externalId id}))
+      (testing "New entities aren't created if one exists with the same externalId"
+        (let [A11-id (-> (dpcq/q-dataset
+                          "entities(externalId:\"A1\"){edges{node{id}}}")
+                         (ex {:id ds-id})
+                         :data :dataset :entities :edges
+                         (->> (map #(get-in % [:node :id]))) first)]
+          (is (pos-int? A11-id))
+          (is (= A11-id (-> (dpcq/m-create-dataset-entity "id")
+                            (ex {:content (json/generate-string ["A1" 1])
+                                 :datasetId ds-id
+                                 :externalId "A1"
+                                 :mediaType "application/json"})
+                            :data :createDatasetEntity :id))))
+        (is (= {{:content ["A1" 1] :externalId "A1"} 1
+                {:content ["A1" 2] :externalId "A1"} 1
+                {:content ["A1" 3] :externalId "A1"} 1
+                {:content ["A2" 1] :externalId "A2"} 1
+                {:content ["A3" 1] :externalId "A3"} 1
+                {:content ["B1" 1] :externalId "B1"} 1
+                {:content ["B1" 2] :externalId "B1"} 1
+                {:content ["B2" 1] :externalId "B2"} 1}
+               (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
+                    (map (fn [m] (-> m
+                                     (select-keys #{:content :externalId})
+                                     (update :content parse-json))))
+                    frequencies))))
       (testing "uniqueExternalIds: true returns latest versions only"
         (is (= {{:content ["A1" 3] :externalId "A1"} 1
                 {:content ["A2" 1] :externalId "A2"} 1
                 {:content ["A3" 1] :externalId "A3"} 1
-                {:content ["B1" 1] :externalId "B1"} 1
+                {:content ["B1" 2] :externalId "B1"} 1
                 {:content ["B2" 1] :externalId "B2"} 1}
                (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id :uniqueExternalIds true} {:timeout-ms 1000})
                     (map (fn [m] (-> m
