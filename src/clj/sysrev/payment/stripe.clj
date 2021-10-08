@@ -391,10 +391,18 @@
           db/do-execute))))
 
 (defn handle-webhook [body]
-  (case (:type body)
-    "customer.subscription.updated"
-    (do
-      (update-subscription (get-in body [:data :object :id]))
-      {:success true :handled true})
-    {:success true :handled false}))
+
+  (when (= (:type body) "customer.subscription.updated")
+    (update-subscription (get-in body [:data :object :id])))
+
+  (when (= (:type body) "customer.subscription.created")
+    (let [user-id (q/find-one :web-user {:stripe-id (get-in body [:data :object :customer])} :user-id)
+          subscription-items (filter #(= (:object %) "subscription_item") (get-in body [:data :object :items]))]
+      (doseq [item subscription-items]
+        (db-plans/add-user-to-plan! user-id (get-in item [:price :id]) (get-in body [:data :object :id])))))
+
+  (when (contains? #{"price.created" "price.deleted" "price.updated" "product.created" "product.deleted" "product.updated"} (:type body))
+    (update-stripe-plans-table))
+
+  {:success true :handled true})
 
