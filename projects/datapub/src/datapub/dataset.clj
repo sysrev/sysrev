@@ -98,7 +98,21 @@
             :externalIdSortPath :external-id-sort-path
             :name :name
             :public :public}
-      inv-cols (me/map-kv (fn [k v] [v k]) cols)]
+      inv-cols (me/map-kv (fn [k v] [v k]) cols)
+      conform-sort-path
+      #__ (fn [{:keys [externalIdSortPath] :as input}]
+            (if-not externalIdSortPath
+              input
+              (let [sort-path (try
+                                (edn/read-string externalIdSortPath)
+                                (catch Exception _))]
+                (if (seq sort-path)
+                  (assoc input :externalIdSortPath [:array sort-path])
+                  (resolve/resolve-as
+                   nil
+                   {:message "Invalid externalIdSortPath: Not valid EDN."
+                    :externalIdSortPath externalIdSortPath})))))]
+
   (defn resolve-dataset [context {:keys [id]} _]
     (with-tx-context [context context]
       (when-not (public-dataset? context id)
@@ -113,37 +127,45 @@
                 {:select select
                  :from :dataset
                  :where [:= :id id]})))
+            (me/update-existing :externalIdSortPath
+                                #(pr-str (vec (.getArray %))))
             (assoc :id id)))))
 
   (defn create-dataset! [context {:keys [input]} _]
-    (ensure-sysrev-dev
-     context
-     (with-tx-context [context context]
-       (let [{:dataset/keys [id]}
-             #__ (execute-one!
-                  context
-                  {:insert-into :dataset
-                   :values [(me/map-keys cols input)]
-                   :returning :id})]
-         (when id
-           (resolve-dataset context {:id id} nil))))))
+    (let [input (conform-sort-path input)]
+      (if (resolve/is-resolver-result? input)
+        input
+        (ensure-sysrev-dev
+         context
+         (with-tx-context [context context]
+           (let [{:dataset/keys [id]}
+                 #__ (execute-one!
+                      context
+                      {:insert-into :dataset
+                       :values [(me/map-keys cols input)]
+                       :returning :id})]
+             (when id
+               (resolve-dataset context {:id id} nil))))))))
 
   (defn update-dataset! [context {{:keys [id] :as input} :input} _]
-    (ensure-sysrev-dev
-     context
-     (with-tx-context [context context]
-       (let [set (me/map-keys cols (dissoc input :id))
-             {:dataset/keys [id]}
-             #__ (if (empty? set)
-                   {:dataset/id id}
-                   (execute-one!
-                    context
-                    {:update :dataset
-                     :set set
-                     :where [:= :id id]
-                     :returning :id}))]
-         (when id
-           (resolve-dataset context {:id id} nil)))))))
+    (let [input (conform-sort-path input)]
+      (if (resolve/is-resolver-result? input)
+        input
+        (ensure-sysrev-dev
+         context
+         (with-tx-context [context context]
+           (let [set (me/map-keys cols (dissoc input :id))
+                 {:dataset/keys [id]}
+                 #__ (if (empty? set)
+                       {:dataset/id id}
+                       (execute-one!
+                        context
+                        {:update :dataset
+                         :set set
+                         :where [:= :id id]
+                         :returning :id}))]
+             (when id
+               (resolve-dataset context {:id id} nil)))))))))
 
 (defn internal-path-vec
   "Returns a path vector with the :* keyword replaced with the string
