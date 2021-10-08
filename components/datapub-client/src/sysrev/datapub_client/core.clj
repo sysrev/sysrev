@@ -2,37 +2,8 @@
   (:require [aleph.http :as ahttp]
             [cheshire.core :as json]
             [clj-http.client :as http]
-            [clojure.string :as str]
-            [manifold.stream :as stream]))
-
-(defn return->string [return]
-  (cond
-    (string? return) return
-    (seq return) (->> return
-                      (keep #(when % (name %)))
-                      (str/join \space))
-    :else (throw (ex-info "Should be a string or seq." {:value return}))))
-
-(defn m-create-dataset-entity [return]
-  (str "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String, $metadata: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId, metadata: $metadata){"
-       (return->string return)
-       "}}"))
-
-(defn q-dataset [return]
-  (str "query($id: PositiveInt!){dataset(id: $id){"
-       (return->string return)
-       "}}"))
-
-(defn q-dataset-entity [return]
-  (str "query($id: PositiveInt!){datasetEntity(id: $id){"
-       (return->string return)
-       "}}"))
-
-(defn s-search-dataset [return]
-  (str "subscription ($input: SearchDatasetInput!){searchDataset(input: $input){"
-       (return->string return)
-       "}}"))
+            [manifold.stream :as stream]
+            [sysrev.datapub-client.queries :as q]))
 
 (defn throw-errors [graphql-response]
   (if (-> graphql-response :body :errors (or (:errors graphql-response)))
@@ -51,17 +22,17 @@
       :body))
 
 (defn create-dataset-entity! [input return & {:keys [auth-token endpoint]}]
-  (-> (execute! :query (m-create-dataset-entity return) :variables input
+  (-> (execute! :query (q/m-create-dataset-entity return) :variables input
                 :auth-token auth-token :endpoint endpoint)
       :data :createDatasetEntity))
 
 (defn get-dataset [^Long id return & {:keys [auth-token endpoint]}]
-  (-> (execute! :query (q-dataset return) :variables {:id id}
+  (-> (execute! :query (q/q-dataset return) :variables {:id id}
                 :auth-token auth-token :endpoint endpoint)
       :data :dataset))
 
 (defn get-dataset-entity [^Long id return & {:keys [auth-token endpoint]}]
-  (-> (execute! :query (q-dataset-entity return) :variables {:id id}
+  (-> (execute! :query (q/q-dataset-entity return) :variables {:id id}
                 :auth-token auth-token :endpoint endpoint)
       :data :datasetEntity))
 
@@ -97,5 +68,5 @@
    (consume-subscription!
     :auth-token auth-token
     :endpoint endpoint
-    :query (s-search-dataset return)
+    :query (q/s-search-dataset return)
     :variables {:input input})))
