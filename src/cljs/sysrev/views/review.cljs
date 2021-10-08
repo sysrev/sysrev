@@ -4,6 +4,8 @@
             [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
+            [cljs-http.client :as http]
+            [cljs.core.async :refer [<! go]]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
                                    reg-event-fx]]
             [sysrev.action.core :as action]
@@ -274,6 +276,24 @@
                "1 annotation set"
                (str current-values-count " annotations set"))]])]))))
 
+
+#_(defn validate-identifier [v]
+  (->
+    (js/fetch (str "http://resolver.api.identifiers.org/" (js/encodeURIComponent v)))
+    (.then (fn [res]
+             (let [data (-> (.-responseText ^js res) js/JSON.parse (js->clj :keywordize-keys true))]
+               (println data)))))
+  
+  #_(go
+    (let [res (<! (http/get (str "http://resolver.api.identifiers.org/" (js/encodeURIComponent v))))]
+      (println res)
+      )
+    )
+  
+  )
+
+(def valid-id? (r/atom false))
+
 (defn StringLabelInput
   [[root-label-id label-id ith] article-id]
   (let [multi? @(subscribe [:label/multi? root-label-id label-id])
@@ -293,8 +313,8 @@
           (fn [i val]
             (let [left-action? true
                   right-action? (and multi? (= i (dec nvals)))
-                  valid? @(subscribe [:label/valid-string-value?
-                                      root-label-id label-id val])
+                  valid? (and @valid-id? @(subscribe [:label/valid-string-value?
+                                                      root-label-id label-id val]))
                   focus-elt (fn [value-idx]
                               #(js/setTimeout
                                 (fn []
@@ -319,11 +339,12 @@
                                        [::remove-string-value
                                         article-id root-label-id label-id
                                         ith i curvals])
-                                      (focus-prev))]
+                                      (focus-prev))
+                  ]
               ^{:key [root-label-id label-id ith i]}
               [:div.ui.small.form.string-label
                [:div.field.string-label {:class (css [(empty? val) ""
-                                                      valid?       "success"
+                                                      (and valid? @valid-id?) "success"
                                                       :else        "error"])}
                 [:div.ui.fluid.input
                  {:class (css [(and left-action? right-action?) "labeled right action"
@@ -340,9 +361,14 @@
                           :value val
                           :on-change
                           (util/on-event-value
-                           #(dispatch-sync [::set-string-value
-                                            article-id root-label-id label-id
-                                            ith i % curvals]))
+                            (fn [value]
+                              (reset! valid-id? (= value "taxonomy:9606"))
+                              (dispatch-sync [::set-string-value
+                                              article-id root-label-id label-id
+                                              ith i value curvals])
+                              
+                              ;(validate-identifier value)
+                              ))
                           :on-key-down
                           #(cond (= "Enter" (.-key %))
                                  (if add-next (add-next) (focus-next))
@@ -357,7 +383,12 @@
                     [:i.plus.icon]])]]
                (when (and (not valid?)
                           (not (str/blank? val)))
-                 [Message {:color "red"} "Invalid Value"])])))))])))
+                 [Message {:color "red"} "Invalid Value"])
+               (when @valid-id?
+                 [:a {:target "_blank"
+                      :href (str "https://identifiers.org/" val)}
+                  [:i.external.alternate.icon]
+                  " Identifier info"])])))))])))
 
 (defn- inclusion-tag [article-id root-label-id label-id ith]
   (let [criteria? @(subscribe [:label/inclusion-criteria? root-label-id label-id])
