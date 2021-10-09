@@ -9,7 +9,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :as funds]
-            [sysrev.shared.plans-info :as plans-info :refer [default-plan pro-plans]]
+            [sysrev.shared.plans-info :as plans-info :refer [default-plan]]
             [sysrev.util :as util :refer [index-by current-function-name]]))
 
 (def stripe-secret-key (env :stripe-secret-key))
