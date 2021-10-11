@@ -15,11 +15,15 @@
             [sysrev.file-util.interface :as file-util]
             [sysrev.pdf-read.interface :as pdf-read]
             [sysrev.tesseract.interface :as tesseract])
-  (:import (java.io IOException)
+  (:import (java.awt.image BufferedImage)
+           (java.io InputStream IOException)
            (java.security MessageDigest)
            (java.util Base64)
            (org.apache.commons.io IOUtils)
+           (org.postgresql.jdbc PgArray)
            (org.postgresql.util PGobject)))
+
+(set! *warn-on-reflection* true)
 
 (defn jsonb-pgobject [x]
   (doto (PGobject.)
@@ -190,7 +194,8 @@
            :where [:= :dataset-id id]})
          (map
           (fn [{:index-spec/keys [path type-name]}]
-            {:path (->> path .getArray
+            {:path (->> ^PgArray path
+                        .getArray
                         internal-path-vec
                         pr-str)
              :type (keyword (str/upper-case type-name))})))))
@@ -278,7 +283,8 @@
                                    (get-in context [:pedestal :s3])
                                    (:content-file/file-hash $))
                                   :Body
-                                  IOUtils/toByteArray
+                                  ((fn [^InputStream is]
+                                     (IOUtils/toByteArray is)))
                                   (->> (.encodeToString (Base64/getEncoder)))))
                    :mediaType "application/pdf")))
           (some->
@@ -478,7 +484,9 @@
                (let [tess (tesseract/tesseract
                            {:data-path (System/getenv "TESSDATA_PREFIX")})]
                  (->> doc pdf-read/->image-seq
-                      (map #(.doOCR tess %))
+                      (map
+                       (fn [^BufferedImage image]
+                         (.doOCR tess image)))
                       (apply str)
                       condense-whitespace))}))))
       (catch IOException e
@@ -498,7 +506,7 @@
        (resolve/resolve-as nil {:message "Invalid metadata: Not valid JSON."
                                 :metadata metadata})
        (let [pdf (try
-                   (.decode (Base64/getDecoder) content)
+                   (.decode (Base64/getDecoder) ^String content)
                    (catch Exception e))]
          (if (empty? pdf)
            (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
