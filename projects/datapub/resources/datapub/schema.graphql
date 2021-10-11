@@ -4,6 +4,8 @@
 # *Connection, *Edge, and PageInfo from the GraphQL Cursor Connections Specification:
 # https://relay.dev/graphql/connections.htm
 
+"A DateTime in ISO-8061 instant format, such as \"2011-12-03T10:15:30Z\"."
+scalar DateTime
 scalar NonNegativeInt
 scalar PositiveInt
 
@@ -31,8 +33,6 @@ type Dataset {
     first: NonNegativeInt
   ): DatasetEntitiesConnection!
 
-  "The path in each entity used to determine sort order when there are multiple entities with the same externalId."
-  externalIdSortPath: String
 
   "The indices on the DatasetEntity objects of this Dataset."
   indices: [DatasetIndex]
@@ -61,6 +61,9 @@ type DatasetEntity {
 
   "The string representation of the content."
   content: String!
+
+  "The datetime the source data was created. Used to determine which entity to return when there are multiple entities with the same externalId and uniqueExternalIds is true."
+  externalCreated: DateTime
 
   "An opaque external id."
   externalId: String
@@ -99,7 +102,6 @@ type PageInfo {
 }
 
 input CreateDatasetInput {
-  externalIdSortPath: String
   description: String
   name: String!
   public: Boolean
@@ -133,7 +135,6 @@ input SearchDatasetQueryTextInput {
 
 input UpdateDatasetInput {
   description: String
-  externalIdSortPath: String
   id: PositiveInt!
   name: String
   public: Boolean
@@ -150,7 +151,7 @@ type Query {
 
 type Mutation {
   createDataset(input: CreateDatasetInput!) : Dataset
-  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!, metadata: String) : DatasetEntity
+  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalCreated: DateTime, externalId: String, mediaType: String!, metadata: String) : DatasetEntity
   createDatasetIndex(datasetId: PositiveInt!, path: String!, type: DatasetIndexType!) : DatasetIndex
   updateDataset(input: UpdateDatasetInput!) : Dataset
 }

@@ -18,6 +18,8 @@
   (:import (java.awt.image BufferedImage)
            (java.io InputStream IOException)
            (java.security MessageDigest)
+           (java.time Instant)
+           (java.sql Timestamp)
            (java.util Base64)
            (org.apache.commons.io IOUtils)
            (org.postgresql.jdbc PgArray)
@@ -99,23 +101,9 @@
 
 (let [cols {:created :created
             :description :description
-            :externalIdSortPath :external-id-sort-path
             :name :name
             :public :public}
-      inv-cols (me/map-kv (fn [k v] [v k]) cols)
-      conform-sort-path
-      #__ (fn [{:keys [externalIdSortPath] :as input}]
-            (if-not externalIdSortPath
-              input
-              (let [sort-path (try
-                                (edn/read-string externalIdSortPath)
-                                (catch Exception _))]
-                (if (seq sort-path)
-                  (assoc input :externalIdSortPath [:array sort-path])
-                  (resolve/resolve-as
-                   nil
-                   {:message "Invalid externalIdSortPath: Not valid EDN."
-                    :externalIdSortPath externalIdSortPath})))))]
+      inv-cols (me/map-kv (fn [k v] [v k]) cols)]
 
   (defn resolve-dataset [context {:keys [id]} _]
     (with-tx-context [context context]
@@ -131,45 +119,37 @@
                 {:select select
                  :from :dataset
                  :where [:= :id id]})))
-            (me/update-existing :externalIdSortPath
-                                #(pr-str (vec (.getArray %))))
             (assoc :id id)))))
 
   (defn create-dataset! [context {:keys [input]} _]
-    (let [input (conform-sort-path input)]
-      (if (resolve/is-resolver-result? input)
-        input
-        (ensure-sysrev-dev
-         context
-         (with-tx-context [context context]
-           (let [{:dataset/keys [id]}
-                 #__ (execute-one!
-                      context
-                      {:insert-into :dataset
-                       :values [(me/map-keys cols input)]
-                       :returning :id})]
-             (when id
-               (resolve-dataset context {:id id} nil))))))))
+    (ensure-sysrev-dev
+     context
+     (with-tx-context [context context]
+       (let [{:dataset/keys [id]}
+             #__ (execute-one!
+                  context
+                  {:insert-into :dataset
+                   :values [(me/map-keys cols input)]
+                   :returning :id})]
+         (when id
+           (resolve-dataset context {:id id} nil))))))
 
   (defn update-dataset! [context {{:keys [id] :as input} :input} _]
-    (let [input (conform-sort-path input)]
-      (if (resolve/is-resolver-result? input)
-        input
-        (ensure-sysrev-dev
-         context
-         (with-tx-context [context context]
-           (let [set (me/map-keys cols (dissoc input :id))
-                 {:dataset/keys [id]}
-                 #__ (if (empty? set)
-                       {:dataset/id id}
-                       (execute-one!
-                        context
-                        {:update :dataset
-                         :set set
-                         :where [:= :id id]
-                         :returning :id}))]
-             (when id
-               (resolve-dataset context {:id id} nil)))))))))
+    (ensure-sysrev-dev
+     context
+     (with-tx-context [context context]
+       (let [set (me/map-keys cols (dissoc input :id))
+             {:dataset/keys [id]}
+             #__ (if (empty? set)
+                   {:dataset/id id}
+                   (execute-one!
+                    context
+                    {:update :dataset
+                     :set set
+                     :where [:= :id id]
+                     :returning :id}))]
+         (when id
+           (resolve-dataset context {:id id} nil)))))))
 
 (defn internal-path-vec
   "Returns a path vector with the :* keyword replaced with the string
@@ -347,13 +327,15 @@
      :where [:= content-hash
              (if (= :content-json content-table) :hash :content-hash)]})))
 
-(defn get-existing-entity [context {:keys [content-id dataset-id external-id]}]
+(defn get-existing-entity
+  [context {:keys [content-id dataset-id external-created external-id]}]
   (execute-one!
    context
    {:select :id
     :from :entity
     :where [:and
             [:= :dataset-id dataset-id]
+            [:= :external-created external-created]
             [:= :external-id external-id]
             [:= :content-id content-id]]}))
 
@@ -372,7 +354,7 @@
   Handles checking for dataset existence, for existing content with the same
   hash, and existing entities in the dataset with the same externalId."
   [context
-   {:keys [datasetId externalId mediaType]}
+   {:keys [datasetId ^Instant externalCreated externalId mediaType]}
    {:keys [content content-hash content-table data file-hash]}]
   (ensure-sysrev-dev
    context
@@ -385,22 +367,21 @@
        (let [existing-content-id
              #__ (get-existing-content-id
                   context
-                  {:content-hash content-hash :content-table content-table})]
+                  {:content-hash content-hash :content-table content-table})
+             external-created (some-> externalCreated .toEpochMilli Timestamp.)
+             identifiers {:content-id existing-content-id
+                          :dataset-id datasetId
+                          :external-created external-created
+                          :external-id externalId}]
          (if existing-content-id
-           (if-let [existing-entity (get-existing-entity
-                                     context
-                                     {:content-id existing-content-id
-                                      :dataset-id datasetId
-                                      :external-id externalId})]
+           (if-let [existing-entity (get-existing-entity context identifiers)]
              (resolve-dataset-entity context {:id (:entity/id existing-entity)} nil)
              ;; Insert entity referencing existing content
              (-> context
                  (execute-one!
                   {:insert-into :entity
                    :returning :id
-                   :values [{:content-id existing-content-id
-                             :dataset-id datasetId
-                             :external-id externalId}]})
+                   :values [identifiers]})
                  :entity/id
                  (#(resolve-dataset-entity context {:id %} nil))))
            ;; Create new content and insert entity referencing it
@@ -427,7 +408,8 @@
                  :returning :id
                  :values [(-> {:dataset-id datasetId
                                :content-id (or existing-content-id
-                                               {:select :id :from :content})}
+                                               {:select :id :from :content})
+                               :external-created external-created}
                               ((if externalId
                                  #(assoc % :external-id externalId)
                                  identity)))]})
@@ -543,8 +525,8 @@
             :where [:and
                     [:= :dataset-id datasetId]
                     (when uniqueExternalIds
-                      [:in :created
-                       {:select :%max.created
+                      [:in [:coalesce :external-created :created]
+                       {:select [[[:max [:coalesce :external-created :created]]]]
                         :from [[:entity :e]]
                         :where [:and
                                 [:= :e.dataset-id :entity.dataset-id]

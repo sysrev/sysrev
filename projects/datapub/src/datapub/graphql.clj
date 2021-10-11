@@ -3,10 +3,26 @@
             [com.walmartlabs.lacinia.util :as util]
             [com.walmartlabs.lacinia.parser.schema :as pschema]
             [com.walmartlabs.lacinia.schema :as schema]
-            [datapub.dataset :as dataset]))
+            [datapub.dataset :as dataset])
+  (:import (java.time Instant)
+           (java.time.format DateTimeFormatter)))
+
+(set! *warn-on-reflection* true)
 
 (def scalars
-  {:NonNegativeInt {:parse (fn [x]
+  {:DateTime {:parse (fn [x]
+                       (-> (try
+                             (when (string? x)
+                               (-> (.parse DateTimeFormatter/ISO_INSTANT x)
+                                   Instant/from))
+                             (catch Exception _))
+                           (or
+                            (throw
+                             (ex-info "Must be a string representing a DateTime in ISO-8061 instant format, such as \"2011-12-03T10:15:30Z\"."
+                                      {:value x})))))
+              :serialize (fn [^Instant inst]
+                           (.format DateTimeFormatter/ISO_INSTANT inst))}
+   :NonNegativeInt {:parse (fn [x]
                              (if (nat-int? x)
                                x
                                (throw (ex-info "Must be a non-negative integer."

@@ -23,8 +23,8 @@
   "mutation($datasetId: PositiveInt!, $path: String!, $type: DatasetIndexType!){createDatasetIndex(datasetId: $datasetId, path: $path, type: $type){path type}}")
 
 (def create-json-dataset-entity
-  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalId: $externalId){id content externalId mediaType}
+  "mutation($datasetId: PositiveInt!, $content: String!, $externalCreated: DateTime, $externalId: String) {
+     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalCreated: $externalCreated, externalId: $externalId){id content externalId mediaType}
   }")
 
 (def dataset-entity

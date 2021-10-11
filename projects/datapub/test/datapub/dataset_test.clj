@@ -34,14 +34,9 @@
                       :totalCount 1}}}
              (ex "{listDatasets{totalCount edges{node{name}}}}")))
       (testing "updateDataset works"
-        (is (= {:externalIdSortPath (pr-str ["metadata" "date"])
-                :id ds-id
-                :public true}
-             (-> (ex (dpcq/m-update-dataset [:externalIdSortPath :id :public])
-                     {:input {:externalIdSortPath
-                              (pr-str ["metadata" "date"])
-                              :id ds-id
-                              :public true}})
+        (is (= {:id ds-id :public true}
+             (-> (ex (dpcq/m-update-dataset [:id :public])
+                     {:input {:id ds-id :public true}})
                  (get-in [:data :updateDataset]))))))))
 
 (deftest test-entity-ops
@@ -145,7 +140,24 @@
                     (map (fn [m] (-> m
                                      (select-keys #{:content :externalId})
                                      (update :content parse-json))))
-                    frequencies)))))))
+                    frequencies))))
+      (testing "The entity with the latest externalCreated is returned"
+        (let [ds2-id (-> (ex test/create-dataset {:input {:name "test-entity2"}})
+                        (get-in [:data :createDataset :id]))]
+          (doseq [[id v ex-cr] [["C1" 1 "2011-12-03T10:15:30Z"]
+                                ["C1" 2 "2021-12-03T10:15:30Z"]
+                                ["C1" 3 "2011-12-01T10:15:30Z"]]]
+            (ex test/create-json-dataset-entity
+                {:datasetId ds2-id
+                 :content (json/generate-string [id v])
+                 :externalCreated ex-cr
+                 :externalId id}))
+          (is (= {{:content ["C1" 2] :externalId "C1"} 1}
+                 (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds2-id :uniqueExternalIds true} {:timeout-ms 1000})
+                      (map (fn [m] (-> m
+                                       (select-keys #{:content :externalId})
+                                       (update :content parse-json))))
+                      frequencies))))))))
 
 (deftest test-dataset-entities-subscription
   (test/with-test-system [system {}]
