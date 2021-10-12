@@ -340,7 +340,7 @@
         (when entity
           [:div
            [:h2 primary-title]
-           [ui/OutLink (:ApplicationDocsURL metadata)]
+           [ui/OutLink (get metadata "ApplicationDocsURL")]
            [:br]
            [:div [pdf/ViewBase64PDF {:content content}]]
            [:br]
