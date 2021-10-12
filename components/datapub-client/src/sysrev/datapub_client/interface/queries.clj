@@ -22,6 +22,13 @@
   [return]
   (q/m-update-dataset return))
 
+(defn s-search-dataset
+  "Returns the string representation of a search-dataset subscription.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (q/s-search-dataset return))
+
 (defn return->string
   "Returns a string representation of the GraphQL return field names for a
   given string or seq. A string argument is returned unchanged.

@@ -238,6 +238,7 @@
 (defn resolve-dataset-entity [context {:keys [id]} _]
   (let [ks (conj (current-selection-names context) :dataset-id)
         cols-all {:dataset-id :dataset-id
+                  :externalCreated :external-created
                   :externalId :external-id}
         cols-file (assoc cols-all
                          :content :file-hash
@@ -682,10 +683,27 @@
     (map (partial string-query->sqlmap context) string)
     (map (partial text-query->sqlmap context) text))))
 
+(defn search-dataset-query->select [context {:keys [datasetId query uniqueExternalIds]}]
+  (let [where (search-dataset-query->sqlmap context query)
+        q {:select :entity-id
+           :from (keyword (str "indexed-entity-" datasetId))
+           :where where}]
+    (if-not uniqueExternalIds
+      q
+      (assoc
+       q
+       :join [:entity [:= :entity-id :entity.id]]
+       :where [:and
+               where
+               [:in [:coalesce :external-created :created]
+                {:select [[[:max [:coalesce :external-created :created]]]]
+                 :from [[:entity :e]]
+                 :where [:and
+                         [:= :e.dataset-id :entity.dataset-id]
+                         [:= :e.external-id :entity.external-id]]}]]))))
+
 (defn search-dataset-subscription
-  [context
-   {{:keys [datasetId query uniqueExternalIds] :as args} :input}
-   source-stream]
+  [context {{:keys [datasetId] :as input} :input} source-stream]
   (if-not (or (sysrev-dev? context)
               (with-tx-context [context context]
                 (public-dataset? context datasetId)))
@@ -697,19 +715,14 @@
     (let [fut (future
                 (try
                   (with-tx-context [context (assoc context ::dataset-id datasetId)]
-                    (let [indexed-entity-table (keyword (str "indexed-entity-" datasetId))
-                          q (search-dataset-query->sqlmap context query)]
+                    (let [q (search-dataset-query->select context input)]
                       (when (some identity (rest q))
                         (reduce
                          (fn [_ row]
                            (source-stream
                             (resolve-dataset-entity context {:id (:entity_id row)} nil)))
                          nil
-                         (plan
-                          context
-                          {:select :entity-id
-                           :from indexed-entity-table
-                           :where q}))))
+                         (plan context q))))
                     (source-stream nil))
                   (catch Exception e
                     (prn e))))]

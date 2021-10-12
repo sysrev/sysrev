@@ -183,7 +183,8 @@
 (deftest test-search-dataset-subscription
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
-               (:body (test/execute system query variables)))
+               (test/throw-errors
+                (:body (test/execute system query variables))))
           ds-id (test/load-ctgov-dataset! system)
           brief-summary {:datasetId ds-id
                          :path (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])
@@ -202,8 +203,7 @@
                         :text
                         [{:paths [(:path idx)]
                           :search search}]}}})]
-      (test/throw-errors
-       (ex test/create-dataset-index brief-summary))
+      (ex test/create-dataset-index brief-summary)
       (is (=  #{{:externalId "NCT04982952"} {:externalId "NCT04983004"}}
              (->> (test/execute-subscription
                    system search-dataset-subscription test/subscribe-search-dataset
@@ -224,8 +224,7 @@
                  (search-q brief-summary "eueuoxuexau")
                  {:timeout-ms 1000}))))
       (testing "Wildcard indices"
-        (test/throw-errors
-         (ex test/create-dataset-index primary-outcome))
+        (ex test/create-dataset-index primary-outcome)
         (is (=  #{{:externalId "NCT04982978"}
                   {:externalId "NCT04982887"}
                   {:externalId "NCT04983004"}}
@@ -236,8 +235,7 @@
                      (map (fn [m] (select-keys m #{:externalId})))
                      (into #{})))))
       (testing "Phrase search"
-        (test/throw-errors
-         (ex test/create-dataset-index primary-outcome))
+        (ex test/create-dataset-index primary-outcome)
         (is (=  #{{:externalId "NCT04982991"}}
                 (->> (test/execute-subscription
                       system search-dataset-subscription test/subscribe-search-dataset
@@ -343,7 +341,38 @@
                           :path (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])}]}}}
                      {:timeout-ms 1000})
                     (map (fn [m] (select-keys m #{:externalId})))
-                    (into #{}))))))))
+                    (into #{})))))
+      (testing "uniqueExternalIds works and uses externalCreated to choose"
+        (let [ds2-id (-> (ex test/create-dataset {:input {:name "uniqueExternalIds-externalCreated"}})
+                         (get-in [:data :createDataset :id]))
+              first-idx {:datasetId ds2-id
+                         :path (pr-str ["0"])
+                         :type :TEXT}]
+          (doseq [[id v ex-cr] [["cat" 1 "2011-12-03T10:15:30Z"]
+                                ["cat" 2 "2021-12-03T10:15:30Z"]
+                                ["cat" 3 "2011-12-01T10:15:30Z"]]]
+            (ex test/create-json-dataset-entity
+                {:datasetId ds2-id
+                 :content (json/generate-string [id v])
+                 :externalCreated ex-cr
+                 :externalId id}))
+          (ex test/create-dataset-index first-idx)
+          (is (= #{{:content ["cat" 2]}}
+                 (->> (test/execute-subscription
+                       system search-dataset-subscription
+                       (dpcq/s-search-dataset "content")
+                       {:input
+                        {:datasetId ds2-id
+                         :uniqueExternalIds true
+                         :query
+                         {:type :AND
+                          :string
+                          [{:eq "cat"
+                            :path (pr-str ["0"])}]}}}
+                       {:timeout-ms 1000})
+                      (map (fn [{:keys [content]}]
+                             {:content (some-> content json/parse-string)}))
+                      (into #{})))))))))
 
 (deftest test-pdf-entities
   (test/with-test-system [system {}]
