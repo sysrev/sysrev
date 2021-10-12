@@ -240,6 +240,7 @@
         cols-all {:dataset-id :dataset-id
                   :externalCreated :external-created
                   :externalId :external-id}
+        inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
         cols-file (assoc cols-all
                          :content :file-hash
                          :metadata [[:raw "data->>'metadata' as metadata"]])
@@ -281,7 +282,7 @@
           {:select (keep cols-all ks)
            :from :entity
            :where [:= :id id]}))
-       (->> (remap-keys #(or ({:external-id :externalId} %) %)))
+       (->> (remap-keys #(inv-cols % %)))
        (assoc :id id)
        ((fn [{:keys [dataset-id] :as entity}]
           (if (or (sysrev-dev? context)
