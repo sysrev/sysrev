@@ -171,8 +171,7 @@
 (defn- ArticleInfoMain [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
-      (let [{:keys [external-id]} @(subscribe [:article/raw article-id])
-            authors @(subscribe [:article/authors article-id])
+      (let [authors @(subscribe [:article/authors article-id])
             journal-name @(subscribe [:article/journal-name article-id])
             title @(subscribe [:article/title article-id])
             title-render @(subscribe [:article/title-render article-id])
@@ -221,10 +220,6 @@
                 [ArticleAnnotatedField article-id "primary-title" title
                  :reader-error-render [render-title-keywords]]
                 [render-title-keywords])))]
-         ;; render external link
-         (when (and external-id (str/starts-with? external-id "http"))
-           [:a {:href external-id :target "_blank"}
-            [:i.icon.share] external-id])
          ;; render keywords
          (when-not (or pdf-only? (empty? journal-name))
            [:h3.header {:style {:margin-top "0px"}}
@@ -261,7 +256,8 @@
 (defn Entity [article-id]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
-      (let [mimetype @(subscribe [:article/mimetype article-id])
+      (let [{:keys [metadata]} @(subscribe [:article/raw article-id])
+            mimetype @(subscribe [:article/mimetype article-id])
             json (r/atom {})
             content @(subscribe [:article/content article-id])
             title article-id
@@ -295,7 +291,10 @@
             "application/pdf"
             [:div [pdf/ViewBase64PDF {:content content}]]
             ;; default
-            content)]]))))
+            content)]
+         (when (seq metadata)
+           [:div.article-metadata
+            [ReactJSONView {:json metadata}]])]))))
 
 (defn CTDocument [article-id]
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -325,6 +324,38 @@
            :theme (if @(subscribe [:self/dark-theme?])
                     "monokai"
                     "rjv-default")}]]))))
+
+(defn FDADrugsDocs [article-id]
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader [[:article project-id article-id]] {}
+      (let [{:keys [datapub primary-title]}
+            #__ @(subscribe [:article/raw article-id])
+            {:keys [content metadata] :as entity}
+            #__ @(subscribe [:datapub/entity (:entity-id datapub)])
+            source-id (first @(subscribe [:article/sources article-id]))
+            cursors (mapv #(mapv keyword %)
+                          (get-in @(subscribe [:project/sources source-id])
+                                  [:meta :cursors]))]
+        (dispatch [:require [:datapub-entity (:entity-id datapub)]])
+        (when entity
+          [:div
+           [:h2 primary-title]
+           [ui/OutLink (:ApplicationDocsURL metadata)]
+           [:br]
+           [:div [pdf/ViewBase64PDF {:content content}]]
+           [:br]
+           [:> ReactJson
+            {:display-array-key false
+             :display-data-types false
+             :name nil
+             :quotes-on-keys false
+             :src
+             (if (seq cursors)
+               (clj->js (map-from-cursors metadata cursors))
+               (clj->js metadata))
+             :theme (if @(subscribe [:self/dark-theme?])
+                      "monokai"
+                      "rjv-default")}]])))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})
@@ -391,6 +422,7 @@
                                  :or {show-score? true}}]
   (let [full-size? (util/full-size?)
         project-id @(subscribe [:active-project-id])
+        {:keys [types]} @(subscribe [:article/raw article-id])
         status @(subscribe [:article/review-status article-id])
         score @(subscribe [:article/score article-id])
         datasource-name @(subscribe [:article/datasource-name article-id])
@@ -428,9 +460,14 @@
              [:div.ui.segment.article-content {:key :article-content}
               ;; if adding new datasource, be sure to disable annotator
               ;; in sysrev.views.main/SidebarColumn
-              (condp = datasource-name
+              ;; datasource-name isn't coming through for some, so we
+              ;; work around by checking :types
+              (condp = (if types
+                         [(:article-type types) (:article-subtype types)]
+                         datasource-name)
                 "ctgov"  [CTDocument article-id]
                 "entity" [Entity article-id]
+                ["pdf" "fda-drugs-docs"] [FDADrugsDocs article-id]
                 [ArticleInfoMain article-id :context context])]
              (when-not (= datasource-name "entity")
                ^{:key :article-pdfs} [pdf/ArticlePdfListFull article-id])))

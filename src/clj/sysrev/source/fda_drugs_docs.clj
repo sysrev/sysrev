@@ -25,12 +25,15 @@
   [endpoint string?, ids (s/coll-of nat-int?)]
   (map
    (fn [id]
-     (let [entity (datapub/get-dataset-entity id "externalId metadata" :endpoint endpoint)]
-       {:external-id (:externalId entity)
-        :primary-title (some-> entity
-                               :metadata
-                               (json/parse-string keyword)
-                               title)}))
+     (let [{:keys [externalId id metadata]}
+           #__ (datapub/get-dataset-entity id "externalId id metadata" :endpoint endpoint)]
+       ;; datasource-name doesn't show up in CLJS, so we are working
+       ;; around that by including :types in the :content
+       {:content {:datapub {:entity-id id}
+                  :types {:article-type "pdf"
+                          :article-subtype "fda-drugs-docs"}}
+        :external-id externalId
+        :primary-title (some-> metadata (json/parse-string keyword) title)}))
    ids))
 
 (defmethod make-source-meta :fda-drugs-docs

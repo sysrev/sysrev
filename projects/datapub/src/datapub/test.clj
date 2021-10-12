@@ -104,6 +104,15 @@
        (finally
          (component/stop system#)))))
 
+(defn create-dataset! [system input]
+  (-> system
+      (execute
+       create-dataset
+       {:input input})
+      :body
+      throw-errors
+      (get-in [:data :createDataset :id])))
+
 (def ctgov-indices
   [[:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
    [:TEXT ["ProtocolSection" "DescriptionModule" "BriefSummary"]]
@@ -113,16 +122,11 @@
    [:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]])
 
 (defn load-ctgov-dataset! [system]
-  (let [ds-id (-> system
-                  (execute
-                   create-dataset
-                   {:input
-                    {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
-                     :name "ClinicalTrials.gov"
-                     :public true}})
-                  :body
-                  throw-errors
-                  (get-in [:data :createDataset :id]))]
+  (let [ds-id (create-dataset!
+               system
+               {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
+                :name "ClinicalTrials.gov"
+                :public true})]
     (doseq [{:keys [content externalId]} (-> "datapub/ctgov-entities.edn"
                                              io/resource
                                              slurp
@@ -147,15 +151,10 @@
    [:TEXT ["metadata" "ApplType"]]])
 
 (defn load-fda-drugs-docs-dataset! [system]
-  (let [ds-id (-> system
-                  (execute
-                   create-dataset
-                   {:input
-                    {:name "Drugs@FDA Application Documents"
-                     :public true}})
-                  :body
-                  throw-errors
-                  (get-in [:data :createDataset :id]))]
+  (let [ds-id (create-dataset!
+               system
+               {:name "Drugs@FDA Application Documents"
+                :public true})]
     (doseq [{:keys [external-id filename metadata]}
             #__ (-> "datapub/fda-drugs-docs-entities.edn"
                     io/resource
@@ -184,5 +183,6 @@
 
 (defn load-all-fixtures! [system]
   (load-ctgov-dataset! system)
+  (create-dataset! system {:name "Unused"})
   (load-fda-drugs-docs-dataset! system)
   nil)

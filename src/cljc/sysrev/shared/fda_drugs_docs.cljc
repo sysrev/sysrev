@@ -44,7 +44,7 @@
 (defn query->datapub-input [query]
   (let [{:keys [filters search]} (canonicalize-query query)
         {:keys [application-type]} filters]
-    {:datasetId 2
+    {:datasetId 3
      :uniqueExternalIds true
      :query
      (->> {:type "AND"
