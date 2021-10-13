@@ -1,7 +1,8 @@
 (ns datapub.dataset-test
   (:require [cheshire.core :as json]
             [clojure.java.io :as io]
-            [datapub.test :as test])
+            [datapub.test :as test]
+            [sysrev.datapub-client.interface.queries :as dpcq])
   (:import (java.util Base64)
            (org.apache.commons.io IOUtils))
   (:use clojure.test
@@ -20,18 +21,23 @@
 (deftest test-dataset-ops
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
-               (:body (test/execute system query variables)))
+               (test/throw-errors
+                (:body (test/execute system query variables))))
           ds-id (-> (ex test/create-dataset {:input {:name "test-dataset"}})
-                    test/throw-errors
                     (get-in [:data :createDataset :id]))]
       (is (integer? ds-id))
-      (is (= {:data {:dataset {:name "test-dataset"}}}
-             (ex "query Q($id: PositiveInt){dataset(id: $id){name}}"
+      (is (= {:data {:dataset {:name "test-dataset" :public false}}}
+             (ex (dpcq/q-dataset [:name :public])
                  {:id ds-id})))
       (is (= {:data {:listDatasets
                      {:edges [{:node {:name "test-dataset"}}]
                       :totalCount 1}}}
-             (ex "{listDatasets{totalCount edges{node{name}}}}"))))))
+             (ex "{listDatasets{totalCount edges{node{name}}}}")))
+      (testing "updateDataset works"
+        (is (= {:id ds-id :public true}
+             (-> (ex (dpcq/m-update-dataset [:id :public])
+                     {:input {:id ds-id :public true}})
+                 (get-in [:data :updateDataset]))))))))
 
 (deftest test-entity-ops
   (test/with-test-system [system {}]
@@ -63,7 +69,7 @@
              {:datasetId ds-id :path (pr-str ["a"]) :type "TEXT"}))
         (-> (ex test/create-json-dataset-entity
                 {:datasetId ds-id
-                 :content (json/generate-string {:a 1})})
+                 :content (json/generate-string {:a 3})})
             test/throw-errors
             (get-in [:data :createDatasetEntity :id])
             pos-int?
@@ -88,41 +94,70 @@
 (deftest test-entity-ops-with-external-ids
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
-               (:body (test/execute system query variables)))
+               (test/throw-errors
+                (:body (test/execute system query variables))))
           ds-id (-> (ex test/create-dataset {:input {:name "test-entity"}})
-                    test/throw-errors
                     (get-in [:data :createDataset :id]))]
       (doseq [[id v] [["A1" 1] ["A1" 1] ["A2" 1] ["A3" 1] ["B1" 1] ["B2" 1]
                       ["A1" 2] ["B1" 2] ["B2" 1] ["B1" 1] ["A1" 3]]]
-        (test/throw-errors
-         (ex test/create-json-dataset-entity
-             {:datasetId ds-id
-              :content (json/generate-string [id v])
-              :externalId id})))
-      (is (= {{:content ["A1" 1] :externalId "A1"} 1
-              {:content ["A1" 2] :externalId "A1"} 1
-              {:content ["A1" 3] :externalId "A1"} 1
-              {:content ["A2" 1] :externalId "A2"} 1
-              {:content ["A3" 1] :externalId "A3"} 1
-              {:content ["B1" 1] :externalId "B1"} 2
-              {:content ["B1" 2] :externalId "B1"} 1
-              {:content ["B2" 1] :externalId "B2"} 1}
-             (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
-                  (map (fn [m] (-> m
-                                   (select-keys #{:content :externalId})
-                                   (update :content parse-json))))
-                  frequencies)))
+        (ex test/create-json-dataset-entity
+            {:datasetId ds-id
+             :content (json/generate-string [id v])
+             :externalId id}))
+      (testing "New entities aren't created if one exists with the same externalId"
+        (let [A11-id (-> (dpcq/q-dataset
+                          "entities(externalId:\"A1\"){edges{node{id}}}")
+                         (ex {:id ds-id})
+                         :data :dataset :entities :edges
+                         (->> (map #(get-in % [:node :id]))) first)]
+          (is (pos-int? A11-id))
+          (is (= A11-id (-> (dpcq/m-create-dataset-entity "id")
+                            (ex {:content (json/generate-string ["A1" 1])
+                                 :datasetId ds-id
+                                 :externalId "A1"
+                                 :mediaType "application/json"})
+                            :data :createDatasetEntity :id))))
+        (is (= {{:content ["A1" 1] :externalId "A1"} 1
+                {:content ["A1" 2] :externalId "A1"} 1
+                {:content ["A1" 3] :externalId "A1"} 1
+                {:content ["A2" 1] :externalId "A2"} 1
+                {:content ["A3" 1] :externalId "A3"} 1
+                {:content ["B1" 1] :externalId "B1"} 1
+                {:content ["B1" 2] :externalId "B1"} 1
+                {:content ["B2" 1] :externalId "B2"} 1}
+               (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id} {:timeout-ms 1000})
+                    (map (fn [m] (-> m
+                                     (select-keys #{:content :externalId})
+                                     (update :content parse-json))))
+                    frequencies))))
       (testing "uniqueExternalIds: true returns latest versions only"
         (is (= {{:content ["A1" 3] :externalId "A1"} 1
                 {:content ["A2" 1] :externalId "A2"} 1
                 {:content ["A3" 1] :externalId "A3"} 1
-                {:content ["B1" 1] :externalId "B1"} 1
+                {:content ["B1" 2] :externalId "B1"} 1
                 {:content ["B2" 1] :externalId "B2"} 1}
                (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds-id :uniqueExternalIds true} {:timeout-ms 1000})
                     (map (fn [m] (-> m
                                      (select-keys #{:content :externalId})
                                      (update :content parse-json))))
-                    frequencies)))))))
+                    frequencies))))
+      (testing "The entity with the latest externalCreated is returned"
+        (let [ds2-id (-> (ex test/create-dataset {:input {:name "test-entity2"}})
+                        (get-in [:data :createDataset :id]))]
+          (doseq [[id v ex-cr] [["C1" 1 "2011-12-03T10:15:30Z"]
+                                ["C1" 2 "2021-12-03T10:15:30Z"]
+                                ["C1" 3 "2011-12-01T10:15:30Z"]]]
+            (ex test/create-json-dataset-entity
+                {:datasetId ds2-id
+                 :content (json/generate-string [id v])
+                 :externalCreated ex-cr
+                 :externalId id}))
+          (is (= {{:content ["C1" 2] :externalId "C1"} 1}
+                 (->> (test/execute-subscription system dataset-entities-subscription test/subscribe-dataset-entities {:id ds2-id :uniqueExternalIds true} {:timeout-ms 1000})
+                      (map (fn [m] (-> m
+                                       (select-keys #{:content :externalId})
+                                       (update :content parse-json))))
+                      frequencies))))))))
 
 (deftest test-dataset-entities-subscription
   (test/with-test-system [system {}]
@@ -148,7 +183,8 @@
 (deftest test-search-dataset-subscription
   (test/with-test-system [system {}]
     (let [ex (fn [query & [variables]]
-               (:body (test/execute system query variables)))
+               (test/throw-errors
+                (:body (test/execute system query variables))))
           ds-id (test/load-ctgov-dataset! system)
           brief-summary {:datasetId ds-id
                          :path (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])
@@ -167,8 +203,7 @@
                         :text
                         [{:paths [(:path idx)]
                           :search search}]}}})]
-      (test/throw-errors
-       (ex test/create-dataset-index brief-summary))
+      (ex test/create-dataset-index brief-summary)
       (is (=  #{{:externalId "NCT04982952"} {:externalId "NCT04983004"}}
              (->> (test/execute-subscription
                    system search-dataset-subscription test/subscribe-search-dataset
@@ -189,8 +224,7 @@
                  (search-q brief-summary "eueuoxuexau")
                  {:timeout-ms 1000}))))
       (testing "Wildcard indices"
-        (test/throw-errors
-         (ex test/create-dataset-index primary-outcome))
+        (ex test/create-dataset-index primary-outcome)
         (is (=  #{{:externalId "NCT04982978"}
                   {:externalId "NCT04982887"}
                   {:externalId "NCT04983004"}}
@@ -201,8 +235,7 @@
                      (map (fn [m] (select-keys m #{:externalId})))
                      (into #{})))))
       (testing "Phrase search"
-        (test/throw-errors
-         (ex test/create-dataset-index primary-outcome))
+        (ex test/create-dataset-index primary-outcome)
         (is (=  #{{:externalId "NCT04982991"}}
                 (->> (test/execute-subscription
                       system search-dataset-subscription test/subscribe-search-dataset
@@ -308,7 +341,38 @@
                           :path (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])}]}}}
                      {:timeout-ms 1000})
                     (map (fn [m] (select-keys m #{:externalId})))
-                    (into #{}))))))))
+                    (into #{})))))
+      (testing "uniqueExternalIds works and uses externalCreated to choose"
+        (let [ds2-id (-> (ex test/create-dataset {:input {:name "uniqueExternalIds-externalCreated"}})
+                         (get-in [:data :createDataset :id]))
+              first-idx {:datasetId ds2-id
+                         :path (pr-str ["0"])
+                         :type :TEXT}]
+          (doseq [[id v ex-cr] [["cat" 1 "2011-12-03T10:15:30Z"]
+                                ["cat" 2 "2021-12-03T10:15:30Z"]
+                                ["cat" 3 "2011-12-01T10:15:30Z"]]]
+            (ex test/create-json-dataset-entity
+                {:datasetId ds2-id
+                 :content (json/generate-string [id v])
+                 :externalCreated ex-cr
+                 :externalId id}))
+          (ex test/create-dataset-index first-idx)
+          (is (= #{{:content ["cat" 2]}}
+                 (->> (test/execute-subscription
+                       system search-dataset-subscription
+                       (dpcq/s-search-dataset "content")
+                       {:input
+                        {:datasetId ds2-id
+                         :uniqueExternalIds true
+                         :query
+                         {:type :AND
+                          :string
+                          [{:eq "cat"
+                            :path (pr-str ["0"])}]}}}
+                       {:timeout-ms 1000})
+                      (map (fn [{:keys [content]}]
+                             {:content (some-> content json/parse-string)}))
+                      (into #{})))))))))
 
 (deftest test-pdf-entities
   (test/with-test-system [system {}]
@@ -369,12 +433,24 @@
         (is (= "Invalid content: Not a valid PDF file."
                (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
                    (get-in [:response :errors 0 :message])))))
+      (testing "Invalid metadata is rejected"
+        (is (= "Invalid metadata: Not valid JSON."
+               (-> (ex test/create-dataset-entity
+                       {:datasetId ds-id
+                        :content (:content armstrong)
+                        :externalId "armstrong-thesis-2003-abstract.pdf"
+                        :mediaType "application/pdf"
+                        :metadata "{"})
+                   (get-in [:errors 0 :message])))))
       (let [ocr-text {:datasetId ds-id
                       :path (pr-str ["ocr-text"])
                       :type :TEXT}
             text {:datasetId ds-id
                   :path (pr-str ["text"])
                   :type :TEXT}
+            title {:datasetId ds-id
+                   :path (pr-str ["metadata" "title"])
+                   :type :TEXT}
             search-q (fn [idx search]
                        {:input
                         {:datasetId ds-id
@@ -391,10 +467,13 @@
                               {:timeout-ms 1000})
                              (map (fn [m] (select-keys m #{:externalId})))
                              (into #{})))]
-        (test/throw-errors
-         (ex test/create-dataset-index ocr-text))
-        (test/throw-errors
-         (ex test/create-dataset-index text))
+        (doseq [idx [ocr-text text title]]
+          (test/throw-errors
+           (ex test/create-dataset-index idx)))
+        (testing "Can search PDFs based on metadata"
+          (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}}
+                 (ex-search (search-q title "\"Armstrong Thesis Abstract\""))))
+          "Armstrong Thesis Abstract")
         (testing "Can search PDFs based on their text content"
           (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}
                    {:externalId "ctgov-Prot_SAP_000.pdf"}}

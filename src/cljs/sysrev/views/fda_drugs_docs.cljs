@@ -8,6 +8,7 @@
             [sysrev.datapub :as datapub]
             [sysrev.macros :refer-macros [setup-panel-state]]
             [sysrev.shared.fda-drugs-docs :as fda-drugs-docs]
+            [sysrev.views.components.core :as comp]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.semantic :as S :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.util :as util :refer [wrap-prevent-default]]))
@@ -84,7 +85,7 @@
                         {:filters (:filters state)
                          :search (:current-search-term state)})]]]})))
 
-(def-action :project/import-trials-from-search
+(def-action :project/import-fda-drugs-docs-search
   :uri (fn [] "/api/import-trials/fda-drugs-docs")
   :content (fn [project-id query entity-ids]
              {:entity-ids entity-ids
@@ -145,11 +146,10 @@
 (defn ArticleSummary
   "Display an article summary item"
   [entity-id]
-  (let [entity @(subscribe [:datapub/entity entity-id])
-        metadata (:metadata entity)]
+  (let [metadata (:metadata @(subscribe [:datapub/entity* entity-id]))]
     [:<>
      [TableRow
-      [TableCell [:a {:href (:externalId entity)
+      [TableCell [:a {:href (get metadata "ApplicationDocsURL")
                       :target "_blank"}
                   [:i.share.icon]]]
       [TableCell (get metadata "SponsorName")]
@@ -165,7 +165,7 @@
   (let [query @(subscribe [::current-query])
         search-results @(subscribe [:fda-drugs-docs/query-result query])]
     [:div.ui.fluid.left.labeled.button.search-results
-     {:on-click #(do (dispatch [:action [:project/import-trials-from-search
+     {:on-click #(do (dispatch [:action [:project/import-fda-drugs-docs-search
                                          @(subscribe [:active-project-id])
                                          query search-results]])
                      (dispatch [(keyword 'sysrev.views.panels.project.add-articles
@@ -226,7 +226,7 @@
                             (drop (* items-per-page (dec current-page))))]
     (when show-results?
       (doseq [entity-id (take (* 2 items-per-page) search-results)]
-        (dispatch [:require [:datapub-entity entity-id]]))
+        (dispatch [:require [:datapub-entity* entity-id]]))
       [:div.fda-drugs-docs-search-results
        [:div.ui.bottom.attached.segment.fda-drugs-docs-articles
         {:style (if (seq search-results) {} {:min-height "800px"})}
@@ -269,4 +269,8 @@
 
 (defn SearchFilters []
   [:<>
-   ])
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :application-type])
+     :label "Application Type"
+     :on-change #(dispatch [::fetch-results])
+     :options fda-drugs-docs/application-type-options}]])

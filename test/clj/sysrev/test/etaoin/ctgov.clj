@@ -23,6 +23,7 @@
                          "\"single oral dose\"")
           (ea/click-visible [{:fn/has-class "ctgov-search"}
                              {:fn/has-class "button" :fn/has-text "Search"}])
+          (ea/wait-visible {:fn/has-text "Found 1 article"})
           (ea/click-visible {:fn/has-class "button" :fn/has-text "Import"})
           (ea/wait-visible {:fn/has-class "project-sources-list"})))
       (testing "Imported articles can be searched for in the project"

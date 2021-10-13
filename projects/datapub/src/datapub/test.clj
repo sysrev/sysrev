@@ -23,8 +23,8 @@
   "mutation($datasetId: PositiveInt!, $path: String!, $type: DatasetIndexType!){createDatasetIndex(datasetId: $datasetId, path: $path, type: $type){path type}}")
 
 (def create-json-dataset-entity
-  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalId: $externalId){id content externalId mediaType}
+  "mutation($datasetId: PositiveInt!, $content: String!, $externalCreated: DateTime, $externalId: String) {
+     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalCreated: $externalCreated, externalId: $externalId){id content externalId mediaType}
   }")
 
 (def dataset-entity
@@ -104,25 +104,29 @@
        (finally
          (component/stop system#)))))
 
+(defn create-dataset! [system input]
+  (-> system
+      (execute
+       create-dataset
+       {:input input})
+      :body
+      throw-errors
+      (get-in [:data :createDataset :id])))
+
 (def ctgov-indices
-  [[:TEXT (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])]
-   [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "BriefSummary"])]
-   [:TEXT (pr-str ["ProtocolSection" "DescriptionModule" "DetailedDescription"])]
-   [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "BriefTitle"])]
-   [:TEXT (pr-str ["ProtocolSection" "IdentificationModule" "OfficialTitle"])]
-   [:TEXT (pr-str ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"])]])
+  [[:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
+   [:TEXT ["ProtocolSection" "DescriptionModule" "BriefSummary"]]
+   [:TEXT ["ProtocolSection" "DescriptionModule" "DetailedDescription"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "BriefTitle"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]
+   [:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]])
 
 (defn load-ctgov-dataset! [system]
-  (let [ds-id (-> system
-                  (execute
-                   create-dataset
-                   {:input
-                    {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
-                     :name "ClinicalTrials.gov"
-                     :public true}})
-                  :body
-                  throw-errors
-                  (get-in [:data :createDataset :id]))]
+  (let [ds-id (create-dataset!
+               system
+               {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
+                :name "ClinicalTrials.gov"
+                :public true})]
     (doseq [{:keys [content externalId]} (-> "datapub/ctgov-entities.edn"
                                              io/resource
                                              slurp
@@ -138,24 +142,20 @@
        (execute
         system create-dataset-index
         {:datasetId ds-id
-         :path path
+         :path (pr-str path)
          :type (name type)})))
     ds-id))
 
 (def fda-drugs-docs-indices
-  [[:TEXT (pr-str ["text"])]])
+  [[:TEXT ["text"]]
+   [:TEXT ["metadata" "ApplType"]]])
 
 (defn load-fda-drugs-docs-dataset! [system]
-  (let [ds-id (-> system
-                  (execute
-                   create-dataset
-                   {:input
-                    {:name "Drugs@FDA Application Documents"
-                     :public true}})
-                  :body
-                  throw-errors
-                  (get-in [:data :createDataset :id]))]
-    (doseq [{:keys [filename metadata]}
+  (let [ds-id (create-dataset!
+               system
+               {:name "Drugs@FDA Application Documents"
+                :public true})]
+    (doseq [{:keys [external-id filename metadata]}
             #__ (-> "datapub/fda-drugs-docs-entities.edn"
                     io/resource
                     slurp
@@ -169,7 +169,7 @@
                        IOUtils/toByteArray
                        (.encodeToString (Base64/getEncoder)))
          :datasetId ds-id
-         :externalId filename
+         :externalId external-id
          :mediaType "application/pdf"
          :metadata (json/generate-string metadata)})))
     (doseq [[type path] fda-drugs-docs-indices]
@@ -177,11 +177,12 @@
        (execute
         system create-dataset-index
         {:datasetId ds-id
-         :path path
+         :path (pr-str path)
          :type (name type)})))
     ds-id))
 
 (defn load-all-fixtures! [system]
   (load-ctgov-dataset! system)
+  (create-dataset! system {:name "Unused"})
   (load-fda-drugs-docs-dataset! system)
   nil)

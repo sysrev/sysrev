@@ -47,6 +47,30 @@
          (fn [db [_ entity-id]]
            (get-in db [:data :datapub :entities entity-id])))
 
+(def-data :datapub-entity*
+  :loaded? (fn [db entity-id]
+             (boolean
+              (or (get-in db [:data :datapub :entities entity-id])
+                  (get-in db [:data :datapub :entities* entity-id]))))
+  :method :post
+  :uri #(deref api-endpoint)
+  :content-type "application/json"
+  :content (fn [entity-id]
+             {:query (dataset-entity "externalId mediaType metadata")
+              :variables {:id entity-id}})
+  :process (fn [{:keys [db]} [entity-id] _ result]
+             (let [{:keys [metadata] :as entity} (-> result :data :datasetEntity)
+                   entity (if-not metadata
+                            entity
+                            (update entity :metadata (comp js->clj js/JSON.parse)))]
+               {:db (assoc-in db [:data :datapub :entities* entity-id] entity)})))
+
+(reg-sub :datapub/entity*
+         (fn [db [_ entity-id]]
+           (or (some-> (get-in db [:data :datapub :entities entity-id])
+                       (dissoc :content))
+               (get-in db [:data :datapub :entities* entity-id]))))
+
 (reg-event-fx :datapub/localhost-subscribe!
         (fn [_ [_ {:keys [on-complete on-data payload]}]]
           {:fx [[::sente/send

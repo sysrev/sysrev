@@ -85,7 +85,7 @@
                         {:filters (:filters state)
                          :search (:current-search-term state)})]]]})))
 
-(def-action :project/import-trials-from-search
+(def-action :project/import-ctgov-search
   :uri (fn [] "/api/import-trials/ctgov")
   :content (fn [project-id query entity-ids]
              {:entity-ids entity-ids
@@ -171,7 +171,7 @@
   (let [query @(subscribe [::current-query])
         search-results @(subscribe [:ctgov/query-result query])]
     [:div.ui.fluid.left.labeled.button.search-results
-     {:on-click #(do (dispatch [:action [:project/import-trials-from-search
+     {:on-click #(do (dispatch [:action [:project/import-ctgov-search
                                          @(subscribe [:active-project-id])
                                          query search-results]])
                      (dispatch [(keyword 'sysrev.views.panels.project.add-articles

@@ -1,9 +1,9 @@
-[{:filename "armstrong-thesis-2003-abstract.pdf"}
- {:filename "ctgov-Prot_SAP_000.pdf"}
- {:filename "fda-008372Orig1s044ltr.pdf"
+[{:external-id "[\"008372\" \"Letter\" \"SUPPL\"]"
+  :filename "fda-008372Orig1s044ltr.pdf"
   :metadata
   {:ApplType "NDA"
    :ApplicationDocsDate "2015-03-25 00:00:00"
+   :ApplicationDocsURL "http://www.accessdata.fda.gov/drugsatfda_docs/appletter/2015/008372Orig1s044ltr.pdf"
    :SponsorName "MALLINCKRODT ARD"
    :ApplicationDocsDescription "Letter"
    :ApplNo "008372"

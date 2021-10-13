@@ -463,7 +463,7 @@
                                             5000))
                              (Thread/sleep 100))]
     `(deftest ~name
-       (when (or ~repl? ~enable)
+       (when (and (or ~repl? ~enable) (not (:test-browser-skip env)))
          (util/with-print-time-elapsed ~name-str
            (log/infof "")
            (log/infof "[[ %s started ]]" ~name-str)

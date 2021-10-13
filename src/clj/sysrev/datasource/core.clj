@@ -44,6 +44,7 @@
 (defn project-source-meta->article-type [meta]
   (condp = (:source meta)
     "Datasource API"   ["datasource" "entity"]
+    "Drugs@FDA Application Documents search" ["pdf" "fda-drugs-docs"]
     "RIS file"         ["academic"  "RIS"]
     "CT.gov search"    ["json" "ctgov"]
     "PubMed search"    ["academic"  "pubmed"]
@@ -64,12 +65,14 @@
                  nil)
     "json" (condp = article-subtype
              "ctgov" "ctgov")
+    "pdf" (condp = article-subtype
+             "fda-drugs-docs" "fda-drugs-docs")
     "datasource" "entity"
     nil))
 
 (defn make-article-data
   [{:keys [article-type article-subtype] :as extra}
-   {:keys [public-id external-id primary-title helper-text] :as article}]
+   {:keys [content external-id helper-text primary-title public-id] :as article}]
   ;; allow alternate :public-id key to support legacy article migration
   (let [external-id (or external-id public-id)
         datasource-name (datasource-name-for-type extra)]
@@ -81,11 +84,13 @@
                       (some-> external-id parse-integer str)
                       external-id))
      :title primary-title
-     :content (when (or (not datasource-name) (= "ctgov" datasource-name))
-                (->> (dissoc article
-                             :source-meta :text-search :enabled :article-data-id
-                             :article-id :article-uuid :parent-article-uuid)
-                     (util/filter-values (comp not nil?))))}))
+     :content (or content
+                  (when (or (not datasource-name)
+                            (#{"ctgov" "fda-drugs-docs"} datasource-name))
+                    (->> (dissoc article
+                                 :source-meta :text-search :enabled :article-data-id
+                                 :article-id :article-uuid :parent-article-uuid)
+                         (util/filter-values (comp not nil?)))))}))
 
 (defn copy-legacy-article-content [article-id]
   (db/with-transaction
