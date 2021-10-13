@@ -20,10 +20,8 @@
                   :content
                   (json/parse-string keyword)
                   :ProtocolSection)]
-       {:abstract (get-in ps [:DescriptionModule :BriefSummary])
-        :external-id id
-        :primary-title (get-in ps [:IdentificationModule :BriefTitle])
-        :secondary-title (get-in ps [:IdentificationModule :OfficialTitle])}))
+       {:external-id id
+        :primary-title (get-in ps [:IdentificationModule :BriefTitle])}))
    ids))
 
 (defmethod make-source-meta :ctgov

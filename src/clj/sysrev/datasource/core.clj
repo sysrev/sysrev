@@ -72,7 +72,7 @@
 
 (defn make-article-data
   [{:keys [article-type article-subtype] :as extra}
-   {:keys [content external-id helper-text primary-title public-id] :as article}]
+   {:keys [content external-id helper-text primary-title public-id]}]
   ;; allow alternate :public-id key to support legacy article migration
   (let [external-id (or external-id public-id)
         datasource-name (datasource-name-for-type extra)]
@@ -84,13 +84,7 @@
                       (some-> external-id parse-integer str)
                       external-id))
      :title primary-title
-     :content (or content
-                  (when (or (not datasource-name)
-                            (#{"ctgov" "fda-drugs-docs"} datasource-name))
-                    (->> (dissoc article
-                                 :source-meta :text-search :enabled :article-data-id
-                                 :article-id :article-uuid :parent-article-uuid)
-                         (util/filter-values (comp not nil?)))))}))
+     :content content}))
 
 (defn copy-legacy-article-content [article-id]
   (db/with-transaction
