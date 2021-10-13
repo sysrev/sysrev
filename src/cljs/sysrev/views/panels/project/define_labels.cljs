@@ -578,6 +578,8 @@
         examples (r/cursor definition [:examples])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
+        ;; 
+        validatable-label? (r/cursor definition [:validatable-label?])
         ;;;
         errors (r/cursor label [:errors])
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
@@ -748,6 +750,27 @@
             :disabled (not is-owned?)
             :on-change #(let [checked? (-> % .-target .-checked)]
                           (reset! inclusion-values (if checked? [true] [])))
+            :label "Yes"}]
+          [show-error-msg error]]))
+
+     (when (= @value-type "string")
+       (let [error (get-in @errors [:definition :validatable-label?])]
+         [:div.field.validatable-label {:class (when error "error")
+                                        :style {:width "100%"}}
+          [FormLabelWithTooltip
+           "Validate label values?"
+           ["Validate this label against identifiers.org"]]
+          [ui/LabeledCheckbox
+           {:checked? (not @validatable-label?)
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? (not checked?)))
+            :label "No"}]
+          [ui/LabeledCheckbox
+           {:checked? @validatable-label?
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
      (when is-owned?
@@ -1230,12 +1253,12 @@
                                   [:div.ui.attached.stackable
                                    {:style {:padding "5px 10px"}}
                                    [:h3 "Labels "
-                                    [:select.ui.dropdown
+                                    [:select.ui.dropdown.MuiTableDropdown
                                      {:style {:margin-left "5px"}
                                       :value (:status label-filters)
                                       :on-change (fn [ev]
                                                    (dispatch [::set [:label-filters :status] (aget ev "target" "value")]))}
-                                     [:option {:value "active"} "Active"]
+                                     [:option {:value "enabled"} "Active"]
                                      [:option {:value "all"} "All"]
                                      [:option {:value "disabled"} "Disabled"]]]]))}
          :columns (clj->js cols)
@@ -1261,7 +1284,11 @@
                           :disabled (some? (.-parentId ^js rowData))
                           :onClick (fn [event rowData]
                                      (.stopPropagation event)
-                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                     #_(if-let [parent-id (.-parentId ^js rowData)]
+                                       (doall
+                                         (for [t nil]
+                                           (println "test")))
+                                       (reset-local-label! labels-atom "na" (.-id ^js rowData)))
                                      (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
                                      (sync-to-server))})
                        (clj->js

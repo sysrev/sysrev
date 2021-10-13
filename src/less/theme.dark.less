@@ -173,7 +173,9 @@
 }
 
 .ui.dropdown {
-    color: @textColor;
+    &:not(.MuiTableDropdown) {
+        color: @textColor;
+    }
     .menu {
         background: lighten( @pageBackground, 2 );
         .item {
