@@ -43,22 +43,22 @@
         clojure-csv/clojure-csv {:mvn/version "2.0.1"}
 
 ;;; GraphQL
-        com.walmartlabs/lacinia {:mvn/version "0.38.0"}
+        com.walmartlabs/lacinia {:mvn/version "1.0"}
         vincit/venia {:mvn/version "0.2.5"}
 
 ;;; Postgres
         com.impossibl.pgjdbc-ng/pgjdbc-ng {:mvn/version "0.8.7"}
         org.clojure/java.jdbc {:mvn/version "0.7.12"}
-        org.postgresql/postgresql {:mvn/version "42.2.20"}
+        org.postgresql/postgresql {:mvn/version "42.2.24"}
         joda-time/joda-time {:mvn/version "2.10.10"}
         clj-time/clj-time {:mvn/version "0.15.2" :exclusions [joda-time/joda-time]}
         postgre-types/postgre-types {:mvn/version "0.0.4"}
         hikari-cp/hikari-cp {:mvn/version "2.13.0"}
         clj-postgresql/clj-postgresql {:mvn/version "0.7.0" :exclusions [org.clojure/java.jdbc cheshire/cheshire prismatic/schema]}
         honeysql/honeysql {:mvn/version "0.9.8"}
-        com.github.seancorfield/honeysql {:mvn/version "2.0.783"}
+        com.github.seancorfield/honeysql {:mvn/version "2.1.818"}
         nilenso/honeysql-postgres {:mvn/version "0.2.6"}
-        com.github.seancorfield/next.jdbc {:mvn/version "1.2.659"}
+        com.github.seancorfield/next.jdbc {:mvn/version "1.2.731"}
 
 ;;; Web server
         aleph/aleph {:mvn/version "0.4.6"}
@@ -94,11 +94,11 @@
         gravatar/gravatar {:mvn/version "1.1.1"}
         lambdaisland/regal {:mvn/version "0.0.97"} ;; portable regexes
         medley/medley {:mvn/version "1.3.0"}
-        org.flywaydb/flyway-core {:mvn/version "7.9.1"}}
+        org.flywaydb/flyway-core {:mvn/version "8.0.1"}}
  :aliases
  {:+default {:extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.2.0"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.2.0"}}
+                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.3.0"}
+                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.3.0"}}
              :extra-paths ["components/postgres-embedded/src"
                            "components/postgres-embedded/resources"]}
   :+postgres {:extra-paths ["components/postgres/src"
@@ -106,11 +106,11 @@
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
-  :dev {:extra-deps {cider/cider-nrepl {:mvn/version "0.26.0"}
+  :dev {:extra-deps {cider/cider-nrepl {:mvn/version "0.27.2"}
                      com.cognitect.aws/api {:mvn/version "0.8.524"},
                      com.cognitect.aws/endpoints {:mvn/version "1.1.12.65"}
                      com.cognitect.aws/s3 {:mvn/version "814.2.978.0"}
-                     com.walmartlabs/lacinia-pedestal {:mvn/version "0.15.0"}
+                     com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}
                      io.replikativ/hasch {:mvn/version "0.3.7"}
                      io.staticweb/aws-api-failjure {:mvn/version "1.1.0"}
                      net.sourceforge.tess4j/tess4j {:mvn/version "4.5.5"
@@ -158,9 +158,9 @@
                       "projects/datapub/datapub-test/resources"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
-                      com.walmartlabs/lacinia-pedestal {:mvn/version "0.15.0"}
+                      com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}
                       io.replikativ/hasch {:mvn/version "0.3.7"}
-                      etaoin/etaoin {:mvn/version "0.4.1"}
+                      etaoin/etaoin {:mvn/version "0.4.6"}
                       net.sourceforge.tess4j/tess4j {:mvn/version "4.5.5"
                                                      :exclusions [bouncycastle/bctsp-jdk14]}
                       org.apache.pdfbox/pdfbox {:mvn/version "2.0.22"}

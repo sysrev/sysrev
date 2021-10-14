@@ -17,11 +17,13 @@ let
       cp -r . $out
     '';
   };
+  jdk = pkgs.openjdk11;
 in
 pkgs.mkShell {
   buildInputs = [
     tessdata_best
-    (pkgs.clojure.override { jdk = pkgs.openjdk11_headless; })
+    (pkgs.clojure.override { jdk = jdk; })
+    jdk
     pkgs.tesseract4
   ];
 

@@ -1,4 +1,4 @@
 {:paths ["resources"]
  :deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.4"}
-        io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.2.0"}
-        io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.2.0"}}}
+        io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.3.0"}
+        io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.3.0"}}}

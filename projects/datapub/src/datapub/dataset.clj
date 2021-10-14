@@ -59,7 +59,7 @@
       executor/selection
       (or (get-in context [constants/parsed-query-key :selections 0]))
       selection/selections
-      (->> (map selection/field-name))
+      (->> (map (comp selection/field-name selection/field)))
       set))
 
 (defn denamespace-keys [map-or-seq]

@@ -34,13 +34,13 @@
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
 ;;; GraphQL
-                 [com.walmartlabs/lacinia "0.38.0"]
+                 [com.walmartlabs/lacinia "1.0"]
                  [vincit/venia "0.2.5"]
 
 ;;; Postgres
                  [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.7"]
                  [org.clojure/java.jdbc "0.7.12"]
-                 [org.postgresql/postgresql "42.2.20"]
+                 [org.postgresql/postgresql "42.2.24"]
                  [joda-time "2.10.10"]
                  [clj-time "0.15.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
@@ -48,11 +48,11 @@
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.8"]
-                 [com.github.seancorfield/honeysql "2.0.783"]
+                 [com.github.seancorfield/honeysql "2.1.818"]
                  [nilenso/honeysql-postgres "0.2.6"]
                  [org.clojure/java.data "1.0.86"] ;; next.jdbc needs latest
-                 [com.github.seancorfield/next.jdbc "1.2.659"]
-                 [org.flywaydb/flyway-core "7.9.1"]
+                 [com.github.seancorfield/next.jdbc "1.2.731"]
+                 [org.flywaydb/flyway-core "8.0.1"]
 
 ;;; Web server
                  [aleph "0.4.7-alpha7"]
@@ -147,19 +147,19 @@
                                            "components/notification/test"
                                            "components/user/test"]
                               :dependencies
-                              [[cider/cider-nrepl "0.26.0"]
+                              [[cider/cider-nrepl "0.27.2"]
                                [clj-webdriver "0.7.2"]
                                [com.clojure-goes-fast/clj-async-profiler "0.5.0"]
                                [com.cognitect.aws/api "0.8.524"]
                                [com.cognitect.aws/endpoints "1.1.12.65"]
                                [com.cognitect.aws/s3 "814.2.978.0"]
                                [com.opentable.components/otj-pg-embedded "0.13.3"]
-                               [com.walmartlabs/lacinia-pedestal "0.15.0"]
-                               [etaoin "0.4.1"]
+                               [com.walmartlabs/lacinia-pedestal "1.0"]
+                               [etaoin "0.4.6"]
                                [io.replikativ/hasch "0.3.7"]
                                [io.staticweb/aws-api-failjure "1.1.0"]
-                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
-                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.3.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.3.0"]
                                [javax.servlet/javax.servlet-api "4.0.1"]
                                [net.sourceforge.tess4j/tess4j "4.5.5"]
                                [org.apache.pdfbox/pdfbox "2.0.22"]
@@ -206,11 +206,11 @@
                                [com.cognitect.aws/endpoints "1.1.12.65"]
                                [com.cognitect.aws/s3 "814.2.978.0"]
                                [com.opentable.components/otj-pg-embedded "0.13.3"]
-                               [com.walmartlabs/lacinia-pedestal "0.15.0"]
+                               [com.walmartlabs/lacinia-pedestal "1.0"]
                                [io.replikativ/hasch "0.3.7"]
                                [io.staticweb/aws-api-failjure "1.1.0"]
-                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.2.0"]
-                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.2.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "13.3.0"]
+                               [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "13.3.0"]
                                [javax.servlet/javax.servlet-api "4.0.1"]
                                [net.sourceforge.tess4j/tess4j "4.5.5"]
                                [org.apache.pdfbox/pdfbox "2.0.22"]
