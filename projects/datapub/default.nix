@@ -21,8 +21,7 @@ in
 pkgs.mkShell {
   buildInputs = [
     tessdata_best
-    pkgs.clojure
-    pkgs.jdk11
+    (pkgs.clojure.override { jdk = pkgs.openjdk11_headless; })
     pkgs.tesseract4
   ];
 
