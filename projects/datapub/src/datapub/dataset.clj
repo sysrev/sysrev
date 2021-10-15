@@ -435,8 +435,7 @@
                 (json/parse-string content)
                 (catch Exception e))]
      (if (empty? json)
-       (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."
-                                :content content})
+       (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."})
        (if (seq metadata)
          (resolve/resolve-as nil {:message "JSON entities cannot have metadata."})
          (with-tx-context [context context]
@@ -493,8 +492,7 @@
                    (.decode (Base64/getDecoder) ^String content)
                    (catch Exception e))]
          (if (empty? pdf)
-           (resolve/resolve-as nil {:message "Invalid content: Not valid base64."
-                                    :content content})
+           (resolve/resolve-as nil {:message "Invalid content: Not valid base64."})
            (let [file-hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
              ;; We put the file before parsing to minimize memory usage,
              ;; since we can let go of the pdf byte array earlier.
@@ -502,8 +500,7 @@
                                        {:content pdf :file-hash file-hash})
              (let [text (pdf-text pdf (get-in context [:pedestal :config :tesseract]))]
                (if (= :invalid-pdf text)
-                 (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."
-                                          :content content})
+                 (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."})
                  (let [data (->> (assoc text :metadata json)
                                  (me/remove-vals nil?))
                        content-hash (-> {:data data
