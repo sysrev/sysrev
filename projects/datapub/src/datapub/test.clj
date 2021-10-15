@@ -7,7 +7,8 @@
             [com.walmartlabs.lacinia.parser :as parser]
             [com.walmartlabs.lacinia.selection :as selection]
             [datapub.main :as main]
-            [io.pedestal.test :as test])
+            [io.pedestal.test :as test]
+            [sysrev.datapub-client.interface.queries :as dpcq])
   (:import (java.util Base64)
            (org.apache.commons.io IOUtils)))
 
@@ -155,20 +156,21 @@
                system
                {:name "Drugs@FDA Application Documents"
                 :public true})]
-    (doseq [{:keys [external-id filename metadata]}
+    (doseq [{:keys [external-created external-id filename metadata]}
             #__ (-> "datapub/fda-drugs-docs-entities.edn"
                     io/resource
                     slurp
                     edn/read-string)]
       (throw-errors
        (execute
-        system create-dataset-entity
+        system (dpcq/m-create-dataset-entity "id")
         {:content (->> (str "datapub/file-uploads/" filename)
                        io/resource
                        .openStream
                        IOUtils/toByteArray
                        (.encodeToString (Base64/getEncoder)))
          :datasetId ds-id
+         :externalCreated external-created
          :externalId external-id
          :mediaType "application/pdf"
          :metadata (json/generate-string metadata)})))

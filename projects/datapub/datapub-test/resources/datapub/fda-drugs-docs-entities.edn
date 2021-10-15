@@ -1,4 +1,5 @@
-[{:external-id "[\"008372\" \"Letter\" \"SUPPL\"]"
+[{:external-created "2015-03-20T00:00:00Z"
+  :external-id "[\"008372\" \"Letter\" \"SUPPL\"]"
   :filename "fda-008372Orig1s044ltr.pdf"
   :metadata
   {:ApplType "NDA"
@@ -205,6 +206,44 @@
      :SubmissionsPublicNotes ""
      :ReviewPriority "STANDARD"
      :SubmissionClass {:Code "LABELING" :Description "Labeling"}}]
+   :ApplicationDocsTitle "0"
+   :Products
+   [{:ProductNo "006"
+     :Form "INJECTABLE;INJECTION"
+     :Strength "40 UNITS/ML"
+     :ReferenceDrug "0"
+     :DrugName "H.P. ACTHAR GEL"
+     :ActiveIngredient "CORTICOTROPIN"
+     :ReferenceStandard "0"
+     :MarketingStatus [{:Description "Discontinued" :TECodes nil}]}
+    {:ProductNo "008"
+     :Form "INJECTABLE;INJECTION"
+     :Strength "80 UNITS/ML"
+     :ReferenceDrug "1"
+     :DrugName "H.P. ACTHAR GEL"
+     :ActiveIngredient "CORTICOTROPIN"
+     :ReferenceStandard "1"
+     :MarketingStatus [{:Description "Prescription" :TECodes nil}]}]}}
+ {:external-created "1952-04-29T00:00:00Z"
+  :external-id "[\"008372\" \"Letter\" \"SUPPL\"]"
+  :filename "020978_S016_ZIAGEN.pdf"
+  :metadata
+  {:ApplType "NDA"
+   :ApplicationDocsDate "1952-04-29 00:00:00"
+   :ApplicationDocsURL "http://www.accessdata.fda.gov/drugsatfda_docs/appletter/2015/020978_S016_ZIAGEN.pdf"
+   :SponsorName "MALLINCKRODT ARD"
+   :ApplicationDocsDescription "Letter"
+   :ApplNo "008372"
+   :ApplPublicNotes ""
+   :Submissions
+   [{:SubmissionType "ORIG"
+     :SubmissionStatus "AP"
+     :SubmissionStatusDate "1952-04-29 00:00:00"
+     :SubmissionsPublicNotes ""
+     :ReviewPriority "STANDARD"
+     :SubmissionClass
+     {:Code "TYPE 5"
+      :Description "Type 5 - New Formulation or New Manufacturer"}}]
    :ApplicationDocsTitle "0"
    :Products
    [{:ProductNo "006"

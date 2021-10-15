@@ -10,8 +10,8 @@
     :else (throw (ex-info "Should be a string or seq." {:value return}))))
 
 (defn m-create-dataset-entity [return]
-  (str "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String, $metadata: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId, metadata: $metadata){"
+  (str "mutation($datasetId: PositiveInt!, $content: String!, $externalCreated: DateTime, $externalId: String, $mediaType: String, $metadata: String) {
+     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalCreated: $externalCreated, externalId: $externalId, metadata: $metadata){"
        (return->string return)
        "}}"))
 
