@@ -186,8 +186,7 @@
 
   Look at list-datasets for an example implementation."
   [context {first* :first :keys [after]} {:keys [count-f edges-f]}]
-  (ensure-sysrev-dev
-   context
+  (with-tx-context [context context]
    (let [cursor (if (empty? after)
                   0
                   (try (Long/parseLong after) (catch Exception _)))]
