@@ -6,6 +6,7 @@
             ["xml2js" :as xml2js]
             [clojure.string :as str]
             goog.object
+            [medley.core :as medley]
             [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
             [sysrev.shared.labels :refer [predictable-label-types]]
@@ -325,37 +326,76 @@
                     "monokai"
                     "rjv-default")}]]))))
 
-(defn FDADrugsDocs [article-id]
-  (when-let [project-id @(subscribe [:active-project-id])]
-    (with-loader [[:article project-id article-id]] {}
-      (let [{:keys [datapub primary-title]}
-            #__ @(subscribe [:article/raw article-id])
-            {:keys [content metadata] :as entity}
-            #__ @(subscribe [:datapub/entity (:entity-id datapub)])
-            source-id (first @(subscribe [:article/sources article-id]))
-            cursors (mapv #(mapv keyword %)
-                          (get-in @(subscribe [:project/sources source-id])
-                                  [:meta :cursors]))]
-        (dispatch [:require [:datapub-entity (:entity-id datapub)]])
-        (when entity
-          [:div
-           [:h2 primary-title]
-           [ui/OutLink (get metadata "ApplicationDocsURL")]
-           [:br]
-           [:div [pdf/ViewBase64PDF {:content content}]]
-           [:br]
-           [:> ReactJson
-            {:display-array-key false
-             :display-data-types false
-             :name nil
-             :quotes-on-keys false
-             :src
-             (if (seq cursors)
-               (clj->js (map-from-cursors metadata cursors))
-               (clj->js metadata))
-             :theme (if @(subscribe [:self/dark-theme?])
-                      "monokai"
-                      "rjv-default")}]])))))
+(defn FDADrugsDocs []
+  (let [state (r/atom {:current-version nil :versions nil})]
+    (fn [article-id]
+      (when-let [project-id @(subscribe [:active-project-id])]
+        (with-loader [[:article project-id article-id]] {}
+          (let [{:keys [current-version versions]} @state
+                {:keys [datapub primary-title]}
+                #__ @(subscribe [:article/raw article-id])
+                {:keys [entity-id]} datapub
+                version-entity-id (when current-version
+                                    (get versions current-version))
+                {:keys [externalId]} @(subscribe [:datapub/entity* entity-id])
+                {:keys [content metadata] :as version-entity}
+                #__ @(subscribe [:datapub/entity version-entity-id])
+                source-id (first @(subscribe [:article/sources article-id]))
+                cursors (mapv #(mapv keyword %)
+                              (get-in @(subscribe [:project/sources source-id])
+                                      [:meta :cursors]))
+                version-entity-ids @(subscribe [:datapub/entities-for-external-id 3 externalId])]
+            (when entity-id
+              (dispatch [:require [:datapub-entity entity-id]]))
+            (when version-entity-id
+              (dispatch [:require [:datapub-entity version-entity-id]])
+              (when (and version-entity (< 0 current-version))
+                (dispatch [:require [:datapub-entity (get versions (dec current-version))]]))
+              (when (and version-entity (< current-version (dec versions)))
+                (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))
+            (when externalId
+              (dispatch [:require [:datapub-entities-for-external-id 3 externalId]]))
+            (when (not= versions version-entity-ids)
+              (swap! state assoc
+                     :current-version (->> version-entity-ids
+                                           medley/indexed
+                                           (some (fn [[i v]]
+                                                   (when (= v entity-id) i))))
+                     :versions (vec version-entity-ids)))
+            (when version-entity
+              [:div
+               [:div
+                [:button {:class (if (and current-version (< 0 current-version))
+                                   "ui primary button"
+                                   "ui primary button disabled")
+                          :on-click #(swap! state update :current-version dec)}
+                 [:i.chevron.left.icon] "Previous"]
+                [:button {:class (if (and current-version (< current-version (dec (count versions))))
+                                   "ui primary button"
+                                   "ui primary button disabled")
+                          :on-click #(swap! state update :current-version inc)}
+                 "Next" [:i.chevron.right.icon]]
+                (when current-version
+                  [:span {:style {:margin-left "2em"}}
+                   "Version " (inc current-version) " of " (count versions)])]
+               [:h2 primary-title]
+               [:br]
+               [ui/OutLink (get metadata "ApplicationDocsURL")]
+               [:br]
+               [:div [pdf/ViewBase64PDF {:content content}]]
+               [:br]
+               [:> ReactJson
+                {:display-array-key false
+                 :display-data-types false
+                 :name nil
+                 :quotes-on-keys false
+                 :src
+                 (if (seq cursors)
+                   (clj->js (map-from-cursors metadata cursors))
+                   (clj->js metadata))
+                 :theme (if @(subscribe [:self/dark-theme?])
+                          "monokai"
+                          "rjv-default")}]])))))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})

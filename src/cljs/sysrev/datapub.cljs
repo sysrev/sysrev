@@ -17,6 +17,12 @@
 (defn dataset-entity [return]
   (str "query($id: PositiveInt!){datasetEntity(id: $id){" return "}}"))
 
+(defn dataset-entities-for-external-id [return]
+  (str
+   "query($datasetId: PositiveInt!, $externalId: String!){
+       dataset(id: $datasetId){
+           entities(externalId: $externalId){edges{node{" return "}}}}}"))
+
 (defn subscribe-search-dataset [return]
   (str
    "subscription($input: SearchDatasetInput!){searchDataset(input: $input){"
@@ -70,6 +76,26 @@
            (or (some-> (get-in db [:data :datapub :entities entity-id])
                        (dissoc :content))
                (get-in db [:data :datapub :entities* entity-id]))))
+
+(def-data :datapub-entities-for-external-id
+  :loaded? (fn [db dataset-id external-id]
+             (boolean (get-in db [:data :datapub :entities-for-external-id dataset-id external-id])))
+  :method :post
+  :uri #(deref api-endpoint)
+  :content-type "application/json"
+  :content (fn [dataset-id external-id]
+             {:query (dataset-entities-for-external-id "externalCreated id")
+              :variables {:datasetId dataset-id :externalId external-id}})
+  :process (fn [{:keys [db]} [dataset-id external-id] _ result]
+             (let [entity-ids (-> result :data :dataset :entities :edges
+                                  (->> (map :node)
+                                       (sort-by :externalCreated)
+                                       (map :id)))]
+               {:db (assoc-in db [:data :datapub :entities-for-external-id dataset-id external-id] entity-ids)})))
+
+(reg-sub :datapub/entities-for-external-id
+         (fn [db [_ dataset-id external-id]]
+           (get-in db [:data :datapub :entities-for-external-id dataset-id external-id])))
 
 (reg-event-fx :datapub/localhost-subscribe!
         (fn [_ [_ {:keys [on-complete on-data payload]}]]
