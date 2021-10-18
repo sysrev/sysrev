@@ -24,11 +24,13 @@ pkgs.mkShell {
     tessdata_best
     (clojure.override { jdk = jdk; })
     jdk
+    postgresql_13
     tesseract4
   ];
 
   shellHook = ''
     export TESSDATA_PREFIX="${tessdata_best}"
     export LD_LIBRARY_PATH="${pkgs.tesseract4}/lib:$LD_LIBRARY_PATH"
+    export POSTGRES_DIRECTORY="${pkgs.postgresql_13}"
   '';
 }

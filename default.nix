@@ -105,11 +105,12 @@ pkgs.mkShell {
     nodejs
     npm
     polylith
-    postgresql_11 # used in sysrev.test.core for createdb and dropdb
+    postgresql_11
     time
   ];
   shellHook = ''
     export LD_LIBRARY_PATH="${pkgs.dbus.lib}/lib:$LD_LIBRARY_PATH"
+    export POSTGRES_DIRECTORY="${pkgs.postgresql_13}"
     rm chrome
     ln -s ${pkgs.chromium}/bin/chromium chrome
     rm scripts/clj-kondo

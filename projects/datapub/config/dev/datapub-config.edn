@@ -2,7 +2,7 @@
        :secret-access-key "test"
        :endpoint-override {:protocol :http
                            :hostname "localhost"
-                           :port 4566}}
+                           :port 8566}}
  :env :dev
  :pedestal {:port 8121
             :sysrev-dev-key "***REMOVED***"}
