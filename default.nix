@@ -3,14 +3,6 @@ let
   pkgs = import sources.nixpkgs { };
   inherit (pkgs) fetchurl lib stdenv;
   jdk = pkgs.openjdk8;
-  clojure = (pkgs.clojure.override { jdk = jdk; });
-  carve = import ./nix/carve.nix {
-    clojure = clojure;
-    fetchFromGitHub = pkgs.fetchFromGitHub;
-    graalvm11-ce = pkgs.graalvm11-ce;
-    lib = lib;
-    stdenv = stdenv;
-  };
   clj-kondo = pkgs.clj-kondo.overrideAttrs( oldAttrs: rec {
     pname = "clj-kondo";
     version = "2021.04.23";
@@ -102,11 +94,10 @@ let
 in
 pkgs.mkShell {
   buildInputs = [
-    carve
     pkgs.chromedriver
     pkgs.chromium
     clj-kondo
-    clojure
+    (pkgs.clojure.override { jdk = jdk; })
     (pkgs.flyway.override { jre_headless = jdk; })
     jdk
     (pkgs.leiningen.override { jdk = jdk; })
