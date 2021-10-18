@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux
 
 cd client ; npx shadow-cljs release prod ; cd ..

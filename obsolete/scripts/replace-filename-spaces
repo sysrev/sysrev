@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 name_old=$*
 name_new=$(echo $* | sed -e 's/ /_/g')
 if [ "$name_new" != "$name_old" ] ; then

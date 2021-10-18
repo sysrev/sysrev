@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 interval="4h"
 scripts=/data/sysrev/scripts

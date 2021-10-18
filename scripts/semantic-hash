@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 site_theme_name="$1"
 default=$(find semantic/src/themes/default -type f)

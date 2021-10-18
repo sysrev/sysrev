@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 SYSREV_FULL_TESTS=1 ./scripts/test

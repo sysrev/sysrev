@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux
 
 fname=$(ssh ubuntu@builds.insilica.co 'ls /data/sysrev/backups | tail -n1')
