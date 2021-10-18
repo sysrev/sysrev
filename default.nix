@@ -93,20 +93,20 @@ let
   });
 in
 pkgs.mkShell {
-  buildInputs = [
-    pkgs.chromedriver
-    pkgs.chromium
+  buildInputs = with pkgs; [
+    chromedriver
+    chromium
     clj-kondo
-    (pkgs.clojure.override { jdk = jdk; })
-    (pkgs.flyway.override { jre_headless = jdk; })
+    (clojure.override { jdk = jdk; })
+    (flyway.override { jre_headless = jdk; })
     jdk
-    (pkgs.leiningen.override { jdk = jdk; })
-    pkgs.lessc
-    pkgs.nodejs
+    (leiningen.override { jdk = jdk; })
+    lessc
+    nodejs
     npm
     polylith
-    pkgs.postgresql_11 # used in sysrev.test.core for createdb and dropdb
-    pkgs.time
+    postgresql_11 # used in sysrev.test.core for createdb and dropdb
+    time
   ];
   shellHook = ''
     export LD_LIBRARY_PATH="${pkgs.dbus.lib}/lib:$LD_LIBRARY_PATH"

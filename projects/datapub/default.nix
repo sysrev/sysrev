@@ -20,11 +20,11 @@ let
   jdk = pkgs.openjdk11;
 in
 pkgs.mkShell {
-  buildInputs = [
+  buildInputs = with pkgs; [
     tessdata_best
-    (pkgs.clojure.override { jdk = jdk; })
+    (clojure.override { jdk = jdk; })
     jdk
-    pkgs.tesseract4
+    tesseract4
   ];
 
   shellHook = ''
