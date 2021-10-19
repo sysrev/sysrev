@@ -67,9 +67,10 @@
           ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-entity"}})
                     (get-in [:data :createDataset :id]))
           entity-id (-> (ex (dpcq/m-create-dataset-entity "id")
-                            {:datasetId ds-id
-                             :content (json/generate-string {:a 1})
-                             :mediaType "application/json"})
+                            {:input
+                             {:datasetId ds-id
+                              :content (json/generate-string {:a 1})
+                              :mediaType "application/json"}})
                         (get-in [:data :createDatasetEntity :id]))]
       (is (pos-int? entity-id))
       (is (= {:data {:datasetEntity {:content "{\"a\": 1}" :mediaType "application/json"}}}
@@ -77,18 +78,20 @@
       (testing "createDatasetEntity returns all fields"
         (is (= {:data {:createDatasetEntity {:content "{\"b\": 2}" :externalId "exid" :mediaType "application/json"}}}
                (-> (ex (dpcq/m-create-dataset-entity "content externalId mediaType")
-                       {:datasetId ds-id
-                        :content "{\"b\": 2}"
-                        :externalId "exid"
-                        :mediaType "application/json"})))))
+                       {:input
+                        {:datasetId ds-id
+                         :content "{\"b\": 2}"
+                         :externalId "exid"
+                         :mediaType "application/json"}})))))
       (testing "Can create entities after creating an index"
         (test/throw-errors
          (ex (dpcq/m-create-dataset-index "type")
-             {:datasetId ds-id :path (pr-str ["a"]) :type "TEXT"}))
+             {:input {:datasetId ds-id :path (pr-str ["a"]) :type "TEXT"}}))
         (-> (ex (dpcq/m-create-dataset-entity "id")
-                {:datasetId ds-id
-                 :content (json/generate-string {:a 3})
-                 :mediaType "application/json"})
+                {:input
+                 {:datasetId ds-id
+                  :content (json/generate-string {:a 3})
+                  :mediaType "application/json"}})
             (get-in [:data :createDatasetEntity :id])
             pos-int?
             is))
@@ -122,10 +125,11 @@
       (doseq [[id v] [["A1" 1] ["A1" 1] ["A2" 1] ["A3" 1] ["B1" 1] ["B2" 1]
                       ["A1" 2] ["B1" 2] ["B2" 1] ["B1" 1] ["A1" 3]]]
         (ex (dpcq/m-create-dataset-entity "id")
-            {:datasetId ds-id
-             :content (json/generate-string [id v])
-             :externalId id
-             :mediaType "application/json"}))
+            {:input
+             {:datasetId ds-id
+              :content (json/generate-string [id v])
+              :externalId id
+              :mediaType "application/json"}}))
       (testing "New entities aren't created if one exists with the same externalId"
         (let [A11-id (-> (dpcq/q-dataset
                           "entities(externalId:\"A1\"){edges{node{id}}}")
@@ -133,11 +137,12 @@
                          :data :dataset :entities :edges
                          (->> (map #(get-in % [:node :id]))) first)]
           (is (pos-int? A11-id))
-          (is (= A11-id (-> (dpcq/m-create-dataset-entity "id")
-                            (ex {:content (json/generate-string ["A1" 1])
-                                 :datasetId ds-id
-                                 :externalId "A1"
-                                 :mediaType "application/json"})
+          (is (= A11-id (-> (ex (dpcq/m-create-dataset-entity "id")
+                                {:input
+                                 {:content (json/generate-string ["A1" 1])
+                                  :datasetId ds-id
+                                  :externalId "A1"
+                                  :mediaType "application/json"}})
                             :data :createDatasetEntity :id))))
         (is (= {{:content ["A1" 1] :externalId "A1"} 1
                 {:content ["A1" 2] :externalId "A1"} 1
@@ -149,7 +154,7 @@
                 {:content ["B2" 1] :externalId "B2"} 1}
                (frequencies
                 (sub-json-dataset-entities!
-                 #{:content :externalId} {:id ds-id})))))
+                 #{:content :externalId} {:input {:datasetId ds-id}})))))
       (testing "uniqueExternalIds: true returns latest versions only"
         (is (= {{:content ["A1" 3] :externalId "A1"} 1
                 {:content ["A2" 1] :externalId "A2"} 1
@@ -159,7 +164,7 @@
                (frequencies
                 (sub-json-dataset-entities!
                  #{:content :externalId}
-                 {:id ds-id :uniqueExternalIds true})))))
+                 {:input {:datasetId ds-id :uniqueExternalIds true}})))))
       (testing "The entity with the latest externalCreated is returned"
         (let [ds2-id (-> (ex (dpcq/m-create-dataset "id")
                              {:input {:name "test-entity2"}})
@@ -168,16 +173,17 @@
                                 ["C1" 2 "2021-12-03T10:15:30Z"]
                                 ["C1" 3 "2011-12-01T10:15:30Z"]]]
             (ex (dpcq/m-create-dataset-entity "id")
-                {:datasetId ds2-id
-                 :content (json/generate-string [id v])
-                 :externalCreated ex-cr
-                 :externalId id
-                 :mediaType "application/json"}))
+                {:input
+                 {:datasetId ds2-id
+                  :content (json/generate-string [id v])
+                  :externalCreated ex-cr
+                  :externalId id
+                  :mediaType "application/json"}}))
           (is (= {{:content ["C1" 2] :externalId "C1"} 1}
                  (frequencies
                   (sub-json-dataset-entities!
                    #{:content :externalId}
-                   {:id ds2-id :uniqueExternalIds true})))))))))
+                   {:input {:datasetId ds2-id :uniqueExternalIds true}})))))))))
 
 (deftest test-dataset-entities-subscription
   (test/with-test-system [system {}]
@@ -192,13 +198,16 @@
                     (get-in [:data :createDataset :id]))]
       (doseq [i (range 3)]
         (ex (dpcq/m-create-dataset-entity "id")
-            {:datasetId ds-id
-             :content (json/generate-string {:num i})
-             :mediaType "application/json"}))
+            {:input
+             {:datasetId ds-id
+              :content (json/generate-string {:num i})
+              :mediaType "application/json"}}))
       (is (= #{{:content {:num 0} :mediaType "application/json"}
                {:content {:num 1} :mediaType "application/json"}
                {:content {:num 2} :mediaType "application/json"}}
-             (sub-json-dataset-entities! #{:content :mediaType} {:id ds-id}))))))
+             (sub-json-dataset-entities!
+              #{:content :mediaType}
+              {:input {:datasetId ds-id}}))))))
 
 (deftest test-search-dataset-subscription
   (test/with-test-system [system {}]
@@ -226,7 +235,7 @@
                         :text
                         [{:paths [(:path idx)]
                           :search search}]}}})]
-      (ex (dpcq/m-create-dataset-index "type") brief-summary)
+      (ex (dpcq/m-create-dataset-index "type") {:input brief-summary})
       (is (= #{{:externalId "NCT04982952"} {:externalId "NCT04983004"}}
              (sub-search-dataset!
               #{:externalId} (search-q brief-summary "general"))))
@@ -237,14 +246,14 @@
            (sub-search-dataset!
             #{:externalId} (search-q brief-summary "eueuoxuexauyoutube"))))
       (testing "Wildcard indices"
-        (ex (dpcq/m-create-dataset-index "type") primary-outcome)
+        (ex (dpcq/m-create-dataset-index "type") {:input primary-outcome})
         (is (= #{{:externalId "NCT04982978"}
                  {:externalId "NCT04982887"}
                  {:externalId "NCT04983004"}}
                (sub-search-dataset!
                 #{:externalId} (search-q primary-outcome "scale")))))
       (testing "Phrase search"
-        (ex (dpcq/m-create-dataset-index "type") primary-outcome)
+        (ex (dpcq/m-create-dataset-index "type") {:input primary-outcome})
         (is (= #{{:externalId "NCT04982991"}}
                (sub-search-dataset!
                 #{:externalId} (search-q brief-summary "\"single oral doses\"")))))
@@ -340,12 +349,13 @@
                                 ["cat" 2 "2021-12-03T10:15:30Z"]
                                 ["cat" 3 "2011-12-01T10:15:30Z"]]]
             (ex (dpcq/m-create-dataset-entity "id")
-                {:datasetId ds2-id
-                 :content (json/generate-string [id v])
-                 :externalCreated ex-cr
-                 :externalId id
-                 :mediaType "application/json"}))
-          (ex (dpcq/m-create-dataset-index "type") first-idx)
+                {:input
+                 {:datasetId ds2-id
+                  :content (json/generate-string [id v])
+                  :externalCreated ex-cr
+                  :externalId id
+                  :mediaType "application/json"}}))
+          (ex (dpcq/m-create-dataset-index "type") {:input first-idx})
           (is (= [{:content ["cat" 2]}]
                  (->> (sub-search-dataset!
                        #{:content}
@@ -379,12 +389,13 @@
                     (test/execute!
                      system
                      (dpcq/m-create-dataset-entity #{:id :metadata})
-                     {:datasetId ds-id
-                      :content content
-                      :externalId filename
-                      :mediaType "application/pdf"
-                      :metadata (when metadata
-                                  (json/generate-string metadata))}))}))
+                     {:input
+                      {:datasetId ds-id
+                       :content content
+                       :externalId filename
+                       :mediaType "application/pdf"
+                       :metadata (when metadata
+                                   (json/generate-string metadata))}}))}))
           create-entity
           #__ (fn [filename & [metadata]]
                 (let [{:keys [content response]} (create-entity-raw filename metadata)]
@@ -427,11 +438,12 @@
                (-> (test/execute!
                     system
                     (dpcq/m-create-dataset-entity "id")
-                    {:datasetId ds-id
-                     :content (:content armstrong)
-                     :externalId "armstrong-thesis-2003-abstract.pdf"
-                     :mediaType "application/pdf"
-                     :metadata "{"})
+                    {:input
+                     {:datasetId ds-id
+                      :content (:content armstrong)
+                      :externalId "armstrong-thesis-2003-abstract.pdf"
+                      :mediaType "application/pdf"
+                      :metadata "{"}})
                    (get-in [:body :errors 0 :message])))))
       (let [ocr-text {:datasetId ds-id
                       :path (pr-str ["ocr-text"])
@@ -457,7 +469,7 @@
                                        (into #{})))
             ex-search! (partial sub-search-dataset! #{:externalId})]
         (doseq [idx [ocr-text text title]]
-          (ex (dpcq/m-create-dataset-index "type") idx))
+          (ex (dpcq/m-create-dataset-index "type") {:input idx}))
         (testing "Can search PDFs based on metadata"
           (is (= #{{:externalId "armstrong-thesis-2003-abstract.pdf"}}
                  (ex-search! (search-q title "\"Armstrong Thesis Abstract\"")))))

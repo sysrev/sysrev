@@ -101,10 +101,30 @@ type PageInfo {
   startCursor: String!
 }
 
+input CreateDatasetEntityInput {
+  content: String!
+  datasetId: PositiveInt!
+  externalCreated: DateTime
+  externalId: String
+  mediaType: String!
+  metadata: String
+}
+
+input CreateDatasetIndexInput {
+  datasetId: PositiveInt!
+  path: String!
+  type: DatasetIndexType!
+}
+
 input CreateDatasetInput {
   description: String
   name: String!
   public: Boolean
+}
+
+input DatasetEntitiesInput {
+  datasetId: PositiveInt!
+  uniqueExternalIds: Boolean
 }
 
 input SearchDatasetInput {
@@ -151,14 +171,14 @@ type Query {
 
 type Mutation {
   createDataset(input: CreateDatasetInput!) : Dataset
-  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalCreated: DateTime, externalId: String, mediaType: String!, metadata: String) : DatasetEntity
-  createDatasetIndex(datasetId: PositiveInt!, path: String!, type: DatasetIndexType!) : DatasetIndex
+  createDatasetEntity(input: CreateDatasetEntityInput!) : DatasetEntity
+  createDatasetIndex(input: CreateDatasetIndexInput!) : DatasetIndex
   updateDataset(input: UpdateDatasetInput!) : Dataset
 }
 
 type Subscription {
-  datasetEntities(datasetId: PositiveInt!, uniqueExternalIds: Boolean): DatasetEntity
-  searchDataset(input: SearchDatasetInput): DatasetEntity
+  datasetEntities(input: DatasetEntitiesInput!): DatasetEntity
+  searchDataset(input: SearchDatasetInput!): DatasetEntity
 }
 
 schema {

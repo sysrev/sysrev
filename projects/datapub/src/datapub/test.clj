@@ -109,18 +109,22 @@
                                              edn/read-string)]
       (throw-errors
        (execute!
-        system (dpcq/m-create-dataset-entity "id")
-        {:content (json/generate-string content)
-         :datasetId ds-id
-         :externalId externalId
-         :mediaType "application/json"})))
+        system
+        (dpcq/m-create-dataset-entity "id")
+        {:input
+         {:content (json/generate-string content)
+          :datasetId ds-id
+          :externalId externalId
+          :mediaType "application/json"}})))
     (doseq [[type path] ctgov-indices]
       (throw-errors
        (execute!
-        system (dpcq/m-create-dataset-index "type")
-        {:datasetId ds-id
-         :path (pr-str path)
-         :type (name type)})))
+        system
+        (dpcq/m-create-dataset-index "type")
+        {:input
+         {:datasetId ds-id
+          :path (pr-str path)
+          :type (name type)}})))
     ds-id))
 
 (def fda-drugs-docs-indices
@@ -139,24 +143,28 @@
                     edn/read-string)]
       (throw-errors
        (execute!
-        system (dpcq/m-create-dataset-entity "id")
-        {:content (->> (str "datapub/file-uploads/" filename)
-                       io/resource
-                       .openStream
-                       IOUtils/toByteArray
-                       (.encodeToString (Base64/getEncoder)))
-         :datasetId ds-id
-         :externalCreated external-created
-         :externalId external-id
-         :mediaType "application/pdf"
-         :metadata (json/generate-string metadata)})))
+        system
+        (dpcq/m-create-dataset-entity "id")
+        {:input
+         {:content (->> (str "datapub/file-uploads/" filename)
+                        io/resource
+                        .openStream
+                        IOUtils/toByteArray
+                        (.encodeToString (Base64/getEncoder)))
+          :datasetId ds-id
+          :externalCreated external-created
+          :externalId external-id
+          :mediaType "application/pdf"
+          :metadata (json/generate-string metadata)}})))
     (doseq [[type path] fda-drugs-docs-indices]
       (throw-errors
        (execute!
-        system (dpcq/m-create-dataset-index "type")
-        {:datasetId ds-id
-         :path (pr-str path)
-         :type (name type)})))
+        system
+        (dpcq/m-create-dataset-index "type")
+        {:input
+         {:datasetId ds-id
+          :path (pr-str path)
+          :type (name type)}})))
     ds-id))
 
 (defn load-all-fixtures! [system]

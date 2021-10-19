@@ -104,10 +104,11 @@
    (graphql-request
     url
     (dpcq/m-create-dataset-entity "id")
-    {:content (json/generate-string study)
-     :datasetId dataset-id
-     :externalId (get-study-nctid study)
-     :mediaType "application/json"}
+    {:input
+     {:content (json/generate-string study)
+      :datasetId dataset-id
+      :externalId (get-study-nctid study)
+      :mediaType "application/json"}}
     {:headers
      {"Authorization" auth-header}})))
 

@@ -18,13 +18,12 @@
        "}}"))
 
 (defn m-create-dataset-entity [return]
-  (str "mutation($datasetId: PositiveInt!, $content: String!, $externalCreated: DateTime, $externalId: String, $mediaType: String, $metadata: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalCreated: $externalCreated, externalId: $externalId, metadata: $metadata){"
+  (str "mutation($input: CreateDatasetEntityInput!){createDatasetEntity(input: $input) {"
        (return->string return)
        "}}"))
 
 (defn m-create-dataset-index [return]
-  (str "mutation($datasetId: PositiveInt!, $path: String!, $type: DatasetIndexType!){createDatasetIndex(datasetId: $datasetId, path: $path, type: $type){"
+  (str "mutation($input: CreateDatasetIndexInput!){createDatasetIndex(input: $input) {"
        (return->string return)
        "}}"))
 
@@ -47,7 +46,7 @@
   (str "{listDatasets{" (return->string return) "}}"))
 
 (defn s-dataset-entities [return]
-  (str "subscription($id: PositiveInt!, $uniqueExternalIds: Boolean){datasetEntities(datasetId: $id, uniqueExternalIds: $uniqueExternalIds){"
+  (str "subscription($input: DatasetEntitiesInput!){datasetEntities(input: $input){"
        (return->string return)
        "}}"))
 

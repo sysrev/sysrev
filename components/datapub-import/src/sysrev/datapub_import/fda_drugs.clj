@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
-            [sysrev.datapub-client.interface :as dpc]
+            [sysrev.datapub-client.interface.queries :as dpcq]
             [sysrev.fda-drugs.interface :as fda-drugs]
             [sysrev.file-util.interface :as file-util]
             [sysrev.sqlite.interface :as sqlite])
@@ -48,15 +48,16 @@
 
 (defn upload-doc! [{:keys [ApplicationDocsURL] :as doc}
                    {:keys [auth-token dataset-id endpoint]}]
-  (dpc/create-dataset-entity!
-   {:content (->> (http/get ApplicationDocsURL {:as :stream})
-                  :body
-                  IOUtils/toByteArray
-                  (.encodeToString (Base64/getEncoder)))
-    :datasetId dataset-id
-    :externalId (doc-external-id doc)
-    :mediaType "application/pdf"
-    :metadata (json/generate-string doc)}
+  (dpcq/m-create-dataset-entity!
+   {:input
+    {:content (->> (http/get ApplicationDocsURL {:as :stream})
+                   :body
+                   IOUtils/toByteArray
+                   (.encodeToString (Base64/getEncoder)))
+     :datasetId dataset-id
+     :externalId (doc-external-id doc)
+     :mediaType "application/pdf"
+     :metadata (json/generate-string doc)}}
    #{:id}
    :auth-token auth-token
    :endpoint endpoint))

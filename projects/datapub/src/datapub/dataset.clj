@@ -417,17 +417,17 @@
                :entity/id
                (#(resolve-dataset-entity context {:id %} nil)))))))))
 
-(defmulti create-dataset-entity! (fn [_ {:keys [mediaType]} _]
+(defmulti create-dataset-entity! (fn [_ {{:keys [mediaType]} :input} _]
                                    (when mediaType
                                      (str/lower-case mediaType))))
 
 (defmethod create-dataset-entity! :default
-  [_ {:keys [mediaType]} _]
+  [_ {{:keys [mediaType]} :input} _]
   (resolve/resolve-as nil {:message "Invalid media type."
                            :mediaType mediaType}))
 
 (defmethod create-dataset-entity! "application/json"
-  [context {:as args :keys [content metadata]} _]
+  [context {{:keys [content metadata] :as input} :input} _]
   (ensure-sysrev-dev
    context
    (let [json (try
@@ -439,7 +439,7 @@
          (resolve/resolve-as nil {:message "JSON entities cannot have metadata."})
          (with-tx-context [context context]
            (create-entity-helper!
-            context args
+            context input
             {:content json
              :content-hash (byte-array (hasch/edn-hash json))
              :content-table :content-json})))))))
@@ -478,7 +478,7 @@
           (throw e))))))
 
 (defmethod create-dataset-entity! "application/pdf"
-  [context {:as args :keys [content metadata]} _]
+  [context {{:keys [content metadata] :as input} :input} _]
   (ensure-sysrev-dev
    context
    (let [json (try
@@ -509,13 +509,13 @@
                                         byte-array)]
                    (with-tx-context [context context]
                      (create-entity-helper!
-                      context args
+                      context input
                       {:content-hash content-hash
                        :content-table :content-file
                        :data data
                        :file-hash file-hash}))))))))))))
 
-(defn dataset-entities-subscription [context {:keys [datasetId uniqueExternalIds]} source-stream]
+(defn dataset-entities-subscription [context {{:keys [datasetId uniqueExternalIds]} :input} source-stream]
   (ensure-sysrev-dev
    context
    (let [q {:select :id
@@ -594,7 +594,7 @@
              {:path (pr-str path-vec)
               :type type})))))))
 
-(defn create-dataset-index! [context {:keys [datasetId path type]} _]
+(defn create-dataset-index! [context {{:keys [datasetId path type]} :input} _]
   (ensure-sysrev-dev
    context
    (let [path-vec (try (edn/read-string path) (catch Exception _))]
