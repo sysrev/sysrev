@@ -28,4 +28,9 @@
   [^Path path]
   (core/parse-data path))
 
+(defn parse-review-html
+  "Parses an HTML review file for links to review documnt PDFs.
 
+  Returns a seq of {:label \"\" :url \"\"} maps. URLs may be relative or absolute."
+  [^String html]
+  (core/parse-review-html html))

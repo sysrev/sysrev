@@ -2,6 +2,9 @@
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [clojure.zip :as zip]
+            [hickory.core :as hi]
+            [hickory.zip :as hz]
             [sysrev.file-util.interface :as file-util])
   (:import (java.net URL)
            (java.nio.file Path)))
@@ -128,3 +131,31 @@
          (into {}))))
 
 (def parse-applications (comp applications parse-data))
+
+(defn text-content [{:keys [content]}]
+  (->> (mapcat #(cond (nil? %) nil (string? %) [%] :else (text-content %)) content)
+       (apply str)))
+
+(defn parse-review-html-content
+  "Finds <a> tags with targets ending in .pdf.
+
+  Returns a seq of {:label \"\" :url \"\"} maps. URLs may be relative or absolute."
+  [node]
+  (loop [zipper (hz/hickory-zip node)
+         docs []]
+    (let [{:keys [attrs tag] :as node} (zip/node zipper)
+          docs* (if (and (= :a tag) (some-> attrs :href str/lower-case (str/ends-with? ".pdf")))
+                  (conj docs {:label (some-> node text-content str/trim)
+                              :url (:href attrs)})
+                  docs)]
+      (if (zip/end? zipper)
+        docs*
+        (recur (zip/next zipper) docs*)))))
+
+(defn parse-review-html [html]
+  (loop [zipper (-> html hi/parse hi/as-hickory hz/hickory-zip)]
+    (let [{:keys [attrs tag] :as node} (zip/node zipper)]
+      (if (and (= :div tag) (= "content" (some-> attrs :id str/lower-case)))
+        (parse-review-html-content node)
+        (when-not (zip/end? zipper)
+          (recur (zip/next zipper)))))))
