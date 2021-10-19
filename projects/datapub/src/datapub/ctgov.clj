@@ -1,7 +1,8 @@
 (ns datapub.ctgov
   (:require [cheshire.core :as json]
             [clj-http.client :as client]
-            [clojure.data.xml :as xml])
+            [clojure.data.xml :as xml]
+            [sysrev.datapub-client.interface.queries :as dpcq])
   (:import [java.time Duration ZonedDateTime]
            [java.time.format DateTimeFormatter]))
 
@@ -87,14 +88,6 @@
          distinct
          (map get-study))))
 
-(def create-ctgov-dataset
-  "mutation{createDataset(input: {name: \"ClinicalTrials.gov\" description: \"ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world.\" public: true}){id}}")
-
-(def create-json-dataset-entity
-  "mutation($datasetId: PositiveInt!, $content: String!, $nctid: String!) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalId: $nctid){id}
-  }")
-
 (defn graphql-request [url query & [variables options]]
   (client/post
    url
@@ -108,13 +101,15 @@
 (defn import-study! [url {:keys [auth-header dataset-id study]}]
   (retry
    {:interval-ms 1000 :n 10}
-   (graphql-request url create-json-dataset-entity
-                    {:content (json/generate-string study)
-                     :datasetId dataset-id
-                     :nctid (get-study-nctid study)
-                     :mediaType "application/json"}
-                    {:headers
-                     {"Authorization" auth-header}})))
+   (graphql-request
+    url
+    (dpcq/m-create-dataset-entity "id")
+    {:content (json/generate-string study)
+     :datasetId dataset-id
+     :externalId (get-study-nctid study)
+     :mediaType "application/json"}
+    {:headers
+     {"Authorization" auth-header}})))
 
 (defn get-num-studies-available []
   (-> (client/get study-url {:as :json
@@ -154,7 +149,13 @@
 
 (comment
   (def url "http://localhost:8888/api")
-  (graphql-request url create-ctgov-dataset)
+  (graphql-request
+   url
+   (dpcq/m-create-dataset "id")
+   {:input
+    {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
+     :name "ClinicalTrials.gov"
+     :public true}})
 
   ;; Initial import of all studies.
   (doseq [study (get-studies-in-range 1 (get-num-studies-available))]

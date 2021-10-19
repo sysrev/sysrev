@@ -12,31 +12,6 @@
   (:import (java.util Base64)
            (org.apache.commons.io IOUtils)))
 
-(def create-dataset
-  "mutation($input: CreateDatasetInput!){createDataset(input: $input){id}}")
-
-(def create-dataset-entity
-  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String, $mediaType: String, $metadata: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: $mediaType, externalId: $externalId, metadata: $metadata){id content externalId mediaType metadata}
-  }")
-
-(def create-dataset-index
-  "mutation($datasetId: PositiveInt!, $path: String!, $type: DatasetIndexType!){createDatasetIndex(datasetId: $datasetId, path: $path, type: $type){path type}}")
-
-(def create-json-dataset-entity
-  "mutation($datasetId: PositiveInt!, $content: String!, $externalCreated: DateTime, $externalId: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalCreated: $externalCreated, externalId: $externalId){id content externalId mediaType}
-  }")
-
-(def dataset-entity
-  "query($id: PositiveInt!) {datasetEntity(id: $id){id content externalId mediaType metadata}}")
-
-(def subscribe-dataset-entities
-  "subscription($id: PositiveInt!, $uniqueExternalIds: Boolean){datasetEntities(datasetId: $id, uniqueExternalIds: $uniqueExternalIds){content externalId mediaType}}")
-
-(def subscribe-search-dataset
-  "subscription($input: SearchDatasetInput!){searchDataset(input: $input){content externalId id mediaType}}")
-
 (defn response-for [system verb url & options]
   (apply
    test/response-for (get-in system [:pedestal :service :io.pedestal.http/service-fn])
@@ -48,7 +23,7 @@
                     {:response graphql-response}))
     graphql-response))
 
-(defn execute [system query & [variables]]
+(defn execute! [system query & [variables]]
   (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)]
     (-> (response-for system
                       :post "/api"
@@ -61,7 +36,7 @@
 (defn query-arguments [query]
   (-> query :selections first selection/arguments))
 
-(defn execute-subscription [system f query & [variables opts]]
+(defn execute-subscription! [system f query & [variables opts]]
   (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)
         {:keys [timeout-ms]
          :or {timeout-ms 30000}} opts
@@ -107,8 +82,8 @@
 
 (defn create-dataset! [system input]
   (-> system
-      (execute
-       create-dataset
+      (execute!
+       (dpcq/m-create-dataset "id")
        {:input input})
       :body
       throw-errors
@@ -133,15 +108,16 @@
                                              slurp
                                              edn/read-string)]
       (throw-errors
-       (execute
-        system create-json-dataset-entity
+       (execute!
+        system (dpcq/m-create-dataset-entity "id")
         {:content (json/generate-string content)
          :datasetId ds-id
-         :externalId externalId})))
+         :externalId externalId
+         :mediaType "application/json"})))
     (doseq [[type path] ctgov-indices]
       (throw-errors
-       (execute
-        system create-dataset-index
+       (execute!
+        system (dpcq/m-create-dataset-index "type")
         {:datasetId ds-id
          :path (pr-str path)
          :type (name type)})))
@@ -162,7 +138,7 @@
                     slurp
                     edn/read-string)]
       (throw-errors
-       (execute
+       (execute!
         system (dpcq/m-create-dataset-entity "id")
         {:content (->> (str "datapub/file-uploads/" filename)
                        io/resource
@@ -176,8 +152,8 @@
          :metadata (json/generate-string metadata)})))
     (doseq [[type path] fda-drugs-docs-indices]
       (throw-errors
-       (execute
-        system create-dataset-index
+       (execute!
+        system (dpcq/m-create-dataset-index "type")
         {:datasetId ds-id
          :path (pr-str path)
          :type (name type)})))
