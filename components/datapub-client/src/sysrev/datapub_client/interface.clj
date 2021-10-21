@@ -18,6 +18,13 @@
    input return
    :auth-token auth-token :endpoint endpoint))
 
+#_:clj-kondo/ignore
+(defn execute!
+  "Executes a GraphQL query and returns the result. Throws an
+  ExceptionInfo when the endpoint returns an error response."
+  [{:keys [auth-token endpoint query variables] :as args}]
+  (apply core/execute! (mapcat identity args)))
+
 (defn get-dataset
   "Retrieve a Dataset by its id."
   [^Long id return & {:keys [auth-token endpoint]}]

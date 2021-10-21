@@ -22,7 +22,7 @@
       :body))
 
 (defn create-dataset-entity! [input return & {:keys [auth-token endpoint]}]
-  (-> (execute! :query (q/m-create-dataset-entity return) :variables input
+  (-> (execute! :query (q/m-create-dataset-entity return) :variables {:input input}
                 :auth-token auth-token :endpoint endpoint)
       :data :createDatasetEntity))
 
