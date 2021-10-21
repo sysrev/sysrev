@@ -156,7 +156,10 @@
 (defn parse-review-html [html]
   (loop [zipper (-> html hi/parse hi/as-hickory hz/hickory-zip)]
     (let [{:keys [attrs tag] :as node} (zip/node zipper)]
-      (if (and (= :div tag) (= "content" (some-> attrs :id str/lower-case)))
+      (if (and (= :div tag) (or (= "content" (some-> attrs :id str/lower-case))
+                                (some #{"content"} (some-> attrs :class
+                                                           (str/split #"\s+")
+                                                           (->> (map str/lower-case))))))
         (parse-review-html-content node)
         (when-not (zip/end? zipper)
           (recur (zip/next zipper)))))))
