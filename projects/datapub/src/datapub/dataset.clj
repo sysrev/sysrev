@@ -238,7 +238,8 @@
   (let [ks (conj (current-selection-names context) :dataset-id)
         cols-all {:dataset-id :dataset-id
                   :externalCreated :external-created
-                  :externalId :external-id}
+                  :externalId :external-id
+                  :groupingId :grouping-id}
         inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
         cols-file (assoc cols-all
                          :content :file-hash
@@ -329,16 +330,17 @@
              (if (= :content-json content-table) :hash :content-hash)]})))
 
 (defn get-existing-entity
-  [context {:keys [content-id dataset-id external-created external-id]}]
+  [context {:keys [content-id dataset-id external-created external-id grouping-id]}]
   (execute-one!
    context
    {:select :id
     :from :entity
     :where [:and
+            [:= :content-id content-id]
             [:= :dataset-id dataset-id]
             [:= :external-created external-created]
             [:= :external-id external-id]
-            [:= :content-id content-id]]}))
+            [:= :grouping-id grouping-id]]}))
 
 (defn create-entity-helper!
   "To be called by the create-dataset-entity! methods. Takes the context,
@@ -355,7 +357,7 @@
   Handles checking for dataset existence, for existing content with the same
   hash, and existing entities in the dataset with the same externalId."
   [context
-   {:keys [datasetId ^Instant externalCreated externalId mediaType]}
+   {:keys [datasetId ^Instant externalCreated externalId groupingId mediaType]}
    {:keys [content content-hash content-table data file-hash]}]
   (ensure-sysrev-dev
    context
@@ -373,7 +375,8 @@
              identifiers {:content-id existing-content-id
                           :dataset-id datasetId
                           :external-created external-created
-                          :external-id externalId}]
+                          :external-id externalId
+                          :grouping-id groupingId}]
          (if existing-content-id
            (if-let [existing-entity (get-existing-entity context identifiers)]
              (resolve-dataset-entity context {:id (:entity/id existing-entity)} nil)
@@ -413,6 +416,9 @@
                                :external-created external-created}
                               ((if externalId
                                  #(assoc % :external-id externalId)
+                                 identity))
+                              ((if groupingId
+                                 #(assoc % :grouping-id groupingId)
                                  identity)))]})
                :entity/id
                (#(resolve-dataset-entity context {:id %} nil)))))))))

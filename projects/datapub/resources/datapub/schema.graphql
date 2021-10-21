@@ -68,6 +68,8 @@ type DatasetEntity {
   "An opaque external id."
   externalId: String
 
+  groupingId: String
+
   "The media type, such as \"application/json\"."
   mediaType: String!
 
@@ -106,6 +108,7 @@ input CreateDatasetEntityInput {
   datasetId: PositiveInt!
   externalCreated: DateTime
   externalId: String
+  groupingId: String
   mediaType: String!
   metadata: String
 }
