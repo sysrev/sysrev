@@ -135,6 +135,7 @@
                      org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
+                     sysrev/datapub-import {:local/root "components/datapub-import"}
                      sysrev/fda-drugs {:local/root "components/fda-drugs"}
                      sysrev/sqlite {:local/root "components/sqlite"}}
         :extra-paths ["config/dev"

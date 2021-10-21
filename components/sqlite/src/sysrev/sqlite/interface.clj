@@ -24,4 +24,4 @@
   which contains a `next.jdbc` :datasource for a SQLite database at
   filename. The file will be created if it does not exist."
   [filename]
-  (sqlite filename))
+  (core/sqlite filename))
