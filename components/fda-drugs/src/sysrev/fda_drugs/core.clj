@@ -145,7 +145,8 @@
          docs []]
     (let [{:keys [attrs tag] :as node} (zip/node zipper)
           docs* (if (and (= :a tag) (some-> attrs :href str/lower-case (str/ends-with? ".pdf")))
-                  (conj docs {:label (some-> node text-content str/trim)
+                  (conj docs {:label (some-> node text-content str/trim
+                                             (str/replace #"\s+" " "))
                               :url (:href attrs)})
                   docs)]
       (if (zip/end? zipper)
