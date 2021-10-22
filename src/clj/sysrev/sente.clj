@@ -2,8 +2,6 @@
   (:require [clojure.core.async :refer [<!!]]
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
-            [sysrev.config :refer [env]]
-            [sysrev.datapub-client.interface :as datapub]
             [sysrev.reviewer-time.interface :as reviewer-time]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.web.app :refer [current-user-id]]
@@ -47,21 +45,9 @@
         (str (namespace x) "/" (name x))))))
 
 (defn- handle-message! [sente item]
-  (let [{:keys [?reply-fn event]} item
+  (let [{:keys [event]} item
         [kind data] event]
     (case kind
-      :datapub/subscribe!
-      (when (#{:dev :test} (:profile env))
-        ; Workaround for Chrome's restrictions on local dev. We can't open a websocket to
-        ; datapub on localhost, so we proxy the requests here.
-        (let [{:keys [query variables]} data]
-          (?reply-fn
-           (datapub/consume-subscription!
-            :auth-token (:sysrev-dev-token env)
-            :endpoint (get-in sente [:config :datapub-ws])
-            :query query
-            :variables variables))))
-
       :review/record-reviewer-event
       (let [[reframe-event {:keys [article-id project-id]}] data]
         (reviewer-time/create-events!
