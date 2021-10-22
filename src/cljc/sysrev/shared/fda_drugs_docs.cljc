@@ -58,7 +58,7 @@
   (let [{:keys [filters search]} (canonicalize-query query)
         {:keys [application-type review-document-type]} filters]
     {:datasetId 3
-     :uniqueExternalIds true
+     :uniqueGroupingIds true
      :query
      (->> {:type "AND"
            :query [(string-set-filters
