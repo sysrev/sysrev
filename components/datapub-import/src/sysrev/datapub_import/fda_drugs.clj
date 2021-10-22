@@ -220,9 +220,17 @@
                   "\": " (.getMessage e)))
             (.printStackTrace e)))))))
 
-(defn review-type [link-texts]
-  (when (= #{"pharmacology review(s)"} link-texts)
-    "pharmacology review"))
+(def review-type
+  {#{"chemistry review(s)"} "chemistry review"
+   #{"medical review(s)"} "medical review"
+   #{"microbiology review"} "microbiology review"
+   #{"microbiology review(s)"} "microbiology review"
+   #{"pharmacology review(s)"} "pharmacology review"
+   #{"proprietary name review(s)"} "proprietary name review"
+   #{"risk assessment and risk mitigation review(s)"} "risk assessment and risk mitigation review"
+   #{"statistical review"} "statistical review"
+   #{"statistical review(s)"} "statistical review"
+   #{"summary review"} "summary review"})
 
 (defn import-review-docs!
   [{:keys [auth-token dataset-id endpoint sqlite] :as opts} docs urls]

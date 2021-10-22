@@ -10,8 +10,14 @@
 (def application-type-options-map (into {} application-type-options))
 
 (def review-document-type-options
-  [["pharmacology review" "Pharmacology"]
-   ["toxicology review" "Toxicology"]])
+  [["chemistry review" "Chemistry"]
+   ["medical review" "Medical"]
+   ["microbiology review" "Microbiology"]
+   ["pharmacology review" "Pharmacology"]
+   ["propietary name review" "Proprietary Name"]
+   ["risk assessment and risk mitigation review" "Risk"]
+   ["statistical review" "Statistical"]
+   ["summary review" "Summary"]])
 
 (def review-document-type-options-map (into {} review-document-type-options))
 
