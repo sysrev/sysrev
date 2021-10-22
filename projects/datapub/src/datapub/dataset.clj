@@ -152,13 +152,17 @@
            (resolve-dataset context {:id id} nil)))))))
 
 (defn internal-path-vec
-  "Returns a path vector with the :* keyword replaced with the string
-  \":datapub/*\" for use in postgres."
+  "Returns a path vector for use in postgres. Numbers are turned into strings,
+  and the :* keyword isdata replaced with the string \":datapub/*\"."
   [path-seq]
-  (mapv #(if (= :* %) ":datapub/*" %) path-seq))
+  (mapv
+   #(cond (= :* %) ":datapub/*"
+          (number? %) (str %)
+          :else %)
+   path-seq))
 
 (defn external-path-vec
-  "The reverse of internal-path-vec."
+  "Changes \":datapub/*\" back into :*. See `internal-path-vec`."
   [path-seq]
   (mapv #(if (= ":datapub/*" %) :* %) path-seq))
 
@@ -624,7 +628,12 @@
              :values
              [{:dataset-id datasetId
                :index-spec-id index-spec-id}]})
-           (resolve-dataset-index context {:datasetId datasetId :path path :type type} nil)))))))
+           (resolve-dataset-index
+            context
+            {:datasetId datasetId
+             :path (pr-str (-> path-vec internal-path-vec external-path-vec))
+             :type type}
+            nil)))))))
 
 (defn string-query->sqlmap [context {:keys [eq ignoreCase path]}]
   (let [path-vec (-> (try (edn/read-string path)

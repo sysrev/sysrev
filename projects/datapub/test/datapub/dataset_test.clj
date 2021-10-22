@@ -61,6 +61,28 @@
                        {:input {:id ds-id :public true}})
                    (get-in [:data :updateDataset]))))))))
 
+(deftest test-dataset-index-ops
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-dataset-index"}})
+                    (get-in [:data :createDataset :id]))
+          text-index (fn [path]
+                       {:datasetId ds-id
+                        :path (pr-str path)
+                        :type :TEXT})
+          create-index! (fn [input]
+                          (-> (ex (dpcq/m-create-dataset-index "path type") {:input input})
+                              (get-in [:data :createDatasetIndex])))]
+      (testing "Can create DatasetIndex objects with string paths"
+        (is (= {:path "[\"data\" \"title\"]", :type "TEXT"}
+               (create-index! (text-index ["data" "title"])))))
+      (testing "Can create DatasetIndex objects with wildcard paths"
+        (is (= {:path "[\"data\" :* \"title\"]", :type "TEXT"}
+               (create-index! (text-index ["data" :* "title"])))))
+      (testing "Can create DatasetIndex objects with integer paths"
+        (is (= {:path "[\"2\"]", :type "TEXT"}
+               (create-index! (text-index [2]))))))))
+
 (deftest test-entity-ops
   (test/with-test-system [system {}]
     (let [ex (partial ex! system)
