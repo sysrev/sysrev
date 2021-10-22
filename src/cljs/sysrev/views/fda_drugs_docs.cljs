@@ -153,7 +153,10 @@
                       :target "_blank"}
                   [:i.share.icon]]]
       [TableCell (get metadata "SponsorName")]
-      [TableCell (get metadata "ApplicationDocsDescription")]
+      [TableCell (get metadata "ApplicationDocsDescription")
+       (some-> (get metadata "ReviewDocumentType")
+               fda-drugs-docs/review-document-type-options-map
+               (#(str " (" % ")")))]
       [TableCell (get metadata "ApplType")]
       [TableCell (get-in metadata ["Submissions" 0 "SubmissionClass" "Description"])]]
      (when-let [products (get metadata "Products")]
@@ -273,4 +276,9 @@
     {:cursor (r/cursor state [:filters :application-type])
      :label "Application Type"
      :on-change #(dispatch [::fetch-results])
-     :options fda-drugs-docs/application-type-options}]])
+     :options fda-drugs-docs/application-type-options}]
+   [comp/MultiSelect
+    {:cursor (r/cursor state [:filters :review-document-type])
+     :label "Review Document Type"
+     :on-change #(dispatch [::fetch-results])
+     :options fda-drugs-docs/review-document-type-options}]])

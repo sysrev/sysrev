@@ -9,6 +9,12 @@
 
 (def application-type-options-map (into {} application-type-options))
 
+(def review-document-type-options
+  [["pharmacology review" "Pharmacology"]
+   ["toxicology review" "Toxicology"]])
+
+(def review-document-type-options-map (into {} review-document-type-options))
+
 (defn ensure-set [x]
   (cond
     (nil? x) #{}
@@ -29,6 +35,7 @@
 (defn canonicalize-query [{:keys [filters search]}]
   {:filters (-> filters
                 (update :application-type (comp not-empty ensure-set))
+                (update :review-document-type (comp not-empty ensure-set))
                 (->> (medley/remove-vals nil?) not-empty))
    :search (canonicalize-search-string search)})
 
@@ -43,14 +50,17 @@
 
 (defn query->datapub-input [query]
   (let [{:keys [filters search]} (canonicalize-query query)
-        {:keys [application-type]} filters]
+        {:keys [application-type review-document-type]} filters]
     {:datasetId 3
      :uniqueExternalIds true
      :query
      (->> {:type "AND"
            :query [(string-set-filters
                     application-type application-type-options-map
-                    (pr-str ["metadata" "ApplType"]))]
+                    (pr-str ["metadata" "ApplType"]))
+                   (string-set-filters
+                    review-document-type identity
+                    (pr-str ["metadata" "ReviewDocumentType"]))]
            :text [(when search
                     {:search search
                      :useEveryIndex true})]}
