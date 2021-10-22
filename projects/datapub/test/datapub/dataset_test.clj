@@ -433,7 +433,13 @@
                ["B2" "g2" "term 2" "2000-01-02T00:00:00Z"]
                ["C1" "g3" "term 3" "2000-01-03T00:00:00Z"]
                ["C2" "g3" "term 2" "2000-01-02T00:00:00Z"]
-               ["C1" "g3" "term 1" "2000-01-01T00:00:00Z"]]]
+               ["C1" "g3" "term 1" "2000-01-01T00:00:00Z"]
+               ;; Entities with the same externalCreated should
+               ;; break ties with the actual created Timestamp
+               ["D1" "g4" "term 1" "2000-01-01T00:00:00Z"]
+               ["D2" "g4" "term 2" "2000-01-01T00:00:00Z"]
+               ["E2" "g5" "term 2" "2000-01-01T00:00:00Z"]
+               ["E1" "g5" "term 1" "2000-01-01T00:00:00Z"]]]
         (ex (dpcq/m-create-dataset-entity "id")
             {:input
              {:datasetId ds-id
@@ -444,13 +450,15 @@
               :mediaType "application/json"}}))
       (testing "datasetEntities with uniqueGroupingIds returns the most recent entity of each group"
         (ex (dpcq/m-create-dataset-index "type") {:input second-index})
-        (is (= #{["A1" "g1" "term 3"] ["B1" "g2" "term 3"] ["C1" "g3" "term 3"]}
+        (is (= #{["A1" "g1" "term 3"] ["B1" "g2" "term 3"] ["C1" "g3" "term 3"]
+                 ["D2" "g4" "term 2"] ["E1" "g5" "term 1"]}
                (->> (sub-json-dataset-entities!
                      #{:content} {:input {:datasetId ds-id :uniqueGroupingIds true}})
                     (map :content) (into #{})))))
       (testing "searchDataset with uniqueGroupingIds returns the most recent entity of each group"
         (ex (dpcq/m-create-dataset-index "type") {:input second-index})
-        (is (= #{["A1" "g1" "term 3"] ["B1" "g2" "term 3"] ["C1" "g3" "term 3"]}
+        (is (= #{["A1" "g1" "term 3"] ["B1" "g2" "term 3"] ["C1" "g3" "term 3"]
+                 ["D2" "g4" "term 2"] ["E1" "g5" "term 1"]}
                (->> (sub-search-dataset!
                      #{:content} (search-q second-index "term"))
                     (map (comp json/parse-string :content))

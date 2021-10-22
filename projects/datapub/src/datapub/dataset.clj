@@ -533,8 +533,8 @@
             :where [:and
                     [:= :dataset-id datasetId]
                     (when (or uniqueExternalIds uniqueGroupingIds)
-                      [:in [:coalesce :external-created :created]
-                       {:select [[[:max [:coalesce :external-created :created]]]]
+                      [:in [:concat [:coalesce :external-created :created] :created]
+                       {:select [[[:max [:concat [:coalesce :external-created :created] :created]]]]
                         :from [[:entity :e]]
                         :where [:and
                                 [:= :e.dataset-id :entity.dataset-id]
@@ -710,8 +710,8 @@
        :join [:entity [:= :entity-id :entity.id]]
        :where [:and
                where
-               [:in [:coalesce :external-created :created]
-                {:select [[[:max [:coalesce :external-created :created]]]]
+               [:in [:concat [:coalesce :external-created :created] :created]
+                {:select [[[:max [:concat [:coalesce :external-created :created] :created]]]]
                  :from [[:entity :e]]
                  :where [:and
                          [:= :e.dataset-id :entity.dataset-id]
