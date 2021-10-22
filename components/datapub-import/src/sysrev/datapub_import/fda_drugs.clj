@@ -284,9 +284,8 @@
   [{:keys [auth-token dataset-id endpoint sqlite] :as opts} docs]
   (let [datasource (:datasource sqlite)]
     (log/info (str "FDA@Drugs doc stats: " (pr-str (doc-stats datasource))))
-    ;; We only handle labels and reviews currently.
     (doseq [{url :ApplicationDocsURL :as doc}
-            (filter (comp #{"Label" "Review"} :ApplicationDocsDescription) docs)]
+            (filter (comp #{"Label" "Letter" "Review"} :ApplicationDocsDescription) docs)]
       (when (contains? #{nil "new"} (get-doc-status datasource url))
         (import-fda-drugs-doc! opts doc)))
     (log/info (str "FDA@Drugs doc stats: " (pr-str (doc-stats datasource))))
