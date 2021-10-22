@@ -128,12 +128,14 @@ input CreateDatasetInput {
 input DatasetEntitiesInput {
   datasetId: PositiveInt!
   uniqueExternalIds: Boolean
+  uniqueGroupingIds: Boolean
 }
 
 input SearchDatasetInput {
   datasetId: PositiveInt!
   query: SearchDatasetQueryInput!
   uniqueExternalIds: Boolean
+  uniqueGroupingIds: Boolean
 }
 
 input SearchDatasetQueryInput {

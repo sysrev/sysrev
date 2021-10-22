@@ -525,20 +525,22 @@
                        :data data
                        :file-hash file-hash}))))))))))))
 
-(defn dataset-entities-subscription [context {{:keys [datasetId uniqueExternalIds]} :input} source-stream]
+(defn dataset-entities-subscription [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds]} :input} source-stream]
   (ensure-sysrev-dev
    context
    (let [q {:select :id
             :from :entity
             :where [:and
                     [:= :dataset-id datasetId]
-                    (when uniqueExternalIds
+                    (when (or uniqueExternalIds uniqueGroupingIds)
                       [:in [:coalesce :external-created :created]
                        {:select [[[:max [:coalesce :external-created :created]]]]
                         :from [[:entity :e]]
                         :where [:and
                                 [:= :e.dataset-id :entity.dataset-id]
-                                [:= :e.external-id :entity.external-id]]}])]}
+                                (if uniqueExternalIds
+                                  [:= :e.external-id :entity.external-id]
+                                  [:= :e.grouping-id :entity.grouping-id])]}])]}
          fut (future
                (try
                  (with-tx-context [context context]
@@ -695,12 +697,13 @@
     (map (partial string-query->sqlmap context) string)
     (map (partial text-query->sqlmap context) text))))
 
-(defn search-dataset-query->select [context {:keys [datasetId query uniqueExternalIds]}]
+(defn search-dataset-query->select
+  [context {:keys [datasetId query uniqueExternalIds uniqueGroupingIds]}]
   (let [where (search-dataset-query->sqlmap context query)
         q {:select :entity-id
            :from (keyword (str "indexed-entity-" datasetId))
            :where where}]
-    (if-not uniqueExternalIds
+    (if-not (or uniqueExternalIds uniqueGroupingIds)
       q
       (assoc
        q
@@ -712,30 +715,34 @@
                  :from [[:entity :e]]
                  :where [:and
                          [:= :e.dataset-id :entity.dataset-id]
-                         [:= :e.external-id :entity.external-id]]}]]))))
+                         (if uniqueExternalIds
+                           [:= :e.external-id :entity.external-id]
+                           [:= :e.grouping-id :entity.grouping-id])]}]]))))
 
 (defn search-dataset-subscription
-  [context {{:keys [datasetId] :as input} :input} source-stream]
-  (if-not (or (sysrev-dev? context)
-              (with-tx-context [context context]
-                (public-dataset? context datasetId)))
-    (do
-      (source-stream
-       (resolve/resolve-as nil {:datasetId datasetId
-                                :message "You are not authorized to access entities in that dataset."}))
-      (constantly nil))
-    (let [fut (future
-                (try
-                  (with-tx-context [context (assoc context ::dataset-id datasetId)]
-                    (let [q (search-dataset-query->select context input)]
-                      (when (some identity (rest q))
-                        (reduce
-                         (fn [_ row]
-                           (source-stream
-                            (resolve-dataset-entity context {:id (:entity_id row)} nil)))
-                         nil
-                         (plan context q))))
-                    (source-stream nil))
-                  (catch Exception e
-                    (prn e))))]
-      (fn [] (future-cancel fut)))))
+  [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds] :as input} :input} source-stream]
+  (if (and uniqueExternalIds uniqueGroupingIds)
+    (resolve/resolve-as nil {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."})
+    (if-not (or (sysrev-dev? context)
+                (with-tx-context [context context]
+                  (public-dataset? context datasetId)))
+      (do
+        (source-stream
+         (resolve/resolve-as nil {:datasetId datasetId
+                                  :message "You are not authorized to access entities in that dataset."}))
+        (constantly nil))
+      (let [fut (future
+                  (try
+                    (with-tx-context [context (assoc context ::dataset-id datasetId)]
+                      (let [q (search-dataset-query->select context input)]
+                        (when (some identity (rest q))
+                          (reduce
+                           (fn [_ row]
+                             (source-stream
+                              (resolve-dataset-entity context {:id (:entity_id row)} nil)))
+                           nil
+                           (plan context q))))
+                      (source-stream nil))
+                    (catch Exception e
+                      (prn e))))]
+        (fn [] (future-cancel fut))))))

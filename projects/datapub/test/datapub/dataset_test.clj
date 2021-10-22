@@ -392,6 +392,70 @@
                       (map (fn [{:keys [content]}]
                              {:content (some-> content json/parse-string)}))))))))))
 
+(deftest test-unique-grouping-ids
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          sub-json-dataset-entities! (fn [return-keys variables]
+                                       (->> (subscribe-dataset-entities!
+                                             system return-keys variables)
+                                            (map #(update % :content parse-json))
+                                            (into #{})))
+          ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-grouping"}})
+                    (get-in [:data :createDataset :id]))
+          sub-json-dataset-entities! (fn [return-keys variables]
+                                       (->> (subscribe-dataset-entities!
+                                             system return-keys variables)
+                                            (map #(update % :content parse-json))
+                                            (into #{})))
+          sub-search-dataset! (fn [return-keys variables]
+                                (->> variables
+                                     (subscribe-search-dataset!
+                                      system return-keys)
+                                     (into #{})))
+          search-q (fn [idx search]
+                     {:input
+                      {:datasetId ds-id
+                       :uniqueGroupingIds true
+                       :query
+                       {:type :AND
+                        :text
+                        [{:paths [(:path idx)]
+                          :search search}]}}})
+          second-index {:datasetId ds-id
+                        :path (pr-str [2])
+                        :type :TEXT}]
+      (doseq [[ex-id gr-id v ex-created]
+              [["A1" "g1" "term 1" "2000-01-01T00:00:00Z"]
+               ["A2" "g1" "term 2" "2000-01-02T00:00:00Z"]
+               ["A1" "g1" "term 3" "2000-01-03T00:00:00Z"]
+               ["B1" "g2" "term 1" "2000-01-01T00:00:00Z"]
+               ["B1" "g2" "term 3" "2000-01-03T00:00:00Z"]
+               ["B2" "g2" "term 2" "2000-01-02T00:00:00Z"]
+               ["C1" "g3" "term 3" "2000-01-03T00:00:00Z"]
+               ["C2" "g3" "term 2" "2000-01-02T00:00:00Z"]
+               ["C1" "g3" "term 1" "2000-01-01T00:00:00Z"]]]
+        (ex (dpcq/m-create-dataset-entity "id")
+            {:input
+             {:datasetId ds-id
+              :content (json/generate-string [ex-id gr-id v])
+              :externalCreated ex-created
+              :externalId ex-id
+              :groupingId gr-id
+              :mediaType "application/json"}}))
+      (testing "datasetEntities with uniqueGroupingIds returns the most recent entity of each group"
+        (ex (dpcq/m-create-dataset-index "type") {:input second-index})
+        (is (= #{["A1" "g1" "term 3"] ["B1" "g2" "term 3"] ["C1" "g3" "term 3"]}
+               (->> (sub-json-dataset-entities!
+                     #{:content} {:input {:datasetId ds-id :uniqueGroupingIds true}})
+                    (map :content) (into #{})))))
+      (testing "searchDataset with uniqueGroupingIds returns the most recent entity of each group"
+        (ex (dpcq/m-create-dataset-index "type") {:input second-index})
+        (is (= #{["A1" "g1" "term 3"] ["B1" "g2" "term 3"] ["C1" "g3" "term 3"]}
+               (->> (sub-search-dataset!
+                     #{:content} (search-q second-index "term"))
+                    (map (comp json/parse-string :content))
+                    (into #{}))))))))
+
 (deftest test-pdf-entities
   (test/with-test-system [system {}]
     (let [ex (partial ex! system)
