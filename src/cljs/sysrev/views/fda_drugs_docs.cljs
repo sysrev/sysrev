@@ -149,12 +149,12 @@
 (defn ArticleSummary
   "Display an article summary item"
   [entity-id]
-  (let [metadata (:metadata @(subscribe [:datapub/entity* entity-id]))]
+  (let [{:keys [externalId metadata]} @(subscribe [:datapub/entity* entity-id])]
     [:<>
      [TableRow
-      [TableCell [:a {:href (get metadata "ApplicationDocsURL")
+      [TableCell [:a {:href externalId
                       :target "_blank"}
-                  [:i.share.icon]]]
+                  [:i.external.icon]]]
       [TableCell (get metadata "SponsorName")]
       [TableCell (get metadata "ApplicationDocsDescription")
        (some-> (get metadata "ReviewDocumentType")
@@ -242,7 +242,7 @@
            [Table {:striped true}
             [TableHeader
              [TableRow
-              [TableHeaderCell "Link"]
+              [TableHeaderCell ""]
               [TableHeaderCell "SponsorName"]
               [TableHeaderCell "Doc Description"]
               [TableHeaderCell "Application Type"]
