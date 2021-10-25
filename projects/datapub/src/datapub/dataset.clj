@@ -637,11 +637,8 @@
              :type type}
             nil)))))))
 
-(defn string-query->sqlmap [context {:keys [eq ignoreCase path]}]
-  (let [path-vec (-> (try (edn/read-string path)
-                          (catch Exception _
-                            (throw (ex-info "Invalid path." {:path path}))))
-                     internal-path-vec)
+(defn string-query->sqlmap [_ {:keys [eq ignoreCase path]}]
+  (let [path-vec (internal-path-vec (edn/read-string path))
         v [(keyword "#>>") :indexed-data [:array path-vec]]
         maybe-lower #(if ignoreCase [:lower %] %)]
     [:in
@@ -652,32 +649,12 @@
                    [:get_in_jsonb :indexed-data [:array path-vec]]
                    [:raw "text[]"]]])]]}]))
 
-(defn text-query->sqlmap [context {:keys [paths search useEveryIndex]}]
-  (when (if useEveryIndex paths (not paths))
-    (throw (RuntimeException. "Either paths or useEveryIndex must be specified, but not both.")))
-  (let [dataset-id (::dataset-id context)
-        index-spec-ids
-        #__ (if useEveryIndex
-              (->> {:select :index-spec-id
-                     :from :dataset-index-spec
-                     :join [:index-spec [:= :id :index-spec-id]]
-                     :where [:and
-                             [:= :dataset-id dataset-id]
-                             [:= "text" :index-spec.type-name]]}
-                   (execute! context)
-                   (map :dataset-index-spec/index-spec-id))
-              (->> paths
-                   (map
-                    (fn [path]
-                      (let [path-vec (try (edn/read-string path)
-                                          (catch Exception _))]
-                        (or
-                         (when (valid-index-path? path-vec)
-                           (:index-spec/id
-                            (get-index-spec context path-vec "text")))
-                         (throw (ex-info "Index does not exist."
-                                         {:path path}))))))))]
-    (some->> index-spec-ids
+(defn text-query->sqlmap [index-spec-ids {:keys [paths search useEveryIndex]}]
+  (if (if useEveryIndex paths (not paths))
+    (throw (RuntimeException. "Either paths or useEveryIndex must be specified, but not both."))
+    (some->> (if useEveryIndex
+               (:use-every-index-text index-spec-ids)
+               (mapcat index-spec-ids paths))
              (map #(vector (keyword "@@")
                            (keyword (str "index-" %))
                            [:websearch_to_tsquery
@@ -686,20 +663,58 @@
              seq
              (apply vector :or))))
 
-(defn search-dataset-query->sqlmap [context {:keys [query string text type]}]
+(defn search-dataset-query->sqlmap
+  "Returns a HoneySQL sqlmap for a SearchDatasetQueryInput or one
+  of its children.
+
+  index-spec-ids should be a map of path string -> vector of index-spec-ids."
+ [index-spec-ids {:keys [query string text type]}]
   (apply
    vector
    (case type
      :AND :and
      :OR :or)
    (concat
-    (map (partial search-dataset-query->sqlmap context) query)
-    (map (partial string-query->sqlmap context) string)
-    (map (partial text-query->sqlmap context) text))))
+    (map (partial search-dataset-query->sqlmap index-spec-ids) query)
+    (map (partial string-query->sqlmap index-spec-ids) string)
+    (map (partial text-query->sqlmap index-spec-ids) text))))
+
+(defn get-search-query-paths
+  "Returns a seq of all of the index paths in a SearchDatasetQueryInput or one
+  of its children.
+
+  Values are conj'd to the paths argument. If paths is nil, it will be
+  initialized to #{}."
+  [query & [paths]]
+  (let [{:keys [path string text useEveryIndex]} query
+        paths (as-> (or paths #{}) $
+                (if path (conj $ path) $)
+                (if useEveryIndex (conj $ :use-every-index-text) $)
+                (into $ (:paths query)))]
+    (reduce #(get-search-query-paths %2 %) paths (concat (:query query) string text))))
+
+(defn get-index-spec-ids-for-path [context dataset-id path]
+  (if (= :use-every-index-text path)
+    (->> {:select :index-spec-id
+          :from :dataset-index-spec
+          :join [:index-spec [:= :id :index-spec-id]]
+          :where [:and
+                  [:= :dataset-id dataset-id]
+                  [:= "text" :index-spec.type-name]]}
+         (execute! context)
+         (map :dataset-index-spec/index-spec-id))
+    [(let [path-vec (try (edn/read-string path) (catch Exception _))]
+       (or (when (valid-index-path? path-vec)
+             (:index-spec/id (get-index-spec context path-vec "text")))
+           (throw (ex-info "Index does not exist." {:path path}))))]))
 
 (defn search-dataset-query->select
   [context {:keys [datasetId query uniqueExternalIds uniqueGroupingIds]}]
-  (let [where (search-dataset-query->sqlmap context query)
+  (let [index-spec-ids (reduce
+                        #(assoc % %2 (get-index-spec-ids-for-path context datasetId %2))
+                        {}
+                        (get-search-query-paths query))
+        where (search-dataset-query->sqlmap index-spec-ids query)
         q {:select :entity-id
            :from (keyword (str "indexed-entity-" datasetId))
            :where where}]
@@ -736,7 +751,7 @@
         (constantly nil))
       (let [fut (future
                   (try
-                    (with-tx-context [context (assoc context ::dataset-id datasetId)]
+                    (with-tx-context [context context]
                       (let [q (search-dataset-query->select context input)]
                         (when (some identity (rest q))
                           (reduce

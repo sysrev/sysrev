@@ -246,6 +246,9 @@
           condition {:datasetId ds-id
                      :path (pr-str ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*])
                      :type :TEXT}
+          overall-status {:datasetId ds-id
+                          :path (pr-str ["ProtocolSection" "StatusModule" "OverallStatus"])
+                          :type :TEXT}
           primary-outcome {:datasetId ds-id
                            :path (pr-str ["ProtocolSection" "OutcomesModule" "PrimaryOutcomeList" "PrimaryOutcome" :* "PrimaryOutcomeDescription"])
                            :type :TEXT}
@@ -258,6 +261,7 @@
                         [{:paths [(:path idx)]
                           :search search}]}}})]
       (ex (dpcq/m-create-dataset-index "type") {:input brief-summary})
+      (ex (dpcq/m-create-dataset-index "type") {:input overall-status})
       (is (= #{{:externalId "NCT04982952"} {:externalId "NCT04983004"}}
              (sub-search-dataset!
               #{:externalId} (search-q brief-summary "general"))))
