@@ -2,7 +2,6 @@
   (:require [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [cognitect.test-runner.api :as test-api]
             [com.stuartsierra.component :as component]
             [com.walmartlabs.lacinia.constants :as constants]
             [com.walmartlabs.lacinia.parser :as parser]
@@ -16,7 +15,7 @@
 (defn run-tests [opts]
   ;; https://clojureverse.org/t/why-doesnt-my-program-exit/3754/8
   ;; This prevents clojure -X:test from hanging
-  (test-api/test opts)
+  ((requiring-resolve 'cognitect.test-runner.api/test) opts)
   (shutdown-agents))
 
 (defn response-for [system verb url & options]
