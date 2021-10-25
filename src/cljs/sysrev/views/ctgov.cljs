@@ -58,8 +58,11 @@
               (dispatch [:ctgov-search-complete query]))
             :on-data
             (fn [^js/Object data]
-              (let [entity-id (-> data .-data .-searchDataset .-id)]
-                (dispatch [:ctgov-search-add-entity query entity-id])))
+              (if (.-errors data)
+                (js/console.error "Errors in datapub subscription response:"
+                                  (.-errors data))
+                (let [entity-id (-> data .-data .-searchDataset .-id)]
+                  (dispatch [:ctgov-search-add-entity query entity-id]))))
             :payload
             {:query (datapub/subscribe-search-dataset "id")
              :variables
