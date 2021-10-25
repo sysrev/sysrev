@@ -107,32 +107,33 @@
     (reset! db-shutdown-hook true)))
 
 (defmacro with-test-system [[name-sym] & body]
-  `(binding [db/*active-db* (atom nil)
-             db/*conn* nil
-             db/*query-cache* (atom {})
-             db/*query-cache-enabled* (atom true)
-             db/*transaction-query-cache* nil]
-     (let [postgres# (:postgres env)
-           system# (main/start-system-non-global!
-                    :config
-                    {:datapub-embedded true
-                     :server {:port (get-port/get-port)}}
-                    :postgres-overrides
-                    {:create-if-not-exists? true
-                     :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
-                     :embedded? true
-                     :host test-db-host
-                     :port (get-port/get-port)}
-                    :system-map-f
-                    #(-> (apply main/system-map %&)
-                         (dissoc :scheduler)))
-           ~name-sym system#]
-       (binding [env (merge env (:config system#))
-                 *test-system* (atom system#)]
-         (try
-           (do ~@body)
-           (finally
-             (swap! *test-system* main/stop-system!)))))))
+  `(when-not (remote-test?)
+     (binding [db/*active-db* (atom nil)
+               db/*conn* nil
+               db/*query-cache* (atom {})
+               db/*query-cache-enabled* (atom true)
+               db/*transaction-query-cache* nil]
+       (let [postgres# (:postgres env)
+             system# (main/start-system-non-global!
+                      :config
+                      {:datapub-embedded true
+                       :server {:port (get-port/get-port)}}
+                      :postgres-overrides
+                      {:create-if-not-exists? true
+                       :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                       :embedded? true
+                       :host test-db-host
+                       :port (get-port/get-port)}
+                      :system-map-f
+                      #(-> (apply main/system-map %&)
+                           (dissoc :scheduler)))
+             ~name-sym system#]
+         (binding [env (merge env (:config system#))
+                   *test-system* (atom system#)]
+           (try
+             (do ~@body)
+             (finally
+               (swap! *test-system* main/stop-system!))))))))
 
 (defn default-fixture
   "Basic setup for all tests (db, web server, clojure.spec)."
