@@ -147,7 +147,24 @@
            (subscribe [::definition root-label-id label-id project-id]))
          #(boolean (:multi? %)))
 
+(reg-sub :label/validatable-label?
+         (fn [[_ root-label-id label-id project-id]]
+           (subscribe [::definition root-label-id label-id project-id]))
+         #(boolean (:validatable-label? %)))
+
 (reg-sub :label/valid-string-value?
+         (fn [[_ root-label-id label-id _val project-id]]
+           [(subscribe [:label/value-type root-label-id label-id project-id])
+            (subscribe [::definition root-label-id label-id project-id])])
+         (fn [[value-type definition] [_ _ _  val _]]
+           (when (= value-type "string")
+             (let [{:keys [regex max-length]} definition]
+               (boolean (and (string? val)
+                             (<= (count val) max-length)
+                             (or (empty? regex)
+                                 (some #(re-matches (re-pattern %) val) regex))))))))
+
+(reg-sub :label/valid-id-value?
          (fn [[_ root-label-id label-id _val project-id]]
            [(subscribe [:label/value-type root-label-id label-id project-id])
             (subscribe [::definition root-label-id label-id project-id])])

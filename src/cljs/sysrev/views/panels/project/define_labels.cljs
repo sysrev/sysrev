@@ -578,6 +578,8 @@
         examples (r/cursor definition [:examples])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
+        ;; 
+        validatable-label? (r/cursor definition [:validatable-label?])
         ;;;
         errors (r/cursor label [:errors])
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
@@ -748,6 +750,27 @@
             :disabled (not is-owned?)
             :on-change #(let [checked? (-> % .-target .-checked)]
                           (reset! inclusion-values (if checked? [true] [])))
+            :label "Yes"}]
+          [show-error-msg error]]))
+
+     (when (= @value-type "string")
+       (let [error (get-in @errors [:definition :validatable-label?])]
+         [:div.field.validatable-label {:class (when error "error")
+                                        :style {:width "100%"}}
+          [FormLabelWithTooltip
+           "Validate label values?"
+           ["Validate this label against identifiers.org"]]
+          [ui/LabeledCheckbox
+           {:checked? (not @validatable-label?)
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? (not checked?)))
+            :label "No"}]
+          [ui/LabeledCheckbox
+           {:checked? @validatable-label?
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
      (when is-owned?
@@ -1145,12 +1168,17 @@
   (let [project-id @(subscribe [:active-project-id])
         is-editin-label? @(subscribe [::is-editing-label?])
         label-filters @(subscribe [::get :label-filters])
+        status-filter-fn (fn [label]
+                           (case (:status label-filters)
+                             "enabled" (:enabled label)
+                             "disabled" (not (:enabled label))
+                             true))
         filter-labels (fn [labels]
                         (filter (fn [label]
-                                  (case (:status label-filters)
-                                    "enabled" (:enabled label)
-                                    "disabled" (not (:enabled label))
-                                    true))
+                                  (let [labels (->> label :labels vals)]
+                                    (if (empty? labels)
+                                      (status-filter-fn label)
+                                      (some status-filter-fn labels))))
                                 labels))
         cols (concat
                [{:field "ordering-display-1" :title "#"  :defaultSort "asc" :type "numeric"
@@ -1211,15 +1239,16 @@
                                (assoc :id (:label-id label))
                                (assoc :isNew is-new?)
                                (assoc :isOwned is-owned?)
+                               (assoc :valueType (:value-type label))
                                (assoc :ordering-display-1 (inc (:project-ordering label))))]
-                          (mapv #(assoc %
-                                        :id (:label-id %)
-                                        :short-label-2 (str " — " (:short-label label))
-                                        :ordering-display-2 (inc (:project-ordering %))
-                                        :isNew is-new?  
-                                        :isOwned is-owned?  
-                                        :parentId (:label-id label))
-                                (->> label :labels vals filter-labels)))))))]
+                          (->> label :labels vals filter-labels
+                               (mapv #(assoc %
+                                             :id (:label-id %)
+                                             :short-label-2 (str " — " (:short-label label))
+                                             :ordering-display-2 (inc (:project-ordering %))
+                                             :isNew is-new?  
+                                             :isOwned is-owned?  
+                                             :parentId (:label-id label)))))))))]
     [:div.ui.equal.width.aligned.grid
      [:div.row
       [:div.column
@@ -1230,12 +1259,12 @@
                                   [:div.ui.attached.stackable
                                    {:style {:padding "5px 10px"}}
                                    [:h3 "Labels "
-                                    [:select.ui.dropdown
+                                    [:select.ui.dropdown.MuiTableDropdown
                                      {:style {:margin-left "5px"}
                                       :value (:status label-filters)
                                       :on-change (fn [ev]
                                                    (dispatch [::set [:label-filters :status] (aget ev "target" "value")]))}
-                                     [:option {:value "active"} "Active"]
+                                     [:option {:value "enabled"} "Active"]
                                      [:option {:value "all"} "All"]
                                      [:option {:value "disabled"} "Disabled"]]]]))}
          :columns (clj->js cols)
@@ -1258,7 +1287,7 @@
                        (clj->js
                          {:icon "block"
                           :tooltip "Disable label"
-                          :disabled (some? (.-parentId ^js rowData))
+                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
                           :onClick (fn [event rowData]
                                      (.stopPropagation event)
                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
@@ -1267,7 +1296,7 @@
                        (clj->js
                          {:icon "check_circle"
                           :tooltip "Enable label"
-                          :disabled (some? (.-parentId ^js rowData))
+                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
                           :onClick (fn [event rowData]
                                      (.stopPropagation event)
                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
