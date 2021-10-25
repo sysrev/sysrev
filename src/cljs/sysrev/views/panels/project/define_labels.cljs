@@ -1168,12 +1168,17 @@
   (let [project-id @(subscribe [:active-project-id])
         is-editin-label? @(subscribe [::is-editing-label?])
         label-filters @(subscribe [::get :label-filters])
+        status-filter-fn (fn [label]
+                           (case (:status label-filters)
+                             "enabled" (:enabled label)
+                             "disabled" (not (:enabled label))
+                             true))
         filter-labels (fn [labels]
                         (filter (fn [label]
-                                  (case (:status label-filters)
-                                    "enabled" (:enabled label)
-                                    "disabled" (not (:enabled label))
-                                    true))
+                                  (let [labels (->> label :labels vals)]
+                                    (if (empty? labels)
+                                      (status-filter-fn label)
+                                      (some status-filter-fn labels))))
                                 labels))
         cols (concat
                [{:field "ordering-display-1" :title "#"  :defaultSort "asc" :type "numeric"
@@ -1234,15 +1239,16 @@
                                (assoc :id (:label-id label))
                                (assoc :isNew is-new?)
                                (assoc :isOwned is-owned?)
+                               (assoc :valueType (:value-type label))
                                (assoc :ordering-display-1 (inc (:project-ordering label))))]
-                          (mapv #(assoc %
-                                        :id (:label-id %)
-                                        :short-label-2 (str " — " (:short-label label))
-                                        :ordering-display-2 (inc (:project-ordering %))
-                                        :isNew is-new?  
-                                        :isOwned is-owned?  
-                                        :parentId (:label-id label))
-                                (->> label :labels vals filter-labels)))))))]
+                          (->> label :labels vals filter-labels
+                               (mapv #(assoc %
+                                             :id (:label-id %)
+                                             :short-label-2 (str " — " (:short-label label))
+                                             :ordering-display-2 (inc (:project-ordering %))
+                                             :isNew is-new?  
+                                             :isOwned is-owned?  
+                                             :parentId (:label-id label)))))))))]
     [:div.ui.equal.width.aligned.grid
      [:div.row
       [:div.column
@@ -1281,20 +1287,16 @@
                        (clj->js
                          {:icon "block"
                           :tooltip "Disable label"
-                          :disabled (some? (.-parentId ^js rowData))
+                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
                           :onClick (fn [event rowData]
                                      (.stopPropagation event)
-                                     #_(if-let [parent-id (.-parentId ^js rowData)]
-                                       (doall
-                                         (for [t nil]
-                                           (println "test")))
-                                       (reset-local-label! labels-atom "na" (.-id ^js rowData)))
+                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
                                      (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
                                      (sync-to-server))})
                        (clj->js
                          {:icon "check_circle"
                           :tooltip "Enable label"
-                          :disabled (some? (.-parentId ^js rowData))
+                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
                           :onClick (fn [event rowData]
                                      (.stopPropagation event)
                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))

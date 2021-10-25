@@ -76,8 +76,7 @@
 
 (reg-event-fx ::validate-value-id
               (fn [{:keys [db]} [_ root-label-id label-id valid-id?]]
-                (println root-label-id label-id valid-id?)
-                {:db (assoc-in db [:state :identifier-validations (str root-label-id label-id)] valid-id?)}))
+                {:db (assoc-in db [:state :identifier-validations (str root-label-id "_" label-id)] (boolean valid-id?))}))
 
 (reg-event-fx ::set-string-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith value-idx label-value curvals]]
@@ -207,7 +206,7 @@
                     (let [label (get labels-raw label-id)]
                       (if (:labels answer)
                         (and
-                          (every? #(true? (get identifier-validations (str (:label-id label) "-" (:label-id %)))) (:labels label))
+                          (every? #(true? (get identifier-validations (str (:label-id label) "_" (:label-id %)))) (:labels label))
                           (valid-group-answers? (:labels label)
                                                 (vals (:labels answer))))
 
@@ -222,7 +221,9 @@
 
 (reg-sub :review/valid-id?
          (fn [db [_ root-label-id label-id]]
-           (get-in db [:state :identifier-validations (str root-label-id label-id)])))
+           (let [identifier-validation (get-in db [:state :identifier-validations (str root-label-id "_" label-id)])]
+             (println "validation? " identifier-validation)
+             (or (nil? identifier-validation) identifier-validation))))
 
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]
   (let [answer (subscribe [:review/active-labels
