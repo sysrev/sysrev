@@ -153,7 +153,7 @@
 
 (defn internal-path-vec
   "Returns a path vector for use in postgres. Numbers are turned into strings,
-  and the :* keyword isdata replaced with the string \":datapub/*\"."
+  and the :* keyword is replaced with the string \":datapub/*\"."
   [path-seq]
   (mapv
    #(cond (= :* %) ":datapub/*"
