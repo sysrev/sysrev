@@ -722,7 +722,10 @@
 (defn search-dataset-subscription
   [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds] :as input} :input} source-stream]
   (if (and uniqueExternalIds uniqueGroupingIds)
-    (resolve/resolve-as nil {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."})
+    (do
+      (source-stream
+       (resolve/resolve-as nil {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."}))
+      (constantly nil))
     (if-not (or (sysrev-dev? context)
                 (with-tx-context [context context]
                   (public-dataset? context datasetId)))
