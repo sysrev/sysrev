@@ -135,7 +135,9 @@
                      org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
+                     sysrev/datapub {:local/root "projects/datapub"}
                      sysrev/datapub-import {:local/root "components/datapub-import"}
+                     sysrev/datapub-test {:local/root "projects/datapub/datapub-test"}
                      sysrev/fda-drugs {:local/root "components/fda-drugs"}
                      sysrev/sqlite {:local/root "components/sqlite"}}
         :extra-paths ["config/dev"
@@ -153,10 +155,7 @@
                       "components/reviewer-time/src"
                       "components/tesseract/src"
                       "components/user/resources"
-                      "components/user/src"
-                      "projects/datapub/resources"
-                      "projects/datapub/src"
-                      "projects/datapub/datapub-test/resources"]}
+                      "components/user/src"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
                       com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}
@@ -175,13 +174,15 @@
                       org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
                       org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
                       org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}
-                     ;; pdf-read deps
-                     com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
-                     com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
-                     org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.3"}
-                     org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
-                     org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
-                     org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}}
+                      ;; pdf-read deps
+                      com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
+                      com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
+                      org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.3"}
+                      org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
+                      org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
+                      org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
+                      sysrev/datapub {:local/root "projects/datapub"}
+                      sysrev/datapub-test {:local/root "projects/datapub/datapub-test"}}
          :extra-paths ["components/e2e/resources"
                        "components/e2e/src"
                        "components/e2e/test"
@@ -193,7 +194,4 @@
                        "components/reviewer-time/test"
                        "components/tesseract/src"
                        "components/user/test"
-                       "projects/datapub/resources"
-                       "projects/datapub/src"
-                       "projects/datapub/datapub-test/resources"
                        "test/clj"]}}}

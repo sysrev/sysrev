@@ -44,12 +44,9 @@
                                nrepl/nrepl {:mvn/version "0.8.3"}}
                   :exec-fn datapub.repl/run-with-fixtures!}
            :test {:extra-paths ["test" "config/test"]
-                  :extra-deps {com.cognitect/test-runner
-                               {:git/url "https://github.com/cognitect-labs/test-runner.git"
-                                :sha "dd6da11611eeb87f08780a30ac8ea6012d4c05ce"}
-                               co.insilica/datapub-test {:local/root "datapub-test"}
+                  :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}
                                sysrev/datapub-client {:local/root "../../components/datapub-client"}}
-                  :exec-fn cognitect.test-runner.api/test}
+                  :exec-fn datapub.test/run-tests}
            :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
                      :exec-fn hf.depstar/uberjar
                      :exec-args {:aliases [:prod]
