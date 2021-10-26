@@ -83,10 +83,10 @@
                     (pr-str ["metadata" "ReviewDocumentType"]))]
            :text [(when active-ingredient
                     {:search active-ingredient
-                     :paths [(pr-str ["Products" :* "ActiveIngredient"])]})
+                     :paths [(pr-str ["metadata" "Products" :* "ActiveIngredient"])]})
                   (when drug-name
                     {:search drug-name
-                     :paths [(pr-str ["Products" :* "DrugName"])]})
+                     :paths [(pr-str ["metadata" "Products" :* "DrugName"])]})
                   (when search
                     {:search search
                      :useEveryIndex true})]}
