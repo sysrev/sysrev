@@ -98,12 +98,13 @@
       (is (= {:data {:datasetEntity {:content "{\"a\": 1}" :mediaType "application/json"}}}
              (ex (dpcq/q-dataset-entity "content mediaType") {:id entity-id})))
       (testing "createDatasetEntity returns all fields"
-        (is (= {:data {:createDatasetEntity {:content "{\"b\": 2}" :externalId "exid" :mediaType "application/json"}}}
-               (-> (ex (dpcq/m-create-dataset-entity "content externalId mediaType")
+        (is (= {:data {:createDatasetEntity {:content "{\"b\": 2}" :externalId "ex-id" :groupingId "gr-id" :mediaType "application/json"}}}
+               (-> (ex (dpcq/m-create-dataset-entity "content externalId groupingId mediaType")
                        {:input
                         {:datasetId ds-id
                          :content "{\"b\": 2}"
-                         :externalId "exid"
+                         :externalId "ex-id"
+                         :groupingId "gr-id"
                          :mediaType "application/json"}})))))
       (testing "Can create entities after creating an index"
         (test/throw-errors
@@ -132,7 +133,15 @@
                   {:edges [{:node {:id 2}}]
                    :totalCount 1}}}}
                (ex "query($externalId: String, $id: PositiveInt){dataset(id:$id){entities(externalId: $externalId) {totalCount edges{node{id}}}}}"
-                   {:externalId "exid" :id ds-id})))))))
+                   {:externalId "ex-id" :id ds-id}))))
+      (testing "Can list entities by groupingId"
+        (is (= {:data
+                {:dataset
+                 {:entities
+                  {:edges [{:node {:id 2}}]
+                   :totalCount 1}}}}
+               (ex "query($groupingId: String, $id: PositiveInt){dataset(id:$id){entities(groupingId: $groupingId) {totalCount edges{node{id}}}}}"
+                   {:groupingId "gr-id" :id ds-id})))))))
 
 (deftest test-entity-ops-with-external-ids
   (test/with-test-system [system {}]

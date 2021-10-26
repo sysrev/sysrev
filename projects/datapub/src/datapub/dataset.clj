@@ -295,11 +295,14 @@
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                      :datasetId dataset-id}))))))))
 
-(defn resolve-Dataset-entities [context {:keys [externalId :as args]} {:keys [id]}]
+(defn resolve-Dataset-entities
+  [context {:keys [externalId groupingId :as args]} {:keys [id]}]
   (let [where [:and
                [:= :dataset-id id]
                (when externalId
-                 [:= :external-id externalId])]]
+                 [:= :external-id externalId])
+               (when groupingId
+                 [:= :grouping-id groupingId])]]
     (connection-helper
      context args
      {:count-f
