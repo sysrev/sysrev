@@ -186,6 +186,7 @@
                                              org.seleniumhq.selenium/selenium-api
                                              org.seleniumhq.selenium/selenium-support]]
                                [prestancedesign/get-port "0.1.1"]
+                               [refactor-nrepl "2.5.1"]
                                ;; pdf-read deps
                                [com.github.jai-imageio/jai-imageio-core "1.4.0"]
                                [com.github.jai-imageio/jai-imageio-jpeg2000 "1.4.0"]

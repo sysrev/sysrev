@@ -125,8 +125,12 @@
          (log/error (.getMessage e))
          (log/error (with-out-str (print-cause-trace-custom e))))))
 
+(def nrepl-handler
+  (apply nrepl/default-handler
+         (conj cider.nrepl.middleware/cider-middleware 'refactor-nrepl.middleware/wrap-refactor)))
+
 (defn -main []
-  (defonce nrepl (nrepl/start-server :handler cider-nrepl-handler))
+  (defonce nrepl (nrepl/start-server :handler nrepl-handler))
   (spit ".nrepl-port" (:port nrepl))
   (log/info "Started nREPL on port" (:port nrepl))
   (fixtures/load-fixtures!)
