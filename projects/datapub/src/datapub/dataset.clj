@@ -76,7 +76,7 @@
 
 (defn public-dataset? [context id]
   (-> context
-      (execute-one! {:select :* :from :dataset :where [:= :id id]})
+      (execute-one! {:select :public :from :dataset :where [:= :id id]})
       :dataset/public
       boolean))
 
