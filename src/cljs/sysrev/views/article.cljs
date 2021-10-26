@@ -337,14 +337,14 @@
                 {:keys [entity-id]} datapub
                 version-entity-id (when current-version
                                     (get versions current-version))
-                {:keys [externalId]} @(subscribe [:datapub/entity* entity-id])
+                {:keys [groupingId]} @(subscribe [:datapub/entity* entity-id])
                 {:keys [content metadata] :as version-entity}
                 #__ @(subscribe [:datapub/entity version-entity-id])
                 source-id (first @(subscribe [:article/sources article-id]))
                 cursors (mapv #(mapv keyword %)
                               (get-in @(subscribe [:project/sources source-id])
                                       [:meta :cursors]))
-                version-entity-ids @(subscribe [:datapub/entities-for-external-id 3 externalId])]
+                version-entity-ids @(subscribe [:datapub/entities-for-grouping-id 3 groupingId])]
             (when entity-id
               (dispatch [:require [:datapub-entity entity-id]]))
             (when version-entity-id
@@ -353,8 +353,8 @@
                 (dispatch [:require [:datapub-entity (get versions (dec current-version))]]))
               (when (and version-entity (< current-version (dec versions)))
                 (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))
-            (when externalId
-              (dispatch [:require [:datapub-entities-for-external-id 3 externalId]]))
+            (when groupingId
+              (dispatch [:require [:datapub-entities-for-grouping-id 3 groupingId]]))
             (when (not= versions version-entity-ids)
               (swap! state assoc
                      :current-version (->> version-entity-ids

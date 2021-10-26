@@ -134,15 +134,19 @@
     ds-id))
 
 (def fda-drugs-docs-indices
-  [[:TEXT ["text"]]
-   [:TEXT ["metadata" "ApplType"]]])
+  [[:TEXT ["metadata" "ApplicationDocsDescription"]]
+   [:TEXT ["metadata" "ApplType"]]
+   [:TEXT ["metadata" "Products" :* "ActiveIngredient"]]
+   [:TEXT ["metadata" "Products" :* "DrugName"]]
+   [:TEXT ["metadata" "ReviewDocumentType"]]
+   [:TEXT ["text"]]])
 
 (defn load-fda-drugs-docs-dataset! [system]
   (let [ds-id (create-dataset!
                system
                {:name "Drugs@FDA Application Documents"
                 :public true})]
-    (doseq [{:keys [external-created external-id filename metadata]}
+    (doseq [{:keys [external-created external-id filename grouping-id metadata]}
             #__ (-> "datapub/fda-drugs-docs-entities.edn"
                     io/resource
                     slurp
@@ -160,6 +164,7 @@
           :datasetId ds-id
           :externalCreated external-created
           :externalId external-id
+          :groupingId grouping-id
           :mediaType "application/pdf"
           :metadata (json/generate-string metadata)}})))
     (doseq [[type path] fda-drugs-docs-indices]

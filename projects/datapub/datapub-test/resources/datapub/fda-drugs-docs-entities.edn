@@ -1,5 +1,6 @@
 [{:external-created "2015-03-20T00:00:00Z"
-  :external-id "[\"008372\" \"Letter\" \"SUPPL\"]"
+  :external-id "http://www.accessdata.fda.gov/drugsatfda_docs/appletter/2015/008372orig1s044ltr.pdf"
+  :grouping-id "[\"008372\" \"Letter\" \"SUPPL\"]"
   :filename "fda-008372Orig1s044ltr.pdf"
   :metadata
   {:ApplType "NDA"
@@ -225,7 +226,8 @@
      :ReferenceStandard "1"
      :MarketingStatus [{:Description "Prescription" :TECodes nil}]}]}}
  {:external-created "1952-04-29T00:00:00Z"
-  :external-id "[\"008372\" \"Letter\" \"SUPPL\"]"
+  :external-id "http://www.accessdata.fda.gov/drugsatfda_docs/appletter/2015/020978_s016_ziagen.pdf"
+  :grouping-id "[\"008372\" \"Letter\" \"SUPPL\"]"
   :filename "020978_S016_ZIAGEN.pdf"
   :metadata
   {:ApplType "NDA"
