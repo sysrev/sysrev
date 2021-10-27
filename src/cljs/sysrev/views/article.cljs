@@ -357,10 +357,7 @@
               (dispatch [:require [:datapub-entities-for-grouping-id 3 groupingId]]))
             (when (not= versions version-entity-ids)
               (swap! state assoc
-                     :current-version (->> version-entity-ids
-                                           medley/indexed
-                                           (some (fn [[i v]]
-                                                   (when (= v entity-id) i))))
+                     :current-version (dec (count version-entity-ids))
                      :versions (vec version-entity-ids)))
             (when version-entity
               [:div
