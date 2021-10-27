@@ -4,12 +4,13 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [orchestra.core :refer [defn-spec]]
-            [venia.core :as venia]
             [sysrev.config :refer [env]]
-            [sysrev.datapub-client.interface :as datapub]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.util :as util :refer
+            [sysrev.util
+             :as
+             util
+             :refer
              [assert-pred
               gquery
               index-by
@@ -17,7 +18,8 @@
               opt-keys
               parse-integer
               req-un
-              url-join]])
+              url-join]]
+            [venia.core :as venia])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
 ;; for clj-kondo
@@ -172,24 +174,6 @@
     (vec (for [{:keys [external-id] :as x} articles]
            (merge (get data (parse-integer external-id))
                   (select-keys x [:article-id :project-id]))))))
-
-(defmethod enrich-articles "ctgov" [_ articles]
-  (let [ids (map :external-id articles)
-        data (merge
-              (->> ids (filter string?) fetch-nct-entities)
-              (->> ids (filter number?)
-                   (map
-                    (fn [id]
-                      (let [content (-> id (datapub/get-dataset-entity
-                                            "content" :endpoint (:datapub-api env))
-                                        :content (json/read-str :key-fn keyword))]
-                        {:external-id id
-                         :nctid (get-in content [:ProtocolSection :IdentificationModule :NTCId])
-                         :json content})))
-                   (index-by :external-id)))]
-    (vec (for [{:keys [external-id] :as x} articles]
-           (merge (get data external-id)
-                  (select-keys x [:article-id :project-id :datasource-name :primary-title]))))))
 
 (defmethod enrich-articles "entity" [_ articles]
   (let [data (->> articles (map :external-id) fetch-entities)]

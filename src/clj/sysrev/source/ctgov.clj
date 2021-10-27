@@ -4,7 +4,7 @@
             [honeysql.helpers :as sqlh :refer [select from where join]]
             [orchestra.core :refer [defn-spec]]
             [sysrev.config :refer [env]]
-            [sysrev.datapub-client.interface :as datapub]
+            [sysrev.datapub-client.interface :as dpc]
             [sysrev.db.core :as db]
             [sysrev.shared.ctgov :as ctgov]
             [sysrev.source.core :as source :refer [make-source-meta re-import]]
@@ -15,13 +15,15 @@
   [endpoint string?, ids (s/coll-of nat-int?)]
   (map
    (fn [id]
-     (let [ps (-> (datapub/get-dataset-entity id "content"
-                                              :endpoint endpoint)
-                  :content
-                  (json/parse-string keyword)
-                  :ProtocolSection)]
-       {:external-id id
-        :primary-title (get-in ps [:IdentificationModule :BriefTitle])}))
+     (let [{:keys [content externalId]} (dpc/get-dataset-entity
+                                         id "content externalId"
+                                         :endpoint endpoint)]
+       {:content {:datapub {:entity-id id}
+                  :types {:article-type "json"
+                          :article-subtype "ctgov"}}
+        :external-id externalId
+        :primary-title (get-in (json/parse-string content keyword)
+                               [:ProtocolSection :IdentificationModule :BriefTitle])}))
    ids))
 
 (defmethod make-source-meta :ctgov
@@ -63,21 +65,20 @@
                    options)))))
 
 (defn get-new-articles-available [{:keys [source-id meta]} & {:keys [config]}]
-  (let [prev-article-ids (->> (-> (select :article-data.external-id)
-                                  (from [:article-source :asrc])
-                                  (join :article [:= :asrc.article-id :article.article-id]
-                                        :article-data [:= :article.article-data-id :article-data.article-data-id])
-                                  (where [:= :asrc.source-id source-id])
-                                  db/do-query)
-                              (map :external-id)
-                              (filter number?)
+  (let [prev-article-ids (-> (select :article-data.external-id)
+                              (from [:article-source :asrc])
+                              (join :article [:= :asrc.article-id :article.article-id]
+                                    :article-data [:= :article.article-data-id :article-data.article-data-id])
+                              (where [:= :asrc.source-id source-id])
+                              db/do-query
+                              (->> (map :external-id))
                               set)
         {:keys [filters search-term]} meta
         query (ctgov/query->datapub-input
                {:filters filters :search search-term})]
-    (->> (datapub/search-dataset query "id" :endpoint (:datapub-ws config))
-         (map :id)
-         (remove prev-article-ids))))
+    (->> (dpc/search-dataset query "externalId id" :endpoint (:datapub-ws config))
+         (remove (comp prev-article-ids :externalId))
+         (map :id))))
 
 (defmethod re-import "CT.gov search"
   [project-id {:keys [source-id] :as source} {:keys [web-server]}]
