@@ -2,8 +2,10 @@
   (:require [aleph.http :as ahttp]
             [cheshire.core :as json]
             [clj-http.client :as http]
+            [clojure.string :as str]
             [manifold.stream :as stream]
-            [sysrev.datapub-client.queries :as q]))
+            [sysrev.datapub-client.queries :as q])
+  (:import clojure.lang.ExceptionInfo))
 
 (defn throw-errors [graphql-response]
   (if (-> graphql-response :body :errors (or (:errors graphql-response)))
@@ -12,12 +14,36 @@
     graphql-response))
 
 (defn execute! [& {:keys [auth-token endpoint query variables]}]
-  (-> (http/post
-       endpoint
-       {:as :json
-        :content-type :json
-        :form-params {:query query :variables variables}
-        :headers {"Authorization" (str "Bearer " auth-token)}})
+  (-> (try
+        (http/post
+         endpoint
+         {:as :json
+          :content-type :json
+          :form-params {:query query :variables variables}
+          :headers {"Authorization" (str "Bearer " auth-token)}})
+        (catch ExceptionInfo e
+          (let [{:keys [body status]} (ex-data e)]
+            (if (not= 400 status)
+              (throw e)
+              (let [parsed-body (try
+                                  (json/parse-string body keyword)
+                                  (catch Exception e
+                                    e))]
+                (if (instance? Exception parsed-body)
+                  (throw
+                   (ex-info (str "Exception while parsing response body as JSON: "
+                                 (.getMessage e))
+                            {:body body
+                             :response (ex-data e)}
+                            e))
+                  (throw
+                   (ex-info (->> parsed-body :errors
+                                 (map (comp pr-str :message))
+                                 (str/join ", ")
+                                 (str "GraphQL errors: "))
+                            {:errors (:errors parsed-body)
+                             :response (ex-data e)}
+                            e))))))))
       throw-errors
       :body))
 
