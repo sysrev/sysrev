@@ -288,10 +288,10 @@
 
 (defn SearchFilters []
   [:<>
-   [TextFilter
+   #_[TextFilter
     {:cursor (r/cursor state [:filters :active-ingredient])
      :label "Active Ingredient"}]
-   [TextFilter
+   #_[TextFilter
     {:cursor (r/cursor state [:filters :drug-name])
      :label "Drug Name"}]
    [comp/MultiSelect
