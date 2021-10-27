@@ -308,10 +308,10 @@
 
 (defn SearchFilters []
   [:<>
-   [TextFilter
+   #_[TextFilter
     {:cursor (r/cursor state [:filters :condition])
      :label "Condition"}]
-   [TextFilter
+   #_[TextFilter
     {:cursor (r/cursor state [:filters :intervention])
      :label "Intervention"}]
    [CountryFilter
