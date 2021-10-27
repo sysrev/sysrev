@@ -5,7 +5,7 @@
             [honeysql.helpers :as sqlh :refer [select from where join]]
             [orchestra.core :refer [defn-spec]]
             [sysrev.config :refer [env]]
-            [sysrev.datapub-client.interface :as datapub]
+            [sysrev.datapub-client.interface :as dpc]
             [sysrev.db.core :as db]
             [sysrev.shared.fda-drugs-docs :as fda-drugs-docs]
             [sysrev.source.core :as source :refer [make-source-meta re-import]]
@@ -25,14 +25,14 @@
   [endpoint string?, ids (s/coll-of nat-int?)]
   (map
    (fn [id]
-     (let [{:keys [externalId id metadata]}
-           #__ (datapub/get-dataset-entity id "externalId id metadata" :endpoint endpoint)]
+     (let [{:keys [groupingId id metadata]}
+           #__ (dpc/get-dataset-entity id "groupingId id metadata" :endpoint endpoint)]
        ;; datasource-name doesn't show up in CLJS, so we are working
        ;; around that by including :types in the :content
        {:content {:datapub {:entity-id id}
                   :types {:article-type "pdf"
                           :article-subtype "fda-drugs-docs"}}
-        :external-id externalId
+        :external-id groupingId
         :primary-title (some-> metadata (json/parse-string keyword) title)}))
    ids))
 
@@ -75,21 +75,20 @@
                    options)))))
 
 (defn get-new-articles-available [{:keys [source-id meta]} & {:keys [config]}]
-  (let [prev-article-ids (->> (-> (select :article-data.external-id)
-                                  (from [:article-source :asrc])
-                                  (join :article [:= :asrc.article-id :article.article-id]
-                                        :article-data [:= :article.article-data-id :article-data.article-data-id])
-                                  (where [:= :asrc.source-id source-id])
-                                  db/do-query)
-                              
-                              (filter number?)
-                              set)
+  (let [prev-article-ids (-> (select :article-data.external-id)
+                             (from [:article-source :asrc])
+                             (join :article [:= :asrc.article-id :article.article-id]
+                                   :article-data [:= :article.article-data-id :article-data.article-data-id])
+                             (where [:= :asrc.source-id source-id])
+                             db/do-query
+                             (->> (map :external-id))
+                             set)
         {:keys [filters search-term]} meta
         query (fda-drugs-docs/query->datapub-input
                {:filters filters :search search-term})]
-    (->> (datapub/search-dataset query "externalId" :endpoint (:datapub-ws config))
-         (map :externalId)
-         (remove prev-article-ids))))
+    (->> (dpc/search-dataset query "groupingId id" :endpoint (:datapub-ws config))
+         (remove (comp prev-article-ids :groupingId))
+         (map :id))))
 
 (defmethod re-import "Drugs@FDA Application Documents search"
   [project-id {:keys [source-id] :as source} {:keys [web-server]}]
