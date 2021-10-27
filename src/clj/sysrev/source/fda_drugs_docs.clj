@@ -12,10 +12,23 @@
             [sysrev.source.interface :refer [after-source-import import-source
                                              import-source-articles import-source-impl]]))
 
-(defn title [{:keys [ApplicationDocsDescription ApplType Products SponsorName]}]
+(defn capitalize-first [s]
+  (if (empty? s)
+    ""
+    (apply str (Character/toUpperCase (first s)) (rest s))))
+
+(defn capitalize-words [s]
+  (->> (str/split s #" ")
+       (map capitalize-first)
+       (str/join " ")))
+
+(defn title [{:keys [ApplicationDocsDescription ApplType Products
+                     ReviewDocumentType SponsorName]}]
   (str/join
    " — "
-   [ApplType ApplicationDocsDescription SponsorName
+   [ApplType
+    (or (some-> ReviewDocumentType capitalize-words) ApplicationDocsDescription)
+    SponsorName
     (str/join
      ", "
      (distinct
