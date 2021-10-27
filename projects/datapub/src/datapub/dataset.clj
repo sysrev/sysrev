@@ -737,33 +737,47 @@
                            [:= :e.external-id :entity.external-id]
                            [:= :e.grouping-id :entity.grouping-id])]}]]))))
 
+(def search-dataset-query-keys [:query :string :text])
+
+(defn fail-subscription [source-stream resolver-errors]
+  (source-stream (resolve/resolve-as nil resolver-errors))
+  (constantly nil))
+
 (defn search-dataset-subscription
-  [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds] :as input} :input} source-stream]
-  (if (and uniqueExternalIds uniqueGroupingIds)
-    (do
-      (source-stream
-       (resolve/resolve-as nil {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."}))
-      (constantly nil))
-    (if-not (or (sysrev-dev? context)
-                (with-tx-context [context context]
-                  (public-dataset? context datasetId)))
-      (do
-        (source-stream
-         (resolve/resolve-as nil {:datasetId datasetId
-                                  :message "You are not authorized to access entities in that dataset."}))
-        (constantly nil))
-      (let [fut (future
-                  (try
-                    (with-tx-context [context context]
-                      (let [q (search-dataset-query->select context input)]
-                        (when (some identity (rest q))
-                          (reduce
-                           (fn [_ row]
-                             (source-stream
-                              (resolve-dataset-entity context {:id (:entity_id row)} nil)))
-                           nil
-                           (plan context q))))
-                      (source-stream nil))
-                    (catch Exception e
-                      (prn e))))]
-        (fn [] (future-cancel fut))))))
+  [context
+   {{:keys [datasetId query uniqueExternalIds uniqueGroupingIds] :as input} :input}
+   source-stream]
+  (cond
+    (and uniqueExternalIds uniqueGroupingIds)
+    (fail-subscription
+      {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."})
+
+    (empty? (select-keys query search-dataset-query-keys))
+    (fail-subscription
+     {:message (str "At least one of these keys must be set: "
+                    (str/join search-dataset-query-keys))
+      :query query})
+
+    (not (or (sysrev-dev? context)
+             (with-tx-context [context context]
+               (public-dataset? context datasetId))))
+    (fail-subscription
+     {:datasetId datasetId
+      :message "You are not authorized to access entities in that dataset."})
+
+    :else
+    (let [fut (future
+                (try
+                  (with-tx-context [context context]
+                    (let [q (search-dataset-query->select context input)]
+                      (when (some identity (rest q))
+                        (reduce
+                         (fn [_ row]
+                           (source-stream
+                            (resolve-dataset-entity context {:id (:entity_id row)} nil)))
+                         nil
+                         (plan context q))))
+                    (source-stream nil))
+                  (catch Exception e
+                    (prn e))))]
+      (fn [] (future-cancel fut)))))
