@@ -710,9 +710,10 @@ An article entry will be created for each PDF."] [ImportPDFZipsView]]
         visible? @(subscribe [::add-documents-visible project-id])
         sources @(subscribe [:project/sources])
         import-tab @(subscribe [:add-articles/import-tab])
-        filter-el ({:ctgov ctgov/SearchFilters
-                    :fda-drugs-docs fda-drugs-docs/SearchFilters}
-                   import-tab)]
+        filter-el (when visible?
+                    ({:ctgov ctgov/SearchFilters
+                      :fda-drugs-docs fda-drugs-docs/SearchFilters}
+                     import-tab))]
     [:div {:style {:padding-bottom 10}}
      [(if filter-el :div.ui.grid>div.row :div)
       (when filter-el
