@@ -41,7 +41,7 @@
   :uri #(deref api-endpoint)
   :content-type "application/json"
   :content (fn [entity-id]
-             {:query (dataset-entity "content externalId groupingId mediaType metadata")
+             {:query (dataset-entity "content externalCreated externalId groupingId mediaType metadata")
               :variables {:id entity-id}})
   :process (fn [{:keys [db]} [entity-id] _ result]
              (let [{:keys [mediaType metadata] :as entity} (-> result :data :datasetEntity)
@@ -67,7 +67,7 @@
   :uri #(deref api-endpoint)
   :content-type "application/json"
   :content (fn [entity-id]
-             {:query (dataset-entity "externalId groupingId mediaType metadata")
+             {:query (dataset-entity "externalCreated externalId groupingId mediaType metadata")
               :variables {:id entity-id}})
   :process (fn [{:keys [db]} [entity-id] _ result]
              (let [{:keys [metadata] :as entity} (-> result :data :datasetEntity)
