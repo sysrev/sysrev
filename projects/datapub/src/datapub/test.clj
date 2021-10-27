@@ -103,12 +103,13 @@
    [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]
    [:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]])
 
-(defn load-ctgov-dataset! [system]
-  (let [ds-id (create-dataset!
-               system
-               {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
-                :name "ClinicalTrials.gov"
-                :public true})]
+(defn load-ctgov-dataset! [system & [dataset-id]]
+  (let [ds-id (or dataset-id
+                  (create-dataset!
+                   system
+                   {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
+                    :name "ClinicalTrials.gov"
+                    :public true}))]
     (doseq [{:keys [content externalId]} (-> "datapub/ctgov-entities.edn"
                                              io/resource
                                              slurp
@@ -141,11 +142,12 @@
    [:TEXT ["metadata" "ReviewDocumentType"]]
    [:TEXT ["text"]]])
 
-(defn load-fda-drugs-docs-dataset! [system]
-  (let [ds-id (create-dataset!
-               system
-               {:name "Drugs@FDA Application Documents"
-                :public true})]
+(defn load-fda-drugs-docs-dataset! [system & [dataset-id]]
+  (let [ds-id (or dataset-id
+                  (create-dataset!
+                   system
+                   {:name "Drugs@FDA Application Documents"
+                    :public true}))]
     (doseq [{:keys [external-created external-id filename grouping-id metadata]}
             #__ (-> "datapub/fda-drugs-docs-entities.edn"
                     io/resource
