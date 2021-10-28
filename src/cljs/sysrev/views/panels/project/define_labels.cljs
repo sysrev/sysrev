@@ -1253,7 +1253,7 @@
                                              :parentId (:label-id label)))))))))]
     [:div.ui.equal.width.aligned.grid
      [:div.row
-      [:div.column
+      [:div.column.override-dark
        [:> MaterialTable
         {:title "Labels "
          :components {:Toolbar (fn []

@@ -87,6 +87,7 @@
        [GroupLabelSearch search]]
       [:> data-grid/DataGrid
        {:auto-height true
+        :auto-width true
         :columns cols
         :components {:Toolbar data-grid/GridToolbar}
         :disable-selection-on-click true
