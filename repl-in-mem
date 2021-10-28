@@ -3,4 +3,4 @@ set -eu
 
 source vars.sh
 
-ENV=dev clj -M:dev:test:repl:\+default
+LOCAL_ONLY=t ENV=dev clj -M:dev:test:repl:\+default

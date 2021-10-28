@@ -59,26 +59,35 @@
 
 (defn index [& [request maintainence-msg]]
   (page/html5
-   [:head
-    [:title (text/uri-title (:uri request))]
-    [:meta {:charset "utf-8"}]
-    [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
-    [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
-    [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
-    (when-not (util/should-robot-index? (:uri request))
-      [:meta {:name "robots" :content "noindex,nofollow"}])
-    #_ [:meta {:name "google-signin-scope" :content "profile email"}]
-    #_ [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
-    #_ [:script {:src "https://apis.google.com/js/platform.js"
+   (into
+    [:head
+     [:title (text/uri-title (:uri request))]
+     [:meta {:charset "utf-8"}]
+     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
+     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
+     [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
+     (when-not (util/should-robot-index? (:uri request))
+       [:meta {:name "robots" :content "noindex,nofollow"}])
+     #_[:meta {:name "google-signin-scope" :content "profile email"}]
+     #_[:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
+     #_[:script {:src "https://apis.google.com/js/platform.js"
                  ;; :async true :defer true
                  }]
-    [:script {:src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
-                        "&currency=USD&disable-funding="
-                        (str/join "," ["credit" "card"]))}]
-    (favicon-headers)
-    (apply page/include-css (css-paths :theme (user-theme request)))
-    (page/include-js "/ga.js")
-    (when @lucky-orange-enabled (page/include-js "/lo.js"))]
+     (apply page/include-css (css-paths :theme (user-theme request)))
+     (favicon-headers)]
+    (when-not (:local-only env)
+      [[:script {:async true
+                 :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
+                           "&currency=USD&disable-funding="
+                           (str/join "," ["credit" "card"]))
+                 :type "text/javascript"}]
+       [:script {:async true
+                 :src "/ga.js"
+                 :type "text/javascript"}]
+       (when @lucky-orange-enabled
+         [:script {:async true
+                   :src "/lo.js"
+                   :type "text/javascript"}])]))
    [:body
     [:div {:style "display: none;"
            :id "datapub-api"
@@ -110,10 +119,11 @@
                       (str "sysrev-" build/build-id ".js")
                       "sysrev.js")]
         (page/include-js (str @web-asset-path "/" js-name))))
-    [:script {:type "text/javascript"} "_linkedin_partner_id = \"2703428\"; window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || []; window._linkedin_data_partner_ids.push(_linkedin_partner_id);"]
-    [:script {:type "text/javascript"} "(function(){var s = document.getElementsByTagName(\"script\")[0]; var b = document.createElement(\"script\"); b.type = \"text/javascript\";b.async = true; b.src = \"https://snap.licdn.com/li.lms-analytics/insight.min.js\"; s.parentNode.insertBefore(b, s);})();"]
-    [:noscript [:img {:id "linkedin-img" :height "1" :width "1" :style "display:none;" :alt "" :src "https://px.ads.linkedin.com/collect/?pid=2703428&fmt=gif"}]]]
-   ))
+    (when-not (:local-only env)
+      [:div
+       [:script {:type "text/javascript"} "_linkedin_partner_id = \"2703428\"; window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || []; window._linkedin_data_partner_ids.push(_linkedin_partner_id);"]
+       [:script {:type "text/javascript"} "(function(){var s = document.getElementsByTagName(\"script\")[0]; var b = document.createElement(\"script\"); b.type = \"text/javascript\";b.async = true; b.src = \"https://snap.licdn.com/li.lms-analytics/insight.min.js\"; s.parentNode.insertBefore(b, s);})();"]
+       [:noscript [:img {:id "linkedin-img" :height "1" :width "1" :style "display:none;" :alt "" :src "https://px.ads.linkedin.com/collect/?pid=2703428&fmt=gif"}]]])]))
 
 (defn not-found [& [request]]
   (page/html5
