@@ -55,6 +55,10 @@
                            (if (sequential? v)
                              (str/join ", " v)
                              (str v)))
+        csv-text (str/join "\n"
+                           (concat
+                             [(str/join "\t" label-names)]
+                             (mapv #(str/join "\t" %) rows)))
         cols (->> label-names
                   (map-indexed #(-> #js{:field (pr-str %)
                                         :flex 1
@@ -64,16 +68,20 @@
         rows (->> rows
                   (map-indexed (fn [i row]
                                  (reduce-kv
-                                  #(do (goog.object/set % (pr-str %2) %3)
-                                       %)
-                                  #js{:id (str i)}
-                                  row)))
+                                   #(do (goog.object/set % (pr-str %2) %3)
+                                        %)
+                                   #js{:id (str i)}
+                                   row)))
                   into-array)]
     [:div {:style {:display "flex"
                    :height "100%"
                    :width "100%"}}
      [:div {:style {:flex-grow "1"}}
       [:div {:class "group-label-title-container"}
+       [:button.ui.button {:on-click (fn []
+                                       (-> (aget js/navigator "clipboard") (.writeText csv-text))
+                                       (dispatch [:alert {:content "Answers copied to clipboard" :opts {:success true}}]))}
+        "Copy to clipboard"]
        [:div {:class "group-label-name"}
         group-label-name]
        [GroupLabelSearch search]]

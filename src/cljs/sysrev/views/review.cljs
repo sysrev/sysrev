@@ -199,19 +199,21 @@
             (subscribe [:review/active-labels article-id])
             (subscribe [:review/identifier-validations])])
          (fn [[labels-raw labels identifier-validations]]
-           (println identifier-validations)
            (->> labels
                 (remove
                   (fn [[label-id answer]]
                     (let [label (get labels-raw label-id)]
                       (if (:labels answer)
                         (and
-                          (every? #(true? (get identifier-validations (str (:label-id label) "_" (:label-id %)))) (:labels label))
+                          (or (not (-> label :definition :validatable-label?))
+                              (every? #(true? (get identifier-validations (str (:label-id label) "_" (:label-id %)))) (:labels label)))
                           (valid-group-answers? (:labels label)
                                                 (vals (:labels answer))))
 
                         (and
-                          (not (false? (get identifier-validations (str "na" (:label-id label)))))
+                          (or (not (-> label :definition :validatable-label?))
+                              (not (false? (get identifier-validations (str "na" (:label-id label))))))
+                          
                           (valid-answer? (:value-type label) answer
                                          (:definition label))))))))))
 
@@ -222,7 +224,6 @@
 (reg-sub :review/valid-id?
          (fn [db [_ root-label-id label-id]]
            (let [identifier-validation (get-in db [:state :identifier-validations (str root-label-id "_" label-id)])]
-             (println "validation? " identifier-validation)
              (or (nil? identifier-validation) identifier-validation))))
 
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]

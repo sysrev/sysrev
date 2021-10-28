@@ -318,7 +318,9 @@
    {:type "submit"
     :class (css [(save-request-active?) "loading"]
                 [(labels-synced?) "disabled"])
-    :on-click on-click}
+    :on-click (fn [ev]
+                (dispatch [:alert {:content "Saving..." :opts {:success true}}])
+                (on-click ev))}
    [:i.check.circle.outline.icon] "Save"])
 
 (def-action :labels/get-share-code
