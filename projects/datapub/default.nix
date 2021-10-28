@@ -1,8 +1,7 @@
 let
-  nixpkgs = import <nixpkgs> {};
-  inherit (nixpkgs) stdenv fetchurl;
   sources = import ./nix/sources.nix { };
   pkgs = import sources.nixpkgs { };
+  inherit (pkgs) stdenv fetchurl;
   tessdata_best = stdenv.mkDerivation rec {
     pname = "tessdata_best";
     version = "e2aad9b983032bb1beff9133104a67cdbb87ca4d";
@@ -23,6 +22,7 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     tessdata_best
     (clojure.override { jdk = jdk; })
+    glibcLocales # postgres and rlwrap (used by clj) need this
     jdk
     postgresql_13
     tesseract4

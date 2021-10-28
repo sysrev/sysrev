@@ -99,13 +99,14 @@ pkgs.mkShell {
     clj-kondo
     (clojure.override { jdk = jdk; })
     (flyway.override { jre_headless = jdk; })
+    glibcLocales # postgres and rlwrap (used by clj) need this
     jdk
     (leiningen.override { jdk = jdk; })
     lessc
     nodejs
     npm
     polylith
-    postgresql_11
+    postgresql_13
     time
   ];
   shellHook = ''
