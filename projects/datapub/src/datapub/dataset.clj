@@ -750,10 +750,12 @@
   (cond
     (and uniqueExternalIds uniqueGroupingIds)
     (fail-subscription
+     source-stream
       {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."})
 
     (empty? (select-keys query search-dataset-query-keys))
     (fail-subscription
+     source-stream
      {:message (str "At least one of these keys must be set: "
                     (str/join search-dataset-query-keys))
       :query query})
@@ -762,6 +764,7 @@
              (with-tx-context [context context]
                (public-dataset? context datasetId))))
     (fail-subscription
+     source-stream
      {:datasetId datasetId
       :message "You are not authorized to access entities in that dataset."})
 
