@@ -9,6 +9,7 @@
             [com.walmartlabs.lacinia.pedestal.subscriptions :as subscriptions]
             [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
             [com.walmartlabs.lacinia.resolve :as resolve]
+            [datapub.dataset :as dataset]
             [datapub.graphql :as graphql]
             [io.pedestal.http :as http]
             [io.pedestal.http.cors :as cors]
@@ -144,6 +145,11 @@
                         #(cors-preflight % (allowed-origins env))
                         :route-name ::graphql-api-cors-preflight]
                        ["/api" :post interceptors :route-name ::graphql-api]
+                       ["/download/DatasetEntity/content/:entity-id"
+                        :get
+                        #(dataset/download-DatasetEntity-content
+                          (assoc app-context :request %))
+                        :route-name ::DatasetEntity-content]
                        ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env

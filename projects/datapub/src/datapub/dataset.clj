@@ -238,62 +238,78 @@
 (defn resolve-ListDatasetsEdge-node [context _ {:keys [node]}]
   (resolve-dataset context node _))
 
-(defn resolve-dataset-entity [context {:keys [id]} _]
-  (let [ks (conj (current-selection-names context) :dataset-id)
-        cols-all {:dataset-id :dataset-id
-                  :externalCreated :external-created
-                  :externalId :external-id
-                  :groupingId :grouping-id}
-        inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
-        cols-file (assoc cols-all
-                         :content :file-hash
-                         :metadata [[:raw "data->>'metadata' as metadata"]])
-        cols-json (assoc cols-all
-                         :content [[:raw "content::text"]]
-                         :externalId :external-id)]
-    (with-tx-context [context context]
-      (->
-       (if (some #{:content :mediaType :metadata} ks)
-         (or
-          (as-> context $
-           (execute-one!
-            $
-            {:select (keep cols-file ks)
-             :from :entity
-             :where [:= :id id]
-             :join [:content-file [:= :content-file.content-id :entity.content-id]]})
-           (some->
-            $
-            (assoc :content (when (:content ks)
-                              (-> (file/get-entity-content
-                                   (get-in context [:pedestal :s3])
-                                   (:content-file/file-hash $))
-                                  :Body
-                                  ((fn [^InputStream is]
-                                     (IOUtils/toByteArray is)))
-                                  (->> (.encodeToString (Base64/getEncoder)))))
-                   :mediaType "application/pdf")))
-          (some->
+(defn server-url [{:keys [scheme server-name server-port]}]
+  (str (name scheme) "://" server-name
+       (when-not (or (and (= 80 server-port (= :http scheme)))
+                     (and (= 443 server-port (= :https scheme))))
+         (str ":" server-port))))
+
+(let [cols-all {:dataset-id :dataset-id
+                :externalCreated :external-created
+                :externalId :external-id
+                :groupingId :grouping-id}
+      inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
+      cols-file (assoc cols-all
+                       :content :file-hash
+                       :metadata [[:raw "data->>'metadata' as metadata"]])
+      cols-json (assoc cols-all
+                       :content [[:raw "content::text"]]
+                       :externalId :external-id)]
+
+  (defn get-entity-content [context id ks]
+    (or
+     (as-> context $
+       (execute-one!
+        $
+        {:select (keep cols-file ks)
+         :from :entity
+         :where [:= :id id]
+         :join [:content-file [:= :content-file.content-id :entity.content-id]]})
+       (some->
+        $
+        (assoc :content (when (:content ks)
+                          (-> (file/get-entity-content
+                               (get-in context [:pedestal :s3])
+                               (:content-file/file-hash $))
+                              :Body))
+               :mediaType "application/pdf")))
+     (some->
+      (execute-one!
+       context
+       {:select (keep cols-json ks)
+        :from :entity
+        :where [:= :id id]
+        :join [:content-json [:= :content-json.content-id :entity.content-id]]})
+      (assoc :mediaType "application/json"))))
+
+  (defn resolve-dataset-entity [context {:keys [id]} _]
+    (let [ks (conj (current-selection-names context) :dataset-id)]
+      (with-tx-context [context context]
+        (->
+         (if (some #{:content :mediaType :metadata} ks)
+           (-> (get-entity-content context id ks)
+               (update :content
+                       #(if (instance? InputStream %)
+                          (.encodeToString (Base64/getEncoder)
+                                           (IOUtils/toByteArray ^InputStream %))
+                          %)))
            (execute-one!
             context
-            {:select (keep cols-json ks)
+            {:select (keep cols-all ks)
              :from :entity
-             :where [:= :id id]
-             :join [:content-json [:= :content-json.content-id :entity.content-id]]})
-           (assoc :mediaType "application/json")))
-         (execute-one!
-          context
-          {:select (keep cols-all ks)
-           :from :entity
-           :where [:= :id id]}))
-       (->> (remap-keys #(inv-cols % %)))
-       (assoc :id id)
-       ((fn [{:keys [dataset-id] :as entity}]
-          (if (or (sysrev-dev? context)
-                  (call-memo context :public-dataset? dataset-id))
-            entity
-            (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
-                                     :datasetId dataset-id}))))))))
+             :where [:= :id id]}))
+         (->> (remap-keys #(inv-cols % %)))
+         (assoc :id id
+                :contentUrl
+                (when (:contentUrl ks)
+                  (str (server-url (:request context))
+                       "/download/DatasetEntity/content/" id)))
+         ((fn [{:keys [dataset-id] :as entity}]
+            (if (or (sysrev-dev? context)
+                    (call-memo context :public-dataset? dataset-id))
+              entity
+              (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
+                                       :datasetId dataset-id})))))))))
 
 (defn resolve-Dataset-entities
   [context {:keys [externalId groupingId :as args]} {:keys [id]}]
@@ -326,6 +342,23 @@
 
 (defn resolve-DatasetEntitiesEdge-node [context _ {:keys [node]}]
   (resolve-dataset-entity context node _))
+
+(defn download-DatasetEntity-content [context]
+  (let [entity-id (try
+                    (some-> context :request :path-params :entity-id
+                            Long/parseLong)
+                    (catch Exception _))]
+    (when entity-id
+      (with-tx-context [context context]
+        (let [entity (get-entity-content context entity-id #{:content :dataset-id})]
+          (when (:content entity)
+            (if (or (sysrev-dev? context)
+                    (call-memo context :public-dataset? (:entity/dataset-id entity)))
+              {:status 200
+               :headers {"Content-Type" (:mediaType entity)}
+               :body (:content entity)}
+              {:status 403
+               :body "Forbidden"})))))))
 
 (defn get-existing-content-id [context {:keys [content-hash content-table]}]
   ((keyword (name content-table) "content-id")
