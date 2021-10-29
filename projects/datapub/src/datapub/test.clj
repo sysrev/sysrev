@@ -96,12 +96,13 @@
       (get-in [:data :createDataset :id])))
 
 (def ctgov-indices
-  [[:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
+  [[:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]
+   [:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
    [:TEXT ["ProtocolSection" "DescriptionModule" "BriefSummary"]]
    [:TEXT ["ProtocolSection" "DescriptionModule" "DetailedDescription"]]
    [:TEXT ["ProtocolSection" "IdentificationModule" "BriefTitle"]]
-   [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]
-   [:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]])
+   [:TEXT ["ProtocolSection" "IdentificationModule" "NCTId"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]])
 
 (defn load-ctgov-dataset! [system & [dataset-id]]
   (let [ds-id (or dataset-id
