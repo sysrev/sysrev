@@ -34,7 +34,6 @@ type Dataset {
     groupingId: String
   ): DatasetEntitiesConnection!
 
-
   "The indices on the DatasetEntity objects of this Dataset."
   indices: [DatasetIndex]
 
