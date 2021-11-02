@@ -7,24 +7,16 @@
             [com.walmartlabs.lacinia.parser :as parser]
             [com.walmartlabs.lacinia.selection :as selection]
             [datapub.main :as main]
-            [io.pedestal.test :as test]))
+            [io.pedestal.test :as test]
+            [sysrev.datapub-client.interface.queries :as dpcq])
+  (:import (java.util Base64)
+           (org.apache.commons.io IOUtils)))
 
-(def create-dataset
-  "mutation($input: CreateDatasetInput!){createDataset(input: $input){id}}")
-
-(def create-dataset-index
-  "mutation($datasetId: PositiveInt!, $path: String!, $type: DatasetIndexType!){createDatasetIndex(datasetId: $datasetId, path: $path, type: $type){path type}}")
-
-(def create-json-dataset-entity
-  "mutation($datasetId: PositiveInt!, $content: String!, $externalId: String) {
-     createDatasetEntity(datasetId: $datasetId, content: $content, mediaType: \"application/json\", externalId: $externalId){id content externalId mediaType}
-  }")
-
-(def subscribe-dataset-entities
-  "subscription($id: PositiveInt!, $uniqueExternalIds: Boolean){datasetEntities(datasetId: $id, uniqueExternalIds: $uniqueExternalIds){content externalId mediaType}}")
-
-(def subscribe-search-dataset
-  "subscription($input: SearchDatasetInput!){searchDataset(input: $input){content externalId id mediaType}}")
+(defn run-tests [opts]
+  ;; https://clojureverse.org/t/why-doesnt-my-program-exit/3754/8
+  ;; This prevents clojure -X:test from hanging
+  ((requiring-resolve 'cognitect.test-runner.api/test) opts)
+  (shutdown-agents))
 
 (defn response-for [system verb url & options]
   (apply
@@ -37,8 +29,8 @@
                     {:response graphql-response}))
     graphql-response))
 
-(defn execute [system query & [variables]]
-  (let [sysrev-dev-key (-> system :pedestal :config :sysrev-dev-key)]
+(defn execute! [system query & [variables]]
+  (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)]
     (-> (response-for system
                       :post "/api"
                       :headers {"Authorization" (str "Bearer " sysrev-dev-key)
@@ -50,8 +42,8 @@
 (defn query-arguments [query]
   (-> query :selections first selection/arguments))
 
-(defn execute-subscription [system f query & [variables opts]]
-  (let [sysrev-dev-key (-> system :pedestal :config :sysrev-dev-key)
+(defn execute-subscription! [system f query & [variables opts]]
+  (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)
         {:keys [timeout-ms]
          :or {timeout-ms 30000}} opts
         schema (-> system :pedestal :service-map :graphql-schema)
@@ -94,39 +86,102 @@
        (finally
          (component/stop system#)))))
 
-(def ctgov-indices
-  [[:TEXT "[\"ProtocolSection\" \"DescriptionModule\" \"BriefSummary\"]"]
-   [:TEXT "[\"ProtocolSection\" \"DescriptionModule\" \"DetailedDescription\"]"]
-   [:TEXT "[\"ProtocolSection\" \"IdentificationModule\" \"BriefTitle\"]"]
-   [:TEXT "[\"ProtocolSection\" \"IdentificationModule\" \"OfficialTitle\"]"]
-   [:TEXT "[\"ProtocolSection\" \"ConditionsModule\" \"ConditionList\" \"Condition\" :*]"]])
+(defn create-dataset! [system input]
+  (-> system
+      (execute!
+       (dpcq/m-create-dataset "id")
+       {:input input})
+      :body
+      throw-errors
+      (get-in [:data :createDataset :id])))
 
-(defn load-ctgov-dataset! [system]
-  (let [ds-id (-> system
-                  (execute
-                   create-dataset
-                   {:input
-                    {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
-                     :name "ClinicalTrials.gov"
-                     :public true}})
-                  :body
-                  throw-errors
-                  (get-in [:data :createDataset :id]))]
+(def ctgov-indices
+  [[:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
+   [:TEXT ["ProtocolSection" "DescriptionModule" "BriefSummary"]]
+   [:TEXT ["ProtocolSection" "DescriptionModule" "DetailedDescription"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "BriefTitle"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]
+   [:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]])
+
+(defn load-ctgov-dataset! [system & [dataset-id]]
+  (let [ds-id (or dataset-id
+                  (create-dataset!
+                   system
+                   {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
+                    :name "ClinicalTrials.gov"
+                    :public true}))]
     (doseq [{:keys [content externalId]} (-> "datapub/ctgov-entities.edn"
                                              io/resource
                                              slurp
                                              edn/read-string)]
       (throw-errors
-       (execute
-        system create-json-dataset-entity
-        {:content (json/generate-string content)
-         :datasetId ds-id
-         :externalId externalId})))
+       (execute!
+        system
+        (dpcq/m-create-dataset-entity "id")
+        {:input
+         {:content (json/generate-string content)
+          :datasetId ds-id
+          :externalId externalId
+          :mediaType "application/json"}})))
     (doseq [[type path] ctgov-indices]
       (throw-errors
-       (execute
-        system create-dataset-index
-        {:datasetId ds-id
-         :path path
-         :type (name type)})))
+       (execute!
+        system
+        (dpcq/m-create-dataset-index "type")
+        {:input
+         {:datasetId ds-id
+          :path (pr-str path)
+          :type (name type)}})))
     ds-id))
+
+(def fda-drugs-docs-indices
+  [[:TEXT ["metadata" "ApplicationDocsDescription"]]
+   [:TEXT ["metadata" "ApplType"]]
+   [:TEXT ["metadata" "Products" :* "ActiveIngredient"]]
+   [:TEXT ["metadata" "Products" :* "DrugName"]]
+   [:TEXT ["metadata" "ReviewDocumentType"]]
+   [:TEXT ["text"]]])
+
+(defn load-fda-drugs-docs-dataset! [system & [dataset-id]]
+  (let [ds-id (or dataset-id
+                  (create-dataset!
+                   system
+                   {:name "Drugs@FDA Application Documents"
+                    :public true}))]
+    (doseq [{:keys [external-created external-id filename grouping-id metadata]}
+            #__ (-> "datapub/fda-drugs-docs-entities.edn"
+                    io/resource
+                    slurp
+                    edn/read-string)]
+      (throw-errors
+       (execute!
+        system
+        (dpcq/m-create-dataset-entity "id")
+        {:input
+         {:content (->> (str "datapub/file-uploads/" filename)
+                        io/resource
+                        .openStream
+                        IOUtils/toByteArray
+                        (.encodeToString (Base64/getEncoder)))
+          :datasetId ds-id
+          :externalCreated external-created
+          :externalId external-id
+          :groupingId grouping-id
+          :mediaType "application/pdf"
+          :metadata (json/generate-string metadata)}})))
+    (doseq [[type path] fda-drugs-docs-indices]
+      (throw-errors
+       (execute!
+        system
+        (dpcq/m-create-dataset-index "type")
+        {:input
+         {:datasetId ds-id
+          :path (pr-str path)
+          :type (name type)}})))
+    ds-id))
+
+(defn load-all-fixtures! [system]
+  (load-ctgov-dataset! system)
+  (create-dataset! system {:name "Unused"})
+  (load-fda-drugs-docs-dataset! system)
+  nil)

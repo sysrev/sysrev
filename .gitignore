@@ -2,6 +2,9 @@
 ################################# Local config #################################
 ################################################################################
 
+/projects/datapub/config/prod
+/projects/datapub-importer/config/prod
+
 # files starting with a dot should be ignored by default
 .*
 
@@ -69,6 +72,7 @@ resources/public/css/semantic
 
 /pdf
 
+chrome
 profiles.clj
 /vars.sh
 /flyway.cmd
@@ -78,7 +82,6 @@ boot-cljsjs-checksums.edn
 client/node_modules
 client/semantic
 
-!/.carve_ignore
 /scripts/clj-kondo
 /scripts/clj-kondo.old
 

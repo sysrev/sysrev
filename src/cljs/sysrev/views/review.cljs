@@ -74,8 +74,25 @@
                         [kw {:article-id article-id
                              :project-id (nav/active-project-id db)}]]]]}))
 
+(reg-event-fx ::validate-value-id
+              (fn [{:keys [db]} [_ root-label-id label-id valid-id?]]
+                {:db (assoc-in db [:state :identifier-validations (str root-label-id "_" label-id)] (boolean valid-id?))}))
+
 (reg-event-fx ::set-string-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith value-idx label-value curvals]]
+                (let [{:keys [definition]} (get-label-raw db label-id)]
+                  (when (:validatable-label? definition)
+                    (try
+                      (->
+                        (js/fetch (str "http://resolver.api.identifiers.org/" (js/encodeURIComponent label-value)))
+                        (.then (fn [res]
+                                 (-> (.json ^js res)
+                                     (.then (fn [data-aux]
+                                              (let [data (js->clj data-aux :keywordize-keys true)
+                                                    valid-id? (seq (get-in data [:payload :resolvedResources]))]
+                                                (dispatch [::validate-value-id root-label-id label-id valid-id?]))))))))
+                      (catch js/Error _e
+                        (dispatch [::validate-value-id root-label-id label-id false])))))
                 {:db (set-label-value db article-id root-label-id label-id ith
                                       (assoc (vec curvals) value-idx label-value))
                  :fx [[:dispatch
@@ -179,17 +196,35 @@
 (reg-sub :review/invalid-labels
          (fn [[_ project-id article-id]]
            [(subscribe [:project/labels-raw project-id])
-            (subscribe [:review/active-labels article-id])])
-         (fn [[labels-raw labels]]
+            (subscribe [:review/active-labels article-id])
+            (subscribe [:review/identifier-validations])])
+         (fn [[labels-raw labels identifier-validations]]
            (->> labels
-             (remove
-               (fn [[label-id answer]]
-                 (let [label (get labels-raw label-id)]
-                   (if (:labels answer)
-                     (valid-group-answers? (:labels label)
-                                           (vals (:labels answer)))
-                     (valid-answer? (:value-type label) answer
-                                    (:definition label)))))))))
+                (remove
+                  (fn [[label-id answer]]
+                    (let [label (get labels-raw label-id)]
+                      (if (:labels answer)
+                        (and
+                          (or (not (-> label :definition :validatable-label?))
+                              (every? #(true? (get identifier-validations (str (:label-id label) "_" (:label-id %)))) (:labels label)))
+                          (valid-group-answers? (:labels label)
+                                                (vals (:labels answer))))
+
+                        (and
+                          (or (not (-> label :definition :validatable-label?))
+                              (not (false? (get identifier-validations (str "na" (:label-id label))))))
+                          
+                          (valid-answer? (:value-type label) answer
+                                         (:definition label))))))))))
+
+(reg-sub :review/identifier-validations
+         (fn [db [_]]
+           (get-in db [:state :identifier-validations])))
+
+(reg-sub :review/valid-id?
+         (fn [db [_ root-label-id label-id]]
+           (let [identifier-validation (get-in db [:state :identifier-validations (str root-label-id "_" label-id)])]
+             (or (nil? identifier-validation) identifier-validation))))
 
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]
   (let [answer (subscribe [:review/active-labels
@@ -293,8 +328,11 @@
           (fn [i val]
             (let [left-action? true
                   right-action? (and multi? (= i (dec nvals)))
-                  valid? @(subscribe [:label/valid-string-value?
-                                      root-label-id label-id val])
+                  validatable-label? @(subscribe [:label/validatable-label? root-label-id label-id])
+                  valid-id? (or (not validatable-label?)
+                                @(subscribe [:review/valid-id? root-label-id label-id]))
+                  valid? (and valid-id? @(subscribe [:label/valid-string-value?
+                                                      root-label-id label-id val]))
                   focus-elt (fn [value-idx]
                               #(js/setTimeout
                                 (fn []
@@ -323,7 +361,7 @@
               ^{:key [root-label-id label-id ith i]}
               [:div.ui.small.form.string-label
                [:div.field.string-label {:class (css [(empty? val) ""
-                                                      valid?       "success"
+                                                      (and valid? valid-id?) "success"
                                                       :else        "error"])}
                 [:div.ui.fluid.input
                  {:class (css [(and left-action? right-action?) "labeled right action"
@@ -340,9 +378,10 @@
                           :value val
                           :on-change
                           (util/on-event-value
-                           #(dispatch-sync [::set-string-value
-                                            article-id root-label-id label-id
-                                            ith i % curvals]))
+                            (fn [value]
+                              (dispatch-sync [::set-string-value
+                                              article-id root-label-id label-id
+                                              ith i value curvals])))
                           :on-key-down
                           #(cond (= "Enter" (.-key %))
                                  (if add-next (add-next) (focus-next))
@@ -357,7 +396,14 @@
                     [:i.plus.icon]])]]
                (when (and (not valid?)
                           (not (str/blank? val)))
-                 [Message {:color "red"} "Invalid Value"])])))))])))
+                 [Message {:color "red"} "Invalid Value"])
+               (when (and validatable-label? valid-id?)
+                 [:div
+                  [:a {:target "_blank"
+                       :style {:margin-top "5px"}
+                       :href (str "https://identifiers.org/" val)}
+                   [:i.external.alternate.icon]
+                   " Identifier info"]])])))))])))
 
 (defn- inclusion-tag [article-id root-label-id label-id ith]
   (let [criteria? @(subscribe [:label/inclusion-criteria? root-label-id label-id])

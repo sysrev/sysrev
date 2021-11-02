@@ -36,8 +36,13 @@
                          (assoc :project-id project-id))
             :returning :article-id))
 
+(def article-cols
+  [:article-data-id :article-id :article-uuid :duplicate-of :enabled
+   :last-user-assigned :last-user-review :parent-article-uuid :project-id])
+
 (defn add-articles [articles project-id & [conn]]
-  (vec (q/create :article (mapv #(-> (article-to-sql % conn)
+  (vec (q/create :article (mapv #(-> (select-keys % article-cols)
+                                     (article-to-sql conn)
                                      (assoc :project-id project-id))
                                 articles)
                  :returning :article-id)))

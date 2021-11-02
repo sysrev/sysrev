@@ -1,0 +1,6 @@
+{:paths ["src"]
+ :deps {lambdaisland/uri {:mvn/version "1.10.79"}
+        org.clojure/tools.logging {:mvn/version "1.1.0"}
+        sysrev/datapub-client {:local/root "../datapub-client"}
+        sysrev/fda-drugs {:local/root "../fda-drugs"}
+        sysrev/sqlite {:local/root "../sqlite"}}}

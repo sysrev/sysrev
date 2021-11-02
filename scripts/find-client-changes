@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 cd client
 input_paths="src node_modules semantic package.json package-lock.json shadow-cljs.edn"

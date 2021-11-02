@@ -1,4 +1,11 @@
-[{:externalId "NCT04983004",
+[{:externalCreated "2021-01-01T00:00:00Z",
+  :externalId "NCT04983004",
+  :content
+  {:ProtocolSection
+   {:DescriptionModule
+    {:BriefSummary "Earlier test version."}}}},
+ {:externalCreated "2021-07-29T00:00:00Z",
+  :externalId "NCT04983004",
   :content
   {:ProtocolSection
    {:DescriptionModule

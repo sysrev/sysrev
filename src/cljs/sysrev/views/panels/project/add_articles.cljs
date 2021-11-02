@@ -9,6 +9,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
             [sysrev.views.ctgov :as ctgov]
+            [sysrev.views.fda-drugs-docs :as fda-drugs-docs]
             [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :as source-view]
@@ -625,37 +626,54 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
      [DatasourceIcon option])])
 
 (defn ImportArticlesView []
-  (let [active-tab (subscribe [:add-articles/import-tab])]
+  (let [active-tab (subscribe [:add-articles/import-tab])
+        beta-access? (or (not= js/window.location.hostname "sysrev.com")
+                         (boolean
+                          (some #{@(subscribe [:self/email])}
+                                #{"amarluniwal@gmail.com"
+                                  "geoffreyweiner@gmail.com"
+                                  "james@insilica.co"
+                                  "tom@insilica.co"
+                                  "jeff@insilica.co"
+                                  "tj@insilica.co"
+                                  "g.callegaro@lacdr.leidenuniv.nl"})))]
     [:div#import-articles {:style {:margin-bottom "1em"}}
      [:div
       [:h3 "1. Select a document source"]
-      [DatasourceIconList [{:value :pdfs
-                            :text "PDF files"
-                            :name "file pdf outline"}
-                           {:value :pdf-zip
-                            :text "PDF.zip"
-                            :name "file archive outline"}
-                           {:text "PubMed"
-                            :value :pubmed
-                            :name "search"}
-                           {:value :pmid
-                            :text "PMID file"
-                            :name "file outline"}
-                           {:value :ris-file
-                            :text "RIS / RefMan"
-                            :name "file alternate outline"}
-                           {:value :endnote
-                            :text "EndNote XML"
-                            :name "file code outline"}
-                           {:value :ctgov
-                            :text "ClinicalTrials (beta)"
-                            :name "hospital outline"}
-                           {:value :json
-                            :text "JSON file"
-                            :name "file outline"}
-                           {:value :custom
-                            :text "Custom Datasource"
-                            :name "database"}]]
+      [DatasourceIconList
+       (filter
+        seq
+        [{:value :pdfs
+          :text "PDF files"
+          :name "file pdf outline"}
+         {:value :pdf-zip
+          :text "PDF.zip"
+          :name "file archive outline"}
+         {:text "PubMed"
+          :value :pubmed
+          :name "search"}
+         {:value :pmid
+          :text "PMID file"
+          :name "file outline"}
+         {:value :ris-file
+          :text "RIS / RefMan"
+          :name "file alternate outline"}
+         {:value :endnote
+          :text "EndNote XML"
+          :name "file code outline"}
+         {:value :ctgov
+          :text "ClinicalTrials (beta)"
+          :name "hospital outline"}
+         (when beta-access?
+           {:value :fda-drugs-docs
+            :text "Drugs@FDA Documents (beta)"
+            :name "at"})
+         {:value :json
+          :text "JSON file"
+          :name "file outline"}
+         {:value :custom
+          :text "Custom Datasource"
+          :name "database"}])]
       (when @active-tab
         (condp =  @active-tab
           :pubmed    [:div [:h3 "2. Search pubmed to review medical abstracts"] [pubmed/SearchBar]]
@@ -666,41 +684,42 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.
 An article entry will be created for each PDF."] [ImportPDFZipsView]]
           :ris-file  [ImportRISView]
-          :ctgov (if (and (= js/window.location.hostname "sysrev.com")
-                          (not (some #{@(subscribe [:self/email])}
-                                     #{"amarluniwal@gmail.com"
-                                       "geoffreyweiner@gmail.com"
-                                       "james@insilica.co"
-                                       "tom@insilica.co"
-                                       "jeff@insilica.co"
-                                       "tj@insilica.co"
-                                       "g.callegaro@lacdr.leidenuniv.nl"})))
+          :ctgov (if-not beta-access?
                    [EnableCTNotice]
                    [:div
                     [:h3 "2. Search and import clinicaltrials.gov documents."]
                     [ctgov/SearchBar]])
+          :fda-drugs-docs [:div
+                           [:h3 "2. Search and import Drugs@FDA application documents."]
+                           [fda-drugs-docs/SearchBar]]
           :custom [CustomDatasource]
           nil))
       (condp =  @active-tab
         :pubmed [pubmed/SearchActions (any-source-processing?)]
         :ctgov  [ctgov/SearchActions (any-source-processing?)]
+        :fda-drugs-docs  [fda-drugs-docs/SearchActions (any-source-processing?)]
         nil)]
      (condp =  @active-tab
        :pubmed [pubmed/SearchResultsContainer]
        :ctgov  [ctgov/SearchResultsContainer]
+       :fda-drugs-docs  [fda-drugs-docs/SearchResultsContainer]
        nil)]))
 
 (defn DocumentImport []
   (let [project-id @(subscribe [:active-project-id])
         visible? @(subscribe [::add-documents-visible project-id])
         sources @(subscribe [:project/sources])
-        show-filters? (= :ctgov @(subscribe [:add-articles/import-tab]))]
+        import-tab @(subscribe [:add-articles/import-tab])
+        filter-el (when visible?
+                    ({:ctgov ctgov/SearchFilters
+                      :fda-drugs-docs fda-drugs-docs/SearchFilters}
+                     import-tab))]
     [:div {:style {:padding-bottom 10}}
-     [(if show-filters? :div.ui.grid>div.row :div)
-      (when show-filters?
+     [(if filter-el :div.ui.grid>div.row :div)
+      (when filter-el
         [:div.column.filters-column.five.wide
-         [ctgov/SearchFilters]])
-      [(if show-filters? :div.column.content-column.eleven.wide :div)
+         [filter-el]])
+      [(if filter-el :div.column.content-column.eleven.wide :div)
        [Button {:id "enable-import"
                 :size "huge" :positive true
                 :disabled visible?

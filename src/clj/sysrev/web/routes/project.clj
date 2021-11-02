@@ -444,7 +444,19 @@
             (let [{:keys [entity-ids query]} (:body request)
                   project-id (active-project request)
                   user-id (current-user-id request)]
-              (api/import-trials-from-search project-id query entity-ids :user-id user-id)))))
+              (api/import-trials-from-search project-id query entity-ids
+                                             :web-server (:web-server request)
+                                             :user-id user-id)))))
+
+(dr (POST "/api/import-trials/fda-drugs-docs" request
+          (with-authorize request {:roles ["admin"]}
+            (let [{:keys [entity-ids query]} (:body request)
+                  project-id (active-project request)
+                  user-id (current-user-id request)]
+              (api/import-trials-from-fda-drugs-docs
+               project-id query entity-ids
+               :web-server (:web-server request)
+               :user-id user-id)))))
 ;;;
 ;;; Article review
 ;;;
@@ -563,11 +575,8 @@
 
 (dr (POST "/api/get-label-share-code" request
           (with-authorize request {:roles ["admin"]}
-            (let [{:keys [label-id]} (:body request)
-                  label (label/get-label label-id)]
-              (if (= (:project-id label) (:owner-project-id label))
-                {:success true :share-code (label/get-share-code label-id)}
-                {:success false})))))
+            (let [{:keys [label-id]} (:body request)]
+              {:success true :share-code (label/get-share-code label-id)}))))
 
 (dr (POST "/api/import-label" request
           (with-authorize request {:roles ["admin"]}
@@ -644,7 +653,7 @@
           (with-authorize request {:roles ["admin"]}
             (let [{:keys [source-id]} (-> request :body)
                   _user-id (current-user-id request)]
-              (api/re-import-source source-id)))))
+              (api/re-import-source source-id (:web-server request))))))
 
 (dr (GET "/api/sources/download/:project-id/:source-id" request
          (with-authorize request {:allow-public true}

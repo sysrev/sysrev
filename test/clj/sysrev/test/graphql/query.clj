@@ -83,7 +83,7 @@
                  m))
 
 (deftest project-query
-  (when (test/db-connected?)
+  (when (and (test/db-connected?) (not (test/remote-test?)))
     (let [{:keys [email user-id]} (b/create-test-user)
           project-name  "Graphql - Project Query Test"
           {:keys [project-id]} (get (api/create-project-for-user! project-name user-id false)

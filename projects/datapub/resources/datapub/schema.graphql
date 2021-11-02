@@ -4,6 +4,8 @@
 # *Connection, *Edge, and PageInfo from the GraphQL Cursor Connections Specification:
 # https://relay.dev/graphql/connections.htm
 
+"A DateTime in ISO-8061 instant format, such as \"2011-12-03T10:15:30Z\"."
+scalar DateTime
 scalar NonNegativeInt
 scalar PositiveInt
 
@@ -24,13 +26,34 @@ type Dataset {
   "A description of the Dataset."
   description: String
 
-  "The indices on the Dataset."
+  "The entities belonging to this Dataset."
+  entities(
+    after: String
+    externalId: String
+    first: NonNegativeInt
+    groupingId: String
+  ): DatasetEntitiesConnection!
+
+
+  "The indices on the DatasetEntity objects of this Dataset."
   indices: [DatasetIndex]
 
   "The name of the Dataset."
   name: String!
 
+  "Whether the Dataset is public."
   public: Boolean!
+}
+
+type DatasetEntitiesConnection {
+  edges: [DatasetEntitiesEdge]
+  pageInfo: PageInfo!
+  totalCount: NonNegativeInt
+}
+
+type DatasetEntitiesEdge {
+  cursor: String!
+  node: DatasetEntity
 }
 
 type DatasetEntity {
@@ -40,11 +63,19 @@ type DatasetEntity {
   "The string representation of the content."
   content: String!
 
+  "The datetime the source data was created. Used to determine which entity to return when there are multiple entities with the same externalId and uniqueExternalIds is true."
+  externalCreated: DateTime
+
   "An opaque external id."
   externalId: String
 
+  groupingId: String
+
   "The media type, such as \"application/json\"."
   mediaType: String!
+
+  "The string representation of the metadata in JSON format."
+  metadata: String
 }
 
 type DatasetIndex {
@@ -73,16 +104,39 @@ type PageInfo {
   startCursor: String!
 }
 
+input CreateDatasetEntityInput {
+  content: String!
+  datasetId: PositiveInt!
+  externalCreated: DateTime
+  externalId: String
+  groupingId: String
+  mediaType: String!
+  metadata: String
+}
+
+input CreateDatasetIndexInput {
+  datasetId: PositiveInt!
+  path: String!
+  type: DatasetIndexType!
+}
+
 input CreateDatasetInput {
   description: String
   name: String!
   public: Boolean
 }
 
+input DatasetEntitiesInput {
+  datasetId: PositiveInt!
+  uniqueExternalIds: Boolean
+  uniqueGroupingIds: Boolean
+}
+
 input SearchDatasetInput {
   datasetId: PositiveInt!
   query: SearchDatasetQueryInput!
   uniqueExternalIds: Boolean
+  uniqueGroupingIds: Boolean
 }
 
 input SearchDatasetQueryInput {
@@ -105,6 +159,13 @@ input SearchDatasetQueryTextInput {
   useEveryIndex: Boolean
 }
 
+input UpdateDatasetInput {
+  description: String
+  id: PositiveInt!
+  name: String
+  public: Boolean
+}
+
 type Query {
   dataset(id: PositiveInt!) : Dataset
   datasetEntity(id: PositiveInt!) : DatasetEntity
@@ -116,13 +177,14 @@ type Query {
 
 type Mutation {
   createDataset(input: CreateDatasetInput!) : Dataset
-  createDatasetEntity(datasetId: PositiveInt!, content: String!, externalId: String, mediaType: String!) : DatasetEntity
-  createDatasetIndex(datasetId: PositiveInt!, path: String!, type: DatasetIndexType!) : DatasetIndex
+  createDatasetEntity(input: CreateDatasetEntityInput!) : DatasetEntity
+  createDatasetIndex(input: CreateDatasetIndexInput!) : DatasetIndex
+  updateDataset(input: UpdateDatasetInput!) : Dataset
 }
 
 type Subscription {
-  datasetEntities(datasetId: PositiveInt!, uniqueExternalIds: Boolean): DatasetEntity
-  searchDataset(input: SearchDatasetInput): DatasetEntity
+  datasetEntities(input: DatasetEntitiesInput!): DatasetEntity
+  searchDataset(input: SearchDatasetInput!): DatasetEntity
 }
 
 schema {

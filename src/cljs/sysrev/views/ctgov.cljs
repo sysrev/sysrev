@@ -10,7 +10,7 @@
             [sysrev.shared.ctgov :as ctgov]
             [sysrev.views.components.core :as comp]
             [sysrev.views.components.list-pager :refer [ListPager]]
-            [sysrev.views.semantic :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
+            [sysrev.views.semantic :as S :refer [Table TableHeader TableHeaderCell TableRow TableBody TableCell]]
             [sysrev.util :as util :refer [wrap-prevent-default]]))
 
 ;; for clj-kondo
@@ -58,8 +58,11 @@
               (dispatch [:ctgov-search-complete query]))
             :on-data
             (fn [^js/Object data]
-              (let [entity-id (-> data .-data .-searchDataset .-id)]
-                (dispatch [:ctgov-search-add-entity query entity-id])))
+              (if (.-errors data)
+                (js/console.error "Errors in datapub subscription response:"
+                                  (.-errors data))
+                (let [entity-id (-> data .-data .-searchDataset .-id)]
+                  (dispatch [:ctgov-search-add-entity query entity-id]))))
             :payload
             {:query (datapub/subscribe-search-dataset "id")
              :variables
@@ -85,7 +88,7 @@
                         {:filters (:filters state)
                          :search (:current-search-term state)})]]]})))
 
-(def-action :project/import-trials-from-search
+(def-action :project/import-ctgov-search
   :uri (fn [] "/api/import-trials/ctgov")
   :content (fn [project-id query entity-ids]
              {:entity-ids entity-ids
@@ -171,7 +174,7 @@
   (let [query @(subscribe [::current-query])
         search-results @(subscribe [:ctgov/query-result query])]
     [:div.ui.fluid.left.labeled.button.search-results
-     {:on-click #(do (dispatch [:action [:project/import-trials-from-search
+     {:on-click #(do (dispatch [:action [:project/import-ctgov-search
                                          @(subscribe [:active-project-id])
                                          query search-results]])
                      (dispatch [(keyword 'sysrev.views.panels.project.add-articles
@@ -273,8 +276,46 @@
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
 
+(defn TextFilter [{:keys [cursor label]}]
+  [:div.ui.segments>div.ui.segment
+   [:div.ui.small.form
+    [:div.sixteen.wide.field
+     [:label label]
+     [:div.nine.wide.field
+      [S/FormInput
+       {:on-change (fn [_event x]
+                     (let [v (.-value x)]
+                       (reset! cursor v)
+                       (dispatch [::fetch-results])))
+        :value (or @cursor "")}]]]]])
+
+(defn CountryFilter [{:keys [cursor]}]
+  [:div.ui.segments>div.ui.segment
+   [:div.ui.small.form
+    [:div.sixteen.wide.field
+     [:label "Country"]
+     [:div.nine.wide.field
+      [S/Dropdown
+       {:on-change (fn [_event x]
+                     (let [v (.-value x)]
+                       (reset! cursor (if (= "Any" v) #{} #{v}))))
+        :options
+        (->> ctgov/country-vec
+             (remove #{"United States"})
+             (concat ["Any" "United States"])
+             (map #(-> {:key % :value % :text %})))
+        :value (or (first @cursor) "Any")}]]]]])
+
 (defn SearchFilters []
   [:<>
+   #_[TextFilter
+    {:cursor (r/cursor state [:filters :condition])
+     :label "Condition"}]
+   #_[TextFilter
+    {:cursor (r/cursor state [:filters :intervention])
+     :label "Intervention"}]
+   [CountryFilter
+    {:cursor (r/cursor state [:filters :countries])}]
    [comp/MultiSelect
     {:cursor (r/cursor state [:filters :recruitment])
      :label "Recruitment"

@@ -290,6 +290,13 @@
                    {:entity-ids entity-ids
                     :query query}))
 
+(defn import-trials-from-fda-drugs-docs
+  "Import trials resulting from Drugs@FDA search"
+  [project-id query entity-ids & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-fda-drugs-docs-search project-id % options)
+                   {:entity-ids entity-ids
+                    :query query}))
+
 (s/def ::sources vector?)
 
 (defn-spec project-sources (req-un ::sources)
@@ -331,11 +338,11 @@
 
 (defn-spec re-import-source (-> (req-un ::success) or-error)
   "Toggle a source as being enabled or disabled."
-  [source-id int?]
+  [source-id int? web-server map?]
   (if (source/source-exists? source-id)
     (let [project-id (source/source-id->project-id source-id)
           source (source/get-source source-id)]
-      (source/re-import project-id source)
+      (source/re-import project-id source {:web-server web-server})
       {:success true
        :message "Source updated"})
     {:error {:status not-found
@@ -892,9 +899,15 @@
   files associated with article-id"
   [article-id]
   (let [pmcid-s3-id (some-> article-id article/article-pmcid article-file/pmcid->s3-id)]
-    {:success true, :files (->> (article-file/get-article-file-maps article-id)
-                                (mapv #(assoc % :open-access?
-                                              (= (:s3-id %) pmcid-s3-id))))}))
+    {:success true
+     :files (->> (article-file/get-article-file-maps article-id)
+                 (mapv #(assoc % :open-access?
+                               (= (:s3-id %) pmcid-s3-id)))
+                 (concat
+                  (q/find [:s3store :s3]
+          {:s3.s3-id (q/find [:article-pdf :apdf] {:apdf.article-id article-id}
+                             :apdf.s3-id, :return :query)}
+          [:s3.s3-id :s3.key :s3.filename])))}))
 
 
 (defn project-article-pdfs-zip

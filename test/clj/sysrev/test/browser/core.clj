@@ -463,7 +463,7 @@
                                             5000))
                              (Thread/sleep 100))]
     `(deftest ~name
-       (when (or ~repl? ~enable)
+       (when (and (or ~repl? ~enable) (not (:test-browser-skip env)))
          (util/with-print-time-elapsed ~name-str
            (log/infof "")
            (log/infof "[[ %s started ]]" ~name-str)
@@ -505,7 +505,6 @@
                              (catch Throwable e#
                                (log/warnf "exception in test cleanup:\n%s"
                                           (with-out-str (print-cause-trace-custom e#)))))
-                        #_ (ensure-logged-out)
                         (when (test/db-connected?)
                           (cleanup-test-user! :email (:email ~test-user)))))))))))))
 
@@ -582,8 +581,7 @@
     (wait-until-loading-completes :pre-wait true :loop 2)
     (taxi/execute-script "sysrev.base.toggle_analytics(false);")
     (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
-      (if (pos-int? fn-count)
-        nil #_ (log/info "instrumented" fn-count "cljs functions")
+      (when-not (pos-int? fn-count)
         (log/error "no cljs functions were instrumented"))))
   nil)
 
@@ -592,26 +590,9 @@
   (f))
 
 (defn webdriver-fixture-each [f]
-  (let [local? (= "localhost" (:host (test/get-selenium-config)))
-        ;; cache? @db/query-cache-enabled
-        ]
-    (when-not local? (reset! db/query-cache-enabled false))
-    #_ (when (test/db-connected?) (create-test-user))
-    #_ (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
-    #_ (if (reuse-webdriver?)
-         (do (start-webdriver) ;; use existing webdriver if running
-             (ensure-webdriver-size)
-             (try (ensure-logged-out) (init-route "/")
-                  ;; try restarting webdriver if unable to load page
-                  (catch Throwable _
-                    (log/warn "restarting webdriver due to exception")
-                    (start-webdriver true) (init-route "/"))))
-         (start-webdriver true))
-    (f)
-    #_ (when (reuse-webdriver?)
-         ;; log out to set up for next test
-         (ensure-logged-out))
-    #_ (when-not local? (reset! db/query-cache-enabled cache?))))
+  (let [local? (= "localhost" (:host (test/get-selenium-config)))]
+    (when-not local? (reset! db/*query-cache-enabled* false)))
+  (f))
 
 (defonce ^:private chromedriver-version-atom (atom nil))
 
@@ -649,10 +630,6 @@
         y (if center?
             (-> (+ adjust-y start-y) (max adjust-y) (min (- adjust-y)))
             start-y)]
-    #_ (log/info (pr-str {:width width :height height
-                          :start-x start-x :offset-x offset-x
-                          :start-y start-y :offset-y offset-y
-                          :x x :y y}))
     (Thread/sleep delay)
     #_{:clj-kondo/ignore [:invalid-arity]}
     (->actions *driver*

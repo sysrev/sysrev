@@ -121,14 +121,13 @@
     ;; a person can create a org and they are automatically made owners
     (create-org org-name-1)
     (is (some #{"owner"} (user-group-permission user-id org-name-1)))
-;;; an owner can add a user to the org
-    ;; add a user
+    ;; an owner can add a user to the org
     (add-user-to-org user1-name)
     (b/is-soon (= "member" (user-role user1-name)) 3000 50)
-    ;;an owner can change permissions of a member
-    (change-user-permission user1-name "Owner")
-    (b/is-soon (= "owner" (user-role user1-name)) 3000 50)
-    ;; only an owner can change permissions, not a member
+    ;; an admin can change permissions of a member
+    (change-user-permission user1-name "Admin")
+    (b/is-soon (= "admin" (user-role user1-name)) 3000 50)
+    ;; only an admin can change permissions, not a member
     (change-user-permission user1-name "Member")
     (nav/log-in (:email user1))
     (b/click "#user-name-link")
@@ -148,11 +147,11 @@
     ;; only an owner or admin of an org can create projects for that org
     (b/click "#org-projects")
     (create-project-org org-name-1-project)
-    ;; add user1 to Baz Qux as an owner
+    ;; add user1 to Baz Qux as an admin
     (nav/go-route "/org/users")
     (switch-to-org org-name-2)
     (add-user-to-org user1-name)
-    (change-user-permission user1-name "Owner")
+    (change-user-permission user1-name "Admin")
     ;; log-in as user1 and see that they cannot create group projects
     (nav/log-in (:email user1))
     (b/click "#user-name-link")
@@ -171,9 +170,6 @@
     ;; user can create projects here
     (b/click "#org-projects")
     (b/wait-until-exists "#new-project.button")
-    ;; can change user permissions for browser+test
-    (b/click "#org-members")
-    (b/wait-until-exists (change-user-permission-dropdown (:username test-user)))
     ;; duplicate orgs can't be created
     (nav/log-in (:email test-user))
     (b/click "#user-name-link")
@@ -341,9 +337,3 @@
     (log/info "downgraded org plan")
     (b/exists? ".button.nav-plans.subscribe"))
   :cleanup (b/cleanup-test-user! :email email :groups true))
-
-(defn user-groups [email]
-  (-> (user-by-email email :user-id)
-      (group/read-groups)))
-
-

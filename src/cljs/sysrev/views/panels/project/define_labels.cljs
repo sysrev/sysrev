@@ -3,11 +3,12 @@
             [clojure.walk :as walk]
             [medley.core :refer [find-first]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe dispatch-sync dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
+            ["@material-ui/core" :as mui]
+            ["@insilica-org/material-table" :refer [default] :rename {default MaterialTable}]
             [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data]
-            [sysrev.state.label :refer [sort-client-project-labels]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.base :refer [panel-content]]
@@ -17,7 +18,6 @@
             [sysrev.views.semantic :as S :refer [Divider Button Message Segment
                                            Modal ModalHeader ModalContent ModalDescription Form
                                            FormField TextArea]]
-            [sysrev.dnd :as dnd]
             [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
 
@@ -34,7 +34,25 @@
 (declare panel state)
 
 (setup-panel-state panel [:project :project :labels :edit] :state state
+                   :get [panel-get ::get] 
                    :set [panel-set ::set])
+
+(defn find-label [label-id labels]
+  (some #(when (= (:label-id %) label-id) %) labels))
+
+(reg-sub ::editing-label
+         (fn []
+           [(subscribe [::get :labels]) (subscribe [::get :editing-label-id]) (subscribe [::get :editing-root-label-id])])
+         (fn [[labels-aux editing-label-id editing-root-label-id]]
+           (let [labels (if editing-root-label-id
+                          (-> (find-label editing-root-label-id (vals labels-aux)) :labels vals)  
+                          (vals labels-aux))]
+             (find-label editing-label-id labels))))
+
+(reg-sub ::is-editing-label?
+         (fn []
+           (subscribe [::get :editing-label-id]))
+         some?)
 
 (def initial-state {:read-only-message-closed? false})
 (def new-label-id-prefix "new-label-")
@@ -189,7 +207,8 @@
 (defn add-new-label!
   "Add a new label in local namespace state."
   [label]
-  (swap! state assoc-in [:labels (:label-id label)] label))
+  (swap! state assoc-in [:labels (:label-id label)] label)
+  (dispatch [::set :editing-label-id (:label-id label)]))
 
 (defn add-new-group-label!
   [labels-atom label]
@@ -285,7 +304,9 @@
      {:on-click (fn [e]
                   (.preventDefault e)
                   (.stopPropagation e)
-                  (reset-local-label! labels-atom root-label-id label-id))}
+                  (reset-local-label! labels-atom root-label-id label-id)
+                  (dispatch-sync [::set :editing-root-label-id nil])
+                  (dispatch-sync [::set :editing-label-id nil]))}
      [:i.circle.times.icon] text]))
 
 (defn save-request-active? []
@@ -297,7 +318,9 @@
    {:type "submit"
     :class (css [(save-request-active?) "loading"]
                 [(labels-synced?) "disabled"])
-    :on-click on-click}
+    :on-click (fn [ev]
+                (dispatch [:alert {:content "Saving..." :opts {:success true}}])
+                (on-click ev))}
    [:i.check.circle.outline.icon] "Save"])
 
 (def-action :labels/get-share-code
@@ -306,23 +329,18 @@
              {:project-id project-id :label-id label-id})
   :process (fn [_ [_] {:keys [success share-code]}]
              (when success
-               {:dispatch [::set [:share-label-modal :share-code] share-code]}))
+               {:dispatch-n [[::set [:share-label-modal :open] true]
+                             [::set [:share-label-modal :share-code] share-code]]}))
   :on-error (fn [{:keys [db error]} _ _]
               {:dispatch [:alert {:opts {:error true}
                                   :content (str "There was an error generating the share code")}]}))
 
-(defn ShareLabelButton [label]
+(defn ShareLabelButton []
   (let [modal-state-path [:share-label-modal]
         modal-open (r/cursor state (concat modal-state-path [:open]))
-        project-id @(subscribe [:active-project-id])
         share-code (r/cursor state (concat modal-state-path [:share-code]))]
     (fn []
-      [Modal {:trigger (r/as-element
-                         [:div.ui.small.icon.button.share-label-button
-                          {:style {:margin-left 12 :margin-right 0}
-                           :on-click #(dispatch [:action [:labels/get-share-code project-id (:label-id @label)]])}
-                          [:i.share.alternate.icon]])
-              :class "tiny"
+      [Modal {:class "tiny"
               :open @modal-open
               :on-open #(reset! modal-open true)
               :on-close #(reset! modal-open false)}
@@ -562,6 +580,8 @@
         examples (r/cursor definition [:examples])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
+        ;; 
+        validatable-label? (r/cursor definition [:validatable-label?])
         ;;;
         errors (r/cursor label [:errors])
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
@@ -572,7 +592,9 @@
                                                   ;; save on server
                                                   (sync-to-server)
                                                   ;; just reset editing
-                                                  (reset! (r/cursor label [:editing?]) false)))
+                                                  (reset! (r/cursor label [:editing?]) false))
+                                                (dispatch [::set :editing-root-label-id nil])
+                                                (dispatch [::set :editing-label-id nil]))
                                               :prevent-default true)}
      (when (string? @value-type)
        [:h5.ui.dividing.header.value-type
@@ -730,6 +752,27 @@
             :disabled (not is-owned?)
             :on-change #(let [checked? (-> % .-target .-checked)]
                           (reset! inclusion-values (if checked? [true] [])))
+            :label "Yes"}]
+          [show-error-msg error]]))
+
+     (when (= @value-type "string")
+       (let [error (get-in @errors [:definition :validatable-label?])]
+         [:div.field.validatable-label {:class (when error "error")
+                                        :style {:width "100%"}}
+          [FormLabelWithTooltip
+           "Validate label values?"
+           ["Validate this label against identifiers.org"]]
+          [ui/LabeledCheckbox
+           {:checked? (not @validatable-label?)
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? (not checked?)))
+            :label "No"}]
+          [ui/LabeledCheckbox
+           {:checked? @validatable-label?
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
      (when is-owned?
@@ -1060,66 +1103,6 @@
                              :attached "bottom"
                              :color "grey"} "Move Down"])])))]]))
 
-(defn- LabelItem [labels-atom i label & {:keys [status]}]
-  (let [{:keys [label-id name editing? enabled value-type short-label]} @label
-        admin? @(subscribe [:member/admin? true])
-        allow-edit? (and admin? (not= name "overall include"))
-        {:keys [draggable]} status]
-    [:div.ui.middle.aligned.grid.label-item
-     {:id (str label-id)
-      :class (css [(= "group" value-type) "group-label"]
-                  [(not enabled) "secondary"] "segment")
-      :data-short-label short-label}
-     [:div.row
-      [ui/TopAlignedColumn
-       [:div.ui.label {:class (css [enabled "blue" :else "gray"])} (str (inc i))]
-       (css "two wide center aligned column label-index"
-            [(true? draggable)  "cursor-grab"
-             (false? draggable) "cursor-not-allowed"])]
-      [:div.column.define-label-item {:class "ten wide"
-                                      :data-short-label short-label}
-       (if editing?
-         (if (= (:value-type @label) "group")
-           [GroupLabelEditForm labels-atom label]
-           [LabelEditForm labels-atom "na" label])
-         (if (= (:value-type @label) "group")
-           [GroupLabel label]
-           [:div.ui.column.label-edit {:class (css [(:required @label) "required"])}
-            [Label label]]))]
-      [ui/TopAlignedColumn
-       [:<>
-        [EditLabelButton label allow-edit?]
-        [ShareLabelButton label]]
-       "four wide center aligned column delete-label"]]]))
-
-(defn- label-drag-spec []
-  (dnd/make-drag-spec
-   {:begin-drag (fn [props _monitor _component]
-                  {:label-id (-> props :id-spec :label-id)})}))
-
-(defn- label-drop-spec []
-  (dnd/make-drop-spec
-   {:drop (fn [props monitor _component]
-            (sync-to-server)
-            {:label-id (-> props :id-spec :label-id)
-             :item (.getItem monitor)})}))
-
-(defn- wrap-label-dnd [id-spec content-fn]
-  [dnd/wrap-dnd
-   id-spec
-   {:item-type    "label-edit"
-    :drag-spec    (label-drag-spec)
-    :drop-spec    (label-drop-spec)
-    :content      (fn [props]
-                    (content-fn props))
-    :on-enter    (fn [props]
-                   (let [src-id (-> props :item :label-id)
-                         dest-id (-> props :id-spec :label-id)]
-                     (when (not= src-id dest-id)
-                       (move-label-to src-id dest-id))))
-    :on-exit     (fn [_props]
-                   nil)}])
-
 (defn- UpgradeMessage []
   [Segment {:style {:text-align "center"}
             :id "group-label-paywall"}
@@ -1136,15 +1119,201 @@
      " to learn more about this feature"]
     [:br]]])
 
+
+(defn SideEditableView [labels-atom]
+  (let [editing-label (subscribe [::editing-label])
+        editing-root-label-id (subscribe [::get :editing-root-label-id]) ]
+    (when @editing-label
+      [:div.column
+       [:div.ui.segment
+        (if (= (:value-type @editing-label) "group")
+          [GroupLabelEditForm labels-atom (r/cursor state [:labels (:label-id @editing-label)])]
+          (if @editing-root-label-id
+            [LabelEditForm labels-atom @editing-root-label-id
+             (r/cursor state [:labels @editing-root-label-id :labels (:label-id @editing-label)])]
+            [LabelEditForm labels-atom "na" (r/cursor state [:labels (:label-id @editing-label)])]))]])))
+
+(defn re-order [labels-atom root-label-id label-id diff]
+  (let [indexed-labels (->> (if (= root-label-id "na")
+                              (vals @labels-atom)
+                              (vals (get-in @labels-atom [root-label-id :labels])))
+                            (sort-by (juxt #(not (:enabled %)) :project-ordering))
+                            (map-indexed vector))
+        label-idx (some #(when (= (-> % second :label-id) label-id)
+                           (-> % first))
+                        indexed-labels)
+        new-label-idx (-> (+ label-idx diff)
+                          (min (dec (count indexed-labels)))
+                          (max 0))
+        new-labels (mapv (fn [[idx label]]
+                           (cond
+                             (= idx new-label-idx)
+                             (assoc label :project-ordering label-idx)
+
+                             (= idx label-idx)
+                             (assoc label :project-ordering new-label-idx)
+
+                             :else
+                             (assoc label :project-ordering idx)))
+                         indexed-labels)]
+    (if (= root-label-id "na")
+      (doall
+        (for [label new-labels]
+          (reset! (r/cursor labels-atom [(:label-id label) :project-ordering]) (:project-ordering label))))
+      (reset! (r/cursor labels-atom [root-label-id :labels])
+              (->> new-labels
+                   (map #(vector (:label-id %) %))
+                   (into {}))))
+    (sync-to-server)))
+
+(defn LabelsTable [labels-atom]
+  (let [project-id @(subscribe [:active-project-id])
+        is-editin-label? @(subscribe [::is-editing-label?])
+        label-filters @(subscribe [::get :label-filters])
+        status-filter-fn (fn [label]
+                           (case (:status label-filters)
+                             "enabled" (:enabled label)
+                             "disabled" (not (:enabled label))
+                             true))
+        filter-labels (fn [labels]
+                        (filter (fn [label]
+                                  (let [labels (->> label :labels vals)]
+                                    (if (empty? labels)
+                                      (status-filter-fn label)
+                                      (some status-filter-fn labels))))
+                                labels))
+        cols (concat
+               [{:field "ordering-display-1" :title "#"  :defaultSort "asc" :type "numeric"
+                 :render (fn [rowData]
+                           (let [v (aget rowData "ordering-display-1")]
+                             (when-not (str/blank? v)
+                               (r/as-element
+                                 [:div {:style {:text-align "center"
+                                                :min-width "110px"}} 
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
+                                   [:> mui/Icon "keyboard_arrow_up"]]
+                                  " " v " "
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
+                                   [:> mui/Icon "keyboard_arrow_down"]]]))))
+                 ;:cellStyle {:backgroundColor "#ddd"}
+                 :headerStyle {:width "10px"}}
+                {:field "ordering-display-2" :title "#" :width "10px"
+                 :defaultSort "asc" :type "numeric"
+                 :render (fn [rowData]
+                           (let [v (aget rowData "ordering-display-2")]
+                             (when-not (str/blank? v)
+                               (r/as-element
+                                 [:div {:style {:text-align "center"
+                                                :min-width "110px"}}
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
+                                   [:> mui/Icon "keyboard_arrow_up"]]
+                                  " " v " "
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
+                                   [:> mui/Icon "keyboard_arrow_down"]]]))))
+                 ;:cellStyle {:backgroundColor "#eee"}
+                 }
+                {:field "short-label" :title "Name"}]
+               (when (not is-editin-label?)
+                 [{:field "value-type" :title "Type"}
+                  {:field "consensus" :title "Consensus"}
+                  {:field "inclusion" :title "Inclusion"}
+                  {:field "required" :title "Required"}]))
+        rows (->> @labels-atom vals
+                  filter-labels
+                  (mapcat
+                    (fn [label]
+                      (let [is-new? (and (string? (:label-id label)) (str/starts-with? (:label-id label) new-label-id-prefix))
+                            is-owned? (or is-new? (= (:owner-project-id label) (:project-id label)))]
+                        (concat
+                          [(-> label 
+                               (assoc :id (:label-id label))
+                               (assoc :isNew is-new?)
+                               (assoc :isOwned is-owned?)
+                               (assoc :valueType (:value-type label))
+                               (assoc :ordering-display-1 (inc (:project-ordering label))))]
+                          (->> label :labels vals filter-labels
+                               (mapv #(assoc %
+                                             :id (:label-id %)
+                                             :short-label-2 (str " — " (:short-label label))
+                                             :ordering-display-2 (inc (:project-ordering %))
+                                             :isNew is-new?  
+                                             :isOwned is-owned?  
+                                             :parentId (:label-id label)))))))))]
+    [:div.ui.equal.width.aligned.grid
+     [:div.row
+      [:div.column.override-dark
+       [:> MaterialTable
+        {:title "Labels "
+         :components {:Toolbar (fn []
+                                (r/as-element
+                                  [:div.ui.attached.stackable
+                                   {:style {:padding "5px 10px"}}
+                                   [:h3 "Labels "
+                                    [:select.ui.dropdown.MuiTableDropdown
+                                     {:style {:margin-left "5px"}
+                                      :value (:status label-filters)
+                                      :on-change (fn [ev]
+                                                   (dispatch [::set [:label-filters :status] (aget ev "target" "value")]))}
+                                     [:option {:value "enabled"} "Active"]
+                                     [:option {:value "all"} "All"]
+                                     [:option {:value "disabled"} "Disabled"]]]]))}
+         :columns (clj->js cols)
+         :parentChildData (fn [row rows]
+                            (.find ^js rows #(= (.-id ^js %) (.-parentId ^js row))))
+         :data (clj->js (sort-by :ordering-display-2 rows))
+         ;; :cellEditable {:onCellEditApproved (fn [new-val old-val row-data column-def]
+         ;;                                      (new js/Promise (fn [res rej]
+         ;;                                                        (res true))))}
+         :actions [(fn [rowData]
+                     (clj->js
+                       {:icon "share"
+                        :disabled (some? (.-parentId ^js rowData))
+                        :tooltip "Share label"
+                        :onClick (fn [event rowData]
+                                   (.stopPropagation event)
+                                   (dispatch [:action [:labels/get-share-code project-id (.-id ^js rowData)]]))}))
+                   (fn [rowData]
+                     (if (.-enabled ^js rowData)
+                       (clj->js
+                         {:icon "block"
+                          :tooltip "Disable label"
+                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
+                          :onClick (fn [event rowData]
+                                     (.stopPropagation event)
+                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                     (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                     (sync-to-server))})
+                       (clj->js
+                         {:icon "check_circle"
+                          :tooltip "Enable label"
+                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
+                          :onClick (fn [event rowData]
+                                     (.stopPropagation event)
+                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                     (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                     (sync-to-server))})))]
+         :onRowClick (fn [_event rowData]
+                       (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])
+                       (dispatch [::set :editing-label-id (.-id ^js rowData)]))
+         :options {:actionsColumnIndex -1}}]]
+      [SideEditableView labels-atom]]]))
+
 (defn- Panel []
   (let [admin? @(subscribe [:member/admin? true])
         labels (r/cursor state [:labels])
         read-only-message-closed? (r/cursor state [:read-only-message-closed?])
-        sort-label-ids (fn [enabled?]
-                         (->> (sort-client-project-labels @labels (not enabled?))
-                              (filter #(= enabled? (:enabled (get @labels %))))))
-        active-ids (sort-label-ids true)
-        disabled-ids (sort-label-ids false)
         project-id    @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
         group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
@@ -1154,32 +1323,7 @@
      [ReadOnlyMessage
       "Editing label definitions is restricted to project administrators."
       read-only-message-closed?]
-     [:div.ui.two.column.stackable.grid.label-items
-      (doall (map-indexed
-              (fn [i label-id]
-                (if (= (get-in @labels [label-id :name]) "overall include")
-                  ;; "overall include" should not be movable, always first
-                  ^{:key [:label-item i label-id]}
-                  [:div.column {:key [:label-column i label-id]}
-                   [LabelItem labels i (r/cursor state [:labels label-id])
-                    :status {:draggable false}]]
-                  ;; other active labels should be movable
-                  ^{:key [:label-item i label-id]}
-                  [wrap-label-dnd {:idx i :label-id (str label-id)}
-                   (fn [{:as _props}]
-                     [:div.column {:key [:label-column i label-id]}
-                      [LabelItem labels i (r/cursor state [:labels label-id])
-                       :status {:draggable true}]])]))
-              active-ids))]
-     (when (seq disabled-ids)
-       [:h4.ui.block.header "Disabled Labels"])
-     ;; TODO: collapse disabled labels by default, display on click
-     (when (seq disabled-ids)
-       [:div.ui.two.column.stackable.grid.label-items
-        (doall (map-indexed
-                (fn [i label-id] ^{:key [:label-id label-id]}
-                  [:div.column [LabelItem labels i (r/cursor state [:labels label-id])]])
-                disabled-ids))])
+     [LabelsTable labels]
      (when admin?
        [:div {:style {:margin-top "1rem"}}
         (if group-labels-allowed?
@@ -1197,12 +1341,14 @@
            [:div.column [AddLabelButton "annotation" add-new-label!]]
            [:div.column [ImportLabelButton]]])
         (when-not group-labels-allowed?
-          [UpgradeMessage])])]))
+          [UpgradeMessage])])
+     [ShareLabelButton]]))
 
 (def-panel :project? true :panel panel
   :uri "/labels/edit" :params [project-id] :name labels-edit
   :on-route (do (data/reload :project project-id)
-                (dispatch [:set-active-panel panel]))
+                (dispatch [:set-active-panel panel])
+                (dispatch [::set :label-filters {:status "enabled"}]))
   :content (fn [child] [Panel child]))
 
 ;; this wraps the panel for [:project :project :labels :edit]

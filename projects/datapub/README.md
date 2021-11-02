@@ -10,7 +10,7 @@ Run `./repl.sh` to run the development server. Or start a REPL from your editor,
 ((requiring-resolve 'datapub.main/reload-with-fixtures!))
 ```
 
-Visit http://localhost:8888/ide.
+Visit http://localhost:8121/ide.
 
 The development server runs an embedded database with some data pre-loaded to facilitate development and testing. If you want to set up a persistent database and connect to that, set DBHOST and DBPORT and make sure that DBEMBEDDED is unset.
 

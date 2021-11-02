@@ -1,2 +1,2 @@
-#!/bin/bash
+#!/usr/bin/env bash
 letsencrypt --config-dir /data/letsencrypt certonly --webroot -w /data/sysrev/web-root/ -d sysrev.us -d sysrev.com

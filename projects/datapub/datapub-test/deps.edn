@@ -1,4 +1,7 @@
 {:paths ["resources"]
- :deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.4"}
-        io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.2.0"}
-        io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.2.0"}}}
+ :deps {com.cognitect/test-runner
+        {:git/url "https://github.com/cognitect-labs/test-runner.git"
+         :sha "dd6da11611eeb87f08780a30ac8ea6012d4c05ce"}
+        com.opentable.components/otj-pg-embedded {:mvn/version "0.13.4"}
+        io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.3.0"}
+        io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.3.0"}}}

@@ -1,0 +1,10 @@
+[{:user-id 1000001
+  :email "test_user_1@insilica.co"
+  :principal true
+  :verified true
+  :verify_code "ceed5db935194e93ba1437619150a5f3"}
+ {:user-id 1000002
+  :email "test_user_2@insilica.co"
+  :principal true
+  :verified true
+  :verify_code "25f6abf56c424a889d3d6bb5d605fd36"}]

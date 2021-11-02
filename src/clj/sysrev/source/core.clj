@@ -41,7 +41,7 @@
 (defmethod make-source-meta :default [_source-type _values]
   (throw (Exception. "invalid source-type")))
 
-(defmulti re-import (fn [_ source]
+(defmulti re-import (fn [_ source & [_options]]
                       (-> source :meta :source)))
 
 (defmethod re-import :default [_ _]

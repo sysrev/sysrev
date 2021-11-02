@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux
 
 rm -rf node_modules client/node_modules semantic client/semantic client/.shadow-cljs/builds

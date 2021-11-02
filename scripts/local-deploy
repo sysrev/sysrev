@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 ##
 ## Script to build app and deploy to an AWS instance (staging.sysrev.com)
 ## directly from a developer machine.

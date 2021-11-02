@@ -214,6 +214,24 @@
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))
 
+(defn wrap-dynamic-vars
+  "Bind dynamic vars to the appropriate values from the Postgres record."
+  [handler {:keys [config postgres]}]
+  (fn [request]
+    (binding [db/*active-db* (atom postgres)
+              db/*conn* nil
+              db/*query-cache* (:query-cache postgres)
+              db/*query-cache-enabled* (:query-cache-enabled postgres)
+              db/*transaction-query-cache* nil
+              env (merge env config)]
+      (handler request))))
+
+(defn wrap-web-server
+  "Add a :web-server key to the request whose value is the WebServer component."
+  [handler web-server]
+  (fn [request]
+    (handler (assoc request :web-server web-server))))
+
 (defmacro with-authorize
   "Wrap request handler body to check if user is authorized to perform the
   request. If authorized then runs body and returns result; if not authorized,

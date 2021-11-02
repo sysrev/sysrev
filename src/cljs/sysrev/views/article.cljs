@@ -6,6 +6,7 @@
             ["xml2js" :as xml2js]
             [clojure.string :as str]
             goog.object
+            [medley.core :as medley]
             [re-frame.core :refer [subscribe dispatch]]
             [reagent.core :as r]
             [sysrev.shared.labels :refer [predictable-label-types]]
@@ -256,7 +257,8 @@
 (defn Entity [article-id]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
-      (let [mimetype @(subscribe [:article/mimetype article-id])
+      (let [{:keys [metadata]} @(subscribe [:article/raw article-id])
+            mimetype @(subscribe [:article/mimetype article-id])
             json (r/atom {})
             content @(subscribe [:article/content article-id])
             title article-id
@@ -290,36 +292,144 @@
             "application/pdf"
             [:div [pdf/ViewBase64PDF {:content content}]]
             ;; default
-            content)]]))))
+            content)]
+         (when (seq metadata)
+           [:div.article-metadata
+            [ReactJSONView {:json metadata}]])]))))
 
-(defn CTDocument [article-id]
-  (when-let [project-id @(subscribe [:active-project-id])]
-    (with-loader [[:article project-id article-id]] {}
-      (let [json (let [ct-json @(subscribe [:article/json article-id])]
-                   {:ProtocolSection (:ProtocolSection ct-json)
-                    :DerivedSection (:DerivedSection ct-json)})
-            nctid (get-in json [:ProtocolSection :IdentificationModule :NCTId])
-            title (get-in json [:ProtocolSection :IdentificationModule :BriefTitle])
-            source-id (first @(subscribe [:article/sources article-id]))
-            cursors (mapv #(mapv keyword %)
-                          (get-in @(subscribe [:project/sources source-id])
-                                  [:meta :cursors]))]
-        [:div {:id nctid}
-         [:h2 title]
-         [ui/OutLink (str "https://clinicaltrials.gov/ct2/show/" nctid)]
-         [:br]
-         [:> ReactJson
-          {:display-array-key false
-           :display-data-types false
-           :name nil
-           :quotes-on-keys false
-           :src
-           (if (seq cursors)
-             (clj->js (map-from-cursors json cursors))
-             (clj->js json))
-           :theme (if @(subscribe [:self/dark-theme?])
-                    "monokai"
-                    "rjv-default")}]]))))
+(defn CTDocument []
+  (let [state (r/atom {:current-version nil :versions nil})]
+    (fn [article-id]
+      (when-let [project-id @(subscribe [:active-project-id])]
+        (with-loader [[:article project-id article-id]] {}
+          (let [{:keys [current-version versions]} @state
+                {:keys [datapub primary-title]}
+                #__ @(subscribe [:article/raw article-id])
+                {:keys [entity-id]} datapub
+                version-entity-id (when current-version
+                                    (get versions current-version))
+                {:keys [externalId]} @(subscribe [:datapub/entity* entity-id])
+                {:keys [content] :as version-entity}
+                #__ @(subscribe [:datapub/entity version-entity-id])
+                source-id (first @(subscribe [:article/sources article-id]))
+                cursors (mapv #(mapv keyword %)
+                              (get-in @(subscribe [:project/sources source-id])
+                                      [:meta :cursors]))
+                version-entity-ids @(subscribe [:datapub/entities-for-external-id 1 externalId])]
+            (when entity-id
+              (dispatch [:require [:datapub-entity entity-id]]))
+            (when version-entity-id
+              (dispatch [:require [:datapub-entity version-entity-id]])
+              (when (and version-entity (< 0 current-version))
+                (dispatch [:require [:datapub-entity (get versions (dec current-version))]]))
+              (when (and version-entity (< current-version (dec versions)))
+                (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))
+            (when externalId
+              (dispatch [:require [:datapub-entities-for-external-id 1 externalId]]))
+            (when (not= versions version-entity-ids)
+              (swap! state assoc
+                     :current-version (dec (count version-entity-ids))
+                     :versions (vec version-entity-ids)))
+            (when version-entity
+              [:div
+               [:div
+                [:button {:class (if (and current-version (< 0 current-version))
+                                   "ui primary button"
+                                   "ui primary button disabled")
+                          :on-click #(swap! state update :current-version dec)}
+                 [:i.chevron.left.icon] "Previous"]
+                [:button {:class (if (and current-version (< current-version (dec (count versions))))
+                                   "ui primary button"
+                                   "ui primary button disabled")
+                          :on-click #(swap! state update :current-version inc)}
+                 "Next" [:i.chevron.right.icon]]
+                (when current-version
+                  [:span {:style {:margin-left "2em"}}
+                   "Version " (inc current-version) " of " (count versions)])]
+               [:h2 primary-title]
+               [:br]
+               [ui/OutLink (str "https://clinicaltrials.gov/ct2/show/" externalId)]
+               [:br]
+               [:> ReactJson
+                {:display-array-key false
+                 :display-data-types false
+                 :name nil
+                 :quotes-on-keys false
+                 :src
+                 (if (seq cursors)
+                   (clj->js (map-from-cursors content cursors))
+                   (clj->js content))
+                 :theme (if @(subscribe [:self/dark-theme?])
+                          "monokai"
+                          "rjv-default")}]])))))))
+
+(defn FDADrugsDocs []
+  (let [state (r/atom {:current-version nil :versions nil})]
+    (fn [article-id]
+      (when-let [project-id @(subscribe [:active-project-id])]
+        (with-loader [[:article project-id article-id]] {}
+          (let [{:keys [current-version versions]} @state
+                {:keys [datapub primary-title]}
+                #__ @(subscribe [:article/raw article-id])
+                {:keys [entity-id]} datapub
+                version-entity-id (when current-version
+                                    (get versions current-version))
+                {:keys [groupingId]} @(subscribe [:datapub/entity* entity-id])
+                {:keys [content metadata] :as version-entity}
+                #__ @(subscribe [:datapub/entity version-entity-id])
+                source-id (first @(subscribe [:article/sources article-id]))
+                cursors (mapv #(mapv keyword %)
+                              (get-in @(subscribe [:project/sources source-id])
+                                      [:meta :cursors]))
+                version-entity-ids @(subscribe [:datapub/entities-for-grouping-id 3 groupingId])]
+            (when entity-id
+              (dispatch [:require [:datapub-entity entity-id]]))
+            (when version-entity-id
+              (dispatch [:require [:datapub-entity version-entity-id]])
+              (when (and version-entity (< 0 current-version))
+                (dispatch [:require [:datapub-entity (get versions (dec current-version))]]))
+              (when (and version-entity (< current-version (dec versions)))
+                (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))
+            (when groupingId
+              (dispatch [:require [:datapub-entities-for-grouping-id 3 groupingId]]))
+            (when (not= versions version-entity-ids)
+              (swap! state assoc
+                     :current-version (dec (count version-entity-ids))
+                     :versions (vec version-entity-ids)))
+            (when version-entity
+              [:div
+               [:div
+                [:button {:class (if (and current-version (< 0 current-version))
+                                   "ui primary button"
+                                   "ui primary button disabled")
+                          :on-click #(swap! state update :current-version dec)}
+                 [:i.chevron.left.icon] "Previous"]
+                [:button {:class (if (and current-version (< current-version (dec (count versions))))
+                                   "ui primary button"
+                                   "ui primary button disabled")
+                          :on-click #(swap! state update :current-version inc)}
+                 "Next" [:i.chevron.right.icon]]
+                (when current-version
+                  [:span {:style {:margin-left "2em"}}
+                   "Version " (inc current-version) " of " (count versions)])]
+               [:h2 primary-title]
+               [:br]
+               [ui/OutLink (get metadata "ApplicationDocsURL")]
+               [:br]
+               [:div [pdf/ViewBase64PDF {:content content}]]
+               [:br]
+               [:> ReactJson
+                {:display-array-key false
+                 :display-data-types false
+                 :name nil
+                 :quotes-on-keys false
+                 :src
+                 (if (seq cursors)
+                   (clj->js (map-from-cursors metadata cursors))
+                   (clj->js metadata))
+                 :theme (if @(subscribe [:self/dark-theme?])
+                          "monokai"
+                          "rjv-default")}]])))))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})
@@ -386,6 +496,7 @@
                                  :or {show-score? true}}]
   (let [full-size? (util/full-size?)
         project-id @(subscribe [:active-project-id])
+        {:keys [types]} @(subscribe [:article/raw article-id])
         status @(subscribe [:article/review-status article-id])
         score @(subscribe [:article/score article-id])
         datasource-name @(subscribe [:article/datasource-name article-id])
@@ -423,9 +534,14 @@
              [:div.ui.segment.article-content {:key :article-content}
               ;; if adding new datasource, be sure to disable annotator
               ;; in sysrev.views.main/SidebarColumn
-              (condp = datasource-name
-                "ctgov"  [CTDocument article-id]
+              ;; datasource-name isn't coming through for some, so we
+              ;; work around by checking :types
+              (condp = (if types
+                         [(:article-type types) (:article-subtype types)]
+                         datasource-name)
                 "entity" [Entity article-id]
+                ["json" "ctgov"]  [CTDocument article-id]
+                ["pdf" "fda-drugs-docs"] [FDADrugsDocs article-id]
                 [ArticleInfoMain article-id :context context])]
              (when-not (= datasource-name "entity")
                ^{:key :article-pdfs} [pdf/ArticlePdfListFull article-id])))

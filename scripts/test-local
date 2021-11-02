@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 source vars.sh
@@ -8,7 +8,7 @@ namespace=''
 
 # https://stackoverflow.com/questions/7069682/how-to-get-arguments-with-flags-in-bash/21128172
 print_usage() {
-    echo "test-docker - run tests in docker"
+    echo "test-local - run tests locally"
     echo " "
     echo "options:"
     echo "-h  show this help section"
@@ -31,7 +31,7 @@ scripts/build-css
 
 if [ $compile = true ]; then
     cd client
-    shadow-cljs release prod
+    npx shadow-cljs release prod
     cd ..
 fi
 

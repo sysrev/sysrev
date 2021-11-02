@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 paths="src/less semantic/src"
 match_files='\(.*.less\|.*.variables\|.*.overrides\)'

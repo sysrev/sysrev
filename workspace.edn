@@ -1,9 +1,10 @@
-{:vcs "git"
+{:vcs {:name "git" :auto-add false}
  :top-namespace "sysrev"
  :interface-ns "interface"
  :default-profile-name "default"
  :compact-views #{}
- :release-tag-pattern "v[0-9]*"
- :stable-tag-pattern "stable-*"
- :projects {"development" {:alias "dev"}
+ :tag-patterns {:table "stable-*" :release "v[0-9]*" }
+ :projects {"datapub" {:alias "dp"}
+            "datapub-importer" {:alias "dpi"}
+            "development" {:alias "dev"}
             "sysrev" {:alias "sys"}}}

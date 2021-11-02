@@ -1,0 +1,17 @@
+{:aws {:access-key-id "test"
+       :secret-access-key "test"
+       :endpoint-override {:protocol :http
+                           :hostname "localhost"
+                           :port 8566}}
+ :env :dev
+ :pedestal {:port 0
+            :sysrev-dev-key "***REMOVED***"}
+ :postgres {:create-if-not-exists? true
+            :embedded? true
+            :dbname "datapub"
+            :dbtype "postgres"
+            :host "localhost"
+            :port 0
+            :user "postgres"}
+ :s3 {:datapub-bucket {:create? true
+                       :name "datapub.dev"}}}

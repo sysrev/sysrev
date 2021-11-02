@@ -1,1 +1,2 @@
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** clj -X:test:repl
+sudo docker-compose -f datapub-test/docker-compose.yml up -d
+clj -X:dev:repl

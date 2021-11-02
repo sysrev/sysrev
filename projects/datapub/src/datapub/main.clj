@@ -1,28 +1,20 @@
 (ns datapub.main
   (:require hashp.core ; Load #p data reader
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
+            [datapub.file :as file]
             [datapub.pedestal :as pedestal]
-            [datapub.postgres :as postgres]))
+            [datapub.postgres :as postgres]
+            [sysrev.config.interface :as config]))
 
 (def envs #{:dev :prod :staging :test})
 
 (defn get-config []
-  (let [embedded? (boolean (System/getenv "DBEMBEDDED"))]
-    {:env (some-> (System/getenv "ENV") str/lower-case keyword)
-     :pedestal {:port (or (System/getenv "PORT") 8888)
-                :sysrev-dev-key (System/getenv "SYSREV_DEV_KEY")}
-     :postgres {:create-if-not-exists? true
-                :embedded? embedded?
-                :dbname (or (System/getenv "DBNAME") "datapub")
-                :dbtype "postgres"
-                :host (System/getenv "DBHOST")
-                :password (System/getenv "DBPASSWORD")
-                :port (or (System/getenv "DBPORT")
-                          (if embedded? 0 5432))
-                :user (or (System/getenv "DBUSER") "postgres")}}))
+  (config/get-config "datapub-config.edn"))
 
-(defn system-map [{:keys [env] :as config}]
+(defn system-map [{:keys [aws env] :as config}]
   (if-not (envs env)
     (throw (ex-info
             (if env ":env unrecognized" ":env missing")
@@ -31,9 +23,10 @@
     (component/system-map
      :config config
      :pedestal (component/using
-                (pedestal/pedestal {:config (assoc (:pedestal config) :env env)})
-                [:postgres])
-     :postgres (postgres/postgres {:config (:postgres config)}))))
+                (pedestal/pedestal {:opts (assoc (:pedestal config) :env env)})
+                [:config :postgres :s3])
+     :postgres (postgres/postgres {:config (:postgres config)})
+     :s3 (component/using (file/s3-client aws) [:config]))))
 
 (defonce system (atom nil))
 
@@ -55,3 +48,24 @@
 
 (defn -main []
   (start!))
+
+(defrecord DatapubSystem [options system system-f]
+  component/Lifecycle
+  (start [this]
+    (if system
+      this
+      (let [system (component/start
+                    (if system-f
+                      (system-f)
+                      (system-map (get-config))))]
+        (when (:load-fixtures? options)
+          ((requiring-resolve 'datapub.test/load-ctgov-dataset!) system))
+        (assoc this :system system))))
+  (stop [this]
+    (if-not system
+      this
+      (do (component/stop system)
+          (assoc this :system nil)))))
+
+(defn datapub-system [{:keys [options system-f]}]
+  (map->DatapubSystem {:options options :system-f system-f}))

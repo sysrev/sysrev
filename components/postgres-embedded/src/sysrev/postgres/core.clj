@@ -6,17 +6,22 @@
             [prestancedesign.get-port :as get-port]
             [sysrev.db.core :as db]
             [sysrev.flyway.interface :as flyway])
-  (:import [com.opentable.db.postgres.embedded EmbeddedPostgres PgBinaryResolver]))
+  (:import (com.opentable.db.postgres.embedded EmbeddedPostgres EmbeddedPostgres$Builder PgBinaryResolver PgDirectoryResolver)))
 
 (set! *warn-on-reflection* true)
 
-(def resolver
+(def binary-resolver
   (reify PgBinaryResolver
     (^java.io.InputStream getPgBinary [this ^String system ^String machine-hardware]
-      (-> (format "postgres-%s-%s.txz" system machine-hardware)
-          str/lower-case
-          io/resource
-          .openStream))))
+     (-> (format "postgres-%s-%s.txz" system machine-hardware)
+         str/lower-case
+         io/resource
+         .openStream))))
+
+(def directory-resolver
+  (reify PgDirectoryResolver
+    (getDirectory [this _override-working-directory]
+      (io/file (System/getenv "POSTGRES_DIRECTORY")))))
 
 (defn get-config [& [postgres-overrides]]
   (let [port (get-port/get-port)
@@ -28,11 +33,18 @@
             :user "postgres"}]
     (merge db postgres-overrides)))
 
+(defn ^EmbeddedPostgres$Builder embedded-pg-builder [port]
+  (if (System/getenv "POSTGRES_DIRECTORY")
+    (-> (EmbeddedPostgres/builder)
+        (.setPgDirectoryResolver directory-resolver)
+        (.setPort port))
+    (-> (EmbeddedPostgres/builder)
+        (.setPgBinaryResolver binary-resolver)
+        (.setPort port))))
+
 (defn start-db! [& [postgres-overrides only-if-new]]
   (let [{:keys [dbname port] :as config} (get-config postgres-overrides)
-        conn (-> (EmbeddedPostgres/builder)
-                 (.setPgBinaryResolver resolver)
-                 (.setPort port)
+        conn (-> (embedded-pg-builder port)
                  .start
                  .getPostgresDatabase
                  .getConnection)
@@ -60,15 +72,14 @@
   (start [this]
     (if datasource
       this
-      (let [pg (-> (EmbeddedPostgres/builder)
-                   (.setPgBinaryResolver resolver)
-                   (.setPort (:port config))
-                   .start)]
+      (let [pg (.start (embedded-pg-builder (:port config)))]
         (-> pg .getPostgresDatabase .getConnection .createStatement
             (.executeUpdate (str "CREATE DATABASE " (:dbname config))))
         (let [datasource (make-datasource config)]
           (flyway/migrate! datasource)
-          (assoc this :datasource datasource :pg pg)))))
+          (assoc this
+                 :datasource datasource :pg pg
+                 :query-cache db/*query-cache* :query-cache-enabled db/*query-cache-enabled*)))))
   (stop [this]
     (if-not datasource
       this

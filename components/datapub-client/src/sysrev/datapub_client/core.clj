@@ -3,25 +3,9 @@
             [cheshire.core :as json]
             [clj-http.client :as http]
             [clojure.string :as str]
-            [manifold.stream :as stream]))
-
-(defn return->string [return]
-  (cond
-    (string? return) return
-    (seq return) (->> return
-                      (keep #(when % (name %)))
-                      (str/join \space))
-    :else (throw (ex-info "Should be a string or seq." {:value return}))))
-
-(defn q-dataset-entity [return]
-  (str "query($id: PositiveInt!){datasetEntity(id: $id){"
-       (return->string return)
-       "}}"))
-
-(defn q-subscribe-search-dataset [return]
-  (str "subscription ($input: SearchDatasetInput!){searchDataset(input: $input){"
-       (return->string return)
-       "}}"))
+            [manifold.stream :as stream]
+            [sysrev.datapub-client.queries :as q])
+  (:import clojure.lang.ExceptionInfo))
 
 (defn throw-errors [graphql-response]
   (if (-> graphql-response :body :errors (or (:errors graphql-response)))
@@ -30,23 +14,57 @@
     graphql-response))
 
 (defn execute! [& {:keys [auth-token endpoint query variables]}]
-  (-> (or endpoint "https://www.datapub.dev/api")
-      (http/post
-       {:as :json
-        :content-type :json
-        :form-params {:query query :variables variables}
-        :headers {"Authorization" (str "Bearer " auth-token)}})
+  (-> (try
+        (http/post
+         endpoint
+         {:as :json
+          :content-type :json
+          :form-params {:query query :variables variables}
+          :headers {"Authorization" (str "Bearer " auth-token)}})
+        (catch ExceptionInfo e
+          (let [{:keys [body status]} (ex-data e)]
+            (if (not= 400 status)
+              (throw e)
+              (let [parsed-body (try
+                                  (json/parse-string body keyword)
+                                  (catch Exception e
+                                    e))]
+                (if (instance? Exception parsed-body)
+                  (throw
+                   (ex-info (str "Exception while parsing response body as JSON: "
+                                 (.getMessage e))
+                            {:body body
+                             :response (ex-data e)}
+                            e))
+                  (throw
+                   (ex-info (->> parsed-body :errors
+                                 (map (comp pr-str :message))
+                                 (str/join ", ")
+                                 (str "GraphQL errors: "))
+                            {:errors (:errors parsed-body)
+                             :response (ex-data e)}
+                            e))))))))
       throw-errors
       :body))
 
+(defn create-dataset-entity! [input return & {:keys [auth-token endpoint]}]
+  (-> (execute! :query (q/m-create-dataset-entity return) :variables {:input input}
+                :auth-token auth-token :endpoint endpoint)
+      :data :createDatasetEntity))
+
+(defn get-dataset [^Long id return & {:keys [auth-token endpoint]}]
+  (-> (execute! :query (q/q-dataset return) :variables {:id id}
+                :auth-token auth-token :endpoint endpoint)
+      :data :dataset))
+
 (defn get-dataset-entity [^Long id return & {:keys [auth-token endpoint]}]
-  (-> (execute! :query (q-dataset-entity return) :variables {:id id}
+  (-> (execute! :query (q/q-dataset-entity return) :variables {:id id}
                 :auth-token auth-token :endpoint endpoint)
       :data :datasetEntity))
 
 (defn consume-subscription! [& {:keys [auth-token endpoint query variables]}]
   (with-open [conn @(ahttp/websocket-client
-                     (or endpoint "wss://www.datapub.dev/ws")
+                     endpoint
                      {:sub-protocols "graphql-ws"})]
     (stream/put! conn (json/generate-string {:type "connection_init" :payload {}}))
     (loop [acc (transient [])]
@@ -67,7 +85,8 @@
             (recur acc))
           "error"
           (throw (ex-info (str "Error in GraphQL subscription: " (:message payload))
-                          {:error payload})))))))
+                          {:error payload}))
+          "ka" (recur acc))))))
 
 (defn search-dataset [input return & {:keys [auth-token endpoint]}]
   (mapv
@@ -75,5 +94,5 @@
    (consume-subscription!
     :auth-token auth-token
     :endpoint endpoint
-    :query (q-subscribe-search-dataset return)
+    :query (q/s-search-dataset return)
     :variables {:input input})))

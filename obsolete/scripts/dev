@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 function phelp {
 	echo "Usage:         **script requires tmux and rlwrap installed **"

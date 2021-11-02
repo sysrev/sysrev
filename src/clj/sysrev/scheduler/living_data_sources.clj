@@ -1,16 +1,17 @@
 (ns sysrev.scheduler.living-data-sources
-  (:require [clojurewerkz.quartzite.scheduler :as q]
+  (:require [clojurewerkz.quartzite.conversion :as qc]
+            [clojurewerkz.quartzite.scheduler :as q]
             [clojurewerkz.quartzite.jobs :as j]
             [clojurewerkz.quartzite.schedule.simple :refer [schedule repeat-forever with-interval-in-hours]]
             [clojurewerkz.quartzite.triggers :as t]
-            [sysrev.source.ctgov :as ctgov]
-            [sysrev.source.pubmed :as pubmed]
-            [sysrev.source.core :as source]
             [honeysql.helpers :as sqlh :refer [select from where]]
-            [sysrev.db.core :as db :refer [do-query]]))
+            [sysrev.db.core :as db :refer [do-query]]
+            [sysrev.source.core :as source]
+            [sysrev.source.ctgov :as ctgov]
+            [sysrev.source.pubmed :as pubmed]))
 
-(defn check-new-articles-ctgov [{:keys [source-id] :as source}]
-  (let [new-article-ids (ctgov/get-new-articles-available source)
+(defn check-new-articles-ctgov [{:keys [source-id] :as source} & {:keys [config]}]
+  (let [new-article-ids (ctgov/get-new-articles-available source :config config)
         project-id (source/source-id->project-id source-id)]
     (source/set-new-articles-available project-id source-id (count new-article-ids))))
 
@@ -19,7 +20,7 @@
         project-id (source/source-id->project-id source-id)]
     (source/set-new-articles-available project-id source-id (count new-article-ids))))
 
-(defn check-new-articles []
+(defn check-new-articles [& {:keys [config]}]
   (let [sources (-> (select :*)
                     (from [:project-source :psrc])
                     (where [:= :psrc.check-new-results true]
@@ -29,18 +30,18 @@
       (let [source-type (-> source :meta :source)]
         (Thread/sleep 5000)
         (case source-type
-          "CT.gov search" (check-new-articles-ctgov source)
+          "CT.gov search" (check-new-articles-ctgov source :config config)
           "PubMed search" (check-new-articles-pubmed source)
           :noop)))))
 
-(defrecord LivingDataSourcesJob []
-  org.quartz.Job
-  (execute [_ _]
-    (check-new-articles)))
+#_:clj-kondo/ignore
+(j/defjob LivingDataSourcesJob [ctx]
+  (check-new-articles :config (get (qc/from-job-data ctx) "config")))
 
-(defn schedule-living-data-sources [{:keys [quartz-scheduler]}]
+(defn schedule-living-data-sources [{:keys [config quartz-scheduler]}]
   (let [job (j/build
               (j/of-type LivingDataSourcesJob)
+              (j/using-job-data {:config config})
               (j/with-identity (j/key "jobs.living-data-sources.1")))
         trigger (t/build
                   (t/with-identity (t/key "triggers.living-data-sources.1"))

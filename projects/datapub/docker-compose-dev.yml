@@ -1,0 +1,10 @@
+version: '3.7'
+
+services:
+  localstack:
+    image: localstack/localstack:0.12.17.5
+    ports:
+      - 8566:4566
+    environment:
+      SERVICES: s3
+

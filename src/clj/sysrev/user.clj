@@ -67,7 +67,7 @@
         #_ sysrev.custom.insilica
         sysrev.init
         sysrev.shared.keywords
-        sysrev.test.core
+        [sysrev.test.core :exclude [sysrev-handler]]
         sysrev.test.browser.navigate
         sysrev.stacktrace)
   (:require [cider.nrepl :refer (cider-nrepl-handler)]
@@ -94,6 +94,7 @@
             [clojure.string :as str]
             [cognitect.transit :as transit]
             [clojure-csv.core :as csv]
+            [com.stuartsierra.component :refer (start stop)]
             [amazonica.core :as aws]
             [amazonica.aws.s3 :as s3]
             [honeysql.core :as sql]
@@ -124,8 +125,12 @@
          (log/error (.getMessage e))
          (log/error (with-out-str (print-cause-trace-custom e))))))
 
+(def nrepl-handler
+  (apply nrepl/default-handler
+         (conj cider.nrepl.middleware/cider-middleware 'refactor-nrepl.middleware/wrap-refactor)))
+
 (defn -main []
-  (defonce nrepl (nrepl/start-server :handler cider-nrepl-handler))
+  (defonce nrepl (nrepl/start-server :handler nrepl-handler))
   (spit ".nrepl-port" (:port nrepl))
   (log/info "Started nREPL on port" (:port nrepl))
   (fixtures/load-fixtures!)
