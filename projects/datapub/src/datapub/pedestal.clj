@@ -1,11 +1,13 @@
 (ns datapub.pedestal
-  (:require [clojure.core.async :refer [>!! alt!! chan close! put! thread]]
+  (:require [cheshire.core :as json]
+            [clojure.core.async :refer [>!! alt!! chan close! put! thread]]
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
             [com.walmartlabs.lacinia :as lacinia]
             [com.walmartlabs.lacinia.constants :as constants]
             [com.walmartlabs.lacinia.executor :as executor]
             [com.walmartlabs.lacinia.parser :as parser]
+            [com.walmartlabs.lacinia.pedestal.internal :as pedestal-internal]
             [com.walmartlabs.lacinia.pedestal.subscriptions :as subscriptions]
             [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
             [com.walmartlabs.lacinia.resolve :as resolve]
@@ -13,9 +15,10 @@
             [datapub.graphql :as graphql]
             [io.pedestal.http :as http]
             [io.pedestal.http.cors :as cors]
+            [io.pedestal.http.ring-middlewares :as ring-middlewares]
             [io.pedestal.interceptor :as interceptor]
-            [io.pedestal.interceptor.chain :as chain]
-            [io.pedestal.log :as log]
+            [medley.core :as medley]
+            [ring.util.request :as rur]
             [taoensso.timbre :as t]))
 
 (defn graphiql-ide-handler [request]
@@ -24,14 +27,100 @@
      {:authorization (get-in request [:headers "authorization"])}})
    request))
 
-; https://github.com/walmartlabs/lacinia-pedestal/blob/b1ff019e88d3ad066f327bca49bac7a1c4b48e53/src/com/walmartlabs/lacinia/pedestal/subscriptions.clj#L315-L328
+(def body-data-interceptor
+  (interceptor/interceptor
+   {:name ::body-data
+    :enter (fn [context]
+             (let [request (:request context)
+                   content-type (str/lower-case (rur/content-type request))]
+               (case content-type
+                 "application/json"
+                 (update-in context [:request :body] slurp)
+
+                 "multipart/form-data"
+                 (->> (get-in request [:multipart-params "operations"])
+                      (assoc request :body)
+                      (assoc context :request))
+
+                 :else
+                 (assoc context :response
+                        {:status 400
+                         :headers {}
+                         :body "Bad Request: Must be application/json or multipart/form-data"}))))}))
+
+(defn object-path
+  "Converts an object-path (https://github.com/mariocasciaro/object-path)
+  to a form usable with get-in. Path segments that look like natural integers
+  are converted to Longs. str-key-fn will be called on string path segments.
+
+  Examples:
+  (object-path \"a.0\")
+  -> [\"a\" 0]
+
+  (object-path [\"a\" \"b\" 1] keyword)
+  -> [:a :b 1]"
+  [str-or-seq & [str-key-fn]]
+  (let [str-key-fn (or str-key-fn identity)]
+    (if (string? str-or-seq)
+      (object-path (str/split str-or-seq #"\.") str-key-fn)
+      (mapv (fn [s]
+              (if-not (string? s)
+                s
+                (if (re-matches #"\d+" s)
+                  (Long/parseLong s)
+                  (str-key-fn s))))
+            str-or-seq))))
+
+(defn clear-graphql-data [context]
+  (update context :request dissoc :graphql-query :graphql-vars :graphql-operation-name))
+
+(def ^{:doc "Implements the file upload part of the multipart request spec:
+https://github.com/jaydenseric/graphql-multipart-request-spec"}
+  graphql-data-interceptor
+  (interceptor/interceptor
+   {:name ::graphql-data
+    :enter (fn [context]
+             (try
+               (let [payload (-> context :request :body (json/parse-string keyword))
+                     {:keys [query variables]
+                      operation-name :operationName} payload
+                     multipart (-> context :request :multipart-params)
+                     mappings (some-> multipart (get "map") json/parse-string)
+                     multipart-map (reduce (fn [m [k v]]
+                                             (let [part (get multipart k)
+                                                   part-data (if (string? part)
+                                                               part
+                                                               (some-> part
+                                                                       (assoc :path (.toPath (:tempfile part)))
+                                                                       (dissoc :tempfile)))]
+                                               (reduce #(assoc-in % (object-path %2 keyword) part-data)
+                                                       m v)))
+                                           nil
+                                           mappings)]
+                 (update context :request
+                         assoc
+                         :graphql-query query
+                         :graphql-vars (medley/deep-merge variables (:variables multipart-map))
+                         :graphql-operation-name operation-name))
+               (catch Exception e
+                 (assoc context :response
+                        {:status 400
+                         :headers {}
+                         :body
+                         {:message (str "Invalid request: " (.getMessage e))}}))))
+    :leave clear-graphql-data
+    :error (fn [context exception]
+             (-> (clear-graphql-data context)
+                 (pedestal-internal/add-error exception)))}))
+
+;; https://github.com/walmartlabs/lacinia-pedestal/blob/b1ff019e88d3ad066f327bca49bac7a1c4b48e53/src/com/walmartlabs/lacinia/pedestal/subscriptions.clj#L315-L328
 (defn execute-operation [context parsed-query]
   (let [ch (chan 1)]
     (-> context
         (get-in [:request :lacinia-app-context])
         (assoc
-          ::lacinia/connection-params (:connection-params context)
-          constants/parsed-query-key parsed-query)
+         ::lacinia/connection-params (:connection-params context)
+         constants/parsed-query-key parsed-query)
         executor/execute-query
         (resolve/on-deliver! (fn [response]
                                (put! ch (assoc context :response response))))
@@ -44,9 +133,9 @@
     (filterv (comp not realized?) promises)
     promises))
 
-; https://github.com/walmartlabs/lacinia-pedestal/blob/b1ff019e88d3ad066f327bca49bac7a1c4b48e53/src/com/walmartlabs/lacinia/pedestal/subscriptions.clj#L330-L380
-; Modified to make source-stream block when response-data-ch is full and to remove a race
-; condition with close!.
+;; https://github.com/walmartlabs/lacinia-pedestal/blob/b1ff019e88d3ad066f327bca49bac7a1c4b48e53/src/com/walmartlabs/lacinia/pedestal/subscriptions.clj#L330-L380
+;; Modified to make source-stream block when response-data-ch is full and to remove a race
+;; condition with close!.
 (defn execute-subscription [context parsed-query]
   (let [{:keys [::subscriptions/values-chan-fn request]} context
         source-stream-ch (values-chan-fn)
@@ -99,19 +188,42 @@
     ;; does the real work.
     context))
 
-; https://github.com/walmartlabs/lacinia-pedestal/blob/b1ff019e88d3ad066f327bca49bac7a1c4b48e53/src/com/walmartlabs/lacinia/pedestal/subscriptions.clj#L382-L393
+;; https://github.com/walmartlabs/lacinia-pedestal/blob/b1ff019e88d3ad066f327bca49bac7a1c4b48e53/src/com/walmartlabs/lacinia/pedestal/subscriptions.clj#L382-L393
 (def execute-operation-interceptor
   "Executes a mutation or query operation and sets the :response key of the context,
   or executes a long-lived subscription operation."
   (interceptor/interceptor
-    {:name ::execute-operation
-     :enter (fn [context]
-              (let [request (:request context)
-                    parsed-query (:parsed-lacinia-query request)
-                    operation-type (-> parsed-query parser/operations :type)]
-                (if (= operation-type :subscription)
-                  (execute-subscription context parsed-query)
-                  (execute-operation context parsed-query))))}))
+   {:name ::execute-operation
+    :enter (fn [context]
+             (let [request (:request context)
+                   parsed-query (:parsed-lacinia-query request)
+                   operation-type (-> parsed-query parser/operations :type)]
+               (if (= operation-type :subscription)
+                 (execute-subscription context parsed-query)
+                 (execute-operation context parsed-query))))}))
+
+(def allowed-origins
+  {:dev (constantly true)
+   :prod #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
+   :staging #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
+   :test (constantly true)})
+
+(defn api-interceptors [{:keys [env]} compiled-schema app-context]
+  [pedestal2/initialize-tracing-interceptor
+   pedestal2/json-response-interceptor
+   pedestal2/error-response-interceptor
+   (cors/allow-origin (allowed-origins env))
+   (ring-middlewares/multipart-params)
+   body-data-interceptor
+   graphql-data-interceptor
+   pedestal2/status-conversion-interceptor
+   pedestal2/missing-query-interceptor
+   (pedestal2/query-parser-interceptor compiled-schema)
+   pedestal2/disallow-subscriptions-interceptor
+   pedestal2/prepare-query-interceptor
+   (pedestal2/inject-app-context-interceptor app-context)
+   pedestal2/enable-tracing-interceptor
+   pedestal2/query-executor-handler])
 
 (defn subscription-interceptors [compiled-schema app-context]
   [subscriptions/exception-handler-interceptor
@@ -119,12 +231,6 @@
    (subscriptions/query-parser-interceptor compiled-schema)
    (subscriptions/inject-app-context-interceptor app-context)
    execute-operation-interceptor])
-
-(def allowed-origins
-  {:dev (constantly true)
-   :prod #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
-   :staging #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
-   :test (constantly true)})
 
 (defn cors-preflight [request allowed-origins]
   (let [origin (some-> (get-in request [:headers "origin"]) str/lower-case)]
@@ -138,13 +244,12 @@
 (defn service-map [{:keys [env port] :as opts} pedestal]
   (let [compiled-schema (graphql/load-schema)
         app-context {:opts opts :pedestal pedestal}
-        interceptors (into
-                      [(cors/allow-origin (allowed-origins env))]
-                      (pedestal2/default-interceptors compiled-schema app-context))
         routes (into #{["/api" :options
                         #(cors-preflight % (allowed-origins env))
                         :route-name ::graphql-api-cors-preflight]
-                       ["/api" :post interceptors :route-name ::graphql-api]
+                       ["/api"
+                        :post (api-interceptors opts compiled-schema app-context)
+                        :route-name ::graphql-api]
                        ["/download/DatasetEntity/content/:entity-id"
                         :get
                         #(dataset/download-DatasetEntity-content
