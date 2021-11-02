@@ -84,7 +84,7 @@
                   (when (:validatable-label? definition)
                     (try
                       (->
-                        (js/fetch (str "http://resolver.api.identifiers.org/" (js/encodeURIComponent label-value)))
+                        (js/fetch (str "https://resolver.api.identifiers.org/" (js/encodeURIComponent label-value)))
                         (.then (fn [res]
                                  (-> (.json ^js res)
                                      (.then (fn [data-aux]

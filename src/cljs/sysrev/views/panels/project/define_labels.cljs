@@ -760,8 +760,8 @@
          [:div.field.validatable-label {:class (when error "error")
                                         :style {:width "100%"}}
           [FormLabelWithTooltip
-           "Validate label values?"
-           ["Validate this label against identifiers.org"]]
+           "Use identifiers.org resolver?"
+           ["Resolve this label values against identifiers.org"]]
           [ui/LabeledCheckbox
            {:checked? (not @validatable-label?)
             :disabled (not is-owned?)
