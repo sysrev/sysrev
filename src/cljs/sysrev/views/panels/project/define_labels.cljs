@@ -1170,6 +1170,7 @@
   (let [project-id @(subscribe [:active-project-id])
         is-editin-label? @(subscribe [::is-editing-label?])
         label-filters @(subscribe [::get :label-filters])
+        self-email @(subscribe [:self/email])
         status-filter-fn (fn [label]
                            (case (:status label-filters)
                              "enabled" (:enabled label)
@@ -1183,48 +1184,49 @@
                                       (some status-filter-fn labels))))
                                 labels))
         cols (concat
-               [{:field "ordering-display-1" :title "#"  :defaultSort "asc" :type "numeric"
-                 :render (fn [rowData]
-                           (let [v (aget rowData "ordering-display-1")]
-                             (when-not (str/blank? v)
-                               (r/as-element
-                                 [:div {:style {:text-align "center"
-                                                :min-width "110px"}} 
-                                  [:> mui/IconButton
-                                   {:on-click (fn [ev]
-                                                (.stopPropagation ev)
-                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
-                                   [:> mui/Icon "keyboard_arrow_up"]]
-                                  " " v " "
-                                  [:> mui/IconButton
-                                   {:on-click (fn [ev]
-                                                (.stopPropagation ev)
-                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
-                                   [:> mui/Icon "keyboard_arrow_down"]]]))))
-                 ;:cellStyle {:backgroundColor "#ddd"}
-                 :headerStyle {:width "10px"}}
-                {:field "ordering-display-2" :title "#" :width "10px"
-                 :defaultSort "asc" :type "numeric"
-                 :render (fn [rowData]
-                           (let [v (aget rowData "ordering-display-2")]
-                             (when-not (str/blank? v)
-                               (r/as-element
-                                 [:div {:style {:text-align "center"
-                                                :min-width "110px"}}
-                                  [:> mui/IconButton
-                                   {:on-click (fn [ev]
-                                                (.stopPropagation ev)
-                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
-                                   [:> mui/Icon "keyboard_arrow_up"]]
-                                  " " v " "
-                                  [:> mui/IconButton
-                                   {:on-click (fn [ev]
-                                                (.stopPropagation ev)
-                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
-                                   [:> mui/Icon "keyboard_arrow_down"]]]))))
-                 ;:cellStyle {:backgroundColor "#eee"}
-                 }
-                {:field "short-label" :title "Name"}]
+               (when self-email
+                 [{:field "ordering-display-1" :title "#"  :defaultSort "asc" :type "numeric"
+                   :render (fn [rowData]
+                             (let [v (aget rowData "ordering-display-1")]
+                               (when-not (str/blank? v)
+                                 (r/as-element
+                                   [:div {:style {:text-align "center"
+                                                  :min-width "110px"}} 
+                                    [:> mui/IconButton
+                                     {:on-click (fn [ev]
+                                                  (.stopPropagation ev)
+                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
+                                     [:> mui/Icon "keyboard_arrow_up"]]
+                                    " " v " "
+                                    [:> mui/IconButton
+                                     {:on-click (fn [ev]
+                                                  (.stopPropagation ev)
+                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
+                                     [:> mui/Icon "keyboard_arrow_down"]]]))))
+                   ;:cellStyle {:backgroundColor "#ddd"}
+                   :headerStyle {:width "10px"}}
+                  {:field "ordering-display-2" :title "#" :width "10px"
+                   :defaultSort "asc" :type "numeric"
+                   :render (fn [rowData]
+                             (let [v (aget rowData "ordering-display-2")]
+                               (when-not (str/blank? v)
+                                 (r/as-element
+                                   [:div {:style {:text-align "center"
+                                                  :min-width "110px"}}
+                                    [:> mui/IconButton
+                                     {:on-click (fn [ev]
+                                                  (.stopPropagation ev)
+                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
+                                     [:> mui/Icon "keyboard_arrow_up"]]
+                                    " " v " "
+                                    [:> mui/IconButton
+                                     {:on-click (fn [ev]
+                                                  (.stopPropagation ev)
+                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
+                                     [:> mui/Icon "keyboard_arrow_down"]]]))))
+                   ;:cellStyle {:backgroundColor "#eee"}
+                   }])
+               [{:field "short-label" :title "Name"}]
                (when (not is-editin-label?)
                  [{:field "value-type" :title "Type"}
                   {:field "consensus" :title "Consensus"}
@@ -1276,37 +1278,39 @@
          ;; :cellEditable {:onCellEditApproved (fn [new-val old-val row-data column-def]
          ;;                                      (new js/Promise (fn [res rej]
          ;;                                                        (res true))))}
-         :actions [(fn [rowData]
-                     (clj->js
-                       {:icon "share"
-                        :disabled (some? (.-parentId ^js rowData))
-                        :tooltip "Share label"
-                        :onClick (fn [event rowData]
-                                   (.stopPropagation event)
-                                   (dispatch [:action [:labels/get-share-code project-id (.-id ^js rowData)]]))}))
-                   (fn [rowData]
-                     (if (.-enabled ^js rowData)
+         :actions (when self-email
+                    [(fn [rowData]
                        (clj->js
-                         {:icon "block"
-                          :tooltip "Disable label"
-                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
+                         {:icon "share"
+                          :disabled (some? (.-parentId ^js rowData))
+                          :tooltip "Share label"
                           :onClick (fn [event rowData]
                                      (.stopPropagation event)
-                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
-                                     (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
-                                     (sync-to-server))})
-                       (clj->js
-                         {:icon "check_circle"
-                          :tooltip "Enable label"
-                          :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
-                          :onClick (fn [event rowData]
-                                     (.stopPropagation event)
-                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
-                                     (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
-                                     (sync-to-server))})))]
+                                     (dispatch [:action [:labels/get-share-code project-id (.-id ^js rowData)]]))}))
+                     (fn [rowData]
+                       (if (.-enabled ^js rowData)
+                         (clj->js
+                           {:icon "block"
+                            :tooltip "Disable label"
+                            :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
+                            :onClick (fn [event rowData]
+                                       (.stopPropagation event)
+                                       (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                       (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                       (sync-to-server))})
+                         (clj->js
+                           {:icon "check_circle"
+                            :tooltip "Enable label"
+                            :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
+                            :onClick (fn [event rowData]
+                                       (.stopPropagation event)
+                                       (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                       (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                       (sync-to-server))})))])
          :onRowClick (fn [_event rowData]
-                       (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])
-                       (dispatch [::set :editing-label-id (.-id ^js rowData)]))
+                       (when self-email
+                         (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])
+                         (dispatch [::set :editing-label-id (.-id ^js rowData)])))
          :options {:actionsColumnIndex -1}}]]
       [SideEditableView labels-atom]]]))
 
@@ -1316,7 +1320,8 @@
         read-only-message-closed? (r/cursor state [:read-only-message-closed?])
         project-id    @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
-        group-labels-allowed? (or (re-matches #".*@insilica.co" @(subscribe [:self/email]))
+        self-email @(subscribe [:self/email])
+        group-labels-allowed? (or (and self-email (re-matches #".*@insilica.co" self-email))
                                   (plans-info/pro? project-plan))]
     (ensure-state)
     [:div.define-labels
