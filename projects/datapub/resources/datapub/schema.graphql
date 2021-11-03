@@ -8,6 +8,7 @@
 scalar DateTime
 scalar NonNegativeInt
 scalar PositiveInt
+scalar Upload
 
 enum DatasetIndexType {
   TEXT
@@ -107,7 +108,8 @@ type PageInfo {
 }
 
 input CreateDatasetEntityInput {
-  content: String!
+  content: String
+  contentUpload: Upload
   datasetId: PositiveInt!
   externalCreated: DateTime
   externalId: String

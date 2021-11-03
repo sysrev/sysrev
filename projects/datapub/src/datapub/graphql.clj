@@ -38,7 +38,9 @@
                             x
                             (throw (ex-info "Must be a positive integer."
                                             {:value x}))))
-                 :serialize identity}})
+                 :serialize identity}
+   :Upload {:parse identity
+            :serialize (constantly nil)}})
 
 (defn resolve-value [_ _ value]
   value)

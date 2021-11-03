@@ -8,9 +8,7 @@
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.fda-drugs.interface :as fda-drugs]
             [sysrev.file-util.interface :as file-util]
-            [sysrev.sqlite.interface :as sqlite])
-  (:import (java.util Base64)
-           (org.apache.commons.io IOUtils)))
+            [sysrev.sqlite.interface :as sqlite]))
 
 (defn canonical-url
   "Lower-cases the URL and forces https://.
@@ -128,9 +126,7 @@
     (case content-type
       "application/pdf"
       (->> (dpc/create-dataset-entity!
-            {:content (->> body
-                           IOUtils/toByteArray
-                           (.encodeToString (Base64/getEncoder)))
+            {:contentUpload body
              :datasetId dataset-id
              :externalCreated (convert-date (:ApplicationDocsDate doc))
              :externalId doc-url
@@ -166,9 +162,7 @@
     (case content-type
       "application/pdf"
       (->> (dpc/create-dataset-entity!
-            {:content (->> body
-                           IOUtils/toByteArray
-                           (.encodeToString (Base64/getEncoder)))
+            {:contentUpload body
              :datasetId dataset-id
              :externalCreated (convert-date (:ApplicationDocsDate doc))
              :externalId url

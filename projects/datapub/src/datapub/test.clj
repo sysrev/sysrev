@@ -8,9 +8,10 @@
             [com.walmartlabs.lacinia.selection :as selection]
             [datapub.main :as main]
             [io.pedestal.test :as test]
+            [medley.core :as medley]
             [sysrev.datapub-client.interface.queries :as dpcq])
-  (:import (java.util Base64)
-           (org.apache.commons.io IOUtils)))
+  (:import java.util.Base64
+           org.apache.commons.io.IOUtils))
 
 (defn run-tests [opts]
   ;; https://clojureverse.org/t/why-doesnt-my-program-exit/3754/8
@@ -74,10 +75,11 @@
 (defmacro with-test-system [[name-sym options] & body]
   `(let [options# ~options
          system# (-> (main/get-config)
-                     (assoc :env (:env options# :test))
                      (update :pedestal dissoc :port)
                      (update :postgres assoc :embedded? true :host "localhost"
                              :port 0 :user "postgres" :password nil)
+                     (medley/deep-merge (-> (:config options#)
+                                            (update :env #(or % :test))))
                      ((:get-system-map options# main/system-map))
                      component/start)
          ~name-sym system#]
