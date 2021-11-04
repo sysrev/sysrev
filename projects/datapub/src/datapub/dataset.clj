@@ -239,10 +239,11 @@
 (defn resolve-ListDatasetsEdge-node [context _ {:keys [node]}]
   (resolve-dataset context node _))
 
-(defn server-url [{:keys [scheme server-name server-port]}]
-  (str (name scheme) "://" server-name
-       (when-not (or (and (= 80 server-port (= :http scheme)))
-                     (and (= 443 server-port (= :https scheme))))
+(defn server-url [{:keys [headers scheme server-name server-port]}]
+  (str (or (some-> headers (get "x-forwarded-proto") str/lower-case #{"http" "https"})
+           (name scheme))
+       "://" server-name
+       (when-not (#{80 443} server-port)
          (str ":" server-port))))
 
 (defn base64url-encode [^bytes bytes]
