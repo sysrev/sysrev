@@ -244,17 +244,23 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
 (defn service-map [{:keys [env port] :as opts} pedestal]
   (let [compiled-schema (graphql/load-schema)
         app-context {:opts opts :pedestal pedestal}
-        routes (into #{["/api" :options
+        routes (into #{["/api"
+                        :options
                         #(cors-preflight % (allowed-origins env))
                         :route-name ::graphql-api-cors-preflight]
                        ["/api"
                         :post (api-interceptors opts compiled-schema app-context)
                         :route-name ::graphql-api]
-                       ["/download/DatasetEntity/content/:entity-id"
+                       ["/download/DatasetEntity/content/:entity-id/:content-hash"
                         :get
                         #(dataset/download-DatasetEntity-content
-                          (assoc app-context :request %))
+                          (assoc app-context :request %)
+                          (allowed-origins env))
                         :route-name ::DatasetEntity-content]
+                       ["/download/DatasetEntity/content/:entity-id/:content-hash"
+                        :options
+                        #(cors-preflight % (allowed-origins env))
+                        :route-name ::DatasetEntity-content-cors-preflight]
                        ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env

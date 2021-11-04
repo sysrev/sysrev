@@ -19,7 +19,8 @@
            [java.io InputStream IOException]
            java.nio.file.Path
            java.sql.Timestamp
-           java.time.Instant
+           [java.time Instant ZoneId]
+           java.time.format.DateTimeFormatter
            java.util.Base64
            org.apache.commons.io.IOUtils
            org.postgresql.jdbc.PgArray
@@ -244,16 +245,31 @@
                      (and (= 443 server-port (= :https scheme))))
          (str ":" server-port))))
 
-(let [cols-all {:dataset-id :dataset-id
+(defn base64url-encode [^bytes bytes]
+  (String. (.encode (Base64/getUrlEncoder) bytes)))
+
+(defn content-url-path
+  "Returns the path for an entity's content.
+
+  Part of the hash is included as a cache-buster for dev
+  and staging servers."
+  [entity-id ^bytes hash]
+  (str "/download/DatasetEntity/content/" entity-id
+       "/" (-> hash base64url-encode (subs 0 21))))
+
+(let [cols-all {:created :created
+                :dataset-id :dataset-id
                 :externalCreated :external-created
                 :externalId :external-id
                 :groupingId :grouping-id}
       inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
       cols-file (assoc cols-all
                        :content :file-hash
+                       :content-hash :content-hash
                        :metadata [[:raw "data->>'metadata' as metadata"]])
       cols-json (assoc cols-all
                        :content [[:raw "content::text"]]
+                       :content-hash :hash
                        :externalId :external-id)]
 
   (defn get-entity-content [context id ks]
@@ -285,31 +301,34 @@
   (defn resolve-dataset-entity [context {:keys [id]} _]
     (let [ks (conj (current-selection-names context) :dataset-id)]
       (with-tx-context [context context]
-        (->
-         (if (some #{:content :mediaType :metadata} ks)
-           (-> (get-entity-content context id ks)
-               (update :content
-                       #(if (instance? InputStream %)
-                          (.encodeToString (Base64/getEncoder)
-                                           (IOUtils/toByteArray ^InputStream %))
-                          %)))
-           (execute-one!
-            context
-            {:select (keep cols-all ks)
-             :from :entity
-             :where [:= :id id]}))
-         (->> (remap-keys #(inv-cols % %)))
-         (assoc :id id
-                :contentUrl
-                (when (:contentUrl ks)
-                  (str (server-url (:request context))
-                       "/download/DatasetEntity/content/" id)))
-         ((fn [{:keys [dataset-id] :as entity}]
-            (if (or (sysrev-dev? context)
-                    (call-memo context :public-dataset? dataset-id))
-              entity
-              (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
-                                       :datasetId dataset-id})))))))))
+        (as->
+            (if (some #{:content :contentUrl :mediaType :metadata} ks)
+              (-> (get-entity-content
+                   context id
+                   (conj ks (when (:contentUrl ks) :content-hash)))
+                  (update :content
+                          #(if (instance? InputStream %)
+                             (.encodeToString (Base64/getEncoder)
+                                              (IOUtils/toByteArray ^InputStream %))
+                             %)))
+              (execute-one!
+               context
+               {:select (keep cols-all ks)
+                :from :entity
+                :where [:= :id id]}))
+            $
+          (remap-keys #(inv-cols % %) $)
+          (assoc $
+                 :id id
+                 :contentUrl
+                 (when (:contentUrl ks)
+                   (str (server-url (:request context))
+                        (content-url-path id (or (:content-hash $) (:hash $))))))
+          (if (or (sysrev-dev? context)
+                  (call-memo context :public-dataset? (:dataset-id $)))
+            $
+            (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
+                                     :datasetId (:dataset-id $)})))))))
 
 (defn resolve-Dataset-entities
   [context {:keys [externalId groupingId :as args]} {:keys [id]}]
@@ -343,22 +362,51 @@
 (defn resolve-DatasetEntitiesEdge-node [context _ {:keys [node]}]
   (resolve-dataset-entity context node _))
 
-(defn download-DatasetEntity-content [context]
-  (let [entity-id (try
-                    (some-> context :request :path-params :entity-id
+(def ^DateTimeFormatter http-datetime-formatter
+  (.withZone DateTimeFormatter/RFC_1123_DATE_TIME
+             (ZoneId/systemDefault)))
+
+(defn download-DatasetEntity-content [context allowed-origins]
+  (let [request (:request context)
+        entity-id (try
+                    (some-> request :path-params :entity-id
                             Long/parseLong)
                     (catch Exception _))]
     (when entity-id
       (with-tx-context [context context]
-        (let [entity (get-entity-content context entity-id #{:content :dataset-id})]
+        (let [entity (get-entity-content
+                      context entity-id
+                      #{:content :content-hash :created :dataset-id})]
           (when (:content entity)
-            (if (or (sysrev-dev? context)
-                    (call-memo context :public-dataset? (:entity/dataset-id entity)))
-              {:status 200
-               :headers {"Content-Type" (:mediaType entity)}
-               :body (:content entity)}
-              {:status 403
-               :body "Forbidden"})))))))
+            (let [hash (or (:content-json/hash entity) (:content-file/content-hash entity))
+                  etag (base64url-encode hash)
+                  origin (some-> (get-in request [:headers "origin"]) str/lower-case)
+                  public? (call-memo context :public-dataset? (:entity/dataset-id entity))]
+              (cond
+                (not (or (sysrev-dev? context) public?))
+                {:status 403
+                 :body "Forbidden"}
+
+                (not= (:content-hash (:path-params request)) (subs etag 0 21))
+                {:status 301
+                 :headers (cond-> {"Location" (content-url-path entity-id hash)}
+                            (and origin (allowed-origins origin))
+                            #__ (assoc "Access-Control-Allow-Origin" origin))}
+
+                :else
+                {:status 200
+                 :headers (cond-> {"Cache-Control" (if public?
+                                                     "public, max-age=315360000, immutable"
+                                                     "no-cache")
+                                   "Content-Type" (:mediaType entity)
+                                   "ETag" etag
+                                   "Last-Modified" (.format
+                                                    http-datetime-formatter
+                                                    (.toInstant ^Timestamp (:entity/created entity)))}
+                            (and origin (allowed-origins origin))
+                            #__ (assoc "Access-Control-Allow-Origin" origin))
+                 :body (when (not= :head (:request-method request))
+                         (:content entity))}))))))))
 
 (defn get-existing-content-id [context {:keys [content-hash content-table]}]
   ((keyword (name content-table) "content-id")
