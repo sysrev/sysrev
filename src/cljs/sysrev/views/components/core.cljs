@@ -151,9 +151,9 @@
   [:a (merge props {:href href})
    (util/humanize-url href)])
 
-(defn OutLink [url]
+(defn OutLink [url & [title]]
   [:div.item>a {:target "_blank" :href url}
-   (util/url-domain url) nbsp [:i.external.icon]])
+   (or title (util/url-domain url)) nbsp [:i.external.icon]])
 
 (defn UpdatedTimeLabel [dt & [shorten?]]
   [:div.ui.tiny.label.updated-time {:title (util/date-format dt "MMM, do yyyy hh:mm a")}

@@ -403,7 +403,8 @@
                                    "ETag" etag
                                    "Last-Modified" (.format
                                                     http-datetime-formatter
-                                                    (.toInstant ^Timestamp (:entity/created entity)))}
+                                                    (.toInstant ^Timestamp (:entity/created entity)))
+                                   "Vary" "Origin"}
                             (and origin (allowed-origins origin))
                             #__ (assoc "Access-Control-Allow-Origin" origin))
                  :body (when (not= :head (:request-method request))

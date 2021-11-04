@@ -417,7 +417,7 @@
                    "Version " (inc current-version) " of " (count versions)])]
                [:h2 primary-title]
                [:br]
-               [ui/OutLink (get metadata "ApplicationDocsURL")]
+               [ui/OutLink contentUrl "Download PDF"]
                [:br]
                [:div [pdf/ViewReactPDF {:url contentUrl :filename "a"}]]
                [:br]

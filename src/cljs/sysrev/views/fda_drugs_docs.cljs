@@ -149,10 +149,10 @@
 (defn ArticleSummary
   "Display an article summary item"
   [entity-id]
-  (let [{:keys [externalId metadata]} @(subscribe [:datapub/entity entity-id])]
+  (let [{:keys [contentUrl metadata]} @(subscribe [:datapub/entity entity-id])]
     [:<>
      [TableRow
-      [TableCell [:a {:href externalId
+      [TableCell [:a {:href contentUrl
                       :target "_blank"}
                   [:i.external.icon]]]
       [TableCell (get metadata "SponsorName")]
