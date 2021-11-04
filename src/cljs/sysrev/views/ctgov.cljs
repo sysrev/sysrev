@@ -136,8 +136,11 @@
 (defn ArticleSummary
   "Display an article summary item"
   [entity-id]
-  (let [entity @(subscribe [:datapub/entity entity-id])
-        protocol (get-in entity [:content "ProtocolSection"])
+  (let [{:keys [contentUrl]} @(subscribe [:datapub/entity entity-id])
+        entity-content (when contentUrl
+                         (or @(subscribe [:datapub/entity-content contentUrl])
+                             (dispatch [:require [:datapub-entity-content contentUrl]])))
+        protocol (get entity-content "ProtocolSection")
         status (get-in protocol ["StatusModule" "OverallStatus"])
         interventions (get-in protocol ["ArmsInterventionsModule" "InterventionList" "Intervention"])
         locations (get-in protocol ["ContactsLocationsModule" "LocationList" "Location"])]

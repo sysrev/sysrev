@@ -149,7 +149,7 @@
 (defn ArticleSummary
   "Display an article summary item"
   [entity-id]
-  (let [{:keys [externalId metadata]} @(subscribe [:datapub/entity* entity-id])]
+  (let [{:keys [externalId metadata]} @(subscribe [:datapub/entity entity-id])]
     [:<>
      [TableRow
       [TableCell [:a {:href externalId
@@ -232,7 +232,7 @@
                             (drop (* items-per-page (dec current-page))))]
     (when show-results?
       (doseq [entity-id (take (* 2 items-per-page) search-results)]
-        (dispatch [:require [:datapub-entity* entity-id]]))
+        (dispatch [:require [:datapub-entity entity-id]]))
       [:div.fda-drugs-docs-search-results
        [:div.ui.bottom.attached.segment.fda-drugs-docs-articles
         {:style (if (seq search-results) {} {:min-height "800px"})}

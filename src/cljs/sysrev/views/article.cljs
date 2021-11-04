@@ -308,9 +308,12 @@
                 {:keys [entity-id]} datapub
                 version-entity-id (when current-version
                                     (get versions current-version))
-                {:keys [externalId]} @(subscribe [:datapub/entity* entity-id])
-                {:keys [content] :as version-entity}
+                {:keys [externalId]} @(subscribe [:datapub/entity entity-id])
+                {:keys [contentUrl] :as version-entity}
                 #__ @(subscribe [:datapub/entity version-entity-id])
+                content (when contentUrl
+                          (or @(subscribe [:datapub/entity-content contentUrl])
+                              (dispatch [:require [:datapub-entity-content contentUrl]])))
                 source-id (first @(subscribe [:article/sources article-id]))
                 cursors (mapv #(mapv keyword %)
                               (get-in @(subscribe [:project/sources source-id])
@@ -323,8 +326,7 @@
               (when (and version-entity (< 0 current-version))
                 (dispatch [:require [:datapub-entity (get versions (dec current-version))]]))
               (when (and version-entity (< current-version (dec versions)))
-                (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))
-            (when externalId
+                (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))            (when externalId
               (dispatch [:require [:datapub-entities-for-external-id 1 externalId]]))
             (when (not= versions version-entity-ids)
               (swap! state assoc
@@ -350,18 +352,19 @@
                [:br]
                [ui/OutLink (str "https://clinicaltrials.gov/ct2/show/" externalId)]
                [:br]
-               [:> ReactJson
-                {:display-array-key false
-                 :display-data-types false
-                 :name nil
-                 :quotes-on-keys false
-                 :src
-                 (if (seq cursors)
-                   (clj->js (map-from-cursors content cursors))
-                   (clj->js content))
-                 :theme (if @(subscribe [:self/dark-theme?])
-                          "monokai"
-                          "rjv-default")}]])))))))
+               (when content
+                 [:> ReactJson
+                  {:display-array-key false
+                   :display-data-types false
+                   :name nil
+                   :quotes-on-keys false
+                   :src
+                   (if (seq cursors)
+                     (clj->js (map-from-cursors content cursors))
+                     (clj->js content))
+                   :theme (if @(subscribe [:self/dark-theme?])
+                            "monokai"
+                            "rjv-default")}])])))))))
 
 (defn FDADrugsDocs []
   (let [state (r/atom {:current-version nil :versions nil})]
@@ -374,8 +377,8 @@
                 {:keys [entity-id]} datapub
                 version-entity-id (when current-version
                                     (get versions current-version))
-                {:keys [groupingId]} @(subscribe [:datapub/entity* entity-id])
-                {:keys [content metadata] :as version-entity}
+                {:keys [groupingId]} @(subscribe [:datapub/entity entity-id])
+                {:keys [contentUrl metadata] :as version-entity}
                 #__ @(subscribe [:datapub/entity version-entity-id])
                 source-id (first @(subscribe [:article/sources article-id]))
                 cursors (mapv #(mapv keyword %)
@@ -416,7 +419,7 @@
                [:br]
                [ui/OutLink (get metadata "ApplicationDocsURL")]
                [:br]
-               [:div [pdf/ViewBase64PDF {:content content}]]
+               [:div [pdf/ViewReactPDF {:url contentUrl :filename "a"}]]
                [:br]
                [:> ReactJson
                 {:display-array-key false
