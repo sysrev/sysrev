@@ -22,11 +22,12 @@
        (map capitalize-first)
        (str/join " ")))
 
-(defn title [{:keys [ApplicationDocsDescription ApplType Products
+(defn title [{:keys [ApplicationDocsDescription ApplNo ApplType Products
                      ReviewDocumentType SponsorName]}]
   (str/join
    " — "
-   [ApplType
+   [ApplNo
+    ApplType
     (or (some-> ReviewDocumentType capitalize-words) ApplicationDocsDescription)
     SponsorName
     (str/join
