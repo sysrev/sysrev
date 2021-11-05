@@ -216,9 +216,11 @@
 
 (def review-type
   {#{"chemistry review(s)"} "chemistry review"
+   #{"integrated review"} "integrated review"
    #{"medical review(s)"} "medical review"
    #{"microbiology review"} "microbiology review"
    #{"microbiology review(s)"} "microbiology review"
+   #{"multi-discipline review"} "multi-discipline review"
    #{"pharmacology review(s)"} "pharmacology review"
    #{"proprietary name review(s)"} "proprietary name review"
    #{"risk assessment and risk mitigation review(s)"} "risk assessment and risk mitigation review"
