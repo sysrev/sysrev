@@ -22,12 +22,22 @@
 
 (defn match-existing-article-data
   "Returns `article-data-id` value for an existing `article-data` entry
-  that matches argument, or nil if no entry exists."
-  [{:keys [datasource-name external-id] :as _article-data}]
+  that matches argument, or nil if no entry exists.
+
+  Updates the title if it differs."
+  [{:keys [datasource-name external-id title] :as _article-data}]
   (when (and datasource-name external-id)
-    (q/find-one :article-data {:datasource-name datasource-name
-                               :external-id (db/to-jsonb external-id)}
-                :article-data-id)))
+    (let [existing (q/find-one :article-data {:datasource-name datasource-name
+                                              :external-id (db/to-jsonb external-id)}
+                               [:article-data-id :title])]
+      (if (= title (:title existing))
+        (:article-data-id existing)
+        (first
+         (q/modify :article-data
+                   {:datasource-name datasource-name
+                    :external-id (db/to-jsonb external-id)}
+                   {:title title}
+                   :returning :article-data-id))))))
 
 (defn save-article-data
   "Returns `article-data-id` value for entry `article-data`, creating
