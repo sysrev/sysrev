@@ -177,7 +177,8 @@
 (defn ArticlePdfListS3 [article-id]
   (when-let [pdfs (seq (->> @(subscribe [:article/pdfs article-id])
                             (remove :open-access?)))]
-    [:div (doall (map-indexed
+    [:div
+     (doall (map-indexed
                   (fn [i file-map] ^{:key i}
                     [:div.field>div.fields>div
                      [ArticlePdfEntryS3 {:article-id article-id

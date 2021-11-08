@@ -147,17 +147,20 @@
         [:span.email "info@insilica.co"]
         copyright-notice
         [:span [:span.medium-weight "Sysrev "] (str "© " (-> (js/Date.) (.getFullYear)) " Insilica LLC")]
-        site-terms [:a#terms-link {:href "/terms-of-use"} "Terms of Use"]]
+        site-terms [:a#terms-link {:href "/terms-of-use"} "Terms"]
+        citation-link [:a {:href "https://blog.sysrev.com/how-to-cite"
+                           :target "_blank"}
+                       "Cite"]]
     [:div#footer
      (if (util/mobile?)
        [:div.ui.container>div.ui.middle.aligned.grid
         [:div.left.aligned.six.wide.column contact-email]
         [:div.right.aligned.ten.wide.column
-         [:div.wrapper sysrev-links " | " site-terms]]]
+         [:div.wrapper sysrev-links " | " site-terms " | " citation-link]]]
        [:div.ui.container>div.ui.middle.aligned.stackable.grid
         [:div.left.aligned.six.wide.column copyright-notice]
         [:div.right.aligned.ten.wide.column
-         [:div.wrapper contact-email sysrev-links "|" site-terms]]])]))
+         [:div.wrapper contact-email sysrev-links "|" site-terms " | " citation-link]]])]))
 
 (defn main-content []
   (let [!ref (atom nil)]

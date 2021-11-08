@@ -902,13 +902,7 @@
     {:success true
      :files (->> (article-file/get-article-file-maps article-id)
                  (mapv #(assoc % :open-access?
-                               (= (:s3-id %) pmcid-s3-id)))
-                 (concat
-                  (q/find [:s3store :s3]
-          {:s3.s3-id (q/find [:article-pdf :apdf] {:apdf.article-id article-id}
-                             :apdf.s3-id, :return :query)}
-          [:s3.s3-id :s3.key :s3.filename])))}))
-
+                               (= (:s3-id %) pmcid-s3-id))))}))
 
 (defn project-article-pdfs-zip
   "download all article pdfs associated with a project. name pdf by article-id"

@@ -469,7 +469,9 @@
              (if valid? ;; update successful?
                ;; update (1) app-wide project data and (2) local namespace state
                (do (set-app-db-labels! labels)
-                   (set-local-labels! labels))
+                   (set-local-labels! labels)
+                   (dispatch [::set :editing-root-label-id nil])
+                   (dispatch [::set :editing-label-id nil]))
                ;; update local state (includes error messages)
                (set-local-labels! labels))
              {}))
@@ -593,8 +595,7 @@
                                                   (sync-to-server)
                                                   ;; just reset editing
                                                   (reset! (r/cursor label [:editing?]) false))
-                                                (dispatch [::set :editing-root-label-id nil])
-                                                (dispatch [::set :editing-label-id nil]))
+                                                )
                                               :prevent-default true)}
      (when (string? @value-type)
        [:h5.ui.dividing.header.value-type
