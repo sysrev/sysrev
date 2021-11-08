@@ -31,12 +31,16 @@
                              (if (nat-int? x)
                                x
                                (throw (ex-info "Must be a non-negative integer."
-                                               {:value x}))))                    :serialize identity}
+                                               {:value x}))))
+                    :serialize identity}
    :PositiveInt {:parse (fn [x]
                           (if (pos-int? x)
                             x
                             (throw (ex-info "Must be a positive integer."
-                                            {:value x}))))                    :serialize identity}})
+                                            {:value x}))))
+                 :serialize identity}
+   :Upload {:parse identity
+            :serialize (constantly nil)}})
 
 (defn resolve-value [_ _ value]
   value)

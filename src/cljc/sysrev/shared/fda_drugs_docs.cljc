@@ -18,8 +18,10 @@
 
 (def review-document-type-options
   [["chemistry review" "Chemistry"]
+   ["integrated review" "Integrated"]
    ["medical review" "Medical"]
    ["microbiology review" "Microbiology"]
+   ["multi-discipline review" "Multi-Discipline"]
    ["pharmacology review" "Pharmacology"]
    ["propietary name review" "Proprietary Name"]
    ["risk assessment and risk mitigation review" "Risk"]

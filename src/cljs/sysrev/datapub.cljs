@@ -41,14 +41,10 @@
   :uri #(deref api-endpoint)
   :content-type "application/json"
   :content (fn [entity-id]
-             {:query (dataset-entity "content externalCreated externalId groupingId mediaType metadata")
+             {:query (dataset-entity "contentUrl externalCreated externalId groupingId mediaType metadata")
               :variables {:id entity-id}})
   :process (fn [{:keys [db]} [entity-id] _ result]
-             (let [{:keys [mediaType metadata] :as entity} (-> result :data :datasetEntity)
-                   mediaType (str/lower-case mediaType)
-                   entity (if (not= "application/json" mediaType)
-                            entity
-                            (update entity :content (comp js->clj js/JSON.parse)))
+             (let [{:keys [metadata] :as entity} (-> result :data :datasetEntity)
                    entity (if-not metadata
                             entity
                             (update entity :metadata (comp js->clj js/JSON.parse)))]
@@ -58,29 +54,17 @@
          (fn [db [_ entity-id]]
            (get-in db [:data :datapub :entities entity-id])))
 
-(def-data :datapub-entity*
-  :loaded? (fn [db entity-id]
-             (boolean
-              (or (get-in db [:data :datapub :entities entity-id])
-                  (get-in db [:data :datapub :entities* entity-id]))))
-  :method :post
-  :uri #(deref api-endpoint)
-  :content-type "application/json"
-  :content (fn [entity-id]
-             {:query (dataset-entity "externalCreated externalId groupingId mediaType metadata")
-              :variables {:id entity-id}})
-  :process (fn [{:keys [db]} [entity-id] _ result]
-             (let [{:keys [metadata] :as entity} (-> result :data :datasetEntity)
-                   entity (if-not metadata
-                            entity
-                            (update entity :metadata (comp js->clj js/JSON.parse)))]
-               {:db (assoc-in db [:data :datapub :entities* entity-id] entity)})))
+(def-data :datapub-entity-content
+  :loaded? (fn [db content-url]
+             (boolean (get-in db [:data :datapub :entity-content content-url])))
+  :method :get
+  :uri (fn [content-url] content-url)
+  :process (fn [{:keys [db]} [content-url] _ result]
+             {:db (assoc-in db [:data :datapub :entity-content content-url] result)}))
 
-(reg-sub :datapub/entity*
-         (fn [db [_ entity-id]]
-           (or (some-> (get-in db [:data :datapub :entities entity-id])
-                       (dissoc :content))
-               (get-in db [:data :datapub :entities* entity-id]))))
+(reg-sub :datapub/entity-content
+         (fn [db [_ content-url]]
+           (get-in db [:data :datapub :entity-content content-url])))
 
 (def-data :datapub-entities-for-external-id
   :loaded? (fn [db dataset-id external-id]

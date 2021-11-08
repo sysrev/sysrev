@@ -15,15 +15,16 @@
             [sysrev.file-util.interface :as file-util]
             [sysrev.pdf-read.interface :as pdf-read]
             [sysrev.tesseract.interface :as tesseract])
-  (:import (java.awt.image BufferedImage)
-           (java.io InputStream IOException)
-           (java.security MessageDigest)
-           (java.time Instant)
-           (java.sql Timestamp)
-           (java.util Base64)
-           (org.apache.commons.io IOUtils)
-           (org.postgresql.jdbc PgArray)
-           (org.postgresql.util PGobject)))
+  (:import java.awt.image.BufferedImage
+           [java.io InputStream IOException]
+           java.nio.file.Path
+           java.sql.Timestamp
+           [java.time Instant ZoneId]
+           java.time.format.DateTimeFormatter
+           java.util.Base64
+           org.apache.commons.io.IOUtils
+           org.postgresql.jdbc.PgArray
+           org.postgresql.util.PGobject))
 
 (set! *warn-on-reflection* true)
 
@@ -238,62 +239,97 @@
 (defn resolve-ListDatasetsEdge-node [context _ {:keys [node]}]
   (resolve-dataset context node _))
 
-(defn resolve-dataset-entity [context {:keys [id]} _]
-  (let [ks (conj (current-selection-names context) :dataset-id)
-        cols-all {:dataset-id :dataset-id
-                  :externalCreated :external-created
-                  :externalId :external-id
-                  :groupingId :grouping-id}
-        inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
-        cols-file (assoc cols-all
-                         :content :file-hash
-                         :metadata [[:raw "data->>'metadata' as metadata"]])
-        cols-json (assoc cols-all
-                         :content [[:raw "content::text"]]
-                         :externalId :external-id)]
-    (with-tx-context [context context]
-      (->
-       (if (some #{:content :mediaType :metadata} ks)
-         (or
-          (as-> context $
-           (execute-one!
+(defn server-url [{:keys [headers scheme server-name server-port]}]
+  (str (or (some-> headers (get "x-forwarded-proto") str/lower-case #{"http" "https"})
+           (name scheme))
+       "://" server-name
+       (when-not (#{80 443} server-port)
+         (str ":" server-port))))
+
+(defn base64url-encode [^bytes bytes]
+  (String. (.encode (Base64/getUrlEncoder) bytes)))
+
+(defn content-url-path
+  "Returns the path for an entity's content.
+
+  Part of the hash is included as a cache-buster for dev
+  and staging servers."
+  [entity-id ^bytes hash]
+  (str "/download/DatasetEntity/content/" entity-id
+       "/" (-> hash base64url-encode (subs 0 21))))
+
+(let [cols-all {:created :created
+                :dataset-id :dataset-id
+                :externalCreated :external-created
+                :externalId :external-id
+                :groupingId :grouping-id}
+      inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
+      cols-file (assoc cols-all
+                       :content :file-hash
+                       :content-hash :content-hash
+                       :metadata [[:raw "data->>'metadata' as metadata"]])
+      cols-json (assoc cols-all
+                       :content [[:raw "content::text"]]
+                       :content-hash :hash
+                       :externalId :external-id)]
+
+  (defn get-entity-content [context id ks]
+    (or
+     (as-> context $
+       (execute-one!
+        $
+        {:select (keep cols-file ks)
+         :from :entity
+         :where [:= :id id]
+         :join [:content-file [:= :content-file.content-id :entity.content-id]]})
+       (some->
+        $
+        (assoc :content (when (:content ks)
+                          (-> (file/get-entity-content
+                               (get-in context [:pedestal :s3])
+                               (:content-file/file-hash $))
+                              :Body))
+               :mediaType "application/pdf")))
+     (some->
+      (execute-one!
+       context
+       {:select (keep cols-json ks)
+        :from :entity
+        :where [:= :id id]
+        :join [:content-json [:= :content-json.content-id :entity.content-id]]})
+      (assoc :mediaType "application/json"))))
+
+  (defn resolve-dataset-entity [context {:keys [id]} _]
+    (let [ks (conj (current-selection-names context) :dataset-id)]
+      (with-tx-context [context context]
+        (as->
+            (if (some #{:content :contentUrl :mediaType :metadata} ks)
+              (-> (get-entity-content
+                   context id
+                   (conj ks (when (:contentUrl ks) :content-hash)))
+                  (update :content
+                          #(if (instance? InputStream %)
+                             (.encodeToString (Base64/getEncoder)
+                                              (IOUtils/toByteArray ^InputStream %))
+                             %)))
+              (execute-one!
+               context
+               {:select (keep cols-all ks)
+                :from :entity
+                :where [:= :id id]}))
             $
-            {:select (keep cols-file ks)
-             :from :entity
-             :where [:= :id id]
-             :join [:content-file [:= :content-file.content-id :entity.content-id]]})
-           (some->
-            $
-            (assoc :content (when (:content ks)
-                              (-> (file/get-entity-content
-                                   (get-in context [:pedestal :s3])
-                                   (:content-file/file-hash $))
-                                  :Body
-                                  ((fn [^InputStream is]
-                                     (IOUtils/toByteArray is)))
-                                  (->> (.encodeToString (Base64/getEncoder)))))
-                   :mediaType "application/pdf")))
-          (some->
-           (execute-one!
-            context
-            {:select (keep cols-json ks)
-             :from :entity
-             :where [:= :id id]
-             :join [:content-json [:= :content-json.content-id :entity.content-id]]})
-           (assoc :mediaType "application/json")))
-         (execute-one!
-          context
-          {:select (keep cols-all ks)
-           :from :entity
-           :where [:= :id id]}))
-       (->> (remap-keys #(inv-cols % %)))
-       (assoc :id id)
-       ((fn [{:keys [dataset-id] :as entity}]
+          (remap-keys #(inv-cols % %) $)
+          (assoc $
+                 :id id
+                 :contentUrl
+                 (when (:contentUrl ks)
+                   (str (server-url (:request context))
+                        (content-url-path id (or (:content-hash $) (:hash $))))))
           (if (or (sysrev-dev? context)
-                  (call-memo context :public-dataset? dataset-id))
-            entity
+                  (call-memo context :public-dataset? (:dataset-id $)))
+            $
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
-                                     :datasetId dataset-id}))))))))
+                                     :datasetId (:dataset-id $)})))))))
 
 (defn resolve-Dataset-entities
   [context {:keys [externalId groupingId :as args]} {:keys [id]}]
@@ -326,6 +362,53 @@
 
 (defn resolve-DatasetEntitiesEdge-node [context _ {:keys [node]}]
   (resolve-dataset-entity context node _))
+
+(def ^DateTimeFormatter http-datetime-formatter
+  (.withZone DateTimeFormatter/RFC_1123_DATE_TIME
+             (ZoneId/systemDefault)))
+
+(defn download-DatasetEntity-content [context allowed-origins]
+  (let [request (:request context)
+        entity-id (try
+                    (some-> request :path-params :entity-id
+                            Long/parseLong)
+                    (catch Exception _))]
+    (when entity-id
+      (with-tx-context [context context]
+        (let [entity (get-entity-content
+                      context entity-id
+                      #{:content :content-hash :created :dataset-id})]
+          (when (:content entity)
+            (let [hash (or (:content-json/hash entity) (:content-file/content-hash entity))
+                  etag (base64url-encode hash)
+                  origin (some-> (get-in request [:headers "origin"]) str/lower-case)
+                  public? (call-memo context :public-dataset? (:entity/dataset-id entity))]
+              (cond
+                (not (or (sysrev-dev? context) public?))
+                {:status 403
+                 :body "Forbidden"}
+
+                (not= (:content-hash (:path-params request)) (subs etag 0 21))
+                {:status 301
+                 :headers (cond-> {"Location" (content-url-path entity-id hash)}
+                            (and origin (allowed-origins origin))
+                            #__ (assoc "Access-Control-Allow-Origin" origin))}
+
+                :else
+                {:status 200
+                 :headers (cond-> {"Cache-Control" (if public?
+                                                     "public, max-age=315360000, immutable"
+                                                     "no-cache")
+                                   "Content-Type" (:mediaType entity)
+                                   "ETag" etag
+                                   "Last-Modified" (.format
+                                                    http-datetime-formatter
+                                                    (.toInstant ^Timestamp (:entity/created entity)))
+                                   "Vary" "Origin"}
+                            (and origin (allowed-origins origin))
+                            #__ (assoc "Access-Control-Allow-Origin" origin))
+                 :body (when (not= :head (:request-method request))
+                         (:content entity))}))))))))
 
 (defn get-existing-content-id [context {:keys [content-hash content-table]}]
   ((keyword (name content-table) "content-id")
@@ -440,11 +523,14 @@
                            :mediaType mediaType}))
 
 (defmethod create-dataset-entity! "application/json"
-  [context {{:keys [content metadata] :as input} :input} _]
+  [context {{:keys [content contentUpload metadata] :as input} :input} _]
   (ensure-sysrev-dev
    context
    (let [json (try
-                (json/parse-string content)
+                (json/parse-string
+                 (or content
+                     (when (string? contentUpload) contentUpload)
+                     (-> contentUpload :tempfile io/file slurp)))
                 (catch Exception e))]
      (if (empty? json)
        (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."})
@@ -463,70 +549,83 @@
       (str/split $ #"\s+")
       (str/join " " $)))
 
-(defn pdf-text [pdf tesseract]
-  (file-util/with-temp-file [path {:prefix "datapub-"
-                                   :suffix ".pdf"}]
-    (file-util/copy! (io/input-stream pdf) path
-                     #{:replace-existing})
-    (try
-      (pdf-read/with-PDDocument [doc (.toFile path)]
-        (let [text (condense-whitespace
-                    (pdf-read/get-text doc {:sort-by-position true}))]
-          (if-not (str/blank? text)
-            {:text text}
-            (when (:enabled? tesseract)
-              {:ocr-text
-               (let [tess (tesseract/tesseract
-                           {:data-path (System/getenv "TESSDATA_PREFIX")})]
-                 (->> doc pdf-read/->image-seq
-                      (map
-                       (fn [^BufferedImage image]
-                         (.doOCR tess image)))
-                      (apply str)
-                      condense-whitespace))}))))
-      (catch IOException e
-        (if (= "Error: Header doesn't contain versioninfo"
-               (.getMessage e))
-          :invalid-pdf
-          (throw e))))))
+(defn pdf-text [^Path path tesseract]
+  (try
+    (pdf-read/with-PDDocument [doc (.toFile path)]
+      (let [text (condense-whitespace
+                  (pdf-read/get-text doc {:sort-by-position true}))]
+        (if-not (str/blank? text)
+          {:text text}
+          (when (:enabled? tesseract)
+            {:ocr-text
+             (let [tess (tesseract/tesseract
+                         {:data-path (System/getenv "TESSDATA_PREFIX")})]
+               (->> doc pdf-read/->image-seq
+                    (map
+                     (fn [^BufferedImage image]
+                       (.doOCR tess image)))
+                    (apply str)
+                    condense-whitespace))}))))
+    (catch IOException e
+      (if (= "Error: Header doesn't contain versioninfo"
+             (.getMessage e))
+        :invalid-pdf
+        (throw e)))))
 
 (defmethod create-dataset-entity! "application/pdf"
-  [context {{:keys [content metadata] :as input} :input} _]
+  [context {{:keys [content contentUpload metadata] :as input} :input :as args} value]
   (ensure-sysrev-dev
    context
    (let [json (try
                 (when metadata (json/parse-string metadata))
-                (catch Exception e))]
-     (if (and metadata (empty? json))
+                (catch Exception _))
+         {:keys [path]} contentUpload]
+     (cond
+       (and content contentUpload)
+       (resolve/resolve-as nil {:message "Either content or contentUpload must be specified, but not both."})
+
+       (or content (string? contentUpload))
+       (let [pdf (try
+                   (.decode (Base64/getDecoder) (or ^String content ^String contentUpload))
+                   (catch Exception _))]
+         (if pdf
+           (file-util/with-temp-file [path {:prefix "datapub-"
+                                            :suffix ".pdf"}]
+             (file-util/copy! (io/input-stream pdf) path
+                              #{:replace-existing})
+             (create-dataset-entity!
+              context
+              (-> (update args :input dissoc :content)
+                  (assoc-in [:input :contentUpload] {:path path}))
+              value))
+           (resolve/resolve-as nil {:message "Invalid content: Not valid base64."})))
+
+       (and metadata (empty? json))
        (resolve/resolve-as nil {:message "Invalid metadata: Not valid JSON."
                                 :metadata metadata})
-       (let [pdf (try
-                   (.decode (Base64/getDecoder) ^String content)
-                   (catch Exception e))]
-         (if (empty? pdf)
-           (resolve/resolve-as nil {:message "Invalid content: Not valid base64."})
-           (let [file-hash (.digest (MessageDigest/getInstance "SHA3-256") pdf)]
-             ;; We put the file before parsing to minimize memory usage,
-             ;; since we can let go of the pdf byte array earlier.
+
+       :else
+       (let [text (pdf-text path (get-in context [:pedestal :config :tesseract]))]
+         (if (= :invalid-pdf text)
+           (resolve/resolve-as nil {:message (str "Invalid content or contentUpload: Not a valid PDF file.")})
+           (let [file-hash (file/file-sha3-256 path)
+                 data (->> (assoc text :metadata json)
+                           (me/remove-vals nil?))
+                 content-hash (-> {:data data
+                                   :file-hash
+                                   (.encode (Base64/getEncoder) file-hash)}
+                                  hasch/edn-hash
+                                  byte-array)]
              (file/put-entity-content! (get-in context [:pedestal :s3])
-                                       {:content pdf :file-hash file-hash})
-             (let [text (pdf-text pdf (get-in context [:pedestal :config :tesseract]))]
-               (if (= :invalid-pdf text)
-                 (resolve/resolve-as nil {:message "Invalid content: Not a valid PDF file."})
-                 (let [data (->> (assoc text :metadata json)
-                                 (me/remove-vals nil?))
-                       content-hash (-> {:data data
-                                         :file-hash
-                                         (.encode (Base64/getEncoder) file-hash)}
-                                        hasch/edn-hash
-                                        byte-array)]
-                   (with-tx-context [context context]
-                     (create-entity-helper!
-                      context input
-                      {:content-hash content-hash
-                       :content-table :content-file
-                       :data data
-                       :file-hash file-hash}))))))))))))
+                                       {:content (-> ^Path path .toUri .toURL .openStream)
+                                        :file-hash file-hash})
+             (with-tx-context [context context]
+               (create-entity-helper!
+                context input
+                {:content-hash content-hash
+                 :content-table :content-file
+                 :data data
+                 :file-hash file-hash})))))))))
 
 (defn dataset-entities-subscription [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds]} :input} source-stream]
   (ensure-sysrev-dev
@@ -750,10 +849,12 @@
   (cond
     (and uniqueExternalIds uniqueGroupingIds)
     (fail-subscription
+     source-stream
       {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."})
 
     (empty? (select-keys query search-dataset-query-keys))
     (fail-subscription
+     source-stream
      {:message (str "At least one of these keys must be set: "
                     (str/join search-dataset-query-keys))
       :query query})
@@ -762,6 +863,7 @@
              (with-tx-context [context context]
                (public-dataset? context datasetId))))
     (fail-subscription
+     source-stream
      {:datasetId datasetId
       :message "You are not authorized to access entities in that dataset."})
 

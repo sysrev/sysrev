@@ -30,19 +30,21 @@
 
 (defonce system (atom nil))
 
-(defn start! []
-  (swap! system #(component/start (or % (system-map (get-config))))))
+(defn start! [& [config]]
+  (swap! system #(component/start (or % (system-map
+                                         (or config (get-config)))))))
 
 (defn stop! []
   (swap! system component/stop))
 
-(defn reload! []
+(defn reload! [& [config]]
   (swap! system #(do (when % (component/stop %))
-                     (component/start (system-map (get-config))))))
+                     (component/start (system-map (or config (get-config)))))))
 
-(defn reload-with-fixtures! []
+(defn reload-with-fixtures! [& [config]]
   (let [system (swap! system #(do (when % (component/stop %))
-                                  (component/start (system-map (get-config)))))]
+                                  (component/start
+                                   (system-map (or config (get-config))))))]
     ((requiring-resolve 'datapub.test/load-ctgov-dataset!) system)
     system))
 

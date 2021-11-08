@@ -13,14 +13,27 @@
                     {:response graphql-response}))
     graphql-response))
 
-(defn execute! [& {:keys [auth-token endpoint query variables]}]
+(defn form-params-request [{:keys [auth-token query variables]}]
+  {:as :json
+   :content-type :json
+   :form-params {:query query :variables variables}
+   :headers {"Authorization" (str "Bearer " auth-token)}})
+
+(defn multipart-params-request
+  [{:keys [auth-token content content-object-path query variables]}]
+  {:as :json
+   :headers {"Authorization" (str "Bearer " auth-token)}
+   :multipart
+   [{:name "operations"
+     :content (json/generate-string {:query query :variables variables})}
+    {:name "map"
+     :content (json/generate-string {"0" content-object-path})}
+    {:name "0"
+     :content content}]})
+
+(defn execute-request! [{:keys [endpoint request]}]
   (-> (try
-        (http/post
-         endpoint
-         {:as :json
-          :content-type :json
-          :form-params {:query query :variables variables}
-          :headers {"Authorization" (str "Bearer " auth-token)}})
+        (http/post endpoint request)
         (catch ExceptionInfo e
           (let [{:keys [body status]} (ex-data e)]
             (if (not= 400 status)
@@ -47,9 +60,25 @@
       throw-errors
       :body))
 
+(defn execute! [& {:as opts}]
+  (execute-request!
+   (assoc opts :request (form-params-request opts))))
+
 (defn create-dataset-entity! [input return & {:keys [auth-token endpoint]}]
-  (-> (execute! :query (q/m-create-dataset-entity return) :variables {:input input}
-                :auth-token auth-token :endpoint endpoint)
+  (-> (execute-request!
+       {:endpoint endpoint
+        :request
+        (if (:contentUpload input)
+          (multipart-params-request
+           {:auth-token auth-token
+            :content (:contentUpload input)
+            :content-object-path ["variables.input.contentUpload"]
+            :query (q/m-create-dataset-entity return)
+            :variables {:input (dissoc input :contentUpload)}})
+          (form-params-request
+           {:auth-token auth-token
+            :query (q/m-create-dataset-entity return)
+            :variables {:input input}}))})
       :data :createDatasetEntity))
 
 (defn get-dataset [^Long id return & {:keys [auth-token endpoint]}]

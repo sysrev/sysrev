@@ -1,12 +1,16 @@
 (ns datapub.dataset-test
   (:require [cheshire.core :as json]
+            [clj-http.client :as client]
             [clojure.java.io :as io]
+            [clojure.test :refer :all]
+            [datapub.dataset :refer :all]
+            [datapub.file :as file]
             [datapub.test :as test]
             [sysrev.datapub-client.interface.queries :as dpcq])
-  (:import (java.util Base64)
-           (org.apache.commons.io IOUtils))
-  (:use clojure.test
-        datapub.dataset))
+  (:import java.io.InputStream
+           java.net.URL
+           java.util.Base64
+           org.apache.commons.io.IOUtils))
 
 (defn parse-json
   "Convert a String or PGObject to keywordized json.
@@ -537,9 +541,10 @@
                  (:id (create-entity "armstrong-thesis-2003-abstract.pdf"
                                      {:title "Armstrong Thesis Abstract2"}))))))
       (testing "Invalid PDFs are rejected"
-        (is (= "Invalid content: Not a valid PDF file."
-               (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
-                   (get-in [:response :errors 0 :message])))))
+        (is (re-matches
+             #"Invalid content.*: Not a valid PDF file."
+             (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
+                 (get-in [:response :errors 0 :message])))))
       (testing "Invalid metadata is rejected"
         (is (= "Invalid metadata: Not valid JSON."
                (-> (test/execute!
@@ -596,3 +601,57 @@
                    (ex-search! (search-q ocr-text "abacavir"))))
             (is (= #{{:externalId "020978_S016_ZIAGEN.pdf"}}
                    (ex-search! (search-q ocr-text "\"tanima sinha\""))))))))))
+
+(deftest test-file-uploads
+  (test/with-test-system [system {:config {:pedestal {:port 0}}}]
+    (let [api-url (str "http://localhost:" (get-in system [:pedestal :bound-port])
+                       "/api")
+          sysrev-dev-key (get-in system [:pedestal :opts :sysrev-dev-key])
+          ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-file-uploads"
+                                                              :public true}})
+                    (get-in [:data :createDataset :id]))
+          upload-entity! (fn [content mediaType]
+                           (-> {:headers {"Authorization" (str "Bearer " sysrev-dev-key)}
+                                :multipart
+                                [{:name "operations"
+                                  :content
+                                  (json/generate-string
+                                   {:query (dpcq/m-create-dataset-entity "content contentUrl id")
+                                    :variables
+                                    {:input
+                                     {:datasetId ds-id
+                                      :mediaType mediaType}}})}
+                                 {:name "map"
+                                  :content
+                                  (json/generate-string
+                                   {"0" ["variables.input.contentUpload"]})}
+                                 {:name "0"
+                                  :content content}]}
+                               (->> (client/post api-url))
+                               :body
+                               (json/parse-string keyword)
+                               test/throw-errors
+                               (get-in [:data :createDatasetEntity])))
+          upload-stream (fn [fname]
+                          (->> (str "datapub/file-uploads/" fname)
+                               io/resource
+                               .openStream))
+          sha3-256 (fn [^InputStream in]
+                     (-> in file/sha3-256
+                         (->> (.encode (Base64/getEncoder)))
+                         String.))]
+      (testing "JSON uploads through contentUpload work and can be retrieved at contentUrl"
+        (let [entity-a (upload-entity! (json/generate-string {"a" [0]}) "application/json")]
+          (is (pos-int? (:id entity-a)))
+          (is (string? (:contentUrl entity-a)))
+          (is (= {"a" [0]}
+                 (some-> entity-a :content json/parse-string)
+                 (some-> entity-a :contentUrl URL. .openStream slurp json/parse-string)))))
+      (testing "PDF uploads through contentUpload work and can be retrieved at contentUrl"
+        (let [armstrong (upload-entity! (upload-stream "armstrong-thesis-2003-abstract.pdf")
+                                        "application/pdf")]
+          (is (pos-int? (:id armstrong)))
+          (is (string? (:contentUrl armstrong)))
+          (is (= (sha3-256 (upload-stream "armstrong-thesis-2003-abstract.pdf"))
+                 (some-> armstrong :contentUrl URL. .openStream sha3-256))))))))

@@ -8,6 +8,7 @@
 scalar DateTime
 scalar NonNegativeInt
 scalar PositiveInt
+scalar Upload
 
 enum DatasetIndexType {
   TEXT
@@ -34,7 +35,6 @@ type Dataset {
     groupingId: String
   ): DatasetEntitiesConnection!
 
-
   "The indices on the DatasetEntity objects of this Dataset."
   indices: [DatasetIndex]
 
@@ -60,8 +60,11 @@ type DatasetEntity {
   "The unique id."
   id: PositiveInt!
 
-  "The string representation of the content."
-  content: String!
+  "The string representation of the content. This will be null when the content is large. Use contentUrl in that case."
+  content: String
+
+  "A url at which the entity content can be accessed."
+  contentUrl: String!
 
   "The datetime the source data was created. Used to determine which entity to return when there are multiple entities with the same externalId and uniqueExternalIds is true."
   externalCreated: DateTime
@@ -105,7 +108,8 @@ type PageInfo {
 }
 
 input CreateDatasetEntityInput {
-  content: String!
+  content: String
+  contentUpload: Upload
   datasetId: PositiveInt!
   externalCreated: DateTime
   externalId: String

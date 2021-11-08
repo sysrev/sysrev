@@ -4,9 +4,26 @@
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
             [com.stuartsierra.component :as component])
-  (:import (java.util Base64)))
+  (:import java.io.InputStream
+           java.nio.file.Path
+           java.security.MessageDigest
+           java.util.Base64))
 
 (set! *warn-on-reflection* true)
+
+(defn sha3-256 ^bytes [^InputStream in]
+  (let [md (MessageDigest/getInstance "SHA3-256")
+        buffer (byte-array 8192)]
+    (loop []
+      (let [bytes-read (.read in buffer)]
+        (if (pos? bytes-read)
+          (do
+            (.update md buffer 0 bytes-read)
+            (recur))
+          (.digest md))))))
+
+(defn file-sha3-256 ^bytes [^Path path]
+  (-> path .toUri .toURL .openStream sha3-256))
 
 (defrecord AwsClient [after-start client client-opts]
   component/Lifecycle

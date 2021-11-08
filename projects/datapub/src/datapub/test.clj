@@ -8,9 +8,10 @@
             [com.walmartlabs.lacinia.selection :as selection]
             [datapub.main :as main]
             [io.pedestal.test :as test]
+            [medley.core :as medley]
             [sysrev.datapub-client.interface.queries :as dpcq])
-  (:import (java.util Base64)
-           (org.apache.commons.io IOUtils)))
+  (:import java.util.Base64
+           org.apache.commons.io.IOUtils))
 
 (defn run-tests [opts]
   ;; https://clojureverse.org/t/why-doesnt-my-program-exit/3754/8
@@ -74,10 +75,11 @@
 (defmacro with-test-system [[name-sym options] & body]
   `(let [options# ~options
          system# (-> (main/get-config)
-                     (assoc :env (:env options# :test))
                      (update :pedestal dissoc :port)
                      (update :postgres assoc :embedded? true :host "localhost"
                              :port 0 :user "postgres" :password nil)
+                     (medley/deep-merge (-> (:config options#)
+                                            (update :env #(or % :test))))
                      ((:get-system-map options# main/system-map))
                      component/start)
          ~name-sym system#]
@@ -96,12 +98,13 @@
       (get-in [:data :createDataset :id])))
 
 (def ctgov-indices
-  [[:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
+  [[:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]
+   [:TEXT ["ProtocolSection" "ConditionsModule" "ConditionList" "Condition" :*]]
    [:TEXT ["ProtocolSection" "DescriptionModule" "BriefSummary"]]
    [:TEXT ["ProtocolSection" "DescriptionModule" "DetailedDescription"]]
    [:TEXT ["ProtocolSection" "IdentificationModule" "BriefTitle"]]
-   [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]
-   [:TEXT ["ProtocolSection" "ArmsInterventionsModule" "InterventionList" "Intervention" :* "InterventionName"]]])
+   [:TEXT ["ProtocolSection" "IdentificationModule" "NCTId"]]
+   [:TEXT ["ProtocolSection" "IdentificationModule" "OfficialTitle"]]])
 
 (defn load-ctgov-dataset! [system & [dataset-id]]
   (let [ds-id (or dataset-id

@@ -12,7 +12,9 @@
    :variables variables))
 
 (defn create-dataset-entity!
-  "Create a DatasetEntity."
+  "Create a DatasetEntity.
+
+  (:contentUpload input) may be a String, InputStream, File, or a byte-array."
   [input return & {:keys [auth-token endpoint]}]
   (core/create-dataset-entity!
    input return

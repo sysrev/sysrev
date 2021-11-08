@@ -8,9 +8,7 @@
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.fda-drugs.interface :as fda-drugs]
             [sysrev.file-util.interface :as file-util]
-            [sysrev.sqlite.interface :as sqlite])
-  (:import (java.util Base64)
-           (org.apache.commons.io IOUtils)))
+            [sysrev.sqlite.interface :as sqlite]))
 
 (defn canonical-url
   "Lower-cases the URL and forces https://.
@@ -128,9 +126,7 @@
     (case content-type
       "application/pdf"
       (->> (dpc/create-dataset-entity!
-            {:content (->> body
-                           IOUtils/toByteArray
-                           (.encodeToString (Base64/getEncoder)))
+            {:contentUpload body
              :datasetId dataset-id
              :externalCreated (convert-date (:ApplicationDocsDate doc))
              :externalId doc-url
@@ -166,9 +162,7 @@
     (case content-type
       "application/pdf"
       (->> (dpc/create-dataset-entity!
-            {:content (->> body
-                           IOUtils/toByteArray
-                           (.encodeToString (Base64/getEncoder)))
+            {:contentUpload body
              :datasetId dataset-id
              :externalCreated (convert-date (:ApplicationDocsDate doc))
              :externalId url
@@ -222,9 +216,11 @@
 
 (def review-type
   {#{"chemistry review(s)"} "chemistry review"
+   #{"integrated review"} "integrated review"
    #{"medical review(s)"} "medical review"
    #{"microbiology review"} "microbiology review"
    #{"microbiology review(s)"} "microbiology review"
+   #{"multi-discipline review"} "multi-discipline review"
    #{"pharmacology review(s)"} "pharmacology review"
    #{"proprietary name review(s)"} "proprietary name review"
    #{"risk assessment and risk mitigation review(s)"} "risk assessment and risk mitigation review"
