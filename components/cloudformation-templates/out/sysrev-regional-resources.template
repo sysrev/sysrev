@@ -1,0 +1,735 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Conditions" : {
+    "3AZs" : {
+      "Fn::Or" : [ {
+        "Fn::Equals" : [ 3, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      }, {
+        "Fn::Equals" : [ 4, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      }, {
+        "Fn::Equals" : [ 5, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      }, {
+        "Fn::Equals" : [ 6, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      } ]
+    },
+    "4AZs" : {
+      "Fn::Or" : [ {
+        "Fn::Equals" : [ 4, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      }, {
+        "Fn::Equals" : [ 5, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      }, {
+        "Fn::Equals" : [ 6, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      } ]
+    },
+    "5AZs" : {
+      "Fn::Or" : [ {
+        "Fn::Equals" : [ 5, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      }, {
+        "Fn::Equals" : [ 6, {
+          "Ref" : "NumberOfAZs"
+        } ]
+      } ]
+    },
+    "6AZs" : {
+      "Fn::Equals" : [ 6, {
+        "Ref" : "NumberOfAZs"
+      } ]
+    }
+  },
+  "Description" : "This template creates the regional resources needed by Sysrev services.",
+  "Outputs" : {
+    "DatapubDomainName" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-DatapubDomainName"
+        }
+      },
+      "Value" : {
+        "Ref" : "DatapubDomainName"
+      }
+    },
+    "DatapubHostedZoneId" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-DatapubHostedZoneId"
+        }
+      },
+      "Value" : {
+        "Ref" : "DatapubHostedZoneId"
+      }
+    },
+    "LoadBalancerArn" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-LoadBalancerArn"
+        }
+      },
+      "Value" : {
+        "Ref" : "LoadBalancer"
+      }
+    },
+    "LoadBalancerCanonicalHostedZoneId" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-LoadBalancerCanonicalHostedZoneId"
+        }
+      },
+      "Value" : {
+        "Fn::GetAtt" : [ "LoadBalancer", "CanonicalHostedZoneID" ]
+      }
+    },
+    "LoadBalancerDNSName" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-LoadBalancerDNSName"
+        }
+      },
+      "Value" : {
+        "Fn::GetAtt" : [ "LoadBalancer", "DNSName" ]
+      }
+    },
+    "LoadBalancerHTTPSListenerArn" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-LoadBalancerHTTPSListenerArn"
+        }
+      },
+      "Value" : {
+        "Ref" : "LoadBalancerHTTPSListener"
+      }
+    },
+    "LoadBalancerSecurityGroupId" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-LoadBalancerSecurityGroupId"
+        }
+      },
+      "Value" : {
+        "Ref" : "LoadBalancerSecurityGroup"
+      }
+    },
+    "VpcId" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-VpcId"
+        }
+      },
+      "Value" : {
+        "Ref" : "Vpc"
+      }
+    },
+    "VpcSubnetIds" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-VpcSubnetIds"
+        }
+      },
+      "Value" : {
+        "Fn::Join" : [ ",", {
+          "Fn::If" : [ "6AZs", [ {
+            "Ref" : "SubnetA"
+          }, {
+            "Ref" : "SubnetB"
+          }, {
+            "Ref" : "SubnetC"
+          }, {
+            "Ref" : "SubnetD"
+          }, {
+            "Ref" : "SubnetE"
+          }, {
+            "Ref" : "SubnetF"
+          } ], {
+            "Fn::If" : [ "5AZs", [ {
+              "Ref" : "SubnetA"
+            }, {
+              "Ref" : "SubnetB"
+            }, {
+              "Ref" : "SubnetC"
+            }, {
+              "Ref" : "SubnetD"
+            }, {
+              "Ref" : "SubnetE"
+            } ], {
+              "Fn::If" : [ "4AZs", [ {
+                "Ref" : "SubnetA"
+              }, {
+                "Ref" : "SubnetB"
+              }, {
+                "Ref" : "SubnetC"
+              }, {
+                "Ref" : "SubnetD"
+              } ], {
+                "Fn::If" : [ "3AZs", [ {
+                  "Ref" : "SubnetA"
+                }, {
+                  "Ref" : "SubnetB"
+                }, {
+                  "Ref" : "SubnetC"
+                } ], [ {
+                  "Ref" : "SubnetA"
+                }, {
+                  "Ref" : "SubnetB"
+                } ] ]
+              } ]
+            } ]
+          } ]
+        } ]
+      }
+    }
+  },
+  "Parameters" : {
+    "DatapubDomainName" : {
+      "Type" : "String"
+    },
+    "DatapubHostedZoneId" : {
+      "Type" : "AWS::Route53::HostedZone::Id"
+    },
+    "NumberOfAZs" : {
+      "Default" : 3,
+      "MaxValue" : 6,
+      "MinValue" : 2,
+      "Type" : "Number"
+    }
+  },
+  "Resources" : {
+    "CredentialsKey" : {
+      "Properties" : {
+        "KeyPolicy" : {
+          "Statement" : {
+            "Action" : "kms:*",
+            "Effect" : "Allow",
+            "Principal" : {
+              "AWS" : {
+                "Fn::Sub" : "arn:aws:iam::${AWS::AccountId}:root"
+              }
+            },
+            "Resource" : "*"
+          },
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::KMS::Key"
+    },
+    "CredentialsKeyAlias" : {
+      "Properties" : {
+        "AliasName" : "alias/Sysrev-Credentials-Key",
+        "TargetKeyId" : {
+          "Ref" : "CredentialsKey"
+        }
+      },
+      "Type" : "AWS::KMS::Alias"
+    },
+    "CredentialsKeyUsePolicy" : {
+      "Properties" : {
+        "PolicyDocument" : {
+          "Statement" : {
+            "Action" : [ "kms:Encrypt", "kms:Decrypt" ],
+            "Effect" : "Allow",
+            "Resource" : [ {
+              "Fn::Join" : [ "", [ "arn:aws:kms:", {
+                "Ref" : "AWS::Region"
+              }, ":", {
+                "Ref" : "AWS::AccountId"
+              }, ":key/", {
+                "Ref" : "CredentialsKey"
+              } ] ]
+            } ]
+          },
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
+    },
+    "DatapubCertificate" : {
+      "Properties" : {
+        "DomainName" : {
+          "Ref" : "DatapubDomainName"
+        },
+        "DomainValidationOptions" : [ {
+          "DomainName" : {
+            "Ref" : "DatapubDomainName"
+          },
+          "HostedZoneId" : {
+            "Ref" : "DatapubHostedZoneId"
+          }
+        } ],
+        "ValidationMethod" : "DNS"
+      },
+      "Type" : "AWS::CertificateManager::Certificate"
+    },
+    "GatewayAttachment" : {
+      "Properties" : {
+        "InternetGatewayId" : {
+          "Ref" : "InternetGateway"
+        },
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::VPCGatewayAttachment"
+    },
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway"
+    },
+    "InternetRouteIpv4" : {
+      "Properties" : {
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : {
+          "Ref" : "InternetGateway"
+        },
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        }
+      },
+      "Type" : "AWS::EC2::Route"
+    },
+    "InternetRouteIpv6" : {
+      "Properties" : {
+        "DestinationIpv6CidrBlock" : "::/0",
+        "GatewayId" : {
+          "Ref" : "InternetGateway"
+        },
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        }
+      },
+      "Type" : "AWS::EC2::Route"
+    },
+    "LoadBalancer" : {
+      "Properties" : {
+        "IpAddressType" : "dualstack",
+        "SecurityGroups" : [ {
+          "Fn::GetAtt" : [ "Vpc", "DefaultSecurityGroup" ]
+        }, {
+          "Ref" : "LoadBalancerSecurityGroup"
+        } ],
+        "Subnets" : {
+          "Fn::If" : [ "6AZs", [ {
+            "Ref" : "SubnetA"
+          }, {
+            "Ref" : "SubnetB"
+          }, {
+            "Ref" : "SubnetC"
+          }, {
+            "Ref" : "SubnetD"
+          }, {
+            "Ref" : "SubnetE"
+          }, {
+            "Ref" : "SubnetF"
+          } ], {
+            "Fn::If" : [ "5AZs", [ {
+              "Ref" : "SubnetA"
+            }, {
+              "Ref" : "SubnetB"
+            }, {
+              "Ref" : "SubnetC"
+            }, {
+              "Ref" : "SubnetD"
+            }, {
+              "Ref" : "SubnetE"
+            } ], {
+              "Fn::If" : [ "4AZs", [ {
+                "Ref" : "SubnetA"
+              }, {
+                "Ref" : "SubnetB"
+              }, {
+                "Ref" : "SubnetC"
+              }, {
+                "Ref" : "SubnetD"
+              } ], {
+                "Fn::If" : [ "3AZs", [ {
+                  "Ref" : "SubnetA"
+                }, {
+                  "Ref" : "SubnetB"
+                }, {
+                  "Ref" : "SubnetC"
+                } ], [ {
+                  "Ref" : "SubnetA"
+                }, {
+                  "Ref" : "SubnetB"
+                } ] ]
+              } ]
+            } ]
+          } ]
+        },
+        "Type" : "application"
+      },
+      "Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    },
+    "LoadBalancerHTTPListener" : {
+      "Properties" : {
+        "DefaultActions" : [ {
+          "RedirectConfig" : {
+            "Host" : "#{host}",
+            "Path" : "/#{path}",
+            "Port" : "443",
+            "Protocol" : "HTTPS",
+            "Query" : "#{query}",
+            "StatusCode" : "HTTP_301"
+          },
+          "Type" : "redirect"
+        } ],
+        "LoadBalancerArn" : {
+          "Ref" : "LoadBalancer"
+        },
+        "Port" : 80,
+        "Protocol" : "HTTP"
+      },
+      "Type" : "AWS::ElasticLoadBalancingV2::Listener"
+    },
+    "LoadBalancerHTTPSListener" : {
+      "Properties" : {
+        "Certificates" : [ {
+          "CertificateArn" : {
+            "Ref" : "DatapubCertificate"
+          }
+        } ],
+        "DefaultActions" : [ {
+          "FixedResponseConfig" : {
+            "ContentType" : "text/plain",
+            "MessageBody" : "503 Service Unavailable\n\nNo targets configured for this domain.",
+            "StatusCode" : "503"
+          },
+          "Type" : "fixed-response"
+        } ],
+        "LoadBalancerArn" : {
+          "Ref" : "LoadBalancer"
+        },
+        "Port" : 443,
+        "Protocol" : "HTTPS"
+      },
+      "Type" : "AWS::ElasticLoadBalancingV2::Listener"
+    },
+    "LoadBalancerSecurityGroup" : {
+      "Properties" : {
+        "GroupDescription" : "HTTP/S ALBs",
+        "SecurityGroupIngress" : [ {
+          "CidrIp" : "0.0.0.0/0",
+          "FromPort" : 80,
+          "IpProtocol" : "tcp",
+          "ToPort" : 80
+        }, {
+          "CidrIpv6" : "::/0",
+          "FromPort" : 80,
+          "IpProtocol" : "tcp",
+          "ToPort" : 80
+        }, {
+          "CidrIp" : "0.0.0.0/0",
+          "FromPort" : 443,
+          "IpProtocol" : "tcp",
+          "ToPort" : 443
+        }, {
+          "CidrIpv6" : "::/0",
+          "FromPort" : 443,
+          "IpProtocol" : "tcp",
+          "ToPort" : 443
+        } ],
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::SecurityGroup"
+    },
+    "RouteTable" : {
+      "Properties" : {
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::RouteTable"
+    },
+    "SubnetA" : {
+      "DependsOn" : "VpcIpv6CidrBlock",
+      "Properties" : {
+        "AvailabilityZone" : {
+          "Fn::Select" : [ 0, {
+            "Fn::GetAZs" : ""
+          } ]
+        },
+        "CidrBlock" : {
+          "Fn::Select" : [ 0, {
+            "Fn::Cidr" : [ {
+              "Fn::GetAtt" : [ "Vpc", "CidrBlock" ]
+            }, 6, 12 ]
+          } ]
+        },
+        "Ipv6CidrBlock" : {
+          "Fn::Select" : [ 0, {
+            "Fn::Cidr" : [ {
+              "Fn::Select" : [ 0, {
+                "Fn::GetAtt" : [ "Vpc", "Ipv6CidrBlocks" ]
+              } ]
+            }, 6, 64 ]
+          } ]
+        },
+        "MapPublicIpOnLaunch" : true,
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::Subnet"
+    },
+    "SubnetARouteTableAssociation" : {
+      "Properties" : {
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        },
+        "SubnetId" : {
+          "Ref" : "SubnetA"
+        }
+      },
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "SubnetB" : {
+      "DependsOn" : "VpcIpv6CidrBlock",
+      "Properties" : {
+        "AvailabilityZone" : {
+          "Fn::Select" : [ 1, {
+            "Fn::GetAZs" : ""
+          } ]
+        },
+        "CidrBlock" : {
+          "Fn::Select" : [ 1, {
+            "Fn::Cidr" : [ {
+              "Fn::GetAtt" : [ "Vpc", "CidrBlock" ]
+            }, 6, 12 ]
+          } ]
+        },
+        "Ipv6CidrBlock" : {
+          "Fn::Select" : [ 1, {
+            "Fn::Cidr" : [ {
+              "Fn::Select" : [ 0, {
+                "Fn::GetAtt" : [ "Vpc", "Ipv6CidrBlocks" ]
+              } ]
+            }, 6, 64 ]
+          } ]
+        },
+        "MapPublicIpOnLaunch" : true,
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::Subnet"
+    },
+    "SubnetBRouteTableAssociation" : {
+      "Properties" : {
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        },
+        "SubnetId" : {
+          "Ref" : "SubnetB"
+        }
+      },
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "SubnetC" : {
+      "Condition" : "3AZs",
+      "DependsOn" : "VpcIpv6CidrBlock",
+      "Properties" : {
+        "AvailabilityZone" : {
+          "Fn::Select" : [ 2, {
+            "Fn::GetAZs" : ""
+          } ]
+        },
+        "CidrBlock" : {
+          "Fn::Select" : [ 2, {
+            "Fn::Cidr" : [ {
+              "Fn::GetAtt" : [ "Vpc", "CidrBlock" ]
+            }, 6, 12 ]
+          } ]
+        },
+        "Ipv6CidrBlock" : {
+          "Fn::Select" : [ 2, {
+            "Fn::Cidr" : [ {
+              "Fn::Select" : [ 0, {
+                "Fn::GetAtt" : [ "Vpc", "Ipv6CidrBlocks" ]
+              } ]
+            }, 6, 64 ]
+          } ]
+        },
+        "MapPublicIpOnLaunch" : true,
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::Subnet"
+    },
+    "SubnetCRouteTableAssociation" : {
+      "Condition" : "3AZs",
+      "Properties" : {
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        },
+        "SubnetId" : {
+          "Ref" : "SubnetC"
+        }
+      },
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "SubnetD" : {
+      "Condition" : "4AZs",
+      "DependsOn" : "VpcIpv6CidrBlock",
+      "Properties" : {
+        "AvailabilityZone" : {
+          "Fn::Select" : [ 3, {
+            "Fn::GetAZs" : ""
+          } ]
+        },
+        "CidrBlock" : {
+          "Fn::Select" : [ 3, {
+            "Fn::Cidr" : [ {
+              "Fn::GetAtt" : [ "Vpc", "CidrBlock" ]
+            }, 6, 12 ]
+          } ]
+        },
+        "Ipv6CidrBlock" : {
+          "Fn::Select" : [ 3, {
+            "Fn::Cidr" : [ {
+              "Fn::Select" : [ 0, {
+                "Fn::GetAtt" : [ "Vpc", "Ipv6CidrBlocks" ]
+              } ]
+            }, 6, 64 ]
+          } ]
+        },
+        "MapPublicIpOnLaunch" : true,
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::Subnet"
+    },
+    "SubnetDRouteTableAssociation" : {
+      "Condition" : "4AZs",
+      "Properties" : {
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        },
+        "SubnetId" : {
+          "Ref" : "SubnetD"
+        }
+      },
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "SubnetE" : {
+      "Condition" : "5AZs",
+      "DependsOn" : "VpcIpv6CidrBlock",
+      "Properties" : {
+        "AvailabilityZone" : {
+          "Fn::Select" : [ 4, {
+            "Fn::GetAZs" : ""
+          } ]
+        },
+        "CidrBlock" : {
+          "Fn::Select" : [ 4, {
+            "Fn::Cidr" : [ {
+              "Fn::GetAtt" : [ "Vpc", "CidrBlock" ]
+            }, 6, 12 ]
+          } ]
+        },
+        "Ipv6CidrBlock" : {
+          "Fn::Select" : [ 4, {
+            "Fn::Cidr" : [ {
+              "Fn::Select" : [ 0, {
+                "Fn::GetAtt" : [ "Vpc", "Ipv6CidrBlocks" ]
+              } ]
+            }, 6, 64 ]
+          } ]
+        },
+        "MapPublicIpOnLaunch" : true,
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::Subnet"
+    },
+    "SubnetERouteTableAssociation" : {
+      "Condition" : "5AZs",
+      "Properties" : {
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        },
+        "SubnetId" : {
+          "Ref" : "SubnetE"
+        }
+      },
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "SubnetF" : {
+      "Condition" : "6AZs",
+      "DependsOn" : "VpcIpv6CidrBlock",
+      "Properties" : {
+        "AvailabilityZone" : {
+          "Fn::Select" : [ 5, {
+            "Fn::GetAZs" : ""
+          } ]
+        },
+        "CidrBlock" : {
+          "Fn::Select" : [ 5, {
+            "Fn::Cidr" : [ {
+              "Fn::GetAtt" : [ "Vpc", "CidrBlock" ]
+            }, 6, 12 ]
+          } ]
+        },
+        "Ipv6CidrBlock" : {
+          "Fn::Select" : [ 5, {
+            "Fn::Cidr" : [ {
+              "Fn::Select" : [ 0, {
+                "Fn::GetAtt" : [ "Vpc", "Ipv6CidrBlocks" ]
+              } ]
+            }, 6, 64 ]
+          } ]
+        },
+        "MapPublicIpOnLaunch" : true,
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::Subnet"
+    },
+    "SubnetFRouteTableAssociation" : {
+      "Condition" : "6AZs",
+      "Properties" : {
+        "RouteTableId" : {
+          "Ref" : "RouteTable"
+        },
+        "SubnetId" : {
+          "Ref" : "SubnetF"
+        }
+      },
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "Vpc" : {
+      "Properties" : {
+        "CidrBlock" : "10.0.0.0/16",
+        "EnableDnsHostnames" : true,
+        "EnableDnsSupport" : true
+      },
+      "Type" : "AWS::EC2::VPC"
+    },
+    "VpcIpv6CidrBlock" : {
+      "Properties" : {
+        "AmazonProvidedIpv6CidrBlock" : true,
+        "VpcId" : {
+          "Ref" : "Vpc"
+        }
+      },
+      "Type" : "AWS::EC2::VPCCidrBlock"
+    }
+  }
+}

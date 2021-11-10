@@ -1,0 +1,34 @@
+name: "Deploy CloudFormation Regional Resources Stack"
+
+concurrency: sysrev-cloudformation
+
+on:
+  push:
+    branches:
+      - cloudformation
+    paths:
+      - '.github/workflows/cloudformation.yml'
+      - 'components/cloudformation-templates/out/sysrev-regional-resources.template'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS dev credentials
+        if: github.ref_name == 'cloudformation'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: us-east-1
+
+      - name: Deploy Sysrev-Regional-Resources template
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        with:
+          name: Sysrev-Regional-Resources
+          no-fail-on-empty-changeset: '1'
+          parameter-overrides: DatapubDomainName=datapub.sysrevdev.net,DatapubHostedZoneId=Z01310163M0NHSJUCFG3V,NumberOfAZs=6
+          template: components/cloudformation-templates/out/sysrev-regional-resources.template
+

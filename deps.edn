@@ -136,6 +136,7 @@
                      org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
+                     sysrev/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      sysrev/datapub {:local/root "projects/datapub"}
                      sysrev/datapub-import {:local/root "components/datapub-import"}
                      sysrev/datapub-test {:local/root "projects/datapub/datapub-test"}
