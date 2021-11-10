@@ -261,6 +261,10 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                         :options
                         #(cors-preflight % (allowed-origins env))
                         :route-name ::DatasetEntity-content-cors-preflight]
+                       ["/health"
+                        :get
+                        (constantly {:status 200 :headers {} :body ""})
+                        :route-name ::health-check]
                        ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env
