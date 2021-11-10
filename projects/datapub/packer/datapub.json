@@ -1,0 +1,88 @@
+{
+  "variables": {
+    "uuid": ""
+  },
+  "builders": [
+    {
+      "ami_name": "Datapub {{timestamp}}",
+      "instance_type": "t3a.large",
+      "launch_block_device_mappings": [
+        {
+          "delete_on_termination": true,
+          "device_name": "/dev/xvda",
+          "volume_size": 15,
+          "volume_type": "gp3"
+        }
+      ],
+      "region": "us-east-1",
+      "shutdown_behavior": "terminate",
+      "source_ami_filter": {
+        "filters": {
+          "state": "available",
+          "tag:sysrev:build:name": "datapub"
+        },
+        "most_recent": true,
+        "owners": [
+          "self"
+        ]
+      },
+      "ssh_username": "root",
+      "tags": {
+        "sysrev:build:name": "datapub",
+        "sysrev:build:uuid": "{{user `uuid`}}"
+      },
+      "type": "amazon-ebs"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": "./configuration.nix",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "file",
+      "source": "./datapub-service.nix",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "file",
+      "source": "../default.nix",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "file",
+      "source": "../docker-compose-dev.yml",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "file",
+      "source": "./run.sh",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "file",
+      "source": "../target/datapub.jar",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "nix-collect-garbage -d",
+        "rm -rf /home/admin",
+        "mv /tmp/configuration.nix /tmp/datapub-service.nix /etc/nixos/",
+        "nixos-rebuild switch --upgrade",
+        "python3 -m venv /root/.venv",
+        "source /root/.venv/bin/activate",
+        "pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz",
+        "mkdir -p /home/admin/datapub/src",
+        "mv /tmp/default.nix /tmp/datapub.jar /tmp/docker-compose-dev.yml /tmp/run.sh /home/admin/datapub",
+        "chown -R admin:admin /home/admin/datapub",
+        "chmod +x /home/admin/datapub/run.sh",
+        "rm -rf /etc/ec2-metadata /etc/ssh/ssh_host_* /root/.ssh",
+        "cd /home/admin/datapub",
+        "sudo -u admin nix-build"
+      ]
+    }
+  ]
+}

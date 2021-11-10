@@ -30,6 +30,7 @@ in with pkgs;
       (clojure.override { jdk = jdk; })
       glibcLocales # postgres and rlwrap (used by clj) need this
       jdk
+      packer
       postgresql_13
       tessdata_best
       tesseract4
