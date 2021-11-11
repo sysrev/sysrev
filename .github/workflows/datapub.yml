@@ -1,0 +1,93 @@
+name: "Test and Build Datapub"
+
+concurrency: sysrev-cloudformation
+
+on:
+  push:
+    branches:
+      - cloudformation
+    paths:
+      - '.github/workflows/datapub.yml'
+      - 'components/cloudformation-templates/out/datapub.template'
+      - 'projects/datapub/**'
+      - '!**.md'
+
+jobs:
+  datapub:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Cache Clojure dependencies
+        uses: actions/cache@v2
+        with:
+          key: clj-datapub-${{ hashFiles('**/deps.edn') }}
+          restore-keys: clj-datapub-
+          path: |
+            ~/.gitlibs
+            ~/.m2/repository
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v14.1
+
+      - name: Cache Nix store
+        id: nix-cache
+        uses: john-shaffer/cache@sudo-tar
+        with:
+          key: nix-datapub-${{ hashFiles('**.nix') }}
+          restore-keys: nix-datapub-
+          path: |
+            ~/nix-db-dump
+            /nix/store
+            /nix/var/nix/profiles
+
+      - run: sudo /nix/var/nix/profiles/default/bin/nix-store --load-db < ~/nix-db-dump
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+
+      - run: nix-build -A inputDerivation -o gcroots
+        working-directory: projects/datapub
+
+      - name: Run tests
+        run: |
+          sudo chown runner:runner /run/postgresql
+          nix-shell --run "bash test.sh"
+        timeout-minutes: 5
+        working-directory: projects/datapub
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Build datapub uberjar
+        if: github.ref_name == 'cloudformation'
+        run: nix-shell --run "clojure -X:uberjar-staging"
+        working-directory: projects/datapub
+
+      - name: Configure AWS dev credentials
+        if: github.ref_name == 'cloudformation'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: us-east-1
+
+      - name: Build datapub AMI
+        run: |
+          export UUID=$(uuidgen)
+          nix-shell ../default.nix --run "packer build -var git-ref=$GITHUB_REF -var git-sha=$GITHUB_SHA -var uuid=$UUID datapub.json"
+          export AMI=$(aws ec2 describe-images --filters Name='tag:sysrev:build:uuid',Values=$UUID --query 'Images[0].ImageId' --output text)
+          echo "AMI=$AMI" >> $GITHUB_ENV
+        working-directory: projects/datapub/packer
+
+      - name: Deploy datapub CloudFormation stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        with:
+          name: Datapub
+          no-fail-on-empty-changeset: '1'
+          parameter-overrides: "AMI=${{ env.AMI }}"
+          template: components/cloudformation-templates/out/datapub.template
+
+      - run: |
+          sudo nix-collect-garbage -d
+          nix-store --dump-db > ~/nix-db-dump
+        if: steps.nix-cache.outputs.cache-hit != 'true'

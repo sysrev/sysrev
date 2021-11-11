@@ -43,6 +43,8 @@
            :repl {:extra-deps {cider/cider-nrepl {:mvn/version "0.27.2"}
                                nrepl/nrepl {:mvn/version "0.8.3"}}
                   :exec-fn datapub.repl/run-with-fixtures!}
+           :staging {:extra-paths ["config/staging"]
+                     :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}}}
            :test {:extra-paths ["test" "config/test"]
                   :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}
                                sysrev/datapub-client {:local/root "../../components/datapub-client"}}
@@ -50,4 +52,8 @@
            :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
                      :exec-fn hf.depstar/uberjar
                      :exec-args {:aliases [:prod]
-                                 :jar "target/datapub.jar"}}}}
+                                 :jar "target/datapub.jar"}}
+           :uberjar-staging {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+                             :exec-fn hf.depstar/uberjar
+                             :exec-args {:aliases [:staging]
+                                         :jar "target/datapub.jar"}}}}

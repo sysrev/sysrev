@@ -1,0 +1,226 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "This template creates the Datapub AutoScalingGroup.",
+  "Parameters" : {
+    "AMI" : {
+      "Type" : "AWS::EC2::Image::Id"
+    }
+  },
+  "Resources" : {
+    "AutoScalingGroup" : {
+      "CreationPolicy" : {
+        "AutoScalingCreationPolicy" : {
+          "MinSuccessfulInstancesPercent" : 90
+        },
+        "ResourceSignal" : {
+          "Timeout" : "PT5M"
+        }
+      },
+      "Properties" : {
+        "Cooldown" : "30",
+        "HealthCheckGracePeriod" : 300,
+        "HealthCheckType" : "ELB",
+        "LaunchTemplate" : {
+          "LaunchTemplateId" : {
+            "Ref" : "LaunchTemplate"
+          },
+          "Version" : {
+            "Fn::GetAtt" : [ "LaunchTemplate", "LatestVersionNumber" ]
+          }
+        },
+        "MaxSize" : "2",
+        "MinSize" : "1",
+        "Tags" : [ {
+          "Key" : "Name",
+          "PropagateAtLaunch" : true,
+          "Value" : "Datapub"
+        } ],
+        "TargetGroupARNs" : [ {
+          "Ref" : "LoadBalancerTargetGroup"
+        } ],
+        "VPCZoneIdentifier" : {
+          "Fn::Split" : [ ",", {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcSubnetIds"
+          } ]
+        }
+      },
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "UpdatePolicy" : {
+        "AutoScalingReplacingUpdate" : {
+          "WillReplace" : true
+        }
+      }
+    },
+    "AutoScalingPolicy" : {
+      "Properties" : {
+        "AutoScalingGroupName" : {
+          "Ref" : "AutoScalingGroup"
+        },
+        "PolicyType" : "TargetTrackingScaling",
+        "TargetTrackingConfiguration" : {
+          "PredefinedMetricSpecification" : {
+            "PredefinedMetricType" : "ASGAverageCPUUtilization"
+          },
+          "TargetValue" : 50.0
+        }
+      },
+      "Type" : "AWS::AutoScaling::ScalingPolicy"
+    },
+    "InstanceProfile" : {
+      "Properties" : {
+        "Path" : "/Sysrev/Datapub/",
+        "Roles" : [ {
+          "Ref" : "InstanceRole"
+        } ]
+      },
+      "Type" : "AWS::IAM::InstanceProfile"
+    },
+    "InstanceRole" : {
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Statement" : [ {
+            "Action" : [ "sts:AssumeRole" ],
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : [ "ec2.amazonaws.com" ]
+            }
+          } ],
+          "Version" : "2012-10-17"
+        },
+        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore" ],
+        "Path" : "/Sysrev/Datapub/"
+      },
+      "Type" : "AWS::IAM::Role"
+    },
+    "LaunchTemplate" : {
+      "Properties" : {
+        "LaunchTemplateData" : {
+          "BlockDeviceMappings" : [ {
+            "DeviceName" : "/dev/xvda",
+            "Ebs" : {
+              "DeleteOnTermination" : true,
+              "Encrypted" : true,
+              "VolumeType" : "gp3"
+            }
+          } ],
+          "IamInstanceProfile" : {
+            "Arn" : {
+              "Fn::GetAtt" : [ "InstanceProfile", "Arn" ]
+            }
+          },
+          "ImageId" : {
+            "Ref" : "AMI"
+          },
+          "InstanceType" : "t3a.small",
+          "Monitoring" : {
+            "Enabled" : true
+          },
+          "SecurityGroupIds" : [ {
+            "Ref" : "SecurityGroup"
+          } ],
+          "UserData" : {
+            "Fn::Base64" : {
+              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "source /root/.venv/bin/activate\n", "cfn-signal -s true ", " --stack ", {
+                "Ref" : "AWS::StackName"
+              }, " --resource AutoScalingGroup", " --region ", {
+                "Ref" : "AWS::Region"
+              } ] ]
+            }
+          }
+        }
+      },
+      "Type" : "AWS::EC2::LaunchTemplate"
+    },
+    "LoadBalancerListenerRule" : {
+      "Properties" : {
+        "Actions" : [ {
+          "TargetGroupArn" : {
+            "Ref" : "LoadBalancerTargetGroup"
+          },
+          "Type" : "forward"
+        } ],
+        "Conditions" : [ {
+          "Field" : "host-header",
+          "HostHeaderConfig" : {
+            "Values" : [ {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubDomainName"
+            } ]
+          }
+        } ],
+        "ListenerArn" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerHTTPSListenerArn"
+        },
+        "Priority" : 200
+      },
+      "Type" : "AWS::ElasticLoadBalancingV2::ListenerRule"
+    },
+    "LoadBalancerTargetGroup" : {
+      "Properties" : {
+        "HealthCheckPath" : "/health",
+        "HealthCheckProtocol" : "HTTP",
+        "Matcher" : {
+          "HttpCode" : "200-299"
+        },
+        "Port" : 8121,
+        "Protocol" : "HTTP",
+        "TargetType" : "instance",
+        "VpcId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
+        }
+      },
+      "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup"
+    },
+    "RecordSetGroup" : {
+      "Properties" : {
+        "HostedZoneId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubHostedZoneId"
+        },
+        "RecordSets" : [ {
+          "AliasTarget" : {
+            "DNSName" : {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerDNSName"
+            },
+            "HostedZoneId" : {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerCanonicalHostedZoneId"
+            }
+          },
+          "Name" : {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubDomainName"
+          },
+          "Type" : "A"
+        }, {
+          "AliasTarget" : {
+            "DNSName" : {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerDNSName"
+            },
+            "HostedZoneId" : {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerCanonicalHostedZoneId"
+            }
+          },
+          "Name" : {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubDomainName"
+          },
+          "Type" : "AAAA"
+        } ]
+      },
+      "Type" : "AWS::Route53::RecordSetGroup"
+    },
+    "SecurityGroup" : {
+      "Properties" : {
+        "GroupDescription" : "Datapub Servers",
+        "SecurityGroupIngress" : [ {
+          "FromPort" : 8121,
+          "IpProtocol" : "tcp",
+          "SourceSecurityGroupId" : {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerSecurityGroupId"
+          },
+          "ToPort" : 8121
+        } ],
+        "VpcId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
+        }
+      },
+      "Type" : "AWS::EC2::SecurityGroup"
+    }
+  }
+}

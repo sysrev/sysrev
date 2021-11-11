@@ -1,5 +1,7 @@
 {
   "variables": {
+    "git-ref": "",
+    "git-sha": "",
     "uuid": ""
   },
   "builders": [
@@ -28,6 +30,8 @@
       },
       "ssh_username": "root",
       "tags": {
+        "sysrev:build:git-ref": "{{user `git-ref`}}",
+        "sysrev:build:git-sha": "{{user `git-sha`}}",
         "sysrev:build:name": "datapub",
         "sysrev:build:uuid": "{{user `uuid`}}"
       },
@@ -81,7 +85,7 @@
         "chmod +x /home/admin/datapub/run.sh",
         "rm -rf /etc/ec2-metadata /etc/ssh/ssh_host_* /root/.ssh",
         "cd /home/admin/datapub",
-        "sudo -u admin nix-build"
+        "sudo -u admin nix-build -A inputDerivation -o gcroots"
       ]
     }
   ]
