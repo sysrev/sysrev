@@ -241,7 +241,7 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
       "Access-Control-Allow-Methods" "OPTIONS, POST"
       "Access-Control-Allow-Origin" (when (allowed-origins origin) origin)}}))
 
-(defn service-map [{:keys [env port] :as opts} pedestal]
+(defn service-map [{:keys [env host port] :as opts} pedestal]
   (let [compiled-schema (graphql/load-schema)
         app-context {:opts opts :pedestal pedestal}
         routes (into #{["/api"
@@ -269,11 +269,11 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env
          :graphql-schema compiled-schema
+         ::http/host host
+         ::http/join? false
          ::http/routes routes
          ::http/port port
-         ::http/host "localhost"
-         ::http/type :jetty
-         ::http/join? false}
+         ::http/type :jetty}
         pedestal2/enable-graphiql
         (pedestal2/enable-subscriptions
          graphql/load-schema
