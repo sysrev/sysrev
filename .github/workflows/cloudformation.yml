@@ -1,6 +1,6 @@
 name: "Deploy CloudFormation Regional Resources Stack"
 
-concurrency: sysrev-cloudformation
+concurrency: sysrev-cloudformation-${{ github.ref_name }}
 
 on:
   push:

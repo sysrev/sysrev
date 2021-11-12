@@ -1,6 +1,6 @@
 name: "Test and Build Datapub"
 
-concurrency: sysrev-cloudformation
+concurrency: sysrev-datapub-${{ github.ref_name }}
 
 on:
   push:
