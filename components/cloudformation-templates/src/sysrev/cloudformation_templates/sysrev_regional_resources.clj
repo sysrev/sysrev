@@ -300,6 +300,7 @@
     :LoadBalancerCanonicalHostedZoneId [(get-att :LoadBalancer "CanonicalHostedZoneID")]
     :LoadBalancerDNSName [(get-att :LoadBalancer "DNSName")]
     :LoadBalancerHTTPSListenerArn [(ref :LoadBalancerHTTPSListener)]
+    :LoadBalancerName [(get-att :LoadBalancer "LoadBalancerName")]
     :LoadBalancerSecurityGroupId [(ref :LoadBalancerSecurityGroup)]
     :VpcId [(ref :Vpc)]
     :VpcSubnetIds [(join "," subnets)]}))

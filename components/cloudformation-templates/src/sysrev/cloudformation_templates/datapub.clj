@@ -10,7 +10,13 @@
   "This template creates the Datapub AutoScalingGroup."
 
   :Parameters
-  {:AMI {:Type "AWS::EC2::Image::Id"}}
+  {:AMI {:Type "AWS::EC2::Image::Id"}
+   :KeyName {:Default ""
+             :Type "AWS::EC2::KeyPair::KeyName"}}
+
+  :Conditions
+  {:HasKeyName
+   (fn-not (equals "" (ref :KeyName)))}
 
   :Resources
   {:RecordSetGroup
@@ -63,6 +69,16 @@
        :SourceSecurityGroupId (import-regional "LoadBalancerSecurityGroupId")}]
      :VpcId (import-regional "VpcId")}}
 
+   :InstancePolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["elasticloadbalancing:DescribeTargetHealth"]
+        :Effect "Allow"
+        :Resource (import-regional "LoadBalancerArn")}]}}}
+
    :InstanceRole
    {:Type "AWS::IAM::Role"
     :Properties
@@ -74,7 +90,8 @@
         :Action ["sts:AssumeRole"]}]}
      :Path "/Sysrev/Datapub/"
      :ManagedPolicyArns
-     ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]}}
+     ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      (ref :InstancePolicy)]}}
 
    :InstanceProfile
    {:Type "AWS::IAM::InstanceProfile"
@@ -95,13 +112,16 @@
       :IamInstanceProfile {:Arn (get-att :InstanceProfile "Arn")}
       :ImageId (ref :AMI)
       :InstanceType "t3a.small"
+      :KeyName (fn-if :HasKeyName
+                      (ref :KeyName)
+                      no-value)
+      :MetadataOptions {:HttpTokens "required"}
       :Monitoring {:Enabled true}
       :SecurityGroupIds [(ref :SecurityGroup)]
       :UserData
       (user-data
        "#!/usr/bin/env bash\n"
        "set -oeux \n"
-       "source /root/.venv/bin/activate\n"
        "cfn-signal -s true "
        " --stack " stack-name
        " --resource AutoScalingGroup"
@@ -109,14 +129,13 @@
 
    :AutoScalingGroup
    {:Type "AWS::AutoScaling::AutoScalingGroup"
-    :CreationPolicy
-    {:AutoScalingCreationPolicy
-     {:MinSuccessfulInstancesPercent 90}
-     :ResourceSignal
-     {:Timeout "PT5M"}}
     :UpdatePolicy
-    {:AutoScalingReplacingUpdate
-     {:WillReplace true}}
+    {:AutoScalingRollingUpdate
+     {:MaxBatchSize 1
+      :MinInstancesInService 1
+      :MinSuccessfulInstancesPercent 90
+      :PauseTime "PT5M"
+      :WaitOnResourceSignals true}}
     :Properties
     {:Cooldown "30"
      :HealthCheckType "ELB"

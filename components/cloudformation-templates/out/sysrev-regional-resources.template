@@ -114,6 +114,16 @@
         "Ref" : "LoadBalancerHTTPSListener"
       }
     },
+    "LoadBalancerName" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-LoadBalancerName"
+        }
+      },
+      "Value" : {
+        "Fn::GetAtt" : [ "LoadBalancer", "LoadBalancerName" ]
+      }
+    },
     "LoadBalancerSecurityGroupId" : {
       "Export" : {
         "Name" : {

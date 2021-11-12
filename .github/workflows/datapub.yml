@@ -74,7 +74,7 @@ jobs:
       - name: Build datapub AMI
         run: |
           export UUID=$(uuidgen)
-          nix-shell ../default.nix --run "packer build -var git-ref=$GITHUB_REF -var git-sha=$GITHUB_SHA -var uuid=$UUID datapub.json"
+          nix-shell ../default.nix --run "packer build -var git-ref=$GITHUB_REF -var git-sha=$GITHUB_SHA -var uuid=$UUID datapub.pkr.hcl"
           export AMI=$(aws ec2 describe-images --filters Name='tag:sysrev:build:uuid',Values=$UUID --query 'Images[0].ImageId' --output text)
           echo "AMI=$AMI" >> $GITHUB_ENV
         working-directory: projects/datapub/packer
@@ -87,7 +87,5 @@ jobs:
           parameter-overrides: "AMI=${{ env.AMI }}"
           template: components/cloudformation-templates/out/datapub.template
 
-      - run: |
-          sudo nix-collect-garbage -d
-          nix-store --dump-db > ~/nix-db-dump
+      - run: nix-store --dump-db > ~/nix-db-dump
         if: steps.nix-cache.outputs.cache-hit != 'true'

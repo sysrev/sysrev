@@ -1,21 +1,26 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
+  "Conditions" : {
+    "HasKeyName" : {
+      "Fn::Not" : [ {
+        "Fn::Equals" : [ "", {
+          "Ref" : "KeyName"
+        } ]
+      } ]
+    }
+  },
   "Description" : "This template creates the Datapub AutoScalingGroup.",
   "Parameters" : {
     "AMI" : {
       "Type" : "AWS::EC2::Image::Id"
+    },
+    "KeyName" : {
+      "Default" : "",
+      "Type" : "AWS::EC2::KeyPair::KeyName"
     }
   },
   "Resources" : {
     "AutoScalingGroup" : {
-      "CreationPolicy" : {
-        "AutoScalingCreationPolicy" : {
-          "MinSuccessfulInstancesPercent" : 90
-        },
-        "ResourceSignal" : {
-          "Timeout" : "PT5M"
-        }
-      },
       "Properties" : {
         "Cooldown" : "30",
         "HealthCheckGracePeriod" : 300,
@@ -46,8 +51,12 @@
       },
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "UpdatePolicy" : {
-        "AutoScalingReplacingUpdate" : {
-          "WillReplace" : true
+        "AutoScalingRollingUpdate" : {
+          "MaxBatchSize" : 1,
+          "MinInstancesInService" : 1,
+          "MinSuccessfulInstancesPercent" : 90,
+          "PauseTime" : "PT5M",
+          "WaitOnResourceSignals" : true
         }
       }
     },
@@ -65,6 +74,21 @@
         }
       },
       "Type" : "AWS::AutoScaling::ScalingPolicy"
+    },
+    "InstancePolicy" : {
+      "Properties" : {
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : [ "elasticloadbalancing:DescribeTargetHealth" ],
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerArn"
+            }
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
     },
     "InstanceProfile" : {
       "Properties" : {
@@ -87,7 +111,9 @@
           } ],
           "Version" : "2012-10-17"
         },
-        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore" ],
+        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore", {
+          "Ref" : "InstancePolicy"
+        } ],
         "Path" : "/Sysrev/Datapub/"
       },
       "Type" : "AWS::IAM::Role"
@@ -112,6 +138,16 @@
             "Ref" : "AMI"
           },
           "InstanceType" : "t3a.small",
+          "KeyName" : {
+            "Fn::If" : [ "HasKeyName", {
+              "Ref" : "KeyName"
+            }, {
+              "Ref" : "AWS::NoValue"
+            } ]
+          },
+          "MetadataOptions" : {
+            "HttpTokens" : "required"
+          },
           "Monitoring" : {
             "Enabled" : true
           },
@@ -120,7 +156,7 @@
           } ],
           "UserData" : {
             "Fn::Base64" : {
-              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "source /root/.venv/bin/activate\n", "cfn-signal -s true ", " --stack ", {
+              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "cfn-signal -s true ", " --stack ", {
                 "Ref" : "AWS::StackName"
               }, " --resource AutoScalingGroup", " --region ", {
                 "Ref" : "AWS::Region"
