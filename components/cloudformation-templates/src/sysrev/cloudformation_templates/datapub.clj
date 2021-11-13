@@ -137,13 +137,14 @@
 
    :AutoScalingGroup
    {:Type "AWS::AutoScaling::AutoScalingGroup"
+    :CreationPolicy
+    {:AutoScalingCreationPolicy
+     {:MinSuccessfulInstancesPercent 90}
+     :ResourceSignal
+     {:Timeout "PT5M"}}
     :UpdatePolicy
-    {:AutoScalingRollingUpdate
-     {:MaxBatchSize 1
-      :MinInstancesInService 1
-      :MinSuccessfulInstancesPercent 90
-      :PauseTime "PT5M"
-      :WaitOnResourceSignals true}}
+    {:AutoScalingReplacingUpdate
+     {:WillReplace true}}
     :Properties
     {:Cooldown "30"
      :HealthCheckType "ELB"

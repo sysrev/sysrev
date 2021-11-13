@@ -21,6 +21,14 @@
   },
   "Resources" : {
     "AutoScalingGroup" : {
+      "CreationPolicy" : {
+        "AutoScalingCreationPolicy" : {
+          "MinSuccessfulInstancesPercent" : 90
+        },
+        "ResourceSignal" : {
+          "Timeout" : "PT5M"
+        }
+      },
       "Properties" : {
         "Cooldown" : "30",
         "HealthCheckGracePeriod" : 300,
@@ -51,12 +59,8 @@
       },
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "UpdatePolicy" : {
-        "AutoScalingRollingUpdate" : {
-          "MaxBatchSize" : 1,
-          "MinInstancesInService" : 1,
-          "MinSuccessfulInstancesPercent" : 90,
-          "PauseTime" : "PT5M",
-          "WaitOnResourceSignals" : true
+        "AutoScalingReplacingUpdate" : {
+          "WillReplace" : true
         }
       }
     },
