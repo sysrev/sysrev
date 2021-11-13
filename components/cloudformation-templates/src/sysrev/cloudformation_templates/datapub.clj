@@ -77,7 +77,7 @@
       :Statement
       [{:Action ["elasticloadbalancing:DescribeTargetHealth"]
         :Effect "Allow"
-        :Resource (import-regional "LoadBalancerArn")}]}}}
+        :Resource "*"}]}}}
 
    :InstanceRole
    {:Type "AWS::IAM::Role"
@@ -122,6 +122,14 @@
       (user-data
        "#!/usr/bin/env bash\n"
        "set -oeux \n"
+       ;; Adapted from https://github.com/awslabs/aws-cloudformation-templates/blob/2415d1dd34bdbf50e3b009879f6ba754a043afdf/aws/services/AutoScaling/AutoScalingRollingUpdates.yaml#L384-L387
+       "state=\n"
+       "until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n"
+       "state=$(aws --region " region
+       " elbv2 describe-target-health"
+       " --target-group-arn " (ref :LoadBalancerTargetGroup)
+       " --targets Id=$(ec2metadata --instance-id)"
+       " --query TargetHealthDescriptions[0].TargetHealth.State); done\n"
        "cfn-signal -s true "
        " --stack " stack-name
        " --resource AutoScalingGroup"

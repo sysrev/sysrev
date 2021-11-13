@@ -81,9 +81,7 @@
           "Statement" : [ {
             "Action" : [ "elasticloadbalancing:DescribeTargetHealth" ],
             "Effect" : "Allow",
-            "Resource" : {
-              "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerArn"
-            }
+            "Resource" : "*"
           } ],
           "Version" : "2012-10-17"
         }
@@ -156,7 +154,11 @@
           } ],
           "UserData" : {
             "Fn::Base64" : {
-              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "cfn-signal -s true ", " --stack ", {
+              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "state=\n", "until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n", "state=$(aws --region ", {
+                "Ref" : "AWS::Region"
+              }, " elbv2 describe-target-health", " --target-group-arn ", {
+                "Ref" : "LoadBalancerTargetGroup"
+              }, " --targets Id=$(ec2metadata --instance-id)", " --query TargetHealthDescriptions[0].TargetHealth.State); done\n", "cfn-signal -s true ", " --stack ", {
                 "Ref" : "AWS::StackName"
               }, " --resource AutoScalingGroup", " --region ", {
                 "Ref" : "AWS::Region"
