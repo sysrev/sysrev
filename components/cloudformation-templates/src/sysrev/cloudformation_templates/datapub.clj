@@ -12,7 +12,7 @@
   :Parameters
   {:AMI {:Type "AWS::EC2::Image::Id"}
    :KeyName {:Default ""
-             :Type "AWS::EC2::KeyPair::KeyName"}}
+             :Type "String"}}
 
   :Conditions
   {:HasKeyName

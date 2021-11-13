@@ -16,7 +16,7 @@
     },
     "KeyName" : {
       "Default" : "",
-      "Type" : "AWS::EC2::KeyPair::KeyName"
+      "Type" : "String"
     }
   },
   "Resources" : {
