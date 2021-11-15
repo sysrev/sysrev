@@ -1,4 +1,5 @@
 name: "Test and Build Datapub"
+concurrency: sysrev-datapub-${{ github.ref_name }}
 
 on:
   push:
@@ -11,13 +12,10 @@ on:
       - '!**.md'
 
 jobs:
-  deploy-global-resources:
-    # We really only need the outputs of the global stack, but this is the
-    # easiest way to get them.
-    concurrency: sysrev-global-resources-${{ github.ref_name }}
+  get-global-resources:
     outputs:
-      datapub-bucket: ${{ steps.deploy.outputs.DatapubBucket }}
-      service-role-arn: ${{ steps.deploy.outputs.AdminAccessCloudFormationServiceRoleArn }}
+      datapub-bucket: ${{ steps.get-stack-outputs.outputs.DatapubBucket }}
+      service-role-arn: ${{ steps.get-stack-outputs.outputs.AdminAccessCloudFormationServiceRoleArn }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -30,18 +28,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           aws-region: us-east-1
 
-      - name: Deploy Sysrev-Global-Resources template
-        id: deploy
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+      - name: Get Sysrev-Global-Resources stack outputs
+        id: get-stack-outputs
+        uses: john-shaffer/aws-cloudformation-github-deploy@skip-deploy
         with:
           name: Sysrev-Global-Resources
-          capabilities: "CAPABILITY_IAM,CAPABILITY_NAMED_IAM"
-          no-fail-on-empty-changeset: '1'
-          template: components/cloudformation-templates/out/sysrev-global-resources.template
+          skip-deploy: '1'
+          template: 'unused'
 
   datapub:
-    concurrency: sysrev-datapub-${{ github.ref_name }}
-    needs: deploy-global-resources
+    needs: get-global-resources
     runs-on: ubuntu-latest
 
     steps:
@@ -112,8 +108,8 @@ jobs:
         with:
           name: Datapub
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: "AMI=${{ env.AMI }},DatapubBucket=${{ needs.deploy-global-resources.outputs.datapub-bucket }}"
-          role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
+          parameter-overrides: "AMI=${{ env.AMI }},DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }}"
+          role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/datapub.template
 
       - run: nix-store --dump-db > ~/nix-db-dump
