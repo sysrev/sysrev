@@ -93,12 +93,23 @@
      [(ref :AdminAccessCloudFormationServicePassRolePolicy)
       (ref :CloudFormationCreateUpdatePolicy)
       (ref :PackerBuildPolicy)]
-     :UserName "github-actions"}}}
+     :UserName "github-actions"}}
+
+   :DatapubBucket
+   {:Type "AWS::S3::Bucket"
+    :Properties
+    {:AccessControl "Private"
+     :PublicAccessBlockConfiguration
+     {:BlockPublicAcls true
+      :BlockPublicPolicy true
+      :IgnorePublicAcls true
+      :RestrictPublicBuckets true}}}}
 
   :Outputs
   (prefixed-outputs
    "${AWS::StackName}-"
-   {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]}))
+   {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]
+    :DatapubBucket [(ref :DatapubBucket)]}))
 
 (comment
   (write-template "components/cloudformation-templates/out/sysrev-global-resources.template"

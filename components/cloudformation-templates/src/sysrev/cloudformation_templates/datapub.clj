@@ -11,6 +11,9 @@
 
   :Parameters
   {:AMI {:Type "AWS::EC2::Image::Id"}
+   :DatapubBucket {:MaxLength 63
+                   :MinLength 3
+                   :Type "String"}
    :KeyName {:Default ""
              :Type "String"}}
 
@@ -69,6 +72,21 @@
        :SourceSecurityGroupId (import-regional "LoadBalancerSecurityGroupId")}]
      :VpcId (import-regional "VpcId")}}
 
+   :DatapubBucketFullAccessPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action "*"
+        :Effect "Allow"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :DatapubBucket)])}
+       {:Action "*"
+        :Effect "Allow"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :DatapubBucket) "/*"])}]}}}
+
    :InstancePolicy
    {:Type "AWS::IAM::ManagedPolicy"
     :Properties
@@ -91,6 +109,7 @@
      :Path "/Sysrev/Datapub/"
      :ManagedPolicyArns
      ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      (ref :DatapubBucketFullAccessPolicy)
       (ref :InstancePolicy)]}}
 
    :InstanceProfile

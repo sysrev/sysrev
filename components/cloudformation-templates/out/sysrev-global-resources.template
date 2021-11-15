@@ -11,6 +11,16 @@
       "Value" : {
         "Fn::GetAtt" : [ "AdminAccessCloudFormationServiceRole", "Arn" ]
       }
+    },
+    "DatapubBucket" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-DatapubBucket"
+        }
+      },
+      "Value" : {
+        "Ref" : "DatapubBucket"
+      }
     }
   },
   "Resources" : {
@@ -62,6 +72,18 @@
         }
       },
       "Type" : "AWS::IAM::ManagedPolicy"
+    },
+    "DatapubBucket" : {
+      "Properties" : {
+        "AccessControl" : "Private",
+        "PublicAccessBlockConfiguration" : {
+          "BlockPublicAcls" : true,
+          "BlockPublicPolicy" : true,
+          "IgnorePublicAcls" : true,
+          "RestrictPublicBuckets" : true
+        }
+      },
+      "Type" : "AWS::S3::Bucket"
     },
     "GitHubActionsUser" : {
       "Properties" : {

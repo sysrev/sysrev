@@ -14,6 +14,11 @@
     "AMI" : {
       "Type" : "AWS::EC2::Image::Id"
     },
+    "DatapubBucket" : {
+      "MaxLength" : 63,
+      "MinLength" : 3,
+      "Type" : "String"
+    },
     "KeyName" : {
       "Default" : "",
       "Type" : "String"
@@ -79,6 +84,31 @@
       },
       "Type" : "AWS::AutoScaling::ScalingPolicy"
     },
+    "DatapubBucketFullAccessPolicy" : {
+      "Properties" : {
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : "*",
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "DatapubBucket"
+              } ] ]
+            }
+          }, {
+            "Action" : "*",
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "DatapubBucket"
+              }, "/*" ] ]
+            }
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
+    },
     "InstancePolicy" : {
       "Properties" : {
         "PolicyDocument" : {
@@ -114,6 +144,8 @@
           "Version" : "2012-10-17"
         },
         "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore", {
+          "Ref" : "DatapubBucketFullAccessPolicy"
+        }, {
           "Ref" : "InstancePolicy"
         } ],
         "Path" : "/Sysrev/Datapub/"

@@ -16,6 +16,7 @@ jobs:
     # easiest way to get them.
     concurrency: sysrev-global-resources-${{ github.ref_name }}
     outputs:
+      datapub-bucket: ${{ steps.deploy.outputs.DatapubBucket }}
       service-role-arn: ${{ steps.deploy.outputs.AdminAccessCloudFormationServiceRoleArn }}
     runs-on: ubuntu-latest
     steps:
@@ -111,7 +112,7 @@ jobs:
         with:
           name: Datapub
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: "AMI=${{ env.AMI }}"
+          parameter-overrides: "AMI=${{ env.AMI }},DatapubBucket=${{ needs.deploy-global-resources.outputs.datapub-bucket }}"
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/datapub.template
 
