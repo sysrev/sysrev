@@ -74,6 +74,7 @@
       "Type" : "AWS::IAM::ManagedPolicy"
     },
     "DatapubBucket" : {
+      "DeletionPolicy" : "Retain",
       "Properties" : {
         "AccessControl" : "Private",
         "PublicAccessBlockConfiguration" : {
@@ -81,7 +82,11 @@
           "BlockPublicPolicy" : true,
           "IgnorePublicAcls" : true,
           "RestrictPublicBuckets" : true
-        }
+        },
+        "Tags" : [ {
+          "Key" : "grant",
+          "Value" : "thrive"
+        } ]
       },
       "Type" : "AWS::S3::Bucket"
     },

@@ -97,13 +97,16 @@
 
    :DatapubBucket
    {:Type "AWS::S3::Bucket"
+    :DeletionPolicy "Retain"
     :Properties
     {:AccessControl "Private"
      :PublicAccessBlockConfiguration
      {:BlockPublicAcls true
       :BlockPublicPolicy true
       :IgnorePublicAcls true
-      :RestrictPublicBuckets true}}}}
+      :RestrictPublicBuckets true}
+     :Tags
+     (tags :grant "thrive")}}}
 
   :Outputs
   (prefixed-outputs
