@@ -300,7 +300,9 @@
   :Outputs
   (prefixed-outputs
    "${AWS::StackName}-"
-   {:DatapubDomainName [(ref :DatapubDomainName)]
+   {:CredentialsKeyId [(ref :CredentialsKey)]
+    :CredentialsKeyUsePolicyArn [(ref :CredentialsKeyUsePolicy)]
+    :DatapubDomainName [(ref :DatapubDomainName)]
     :DatapubHostedZoneId [(ref :DatapubHostedZoneId)]
     :LoadBalancerArn [(ref :LoadBalancer)]
     :LoadBalancerCanonicalHostedZoneId [(get-att :LoadBalancer "CanonicalHostedZoneID")]

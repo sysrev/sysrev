@@ -22,7 +22,46 @@
    (fn-not (equals "" (ref :KeyName)))}
 
   :Resources
-  {:RecordSetGroup
+  {:RDSMasterCredentials
+   {:Type "AWS::SecretsManager::Secret"
+    :Properties
+    {:GenerateSecretString
+     {:ExcludeCharacters "\"@/\\"
+      :GenerateStringKey "password"
+      :PasswordLength 32
+      :SecretStringTemplate "{\"username\": \"postgres\"}"}
+     :KmsKeyId (import-regional "CredentialsKeyId")}}
+
+   :RDSInstance
+   {:Type "AWS::RDS::DBInstance"
+    :DeletionPolicy "Snapshot"
+    :UpdateReplacePolicy "Snapshot"
+    :Properties
+    {:AllocatedStorage "500"
+     :AllowMajorVersionUpgrade true
+     :AutoMinorVersionUpgrade true
+     :BackupRetentionPeriod 7
+     :CopyTagsToSnapshot true
+     :DBInstanceClass "db.m6g.large"
+     :DBInstanceIdentifier "datapubio"
+     :DBName "datapub"
+     :DBSubnetGroupName (import-regional "RDSSubnetGroupName")
+     :DeletionProtection true
+     :EnablePerformanceInsights true
+     :Engine "postgres"
+     :EngineVersion "13.3"
+     :Iops 3000
+     :MasterUsername (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::username}}")
+     :MasterUserPassword (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}")
+     :MaxAllocatedStorage 1000
+     :MultiAZ false
+     :PreferredBackupWindow "08:48-09:18"
+     :PreferredMaintenanceWindow "Sun:05:57-Sun:06:27"
+     :PubliclyAccessible false
+     :StorageEncrypted true
+     :Tags (tags :grant "1R43DA052916-01")}}
+
+   :RecordSetGroup
    {:Type "AWS::Route53::RecordSetGroup"
     :Properties
     {:HostedZoneId (import-regional "DatapubHostedZoneId")

@@ -86,6 +86,6 @@ jobs:
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: DatapubDomainName=test.www.datapub.dev,DatapubHostedZoneId=Z05777473DXKBD94EEPU2,NumberOfAZs=6
+          parameter-overrides: DatapubDomainName=www.datapub.dev,DatapubHostedZoneId=Z05777473DXKBD94EEPU2,NumberOfAZs=6
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template

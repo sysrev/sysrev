@@ -244,6 +244,59 @@
       },
       "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup"
     },
+    "RDSInstance" : {
+      "DeletionPolicy" : "Snapshot",
+      "Properties" : {
+        "AllocatedStorage" : "500",
+        "AllowMajorVersionUpgrade" : true,
+        "AutoMinorVersionUpgrade" : true,
+        "BackupRetentionPeriod" : 7,
+        "CopyTagsToSnapshot" : true,
+        "DBInstanceClass" : "db.m6g.large",
+        "DBInstanceIdentifier" : "datapubio",
+        "DBName" : "datapub",
+        "DBSubnetGroupName" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-RDSSubnetGroupName"
+        },
+        "DeletionProtection" : true,
+        "EnablePerformanceInsights" : true,
+        "Engine" : "postgres",
+        "EngineVersion" : "13.3",
+        "Iops" : 3000,
+        "MasterUserPassword" : {
+          "Fn::Sub" : "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}"
+        },
+        "MasterUsername" : {
+          "Fn::Sub" : "{{resolve:secretsmanager:${RDSMasterCredentials}::username}}"
+        },
+        "MaxAllocatedStorage" : 1000,
+        "MultiAZ" : false,
+        "PreferredBackupWindow" : "08:48-09:18",
+        "PreferredMaintenanceWindow" : "Sun:05:57-Sun:06:27",
+        "PubliclyAccessible" : false,
+        "StorageEncrypted" : true,
+        "Tags" : [ {
+          "Key" : "grant",
+          "Value" : "1R43DA052916-01"
+        } ]
+      },
+      "Type" : "AWS::RDS::DBInstance",
+      "UpdateReplacePolicy" : "Snapshot"
+    },
+    "RDSMasterCredentials" : {
+      "Properties" : {
+        "GenerateSecretString" : {
+          "ExcludeCharacters" : "\"@/\\",
+          "GenerateStringKey" : "password",
+          "PasswordLength" : 32,
+          "SecretStringTemplate" : "{\"username\": \"postgres\"}"
+        },
+        "KmsKeyId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-CredentialsKeyId"
+        }
+      },
+      "Type" : "AWS::SecretsManager::Secret"
+    },
     "RecordSetGroup" : {
       "Properties" : {
         "HostedZoneId" : {

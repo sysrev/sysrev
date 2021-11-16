@@ -54,6 +54,26 @@
   },
   "Description" : "This template creates the regional resources needed by Sysrev services.",
   "Outputs" : {
+    "CredentialsKeyId" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-CredentialsKeyId"
+        }
+      },
+      "Value" : {
+        "Ref" : "CredentialsKey"
+      }
+    },
+    "CredentialsKeyUsePolicyArn" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-CredentialsKeyUsePolicyArn"
+        }
+      },
+      "Value" : {
+        "Ref" : "CredentialsKeyUsePolicy"
+      }
+    },
     "DatapubDomainName" : {
       "Export" : {
         "Name" : {
