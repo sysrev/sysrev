@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - cloudformation
+      - cloudformation-prod
     paths:
       - '.github/workflows/cloudformation.yml'
       - 'components/cloudformation-templates/out/sysrev-global-resources.template'
@@ -24,6 +25,15 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Configure AWS prod credentials
+        if: github.ref_name == 'cloudformation-prod'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
           aws-region: us-east-1
           mask-aws-account-id: no
 
@@ -51,7 +61,17 @@ jobs:
           aws-region: us-east-1
           mask-aws-account-id: no
 
-      - name: Deploy Sysrev-Regional-Resources template
+      - name: Configure AWS prod credentials
+        if: github.ref_name == 'cloudformation-prod'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Deploy Sysrev-Regional-Resources template to dev
+        if: github.ref_name == 'cloudformation'
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
         with:
           name: Sysrev-Regional-Resources
@@ -60,3 +80,12 @@ jobs:
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template
 
+      - name: Deploy Sysrev-Regional-Resources template to prod
+        if: github.ref_name == 'cloudformation-prod'
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        with:
+          name: Sysrev-Regional-Resources
+          no-fail-on-empty-changeset: '1'
+          parameter-overrides: DatapubDomainName=test.www.datapub.dev,DatapubHostedZoneId=Z05777473DXKBD94EEPU2,NumberOfAZs=6
+          role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
+          template: components/cloudformation-templates/out/sysrev-regional-resources.template
