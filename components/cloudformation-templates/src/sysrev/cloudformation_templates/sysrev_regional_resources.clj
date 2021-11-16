@@ -289,7 +289,13 @@
        :Type "fixed-response"}]
      :LoadBalancerArn (ref :LoadBalancer)
      :Port 443
-     :Protocol "HTTPS"}}}
+     :Protocol "HTTPS"}}
+
+   :RDSSubnetGroup
+   {:Type "AWS::RDS::DBSubnetGroup"
+    :Properties
+    {:DBSubnetGroupDescription "Sysrev regional resources"
+     :SubnetIds subnets}}}
 
   :Outputs
   (prefixed-outputs
@@ -302,6 +308,7 @@
     :LoadBalancerHTTPSListenerArn [(ref :LoadBalancerHTTPSListener)]
     :LoadBalancerName [(get-att :LoadBalancer "LoadBalancerName")]
     :LoadBalancerSecurityGroupId [(ref :LoadBalancerSecurityGroup)]
+    :RDSSubnetGroupName [(ref :RDSSubnetGroup)]
     :VpcId [(ref :Vpc)]
     :VpcSubnetIds [(join "," subnets)]}))
 

@@ -134,6 +134,16 @@
         "Ref" : "LoadBalancerSecurityGroup"
       }
     },
+    "RDSSubnetGroupName" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-RDSSubnetGroupName"
+        }
+      },
+      "Value" : {
+        "Ref" : "RDSSubnetGroup"
+      }
+    },
     "VpcId" : {
       "Export" : {
         "Name" : {
@@ -455,6 +465,61 @@
         }
       },
       "Type" : "AWS::EC2::SecurityGroup"
+    },
+    "RDSSubnetGroup" : {
+      "Properties" : {
+        "DBSubnetGroupDescription" : "Sysrev regional resources",
+        "SubnetIds" : {
+          "Fn::If" : [ "6AZs", [ {
+            "Ref" : "SubnetA"
+          }, {
+            "Ref" : "SubnetB"
+          }, {
+            "Ref" : "SubnetC"
+          }, {
+            "Ref" : "SubnetD"
+          }, {
+            "Ref" : "SubnetE"
+          }, {
+            "Ref" : "SubnetF"
+          } ], {
+            "Fn::If" : [ "5AZs", [ {
+              "Ref" : "SubnetA"
+            }, {
+              "Ref" : "SubnetB"
+            }, {
+              "Ref" : "SubnetC"
+            }, {
+              "Ref" : "SubnetD"
+            }, {
+              "Ref" : "SubnetE"
+            } ], {
+              "Fn::If" : [ "4AZs", [ {
+                "Ref" : "SubnetA"
+              }, {
+                "Ref" : "SubnetB"
+              }, {
+                "Ref" : "SubnetC"
+              }, {
+                "Ref" : "SubnetD"
+              } ], {
+                "Fn::If" : [ "3AZs", [ {
+                  "Ref" : "SubnetA"
+                }, {
+                  "Ref" : "SubnetB"
+                }, {
+                  "Ref" : "SubnetC"
+                } ], [ {
+                  "Ref" : "SubnetA"
+                }, {
+                  "Ref" : "SubnetB"
+                } ] ]
+              } ]
+            } ]
+          } ]
+        }
+      },
+      "Type" : "AWS::RDS::DBSubnetGroup"
     },
     "RouteTable" : {
       "Properties" : {
