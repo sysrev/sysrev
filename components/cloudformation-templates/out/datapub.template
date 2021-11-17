@@ -277,6 +277,7 @@
         },
         "Port" : 8888,
         "Protocol" : "HTTP",
+        "ProtocolVersion" : "HTTP2",
         "TargetType" : "instance",
         "VpcId" : {
           "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"

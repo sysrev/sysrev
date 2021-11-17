@@ -123,6 +123,7 @@
      :Matcher {:HttpCode "200-299"}
      :Port 8888
      :Protocol "HTTP"
+     :ProtocolVersion "HTTP2"
      :TargetType "instance"
      :VpcId (import-regional "VpcId")}}
 
