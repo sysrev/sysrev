@@ -430,7 +430,7 @@
         labeled @(subscribe [:predict/labeled-count])
         total @(subscribe [:predict/article-count])
         pred-hist-filtered (filterv (fn [e] (and
-                                             (= (:short-label e) "Include")
+                                             (= (:name e) "overall include")
                                              (= (:label-value e) "TRUE")))
                                     @(subscribe [::prediction-histograms]))
         pred-hist-data (mapv (fn [e] (if (nil? (:answer e)) (merge e {:answer "unreviewed"}) e)) pred-hist-filtered)
