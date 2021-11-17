@@ -1245,6 +1245,7 @@
                                (assoc :isNew is-new?)
                                (assoc :isOwned is-owned?)
                                (assoc :valueType (:value-type label))
+                               (assoc :name (:name label))
                                (assoc :ordering-display-1 (inc (:project-ordering label))))]
                           (->> label :labels vals filter-labels
                                (mapv #(assoc %
@@ -1293,7 +1294,8 @@
                          (clj->js
                            {:icon "block"
                             :tooltip "Disable label"
-                            :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
+                            :disabled (or (= (.-name ^js rowData) "overall include")
+                                          (= (.-valueType ^js rowData) "group"))
                             :onClick (fn [event rowData]
                                        (.stopPropagation event)
                                        (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
@@ -1302,7 +1304,7 @@
                          (clj->js
                            {:icon "check_circle"
                             :tooltip "Enable label"
-                            :disabled (= (.-valueType ^js rowData) "group") ;(some? (.-parentId ^js rowData))
+                            :disabled (= (.-valueType ^js rowData) "group")
                             :onClick (fn [event rowData]
                                        (.stopPropagation event)
                                        (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
