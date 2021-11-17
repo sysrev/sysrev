@@ -97,7 +97,6 @@
 
    :DatapubBucket
    {:Type "AWS::S3::Bucket"
-    :DeletionPolicy "Retain"
     :Properties
     {:AccessControl "Private"
      :PublicAccessBlockConfiguration
