@@ -201,7 +201,6 @@
       :KeyName (fn-if :HasKeyName
                       (ref :KeyName)
                       no-value)
-      :MetadataOptions {:HttpTokens "required"}
       :Monitoring {:Enabled true}
       :SecurityGroupIds [(ref :DatapubSecurityGroup)]
       :UserData

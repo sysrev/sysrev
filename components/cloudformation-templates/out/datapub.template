@@ -210,9 +210,6 @@
               "Ref" : "AWS::NoValue"
             } ]
           },
-          "MetadataOptions" : {
-            "HttpTokens" : "required"
-          },
           "Monitoring" : {
             "Enabled" : true
           },
