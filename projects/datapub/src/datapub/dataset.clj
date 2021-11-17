@@ -38,7 +38,7 @@
                  (or (-> context
                          :com.walmartlabs.lacinia/connection-params
                          :authorization)))
-        sysrev-dev-key (-> context :pedestal :opts :sysrev-dev-key)]
+        sysrev-dev-key (-> context :pedestal :config :secrets :sysrev-dev-key)]
     (and sysrev-dev-key (= auth (str "Bearer " sysrev-dev-key)))))
 
 (defmacro ensure-sysrev-dev [context & body]

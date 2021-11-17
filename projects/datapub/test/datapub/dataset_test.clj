@@ -606,7 +606,7 @@
   (test/with-test-system [system {:config {:pedestal {:port 0}}}]
     (let [api-url (str "http://localhost:" (get-in system [:pedestal :bound-port])
                        "/api")
-          sysrev-dev-key (get-in system [:pedestal :opts :sysrev-dev-key])
+          sysrev-dev-key (get-in system [:pedestal :config :secrets :sysrev-dev-key])
           ex (partial ex! system)
           ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-file-uploads"
                                                               :public true}})

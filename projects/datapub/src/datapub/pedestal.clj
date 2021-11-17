@@ -283,30 +283,30 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           #__ (subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
-(defrecord Pedestal [bound-port opts secrets-manager service service-map service-map-fn]
+(defrecord Pedestal [bound-port config opts secrets-manager service service-map service-map-fn]
   component/Lifecycle
   (start [this]
     (if service
       this
-      (if (and (nil? (:port opts)) (not= :test (:env opts)))
-        (throw (RuntimeException. "Port cannot be nil outside of :test env."))
-        (let [opts (update opts :sysrev-dev-key #(if (map? %) (secrets-manager/get-config-secret secrets-manager %) %))
-              service-map (service-map-fn
-                           (update opts :port #(or % 0)) ; Prevent pedestal exception
-                           this)
-              service (if (:port opts)
-                        (http/start (http/create-server service-map))
-                        (http/create-server (assoc service-map :port 0)))
-              bound-port (some-> service :io.pedestal.http/server
-                                 .getURI .getPort)]
-          (if (and bound-port (pos-int? bound-port))
-            (t/info "Started Pedestal on port" bound-port)
-            (t/info "Started Pedestal with no ports"))
-          (assoc this
-                 :bound-port bound-port
-                 :opts opts
-                 :service-map service-map
-                 :service service)))))
+      (let [opts (assoc (:pedestal config) :env (:env config))]
+        (if (and (nil? (:port opts)) (not= :test (:env opts)))
+          (throw (RuntimeException. "Port cannot be nil outside of :test env."))
+          (let [service-map (service-map-fn
+                             (update opts :port #(or % 0)) ; Prevent pedestal exception
+                             this)
+                service (if (:port opts)
+                          (http/start (http/create-server service-map))
+                          (http/create-server (assoc service-map :port 0)))
+                bound-port (some-> service :io.pedestal.http/server
+                                   .getURI .getPort)]
+            (if (and bound-port (pos-int? bound-port))
+              (t/info "Started Pedestal on port" bound-port)
+              (t/info "Started Pedestal with no ports"))
+            (assoc this
+                   :bound-port bound-port
+                   :opts opts
+                   :service-map service-map
+                   :service service))))))
   (stop [this]
     (if-not service-map
       this
@@ -316,5 +316,5 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           (t/info "Stopped Pedestal"))
         (assoc this :bound-port nil :service nil :service-map nil)))))
 
-(defn pedestal [{:keys [opts]}]
-  (map->Pedestal {:opts opts :service-map-fn service-map}))
+(defn pedestal []
+  (map->Pedestal {:service-map-fn service-map}))
