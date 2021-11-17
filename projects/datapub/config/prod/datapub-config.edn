@@ -1,0 +1,13 @@
+{:env :prod
+ :pedestal {:port 8888
+            :sysrev-dev-key {:secrets-manager/arn "***REMOVED***"
+                             :secrets-manager/key :key}}
+ :postgres {:dbname "datapub"
+            :dbtype "postgres"
+            :host "datapubio.cd2m76bffpbl.us-east-1.rds.amazonaws.com"
+            :password {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:951523641836:secret:RDSMasterCredentials-TBZRXAyfDCCh-ibYSgt"
+                       :secrets-manager/key :password}
+            :user {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:951523641836:secret:RDSMasterCredentials-TBZRXAyfDCCh-ibYSgt"
+                   :secrets-manager/key :username}}
+ :s3 {:datapub-bucket {:name "datapub.dev"}}
+ :tesseract {:enabled? true}}

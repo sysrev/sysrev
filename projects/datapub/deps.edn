@@ -6,6 +6,7 @@
         com.cognitect.aws/api {:mvn/version "0.8.524"},
         com.cognitect.aws/endpoints {:mvn/version "1.1.12.69"}
         com.cognitect.aws/s3 {:mvn/version "814.2.991.0"}
+        com.cognitect.aws/secretsmanager {:mvn/version "814.2.1008.0"}
         com.fzakaria/slf4j-timbre {:mvn/version "0.3.21"}
         com.github.seancorfield/honeysql {:mvn/version "2.1.818"}
         com.github.seancorfield/next.jdbc {:mvn/version "1.2.731"}

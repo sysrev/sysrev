@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - cloudformation
+      - cloudformation-prod
     paths:
       - '.github/workflows/datapub.yml'
       - 'components/cloudformation-templates/out/datapub.template'

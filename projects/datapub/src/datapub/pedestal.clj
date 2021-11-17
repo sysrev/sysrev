@@ -13,6 +13,7 @@
             [com.walmartlabs.lacinia.resolve :as resolve]
             [datapub.dataset :as dataset]
             [datapub.graphql :as graphql]
+            [datapub.secrets-manager :as secrets-manager]
             [io.pedestal.http :as http]
             [io.pedestal.http.cors :as cors]
             [io.pedestal.http.ring-middlewares :as ring-middlewares]
@@ -282,14 +283,15 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           #__ (subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
-(defrecord Pedestal [bound-port opts service service-map service-map-fn]
+(defrecord Pedestal [bound-port opts secrets-manager service service-map service-map-fn]
   component/Lifecycle
   (start [this]
     (if service
       this
       (if (and (nil? (:port opts)) (not= :test (:env opts)))
         (throw (RuntimeException. "Port cannot be nil outside of :test env."))
-        (let [service-map (service-map-fn
+        (let [opts (update opts :sysrev-dev-key #(if (map? %) (secrets-manager/get-config-secret secrets-manager %) %))
+              service-map (service-map-fn
                            (update opts :port #(or % 0)) ; Prevent pedestal exception
                            this)
               service (if (:port opts)
@@ -302,6 +304,7 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
             (t/info "Started Pedestal with no ports"))
           (assoc this
                  :bound-port bound-port
+                 :opts opts
                  :service-map service-map
                  :service service)))))
   (stop [this]

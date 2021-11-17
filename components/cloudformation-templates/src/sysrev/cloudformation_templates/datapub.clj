@@ -32,6 +32,37 @@
       :SecretStringTemplate "{\"username\": \"postgres\"}"}
      :KmsKeyId (import-regional "CredentialsKeyId")}}
 
+   :SysrevDevKey
+   {:Type "AWS::SecretsManager::Secret"
+    :Properties
+    {:GenerateSecretString
+     {:GenerateStringKey "key"
+      :PasswordLength 32
+      :SecretStringTemplate "{}"}
+     :KmsKeyId (import-regional "CredentialsKeyId")}}
+
+   :DatapubSecurityGroup
+   {:Type "AWS::EC2::SecurityGroup"
+    :Properties
+    {:GroupDescription "Datapub Servers"
+     :SecurityGroupIngress
+     [{:IpProtocol "tcp"
+       :FromPort 8121
+       :ToPort 8121
+       :SourceSecurityGroupId (import-regional "LoadBalancerSecurityGroupId")}]
+     :VpcId (import-regional "VpcId")}}
+
+   :RDSSecurityGroup
+   {:Type "AWS::EC2::SecurityGroup"
+    :Properties
+    {:GroupDescription "Datapub RDS Instances"
+     :SecurityGroupIngress
+     [{:IpProtocol "tcp"
+       :FromPort 5432
+       :ToPort 5432
+       :SourceSecurityGroupId (ref :DatapubSecurityGroup)}]
+     :VpcId (import-regional "VpcId")}}
+
    :RDSInstance
    {:Type "AWS::RDS::DBInstance"
     :DeletionPolicy "Snapshot"
@@ -59,7 +90,8 @@
      :PreferredMaintenanceWindow "Sun:05:57-Sun:06:27"
      :PubliclyAccessible false
      :StorageEncrypted true
-     :Tags (tags :grant "1R43DA052916-01")}}
+     :Tags (tags :grant "1R43DA052916-01")
+     :VPCSecurityGroups [(ref :RDSSecurityGroup)]}}
 
    :RecordSetGroup
    {:Type "AWS::Route53::RecordSetGroup"
@@ -100,17 +132,6 @@
      :ListenerArn (import-regional "LoadBalancerHTTPSListenerArn")
      :Priority 200}}
 
-   :SecurityGroup
-   {:Type "AWS::EC2::SecurityGroup"
-    :Properties
-    {:GroupDescription "Datapub Servers"
-     :SecurityGroupIngress
-     [{:IpProtocol "tcp"
-       :FromPort 8121
-       :ToPort 8121
-       :SourceSecurityGroupId (import-regional "LoadBalancerSecurityGroupId")}]
-     :VpcId (import-regional "VpcId")}}
-
    :DatapubBucketFullAccessPolicy
    {:Type "AWS::IAM::ManagedPolicy"
     :Properties
@@ -134,7 +155,13 @@
       :Statement
       [{:Action ["elasticloadbalancing:DescribeTargetHealth"]
         :Effect "Allow"
-        :Resource "*"}]}}}
+        :Resource "*"}
+       {:Action ["secretsmanager:GetSecretValue"]
+        :Effect "Allow"
+        :Resource (ref :RDSMasterCredentials)}
+       {:Action ["secretsmanager:GetSecretValue"]
+        :Effect "Allow"
+        :Resource (ref :SysrevDevKey)}]}}}
 
    :InstanceRole
    {:Type "AWS::IAM::Role"
@@ -149,7 +176,8 @@
      :ManagedPolicyArns
      ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
       (ref :DatapubBucketFullAccessPolicy)
-      (ref :InstancePolicy)]}}
+      (ref :InstancePolicy)
+      (import-regional "CredentialsKeyUsePolicyArn")]}}
 
    :InstanceProfile
    {:Type "AWS::IAM::InstanceProfile"
@@ -175,19 +203,19 @@
                       no-value)
       :MetadataOptions {:HttpTokens "required"}
       :Monitoring {:Enabled true}
-      :SecurityGroupIds [(ref :SecurityGroup)]
+      :SecurityGroupIds [(ref :DatapubSecurityGroup)]
       :UserData
       (user-data
        "#!/usr/bin/env bash\n"
        "set -oeux \n"
        ;; Adapted from https://github.com/awslabs/aws-cloudformation-templates/blob/2415d1dd34bdbf50e3b009879f6ba754a043afdf/aws/services/AutoScaling/AutoScalingRollingUpdates.yaml#L384-L387
-       "state=\n"
-       "until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n"
-       "state=$(aws --region " region
-       " elbv2 describe-target-health"
-       " --target-group-arn " (ref :LoadBalancerTargetGroup)
-       " --targets Id=$(ec2metadata --instance-id)"
-       " --query TargetHealthDescriptions[0].TargetHealth.State); done\n"
+       ;"state=\n"
+       ;"until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n"
+       ;"state=$(aws --region " region
+       ;" elbv2 describe-target-health"
+       ;" --target-group-arn " (ref :LoadBalancerTargetGroup)
+       ;" --targets Id=$(ec2metadata --instance-id)"
+       ;" --query TargetHealthDescriptions[0].TargetHealth.State); done\n"
        "cfn-signal -s true "
        " --stack " stack-name
        " --resource AutoScalingGroup"

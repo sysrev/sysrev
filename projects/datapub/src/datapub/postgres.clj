@@ -1,6 +1,7 @@
 (ns datapub.postgres
   (:require [com.stuartsierra.component :as component]
             [datapub.flyway :as flyway]
+            [datapub.secrets-manager :as secrets-manager]
             [hikari-cp.core :as hikari-cp]
             [honey.sql :as sql]
             [next.jdbc :as jdbc]
@@ -22,7 +23,7 @@
              :port-number (:port config))
       hikari-cp/make-datasource))
 
-(defrecord Postgres [bound-port config datasource embedded-pg]
+(defrecord Postgres [bound-port config datasource embedded-pg secrets-manager]
   component/Lifecycle
   (start [this]
     (if datasource
@@ -36,7 +37,10 @@
               bound-port (if embedded-pg
                            ((requiring-resolve 'datapub.postgres-embedded/get-port) embedded-pg)
                            (:port config))
-              config (assoc config :port bound-port)]
+              config (-> (assoc config :port bound-port)
+                         (update :user #(if (map? %) (secrets-manager/get-config-secret secrets-manager %) %))
+                         (update :password #(if (map? %)(secrets-manager/get-config-secret secrets-manager %) %)))]
+#p config
           (when (:create-if-not-exists? config)
             (let [ds (jdbc/get-datasource (dissoc config :dbname))]
               (try

@@ -109,6 +109,23 @@
       },
       "Type" : "AWS::IAM::ManagedPolicy"
     },
+    "DatapubSecurityGroup" : {
+      "Properties" : {
+        "GroupDescription" : "Datapub Servers",
+        "SecurityGroupIngress" : [ {
+          "FromPort" : 8121,
+          "IpProtocol" : "tcp",
+          "SourceSecurityGroupId" : {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerSecurityGroupId"
+          },
+          "ToPort" : 8121
+        } ],
+        "VpcId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
+        }
+      },
+      "Type" : "AWS::EC2::SecurityGroup"
+    },
     "InstancePolicy" : {
       "Properties" : {
         "PolicyDocument" : {
@@ -116,6 +133,18 @@
             "Action" : [ "elasticloadbalancing:DescribeTargetHealth" ],
             "Effect" : "Allow",
             "Resource" : "*"
+          }, {
+            "Action" : [ "secretsmanager:GetSecretValue" ],
+            "Effect" : "Allow",
+            "Resource" : {
+              "Ref" : "RDSMasterCredentials"
+            }
+          }, {
+            "Action" : [ "secretsmanager:GetSecretValue" ],
+            "Effect" : "Allow",
+            "Resource" : {
+              "Ref" : "SysrevDevKey"
+            }
           } ],
           "Version" : "2012-10-17"
         }
@@ -147,6 +176,8 @@
           "Ref" : "DatapubBucketFullAccessPolicy"
         }, {
           "Ref" : "InstancePolicy"
+        }, {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-CredentialsKeyUsePolicyArn"
         } ],
         "Path" : "/Sysrev/Datapub/"
       },
@@ -186,15 +217,11 @@
             "Enabled" : true
           },
           "SecurityGroupIds" : [ {
-            "Ref" : "SecurityGroup"
+            "Ref" : "DatapubSecurityGroup"
           } ],
           "UserData" : {
             "Fn::Base64" : {
-              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "state=\n", "until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n", "state=$(aws --region ", {
-                "Ref" : "AWS::Region"
-              }, " elbv2 describe-target-health", " --target-group-arn ", {
-                "Ref" : "LoadBalancerTargetGroup"
-              }, " --targets Id=$(ec2metadata --instance-id)", " --query TargetHealthDescriptions[0].TargetHealth.State); done\n", "cfn-signal -s true ", " --stack ", {
+              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "cfn-signal -s true ", " --stack ", {
                 "Ref" : "AWS::StackName"
               }, " --resource AutoScalingGroup", " --region ", {
                 "Ref" : "AWS::Region"
@@ -278,6 +305,9 @@
         "Tags" : [ {
           "Key" : "grant",
           "Value" : "1R43DA052916-01"
+        } ],
+        "VPCSecurityGroups" : [ {
+          "Ref" : "RDSSecurityGroup"
         } ]
       },
       "Type" : "AWS::RDS::DBInstance",
@@ -296,6 +326,23 @@
         }
       },
       "Type" : "AWS::SecretsManager::Secret"
+    },
+    "RDSSecurityGroup" : {
+      "Properties" : {
+        "GroupDescription" : "Datapub RDS Instances",
+        "SecurityGroupIngress" : [ {
+          "FromPort" : 5432,
+          "IpProtocol" : "tcp",
+          "SourceSecurityGroupId" : {
+            "Ref" : "DatapubSecurityGroup"
+          },
+          "ToPort" : 5432
+        } ],
+        "VpcId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
+        }
+      },
+      "Type" : "AWS::EC2::SecurityGroup"
     },
     "RecordSetGroup" : {
       "Properties" : {
@@ -332,22 +379,18 @@
       },
       "Type" : "AWS::Route53::RecordSetGroup"
     },
-    "SecurityGroup" : {
+    "SysrevDevKey" : {
       "Properties" : {
-        "GroupDescription" : "Datapub Servers",
-        "SecurityGroupIngress" : [ {
-          "FromPort" : 8121,
-          "IpProtocol" : "tcp",
-          "SourceSecurityGroupId" : {
-            "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerSecurityGroupId"
-          },
-          "ToPort" : 8121
-        } ],
-        "VpcId" : {
-          "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
+        "GenerateSecretString" : {
+          "GenerateStringKey" : "key",
+          "PasswordLength" : 32,
+          "SecretStringTemplate" : "{}"
+        },
+        "KmsKeyId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-CredentialsKeyId"
         }
       },
-      "Type" : "AWS::EC2::SecurityGroup"
+      "Type" : "AWS::SecretsManager::Secret"
     }
   }
 }

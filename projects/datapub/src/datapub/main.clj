@@ -7,6 +7,7 @@
             [datapub.file :as file]
             [datapub.pedestal :as pedestal]
             [datapub.postgres :as postgres]
+            [datapub.secrets-manager :as secrets-manager]
             [sysrev.config.interface :as config]))
 
 (def envs #{:dev :prod :staging :test})
@@ -24,9 +25,12 @@
      :config config
      :pedestal (component/using
                 (pedestal/pedestal {:opts (assoc (:pedestal config) :env env)})
-                [:config :postgres :s3])
-     :postgres (postgres/postgres {:config (:postgres config)})
-     :s3 (component/using (file/s3-client aws) [:config]))))
+                [:config :postgres :s3 :secrets-manager])
+     :postgres (component/using
+                (postgres/postgres {:config (:postgres config)})
+                [:secrets-manager])
+     :s3 (component/using (file/s3-client aws) [:config])
+     :secrets-manager (secrets-manager/client))))
 
 (defonce system (atom nil))
 
