@@ -113,12 +113,12 @@
       "Properties" : {
         "GroupDescription" : "Datapub Servers",
         "SecurityGroupIngress" : [ {
-          "FromPort" : 8121,
+          "FromPort" : 8888,
           "IpProtocol" : "tcp",
           "SourceSecurityGroupId" : {
             "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerSecurityGroupId"
           },
-          "ToPort" : 8121
+          "ToPort" : 8888
         } ],
         "VpcId" : {
           "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
@@ -262,7 +262,7 @@
         "Matcher" : {
           "HttpCode" : "200-299"
         },
-        "Port" : 8121,
+        "Port" : 8888,
         "Protocol" : "HTTP",
         "TargetType" : "instance",
         "VpcId" : {

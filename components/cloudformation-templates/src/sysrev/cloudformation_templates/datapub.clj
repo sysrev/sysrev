@@ -47,8 +47,8 @@
     {:GroupDescription "Datapub Servers"
      :SecurityGroupIngress
      [{:IpProtocol "tcp"
-       :FromPort 8121
-       :ToPort 8121
+       :FromPort 8888
+       :ToPort 8888
        :SourceSecurityGroupId (import-regional "LoadBalancerSecurityGroupId")}]
      :VpcId (import-regional "VpcId")}}
 
@@ -115,7 +115,7 @@
     {:HealthCheckPath "/health"
      :HealthCheckProtocol "HTTP"
      :Matcher {:HttpCode "200-299"}
-     :Port 8121
+     :Port 8888
      :Protocol "HTTP"
      :TargetType "instance"
      :VpcId (import-regional "VpcId")}}

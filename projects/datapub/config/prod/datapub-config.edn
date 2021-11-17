@@ -1,5 +1,6 @@
 {:env :prod
- :pedestal {:port 8888
+ :pedestal {:host "0.0.0.0"
+            :port 8888
             :sysrev-dev-key {:secrets-manager/arn "***REMOVED***"
                              :secrets-manager/key :key}}
  :postgres {:dbname "datapub"

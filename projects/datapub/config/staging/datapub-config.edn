@@ -5,7 +5,7 @@
                            :port 8566}}
  :env :dev
  :pedestal {:host "0.0.0.0"
-            :port 8121
+            :port 8888
             :sysrev-dev-key "***REMOVED***"}
  :postgres {:create-if-not-exists? true
             :embedded? true
