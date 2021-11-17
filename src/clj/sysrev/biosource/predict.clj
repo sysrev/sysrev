@@ -165,7 +165,7 @@
   (let [predict-run-id (q/project-latest-predict-run-id (int project-id))
     raw-predictions (->
       (format
-        (str "SELECT l.label_id,l.short_label,al.answer, label_value, width_bucket(val,0,1,%s) as bucket, count(*)
+        (str "SELECT l.label_id,l.name,l.short_label,al.answer, label_value, width_bucket(val,0,1,%s) as bucket, count(*)
                       FROM label_predicts lp
                       inner join label l on lp.label_id = l.label_id
                       left join (SELECT * FROM article_label WHERE answer <> 'null') as al on al.article_id = lp.article_id and al.label_id = lp.label_id
