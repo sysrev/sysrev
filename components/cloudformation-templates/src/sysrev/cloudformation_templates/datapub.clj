@@ -226,7 +226,7 @@
     {:AutoScalingCreationPolicy
      {:MinSuccessfulInstancesPercent 90}
      :ResourceSignal
-     {:Timeout "PT5M"}}
+     {:Timeout "PT10M"}}
     :UpdatePolicy
     {:AutoScalingReplacingUpdate
      {:WillReplace true}}
