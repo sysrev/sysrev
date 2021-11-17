@@ -129,12 +129,23 @@ jobs:
           echo "AMI=$AMI" >> $GITHUB_ENV
         working-directory: projects/datapub/packer
 
-      - name: Deploy datapub CloudFormation stack
+      - name: Deploy datapub dev CloudFormation stack
+        if: github.ref_name == 'cloudformation'
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
         with:
           name: Datapub
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: "AMI=${{ env.AMI }},DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }}"
+          parameter-overrides: "AMI=${{ env.AMI }},DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},RDSAllocatedStorage=100,RDSInstanceClass=db.t4g.micro,RDSIops=1000"
+          role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
+          template: components/cloudformation-templates/out/datapub.template
+
+      - name: Deploy datapub prod CloudFormation stack
+        if: github.ref_name == 'cloudformation-prod'
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        with:
+          name: Datapub
+          no-fail-on-empty-changeset: '1'
+          parameter-overrides: "AMI=${{ env.AMI }},DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},RDSAllocatedStorage=500,RDSInstanceClass=db.m6g.large,RDSIops=3000"
           role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/datapub.template
 

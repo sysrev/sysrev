@@ -15,7 +15,13 @@
                    :MinLength 3
                    :Type "String"}
    :KeyName {:Default ""
-             :Type "String"}}
+             :Type "String"}
+   :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9][0-9]+"
+                         :Description "Minimum allocated storage in GB. Must be at least 100."
+                         :Type "String"}
+   :RDSInstanceClass {:Type "String"}
+   :RDSIops {:MinValue 1000
+             :Type "Number"}}
 
   :Conditions
   {:HasKeyName
@@ -68,12 +74,12 @@
     :DeletionPolicy "Snapshot"
     :UpdateReplacePolicy "Snapshot"
     :Properties
-    {:AllocatedStorage "500"
+    {:AllocatedStorage (ref :RDSAllocatedStorage)
      :AllowMajorVersionUpgrade true
      :AutoMinorVersionUpgrade true
      :BackupRetentionPeriod 7
      :CopyTagsToSnapshot true
-     :DBInstanceClass "db.m6g.large"
+     :DBInstanceClass (ref :RDSInstanceClass)
      :DBInstanceIdentifier "datapubio"
      :DBName "datapub"
      :DBSubnetGroupName (import-regional "RDSSubnetGroupName")
@@ -81,7 +87,7 @@
      :EnablePerformanceInsights true
      :Engine "postgres"
      :EngineVersion "13.3"
-     :Iops 3000
+     :Iops (ref :RDSIops)
      :MasterUsername (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::username}}")
      :MasterUserPassword (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}")
      :MaxAllocatedStorage 1000

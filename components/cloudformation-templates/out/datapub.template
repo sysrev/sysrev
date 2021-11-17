@@ -22,6 +22,18 @@
     "KeyName" : {
       "Default" : "",
       "Type" : "String"
+    },
+    "RDSAllocatedStorage" : {
+      "AllowedPattern" : "[1-9][0-9][0-9]+",
+      "Description" : "Minimum allocated storage in GB. Must be at least 100.",
+      "Type" : "String"
+    },
+    "RDSInstanceClass" : {
+      "Type" : "String"
+    },
+    "RDSIops" : {
+      "MinValue" : 1000,
+      "Type" : "Number"
     }
   },
   "Resources" : {
@@ -275,12 +287,16 @@
     "RDSInstance" : {
       "DeletionPolicy" : "Snapshot",
       "Properties" : {
-        "AllocatedStorage" : "500",
+        "AllocatedStorage" : {
+          "Ref" : "RDSAllocatedStorage"
+        },
         "AllowMajorVersionUpgrade" : true,
         "AutoMinorVersionUpgrade" : true,
         "BackupRetentionPeriod" : 7,
         "CopyTagsToSnapshot" : true,
-        "DBInstanceClass" : "db.m6g.large",
+        "DBInstanceClass" : {
+          "Ref" : "RDSInstanceClass"
+        },
         "DBInstanceIdentifier" : "datapubio",
         "DBName" : "datapub",
         "DBSubnetGroupName" : {
@@ -290,7 +306,9 @@
         "EnablePerformanceInsights" : true,
         "Engine" : "postgres",
         "EngineVersion" : "13.3",
-        "Iops" : 3000,
+        "Iops" : {
+          "Ref" : "RDSIops"
+        },
         "MasterUserPassword" : {
           "Fn::Sub" : "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}"
         },
