@@ -272,7 +272,8 @@
 
 (defn DisableEnableLabelButton [labels-atom root-label-id label]
   (let [{:keys [label-id enabled]} @label]
-    (when-not (string? label-id) ;; don't show this for unsaved labels
+    (when-not (or (= (:name @label) "overall include")
+                  (string? label-id))  ;; don't show this for unsaved labels
       [:button.ui.small.fluid.labeled.icon.button
        {:class (css [(not enabled) "primary"])
         :type "button"
