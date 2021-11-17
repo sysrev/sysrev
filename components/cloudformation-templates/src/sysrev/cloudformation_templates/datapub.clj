@@ -11,6 +11,10 @@
 
   :Parameters
   {:AMI {:Type "AWS::EC2::Image::Id"}
+   :AutoScalingMaxSize {:AllowedPattern "[1-9][0-9]*"
+                        :Type "String"}
+   :AutoScalingMinSize {:AllowedPattern "[1-9][0-9]*"
+                        :Type "String"}
    :DatapubBucket {:MaxLength 63
                    :MinLength 3
                    :Type "String"}
@@ -244,8 +248,8 @@
      :LaunchTemplate
      {:LaunchTemplateId (ref :LaunchTemplate)
       :Version (get-att :LaunchTemplate "LatestVersionNumber")}
-     :MaxSize "2"
-     :MinSize "1"
+     :MaxSize (ref :AutoScalingMaxSize)
+     :MinSize (ref :AutoScalingMinSize)
      :Tags
      [{:Key "Name"
        :PropagateAtLaunch true

@@ -14,6 +14,14 @@
     "AMI" : {
       "Type" : "AWS::EC2::Image::Id"
     },
+    "AutoScalingMaxSize" : {
+      "AllowedPattern" : "[1-9][0-9]*",
+      "Type" : "String"
+    },
+    "AutoScalingMinSize" : {
+      "AllowedPattern" : "[1-9][0-9]*",
+      "Type" : "String"
+    },
     "DatapubBucket" : {
       "MaxLength" : 63,
       "MinLength" : 3,
@@ -58,8 +66,12 @@
             "Fn::GetAtt" : [ "LaunchTemplate", "LatestVersionNumber" ]
           }
         },
-        "MaxSize" : "2",
-        "MinSize" : "1",
+        "MaxSize" : {
+          "Ref" : "AutoScalingMaxSize"
+        },
+        "MinSize" : {
+          "Ref" : "AutoScalingMinSize"
+        },
         "Tags" : [ {
           "Key" : "Name",
           "PropagateAtLaunch" : true,
