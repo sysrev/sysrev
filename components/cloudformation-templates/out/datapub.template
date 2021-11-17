@@ -242,7 +242,15 @@
           } ],
           "UserData" : {
             "Fn::Base64" : {
-              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "state=\n", "until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n", "state=$(aws --region ", {
+              "Fn::Join" : [ "", [ "#!/usr/bin/env bash\n", "set -oeux \n", "echo \"", "{:postgres {:host \\\"", {
+                "Fn::GetAtt" : [ "RDSInstance", "Endpoint.Address" ]
+              }, "\\\"\n", "            :port ", {
+                "Fn::GetAtt" : [ "RDSInstance", "Endpoint.Port" ]
+              }, "\n", "            :user \\\"postgres\\\"}\n", " :secrets\n", " {:postgres {:password {:secrets-manager/arn \\\"", {
+                "Ref" : "RDSMasterCredentials"
+              }, "\\\"\n", "                        :secrets-manager/key :password}}\n", "  :sysrev-dev-key {:secrets-manager/arn \\\"", {
+                "Ref" : "SysrevDevKey"
+              }, "\\\"\n", "                   :secrets-manager/key :key}\n", " }\n", "}\" > /home/admin/datapub/datapub-config.local.edn\n", "state=\n", "until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n", "state=$(aws --region ", {
                 "Ref" : "AWS::Region"
               }, " elbv2 describe-target-health", " --target-group-arn ", {
                 "Ref" : "LoadBalancerTargetGroup"

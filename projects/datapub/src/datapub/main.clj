@@ -35,9 +35,17 @@
   (stop [this]
     this))
 
+(defn deep-merge [& args]
+  (if (every? #(or (map? %) (nil? %)) args)
+    (apply merge-with deep-merge args)
+    (last args)))
+
 (defn get-config []
-  (-> (config/get-config "datapub-config.edn")
-      (update :secrets map->Secrets)))
+  (let [{:keys [system-config-file] :as config} (config/get-config "datapub-config.edn")
+        local-config (when system-config-file
+                       (edn/read-string (slurp system-config-file)))]
+    (-> (deep-merge config local-config)
+        (update :secrets map->Secrets))))
 
 (defn system-map [{:keys [aws env] :as config}]
   (if-not (envs env)

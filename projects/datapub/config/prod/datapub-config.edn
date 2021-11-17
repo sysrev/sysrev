@@ -3,4 +3,5 @@
             :port 8888}
  :postgres {:dbname "datapub"
             :dbtype "postgres"}
+ :system-config-file "/home/admin/datapub/datapub-config.local.edn"
  :tesseract {:enabled? true}}

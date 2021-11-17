@@ -218,6 +218,19 @@
       (user-data
        "#!/usr/bin/env bash\n"
        "set -oeux \n"
+
+       "echo \""
+       "{:postgres {:host \\\"" (get-att :RDSInstance "Endpoint.Address") "\\\"\n"
+       "            :port " (get-att :RDSInstance "Endpoint.Port") "\n"
+       "            :user \\\"postgres\\\"}\n"
+       " :secrets\n"
+       " {:postgres {:password {:secrets-manager/arn \\\"" (ref :RDSMasterCredentials) "\\\"\n"
+       "                        :secrets-manager/key :password}}\n"
+       "  :sysrev-dev-key {:secrets-manager/arn \\\"" (ref :SysrevDevKey) "\\\"\n"
+       "                   :secrets-manager/key :key}\n"
+       " }\n"
+       "}\" > /home/admin/datapub/datapub-config.local.edn\n"
+
        ;; Adapted from https://github.com/awslabs/aws-cloudformation-templates/blob/2415d1dd34bdbf50e3b009879f6ba754a043afdf/aws/services/AutoScaling/AutoScalingRollingUpdates.yaml#L384-L387
        "state=\n"
        "until [ \"$state\" == \"\\\"healthy\\\"\" ]; do sleep 10;\n"
