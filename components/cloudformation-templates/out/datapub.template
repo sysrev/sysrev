@@ -246,7 +246,9 @@
                 "Fn::GetAtt" : [ "RDSInstance", "Endpoint.Address" ]
               }, "\\\"\n", "            :port ", {
                 "Fn::GetAtt" : [ "RDSInstance", "Endpoint.Port" ]
-              }, "\n", "            :user \\\"postgres\\\"}\n", " :secrets\n", " {:postgres {:password {:secrets-manager/arn \\\"", {
+              }, "\n", "            :user \\\"postgres\\\"}\n", " :s3 {:datapub-bucket {:name \\\"", {
+                "Ref" : "DatapubBucket"
+              }, "\\\"}}\n", " :secrets\n", " {:postgres {:password {:secrets-manager/arn \\\"", {
                 "Ref" : "RDSMasterCredentials"
               }, "\\\"\n", "                        :secrets-manager/key :password}}\n", "  :sysrev-dev-key {:secrets-manager/arn \\\"", {
                 "Ref" : "SysrevDevKey"

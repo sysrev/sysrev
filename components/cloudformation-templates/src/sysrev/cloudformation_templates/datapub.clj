@@ -223,6 +223,7 @@
        "{:postgres {:host \\\"" (get-att :RDSInstance "Endpoint.Address") "\\\"\n"
        "            :port " (get-att :RDSInstance "Endpoint.Port") "\n"
        "            :user \\\"postgres\\\"}\n"
+       " :s3 {:datapub-bucket {:name \\\"" (ref :DatapubBucket) "\\\"}}\n"
        " :secrets\n"
        " {:postgres {:password {:secrets-manager/arn \\\"" (ref :RDSMasterCredentials) "\\\"\n"
        "                        :secrets-manager/key :password}}\n"
