@@ -90,6 +90,10 @@ build {
   }
 
   provisioner "shell" {
+    script = "./install-amazon-cloudwatch-agent.sh"
+  }
+
+  provisioner "shell" {
     script = "./install-amazon-ssm-agent.sh"
   }
 
@@ -110,6 +114,22 @@ build {
 
   provisioner "shell" {
     script = "./install-datapub.sh"
+  }
+
+  provisioner "file" {
+    destination = "/tmp/"
+    source      = "./amazon-cloudwatch-agent.json"
+  }
+
+  provisioner "shell" {
+    inline = [
+      "sudo chown root:root /tmp/amazon-cloudwatch-agent.json",
+      "sudo mv /tmp/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/"
+    ]
+  }
+
+  provisioner "shell" {
+    script = "./start-amazon-cloudwatch-agent.sh"
   }
 
   provisioner "shell" {

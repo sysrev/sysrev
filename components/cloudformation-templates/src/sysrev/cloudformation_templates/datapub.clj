@@ -32,7 +32,14 @@
    (fn-not (equals "" (ref :KeyName)))}
 
   :Resources
-  {:RDSMasterCredentials
+  {:LogGroup
+   {:Type "AWS::Logs::LogGroup"
+    :Properties
+    {:KmsKeyId (import-regional "LogsKeyArn")
+     :LogGroupName "Datapub-Servers"
+     :RetentionInDays 14}}
+
+   :RDSMasterCredentials
    {:Type "AWS::SecretsManager::Secret"
     :Properties
     {:GenerateSecretString
@@ -186,6 +193,7 @@
      :Path "/Sysrev/Datapub/"
      :ManagedPolicyArns
      ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
       (ref :DatapubBucketFullAccessPolicy)
       (ref :InstancePolicy)
       (import-regional "CredentialsKeyUsePolicyArn")]}}

@@ -214,12 +214,6 @@
        :Action "kms:*"
        :Resource "*"}}}}
 
-   :CredentialsKeyAlias
-   {:Type "AWS::KMS::Alias"
-    :Properties
-    {:AliasName "alias/Sysrev-Credentials-Key"
-     :TargetKeyId (ref :CredentialsKey)}}
-
    :CredentialsKeyUsePolicy
    {:Type "AWS::IAM::ManagedPolicy"
     :Properties
@@ -230,6 +224,28 @@
        :Action ["kms:Encrypt" "kms:Decrypt"]
        :Resource
        [(join "" ["arn:aws:kms:" region ":" account-id ":key/" (ref :CredentialsKey)])]}}}}
+
+   :LogsKey
+   {:Type "AWS::KMS::Key"
+    :Properties
+    {:KeyPolicy
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action "kms:*"
+        :Effect "Allow"
+        :Principal {:AWS (sub "arn:aws:iam::${AWS::AccountId}:root")}
+        :Resource "*"}
+       {:Action ["kms:Encrypt*"
+                 "kms:Decrypt*"
+                 "kms:ReEncrypt*"
+                 "kms:GenerateDataKey*"
+                 "kms:Describe*"]
+        :Condition
+        {:ArnLike
+         {"kms:EncryptionContext:aws:logs:arn" (sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*")}}
+        :Effect "Allow"
+        :Principal {:Service (sub "logs.${AWS::Region}.amazonaws.com")}
+        :Resource "*"}]}}}
 
    :LoadBalancerSecurityGroup
    {:Type "AWS::EC2::SecurityGroup"
@@ -310,6 +326,7 @@
     :LoadBalancerHTTPSListenerArn [(ref :LoadBalancerHTTPSListener)]
     :LoadBalancerName [(get-att :LoadBalancer "LoadBalancerName")]
     :LoadBalancerSecurityGroupId [(ref :LoadBalancerSecurityGroup)]
+    :LogsKeyArn [(arn :LogsKey)]
     :RDSSubnetGroupName [(ref :RDSSubnetGroup)]
     :VpcId [(ref :Vpc)]
     :VpcSubnetIds [(join "," subnets)]}))

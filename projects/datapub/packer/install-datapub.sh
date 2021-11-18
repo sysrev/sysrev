@@ -20,5 +20,6 @@ sudo docker-compose -f docker-compose-dev.yml up -d
 cd
 sudo chown root:root /tmp/datapub.service
 sudo mv /tmp/datapub.service /etc/systemd/system/
+sudo mkdir -p /var/log/datapub
 sudo systemctl daemon-reload
 sudo systemctl enable datapub

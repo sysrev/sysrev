@@ -154,6 +154,16 @@
         "Ref" : "LoadBalancerSecurityGroup"
       }
     },
+    "LogsKeyArn" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-LogsKeyArn"
+        }
+      },
+      "Value" : {
+        "Fn::GetAtt" : [ "LogsKey", "Arn" ]
+      }
+    },
     "RDSSubnetGroupName" : {
       "Export" : {
         "Name" : {
@@ -265,15 +275,6 @@
         }
       },
       "Type" : "AWS::KMS::Key"
-    },
-    "CredentialsKeyAlias" : {
-      "Properties" : {
-        "AliasName" : "alias/Sysrev-Credentials-Key",
-        "TargetKeyId" : {
-          "Ref" : "CredentialsKey"
-        }
-      },
-      "Type" : "AWS::KMS::Alias"
     },
     "CredentialsKeyUsePolicy" : {
       "Properties" : {
@@ -485,6 +486,40 @@
         }
       },
       "Type" : "AWS::EC2::SecurityGroup"
+    },
+    "LogsKey" : {
+      "Properties" : {
+        "KeyPolicy" : {
+          "Statement" : [ {
+            "Action" : "kms:*",
+            "Effect" : "Allow",
+            "Principal" : {
+              "AWS" : {
+                "Fn::Sub" : "arn:aws:iam::${AWS::AccountId}:root"
+              }
+            },
+            "Resource" : "*"
+          }, {
+            "Action" : [ "kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*" ],
+            "Condition" : {
+              "ArnLike" : {
+                "kms:EncryptionContext:aws:logs:arn" : {
+                  "Fn::Sub" : "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                }
+              }
+            },
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : {
+                "Fn::Sub" : "logs.${AWS::Region}.amazonaws.com"
+              }
+            },
+            "Resource" : "*"
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::KMS::Key"
     },
     "RDSSubnetGroup" : {
       "Properties" : {

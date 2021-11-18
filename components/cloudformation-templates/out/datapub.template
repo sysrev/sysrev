@@ -196,7 +196,7 @@
           } ],
           "Version" : "2012-10-17"
         },
-        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore", {
+        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore", "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy", {
           "Ref" : "DatapubBucketFullAccessPolicy"
         }, {
           "Ref" : "InstancePolicy"
@@ -306,6 +306,16 @@
         }
       },
       "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup"
+    },
+    "LogGroup" : {
+      "Properties" : {
+        "KmsKeyId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-LogsKeyArn"
+        },
+        "LogGroupName" : "Datapub-Servers",
+        "RetentionInDays" : 14
+      },
+      "Type" : "AWS::Logs::LogGroup"
     },
     "RDSInstance" : {
       "DeletionPolicy" : "Snapshot",
