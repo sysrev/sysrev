@@ -250,6 +250,14 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
       "Access-Control-Allow-Methods" "OPTIONS, POST"
       "Access-Control-Allow-Origin" (when (allowed-origins origin) origin)}}))
 
+(defn throw-exception [context]
+  (if (dataset/sysrev-dev? context)
+    (let [message (str "Exception induced by developer: "
+                       (get-in context [:request :params :message]))]
+      (t/error message)
+      (throw (Exception. message)))
+    {:status 403 :headers {} :body "Forbidden"}))
+
 (defn service-map [{:keys [env host port] :as opts} pedestal]
   (let [compiled-schema (graphql/load-schema)
         app-context {:opts opts :pedestal pedestal}
@@ -274,7 +282,13 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                         :get
                         (constantly {:status 200 :headers {} :body ""})
                         :route-name ::health-check]
-                       ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]}
+                       ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]
+                       ["/throw-exception"
+                        :post
+                        [pedestal2/json-response-interceptor
+                         pedestal2/error-response-interceptor
+                         #(throw-exception (assoc app-context :request %))]
+                        :route-name ::throw-exception]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env
          :graphql-schema compiled-schema
