@@ -1,5 +1,6 @@
 (ns datapub.main
   (:require hashp.core ; Load #p data reader
+            nrepl.server
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
@@ -86,8 +87,34 @@
     ((requiring-resolve 'datapub.test/load-ctgov-dataset!) system)
     system))
 
+(defonce nrepl (atom nil))
+
+(defrecord NRepl [bound-port config server]
+  component/Lifecycle
+  (start [this]
+    (if server
+      this
+      (let [server (nrepl.server/start-server
+                    :bind "localhost"
+                    :port (or (get-in config [:nrepl :port]) 7888))]
+        (assoc this
+               :bound-port (.getLocalPort ^java.net.ServerSocket (:server-socket server))
+               :server server))))
+  (stop [this]
+    (if-not server
+      this
+      (do
+        (nrepl.server/stop-server server)
+        (assoc this :bound-port nil :server nil)))))
+
+(defn start-nrepl! [config]
+  (swap! nrepl #(component/start
+                 (or % (component/system-map :nrepl (map->NRepl {:config config}))))))
+
 (defn -main []
-  (start!))
+  (let [config (get-config)]
+    (start-nrepl! config)
+    (start! config)))
 
 (defrecord DatapubSystem [options system system-f]
   component/Lifecycle
