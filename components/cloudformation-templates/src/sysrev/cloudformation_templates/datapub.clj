@@ -1,6 +1,7 @@
 (ns sysrev.cloudformation-templates.datapub
   (:refer-clojure :exclude [ref])
-  (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
+  (:require [clojure.java.io :as io]
+            [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 
 (defn import-regional [export-name]
   (import-value (str "Sysrev-Regional-Resources-" export-name)))
@@ -18,6 +19,8 @@
    :DatapubBucket {:MaxLength 63
                    :MinLength 3
                    :Type "String"}
+   :Env {:AllowedPattern "(dev)|(prod)|(staging)"
+         :Type "String"}
    :KeyName {:Default ""
              :Type "String"}
    :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9][0-9]+"
@@ -25,7 +28,9 @@
                          :Type "String"}
    :RDSInstanceClass {:Type "String"}
    :RDSIops {:MinValue 1000
-             :Type "Number"}}
+             :Type "Number"}
+   :SlackToken {:NoEcho true
+                :Type "String"}}
 
   :Conditions
   {:HasKeyName
@@ -38,6 +43,50 @@
     {:KmsKeyId (import-regional "LogsKeyArn")
      :LogGroupName "Datapub-Servers"
      :RetentionInDays 14}}
+
+   :ErrorFunctionExecutionRole
+   {:Type "AWS::IAM::Role"
+    :Properties
+    {:AssumeRolePolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      {:Action "sts:AssumeRole"
+       :Effect "Allow"
+       :Principal {:Service ["edgelambda.amazonaws.com" "lambda.amazonaws.com"]}}}
+     :ManagedPolicyArns
+     ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]}}
+
+   :ErrorFunction
+   {:Type "AWS::Lambda::Function"
+    :Properties
+    {:Description "Sends datapub errors to Slack."
+     :Environment
+     {:Variables
+      {"ENV" (ref :Env)
+       "SLACK_CHANNEL" "C02MZERSZ36"
+       "SLACK_TOKEN" (ref :SlackToken)}}
+     :Handler "index.handler"
+     :MemorySize 128
+     :Role (arn :ErrorFunctionExecutionRole)
+     :Runtime "nodejs12.x"
+     :Code
+     {:ZipFile
+      (slurp (io/resource "sysrev/cloudformation-templates/lambda/log-to-slack.js"))}}}
+
+   :ErrorFunctionPermission
+   {:Type "AWS::Lambda::Permission"
+    :Properties
+    {:Action "lambda:InvokeFunction"
+     :FunctionName (ref :ErrorFunction)
+     :Principal (sub "logs.${AWS::Region}.amazonaws.com")
+     :SourceArn (arn :LogGroup)}}
+
+   :ErrorFunctionFilter
+   {:Type "AWS::Logs::SubscriptionFilter"
+    :Properties
+    {:DestinationArn (arn :ErrorFunction)
+     :FilterPattern "?ERROR ?WARN"
+     :LogGroupName (ref :LogGroup)}}
 
    :RDSMasterCredentials
    {:Type "AWS::SecretsManager::Secret"

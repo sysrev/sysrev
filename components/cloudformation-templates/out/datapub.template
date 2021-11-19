@@ -27,6 +27,10 @@
       "MinLength" : 3,
       "Type" : "String"
     },
+    "Env" : {
+      "AllowedPattern" : "(dev)|(prod)|(staging)",
+      "Type" : "String"
+    },
     "KeyName" : {
       "Default" : "",
       "Type" : "String"
@@ -42,6 +46,10 @@
     "RDSIops" : {
       "MinValue" : 1000,
       "Type" : "Number"
+    },
+    "SlackToken" : {
+      "NoEcho" : true,
+      "Type" : "String"
     }
   },
   "Resources" : {
@@ -149,6 +157,75 @@
         }
       },
       "Type" : "AWS::EC2::SecurityGroup"
+    },
+    "ErrorFunction" : {
+      "Properties" : {
+        "Code" : {
+          "ZipFile" : "const https = require('https');\nconst util = require('util');\nconst zlib = require('zlib');\n\n// Modified from https://medium.com/@gevorggalstyan/how-to-promisify-node-js-http-https-requests-76a5a58ed90c\nconst request = async (options, postData) => {\n  return new Promise((resolve, reject) => {\n    const req = https.request(options, res => {\n      if (res.statusCode < 200 || res.statusCode >= 300) {\n        return reject(new Error(`Status Code: ${res.statusCode}`));\n      }\n\n      const data = [];\n\n      res.on('data', chunk => {\n        data.push(chunk);\n      });\n\n      res.on('end', () => resolve(Buffer.concat(data).toString()));\n    });\n\n    req.on('error', reject);\n\n    if (postData) {\n      req.write(postData);\n    }\n\n    // IMPORTANT\n    req.end();\n  });\n};\n\nexports.handler = async (event, context) => {\n  const payload = Buffer.from(event.awslogs.data, 'base64');\n  const unparsed = zlib.gunzipSync(payload).toString('utf8');\n  const events = JSON.parse(unparsed).logEvents;\n  const messages = events.map(function (event) { return event.message });\n  const opts = {\n    headers:\n    {\n      \"Authorization\": \"Bearer \" + process.env.SLACK_TOKEN,\n      \"Content-Type\": \"application/json\"\n    },\n    host: \"slack.com\",\n    method: \"POST\",\n    path: \"/api/chat.postMessage\"\n  };\n  const body = {\n    channel: process.env.SLACK_CHANNEL,\n    text: \"*Env*: \" + process.env.ENV + \"\\n\" + messages.join(\"\\n\")\n  };\n  try {\n    const data = await request(opts, JSON.stringify(body));\n    console.log(data);\n  } catch (error) {\n    console.error(error);\n  }\n  return `Successfully processed ${events.length} log events.`;\n};\n"
+        },
+        "Description" : "Sends datapub errors to Slack.",
+        "Environment" : {
+          "Variables" : {
+            "ENV" : {
+              "Ref" : "Env"
+            },
+            "SLACK_CHANNEL" : "C02MZERSZ36",
+            "SLACK_TOKEN" : {
+              "Ref" : "SlackToken"
+            }
+          }
+        },
+        "Handler" : "index.handler",
+        "MemorySize" : 128,
+        "Role" : {
+          "Fn::GetAtt" : [ "ErrorFunctionExecutionRole", "Arn" ]
+        },
+        "Runtime" : "nodejs12.x"
+      },
+      "Type" : "AWS::Lambda::Function"
+    },
+    "ErrorFunctionExecutionRole" : {
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Statement" : {
+            "Action" : "sts:AssumeRole",
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : [ "edgelambda.amazonaws.com", "lambda.amazonaws.com" ]
+            }
+          },
+          "Version" : "2012-10-17"
+        },
+        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" ]
+      },
+      "Type" : "AWS::IAM::Role"
+    },
+    "ErrorFunctionFilter" : {
+      "Properties" : {
+        "DestinationArn" : {
+          "Fn::GetAtt" : [ "ErrorFunction", "Arn" ]
+        },
+        "FilterPattern" : "?ERROR ?WARN",
+        "LogGroupName" : {
+          "Ref" : "LogGroup"
+        }
+      },
+      "Type" : "AWS::Logs::SubscriptionFilter"
+    },
+    "ErrorFunctionPermission" : {
+      "Properties" : {
+        "Action" : "lambda:InvokeFunction",
+        "FunctionName" : {
+          "Ref" : "ErrorFunction"
+        },
+        "Principal" : {
+          "Fn::Sub" : "logs.${AWS::Region}.amazonaws.com"
+        },
+        "SourceArn" : {
+          "Fn::GetAtt" : [ "LogGroup", "Arn" ]
+        }
+      },
+      "Type" : "AWS::Lambda::Permission"
     },
     "InstancePolicy" : {
       "Properties" : {
