@@ -203,6 +203,13 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                  (execute-subscription context parsed-query)
                  (execute-operation context parsed-query))))}))
 
+(def error-logging-interceptor
+  (interceptor/interceptor
+   {:name ::error-logging
+    :error (fn [context ^Throwable t]
+             (t/error t)
+             (throw t))}))
+
 (def allowed-origins
   {:dev (constantly true)
    :prod #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
@@ -228,6 +235,7 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
 
 (defn subscription-interceptors [compiled-schema app-context]
   [subscriptions/exception-handler-interceptor
+   error-logging-interceptor
    subscriptions/send-operation-response-interceptor
    (subscriptions/query-parser-interceptor compiled-schema)
    (subscriptions/inject-app-context-interceptor app-context)
