@@ -26,16 +26,12 @@
 ;; for clj-kondo
 (declare html-routes)
 
-(defonce app-routes nil)
-
-(defn load-app-routes []
-  (alter-var-root #'app-routes (constantly (c/routes auth-routes
-                                                     site-routes
-                                                     project-routes
-                                                     user-routes
-                                                     org-routes))))
-
-(load-app-routes)
+(defn app-routes []
+  (c/routes auth-routes
+            site-routes
+            project-routes
+            user-routes
+            org-routes))
 
 (defroutes html-routes
   (GET "*" {:keys [uri] :as request}
@@ -120,7 +116,7 @@
                       (channel-socket-routes (assoc (:chsk sente)
                                                     :web-server web-server))
                       (constantly nil))
-                    (ANY "/api/*" [] (c/wrap-routes app-routes #(wrap-sysrev-app % :web-server web-server)))
+                    (ANY "/api/*" [] (c/wrap-routes (app-routes) #(wrap-sysrev-app % :web-server web-server)))
                     (ANY "/graphql" [] graphql-routes)
                     (compojure.route/resources "/")
                     (GET "/sitemap.xml" []
