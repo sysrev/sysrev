@@ -1,8 +1,8 @@
 let
-  rev = "1224e4bec7b8019f8847dd268a642000073bcfa3";
+  rev = "46725ae611741dd6d9a43c7e79d5d98ca9ce4328";
   nixpkgs = fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-    sha256 = "1kgs6l0q84qmxdcxii88psicy8h7s2kcrkrwhlaiajbkdwk3xfx0";
+    sha256 = "11srp3zfac0ahb1mxzkw3czlpmxc1ls7y219ph1r4wx2ndany9s9";
   };
   pkgs = import nixpkgs {};
   inherit (pkgs) stdenv fetchurl;
@@ -21,7 +21,6 @@ let
       cp osd.traineddata eng.traineddata $out
     '';
   };
-  jdk = pkgs.openjdk11;
 in with pkgs;
   stdenv.mkDerivation {
     name = "datapub";
@@ -32,6 +31,7 @@ in with pkgs;
       jdk
       packer
       postgresql_13
+      rlwrap
       tessdata_best
       tesseract4
     ];
