@@ -137,6 +137,7 @@
                      :description "Read a project by its id"
                      :args {:id {:type (non-null Int)}}
                      :resolve :resolve-project}}
+
  :mutations {:importArticles {:type Boolean
                               :description "Import articles with a query string from datasource. Result is true when import is successful false otherwise. Query must at minimum contain the subfield id, corresponding to the datasource id. Avoid extraneous subfields such as content,updated,url, etc as these will be ignored during import and displayed when an individual article is viewed. Limit your query to a single query as multiple queries are not currently handled."
                               :args {:query {:type (non-null String)
@@ -173,4 +174,13 @@
                                                         :description "The ID of the project from which articles are being exported"}
                                              :targetID {:type (non-null Int)
                                                         :description "The Id of the project to which article are being imported"}}
-                                      :resolve :resolve-import-article-filter-url!}}}
+                                      :resolve :resolve-import-article-filter-url!}
+             :setLabels {:type Boolean
+                        :description "Set label value for an article"
+                        :args {:articleID {:type (non-null Int) :description "Article ID"}
+                               :projectID {:type (non-null Int) :description "Project ID"}
+                               :labelValues {:type (list :SetLabelInput) :description "Label values"}
+                               :confirm {:type (non-null Boolean) :description "Confirm?"}
+                               :resolve {:type (non-null Boolean) :description "Resolve?"}
+                               :change {:type (non-null Boolean) :description "Change?"}}
+                        :resolve :resolve-set-labels!}}}

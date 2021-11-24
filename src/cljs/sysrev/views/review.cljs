@@ -133,7 +133,8 @@
          "boolean" (not (boolean? answer))
          "categorical" (empty? answer)
          "string" (str/blank? answer)
-         "annotation" (empty? answer))))
+         "annotation" (empty? answer)
+         "group" (empty? answer))))
 
 (defn missing-group-answer? [labels answers]
   (boolean
@@ -184,7 +185,8 @@
           (vals answer))))
     "string"
     (or (empty? answer)
-        (valid-string-value? definition answer))))
+        (valid-string-value? definition answer))
+    "group" (empty? answer)))
 
 (defn valid-group-answers? [group-labels group-answers]
   (every?

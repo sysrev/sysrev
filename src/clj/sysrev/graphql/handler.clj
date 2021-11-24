@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.walk :as walk]
+            [cheshire.core :as cheshire]
             [com.walmartlabs.lacinia :refer [execute]]
             [com.walmartlabs.lacinia.schema :as schema]
             [com.walmartlabs.lacinia.util :refer [attach-resolvers]]
@@ -18,6 +19,7 @@
               import-datasource-flattened
               import-ds-query]]
             [sysrev.source.project-filter :refer [import-article-filter-url!]]
+            [sysrev.article.graphql :refer [set-labels! parse-set-label-input]]
             [sysrev.util :as util]))
 
 (def scalars
@@ -26,7 +28,10 @@
                           x
                           (throw (ex-info "Must be a non-negative long representing Unix epoch time."
                                           {:value x}))))
-               :serialize identity}})
+               :serialize identity}
+   :SetLabelInput
+   {:parse parse-set-label-input
+    :serialize #(cheshire/generate-string %)}})
 
 (defn compile-sysrev-schema []
   (-> (io/resource "edn/graphql-schema.edn")
@@ -38,7 +43,8 @@
                          :resolve-import-dataset! import-dataset
                          :resolve-import-datasource! import-datasource
                          :resolve-import-datasource-flattened! import-datasource-flattened
-                         :resolve-import-article-filter-url! import-article-filter-url!})
+                         :resolve-import-article-filter-url! import-article-filter-url!
+                         :resolve-set-labels! set-labels!})
       (assoc :scalars scalars)
       (schema/compile {:default-field-resolver schema/hyphenating-default-field-resolver})))
 

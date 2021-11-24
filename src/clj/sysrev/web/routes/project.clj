@@ -36,7 +36,6 @@
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.encryption :as enc]
-            [sysrev.slack :as slack]
             [sysrev.util :as util :refer [parse-integer]]
             [ring.util.io :as ring-io])
   (:import (java.io File)))
@@ -472,36 +471,22 @@
                              {:today-count today-count})})
              {:result :none}))))
 
-;; Sets and optionally confirms label values for an article
-(def exponential-steps (into [15] (->> (range 0 20) (map #(Math/pow 1.7 %)) (filter #(>= % 30)) (map int))))
 
 (dr (POST "/api/set-labels" request
           (with-authorize request {:roles ["member"]}
             (let [user-id (current-user-id request)
                   project-id (active-project request)
-                  before-count (label/count-reviewed-articles project-id)
                   {:keys [article-id label-values confirm? change? resolve?]
-                   :as body} (-> request :body)
-                  duplicate-save? (and (label/user-article-confirmed? user-id article-id)
-                                       (not change?)
-                                       (not resolve?))]
+                   :as body} (-> request :body)]
               (record-user-project-interaction request)
-              (if duplicate-save?
-                (do (log/warnf "api/set-labels: answer already confirmed ; %s" (pr-str body))
-                    (slack/try-log-slack
-                     [(format "*Request*:\n```%s```"
-                              (util/pp-str (slack/request-info request)))]
-                     "Duplicate /api/set-labels request"))
-                (answer/set-user-article-labels user-id article-id label-values
-                                                :imported? false
-                                                :confirm? confirm?
-                                                :change? change?
-                                                :resolve? resolve?))
-              (let [after-count (label/count-reviewed-articles project-id)]
-                (when (and (> after-count before-count)
-                           (not= 0 after-count)
-                           (seq (filter #(= % after-count) exponential-steps)))
-                  (predict-api/schedule-predict-update project-id)))
+              (answer/set-labels {:project-id project-id
+                                  :user-id user-id
+                                  :article-id article-id
+                                  :label-values label-values
+                                  :confirm? confirm?
+                                  :change? change?
+                                  :resolve? resolve?
+                                  :request request})
               {:result body}))))
 
 (dr (POST "/api/set-article-note" request

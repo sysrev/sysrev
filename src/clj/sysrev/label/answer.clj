@@ -1,6 +1,10 @@
 (ns sysrev.label.answer
   (:require [sysrev.db.core :as db :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
+            [sysrev.slack :as slack]
+            [sysrev.label.core :as label]
+            [clojure.tools.logging :as log]
+            [sysrev.biosource.predict :as predict-api]
             [sysrev.notification.interface :refer [create-notification]]
             [sysrev.project.core :as project]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
@@ -172,3 +176,32 @@
                     (where [:= :article-label-id article-label-id])
                     do-execute))))
            doall))))
+
+
+;; Sets and optionally confirms label values for an article
+(def exponential-steps (into [15] (->> (range 0 20) (map #(Math/pow 1.7 %)) (filter #(>= % 30)) (map int))))
+
+(defn set-labels [{:keys [project-id user-id article-id label-values confirm? change? resolve? request] :as params}]
+  (let [before-count (label/count-reviewed-articles project-id)
+        duplicate-save? (and (label/user-article-confirmed? user-id article-id)
+                             (not change?)
+                             (not resolve?))]
+    (if duplicate-save?
+      (do (log/warnf "api/set-labels: answer already confirmed ; %s" (pr-str params))
+          (slack/try-log-slack
+            (if request
+              [(format "*Request*:\n```%s```"
+                       (util/pp-str (slack/request-info request)))]
+              [])
+            "Duplicate /api/set-labels request"))
+      (set-user-article-labels user-id article-id label-values
+                               :imported? false
+                               :confirm? confirm?
+                               :change? change?
+                               :resolve? resolve?))
+    (let [after-count (label/count-reviewed-articles project-id)]
+      (when (and (> after-count before-count)
+                 (not= 0 after-count)
+                 (seq (filter #(= % after-count) exponential-steps)))
+        (predict-api/schedule-predict-update project-id)))))
+
