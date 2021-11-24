@@ -107,6 +107,7 @@ pkgs.mkShell {
     npm
     polylith
     postgresql_13
+    python39Packages.cfn-lint
     time
   ];
   shellHook = ''

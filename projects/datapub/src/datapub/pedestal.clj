@@ -13,6 +13,7 @@
             [com.walmartlabs.lacinia.resolve :as resolve]
             [datapub.dataset :as dataset]
             [datapub.graphql :as graphql]
+            [datapub.secrets-manager :as secrets-manager]
             [io.pedestal.http :as http]
             [io.pedestal.http.cors :as cors]
             [io.pedestal.http.ring-middlewares :as ring-middlewares]
@@ -202,6 +203,13 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                  (execute-subscription context parsed-query)
                  (execute-operation context parsed-query))))}))
 
+(def error-logging-interceptor
+  (interceptor/interceptor
+   {:name ::error-logging
+    :error (fn [context ^Throwable t]
+             (t/error t)
+             (throw t))}))
+
 (def allowed-origins
   {:dev (constantly true)
    :prod #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
@@ -227,6 +235,7 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
 
 (defn subscription-interceptors [compiled-schema app-context]
   [subscriptions/exception-handler-interceptor
+   error-logging-interceptor
    subscriptions/send-operation-response-interceptor
    (subscriptions/query-parser-interceptor compiled-schema)
    (subscriptions/inject-app-context-interceptor app-context)
@@ -241,7 +250,15 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
       "Access-Control-Allow-Methods" "OPTIONS, POST"
       "Access-Control-Allow-Origin" (when (allowed-origins origin) origin)}}))
 
-(defn service-map [{:keys [env port] :as opts} pedestal]
+(defn throw-exception [context]
+  (if (dataset/sysrev-dev? context)
+    (let [message (str "Exception induced by developer: "
+                       (get-in context [:request :params :message]))]
+      (t/error message)
+      (throw (Exception. message)))
+    {:status 403 :headers {} :body "Forbidden"}))
+
+(defn service-map [{:keys [env host port] :as opts} pedestal]
   (let [compiled-schema (graphql/load-schema)
         app-context {:opts opts :pedestal pedestal}
         routes (into #{["/api"
@@ -261,15 +278,25 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                         :options
                         #(cors-preflight % (allowed-origins env))
                         :route-name ::DatasetEntity-content-cors-preflight]
-                       ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]}
+                       ["/health"
+                        :get
+                        (constantly {:status 200 :headers {} :body ""})
+                        :route-name ::health-check]
+                       ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]
+                       ["/throw-exception"
+                        :post
+                        [pedestal2/json-response-interceptor
+                         pedestal2/error-response-interceptor
+                         #(throw-exception (assoc app-context :request %))]
+                        :route-name ::throw-exception]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env
          :graphql-schema compiled-schema
+         ::http/host host
+         ::http/join? false
          ::http/routes routes
          ::http/port port
-         ::http/host "localhost"
-         ::http/type :jetty
-         ::http/join? false}
+         ::http/type :jetty}
         pedestal2/enable-graphiql
         (pedestal2/enable-subscriptions
          graphql/load-schema
@@ -278,28 +305,30 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           #__ (subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
-(defrecord Pedestal [bound-port opts service service-map service-map-fn]
+(defrecord Pedestal [bound-port config opts secrets-manager service service-map service-map-fn]
   component/Lifecycle
   (start [this]
     (if service
       this
-      (if (and (nil? (:port opts)) (not= :test (:env opts)))
-        (throw (RuntimeException. "Port cannot be nil outside of :test env."))
-        (let [service-map (service-map-fn
-                           (update opts :port #(or % 0)) ; Prevent pedestal exception
-                           this)
-              service (if (:port opts)
-                        (http/start (http/create-server service-map))
-                        (http/create-server (assoc service-map :port 0)))
-              bound-port (some-> service :io.pedestal.http/server
-                                 .getURI .getPort)]
-          (if (and bound-port (pos-int? bound-port))
-            (t/info "Started Pedestal on port" bound-port)
-            (t/info "Started Pedestal with no ports"))
-          (assoc this
-                 :bound-port bound-port
-                 :service-map service-map
-                 :service service)))))
+      (let [opts (assoc (:pedestal config) :env (:env config))]
+        (if (and (nil? (:port opts)) (not= :test (:env opts)))
+          (throw (RuntimeException. "Port cannot be nil outside of :test env."))
+          (let [service-map (service-map-fn
+                             (update opts :port #(or % 0)) ; Prevent pedestal exception
+                             this)
+                service (if (:port opts)
+                          (http/start (http/create-server service-map))
+                          (http/create-server (assoc service-map :port 0)))
+                bound-port (some-> service :io.pedestal.http/server
+                                   .getURI .getPort)]
+            (if (and bound-port (pos-int? bound-port))
+              (t/info "Started Pedestal on port" bound-port)
+              (t/info "Started Pedestal with no ports"))
+            (assoc this
+                   :bound-port bound-port
+                   :opts opts
+                   :service-map service-map
+                   :service service))))))
   (stop [this]
     (if-not service-map
       this
@@ -309,5 +338,5 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           (t/info "Stopped Pedestal"))
         (assoc this :bound-port nil :service nil :service-map nil)))))
 
-(defn pedestal [{:keys [opts]}]
-  (map->Pedestal {:opts opts :service-map-fn service-map}))
+(defn pedestal []
+  (map->Pedestal {:service-map-fn service-map}))

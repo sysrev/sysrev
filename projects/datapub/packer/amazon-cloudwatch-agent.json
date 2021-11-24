@@ -1,0 +1,23 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log",
+    "run_as_user": "admin"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/datapub/datapub.log",
+            "log_group_name": "Datapub-Servers",
+            "log_stream_name": "{instance_id}-datapub",
+            "timezone": "UTC"
+          }
+        ]
+      }
+    },
+    "log_stream_name": "logs",
+    "force_flush_interval" : 15
+  }
+}

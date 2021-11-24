@@ -2,7 +2,6 @@
 ################################# Local config #################################
 ################################################################################
 
-/projects/datapub/config/prod
 /projects/datapub-importer/config/prod
 
 # files starting with a dot should be ignored by default
@@ -14,6 +13,8 @@
 !/.clj-kondo/config.edn
 !/.clj-kondo/version.txt
 /.clj-kondo/.cache
+
+!/.github
 
 /local/
 
@@ -84,6 +85,10 @@ client/semantic
 
 /scripts/clj-kondo
 /scripts/clj-kondo.old
+
+# Nix derivations
+result
+result-*
 
 ################################################################################
 #### Created by https://www.gitignore.io/api/scala,emacs,clojure,intellij ######

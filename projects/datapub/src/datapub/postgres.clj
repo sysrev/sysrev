@@ -1,6 +1,7 @@
 (ns datapub.postgres
   (:require [com.stuartsierra.component :as component]
             [datapub.flyway :as flyway]
+            [datapub.secrets-manager :as secrets-manager]
             [hikari-cp.core :as hikari-cp]
             [honey.sql :as sql]
             [next.jdbc :as jdbc]
@@ -22,29 +23,32 @@
              :port-number (:port config))
       hikari-cp/make-datasource))
 
-(defrecord Postgres [bound-port config datasource embedded-pg]
+(defrecord Postgres [bound-port config datasource embedded-pg secrets-manager]
   component/Lifecycle
   (start [this]
     (if datasource
       this
       (do
-        (let [embedded-pg (when (:embedded? config)
-                            (->> config :port
+        (let [opts (:postgres config)
+              embedded-pg (when (:embedded? opts)
+                            (->> opts :port
                                  ((requiring-resolve 'datapub.postgres-embedded/embedded-pg-builder))
                                  ((requiring-resolve 'datapub.postgres-embedded/start!))))
               ;; If port 0 was specified, we need the actual port used.
               bound-port (if embedded-pg
                            ((requiring-resolve 'datapub.postgres-embedded/get-port) embedded-pg)
-                           (:port config))
-              config (assoc config :port bound-port)]
-          (when (:create-if-not-exists? config)
-            (let [ds (jdbc/get-datasource (dissoc config :dbname))]
+                           (:port opts))
+              opts (assoc opts
+                         :password (get-in config [:secrets :postgres :password])
+                         :port bound-port)]
+          (when (:create-if-not-exists? opts)
+            (let [ds (jdbc/get-datasource (dissoc opts :dbname))]
               (try
-                (jdbc/execute! ds [(str "CREATE DATABASE " (:dbname config))])
+                (jdbc/execute! ds [(str "CREATE DATABASE " (:dbname opts))])
                 (catch PSQLException e
                   (when-not (re-find #"database .* already exists" (.getMessage e))
                     (throw e))))))
-          (let [datasource (make-datasource config)]
+          (let [datasource (make-datasource opts)]
             (if embedded-pg
               (try
                 (flyway/migrate! datasource)
@@ -61,12 +65,12 @@
       this
       (do
         (hikari-cp/close-datasource datasource)
-        (when (:embedded? config)
+        (when (:embedded? (:postgres config))
           ((requiring-resolve 'datapub.postgres-embedded/stop!) embedded-pg))
         (assoc this :bound-port nil :datasource nil :embedded-pg nil)))))
 
-(defn postgres [{:keys [config]}]
-  (map->Postgres {:config config}))
+(defn postgres []
+  (map->Postgres {}))
 
 (doseq [op [(keyword "@@") ;; Register postgres text search operator
             ;; Register JSON operators
