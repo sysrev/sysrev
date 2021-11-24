@@ -6,7 +6,7 @@
             [sysrev.web.routes.site :as site]))
 
 (defn start-app [& [postgres-overrides only-if-new]]
-  (main/start-system! :only-if-new only-if-new
-                      :postgres-overrides postgres-overrides)
+  (main/start! :only-if-new only-if-new
+               :postgres-overrides postgres-overrides)
   (site/init-global-stats)
   true)

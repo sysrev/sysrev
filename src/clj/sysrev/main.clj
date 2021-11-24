@@ -57,7 +57,7 @@
                  :port (-> config :server :port))
                 [:config :postgres :sente])))
 
-(defn start-system-non-global!
+(defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."
   [& {:keys [config postgres-overrides system-map-f]}]
   (log/info "Starting system")
@@ -90,14 +90,14 @@
     (log/info "System started")
     system))
 
-(defn start-system!
+(defn start!
   "Start a system and assign it to the sysrev.main/system atom."
   [& {:keys [only-if-new postgres-overrides]}]
   (when (or (not only-if-new) (nil? @system))
-    (reset! system (start-system-non-global!
+    (reset! system (start-non-global!
                     :postgres-overrides postgres-overrides))))
 
-(defn stop-system!
+(defn stop!
   "Stop the provided system or, by default, sysrev.main/system."
   [& [m]]
   (log/info "Stopping system")
@@ -108,4 +108,4 @@
     system))
 
 (defn -main []
-  (start-system!))
+  (start!))

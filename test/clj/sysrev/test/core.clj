@@ -114,7 +114,7 @@
                db/*query-cache-enabled* (atom true)
                db/*transaction-query-cache* nil]
        (let [postgres# (:postgres env)
-             system# (main/start-system-non-global!
+             system# (main/start-non-global!
                       :config
                       {:datapub-embedded true
                        :server {:port (get-port/get-port)}}
@@ -133,7 +133,7 @@
            (try
              (do ~@body)
              (finally
-               (swap! *test-system* main/stop-system!))))))))
+               (swap! *test-system* main/stop!))))))))
 
 (defn default-fixture
   "Basic setup for all tests (db, web server, clojure.spec)."
