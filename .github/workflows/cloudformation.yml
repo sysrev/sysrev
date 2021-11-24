@@ -4,8 +4,8 @@ concurrency: sysrev-cloudformation-${{ github.ref_name }}
 on:
   push:
     branches:
-      - cloudformation
-      - cloudformation-prod
+      - staging
+      - production
     paths:
       - '.github/workflows/cloudformation.yml'
       - 'components/cloudformation-templates/out/sysrev-global-resources.template'
@@ -19,17 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Configure AWS dev credentials
-        if: github.ref_name == 'cloudformation'
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
           aws-region: us-east-1
           mask-aws-account-id: no
 
       - name: Configure AWS prod credentials
-        if: github.ref_name == 'cloudformation-prod'
+        if: github.ref_name == 'production'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
@@ -52,17 +52,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Configure AWS dev credentials
-        if: github.ref_name == 'cloudformation'
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
           aws-region: us-east-1
           mask-aws-account-id: no
 
       - name: Configure AWS prod credentials
-        if: github.ref_name == 'cloudformation-prod'
+        if: github.ref_name == 'production'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
@@ -70,8 +70,8 @@ jobs:
           aws-region: us-east-1
           mask-aws-account-id: no
 
-      - name: Deploy Sysrev-Regional-Resources template to dev
-        if: github.ref_name == 'cloudformation'
+      - name: Deploy Sysrev-Regional-Resources template to staging
+        if: github.ref_name == 'staging'
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
         with:
           name: Sysrev-Regional-Resources
@@ -81,7 +81,7 @@ jobs:
           template: components/cloudformation-templates/out/sysrev-regional-resources.template
 
       - name: Deploy Sysrev-Regional-Resources template to prod
-        if: github.ref_name == 'cloudformation-prod'
+        if: github.ref_name == 'production'
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
         with:
           name: Sysrev-Regional-Resources

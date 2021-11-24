@@ -4,8 +4,8 @@ concurrency: sysrev-datapub-${{ github.ref_name }}
 on:
   push:
     branches:
-      - cloudformation
-      - cloudformation-prod
+      - staging
+      - production
     paths:
       - '.github/workflows/datapub.yml'
       - 'components/cloudformation-templates/out/datapub.template'
@@ -21,17 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Configure AWS dev credentials
-        if: github.ref_name == 'cloudformation'
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
           aws-region: us-east-1
           mask-aws-account-id: no
 
       - name: Configure AWS prod credentials
-        if: github.ref_name == 'cloudformation-prod'
+        if: github.ref_name == 'production'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
@@ -94,26 +94,26 @@ jobs:
           AWS_REGION: us-east-1
 
       - name: Build datapub staging uberjar
-        if: github.ref_name == 'cloudformation'
+        if: github.ref_name == 'staging'
         run: nix-shell --run "clojure -X:uberjar-staging"
         working-directory: projects/datapub
 
       - name: Build datapub prod uberjar
-        if: github.ref_name == 'cloudformation-prod'
+        if: github.ref_name == 'production'
         run: nix-shell --run "clojure -X:uberjar"
         working-directory: projects/datapub
 
-      - name: Configure AWS dev credentials
-        if: github.ref_name == 'cloudformation'
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
           aws-region: us-east-1
           mask-aws-account-id: no
 
       - name: Configure AWS prod credentials
-        if: github.ref_name == 'cloudformation-prod'
+        if: github.ref_name == 'production'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
@@ -129,18 +129,18 @@ jobs:
           echo "AMI=$AMI" >> $GITHUB_ENV
         working-directory: projects/datapub/packer
 
-      - name: Deploy datapub dev CloudFormation stack
-        if: github.ref_name == 'cloudformation'
+      - name: Deploy datapub staging CloudFormation stack
+        if: github.ref_name == 'staging'
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
         with:
           name: Datapub
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: "AMI=${{ env.AMI }},AutoScalingMaxSize=2,AutoScalingMinSize=1,DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},Env=dev,RDSAllocatedStorage=100,RDSInstanceClass=db.t4g.micro,RDSIops=1000,SlackToken=${{ env.DATAPUB_SLACK_TOKEN }}"
+          parameter-overrides: "AMI=${{ env.AMI }},AutoScalingMaxSize=2,AutoScalingMinSize=1,DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},Env=staging,RDSAllocatedStorage=100,RDSInstanceClass=db.t4g.micro,RDSIops=1000,SlackToken=${{ env.DATAPUB_SLACK_TOKEN }}"
           role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/datapub.template
 
       - name: Deploy datapub prod CloudFormation stack
-        if: github.ref_name == 'cloudformation-prod'
+        if: github.ref_name == 'production'
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
         with:
           name: Datapub
