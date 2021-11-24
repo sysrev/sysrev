@@ -23,6 +23,7 @@
             sysrev.web.routes.api.handlers
             [sysrev.web.app :as app]
             [sysrev.util :as util :refer [in?]]))
+
 ;; for clj-kondo
 (declare html-routes)
 
@@ -111,19 +112,32 @@
   "Root handler for web server"
   [& [{:keys [sente] :as web-server}]]
   (assert (map? web-server))
-  (cond-> (c/routes (ANY "/web-api/*" [] (c/wrap-routes (api-routes) #(wrap-sysrev-api % :web-server web-server)))
-                    (if sente
-                      (channel-socket-routes (assoc (:chsk sente)
-                                                    :web-server web-server))
-                      (constantly nil))
-                    (ANY "/api/*" [] (c/wrap-routes (app-routes) #(wrap-sysrev-app % :web-server web-server)))
-                    (ANY "/graphql" [] graphql-routes)
-                    (compojure.route/resources "/")
-                    (GET "/sitemap.xml" []
-                         (-> (r/response (index/sysrev-sitemap))
-                             (r/header "Content-Type" "application/xml; charset=utf-8")))
-                    (GET "*" [] (c/wrap-routes html-routes #(wrap-sysrev-html % :web-server web-server))))
-    (in? [:dev :test] (:profile env)) (app/wrap-no-cache)))
+  (let [wrap-dev-reload (fn [handler]
+                          (if (= :dev (:profile env))
+                            (fn [request] ((handler) request))
+                            (handler)))
+        api-routes (wrap-dev-reload
+                    (fn []
+                      (c/wrap-routes (api-routes) #(wrap-sysrev-api % :web-server web-server))))
+        app-routes (wrap-dev-reload
+                    (fn []
+                      (c/wrap-routes (app-routes) #(wrap-sysrev-app % :web-server web-server))))
+        html-routes (wrap-dev-reload
+                     (fn []
+                       (c/wrap-routes html-routes #(wrap-sysrev-html % :web-server web-server))))]
+    (cond-> (c/routes (ANY "/web-api/*" [] api-routes)
+                      (if sente
+                        (channel-socket-routes (assoc (:chsk sente)
+                                                      :web-server web-server))
+                        (constantly nil))
+                      (ANY "/api/*" [] app-routes)
+                      (ANY "/graphql" [] graphql-routes)
+                      (compojure.route/resources "/")
+                      (GET "/sitemap.xml" []
+                           (-> (r/response (index/sysrev-sitemap))
+                               (r/header "Content-Type" "application/xml; charset=utf-8")))
+                      (GET "*" [] html-routes))
+      (in? [:dev :test] (:profile env)) (app/wrap-no-cache))))
 
 (defrecord WebServer [bound-port handler handler-f port server]
   component/Lifecycle
