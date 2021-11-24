@@ -6,6 +6,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.listeners :as listeners]
             [sysrev.db.migration :as migration]
+            [sysrev.fixtures.interface :as fixtures]
             [sysrev.postgres.core :as postgres]
             [sysrev.project.core :as project]
             [sysrev.scheduler.core :as scheduler]
@@ -106,6 +107,19 @@
                  (swap! system component/stop))]
     (log/info "System stopped")
     system))
+
+(defn reload!
+  "Reload sysrev.main system, but reuse the postgres component without
+  reloading it."
+  []
+  (swap! system
+         (fn [system]
+           (when system (component/stop system))
+           (start-non-global!))))
+
+(defn reload-with-fixtures! []
+  (reload!)
+  (fixtures/load-fixtures!))
 
 (defn -main []
   (start!))
