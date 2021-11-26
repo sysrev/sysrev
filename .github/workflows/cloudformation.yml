@@ -46,6 +46,10 @@ jobs:
           no-fail-on-empty-changeset: '1'
           template: components/cloudformation-templates/out/sysrev-global-resources.template
 
+      - name: Echo template outputs
+        run: |
+          echo "Developers Group ARN: ${{ steps.deploy.outputs.DevelopersGroupArn }}"
+
   deploy-regional-resources:
     needs: deploy-global-resources
     runs-on: ubuntu-latest

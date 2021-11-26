@@ -42,6 +42,49 @@
         :Effect "Deny"
         :Resource "*"}]}}}
 
+   :CloudWatchReadPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["cloudwatch:DescribeAlarmHistory"
+                 "cloudwatch:DescribeAlarms"
+                 "cloudwatch:DescribeAlarmsForMetric"
+                 "cloudwatch:DescribeAnomalyDetectors"
+                 "cloudwatch:DescribeInsightRules"
+                 "cloudwatch:GetDashboard"
+                 "cloudwatch:GetInsightRuleReport"
+                 "cloudwatch:GetMetricData"
+                 "cloudwatch:GetMetricStatistics"
+                 "cloudwatch:GetMetricStream"
+                 "cloudwatch:GetMetricWidgetImage"
+                 "cloudwatch:ListDashboards"
+                 "cloudwatch:ListMetricStreams"
+                 "cloudwatch:ListMetrics"
+                 "cloudwatch:ListTagsForResource"
+                 "logs:DescribeDestinations"
+                 "logs:DescribeExportTasks"
+                 "logs:DescribeLogGroups"
+                 "logs:DescribeLogStreams"
+                 "logs:DescribeMetricFilters"
+                 "logs:DescribeQueries"
+                 "logs:DescribeQueryDefinitions"
+                 "logs:DescribeResourcePolicies"
+                 "logs:DescribeSubscriptionFilters"
+                 "logs:FilterLogEvents"
+                 "logs:GetLogDelivery"
+                 "logs:GetLogGroupFields"
+                 "logs:GetLogRecord"
+                 "logs:GetQueryResults"
+                 "logs:ListLogDeliveries"
+                 "logs:ListTagsLogGroup"
+                 "logs:StartQuery"
+                 "logs:StopQuery"
+                 "logs:TestMetricFilter"]
+        :Effect "Allow"
+        :Resource "*"}]}}}
+
    ;; https://www.packer.io/docs/builders/amazon
    :PackerBuildPolicy
    {:Type "AWS::IAM::ManagedPolicy"
@@ -105,13 +148,21 @@
       :IgnorePublicAcls true
       :RestrictPublicBuckets true}
      :Tags
-     (tags :grant "thrive")}}}
+     (tags :grant "thrive")}}
+
+   :DevelopersGroup
+   {:Type "AWS::IAM::Group"
+    :Properties
+    {:GroupName "sysrev-developers"
+     :ManagedPolicyArns
+     [(ref :CloudWatchReadPolicy)]}}}
 
   :Outputs
   (prefixed-outputs
    "${AWS::StackName}-"
    {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]
-    :DatapubBucket [(ref :DatapubBucket)]}))
+    :DatapubBucket [(ref :DatapubBucket)]
+    :DevelopersGroupArn [(arn :DevelopersGroup)]}))
 
 (comment
   (write-template "components/cloudformation-templates/out/sysrev-global-resources.template"
