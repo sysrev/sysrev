@@ -29,7 +29,8 @@
    :RDSInstanceClass {:Type "String"}
    :RDSIops {:MinValue 1000
              :Type "Number"}
-   :SlackToken {:NoEcho true
+   :SlackToken {:MinLength 10 ; Just make sure we actually pass a value in
+                :NoEcho true
                 :Type "String"}}
 
   :Conditions

@@ -48,6 +48,7 @@
       "Type" : "Number"
     },
     "SlackToken" : {
+      "MinLength" : 10,
       "NoEcho" : true,
       "Type" : "String"
     }
