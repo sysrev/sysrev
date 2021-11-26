@@ -23,19 +23,25 @@
          :Type "String"}
    :KeyName {:Default ""
              :Type "String"}
-   :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9][0-9]+"
-                         :Description "Minimum allocated storage in GB. Must be at least 100."
+   :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
+                         :Description "Minimum allocated storage in GB. Must be at least 20."
                          :Type "String"}
    :RDSInstanceClass {:Type "String"}
-   :RDSIops {:MinValue 1000
+   :RDSIops {:Default 1000
+             :Description "Provisioned Iops for the storage. Only used when RDSStorageType is io1."
+             :MinValue 1000
              :Type "Number"}
+   :RDSStorageType {:AllowedPattern "(gp2)|(io1)"
+                    :Type "String"}
    :SlackToken {:MinLength 10 ; Just make sure we actually pass a value in
                 :NoEcho true
                 :Type "String"}}
 
   :Conditions
   {:HasKeyName
-   (fn-not (equals "" (ref :KeyName)))}
+   (fn-not (equals "" (ref :KeyName)))
+   :RDSIo1Storage
+   (equals "io1" (ref :RDSStorageType))}
 
   :Resources
   {:LogGroup
@@ -148,7 +154,7 @@
      :EnablePerformanceInsights true
      :Engine "postgres"
      :EngineVersion "13.3"
-     :Iops (ref :RDSIops)
+     :Iops (fn-if :RDSIo1Storage (ref :RDSIops) no-value)
      :MasterUsername (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::username}}")
      :MasterUserPassword (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}")
      :MaxAllocatedStorage 1000
@@ -157,6 +163,7 @@
      :PreferredMaintenanceWindow "Sun:05:57-Sun:06:27"
      :PubliclyAccessible false
      :StorageEncrypted true
+     :StorageType (ref :RDSStorageType)
      :Tags (tags :grant "1R43DA052916-01")
      :VPCSecurityGroups [(ref :RDSSecurityGroup)]}}
 

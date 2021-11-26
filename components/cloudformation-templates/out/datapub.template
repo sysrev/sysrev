@@ -7,6 +7,11 @@
           "Ref" : "KeyName"
         } ]
       } ]
+    },
+    "RDSIo1Storage" : {
+      "Fn::Equals" : [ "io1", {
+        "Ref" : "RDSStorageType"
+      } ]
     }
   },
   "Description" : "This template creates the Datapub AutoScalingGroup.",
@@ -36,16 +41,22 @@
       "Type" : "String"
     },
     "RDSAllocatedStorage" : {
-      "AllowedPattern" : "[1-9][0-9][0-9]+",
-      "Description" : "Minimum allocated storage in GB. Must be at least 100.",
+      "AllowedPattern" : "[1-9][0-9]+",
+      "Description" : "Minimum allocated storage in GB. Must be at least 20.",
       "Type" : "String"
     },
     "RDSInstanceClass" : {
       "Type" : "String"
     },
     "RDSIops" : {
+      "Default" : 1000,
+      "Description" : "Provisioned Iops for the storage. Only used when RDSStorageType is io1.",
       "MinValue" : 1000,
       "Type" : "Number"
+    },
+    "RDSStorageType" : {
+      "AllowedPattern" : "(gp2)|(io1)",
+      "Type" : "String"
     },
     "SlackToken" : {
       "MinLength" : 10,
@@ -417,7 +428,11 @@
         "Engine" : "postgres",
         "EngineVersion" : "13.3",
         "Iops" : {
-          "Ref" : "RDSIops"
+          "Fn::If" : [ "RDSIo1Storage", {
+            "Ref" : "RDSIops"
+          }, {
+            "Ref" : "AWS::NoValue"
+          } ]
         },
         "MasterUserPassword" : {
           "Fn::Sub" : "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}"
@@ -431,6 +446,9 @@
         "PreferredMaintenanceWindow" : "Sun:05:57-Sun:06:27",
         "PubliclyAccessible" : false,
         "StorageEncrypted" : true,
+        "StorageType" : {
+          "Ref" : "RDSStorageType"
+        },
         "Tags" : [ {
           "Key" : "grant",
           "Value" : "1R43DA052916-01"
