@@ -3,9 +3,6 @@ concurrency: sysrev-datapub-${{ github.ref_name }}
 
 on:
   push:
-    branches:
-      - staging
-      - production
     paths:
       - '.github/workflows/datapub.yml'
       - 'components/cloudformation-templates/out/datapub.template'
@@ -40,6 +37,7 @@ jobs:
           mask-aws-account-id: no
 
       - name: Get Sysrev-Global-Resources stack outputs
+        if: github.ref_name == 'staging' || github.ref_name == 'production'
         id: get-stack-outputs
         uses: john-shaffer/aws-cloudformation-github-deploy@skip-deploy
         with:
@@ -122,6 +120,7 @@ jobs:
           mask-aws-account-id: no
 
       - name: Build datapub AMI
+        if: github.ref_name == 'staging' || github.ref_name == 'production'
         run: |
           export UUID=$(uuidgen)
           nix-shell ../default.nix --run "packer build -var git-ref=$GITHUB_REF -var git-sha=$GITHUB_SHA -var uuid=$UUID datapub.pkr.hcl"
