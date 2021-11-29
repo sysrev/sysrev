@@ -159,6 +159,8 @@
                       "components/tesseract/src"
                       "components/user/resources"
                       "components/user/src"]}
+  :eastwood {:extra-deps {jonase/eastwood {:mvn/version "0.9.9"}}
+             :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user sysrev.all-test-main sysrev.browser-test-main]}"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
                       com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}
