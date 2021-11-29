@@ -5,8 +5,6 @@
            (java.util.zip ZipEntry ZipFile)
            (org.apache.commons.io IOUtils)))
 
-(set! *warn-on-reflection* true)
-
 (defn ^Path create-temp-file! [prefix suffix]
   (Files/createTempFile prefix suffix (make-array FileAttribute 0)))
 

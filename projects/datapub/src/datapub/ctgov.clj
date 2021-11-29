@@ -6,8 +6,6 @@
   (:import [java.time Duration ZonedDateTime]
            [java.time.format DateTimeFormatter]))
 
-(set! *warn-on-reflection* true)
-
 (defmacro retry
   "Retry up to n times, doubling interval-ms each time and adding jitter."
   [{:keys [interval-ms n]} & body]

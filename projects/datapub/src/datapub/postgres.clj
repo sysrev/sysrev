@@ -8,8 +8,6 @@
             [next.jdbc.result-set :as result-set])
   (:import (org.postgresql.util PSQLException)))
 
-(set! *warn-on-reflection* true)
-
 (defn make-datasource
   "Creates a Postgres db pool object to use with JDBC."
   [config]

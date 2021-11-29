@@ -10,8 +10,6 @@
            java.security.MessageDigest
            java.util.Base64))
 
-(set! *warn-on-reflection* true)
-
 (defn sha3-256 ^bytes [^InputStream in]
   (let [md (MessageDigest/getInstance "SHA3-256")
         buffer (byte-array 8192)]

@@ -26,8 +26,6 @@
            org.postgresql.jdbc.PgArray
            org.postgresql.util.PGobject))
 
-(set! *warn-on-reflection* true)
-
 (defn jsonb-pgobject [x]
   (doto (PGobject.)
     (.setType "jsonb")

@@ -6,8 +6,6 @@
            (org.apache.pdfbox.rendering ImageType PDFRenderer)
            (org.apache.pdfbox.text PDFTextStripper)))
 
-(set! *warn-on-reflection* true)
-
 (defmacro with-PDDocument [[name-sym ^File file] & body]
   `(with-open [raf# (RandomAccessFile. ~file "r")]
      (let [parser# (PDFParser. raf#)]

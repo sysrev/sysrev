@@ -7,8 +7,6 @@
            java.time.format.DateTimeFormatter
            java.time.Instant))
 
-(set! *warn-on-reflection* true)
-
 (def scalars
   {:DateTime {:parse (fn [x]
                        (-> (try

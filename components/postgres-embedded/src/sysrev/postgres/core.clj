@@ -8,8 +8,6 @@
             [sysrev.flyway.interface :as flyway])
   (:import (com.opentable.db.postgres.embedded EmbeddedPostgres EmbeddedPostgres$Builder PgBinaryResolver PgDirectoryResolver)))
 
-(set! *warn-on-reflection* true)
-
 (def binary-resolver
   (reify PgBinaryResolver
     (^java.io.InputStream getPgBinary [this ^String system ^String machine-hardware]

@@ -12,8 +12,6 @@
 ;; Reference: https://www.fda.gov/drugs/drug-approvals-and-databases/drugsfda-data-files
 ;; ActionTypes_Lookup and SubmissionPropertyType are omitted.
 
-(set! *warn-on-reflection* true)
-
 (def data-url "https://www.fda.gov/media/89850/download")
 
 (defn download-data! [^Path path]
