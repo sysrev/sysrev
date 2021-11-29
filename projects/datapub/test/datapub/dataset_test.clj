@@ -261,6 +261,57 @@
                    #{:content :externalId}
                    {:input {:datasetId ds2-id :uniqueExternalIds true}})))))))))
 
+(deftest test-dataset#entities-pagination
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id")
+                        {:input {:name "test-dataset-entities-pagination"}})
+                    (get-in [:data :createDataset :id]))
+          q-dataset#entities
+          #__ (fn [return]
+                (str "query($after: String, $first: NonNegativeInt, $id: PositiveInt!){dataset(id: $id){entities(after: $after, first: $first){"
+                     (dpcq/return->string return)
+                     "}}}"))]
+      (doseq [i (range 15)]
+        (ex (dpcq/m-create-dataset-entity "id")
+            {:input
+             {:datasetId ds-id
+              :content (json/generate-string {:num i})
+              :mediaType "application/json"}}))
+      (testing "totalCount is correct"
+        (is (= {:data {:dataset {:entities {:totalCount 15}}}}
+               (ex (dpcq/q-dataset#entities "totalCount") {:id ds-id}))))
+      (testing "first arg works"
+        (is (= 11
+               (-> (ex (dpcq/q-dataset#entities "edges{cursor}") {:first 11 :id ds-id})
+                   (get-in [:data :dataset :entities :edges])
+                   count))))
+      (testing "Pagination with endCursor and after works"
+        (let [end-cursor (-> (ex (dpcq/q-dataset#entities "pageInfo{endCursor}") {:first 4 :id ds-id})
+                             (get-in [:data :dataset :entities :pageInfo :endCursor]))
+              end-cursor2 (-> (ex (dpcq/q-dataset#entities "pageInfo{endCursor}")
+                                  {:after end-cursor :first 3 :id ds-id})
+                              (get-in [:data :dataset :entities :pageInfo :endCursor]))
+              q (dpcq/q-dataset#entities "edges{cursor}")]
+          (is (string? end-cursor))
+          (is (= 11
+                 (-> (ex q {:after end-cursor :id ds-id})
+                     (get-in [:data :dataset :entities :edges])
+                     count)))
+          (is (string? end-cursor2))
+          (is (= 8
+                 (-> (ex q {:after end-cursor2 :id ds-id})
+                     (get-in [:data :dataset :entities :edges])
+                     count)))
+          (testing "Different pages have no edges in common"
+            (is (= 15
+                   (->> [(ex q {:first 4 :id ds-id})
+                         (ex q {:after end-cursor :first 3 :id ds-id})
+                         (ex q {:after end-cursor2 :id ds-id})]
+                        (mapcat #(get-in % [:data :dataset :entities :edges]))
+                        (into #{})
+                        count)))))))))
+
 (deftest test-dataset-entities-subscription
   (test/with-test-system [system {}]
     (let [ex (partial ex! system)

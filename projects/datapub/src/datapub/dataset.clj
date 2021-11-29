@@ -332,7 +332,7 @@
                                      :datasetId (:dataset-id $)})))))))
 
 (defn resolve-Dataset#entities
-  [context {:keys [externalId groupingId :as args]} {:keys [id]}]
+  [context {:keys [externalId groupingId] :as args} {:keys [id]}]
   (let [where [:and
                [:= :dataset-id id]
                (when externalId
