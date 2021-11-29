@@ -57,14 +57,14 @@
   [request]
   (let [variables (condp = (:request-method request)
                     :get (try (-> request
-                                  (get-in [:query-params "variables"]))
-                              (json/read-str :key-fn keyword)
-                              (catch Throwable _ nil))
+                                  (get-in [:query-params "variables"])
+                                  (json/read-str :key-fn keyword))
+                              (catch Exception _ nil))
                     :post (try (-> request
                                    :body
                                    (json/read-str :key-fn keyword)
                                    :variables)
-                               (catch Throwable _ nil)))]
+                               (catch Exception _ nil)))]
     (or (not-empty variables) {})))
 
 (defn extract-query
