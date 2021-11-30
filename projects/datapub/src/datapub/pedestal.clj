@@ -243,12 +243,14 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
 
 (defn cors-preflight [request allowed-origins]
   (let [origin (some-> (get-in request [:headers "origin"]) str/lower-case)]
-    {:status 204
-     :headers
-     {"Access-Control-Allow-Headers" "Authorization, Content-Type, x-csrf-token"
-      "Access-Control-Max-Age" "86400"
-      "Access-Control-Allow-Methods" "OPTIONS, POST"
-      "Access-Control-Allow-Origin" (when (allowed-origins origin) origin)}}))
+    (if (allowed-origins origin)
+      {:status 204
+       :headers
+       {"Access-Control-Allow-Headers" "Authorization, Content-Type, x-csrf-token"
+        "Access-Control-Max-Age" "86400"
+        "Access-Control-Allow-Methods" "OPTIONS, POST"
+        "Access-Control-Allow-Origin" origin}}
+      {:status 401})))
 
 (defn throw-exception [context]
   (if (dataset/sysrev-dev? context)
