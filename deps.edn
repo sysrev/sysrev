@@ -129,7 +129,7 @@
                      org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
                      org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
                      prestancedesign/get-port {:mvn/version "0.1.1"}
-                     refactor-nrepl/refactor-nrepl {:mvn/version "2.5.1"}
+                     refactor-nrepl/refactor-nrepl {:mvn/version "3.1.0"}
                      ;; pdf-read deps
                      com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
                      com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
