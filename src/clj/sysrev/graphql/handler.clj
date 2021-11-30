@@ -5,7 +5,6 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.walk :as walk]
-            [cheshire.core :as cheshire]
             [com.walmartlabs.lacinia :refer [execute]]
             [com.walmartlabs.lacinia.schema :as schema]
             [com.walmartlabs.lacinia.util :refer [attach-resolvers]]
@@ -19,7 +18,7 @@
               import-datasource-flattened
               import-ds-query]]
             [sysrev.source.project-filter :refer [import-article-filter-url!]]
-            [sysrev.article.graphql :refer [set-labels! parse-set-label-input]]
+            [sysrev.article.graphql :refer [set-labels! parse-set-label-input serialize-set-label-input]]
             [sysrev.util :as util]))
 
 (def scalars
@@ -31,7 +30,7 @@
                :serialize identity}
    :SetLabelInput
    {:parse parse-set-label-input
-    :serialize #(cheshire/generate-string %)}})
+    :serialize serialize-set-label-input}})
 
 (defn compile-sysrev-schema []
   (-> (io/resource "edn/graphql-schema.edn")

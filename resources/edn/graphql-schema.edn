@@ -179,7 +179,7 @@
                         :description "Set label value for an article"
                         :args {:articleID {:type (non-null Int) :description "Article ID"}
                                :projectID {:type (non-null Int) :description "Project ID"}
-                               :labelValues {:type (list :SetLabelInput) :description "Label values"}
+                               :labelValues {:type :SetLabelInput :description "Label values"}
                                :confirm {:type (non-null Boolean) :description "Confirm?"}
                                :resolve {:type (non-null Boolean) :description "Resolve?"}
                                :change {:type (non-null Boolean) :description "Change?"}}

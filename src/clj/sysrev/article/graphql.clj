@@ -2,38 +2,41 @@
   (:require [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [sysrev.label.answer :as answer]
             [sysrev.db.core :as db]
+            [cheshire.core :as cheshire]
+            [clojure.walk :refer [keywordize-keys]]
             [sysrev.user.interface :refer [user-by-api-token]]
             [sysrev.util :as util :refer [uuid-from-string]]))
 
-(defn parse-input-values [v]
-  (let [label-id (:labelId v)
-        value (:value v)]
-    [(uuid-from-string label-id) (cond
-                                   (seq? value)
-                                   {:labels
-                                    (->> value
-                                         (map-indexed (fn [idx v]
-                                                        (if (seq? v)
-                                                          [(str idx)
-                                                           (->> v (map parse-input-values) (into {}))] 
-                                                          (throw (new Exception (str "Value is not a vector: " v))))))
-                                         (into {}))}
+(defn parse-input-values [[label-id value]]
+  [(uuid-from-string label-id)
+   (cond
+     (and (map? value) (get value "labels"))
+     {:labels
+      (->> (get value "labels")
+           (map-indexed (fn [idx v]
+                          [(str idx)
+                           (->> v (map parse-input-values) (into {}))]))
+           (into {}))}
 
-                                   (map? value)
-                                   (parse-input-values value)
+     (map? value)
+     (keywordize-keys value)
 
-                                   (or (boolean? value)
-                                       (string? value))
-                                   value
+     (or (boolean? value)
+         (vector? value)
+         (string? value))
+     value
 
-                                   :else
-                                   (throw (new Exception (str "Value needs to be a String, Boolean, Map or Vector: " value))))]))
+     :else
+     (throw (new Exception (str "Value needs to be a String, Boolean, Map or Vector: " value))))])
 
 (defn parse-set-label-input [v]
-  (if (map? v)
-    (parse-input-values v)
-    (throw (new Exception "SetLabelInput values need to be a map: " v))))
+  (->> v
+       cheshire/parse-string
+       (map parse-input-values)
+       (into {})))
 
+(defn serialize-set-label-input [v]
+  (cheshire/generate-string v))
 
 (defn ^ResolverResult set-labels!
   [context {article-id :articleID
@@ -45,12 +48,11 @@
   (db/with-clear-project-cache project-id
     (let [api-token (:authorization context)
           user (user-by-api-token api-token)
-          user-id (:user-id user)
-          label-values-map (into {} label-values)]
+          user-id (:user-id user)]
       (answer/set-labels {:project-id project-id
                           :user-id user-id
                           :article-id article-id
-                          :label-values label-values-map
+                          :label-values label-values
                           :confirm? confirm?
                           :change? change?
                           :resolve? resolve?})
