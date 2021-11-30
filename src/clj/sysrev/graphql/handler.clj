@@ -5,7 +5,6 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.walk :as walk]
-            [cheshire.core :as cheshire]
             [com.walmartlabs.lacinia :refer [execute]]
             [com.walmartlabs.lacinia.schema :as schema]
             [com.walmartlabs.lacinia.util :refer [attach-resolvers]]

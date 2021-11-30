@@ -2,8 +2,6 @@
   (:require [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [sysrev.label.answer :as answer]
             [sysrev.db.core :as db]
-            [camel-snake-kebab.core :as csk]
-            [camel-snake-kebab.extras :as cske]
             [cheshire.core :as cheshire]
             [clojure.walk :refer [keywordize-keys]]
             [sysrev.user.interface :refer [user-by-api-token]]
