@@ -430,7 +430,7 @@
 (defmacro ignore-exceptions
   "Wraps `body` to silently handle all exceptions by returning nil."
   [& body]
-  `(try ~@body (catch #?(:clj Throwable :cljs :default) _#
+  `(try ~@body (catch #?(:clj Exception :cljs :default) _#
                  nil)))
 
 (defn should-never-happen-exception []
