@@ -98,7 +98,7 @@
           (->> confidence-probs
                (map
                 (fn [prob]
-                  {(Math/round (* prob 100))
+                  {(Math/round ^Double (* prob 100))
                    (article-count-by-label-prob
                     predict-run-id label-id prob true)}))
                (apply merge))}
@@ -106,7 +106,7 @@
           (->> confidence-probs
                (map
                 (fn [prob]
-                  {(Math/round (* prob 100))
+                  {(Math/round ^Double (* prob 100))
                    (article-count-by-label-prob
                     predict-run-id label-id (- 1.0 prob) false)}))
                (apply merge))})]

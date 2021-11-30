@@ -875,9 +875,9 @@
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
-        (let [filename (-> article-id
-                           article/article-pmcid
-                           pubmed/article-pmcid-pdf-filename)
+        (let [^String filename (-> article-id
+                                   article/article-pmcid
+                                   pubmed/article-pmcid-pdf-filename)
               file (java.io.File. filename)
               save-article-result (save-article-pdf article-id file filename)
               key (:key save-article-result)

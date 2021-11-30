@@ -15,7 +15,7 @@
 (defn capitalize-first [s]
   (if (empty? s)
     ""
-    (apply str (Character/toUpperCase (first s)) (rest s))))
+    (apply str (Character/toUpperCase ^Character (first s)) (rest s))))
 
 (defn capitalize-words [s]
   (->> (str/split s #" ")

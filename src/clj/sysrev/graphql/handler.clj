@@ -86,7 +86,7 @@
 (defn- byte-transform
   "Used to encode and decode strings.  Returns nil when an exception
   was raised."
-  [direction-fn string]
+  [direction-fn ^String string]
   (util/ignore-exceptions
    (apply str (map char (direction-fn (.getBytes string))))))
 

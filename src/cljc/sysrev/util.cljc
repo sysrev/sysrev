@@ -340,7 +340,7 @@
      :cljs (-> (transit/writer :json)
                (transit/write x))))
 
-(defn read-transit-str [s]
+(defn read-transit-str [^String s]
   #?(:clj  (-> (ByteArrayInputStream. (.getBytes s "UTF-8"))
                (transit/reader :json)
                (transit/read))
@@ -601,12 +601,12 @@
 #?(:clj (defn crypto-rand []
           (let [size 4
                 n-max (math/expt 256 size)
-                n-rand (BigInteger. 1 (crypto.random/bytes size))]
+                n-rand (BigInteger. 1 ^bytes (crypto.random/bytes size))]
             (double (/ n-rand n-max)))))
 
 #?(:clj (defn crypto-rand-int [n]
           (let [size 4
-                n-rand (BigInteger. 1 (crypto.random/bytes size))]
+                n-rand (BigInteger. 1 ^bytes (crypto.random/bytes size))]
             (int (mod n-rand n)))))
 
 ;; see: https://groups.google.com/forum/#!topic/clojure/ORRhWgYd2Dk
@@ -614,7 +614,8 @@
 #?(:clj (defmacro current-function-name
           "Returns a string, the name of the current Clojure function."
           []
-          `(-> (Throwable.) .getStackTrace first .getClassName demunge)))
+          `(let [^java.lang.StackTraceElement el# (-> (Exception.) .getStackTrace first)]
+             (demunge (.getClassName el#)))))
 
 #?(:clj (defn to-clj-time
           "Converts various types to clj-time compatible DateTime. Integer
@@ -656,7 +657,7 @@
   op controls which operation to use for the first round. Allowed
   values are [:round :floor :ceil]."
           [d interval precision & {:keys [op] :or {op :round}}]
-          (let [x (/ d interval)]
+          (let [x ^Double (/ d interval)]
             (->> interval
                  (* (case op
                       :round (Math/round x)

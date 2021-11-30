@@ -166,7 +166,7 @@
         amount (get-in capture [:amount :value])
         status (:status capture)
         create-time (:create_time capture)]
-    {:amount (-> amount read-string (* 100) (Math/round))
+    {:amount (-> amount read-string ^Double (* 100) (Math/round))
      :status status
      :created (util/to-clj-time (paypal-date->unix-epoch create-time))}))
 

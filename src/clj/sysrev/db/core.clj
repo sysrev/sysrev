@@ -20,7 +20,7 @@
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
             [sysrev.util :as util :refer [map-values in?]])
-  (:import (java.sql PreparedStatement)
+  (:import (java.sql Connection PreparedStatement)
            (org.joda.time DateTime)
            (org.postgresql.util PGobject PSQLException)))
 
@@ -166,9 +166,9 @@
   (if-not (sequential? elts)
     elts
     (if conn
-      (.createArrayOf (:connection conn) sql-type (into-array elts))
+      (.createArrayOf ^Connection (:connection conn) sql-type (into-array elts))
       (j/with-db-transaction [conn (or *conn* @*active-db*)]
-        (.createArrayOf (:connection conn) sql-type (into-array elts))))))
+        (.createArrayOf ^Connection (:connection conn) sql-type (into-array elts))))))
 
 (defn sql-array-contains [field val]
   [:= val (sql/call :any field)])
