@@ -3,6 +3,7 @@
        :endpoint-override {:protocol :http
                            :hostname "localhost"
                            :port 8566}}
+ :datapub-embedded true
  :env :dev
  :pedestal {:port 0}
  :postgres {:create-if-not-exists? true

@@ -70,11 +70,7 @@
                      :system-f
                      (fn []
                        (-> ((requiring-resolve 'datapub.main/get-config))
-                           ((requiring-resolve 'datapub.main/system-map))
-                           (dissoc :s3)
-                           (update :pedestal
-                                   #(vary-meta % update ::component/dependencies
-                                               dissoc :s3))))})))
+                           ((requiring-resolve 'datapub.main/system-map))))})))
         config (if datapub
                  (let [port (get-in datapub [:system :pedestal :bound-port])]
                    (assoc config

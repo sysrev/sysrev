@@ -126,7 +126,7 @@
                       (system-f)
                       (system-map (get-config))))]
         (when (:load-fixtures? options)
-          ((requiring-resolve 'datapub.test/load-ctgov-dataset!) system))
+          ((requiring-resolve 'datapub.test/load-all-fixtures!) system))
         (assoc this :system system))))
   (stop [this]
     (if-not system

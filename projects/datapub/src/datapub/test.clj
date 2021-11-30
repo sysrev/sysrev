@@ -185,6 +185,7 @@
 
 (defn load-all-fixtures! [system]
   (load-ctgov-dataset! system)
-  (create-dataset! system {:name "Unused"})
-  (load-fda-drugs-docs-dataset! system)
+  (when-not (get-in system [:s3 :client-opts :disabled?])
+    (create-dataset! system {:name "Unused"})
+    (load-fda-drugs-docs-dataset! system))
   nil)

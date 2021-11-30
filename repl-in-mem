@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-set -eu
+
+set -euo pipefail
 
 source vars.sh
+
+./projects/datapub/run-dev-containers.sh
 
 LOCAL_ONLY=t ENV=dev clj -M:dev:test:repl:\+default
