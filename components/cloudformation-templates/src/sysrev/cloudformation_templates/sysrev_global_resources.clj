@@ -74,6 +74,7 @@
                  "logs:DescribeSubscriptionFilters"
                  "logs:FilterLogEvents"
                  "logs:GetLogDelivery"
+                 "logs:GetLogEvents"
                  "logs:GetLogGroupFields"
                  "logs:GetLogRecord"
                  "logs:GetQueryResults"
