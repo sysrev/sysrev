@@ -263,33 +263,43 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
 (defn service-map [{:keys [env host port] :as opts} pedestal]
   (let [compiled-schema (graphql/load-schema)
         app-context {:opts opts :pedestal pedestal}
+        json-error-interceptors [pedestal2/json-response-interceptor
+                                 pedestal2/error-response-interceptor
+                                 error-logging-interceptor]
         routes (into #{["/api"
                         :options
-                        #(cors-preflight % (allowed-origins env))
+                        (conj json-error-interceptors
+                              #(cors-preflight % (allowed-origins env)))
                         :route-name ::graphql-api-cors-preflight]
                        ["/api"
                         :post (api-interceptors opts compiled-schema app-context)
                         :route-name ::graphql-api]
                        ["/download/DatasetEntity/content/:entity-id/:content-hash"
                         :get
-                        #(dataset/download-DatasetEntity-content
-                          (assoc app-context :request %)
-                          (allowed-origins env))
+                        (conj json-error-interceptors
+                              #(dataset/download-DatasetEntity-content
+                                (assoc app-context :request %)
+                                (allowed-origins env)))
                         :route-name ::DatasetEntity-content]
                        ["/download/DatasetEntity/content/:entity-id/:content-hash"
                         :options
-                        #(cors-preflight % (allowed-origins env))
+                        (conj json-error-interceptors
+                              #(cors-preflight % (allowed-origins env)))
                         :route-name ::DatasetEntity-content-cors-preflight]
                        ["/health"
                         :get
-                        (constantly {:status 200 :headers {} :body ""})
+                        (conj json-error-interceptors
+                              (constantly {:status 200 :headers {} :body ""}))
                         :route-name ::health-check]
-                       ["/ide" :get graphiql-ide-handler :route-name ::graphiql-ide]
+                       ["/ide"
+                        :get
+                        (conj json-error-interceptors
+                              graphiql-ide-handler)
+                        :route-name ::graphiql-ide]
                        ["/throw-exception"
                         :post
-                        [pedestal2/json-response-interceptor
-                         pedestal2/error-response-interceptor
-                         #(throw-exception (assoc app-context :request %))]
+                        (conj json-error-interceptors
+                              #(throw-exception (assoc app-context :request %)))
                         :route-name ::throw-exception]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env
