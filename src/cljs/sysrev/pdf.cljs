@@ -1,7 +1,6 @@
 (ns sysrev.pdf
   (:require ["jquery" :as $]
-            ["pdfjs-dist" :as pdfjs]
-            ["react-pdf" :refer [Document Page]]
+            ["react-pdf" :refer [Document Page] :as react-pdf]
             [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]
@@ -23,7 +22,7 @@
                         pdfjs-dist-version)))
 
 ;;; this should exist in resources/public/js/
-(set! pdfjs/GlobalWorkerOptions.workerSrc
+(set! react-pdf/pdfjs.GlobalWorkerOptions.workerSrc
       "/js/pdfjs-dist/build/pdf.worker.min.js")
 
 (def view :pdf)
