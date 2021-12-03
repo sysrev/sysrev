@@ -30,7 +30,7 @@
              :port-number (:port config))
       hikari-cp/make-datasource))
 
-(defrecord Postgres [bound-port config datasource embedded-pg]
+(defrecord Postgres [bound-port config datasource datasource-long-running embedded-pg]
   component/Lifecycle
   (start [this]
     (if datasource
@@ -51,7 +51,8 @@
               (catch PSQLException e
                 (when-not (re-find #"database .* already exists" (.getMessage e))
                   (throw e))))))
-        (let [datasource (make-datasource config)]
+        (let [datasource (make-datasource config)
+              datasource-long-running (make-datasource config)]
           (if embedded-pg
             (try
               (flyway/migrate! datasource)
@@ -62,6 +63,7 @@
           (assoc this
                  :bound-port bound-port
                  :datasource datasource
+                 :datasource-long-running datasource-long-running
                  :embedded-pg embedded-pg
                  :query-cache db/*query-cache*
                  :query-cache-enabled db/*query-cache-enabled*)))))
@@ -70,6 +72,7 @@
       this
       (do
         (hikari-cp/close-datasource datasource)
+        (hikari-cp/close-datasource datasource-long-running)
         (when (:delete-on-stop? config)
           (let [ds (jdbc/get-datasource (dissoc config :dbname))]
             (jdbc/execute! ds ["UPDATE pg_database SET datallowconn='false' WHERE datname=?" (:db-name config)])
@@ -78,8 +81,8 @@
         (when (:embedded? config)
           ((requiring-resolve 'datapub.postgres-embedded/stop!) embedded-pg))
         (assoc this
-               :bound-port nil :datasource nil :embedded-pg nil
-               :query-cache nil :query-cache-enabled nil)))))
+               :bound-port nil :datasource nil :datasource-long-running nil
+               :embedded-pg nil :query-cache nil :query-cache-enabled nil)))))
 
 (defn postgres [& [postgres-overrides]]
   (map->Postgres

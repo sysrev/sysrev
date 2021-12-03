@@ -119,8 +119,10 @@
    file (-> (str "test-files/" filename) io/resource io/file)]
   (do (nav/log-in (:email test-user))
       (nav/new-project "pdf-interface test")
-      (import/import-pdf-zip (b/current-project-id) {:file file :filename filename}
-                             {:use-future? false})
+      (import/import-pdf-zip
+       {:web-server (:web-server @test/*test-system*)}
+       (b/current-project-id) {:file file :filename filename}
+       {:use-future? false})
       (Thread/sleep 500)
       (b/init-route (-> (taxi/current-url) b/url->path))
       (b/click (x/project-menu-item :articles) :delay 100)

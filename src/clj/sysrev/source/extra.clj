@@ -12,9 +12,9 @@
   {:source "Custom import" :custom description})
 
 (defmethod import-source :api-text-manual
-  [_ project-id {:keys [articles]} {:as options}]
+  [request _ project-id {:keys [articles]} {:as options}]
   (import-source-impl
-   project-id
+   request project-id
    (make-source-meta :api-text-manual {:article-count (count articles)})
    {:types {:article-type "text" :article-subtype "generic"}
     :get-article-refs (constantly articles)

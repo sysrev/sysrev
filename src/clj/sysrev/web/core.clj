@@ -98,7 +98,8 @@
       (default/wrap-defaults (sysrev-config {:session false :anti-forgery false}))
       (wrap-json-body {:keywords? true})
       wrap-force-json-request
-      (app/wrap-dynamic-vars web-server)))
+      (app/wrap-dynamic-vars web-server)
+      (app/wrap-web-server web-server)))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn

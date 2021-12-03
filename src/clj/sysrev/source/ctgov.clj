@@ -33,7 +33,7 @@
    :source "CT.gov search"
    :results-count results-count})
 
-(defmethod import-source :ctgov [_ project-id {:keys [entity-ids query]} options]
+(defmethod import-source :ctgov [request _ project-id {:keys [entity-ids query]} options]
   (assert (map? query))
   (let [{:keys [max-import-articles]} env
         query (ctgov/canonicalize-query query)
@@ -56,7 +56,7 @@
                                            :results-count (count entity-ids)
                                            :search-term search})]
                   (import-source-impl
-                   project-id source-meta
+                   request project-id source-meta
                    {:types {:article-type "json"
                             :article-subtype "ctgov"}
                     :get-article-refs (constantly entity-ids)
@@ -81,16 +81,16 @@
          (map :id))))
 
 (defmethod re-import "CT.gov search"
-  [project-id {:keys [source-id] :as source} {:keys [web-server]}]
+  [request project-id {:keys [source-id] :as source} {:keys [web-server]}]
   (let [do-import (fn []
                     (->> (import-source-articles
-                           project-id source-id
+                           request project-id source-id
                            {:types {:article-type "json" :article-subtype "ctgov"}
                             :article-refs (get-new-articles-available
                                            source :config (:config web-server))
                             :get-articles (partial get-entities (get-in web-server [:config :datapub-api]))}
                            {:threads 1})
-                         (after-source-import project-id source-id)))]
+                         (after-source-import request project-id source-id)))]
     (source/alter-source-meta source-id #(assoc % :importing-articles? true))
     (source/set-import-date source-id)
     (future (do-import))

@@ -9,7 +9,7 @@
   {:source "EndNote file" :filename filename})
 
 (defmethod import-source :endnote-xml
-  [_ project-id {:keys [file filename]} {:as options}]
+  [request _ project-id {:keys [file filename]} {:as options}]
   (let [source-meta (source/make-source-meta :endnote-xml {:filename filename})
         filename-sources (->> (source/project-sources project-id)
                               (filter #(= (get-in % [:meta :filename]) filename)))]
@@ -17,7 +17,7 @@
       (do (log/warn "import-source endnote-xml - non-empty filename-sources:" filename-sources)
           {:error {:message "File name already imported"}})
       (import-source-impl
-       project-id source-meta
+       request project-id source-meta
        {:types {:article-type "academic" :article-subtype "endnote"}
         :get-article-refs #(-> file io/reader endnote-file->articles doall)
         :get-articles identity}

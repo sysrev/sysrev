@@ -81,8 +81,10 @@
           ;; get the article count, should be 0
           (is (= 0 (project/project-article-count new-project-id)))
           ;; add articles to this project
-          (import/import-pubmed-search new-project-id {:search-term search-term}
-                                       {:use-future? false :threads 1})
+          (import/import-pubmed-search
+           {:web-server (:web-server @test/*test-system*)}
+           new-project-id {:search-term search-term}
+           {:use-future? false :threads 1})
           ;; Does the new project have the correct amount of articles?
           ;; I would like a 'get-project' route
           ;;

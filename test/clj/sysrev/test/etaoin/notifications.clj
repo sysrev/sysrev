@@ -71,6 +71,7 @@
     (add-project-member project-a-id user-id)
     (let [{:keys [result]}
           #__ (import-articles-from-pdfs
+               {:web-server (:web-server @test/*test-system*)}
                project-a-id
                {"files[]"
                 {:filename "sysrev-7539906377827440850.pdf"
@@ -148,6 +149,7 @@
     (add-project-member project-a-id user-id)
     (let [{:keys [result]}
           #__ (import-articles-from-pdfs
+               {:web-server (:web-server @test/*test-system*)}
                project-a-id
                {"files[]"
                 {:filename "sysrev-7539906377827440850.pdf"

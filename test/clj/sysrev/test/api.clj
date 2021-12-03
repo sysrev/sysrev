@@ -42,6 +42,7 @@
       (try
         (let [response (webapi-get "get-api-token"
                                    {:email email :password b/test-password})]
+          (is (nil? (:error response)))
           (is (contains? response :result))
           (is (string? (-> response :result :api-token))))
         (finally
@@ -57,6 +58,7 @@
                                     {:api-token api-token
                                      :project-id project-id
                                      :pmids [12345 12346]})]
+          (is (nil? (:error response)))
           (is (true? (-> response :result :success)))
           (is (= 2 (-> response :result :project-articles))))
         (finally
@@ -76,6 +78,7 @@
                                                  :abstract "abstract text 1"}
                                                 {:primary-title "abstract 2"
                                                  :abstract "abstract text 2"}]})]
+          (is (nil? (:error response)))
           (is (true? (-> response :result :success)))
           (is (= 2 (-> response :result :attempted)))
           (is (= 2 (-> response :result :project-articles))))
@@ -93,7 +96,8 @@
                                                          :add-self? true})
                  {:keys [success project]} (:result response)
                  {:keys [project-id name]} project]
-             (try (is (true? success))
+             (try (is (nil? (:error response)))
+                  (is (true? success))
                   (is (integer? project-id))
                   (is (string? name))
                   (is (= name project-name))
@@ -117,6 +121,7 @@
                                     {:api-token api-token
                                      :project-id project-id
                                      :pmids [12345 12346]})]
+          (is (nil? (:error response)))
           (is (true? (-> response :result :success)))
           (is (= 2 (-> response :result :project-articles))))
         (let [article-id (q/find-one [:article :a] {:a.project-id project-id
@@ -167,6 +172,7 @@
                                      :user-ids-only [user-id]})
               {:keys [success new-project]} (:result response)
               dest-id (:project-id new-project)]
+          (is (nil? (:error response)))
           (is (true? success))
           (is (integer? dest-id))
           (is (= dest-project-name (:name new-project)))

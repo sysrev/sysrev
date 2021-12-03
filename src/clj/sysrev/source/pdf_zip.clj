@@ -35,7 +35,7 @@
 
 ;; FIX: want this to return an error if no pdfs found - does it?
 (defmethod import-source :pdf-zip
-  [_ project-id {:keys [file filename]} {:as options}]
+  [request _ project-id {:keys [file filename]} {:as options}]
   (let [filename-sources (lookup-filename-sources project-id filename)]
     (if (seq filename-sources)
       (do (log/warn "import-source pdf-zip - non-empty filename-sources -" filename-sources)
@@ -54,5 +54,5 @@
                                           (assoc :file-bytes (:file-byte-array %))))
                   :prepare-article #(-> (set/rename-keys % {:filename :primary-title})
                                         (dissoc :file-byte-array))}]
-        (import-source-impl project-id source-meta impl options
+        (import-source-impl request project-id source-meta impl options
                             :filename filename :file file)))))

@@ -121,7 +121,8 @@
                    :database-name (:dbname postgres-config)
                    :server-name (:host postgres-config)
                    :port-number (:port postgres-config)))]
-    {:datasource (make-datasource options)
+    {:datasource (make-datasource (assoc options :leak-detection-threshold 30000))
+     :datasource-long-running (make-datasource options)
      :config postgres-config}))
 
 (defn close-active-db []
@@ -236,6 +237,22 @@
            (binding [*conn* conn#
                      *transaction-query-cache* (atom {})]
              (do ~@body))))))
+
+(defmacro with-long-transaction
+  "Run body wrapped in an SQL transaction. If *conn* is already bound to a
+  transaction, will run body unmodified to use the existing transaction.
+  Uses the long-running connection pool.
+
+  `body` should not spawn threads that make SQL calls."
+  [[name-sym postgres] & body]
+  (assert body "with-transaction: body must not be empty")
+  `(do (if *conn*
+         (do ~@body)
+         (j/with-db-transaction [conn# {:datasource (:datasource-long-running ~postgres)}]
+           (binding [*conn* conn#
+                     *transaction-query-cache* (atom {})]
+             (let [~name-sym conn#]
+               ~@body))))))
 
 (defmacro with-rollback-transaction
   "Like with-transaction, but sets rollback-only option on the transaction,
