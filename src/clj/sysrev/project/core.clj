@@ -1,21 +1,19 @@
 (ns sysrev.project.core
-  (:require [clojure.string :as str]
-            [clojure.spec.alpha :as s]
-            [honeysql.helpers :as sqlh :refer [select from where join merge-join sset]]
-            [orchestra.core :refer [defn-spec]]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [honeysql.helpers :as sqlh :refer [from join merge-join select sset where]]
             [medley.core :as medley]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.project :as sp]
-            [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.keywords :as skw]
-            [sysrev.shared.spec.notes :as snt]
-            [sysrev.db.core :as db :refer
-             [do-query with-transaction with-project-cache clear-project-cache]]
+            [orchestra.core :refer [defn-spec]]
+            [sysrev.db.core :as db :refer [do-query with-project-cache with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.shared.keywords :refer [canonical-keyword]]
-            [sysrev.util :as util :refer
-             [map-values filter-values index-by opt-keys]])
-  (:import java.util.UUID))
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.keywords :as skw]
+            [sysrev.shared.spec.labels :as sl]
+            [sysrev.shared.spec.notes :as snt]
+            [sysrev.shared.spec.project :as sp]
+            [sysrev.util :as util :refer [filter-values index-by map-values opt-keys]])
+  (:import (java.util UUID)))
 
 ;; for clj-kondo
 (declare delete-project)
@@ -69,7 +67,7 @@
     (q/modify :project {:project-id project-id} {:enabled false})))
 
 (defn change-project-setting [project-id setting new-value]
-  (with-transaction
+  (db/with-clear-project-cache project-id
     (let [cur-settings (-> (select :settings)
                            (from :project)
                            (where [:= :project-id project-id])
@@ -80,17 +78,16 @@
           (sset {:settings (db/to-jsonb new-settings)})
           (where [:= :project-id project-id])
           db/do-execute)
-      (clear-project-cache project-id)
       new-settings)))
 
 (defn change-project-name [project-id project-name]
   (assert (string? project-name))
-  (-> (sqlh/update :project)
-      (sset {:name project-name})
-      (where [:= :project-id project-id])
-      db/do-execute)
-  (clear-project-cache project-id)
-  project-name)
+  (db/with-clear-project-cache project-id
+    (-> (sqlh/update :project)
+        (sset {:name project-name})
+        (where [:= :project-id project-id])
+        db/do-execute)
+    project-name))
 
 (defn-spec project-article-count int?
   [project-id int?]
@@ -256,9 +253,6 @@
     (q/delete :project-url-id {:project-id project-id :url-id url-id})
     (q/create :project-url-id {:project-id project-id :url-id url-id :user-id user-id})))
 
-(defn delete-all-projects-with-name [project-name]
-  (q/delete :project {:name (not-empty project-name)}))
-
 (defn get-single-user-project-ids [user-id]
   (let [project-ids (q/find :project-member {:user-id user-id} :project-id)
         p-members (when (seq project-ids)
@@ -269,6 +263,10 @@
 ;;;
 ;;; These are intended only for testing
 ;;;
+(defn delete-all-projects-with-name [project-name]
+  (db/with-transaction
+    (q/delete :project {:name (not-empty project-name)})))
+
 (defn delete-compensation-by-id [_project-id compensation-id]
   (q/delete :compensation-user-period      {:compensation-id compensation-id})
   (q/delete :compensation-project-default  {:compensation-id compensation-id})

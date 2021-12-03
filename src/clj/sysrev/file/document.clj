@@ -74,11 +74,11 @@
             (catch Throwable _ false))))
 
 (defn migrate-filestore-table []
-  (when (migrate-filestore-table-needed?)
-    (log/info "creating entries in project-document")
-    (db/with-transaction
-      (doseq [{:keys [project-id user-id file-id name upload-time delete-time]}
-              (q/find :filestore {} :*)]
-        (create-document-file {:key file-id :filename name
-                               :project-id project-id :user-id user-id
-                               :created upload-time :delete-time delete-time})))))
+  (db/with-transaction
+   (when (migrate-filestore-table-needed?)
+     (log/info "creating entries in project-document")
+     (doseq [{:keys [project-id user-id file-id name upload-time delete-time]}
+             (q/find :filestore {} :*)]
+       (create-document-file {:key file-id :filename name
+                              :project-id project-id :user-id user-id
+                              :created upload-time :delete-time delete-time})))))

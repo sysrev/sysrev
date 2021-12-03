@@ -362,33 +362,34 @@
   so that there is a record of their existence. If a plan is changed
   on the stripe, it is updated here."
   []
-  (let [products (->> (if (#{:dev :test} (:profile env))
-                     (try
-                       (get-products)
-                       (catch java.io.IOException e
-                         (log/error "Couldn't get products" (class e))))
-                     (get-products))
-                   :data
-                   (index-by :id))
-        plans (->> (if (#{:dev :test} (:profile env))
-                     (try
-                       (get-plans)
-                       (catch java.io.IOException e
-                         (log/error "Couldn't get plans in update-stripe-plans-table:" (class e))))
-                     (get-plans))
-                   :data
-                   (mapv #(-> (select-keys % [:nickname :created :id :product :interval :amount :tiers])
-                              (assoc :product-name (get-in products [(:product %) :name]))))
-                   (mapv #(update % :created (partial util/to-clj-time)))
-                   (mapv #(update % :tiers db/to-jsonb)))]
-    (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
-      (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
-    (when-let [valid-plans (->> plans (remove #(nil? (:nickname %))) seq)]
-      (-> (insert-into :stripe-plan)
-          (values valid-plans)
-          (upsert (-> (on-conflict :nickname)
-                      (do-update-set :id :created :interval :amount :tiers :product :product-name)))
-          db/do-execute))))
+  (db/with-transaction
+    (let [products (->> (if (#{:dev :test} (:profile env))
+                          (try
+                            (get-products)
+                            (catch java.io.IOException e
+                              (log/error "Couldn't get products" (class e))))
+                          (get-products))
+                        :data
+                        (index-by :id))
+          plans (->> (if (#{:dev :test} (:profile env))
+                       (try
+                         (get-plans)
+                         (catch java.io.IOException e
+                           (log/error "Couldn't get plans in update-stripe-plans-table:" (class e))))
+                       (get-plans))
+                     :data
+                     (mapv #(-> (select-keys % [:nickname :created :id :product :interval :amount :tiers])
+                                (assoc :product-name (get-in products [(:product %) :name]))))
+                     (mapv #(update % :created (partial util/to-clj-time)))
+                     (mapv #(update % :tiers db/to-jsonb)))]
+      (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
+        (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
+      (when-let [valid-plans (->> plans (remove #(nil? (:nickname %))) seq)]
+        (-> (insert-into :stripe-plan)
+            (values valid-plans)
+            (upsert (-> (on-conflict :nickname)
+                        (do-update-set :id :created :interval :amount :tiers :product :product-name)))
+            db/do-execute)))))
 
 (defn handle-webhook [body]
 

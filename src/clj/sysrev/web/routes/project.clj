@@ -52,9 +52,10 @@
         project-id (active-project request)]
     (when (and user-id project-id)
       (future
-        (try (user/update-member-access-time user-id project-id)
-             (catch Throwable _
-               (log/info "error updating project access time")))))))
+        (db/with-transaction
+          (try (user/update-member-access-time user-id project-id)
+               (catch Exception _
+                 (log/info "exception updating project access time"))))))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]
