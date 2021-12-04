@@ -66,12 +66,13 @@
            options)
           {:result true})))))
 
-(defn ^ResolverResult import-article-filter-url!
-  [context {url :url source-project-id :sourceID target-project-id :targetID} _]
-  (if (= source-project-id target-project-id)
-    (fail "source-id can not be the same as target-id")
-    (try (import-source (:request context) :project-filter target-project-id
-                        {:source-project-id source-project-id :url-filter url})
-         (resolve-as true)
-         (catch Throwable e
-           (fail (str "There was an exception with message: " (.getMessage e)))))))
+(def import-article-filter-url!
+  ^ResolverResult
+  (fn [context {url :url source-project-id :sourceID target-project-id :targetID} _]
+    (if (= source-project-id target-project-id)
+      (fail "source-id can not be the same as target-id")
+      (try (import-source (:request context) :project-filter target-project-id
+                          {:source-project-id source-project-id :url-filter url})
+           (resolve-as true)
+           (catch Throwable e
+             (fail (str "There was an exception with message: " (.getMessage e))))))))
