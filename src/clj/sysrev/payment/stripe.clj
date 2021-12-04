@@ -380,7 +380,7 @@
                      :data
                      (mapv #(-> (select-keys % [:nickname :created :id :product :interval :amount :tiers])
                                 (assoc :product-name (get-in products [(:product %) :name]))))
-                     (mapv #(update % :created (partial util/to-clj-time)))
+                     (mapv #(update % :created util/to-clj-time))
                      (mapv #(update % :tiers db/to-jsonb)))]
       (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
         (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))

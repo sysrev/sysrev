@@ -22,7 +22,6 @@
   "Returns a SLF4J-based implementation of the LoggerFactory protocol, or nil if
   not available."
   []
-  (Class/forName "org.slf4j.Logger")
   (eval
    `(do
       (extend org.slf4j.Logger

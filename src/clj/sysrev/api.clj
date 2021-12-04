@@ -1298,7 +1298,7 @@
                 (mapv #(assoc % :member-count (-> (group/group-id->name (:group-id %))
                                                   (group/read-users-in-group)
                                                   count)))
-                (mapv #(assoc % :plan (-> (plans/group-current-plan (:group-id %))))))}))
+                (mapv #(assoc % :plan (plans/group-current-plan (:group-id %)))))}))
 
 (defn validate-org-name [org-name]
   (cond (group/group-name->id org-name)

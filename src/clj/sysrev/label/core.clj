@@ -451,8 +451,7 @@
 
 (defn project-members-info [project-id]
   (with-project-cache project-id [:members-info]
-    (let [users (-> (->>
-                     (q/find [:project-member :pm] {:pm.project-id project-id}
+    (let [users (->> (q/find [:project-member :pm] {:pm.project-id project-id}
                              [:u.*
                               :pm.membership-id
                               [:pm.permissions :project-permissions]
@@ -475,7 +474,7 @@
                                   (dissoc :gengroup-name)
                                   (dissoc :gengroup-id)
                                   (assoc :gengroups gengroups)))))
-                     (index-by :user-id)))
+                     (index-by :user-id))
           inclusions (project-user-inclusions project-id)]
       (map-values (fn [{:keys [user-id membership-id project-permissions gengroups email]}]
                     {:email email
@@ -535,11 +534,12 @@
           (alter-label-entry project-id label-id (assoc label :root-label-id-local root-label-id-local)))
         ;; need to also alter the root label if it already exists
         (when label-existed?
-          (->> (alter-label-entry project-id label-id (-> m
-                                                          (dissoc :labels)
-                                                          (assoc :enabled
-                                                                 ;; this label is disabled if all sublabels are disabled
-                                                                 (not (every? false? (map :enabled client-labels))))))))
+          (alter-label-entry
+           project-id label-id
+           (-> (dissoc m :labels)
+               (assoc :enabled
+                      ;; this label is disabled if all sublabels are disabled
+                      (not (every? false? (map :enabled client-labels)))))))
         ;; adjust the label ordering
         (adjust-label-project-ordering-values project-id)
         {:valid? true
