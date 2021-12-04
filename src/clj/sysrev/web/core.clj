@@ -22,7 +22,8 @@
             [sysrev.web.routes.graphql :refer [graphql-routes]]
             sysrev.web.routes.api.handlers
             [sysrev.web.app :as app]
-            [sysrev.util :as util :refer [in?]]))
+            [sysrev.util :as util :refer [in?]])
+  (:import (java.io Closeable)))
 
 ;; for clj-kondo
 (declare html-routes)
@@ -140,7 +141,7 @@
                       (GET "*" [] html-routes))
       (in? [:dev :test] (:profile env)) (app/wrap-no-cache))))
 
-(defrecord WebServer [bound-port handler handler-f port server]
+(defrecord WebServer [bound-port handler handler-f port ^Closeable server]
   component/Lifecycle
   (start [this]
     (if server

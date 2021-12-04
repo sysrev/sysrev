@@ -163,7 +163,7 @@
                                                     (print-cause-trace-custom)))}))})
                exception
                (db/to-jsonb
-                {:error {:message (.getMessage exception)
+                {:error {:message (.getMessage ^Throwable exception)
                          :stacktrace (with-out-str
                                        (print-cause-trace-custom exception))}}))})
 

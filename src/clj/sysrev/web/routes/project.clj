@@ -174,7 +174,7 @@
     (swap! project-export-refs update-in [project-id] #(conj % entry))
     entry))
 
-(defn create-export-tempfile [content]
+(defn create-export-tempfile [^String content]
   (let [tempfile (util/create-tempfile)]
     (with-open [w (io/writer tempfile)]
       (.write w content))

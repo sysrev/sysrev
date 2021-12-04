@@ -919,7 +919,7 @@
     (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
       (doseq [f pdfs]
         (util/ignore-exceptions
-         (with-open [is (s3-file/get-file-stream (:key f) :pdf)]
+         (with-open [is ^java.io.Closeable (s3-file/get-file-stream (:key f) :pdf)]
            (.putNextEntry zip (ZipEntry. (str (:name f))))
            (io/copy is zip)))))
     tmpzip))
@@ -1579,7 +1579,7 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
-(defn epoch-millis->LocalDateTime [millis]
+(defn epoch-millis->LocalDateTime ^java.time.LocalDateTime [millis]
   (java.time.LocalDateTime/ofEpochSecond
    (quot millis 1000)
    (* 1000 (rem millis 1000))
@@ -1606,7 +1606,8 @@
                   :limit limit)
             last-timestamp (-> ntfs last :created)
             start-of-day (when last-timestamp
-                           (-> last-timestamp .toInstant
+                           (-> last-timestamp
+                               .toInstant
                                (.atZone (java.time.ZoneId/of "UTC"))
                                at-start-of-day .toInstant
                                java.sql.Timestamp/from))

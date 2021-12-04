@@ -21,7 +21,7 @@
 
 (defn handle-notification-notification-subscriber
   [{:keys [sente] :as _listener} s]
-  (let [{:keys [notification-ids subscriber-id viewed]} (edn/read-string s)
+  (let [{:keys [notification-ids subscriber-id ^Long viewed]} (edn/read-string s)
         viewed (when viewed (java.util.Date. viewed))
         user-id (when viewed (notification/user-id-for-subscriber subscriber-id))]
     (when user-id
