@@ -224,6 +224,26 @@
               (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
               {:transaction? (nil? (or conn *conn*))}))
 
+(defn minc-time-ms
+  "Returns a monotonically increasing time value in milliseconds. No relation
+  to wall-clock time. May be negative."
+  []
+  (Math/round (* (System/nanoTime) 0.000001)))
+
+(defmacro log-time [{:keys [log-f max-time-ms]} & body]
+  `(let [max-time-ms# ~max-time-ms
+         start-time-ms# (minc-time-ms)
+         result# (do ~@body)
+         elapsed-time-ms# (- (minc-time-ms) start-time-ms#)]
+     (when (> elapsed-time-ms# max-time-ms#)
+       ;; Use an Exception to get the stack trace
+       (~log-f (Exception. "dummy") elapsed-time-ms# max-time-ms#))
+     result#))
+
+(defn log-too-long-transaction [e elapsed-time-ms max-time-ms]
+  (log/warn e "Transaction took too long:" elapsed-time-ms "ms"
+            "(allowed" max-time-ms "ms)"))
+
 (defmacro with-transaction
   "Run body wrapped in an SQL transaction. If *conn* is already bound to a
   transaction, will run body unmodified to use the existing transaction.
@@ -231,12 +251,15 @@
   `body` should not spawn threads that make SQL calls."
   [& body]
   (assert body "with-transaction: body must not be empty")
-  `(do (if *conn*
-         (do ~@body)
-         (j/with-db-transaction [conn# @*active-db*]
-           (binding [*conn* conn#
-                     *transaction-query-cache* (atom {})]
-             (do ~@body))))))
+  `(log-time
+    {:log-f log-too-long-transaction
+     :max-time-ms 5000}
+    (if *conn*
+      (do ~@body)
+      (j/with-db-transaction [conn# @*active-db*]
+        (binding [*conn* conn#
+                  *transaction-query-cache* (atom {})]
+          (do ~@body))))))
 
 (defmacro with-long-transaction
   "Run body wrapped in an SQL transaction. If *conn* is already bound to a
@@ -245,14 +268,17 @@
 
   `body` should not spawn threads that make SQL calls."
   [[name-sym postgres] & body]
-  (assert body "with-transaction: body must not be empty")
-  `(do (if *conn*
-         (do ~@body)
-         (j/with-db-transaction [conn# {:datasource (:datasource-long-running ~postgres)}]
-           (binding [*conn* conn#
-                     *transaction-query-cache* (atom {})]
-             (let [~name-sym conn#]
-               ~@body))))))
+  (assert body "with-long-transaction: body must not be empty")
+  `(log-time
+    {:log-f log-too-long-transaction
+     :max-time-ms (* 30 60 1000)}
+    (if *conn*
+      (do ~@body)
+      (j/with-db-transaction [conn# {:datasource (:datasource-long-running ~postgres)}]
+        (binding [*conn* conn#
+                  *transaction-query-cache* (atom {})]
+          (let [~name-sym conn#]
+            ~@body))))))
 
 (defmacro with-rollback-transaction
   "Like with-transaction, but sets rollback-only option on the transaction,
