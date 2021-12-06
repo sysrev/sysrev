@@ -1,29 +1,30 @@
 (ns sysrev.web.core
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [com.stuartsierra.component :as component]
-            [compojure.core :as c :refer [defroutes GET ANY POST]]
-            [compojure.route :refer [not-found]]
-            [ring.util.response :as r]
-            [ring.middleware.defaults :as default]
-            [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
-            [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
-            [aleph.http :as http]
+  (:require [aleph.http :as http]
             [aleph.netty]
+            [clojure.string :as str]
+            [com.stuartsierra.component :as component]
+            [compojure.core :as c :refer [ANY defroutes GET POST]]
+            [compojure.route :refer [not-found]]
+            [ring.middleware.defaults :as default]
+            [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
+            [ring.middleware.transit
+             :refer [wrap-transit-body wrap-transit-response]]
+            [ring.util.response :as r]
             [sysrev.config :refer [env]]
-            [sysrev.web.session :refer [sysrev-session-store]]
-            [sysrev.web.index :as index]
-            [sysrev.web.routes.auth :refer [auth-routes]]
-            [sysrev.web.routes.org :refer [org-routes]]
-            [sysrev.web.routes.site :refer [site-routes]]
-            [sysrev.web.routes.project :refer [project-routes]]
-            [sysrev.web.routes.user :refer [user-routes]]
-            [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
-            [sysrev.web.routes.graphql :refer [graphql-routes]]
-            sysrev.web.routes.api.handlers
+            [sysrev.util :as util :refer [in?]]
             [sysrev.web.app :as app]
-            [sysrev.util :as util :refer [in?]])
-  (:import (java.io Closeable)))
+            [sysrev.web.index :as index]
+            [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
+            [sysrev.web.routes.auth :refer [auth-routes]]
+            [sysrev.web.routes.graphql :refer [graphql-routes]]
+            [sysrev.web.routes.org :refer [org-routes]]
+            [sysrev.web.routes.project :refer [project-routes]]
+            [sysrev.web.routes.site :refer [site-routes]]
+            [sysrev.web.routes.user :refer [user-routes]]
+            [sysrev.web.session :refer [sysrev-session-store]]
+            [clojure.tools.logging :as log])
+  (:import (java.io Closeable)
+           (java.sql SQLTransientConnectionException)))
 
 ;; for clj-kondo
 (declare html-routes)
@@ -57,6 +58,20 @@
                        (assoc-in [:session :cookie-attrs :max-age] (* 60 60 24 2)))
     true           (assoc-in [:security :anti-forgery] (boolean anti-forgery))))
 
+(defn wrap-exit-on-full-connection-pool
+  "Calls System/exit when the connection pool is exhausted for too long.
+  The systemd service should handle restarting sysrev."
+  [handler]
+  (fn [request]
+    (try
+      (handler request)
+      (catch SQLTransientConnectionException e
+        (if (re-matches #".*Connection is not available, request timed out after \d+ms.*"
+                        (.getMessage e))
+          (do (log/fatal e "Exiting due to full connection pool")
+              (System/exit 1))
+          (throw e))))))
+
 (defn wrap-sysrev-html
   "Ring handler wrapper for web HTML responses"
   [handler & {:keys [web-server]}]
@@ -64,7 +79,8 @@
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))
       (app/wrap-dynamic-vars web-server)
-      (app/wrap-web-server web-server)))
+      (app/wrap-web-server web-server)
+      wrap-exit-on-full-connection-pool))
 
 (defn wrap-sysrev-app
   "Ring handler wrapper for web app routes"
@@ -79,7 +95,8 @@
       app/wrap-robot-noindex
       (app/wrap-log-request)
       (app/wrap-dynamic-vars web-server)
-      (app/wrap-web-server web-server)))
+      (app/wrap-web-server web-server)
+      wrap-exit-on-full-connection-pool))
 
 (defn wrap-force-json-request
   "Modifies request map to set header \"Content-Type\" as
@@ -100,7 +117,8 @@
       (wrap-json-body {:keywords? true})
       wrap-force-json-request
       (app/wrap-dynamic-vars web-server)
-      (app/wrap-web-server web-server)))
+      (app/wrap-web-server web-server)
+      wrap-exit-on-full-connection-pool))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn
