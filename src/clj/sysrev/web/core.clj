@@ -1,28 +1,28 @@
 (ns sysrev.web.core
-  (:require [aleph.http :as http]
-            [aleph.netty]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
-            [compojure.core :as c :refer [ANY defroutes GET POST]]
+            [compojure.core :as c :refer [defroutes GET ANY POST]]
             [compojure.route :refer [not-found]]
-            [ring.middleware.defaults :as default]
-            [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
-            [ring.middleware.transit
-             :refer [wrap-transit-body wrap-transit-response]]
             [ring.util.response :as r]
+            [ring.middleware.defaults :as default]
+            [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
+            [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
+            [aleph.http :as http]
+            [aleph.netty]
             [sysrev.config :refer [env]]
-            [sysrev.util :as util :refer [in?]]
-            [sysrev.web.app :as app]
-            [sysrev.web.index :as index]
-            [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
-            [sysrev.web.routes.auth :refer [auth-routes]]
-            [sysrev.web.routes.graphql :refer [graphql-routes]]
-            [sysrev.web.routes.org :refer [org-routes]]
-            [sysrev.web.routes.project :refer [project-routes]]
-            [sysrev.web.routes.site :refer [site-routes]]
-            [sysrev.web.routes.user :refer [user-routes]]
             [sysrev.web.session :refer [sysrev-session-store]]
-            [clojure.tools.logging :as log])
+            [sysrev.web.index :as index]
+            [sysrev.web.routes.auth :refer [auth-routes]]
+            [sysrev.web.routes.org :refer [org-routes]]
+            [sysrev.web.routes.site :refer [site-routes]]
+            [sysrev.web.routes.project :refer [project-routes]]
+            [sysrev.web.routes.user :refer [user-routes]]
+            [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
+            [sysrev.web.routes.graphql :refer [graphql-routes]]
+            sysrev.web.routes.api.handlers
+            [sysrev.web.app :as app]
+            [sysrev.util :as util :refer [in?]])
   (:import (java.io Closeable)
            (java.sql SQLTransientConnectionException)))
 
