@@ -6,7 +6,6 @@
             [sysrev.db.core :as db]
             [sysrev.db.listeners :as listeners]
             [sysrev.db.migration :as migration]
-            [sysrev.fixtures.interface :as fixtures]
             [sysrev.postgres.core :as postgres]
             [sysrev.project.core :as project]
             [sysrev.scheduler.core :as scheduler]
@@ -115,7 +114,7 @@
 
 (defn reload-with-fixtures! []
   (reload!)
-  (fixtures/load-fixtures!))
+  ((requiring-resolve 'sysrev.fixtures.interface/load-fixtures!)))
 
 (defn -main []
   (start!))
