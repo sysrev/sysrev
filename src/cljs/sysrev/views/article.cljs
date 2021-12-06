@@ -18,6 +18,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
+            [sysrev.views.components.pdfjs-express :as pdfjs-express]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
             [sysrev.util :as util :refer [css filter-values nbsp format]]
@@ -419,7 +420,7 @@
                [:br]
                [ui/OutLink contentUrl "Download PDF"]
                [:br]
-               [:div [pdf/ViewReactPDF {:url contentUrl :filename "a"}]]
+               [:div [pdfjs-express/Viewer {:url contentUrl :filename "a"}]]
                [:br]
                [:> ReactJson
                 {:display-array-key false
