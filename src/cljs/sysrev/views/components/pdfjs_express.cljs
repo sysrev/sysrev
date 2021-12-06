@@ -12,12 +12,14 @@
         (-> (WebViewer
              #js{:initialDoc url
                  :path "/js/pdfjs-express"}
-             (rdom/dom-node this))
+             (first (.-children (rdom/dom-node this))))
             (.then #(reset! viewer %))))
       :reagent-render
       (fn [{:keys [theme]}]
         (let [^Object vwr @viewer
               ^Object ui (when vwr (.-UI vwr))]
-          (when (and ui theme) (.setTheme ui theme))
-          [:div {:style {:display (when-not vwr "none")
-                         :height (* 0.98 js/window.innerHeight)}}]))})))
+          (when ui
+            (when theme (.setTheme ui theme)))
+          [:div {:style {:height (* 0.98 js/window.innerHeight)}}
+           [:div {:style {:display (when-not vwr "none")
+                          :height "100%"}}]]))})))
