@@ -4,15 +4,20 @@
             [reagent.dom :as rdom]))
 
 (defn Viewer [{:keys [url]} _child]
-  (let [viewer (atom nil)]
+  (let [viewer (r/atom nil)]
     (r/create-class
-     {:component-did-mount
+     {:display-name "Sysrev PDF.js Express Viewer"
+      :component-did-mount
       (fn [this]
-        (reset! viewer
-                (WebViewer
-                 #js{:initialDoc url
-                     :path "/js/pdfjs-express"}
-                 (rdom/dom-node this))))
+        (-> (WebViewer
+             #js{:initialDoc url
+                 :path "/js/pdfjs-express"}
+             (rdom/dom-node this))
+            (.then #(reset! viewer %))))
       :reagent-render
-      (fn [_]
-        [:div {:style {:height (* 0.98 js/window.innerHeight)}}])})))
+      (fn [{:keys [theme]}]
+        (let [^Object vwr @viewer
+              ^Object ui (when vwr (.-UI vwr))]
+          (when (and ui theme) (.setTheme ui theme))
+          [:div {:style {:display (when-not vwr "none")
+                         :height (* 0.98 js/window.innerHeight)}}]))})))

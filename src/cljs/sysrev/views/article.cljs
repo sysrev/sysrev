@@ -420,7 +420,10 @@
                [:br]
                [ui/OutLink contentUrl "Download PDF"]
                [:br]
-               [:div [pdfjs-express/Viewer {:url contentUrl :filename "a"}]]
+               [:div [pdfjs-express/Viewer
+                      {:theme (if @(subscribe [:self/dark-theme?])
+                                "dark" "light")
+                       :url contentUrl}]]
                [:br]
                [:> ReactJson
                 {:display-array-key false
