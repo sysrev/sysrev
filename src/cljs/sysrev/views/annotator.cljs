@@ -1,5 +1,6 @@
 (ns sysrev.views.annotator
   (:require ["jquery" :as $]
+            [clojure.data.xml :as dxml]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
             [sysrev.views.semantic :as S]
@@ -487,50 +488,72 @@
      #_ [AddAnnotation context]
      child]))
 
+(defn clean-up-xfdf-annotation
+  "Remove redundant data like the selection content and name (same as id)."
+  [ann]
+  (-> (update ann :attrs dissoc :name)
+      (update :content (partial remove (comp #{:xmlns.http%3A%2F%2Fns.adobe.com%2Fxfdf%2F/contents} :tag)))))
+
+(defn parse-xfdf-annotations
+  "Parses an XML document containing XFDF annotations and returns a seq of
+  annotation maps. Removes redundant data via `clean-up-xfdf-annotation`."
+  [xml-str]
+  (->> (dxml/parse-str xml-str)
+       :content first :content first
+       clean-up-xfdf-annotation))
+
 (defn AnnotatingPDFViewer [{:keys [annotation-context read-only?] :as opts}]
   [pdfjs-express/Viewer
    (merge
     {:annotations (r/atom @(subscribe [:annotator/label-annotations annotation-context]))
-     :disabled-elements (into
-                         ["freeHandHighlightToolButton"
-                          "freeHandHighlightToolGroupButton"
-                          "freeHandToolButton"
-                          "freeHandToolGroupButton"
-                          "freeTextToolButton"
-                          "freeTextToolGroupButton"
-                          "linkButton"
-                          "shapeToolGroupButton"
-                          "squigglyToolGroupButton"
-                          "stickyToolButton"
-                          "stickyToolGroupButton"
-                          "strikeoutToolGroupButton"
-                          "textStrikeoutToolButton"
-                          "textSquigglyToolButton"
-                          "textUnderlineToolButton"
-                          "themeChangeButton"
-                          "toolbarGroup-FillAndSign"
-                          "toolbarGroup-Insert"
-                          "toolbarGroup-Shapes"
-                          "underlineToolGroupButton"]
-                         (when read-only?
-                           ["highlightToolButton"
-                            "ribbons"
-                            "textHighlightToolButton"
-                            "toolsHeader"]))
+     :disabled-elements
+     (into
+      ["freeHandHighlightToolButton"
+       "freeHandHighlightToolGroupButton"
+       "freeHandToolButton"
+       "freeHandToolGroupButton"
+       "freeTextToolButton"
+       "freeTextToolGroupButton"
+       "linkButton"
+       "shapeToolGroupButton"
+       "squigglyToolGroupButton"
+       "stickyToolButton"
+       "stickyToolGroupButton"
+       "strikeoutToolGroupButton"
+       "textStrikeoutToolButton"
+       "textSquigglyToolButton"
+       "textUnderlineToolButton"
+       "themeChangeButton"
+       "toolbarGroup-FillAndSign"
+       "toolbarGroup-Insert"
+       "toolbarGroup-Shapes"
+       "underlineToolGroupButton"]
+      (when read-only?
+        ["highlightToolButton"
+         "ribbons"
+         "textHighlightToolButton"
+         "toolsHeader"]))
      :features (conj pdfjs-express/default-features "Annotations")
-     :on-annotation-changed (fn [annotations action]
-                              (cond
-                                (#{"add" "modify"} action)
-                                (doseq [^Object a annotations
-                                        :let [contents (.getContents a)
-                                              id (.-Id a)
-                                              entry {:annotation-id id
-                                                     :selection contents
-                                                     :value contents}]]
-                                  (dispatch-sync [::set annotation-context [:editing-id] id])
-                                  (dispatch-sync [::set annotation-context [:annotations id] entry]))
+     :on-annotation-changed
+     (fn [^Object viewer annotations action]
+       (cond
+         (#{"add" "modify"} action)
+         (let [^Object ann-mgr (.-annotationManager ^Object (.-Core viewer))]
+           (doseq [^Object a annotations
+                   :let [contents (.getContents a)
+                         id (.-Id a)]]
+             (.then
+              (.exportAnnotations ann-mgr #js{:annotList #js[a]})
+              (fn [xml-str]
+                (dispatch-sync [::set annotation-context [:editing-id] id])
+                (dispatch-sync [::set annotation-context
+                                [:annotations id]
+                                {:annotation-id id
+                                 :selection contents
+                                 :value contents
+                                 :xfdf (parse-xfdf-annotations xml-str)}])))))
 
-                                (= "delete" action)
-                                (doseq [^Object a annotations]
-                                  (dispatch-sync [::remove-ann annotation-context (.-Id a)]))))}
+         (= "delete" action)
+         (doseq [^Object a annotations]
+           (dispatch-sync [::remove-ann annotation-context (.-Id a)]))))}
     opts)])
