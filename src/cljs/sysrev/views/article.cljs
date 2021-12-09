@@ -7,7 +7,7 @@
             [clojure.string :as str]
             goog.object
             [medley.core :as medley]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [dispatch reg-sub subscribe]]
             [reagent.core :as r]
             [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.data.cursors :refer [map-from-cursors]]
@@ -82,6 +82,28 @@
        (when (= article-id @article-id-state)
          (dispatch [:require [:article/annotations project-id article-id]])))
      (* delay 1000))))
+
+(reg-sub :annotator/label-annotations
+         (fn [[_ context]]
+           (subscribe [::get context [:annotations]]))
+         (fn [m [_ _ ks]]
+           (if (seq ks)
+             (medley/map-vals #(select-keys % ks) m)
+             m)))
+
+(reg-sub ::pdf-annotations
+         (fn [[_ article-id]]
+           (subscribe [:article/labels article-id]))
+         (fn [labels]
+           (->> labels
+                vals
+                (mapcat vals)
+                (keep (fn [{:keys [answer]}]
+                        (when (and (map? answer) (:xfdf (first (vals answer))))
+                          (let [m (-> answer vals first
+                                      (select-keys [:annotation-id :selection :xfdf]))]
+                            [(:annotation-id m) m]))))
+                (into {}))))
 
 (defn- display-author-names [nmax authors]
   (str (str/join ", " (take nmax authors))
@@ -419,14 +441,19 @@
                [:br]
                [ui/OutLink contentUrl "Download PDF"]
                [:br]
-               [:div [annotator/AnnotatingPDFViewer
-                      {:annotation-context {:article-id article-id
-                                            :class "abstract"
-                                            :project-id project-id}
-                       :read-only? (not= :annotations @(subscribe [:review-interface]))
-                       :theme (if @(subscribe [:self/dark-theme?])
-                                "dark" "light")
-                       :url contentUrl}]]
+               (let [annotation-context {:article-id article-id
+                                         :class "abstract"
+                                         :project-id project-id}]
+                 [:div [annotator/AnnotatingPDFViewer
+                        {:annotation-context annotation-context
+                         :annotations (if @(subscribe [:review-interface])
+                                        (subscribe [:annotator/label-annotations annotation-context
+                                                    [:annotation-id :selection :xfdf]])
+                                        (subscribe [::pdf-annotations article-id]))
+                         :read-only? (not= :annotations @(subscribe [:review-interface]))
+                         :theme (if @(subscribe [:self/dark-theme?])
+                                  "dark" "light")
+                         :url contentUrl}]])
                [:br]
                [:> ReactJson
                 {:display-array-key false

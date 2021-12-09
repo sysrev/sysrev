@@ -1,6 +1,7 @@
 (ns sysrev.views.components.pdfjs-express
   (:require ["@pdftron/pdfjs-express" :default WebViewer]
             [clojure.data.xml :as dxml]
+            [medley.core :as medley]
             [reagent.core :as r]
             [reagent.dom :as rdom]))
 
@@ -96,7 +97,8 @@
               (reset! previous-disabled-elements disabled-elements))
             ;; Synchronize annotations
             (when @doc-loaded?
-              (let [anns (when annotations @annotations)
+              (let [anns (some->> annotations deref
+                                  (medley/map-keys str)) ; Convert any UUIDs
                     ^Object ann-mgr (.-annotationManager ^Object (.-Core vwr))
                     ann-list (.getAnnotationsList ann-mgr)
                     existing-ids (into #{} (map #(.-Id ^object %) ann-list))]

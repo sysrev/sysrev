@@ -508,9 +508,7 @@
 (defn AnnotatingPDFViewer [{:keys [annotation-context read-only?] :as opts}]
   [pdfjs-express/Viewer
    (merge
-    {:annotations (subscribe [:annotator/label-annotations annotation-context
-                              [:annotation-id :selection :xfdf]])
-     :disabled-elements
+    {:disabled-elements
      (into
       ["freeHandHighlightToolButton"
        "freeHandHighlightToolGroupButton"
