@@ -97,8 +97,8 @@
               (reset! previous-disabled-elements disabled-elements))
             ;; Synchronize annotations
             (when @doc-loaded?
-              (let [anns (some->> annotations deref
-                                  (medley/map-keys str)) ; Convert any UUIDs
+              (let [anns (some-> annotations deref
+                                 (#(when (map? %) (medley/map-keys str %)))) ; Convert any UUIDs
                     ^Object ann-mgr (.-annotationManager ^Object (.-Core vwr))
                     ann-list (.getAnnotationsList ann-mgr)
                     existing-ids (into #{} (map #(.-Id ^object %) ann-list))]

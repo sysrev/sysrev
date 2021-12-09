@@ -87,7 +87,7 @@
          (fn [[_ context]]
            (subscribe [::get context [:annotations]]))
          (fn [m [_ _ ks]]
-           (if (seq ks)
+           (if (and (seq ks) (map? m))
              (medley/map-vals #(select-keys % ks) m)
              m)))
 
