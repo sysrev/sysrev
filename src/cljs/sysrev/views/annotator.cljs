@@ -9,6 +9,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components.core :as ui]
+            [sysrev.views.components.pdfjs-express :as pdfjs-express]
             ["react-hotkeys-hook" :refer [useHotkeys]]
             [sysrev.util :as util :refer
              [map-values filter-values css index-by nbsp]]))
@@ -484,3 +485,50 @@
                               :on-touch-end update-selection}
      #_ [AddAnnotation context]
      child]))
+
+(defn AnnotatingPDFViewer [{:keys [annotation-context read-only?] :as opts}]
+  [pdfjs-express/Viewer
+   (merge
+    {:disabled-elements (into
+                         ["freeHandHighlightToolButton"
+                          "freeHandHighlightToolGroupButton"
+                          "freeHandToolButton"
+                          "freeHandToolGroupButton"
+                          "freeTextToolButton"
+                          "freeTextToolGroupButton"
+                          "linkButton"
+                          "shapeToolGroupButton"
+                          "squigglyToolGroupButton"
+                          "stickyToolButton"
+                          "stickyToolGroupButton"
+                          "strikeoutToolGroupButton"
+                          "textStrikeoutToolButton"
+                          "textSquigglyToolButton"
+                          "textUnderlineToolButton"
+                          "themeChangeButton"
+                          "toolbarGroup-FillAndSign"
+                          "toolbarGroup-Insert"
+                          "toolbarGroup-Shapes"
+                          "underlineToolGroupButton"]
+                         (when read-only?
+                           ["highlightToolButton"
+                            "ribbons"
+                            "textHighlightToolButton"
+                            "toolsHeader"]))
+     :features (conj pdfjs-express/default-features "Annotations")
+     :on-annotation-changed (fn [annotations action]
+                              (cond
+                                (#{"add" "modify"} action)
+                                (doseq [^Object a annotations
+                                        :let [contents (.getContents a)
+                                              id (.-Id a)
+                                              entry {:annotation-id id
+                                                     :selection contents
+                                                     :value contents}]]
+                                  (dispatch-sync [::set annotation-context [:editing-id] id])
+                                  (dispatch-sync [::set annotation-context [:annotations id] entry]))
+
+                                (= "delete" action)
+                                (doseq [^Object a annotations]
+                                  (dispatch-sync [::remove-ann annotation-context (.-Id a)]))))}
+    opts)])

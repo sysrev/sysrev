@@ -18,7 +18,6 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
-            [sysrev.views.components.pdfjs-express :as pdfjs-express]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
             [sysrev.util :as util :refer [css filter-values nbsp format]]
@@ -420,8 +419,12 @@
                [:br]
                [ui/OutLink contentUrl "Download PDF"]
                [:br]
-               [:div [pdfjs-express/Viewer
-                      {:theme (if @(subscribe [:self/dark-theme?])
+               [:div [annotator/AnnotatingPDFViewer
+                      {:annotation-context {:article-id article-id
+                                            :class "abstract"
+                                            :project-id project-id}
+                       :read-only? (not= :annotations @(subscribe [:review-interface]))
+                       :theme (if @(subscribe [:self/dark-theme?])
                                 "dark" "light")
                        :url contentUrl}]]
                [:br]
