@@ -3,6 +3,7 @@
             [clojure.data.xml :as dxml]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
+            [medley.core :as medley]
             [sysrev.views.semantic :as S]
             [reagent.core :as r]
             [re-frame.core :refer
@@ -361,7 +362,10 @@
 (reg-sub :annotator/label-annotations
          (fn [[_ context]]
            (subscribe [::get context [:annotations]]))
-         identity)
+         (fn [m [_ _ ks]]
+           (if (seq ks)
+             (medley/map-vals #(select-keys % ks) m)
+             m)))
 
 (reg-event-fx ::save
               (fn [{:keys [db]} [_ context]]
@@ -505,7 +509,8 @@
 (defn AnnotatingPDFViewer [{:keys [annotation-context read-only?] :as opts}]
   [pdfjs-express/Viewer
    (merge
-    {:annotations (r/atom @(subscribe [:annotator/label-annotations annotation-context]))
+    {:annotations (subscribe [:annotator/label-annotations annotation-context
+                              [:annotation-id :selection :xfdf]])
      :disabled-elements
      (into
       ["freeHandHighlightToolButton"

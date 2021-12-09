@@ -1,6 +1,6 @@
 (ns sysrev.views.components.pdfjs-express
   (:require ["@pdftron/pdfjs-express" :default WebViewer]
-            [clojure.data.xml :as xml]
+            [clojure.data.xml :as dxml]
             [reagent.core :as r]
             [reagent.dom :as rdom]))
 
@@ -101,7 +101,7 @@
                     existing-ids (into #{} (map #(.-Id ^object %) ann-list))]
                 (doseq [[id m] @annotations]
                   (when-not (existing-ids id)
-                    (.importAnnotations ann-mgr (xml/emit-str (xfdf-doc m)))))
+                    (.importAnnotations ann-mgr (dxml/emit-str (xfdf-doc m)))))
                 (doseq [^Object a ann-list]
                   (when-not (get @annotations (.-Id a))
                     (.deleteAnnotations ann-mgr #js[a]))))))
