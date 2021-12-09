@@ -5,7 +5,6 @@
             [goog.dom :as gdom]
             [medley.core :as medley]
             [sysrev.views.semantic :as S]
-            [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v reg-event-fx]]
             [sysrev.data.core :refer [def-data]]

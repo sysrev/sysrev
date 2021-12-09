@@ -96,14 +96,15 @@
               (reset! previous-disabled-elements disabled-elements))
             ;; Synchronize annotations
             (when @doc-loaded?
-              (let [^Object ann-mgr (.-annotationManager ^Object (.-Core vwr))
+              (let [anns (when annotations @annotations)
+                    ^Object ann-mgr (.-annotationManager ^Object (.-Core vwr))
                     ann-list (.getAnnotationsList ann-mgr)
                     existing-ids (into #{} (map #(.-Id ^object %) ann-list))]
-                (doseq [[id m] @annotations]
+                (doseq [[id m] anns]
                   (when-not (existing-ids id)
                     (.importAnnotations ann-mgr (dxml/emit-str (xfdf-doc m)))))
                 (doseq [^Object a ann-list]
-                  (when-not (get @annotations (.-Id a))
+                  (when-not (get anns (.-Id a))
                     (.deleteAnnotations ann-mgr #js[a]))))))
           [:div {:style {:height (* 0.98 js/window.innerHeight)}}
            [:div {:style {:display (when-not vwr "none")
