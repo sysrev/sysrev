@@ -3,6 +3,7 @@
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
             [sysrev.views.semantic :as S]
+            [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v reg-event-fx]]
             [sysrev.data.core :refer [def-data]]
@@ -489,7 +490,8 @@
 (defn AnnotatingPDFViewer [{:keys [annotation-context read-only?] :as opts}]
   [pdfjs-express/Viewer
    (merge
-    {:disabled-elements (into
+    {:annotations (r/atom @(subscribe [:annotator/label-annotations annotation-context]))
+     :disabled-elements (into
                          ["freeHandHighlightToolButton"
                           "freeHandHighlightToolGroupButton"
                           "freeHandToolButton"

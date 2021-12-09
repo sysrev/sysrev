@@ -59,7 +59,7 @@
                         "annotationChanged"
                         #(some-> @listeners :on-annotation-changed (apply %&))))))))
       :reagent-render
-      (fn [{:keys [disabled-elements disabled-tools features on-annotation-changed theme]}]
+      (fn [{:keys [annotations disabled-elements disabled-tools features on-annotation-changed theme]}]
         (reset! listeners
                 {:on-annotation-changed on-annotation-changed})
         (let [^Object vwr @viewer
@@ -77,7 +77,12 @@
                 (.enableElements ui (clj->js reenabled-elements)))
               (when (seq disabled-elements)
                 (.disableElements ui (clj->js disabled-elements)))
-              (reset! previous-disabled-elements disabled-elements)))
+              (reset! previous-disabled-elements disabled-elements))
+            ;; Synchronize annotations
+            (let [^Object ann-mgr (.-annotationManager ^Object (.-Core vwr))]
+              (doseq [^Object a (.getAnnotationsList ann-mgr)]
+                (when-not (get @annotations (.-Id a))
+                  (.deleteAnnotations ann-mgr #js[a])))))
           [:div {:style {:height (* 0.98 js/window.innerHeight)}}
            [:div {:style {:display (when-not vwr "none")
                           :height "100%"}}]]))})))
