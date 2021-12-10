@@ -10,4 +10,30 @@
   :question "Include this article?"
   :short-label "Include"
   :required true
-  :value-type "boolean"}]
+  :value-type "boolean"}
+ {:category "inclusion criteria"
+  :consensus true
+  :definition [:lift {:inclusion-values [true]}]
+  :enabled true
+  :label-id #uuid "a1624cc6-77ff-4079-89aa-7ca7bc9a768b"
+  :label-id-local 15100002
+  :name "overall include"
+  :owner-project-id 1200001
+  :project-id 1200001
+  :question "Include this article?"
+  :short-label "Include"
+  :required true
+  :value-type "boolean"}
+ {:category "extra"
+  :consensus false
+  :definition [:lift {:all-values ["one" "two" "three"]}]
+  :enabled true
+  :label-id #uuid "f41e6392-db88-464c-8f9f-4ffa78beee15"
+  :label-id-local 15100003
+  :name "annotationqBGDXt"
+  :owner-project-id 1200001
+  :project-id 1200001
+  :question "Annotation category?"
+  :short-label "Annotation"
+  :required true
+  :value-type "annotation"}]

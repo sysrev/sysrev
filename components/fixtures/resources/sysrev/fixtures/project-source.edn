@@ -1,0 +1,11 @@
+[{:check-new-results true
+  :date-created [:now]
+  :enabled true
+  :import-date [:now]
+  :meta [:lift
+         {:importing-articles? false
+          :results-count 1
+          :search-term "review"
+          :source "Drugs@FDA Application Documents search"}]
+  :project-id 1200001
+  :source-id 1300001}]

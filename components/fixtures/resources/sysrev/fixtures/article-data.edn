@@ -27,4 +27,14 @@
   :article-type "academic"
   :datasource-name "pubmed"
   :external-id [:cast "16999303" :jsonb]
-  :title "All abuzz. Angry bees ignite an unexpected MCI."}]
+  :title "All abuzz. Angry bees ignite an unexpected MCI."}
+ {:article-data-id 36800006
+  :article-subtype "fda-drugs-docs"
+  :article-type "pdf"
+  :content [:lift
+            {:datapub {:entity-id 12}
+             :types {:article-type "pdf"
+                     :article-subtype "fda-drugs-docs"}}]
+  :datasource-name "fda-drugs-docs"
+  :external-id [:cast "\"[\\\"008372\\\" \\\"Letter\\\" \\\"SUPPL\\\"]\"" :jsonb]
+  :title "008372 — NDA — Letter — MALLINCKRODT ARD — H.P. ACTHAR GEL / CORTICOTROPIN"}]

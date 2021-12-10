@@ -20,6 +20,8 @@
    "session"
    "project-group"
    "project-member"
+   "project-source"
+   "article-source"
    "user-email"
    "user-group"])
 

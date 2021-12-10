@@ -22,4 +22,9 @@
   :article-id 36900005
   :article-uuid #uuid "d80cfda9-db9a-4d9e-947d-9c3b346d9f5b"
   :enabled true
-  :project-id 1200002}]
+  :project-id 1200002}
+ {:article-data-id 36800006
+  :article-id 36900006
+  :article-uuid #uuid "43b6bcb1-6ca3-445d-94d3-bf5ce387e123"
+  :enabled true
+  :project-id 1200001}]
