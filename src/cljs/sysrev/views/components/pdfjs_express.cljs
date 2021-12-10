@@ -71,7 +71,7 @@
                       "annotationChanged"
                       #(some-> @listeners :on-annotation-changed (apply (cons vwr %&))))))))
       :reagent-render
-      (fn [{:keys [annotations disabled-elements disabled-tools features on-annotation-changed theme url]}]
+      (fn [{:keys [annotations disabled-elements disabled-tools document-id features on-annotation-changed theme url]}]
         (reset! listeners
                 {:on-annotation-changed on-annotation-changed})
         (let [^js vwr @viewer
@@ -104,7 +104,9 @@
             ;; Synchronize annotations
             (when @doc-loaded?
               (let [anns (some-> annotations deref
-                                 (#(when (map? %) (medley/map-keys str %)))) ; Convert any UUIDs
+                                 (#(when (map? %)
+                                     (->> (medley/map-keys str %) ; Convert any UUIDs
+                                          (medley/filter-vals (comp (partial = document-id) :document-id))))))
                     ^js ann-mgr (.-annotationManager ^js (.-Core vwr))
                     ann-list (.getAnnotationsList ann-mgr)
                     existing-ids (into #{} (map #(.-Id ^object %) ann-list))]

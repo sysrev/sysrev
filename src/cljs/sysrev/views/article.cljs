@@ -93,7 +93,7 @@
                 (keep (fn [{:keys [answer]}]
                         (when (and (map? answer) (:xfdf (first (vals answer))))
                           (let [m (-> answer vals first
-                                      (select-keys [:annotation-id :selection :xfdf]))]
+                                      (select-keys [:annotation-id :document-id :selection :xfdf]))]
                             [(:annotation-id m) m]))))
                 (into {}))))
 
@@ -440,8 +440,9 @@
                         {:annotation-context annotation-context
                          :annotations (if @(subscribe [:review-interface])
                                         (subscribe [:annotator/label-annotations annotation-context
-                                                    [:annotation-id :selection :xfdf]])
+                                                    [:annotation-id :document-id :selection :xfdf]])
                                         (subscribe [::pdf-annotations article-id]))
+                         :document-id version-entity-id
                          :read-only? (not= :annotations @(subscribe [:review-interface]))
                          :theme (if @(subscribe [:self/dark-theme?])
                                   "dark" "light")

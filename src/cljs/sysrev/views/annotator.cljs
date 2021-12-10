@@ -505,7 +505,7 @@
        :content first :content first
        clean-up-xfdf-annotation))
 
-(defn AnnotatingPDFViewer [{:keys [annotation-context read-only?] :as opts}]
+(defn AnnotatingPDFViewer [{:keys [annotation-context document-id read-only?] :as opts}]
   [pdfjs-express/Viewer
    (merge
     {:disabled-elements
@@ -554,6 +554,7 @@
                   (dispatch-sync [::set annotation-context
                                   [:annotations id]
                                   {:annotation-id id
+                                   :document-id document-id
                                    :selection contents
                                    :value contents
                                    :xfdf (parse-xfdf-annotations xml-str)}]))))))
