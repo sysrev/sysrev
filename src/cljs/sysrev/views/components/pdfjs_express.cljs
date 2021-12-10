@@ -60,7 +60,8 @@
       :component-did-mount
       (fn [this]
         (-> (WebViewer
-             #js{:initialDoc url
+             #js{:extension "pdf"
+                 :initialDoc url
                  :path "/js/pdfjs-express"}
              (first (.-children (rdom/dom-node this))))
             (.then (fn [^Object vwr]
