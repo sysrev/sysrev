@@ -526,6 +526,7 @@
        "textSquigglyToolButton"
        "textUnderlineToolButton"
        "themeChangeButton"
+       "toggleNotesButton"
        "toolbarGroup-FillAndSign"
        "toolbarGroup-Insert"
        "toolbarGroup-Shapes"
