@@ -548,6 +548,7 @@
                (.then
                 (.exportAnnotations ann-mgr #js{:annotList #js[a]})
                 (fn [xml-str]
+                  (dispatch-sync [::clear-annotations annotation-context])
                   (dispatch-sync [::set annotation-context [:editing-id] id])
                   (dispatch-sync [::set annotation-context
                                   [:annotations id]
