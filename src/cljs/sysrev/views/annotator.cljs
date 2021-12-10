@@ -537,11 +537,11 @@
          "toolsHeader"]))
      :features (conj pdfjs-express/default-features "Annotations")
      :on-annotation-changed
-     (fn [^Object viewer annotations action]
+     (fn [^js viewer annotations action]
        (cond
          (#{"add" "modify"} action)
-         (let [^Object ann-mgr (.-annotationManager ^Object (.-Core viewer))]
-           (doseq [^Object a annotations
+         (let [^js ann-mgr (.-annotationManager ^js (.-Core viewer))]
+           (doseq [^js a annotations
                    :let [contents (.getContents a)
                          id (.-Id a)]]
              (.then
@@ -556,6 +556,6 @@
                                  :xfdf (parse-xfdf-annotations xml-str)}])))))
 
          (= "delete" action)
-         (doseq [^Object a annotations]
+         (doseq [^js a annotations]
            (dispatch-sync [::remove-ann annotation-context (.-Id a)]))))}
     opts)])

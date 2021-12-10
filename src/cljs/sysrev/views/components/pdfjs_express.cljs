@@ -64,12 +64,12 @@
                  :initialDoc url
                  :path "/js/pdfjs-express"}
              (first (.-children (rdom/dom-node this))))
-            (.then (fn [^Object vwr]
+            (.then (fn [^js vwr]
                      (reset! viewer vwr)
-                     (let [^Object core (.-Core vwr)
-                           ^Object doc-viewer (.-documentViewer core)]
+                     (let [^js core (.-Core vwr)
+                           ^js doc-viewer (.-documentViewer core)]
                        (.addEventListener
-                        ^Object (.-annotationManager core)
+                        ^js (.-annotationManager core)
                         "annotationChanged"
                         #(some-> @listeners :on-annotation-changed (apply (cons vwr %&))))
                        (letfn [(loaded-listener []
@@ -80,8 +80,8 @@
       (fn [{:keys [annotations disabled-elements disabled-tools features on-annotation-changed theme]}]
         (reset! listeners
                 {:on-annotation-changed on-annotation-changed})
-        (let [^Object vwr @viewer
-              ^Object ui (when vwr (.-UI vwr))
+        (let [^js vwr @viewer
+              ^js ui (when vwr (.-UI vwr))
               reenabled-elements (remove (set disabled-elements) @previous-disabled-elements)]
           (when ui
             (when theme (.setTheme ui theme))
@@ -100,13 +100,13 @@
             (when @doc-loaded?
               (let [anns (some-> annotations deref
                                  (#(when (map? %) (medley/map-keys str %)))) ; Convert any UUIDs
-                    ^Object ann-mgr (.-annotationManager ^Object (.-Core vwr))
+                    ^js ann-mgr (.-annotationManager ^js (.-Core vwr))
                     ann-list (.getAnnotationsList ann-mgr)
                     existing-ids (into #{} (map #(.-Id ^object %) ann-list))]
                 (doseq [[id m] anns]
                   (when-not (existing-ids id)
                     (.importAnnotations ann-mgr (dxml/emit-str (xfdf-doc m)))))
-                (doseq [^Object a ann-list]
+                (doseq [^js a ann-list]
                   (when-not (get anns (.-Id a))
                     (.deleteAnnotations ann-mgr #js[a]))))))
           [:div {:style {:height (* 0.98 js/window.innerHeight)}}
