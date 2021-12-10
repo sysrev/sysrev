@@ -83,14 +83,6 @@
          (dispatch [:require [:article/annotations project-id article-id]])))
      (* delay 1000))))
 
-(reg-sub :annotator/label-annotations
-         (fn [[_ context]]
-           (subscribe [::get context [:annotations]]))
-         (fn [m [_ _ ks]]
-           (if (and (seq ks) (map? m))
-             (medley/map-vals #(select-keys % ks) m)
-             m)))
-
 (reg-sub ::pdf-annotations
          (fn [[_ article-id]]
            (subscribe [:article/labels article-id]))
