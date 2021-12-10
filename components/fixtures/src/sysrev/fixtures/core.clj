@@ -39,7 +39,7 @@
 (defn ensure-test-db! [db]
   (when-not (test-db? db)
     (throw (RuntimeException.
-            "Not allowed to load fixtures on production server."))))
+            "Fixtures may only be loaded on dbs with _test in the name."))))
 
 (defn load-fixtures! [& [db]]
   (let [db (or db @db/*active-db*)]
