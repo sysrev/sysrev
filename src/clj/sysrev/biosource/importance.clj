@@ -45,14 +45,24 @@
       (-> (insert-into :project-important-terms)(values insert-vals)db/do-execute))))
 
 (defn- project-last-source-update [project-id]
-  (let [last-update (-> (select [:%max.date-created :max-date])(from :project-source)
-                        (where [:= :project-id project-id])(limit 1) db/do-query)]
-    (if (empty? last-update) nil (inst-ms (:max-date (first last-update))))))
+  (some-> (select [:%max.date-created :max-date])
+          (from :project-source)
+          (where [:= :project-id project-id])
+          (limit 1)
+          db/do-query
+          first
+          :max-date
+          inst-ms))
 
 (defn- project-important-terms-last-update [project-id]
-  (let [last-review (-> (select :created)(from :project-important-terms)
-                        (where [:= :project-id project-id]) (limit 1) db/do-query)]
-    (if (empty? last-review) nil (inst-ms (:created (first last-review))))))
+  (some-> (select :created)
+          (from :project-important-terms)
+          (where [:= :project-id project-id])
+          (limit 1)
+          db/do-query
+          first
+          :created
+          inst-ms))
 
 (defn should-update-terms? [project-id]
   (let [last-source-update (project-last-source-update project-id)
