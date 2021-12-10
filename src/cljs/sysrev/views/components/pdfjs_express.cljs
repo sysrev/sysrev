@@ -50,8 +50,9 @@
                                     {:tag :xmlns.http%3A%2F%2Fns.adobe.com%2Fxfdf%2F/contents
                                      :content [selection]}))]}]})
 
-(defn Viewer [{:keys [url]}]
+(defn Viewer []
   (let [doc-loaded? (r/atom false)
+        last-url (atom nil)
         listeners (atom nil)
         previous-disabled-elements (atom nil)
         viewer (r/atom nil)]
@@ -61,29 +62,33 @@
       (fn [this]
         (-> (WebViewer
              #js{:extension "pdf"
-                 :initialDoc url
                  :path "/js/pdfjs-express"}
              (first (.-children (rdom/dom-node this))))
             (.then (fn [^js vwr]
                      (reset! viewer vwr)
-                     (let [^js core (.-Core vwr)
-                           ^js doc-viewer (.-documentViewer core)]
-                       (.addEventListener
-                        ^js (.-annotationManager core)
-                        "annotationChanged"
-                        #(some-> @listeners :on-annotation-changed (apply (cons vwr %&))))
-                       (letfn [(loaded-listener []
-                                 (reset! doc-loaded? true)
-                                 (.removeEventListener doc-viewer "documentLoaded" loaded-listener))]
-                         (.addEventListener doc-viewer "documentLoaded" loaded-listener)))))))
+                     (.addEventListener
+                      ^js (.-annotationManager ^js (.-Core vwr))
+                      "annotationChanged"
+                      #(some-> @listeners :on-annotation-changed (apply (cons vwr %&))))))))
       :reagent-render
-      (fn [{:keys [annotations disabled-elements disabled-tools features on-annotation-changed theme]}]
+      (fn [{:keys [annotations disabled-elements disabled-tools features on-annotation-changed theme url]}]
         (reset! listeners
                 {:on-annotation-changed on-annotation-changed})
         (let [^js vwr @viewer
+              ^js doc-viewer (when vwr (.-documentViewer ^js (.-Core vwr)))
               ^js ui (when vwr (.-UI vwr))
               reenabled-elements (remove (set disabled-elements) @previous-disabled-elements)]
           (when ui
+            (when (not= url @last-url)
+              (reset! last-url url)
+              (reset! doc-loaded? false)
+              (if (seq url)
+                (do (.loadDocument ui url)
+                    (letfn [(loaded-listener []
+                              (reset! doc-loaded? true)
+                              (.removeEventListener doc-viewer "documentLoaded" loaded-listener))]
+                      (.addEventListener doc-viewer "documentLoaded" loaded-listener)))
+                (.closeDocument ui)))
             (when theme (.setTheme ui theme))
             (let [features (set (or features default-features))]
               (.disableFeatures ui (clj->js (remove features all-features)))
