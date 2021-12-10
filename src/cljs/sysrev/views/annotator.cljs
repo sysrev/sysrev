@@ -544,16 +544,17 @@
            (doseq [^js a annotations
                    :let [contents (.getContents a)
                          id (.-Id a)]]
-             (.then
-              (.exportAnnotations ann-mgr #js{:annotList #js[a]})
-              (fn [xml-str]
-                (dispatch-sync [::set annotation-context [:editing-id] id])
-                (dispatch-sync [::set annotation-context
-                                [:annotations id]
-                                {:annotation-id id
-                                 :selection contents
-                                 :value contents
-                                 :xfdf (parse-xfdf-annotations xml-str)}])))))
+             (when (seq contents) ; Ignore spurious blank annotations
+               (.then
+                (.exportAnnotations ann-mgr #js{:annotList #js[a]})
+                (fn [xml-str]
+                  (dispatch-sync [::set annotation-context [:editing-id] id])
+                  (dispatch-sync [::set annotation-context
+                                  [:annotations id]
+                                  {:annotation-id id
+                                   :selection contents
+                                   :value contents
+                                   :xfdf (parse-xfdf-annotations xml-str)}]))))))
 
          (= "delete" action)
          (doseq [^js a annotations]
