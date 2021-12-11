@@ -135,7 +135,7 @@
 
 (defmethod enrich-articles :default [_ articles]
   (vec (for [{:keys [content] :as x} articles]
-         (merge content (select-keys x [:article-id :project-id])))))
+         (merge content (select-keys x [:article-id :project-id :title])))))
 
 (defmethod enrich-articles "pubmed" [_ articles]
   (let [data (->> articles (map :external-id) (fetch-pubmed-articles))]
@@ -188,6 +188,7 @@
   written. The `enrich-articles` method takes a coll of articles and
   enriches them with additional data."
   [articles]
+  (println articles)
   (->> (group-by :datasource-name articles)
        (map (fn [[k v]] (some->> v (enrich-articles k))))
        flatten))
@@ -198,7 +199,7 @@
    `article-data` table."
   [article-ids (s/every int?)]
   (->> (q/get-article (distinct article-ids)
-                      [:a.* :ad.datasource-name :ad.external-id :ad.content]
+                      [:a.* :ad.datasource-name :ad.external-id :ad.content :ad.title]
                       :include-disabled true)
        enrich-articles-with-datasource
        (index-by :article-id)))

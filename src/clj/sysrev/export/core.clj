@@ -180,7 +180,7 @@
                   (let [x (get predict-labels label-id)]
                     (str "predict(" (:label-id-local x) ":" (:short-label x) ")"))))]
        (for [article-id (sort (keys all-articles))]
-         (let [{:keys [primary-title secondary-title authors
+         (let [{:keys [title primary-title secondary-title authors
                        abstract]} (get all-articles article-id)
                all-authors (str/join "; " (map str authors))
                article-url (str project-url "/article/" article-id)
@@ -188,7 +188,7 @@
                                 (when-let [score (get-in apredicts [article-id label-id])]
                                   (format "%.3f" score)))]
            (mapv (partial stringify-csv-value separator)
-                 (concat [article-id article-url primary-title secondary-title
+                 (concat [article-id article-url (or primary-title title)  secondary-title
                           all-authors abstract]
                          predict-scores))))))))
 
