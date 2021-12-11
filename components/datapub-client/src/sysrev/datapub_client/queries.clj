@@ -42,8 +42,13 @@
        (return->string return)
        "}}"))
 
+(defn q-dataset#entities [return]
+  (str "query($after: String, $first: NonNegativeInt, $id: PositiveInt!){dataset(id: $id){entities(after: $after, first: $first){"
+       (return->string return)
+       "}}}"))
+
 (defn q-list-datasets [return]
-  (str "{listDatasets{" (return->string return) "}}"))
+  (str "query($after: String, $first: NonNegativeInt){listDatasets(after: $after, first: $first){" (return->string return) "}}"))
 
 (defn s-dataset-entities [return]
   (str "subscription($input: DatasetEntitiesInput!){datasetEntities(input: $input){"

@@ -238,62 +238,62 @@
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."
-  [project-id search-term & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pubmed-search project-id % options)
+  [request project-id search-term & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-pubmed-search request project-id % options)
                    {:search-term search-term}))
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma
   separated file of PMIDs."
-  [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pmid-file project-id % options)
+  [request project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-pmid-file request project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-endnote-file
   "Import articles from an Endnote XML file."
-  [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-endnote-xml project-id % options)
+  [request project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-endnote-xml request project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-pdf-zip-file
   "Import articles from the PDF files contained in a zip file. An
   article entry is created for each PDF, using filename as the article
   title."
-  [project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pdf-zip project-id % options)
+  [request project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-pdf-zip request project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-json-file
   "Import articles from a JSON file."
-  [project-id file filename & {:keys [] :as options}]
-  (wrap-import-api #(import/import-json project-id % options)
+  [request project-id file filename & {:keys [] :as options}]
+  (wrap-import-api #(import/import-json request project-id % options)
                    {:file file :filename filename}))
 
-(defn import-articles-from-pdfs [project-id multipart-params & {:keys [threads] :as options}]
+(defn import-articles-from-pdfs [request project-id multipart-params & {:keys [threads] :as options}]
   (let [files (get multipart-params "files[]")]
-    (wrap-import-api #(import/import-pdfs project-id % options)
+    (wrap-import-api #(import/import-pdfs request project-id % options)
                      {:files (if (map? files)
                                [files]
                                files)})))
 
 (defn import-articles-from-ris-file
   "Import articles from a RIS file."
-  [project-id file filename & {:keys [threads] :as options}]
+  [request project-id file filename & {:keys [threads] :as options}]
   {:result {:success true}}
-  (wrap-import-api #(import/import-ris project-id % options)
+  (wrap-import-api #(import/import-ris request project-id % options)
                    {:file file :filename filename}))
 
 (defn import-trials-from-search
   "Import trials resulting from CT.gov search"
-  [project-id query entity-ids & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-ctgov-search project-id % options)
+  [request project-id query entity-ids & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-ctgov-search request project-id % options)
                    {:entity-ids entity-ids
                     :query query}))
 
 (defn import-trials-from-fda-drugs-docs
   "Import trials resulting from Drugs@FDA search"
-  [project-id query entity-ids & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-fda-drugs-docs-search project-id % options)
+  [request project-id query entity-ids & {:keys [threads] :as options}]
+  (wrap-import-api #(import/import-fda-drugs-docs-search request project-id % options)
                    {:entity-ids entity-ids
                     :query query}))
 
@@ -338,11 +338,11 @@
 
 (defn-spec re-import-source (-> (req-un ::success) or-error)
   "Toggle a source as being enabled or disabled."
-  [source-id int? web-server map?]
+  [request map? source-id int? web-server map?]
   (if (source/source-exists? source-id)
     (let [project-id (source/source-id->project-id source-id)
           source (source/get-source source-id)]
-      (source/re-import project-id source {:web-server web-server})
+      (source/re-import request project-id source {:web-server web-server})
       {:success true
        :message "Source updated"})
     {:error {:status not-found
@@ -875,9 +875,9 @@
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
-        (let [filename (-> article-id
-                           article/article-pmcid
-                           pubmed/article-pmcid-pdf-filename)
+        (let [^String filename (-> article-id
+                                   article/article-pmcid
+                                   pubmed/article-pmcid-pdf-filename)
               file (java.io.File. filename)
               save-article-result (save-article-pdf article-id file filename)
               key (:key save-article-result)
@@ -919,7 +919,7 @@
     (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
       (doseq [f pdfs]
         (util/ignore-exceptions
-         (with-open [is (s3-file/get-file-stream (:key f) :pdf)]
+         (with-open [is ^java.io.Closeable (s3-file/get-file-stream (:key f) :pdf)]
            (.putNextEntry zip (ZipEntry. (str (:name f))))
            (io/copy is zip)))))
     tmpzip))
@@ -1298,7 +1298,7 @@
                 (mapv #(assoc % :member-count (-> (group/group-id->name (:group-id %))
                                                   (group/read-users-in-group)
                                                   count)))
-                (mapv #(assoc % :plan (-> (plans/group-current-plan (:group-id %))))))}))
+                (mapv #(assoc % :plan (plans/group-current-plan (:group-id %)))))}))
 
 (defn validate-org-name [org-name]
   (cond (group/group-name->id org-name)
@@ -1579,7 +1579,7 @@
     (when-not (:errors datasource-account)
       (ds-api/change-account-password! sysrev-user))))
 
-(defn epoch-millis->LocalDateTime [millis]
+(defn epoch-millis->LocalDateTime ^java.time.LocalDateTime [millis]
   (java.time.LocalDateTime/ofEpochSecond
    (quot millis 1000)
    (* 1000 (rem millis 1000))
@@ -1606,7 +1606,8 @@
                   :limit limit)
             last-timestamp (-> ntfs last :created)
             start-of-day (when last-timestamp
-                           (-> last-timestamp .toInstant
+                           (-> last-timestamp
+                               .toInstant
                                (.atZone (java.time.ZoneId/of "UTC"))
                                at-start-of-day .toInstant
                                java.sql.Timestamp/from))

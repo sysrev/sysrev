@@ -77,16 +77,18 @@
     {:new-articles (remove have-article? articles)
      :existing-article-ids existing-article-ids}))
 
+#_:clj-kondo/ignore
 ;; TODO: store article-location data in datasource
 (defn- import-articles-impl
   "Implements single-threaded import of articles from a new project-source.
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
-  [project-id source-id
+  [request project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added types] :as _impl}
    & [{:keys [user-id] :as _opts}]]
+  (assert (map? request))
   (letfn [(import-group [articles]
-            (db/with-transaction
+            (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
               (let [{:keys [new-articles existing-article-ids]}
                     (match-existing-articles project-id articles types)
                     new-article-ids (add-articles project-id new-articles types prepare-article)
@@ -148,28 +150,29 @@
   "Implements multi-threaded import of articles from a new project-source.
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
-  [project-id source-id
+  [request project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added types] :as impl}
    {:keys [threads] :as opts}]
-  (db/with-transaction
+  (assert (map? request))
+  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
     (if (> threads 1)
       (try (let [group-size (->> (quot (count article-refs) threads) (max 1))
                  thread-groups (->> article-refs (partition-all group-size))
                  threads (doall (for [thread-refs thread-groups]
                                   (future (import-articles-impl
-                                           project-id source-id
+                                           request project-id source-id
                                            (assoc impl :article-refs thread-refs)
                                            opts))))]
              (every? true? (mapv deref threads)))
            (catch Exception e
              (log/error "Error in import-source-articles:" (.getMessage e))
              false))
-      (import-articles-impl project-id source-id impl opts))))
+      (import-articles-impl request project-id source-id impl opts))))
 
 (defn after-source-import
   "Handles success or failure after an import attempt has finished."
-  [project-id source-id success?]
-  (db/with-transaction
+  [request project-id source-id success?]
+  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
     ;; update source metadata
     (if success?
       (source/alter-source-meta source-id #(assoc % :importing-articles? false))
@@ -236,19 +239,20 @@
   `filename` and `file` are optional arguments providing a file the
   import data is coming from; if given, the file will be stored to s3
   and referenced in the source meta map."
-  [project-id source-meta
+  [request project-id source-meta
    {:keys [get-article-refs get-articles prepare-article on-article-added types] :as impl}
    {:keys [use-future? user-id threads] :or {use-future? true threads 4}}
    & {:keys [filename file]}]
+  (assert (map? request))
   (let [source-id (source/create-source project-id (assoc source-meta :importing-articles? true))
         do-import
         (fn []
-          (db/with-transaction
+          (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
             (->> (try
                    (when (and filename file)
                      (source/save-import-file source-id filename file))
                    (import-source-articles
-                    project-id source-id
+                    request project-id source-id
                     (-> (assoc impl :article-refs (get-article-refs))
                         (dissoc :get-article-refs))
                     {:threads threads :user-id user-id})
@@ -256,14 +260,14 @@
                      (log/error "import-source-impl failed -" (.getMessage e))
                      (.printStackTrace e)
                      false))
-                 (after-source-import project-id source-id))))]
+                 (after-source-import request project-id source-id))))]
     {:source-id source-id
      :import (if use-future? (future (do-import)) (do-import))}))
 
 (defmulti import-source
   "Multimethod for import implementation per source type."
-  (fn [stype _project-id _input & [_options]] stype))
+  (fn [_request stype _project-id _input & [_options]] stype))
 
-(defmethod import-source :default [stype _project-id _input & [_options]]
+(defmethod import-source :default [_request stype _project-id _input & [_options]]
   (throw (Exception. (format "import-source - invalid source type (%s)"
                              (pr-str stype)))))

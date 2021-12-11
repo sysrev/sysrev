@@ -4,8 +4,6 @@
             sysrev.test.api
             sysrev.test.etaoin.dev-settings
             sysrev.test.browser.core
-            sysrev.test.browser.analytics
-            sysrev.test.browser.analytics.labels
             sysrev.test.browser.annotation-label
             sysrev.test.browser.group-labels
             sysrev.test.browser.simple

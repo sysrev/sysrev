@@ -12,7 +12,7 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (deftest-browser unlimited-reviews
-  (test/db-connected?) test-user
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [project-id (atom nil)
    test-users (mapv #(b/create-test-user :email %)
                     (mapv #(str "user" % "@fake.com") [1 2 3]))
@@ -28,6 +28,7 @@
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (import/import-pmid-vector
+       {:web-server (:web-server @test/*test-system*)}
        @project-id {:pmids [25706626 25215519 23790141]}
        {:use-future? false})
       (nav/go-project-route "/settings")

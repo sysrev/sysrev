@@ -57,7 +57,7 @@
                  :port (-> config :server :port))
                 [:config :postgres :sente])))
 
-(defn start-system-non-global!
+(defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."
   [& {:keys [config postgres-overrides system-map-f]}]
   (log/info "Starting system")
@@ -69,11 +69,7 @@
                      :system-f
                      (fn []
                        (-> ((requiring-resolve 'datapub.main/get-config))
-                           ((requiring-resolve 'datapub.main/system-map))
-                           (dissoc :s3)
-                           (update :pedestal
-                                   #(vary-meta % update ::component/dependencies
-                                               dissoc :s3))))})))
+                           ((requiring-resolve 'datapub.main/system-map))))})))
         config (if datapub
                  (let [port (get-in datapub [:system :pedestal :bound-port])]
                    (assoc config
@@ -90,14 +86,14 @@
     (log/info "System started")
     system))
 
-(defn start-system!
+(defn start!
   "Start a system and assign it to the sysrev.main/system atom."
   [& {:keys [only-if-new postgres-overrides]}]
   (when (or (not only-if-new) (nil? @system))
-    (reset! system (start-system-non-global!
+    (reset! system (start-non-global!
                     :postgres-overrides postgres-overrides))))
 
-(defn stop-system!
+(defn stop!
   "Stop the provided system or, by default, sysrev.main/system."
   [& [m]]
   (log/info "Stopping system")
@@ -107,5 +103,18 @@
     (log/info "System stopped")
     system))
 
+(defn reload!
+  "Reload sysrev.main system, but reuse the postgres component without
+  reloading it."
+  []
+  (swap! system
+         (fn [system]
+           (when system (component/stop system))
+           (start-non-global!))))
+
+(defn reload-with-fixtures! []
+  (reload!)
+  ((requiring-resolve 'sysrev.fixtures.interface/load-fixtures!)))
+
 (defn -main []
-  (start-system!))
+  (start!))

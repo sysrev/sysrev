@@ -3,8 +3,6 @@
             [clojure.string :as str])
   (:import (com.opentable.db.postgres.embedded EmbeddedPostgres EmbeddedPostgres$Builder PgBinaryResolver)))
 
-(set! *warn-on-reflection* true)
-
 (def resolver
   (reify PgBinaryResolver
     (^java.io.InputStream getPgBinary [this ^String system ^String machine-hardware]

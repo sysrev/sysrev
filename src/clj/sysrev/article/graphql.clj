@@ -38,22 +38,23 @@
 (defn serialize-set-label-input [v]
   (cheshire/generate-string v))
 
-(defn ^ResolverResult set-labels!
-  [context {article-id :articleID
-            project-id :projectID
-            label-values :labelValues
-            confirm? :confirm
-            resolve? :resolve
-            change? :change} _]
-  (db/with-clear-project-cache project-id
-    (let [api-token (:authorization context)
-          user (user-by-api-token api-token)
-          user-id (:user-id user)]
-      (answer/set-labels {:project-id project-id
-                          :user-id user-id
-                          :article-id article-id
-                          :label-values label-values
-                          :confirm? confirm?
-                          :change? change?
-                          :resolve? resolve?})
-      (resolve-as true))))
+(def set-labels!
+  ^ResolverResult
+  (fn [context {article-id :articleID
+                project-id :projectID
+                label-values :labelValues
+                confirm? :confirm
+                resolve? :resolve
+                change? :change} _]
+    (db/with-clear-project-cache project-id
+      (let [api-token (:authorization context)
+            user (user-by-api-token api-token)
+            user-id (:user-id user)]
+        (answer/set-labels {:project-id project-id
+                            :user-id user-id
+                            :article-id article-id
+                            :label-values label-values
+                            :confirm? confirm?
+                            :change? change?
+                            :resolve? resolve?})
+        (resolve-as true)))))

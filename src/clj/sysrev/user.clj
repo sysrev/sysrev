@@ -118,20 +118,19 @@
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])
   (:import java.util.UUID))
 
-(defonce started
-  (try (sysrev.init/start-app)
-       (catch Throwable e
-         (log/error "error in sysrev.init/start-app")
-         (log/error (.getMessage e))
-         (log/error (with-out-str (print-cause-trace-custom e))))))
-
 (def nrepl-handler
   (apply nrepl/default-handler
          (conj cider.nrepl.middleware/cider-middleware 'refactor-nrepl.middleware/wrap-refactor)))
 
 (defn -main []
+  (try
+    (sysrev.init/start-app)
+    (fixtures/load-fixtures!)
+    (catch Exception e
+      (log/error "Exception in sysrev.init/start-app")
+      (log/error (.getMessage e))
+      (log/error (with-out-str (print-cause-trace-custom e)))))
   (defonce nrepl (nrepl/start-server :handler nrepl-handler))
   (spit ".nrepl-port" (:port nrepl))
   (log/info "Started nREPL on port" (:port nrepl))
-  (fixtures/load-fixtures!)
   (clojure.main/repl :init #(in-ns 'sysrev.user)))

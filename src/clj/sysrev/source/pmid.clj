@@ -32,7 +32,7 @@
   {:source "PMID vector"})
 
 (defmethod import-source :pmid-file
-  [_ project-id {:keys [file filename]} {:as options}]
+  [request _ project-id {:keys [file filename]} {:as options}]
   (let [{:keys [max-import-articles]} config/env
         pmids (parse-pmid-file file)]
     (cond
@@ -50,14 +50,14 @@
       (let [source-meta (source/make-source-meta
                          :pmid-file {:filename filename})]
         (import-source-impl
-         project-id source-meta
+         request project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
           :get-article-refs (constantly pmids)
           :get-articles pubmed-get-articles}
          options)))))
 
 (defmethod import-source :pmid-vector
-  [_ project-id {:keys [pmids]} {:as options}]
+  [request _ project-id {:keys [pmids]} {:as options}]
   (let [{:keys [max-import-articles]} config/env]
     (cond
       (empty? pmids)
@@ -70,7 +70,7 @@
       :else
       (let [source-meta (source/make-source-meta :pmid-vector {})]
         (import-source-impl
-         project-id source-meta
+         request project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
           :get-article-refs (constantly pmids)
           :get-articles pubmed-get-articles}

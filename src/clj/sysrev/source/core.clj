@@ -41,10 +41,10 @@
 (defmethod make-source-meta :default [_source-type _values]
   (throw (Exception. "invalid source-type")))
 
-(defmulti re-import (fn [_ source & [_options]]
+(defmulti re-import (fn [_request _ source & [_options]]
                       (-> source :meta :source)))
 
-(defmethod re-import :default [_ _]
+(defmethod re-import :default [_ _ _]
   (throw (Exception. "invalid source-type")))
 
 (defn-spec ^:private set-source-meta int?

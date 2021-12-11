@@ -56,14 +56,14 @@
   [request]
   (let [variables (condp = (:request-method request)
                     :get (try (-> request
-                                  (get-in [:query-params "variables"]))
-                              (json/read-str :key-fn keyword)
-                              (catch Throwable _ nil))
+                                  (get-in [:query-params "variables"])
+                                  (json/read-str :key-fn keyword))
+                              (catch Exception _ nil))
                     :post (try (-> request
                                    :body
                                    (json/read-str :key-fn keyword)
                                    :variables)
-                               (catch Throwable _ nil)))]
+                               (catch Exception _ nil)))]
     (or (not-empty variables) {})))
 
 (defn extract-query
@@ -85,7 +85,7 @@
 (defn- byte-transform
   "Used to encode and decode strings.  Returns nil when an exception
   was raised."
-  [direction-fn string]
+  [direction-fn ^String string]
   (util/ignore-exceptions
    (apply str (map char (direction-fn (.getBytes string))))))
 
@@ -130,11 +130,11 @@
     (let [request (assoc request :body (slurp (:body request)))
           vars (variable-map request)
           query (extract-query request)
-          context {:authorization (get-authorization-key request)}
+          context {:authorization (get-authorization-key request)
+                   :request request}
           authorization-result (authorized? query vars context)
           result (if (get-in authorization-result [:resolved-value :value])
-                   (execute compiled-schema query vars
-                            {:authorization (get-authorization-key request)})
+                   (execute compiled-schema query vars context)
                    authorization-result)]
       {:status (if (seq (:errors result)) 400 200)
        :headers {"Content-Type" "application/json"}

@@ -298,7 +298,7 @@
     {:type "OR"
      :string
      (mapv
-      #(-> {:eq (f %)
+      #(do {:eq (f %)
             :path path})
       st)}))
 

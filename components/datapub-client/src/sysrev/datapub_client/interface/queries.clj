@@ -43,6 +43,13 @@
   [return]
   (q/q-dataset-entity return))
 
+(defn q-dataset#entities
+  "Returns the string representation of a query for the entities field of a dataset.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (q/q-dataset#entities return))
+
 (defn q-list-datasets
   "Returns the string representation of a listDatasets query.
 

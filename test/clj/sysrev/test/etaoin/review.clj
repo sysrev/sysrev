@@ -27,13 +27,14 @@
     (member/add-project-member project-id user-id
                                :permissions ["admin" "member"])
     (api/import-articles-from-pdfs
-         project-id
-         {"files[]"
-          {:filename "sysrev-7539906377827440850.pdf"
-           :content-type "application/pdf"
-           :tempfile (util/create-tempfile :suffix ".pdf")
-           :size 0}}
-         :user-id user-id)
+     {:web-server (:web-server @test/*test-system*)}
+     project-id
+     {"files[]"
+      {:filename "sysrev-7539906377827440850.pdf"
+       :content-type "application/pdf"
+       :tempfile (util/create-tempfile :suffix ".pdf")
+       :size 0}}
+     :user-id user-id)
     (label/add-label-overall-include project-id)
     (label/add-label-entry-boolean project-id
                                    {:enabled false

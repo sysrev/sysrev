@@ -260,7 +260,6 @@
                                         (mapv (partial concat [(str id) name])))))
           process-articles (fn [article]
                              (let [article-id (:id article)]
-                               article-id
                                (->> article
                                     :groupLabels
                                     (filterv #(= (:id %) label-id))

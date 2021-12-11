@@ -15,7 +15,7 @@
 (defn capitalize-first [s]
   (if (empty? s)
     ""
-    (apply str (Character/toUpperCase (first s)) (rest s))))
+    (apply str (Character/toUpperCase ^Character (first s)) (rest s))))
 
 (defn capitalize-words [s]
   (->> (str/split s #" ")
@@ -57,7 +57,8 @@
    :source "Drugs@FDA Application Documents search"
    :results-count results-count})
 
-(defmethod import-source :fda-drugs-docs [_ project-id {:keys [entity-ids query]} options]
+(defmethod import-source :fda-drugs-docs
+  [request _ project-id {:keys [entity-ids query]} options]
   (assert (map? query))
   (let [{:keys [max-import-articles]} env
         query (fda-drugs-docs/canonicalize-query query)
@@ -80,7 +81,7 @@
                                                     :results-count (count entity-ids)
                                                     :search-term search})]
                   (import-source-impl
-                   project-id source-meta
+                   request project-id source-meta
                    {:types {:article-type "pdf"
                             :article-subtype "fda-drugs-docs"}
                     :get-article-refs (constantly entity-ids)
@@ -105,16 +106,16 @@
          (map :id))))
 
 (defmethod re-import "Drugs@FDA Application Documents search"
-  [project-id {:keys [source-id] :as source} {:keys [web-server]}]
+  [request project-id {:keys [source-id] :as source} {:keys [web-server]}]
   (let [do-import (fn []
                     (->> (import-source-articles
-                          project-id source-id
+                          request project-id source-id
                           {:types {:article-type "pdf" :article-subtype "fda-drugs-docs"}
                            :article-refs (get-new-articles-available
                                           source :config (:config web-server))
                            :get-articles (partial get-entities (get-in web-server [:config :datapub-api]))}
                           {:threads 1})
-                         (after-source-import project-id source-id)))]
+                         (after-source-import request project-id source-id)))]
     (source/alter-source-meta source-id #(assoc % :importing-articles? true))
     (source/set-import-date source-id)
     (future (do-import))

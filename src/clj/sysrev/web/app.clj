@@ -163,7 +163,7 @@
                                                     (print-cause-trace-custom)))}))})
                exception
                (db/to-jsonb
-                {:error {:message (.getMessage exception)
+                {:error {:message (.getMessage ^Throwable exception)
                          :stacktrace (with-out-str
                                        (print-cause-trace-custom exception))}}))})
 
@@ -298,10 +298,12 @@
          mperms# (:permissions member#)
 
          record-access# #(when (and project-id# user# member#)
-                           (future (try (update-member-access-time user-id# project-id#)
-                                        (catch Throwable e#
-                                          (log/warn "error updating access time:"
-                                                    {:user-id user-id#})))))
+                           (future
+                             (db/with-transaction
+                               (try (update-member-access-time user-id# project-id#)
+                                    (catch Exception e#
+                                      (log/warn "Exception updating access time:"
+                                                {:user-id user-id#}))))))
          body-fn# #(do (record-access#) ~@body)]
      (cond (and project-id# (not valid-project#))
            {:error {:status 404 :type :not-found

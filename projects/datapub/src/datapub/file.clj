@@ -3,13 +3,12 @@
             [clojure.string :as str]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
-            [com.stuartsierra.component :as component])
+            [com.stuartsierra.component :as component]
+            [datapub.aws-client :as aws-client])
   (:import java.io.InputStream
            java.nio.file.Path
            java.security.MessageDigest
            java.util.Base64))
-
-(set! *warn-on-reflection* true)
 
 (defn sha3-256 ^bytes [^InputStream in]
   (let [md (MessageDigest/getInstance "SHA3-256")
@@ -25,42 +24,16 @@
 (defn file-sha3-256 ^bytes [^Path path]
   (-> path .toUri .toURL .openStream sha3-256))
 
-(defrecord AwsClient [after-start client client-opts]
-  component/Lifecycle
-  (start [this]
-    (if client
-      this
-      (let [creds (select-keys client-opts [:access-key-id :secret-access-key])
-            client-opts (if (some seq (vals creds))
-                          (assoc client-opts :credentials-provider
-                                 (credentials/basic-credentials-provider creds))
-                          client-opts)
-            client-opts (select-keys client-opts [:api :credentials-provider :endpoint-override])
-            this (assoc this :client (aws/client client-opts))]
-        (if after-start
-          (after-start this)
-          this))))
-  (stop [this]
-    (when client
-      (aws/stop client))
-    (assoc this :client nil)))
-
-(defn aws-client [{:as m :keys [after-start client-opts]}]
-  (map->AwsClient m))
-
-(defn invoke! [client op-map]
-  (aaf/throwing-invoke (:client client client) op-map))
-
 (defn s3-client [client-opts]
-  (aws-client
+  (aws-client/aws-client
    {:after-start
     (fn [aws-client]
       (let [{:keys [create? name]}
             #__ (get-in aws-client [:config :s3 :datapub-bucket])]
         (when create?
-          (invoke! (:client aws-client)
-                   {:op :CreateBucket
-                    :request {:Bucket name}}))
+          (aws-client/invoke! (:client aws-client)
+                              {:op :CreateBucket
+                               :request {:Bucket name}}))
         aws-client))
     :client-opts (assoc client-opts :api :s3)}))
 
@@ -122,7 +95,7 @@
   (or
    (some-> (entity-content-head s3 file-hash)
            (select-keys [:ETag]))
-   (invoke!
+   (aws-client/invoke!
     s3
     {:op :PutObject
      :request {:Body content

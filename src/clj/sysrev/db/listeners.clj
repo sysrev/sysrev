@@ -5,13 +5,12 @@
             [medley.core :refer [map-vals]]
             [sysrev.db.core :refer [*conn*]]
             [sysrev.notifications.listeners
-             :refer [handle-notification
-                     handle-notification-notification-subscriber]]
+             :refer [handle-notification handle-notification-notification-subscriber]]
             [sysrev.stacktrace :refer [print-cause-trace-custom]])
-  (:import com.impossibl.postgres.api.jdbc.PGNotificationListener
-           com.impossibl.postgres.jdbc.PGDataSource))
+  (:import (com.impossibl.postgres.api.jdbc PGConnection PGNotificationListener)
+           (com.impossibl.postgres.jdbc PGDataSource)))
 
-(defn- pgjdbc-ng-conn [postgres-config]
+(defn- pgjdbc-ng-conn ^PGConnection [postgres-config]
   (let [{:keys [dbname host password port user]} postgres-config
         ds (PGDataSource.)]
     (doto ds

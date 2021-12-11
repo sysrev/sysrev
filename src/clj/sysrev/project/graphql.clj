@@ -114,24 +114,27 @@
                                                               :content]))))))
 
 (defonce selections-seq-atom (atom {}))
-(defn ^ResolverResult project [context {:keys [id]} _]
-  (let [project-id id
-        api-token (:authorization context)]
-    (with-graphql-auth {:api-token api-token :project-id project-id :project-role "admin"}
-      (let [selections-seq (executor/selections-seq context)]
-        (reset! selections-seq-atom selections-seq)
-        (resolve-as
-         (cond-> (q/get-project id [[:project-id :id] :name :date-created]
-                                :include-disabled true)
-           (some {:Project/labelDefinitions true
-                  :Project/groupLabelDefinitions true} selections-seq)
-           (merge-label-definitions id)
-           (some {:Project/articles true} selections-seq)
-           (merge-articles id)
-           (some {:Article/labels true
-                  :Article/groupLabels true} selections-seq)
-           (merge-article-labels id)
-           (some {:Reviewer/id true} selections-seq)
-           (merge-article-reviewers id)
-           (some {:Article/content true} selections-seq)
-           (merge-article-content api-token)))))))
+
+(def project
+  ^ResolverResult
+  (fn [context {:keys [id]} _]
+    (let [project-id id
+          api-token (:authorization context)]
+      (with-graphql-auth {:api-token api-token :project-id project-id :project-role "admin"}
+        (let [selections-seq (executor/selections-seq context)]
+          (reset! selections-seq-atom selections-seq)
+          (resolve-as
+           (cond-> (q/get-project id [[:project-id :id] :name :date-created]
+                                  :include-disabled true)
+             (some {:Project/labelDefinitions true
+                    :Project/groupLabelDefinitions true} selections-seq)
+             (merge-label-definitions id)
+             (some {:Project/articles true} selections-seq)
+             (merge-articles id)
+             (some {:Article/labels true
+                    :Article/groupLabels true} selections-seq)
+             (merge-article-labels id)
+             (some {:Reviewer/id true} selections-seq)
+             (merge-article-reviewers id)
+             (some {:Article/content true} selections-seq)
+             (merge-article-content api-token))))))))

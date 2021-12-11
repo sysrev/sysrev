@@ -33,7 +33,7 @@
    :filters (extract-filters-from-url url-filter)})
 
 (defmethod import-source :project-filter
-  [_x project-id {:keys [source-project-id url-filter]} & {:as options}]
+  [request _x project-id {:keys [source-project-id url-filter]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :url-filter]) url-filter))
                 (filter #(= (get-in % [:meta :source-project-id]) source-project-id))))
@@ -57,7 +57,7 @@
         {:error {:message "Imported articles are not all of same type"}}
         (let [{:keys [article-type article-subtype]} (first types)]
           (import-source-impl
-           project-id
+           request project-id
            (source/make-source-meta _x {:source-project-id source-project-id
                                         :url-filter url-filter})
            {:types {:article-type article-type :article-subtype article-subtype}
@@ -66,12 +66,13 @@
            options)
           {:result true})))))
 
-(defn ^ResolverResult import-article-filter-url!
-  [_context {url :url source-project-id :sourceID target-project-id :targetID} _]
-  (if (= source-project-id target-project-id)
-    (fail "source-id can not be the same as target-id")
-    (try (import-source :project-filter target-project-id
-                        {:source-project-id source-project-id :url-filter url})
-         (resolve-as true)
-         (catch Throwable e
-           (fail (str "There was an exception with message: " (.getMessage e)))))))
+(def import-article-filter-url!
+  ^ResolverResult
+  (fn [context {url :url source-project-id :sourceID target-project-id :targetID} _]
+    (if (= source-project-id target-project-id)
+      (fail "source-id can not be the same as target-id")
+      (try (import-source (:request context) :project-filter target-project-id
+                          {:source-project-id source-project-id :url-filter url})
+           (resolve-as true)
+           (catch Throwable e
+             (fail (str "There was an exception with message: " (.getMessage e))))))))

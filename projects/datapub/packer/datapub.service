@@ -1,0 +1,17 @@
+[Unit]
+Description=Datapub Server
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+User=admin
+Group=admin
+ExecStart=/home/admin/datapub/run.sh
+WorkingDirectory=/home/admin/datapub
+Restart=always
+RestartSec=1
+StandardError=file:/var/log/datapub/datapub.log
+StandardOutput=file:/var/log/datapub/datapub.log
+
+[Install]
+WantedBy=multi-user.target

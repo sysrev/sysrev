@@ -99,7 +99,7 @@
          500 :api "pmids must be an array of integers")
         :else
         (let [{:keys [error]} (import/import-pmid-vector
-                               project-id {:pmids pmids} {:use-future? false})]
+                               request project-id {:pmids pmids} {:use-future? false})]
           (if error
             {:error {:message error}}
             {:result
@@ -137,7 +137,7 @@
                        " with keys \"primary-title\" and \"abstract\""))
         :else
         (let [{:keys [error]} (import/import-article-text-manual
-                               project-id {:articles articles} {:use-future? false})]
+                               request project-id {:articles articles} {:use-future? false})]
           (if error
             {:error {:message error}}
             {:result

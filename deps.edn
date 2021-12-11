@@ -110,6 +110,7 @@
                      com.cognitect.aws/api {:mvn/version "0.8.524"},
                      com.cognitect.aws/endpoints {:mvn/version "1.1.12.65"}
                      com.cognitect.aws/s3 {:mvn/version "814.2.978.0"}
+                     com.cognitect.aws/secretsmanager {:mvn/version "814.2.1008.0"}
                      com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}
                      io.replikativ/hasch {:mvn/version "0.3.7"}
                      io.staticweb/aws-api-failjure {:mvn/version "1.1.0"}
@@ -128,7 +129,7 @@
                      org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
                      org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
                      prestancedesign/get-port {:mvn/version "0.1.1"}
-                     refactor-nrepl/refactor-nrepl {:mvn/version "2.5.1"}
+                     refactor-nrepl/refactor-nrepl {:mvn/version "3.1.0"}
                      ;; pdf-read deps
                      com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
                      com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
@@ -136,6 +137,7 @@
                      org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
                      org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
+                     sysrev/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      sysrev/datapub {:local/root "projects/datapub"}
                      sysrev/datapub-import {:local/root "components/datapub-import"}
                      sysrev/datapub-test {:local/root "projects/datapub/datapub-test"}
@@ -157,6 +159,8 @@
                       "components/tesseract/src"
                       "components/user/resources"
                       "components/user/src"]}
+  :eastwood {:extra-deps {jonase/eastwood {:mvn/version "0.9.9"}}
+             :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user sysrev.all-test-main sysrev.browser-test-main]}"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
                       com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}

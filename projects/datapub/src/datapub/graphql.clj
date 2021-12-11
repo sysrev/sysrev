@@ -7,8 +7,6 @@
            java.time.format.DateTimeFormatter
            java.time.Instant))
 
-(set! *warn-on-reflection* true)
-
 (def scalars
   {:DateTime {:parse (fn [x]
                        (-> (try
@@ -46,10 +44,10 @@
   value)
 
 (def resolvers
-  {:Dataset {:entities #'dataset/resolve-Dataset-entities
-             :indices #'dataset/resolve-Dataset-indices}
-   :DatasetEntitiesEdge {:node #'dataset/resolve-DatasetEntitiesEdge-node}
-   :ListDatasetsEdge {:node #'dataset/resolve-ListDatasetsEdge-node}
+  {:Dataset {:entities #'dataset/resolve-Dataset#entities
+             :indices #'dataset/resolve-Dataset#indices}
+   :DatasetEntitiesEdge {:node #'dataset/resolve-DatasetEntitiesEdge#node}
+   :ListDatasetsEdge {:node #'dataset/resolve-ListDatasetsEdge#node}
    :Query {:dataset #'dataset/resolve-dataset
            :datasetEntity #'dataset/resolve-dataset-entity
            :listDatasets #'dataset/list-datasets}

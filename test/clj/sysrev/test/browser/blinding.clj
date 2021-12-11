@@ -34,6 +34,7 @@
     ;; set the project setting for label blinding to true
     (change-project-label-blinding true)
     (import/import-pmid-vector
+     {:web-server (:web-server @test/*test-system*)}
      @project-id {:pmids [25706626 25215519 23790141]}
      {:use-future? false})
     ;; do some work

@@ -7,7 +7,7 @@
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util])
-  (:import [org.apache.commons.compress.archivers.zip ZipFile ZipArchiveEntry]))
+  (:import [org.apache.commons.compress.archivers.zip ZipArchiveEntry ZipFile ZipArchiveEntry]))
 
 (defn to-zip-file [^java.io.File file] (ZipFile. file))
 
@@ -16,15 +16,17 @@
 (defn pdf-zip-entries
   [^ZipFile zip-file]
   (->> (enumeration-seq (.getEntries zip-file))
-       (filter #(.getName %))
-       (filter #(fs/base-name (.getName %)))
-       ;; exclude files where name starts with "."
-       (filter #(not (some-> (fs/base-name (.getName %))
-                             (str/starts-with? "."))))
-       ;; filter by pdf file extension
-       (filter #(= ".pdf" (some-> (.getName %) fs/extension str/lower-case)))
-       ;; there seems to be spurious entries; filter based on size
-       (filter #(> (.getSize %) 256))))
+       (filter
+        (fn [^ZipArchiveEntry entry]
+          (let [name (.getName entry)]
+            (and name
+                 (fs/base-name name)
+                 ;; exclude files where name starts with "."
+                 (not (str/starts-with? (fs/base-name name) "."))
+                 ;; filter by pdf file extension
+                 (= ".pdf" (some-> name fs/extension str/lower-case))
+                 ;; there seems to be spurious entries; filter based on size
+                 (> (.getSize entry) 256)))))))
 
 (defn- lookup-filename-sources [project-id filename]
   (->> (source/project-sources project-id)
@@ -35,7 +37,7 @@
 
 ;; FIX: want this to return an error if no pdfs found - does it?
 (defmethod import-source :pdf-zip
-  [_ project-id {:keys [file filename]} {:as options}]
+  [request _ project-id {:keys [file filename]} {:as options}]
   (let [filename-sources (lookup-filename-sources project-id filename)]
     (if (seq filename-sources)
       (do (log/warn "import-source pdf-zip - non-empty filename-sources -" filename-sources)
@@ -54,5 +56,5 @@
                                           (assoc :file-bytes (:file-byte-array %))))
                   :prepare-article #(-> (set/rename-keys % {:filename :primary-title})
                                         (dissoc :file-byte-array))}]
-        (import-source-impl project-id source-meta impl options
+        (import-source-impl request project-id source-meta impl options
                             :filename filename :file file)))))

@@ -1,0 +1,95 @@
+name: "Deploy CloudFormation Global and Regional Resources Stacks"
+concurrency: sysrev-cloudformation-${{ github.ref_name }}
+
+on:
+  push:
+    branches:
+      - staging
+      - production
+    paths:
+      - '.github/workflows/cloudformation.yml'
+      - 'components/cloudformation-templates/out/sysrev-global-resources.template'
+      - 'components/cloudformation-templates/out/sysrev-regional-resources.template'
+
+jobs:
+  deploy-global-resources:
+    outputs:
+      service-role-arn: ${{ steps.deploy.outputs.AdminAccessCloudFormationServiceRoleArn }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Configure AWS prod credentials
+        if: github.ref_name == 'production'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Deploy Sysrev-Global-Resources template
+        id: deploy
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        with:
+          name: Sysrev-Global-Resources
+          capabilities: "CAPABILITY_IAM,CAPABILITY_NAMED_IAM"
+          no-fail-on-empty-changeset: '1'
+          template: components/cloudformation-templates/out/sysrev-global-resources.template
+
+      - name: Echo template outputs
+        run: |
+          echo "Developers Group ARN: ${{ steps.deploy.outputs.DevelopersGroupArn }}"
+
+  deploy-regional-resources:
+    needs: deploy-global-resources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Configure AWS prod credentials
+        if: github.ref_name == 'production'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Deploy Sysrev-Regional-Resources template to staging
+        if: github.ref_name == 'staging'
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        with:
+          name: Sysrev-Regional-Resources
+          no-fail-on-empty-changeset: '1'
+          parameter-overrides: DatapubDomainName=datapub.sysrevdev.net,DatapubHostedZoneId=Z01310163M0NHSJUCFG3V,NumberOfAZs=6
+          role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
+          template: components/cloudformation-templates/out/sysrev-regional-resources.template
+
+      - name: Deploy Sysrev-Regional-Resources template to prod
+        if: github.ref_name == 'production'
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        with:
+          name: Sysrev-Regional-Resources
+          no-fail-on-empty-changeset: '1'
+          parameter-overrides: DatapubDomainName=www.datapub.dev,DatapubHostedZoneId=Z05777473DXKBD94EEPU2,NumberOfAZs=6
+          role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
+          template: components/cloudformation-templates/out/sysrev-regional-resources.template

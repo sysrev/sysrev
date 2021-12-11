@@ -10,7 +10,7 @@
   {:source "PDF Files" :filenames filenames})
 
 (defmethod import-source :pdfs
-  [_ project-id files {:as options}]
+  [request _ project-id files {:as options}]
   (let [filenames (map :filename files)
         source-meta (make-source-meta :pdfs {:filenames filenames})
         pdf-to-article (fn [{:keys [filename tempfile] :as _entry}]
@@ -24,4 +24,4 @@
                                       (assoc :file-bytes (:file-byte-array %))))
               :prepare-article #(-> (set/rename-keys % {:filename :primary-title})
                                     (dissoc :file-byte-array))}]
-    (import-source-impl project-id source-meta impl options)))
+    (import-source-impl request project-id source-meta impl options)))

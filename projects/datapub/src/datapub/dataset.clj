@@ -26,8 +26,6 @@
            org.postgresql.jdbc.PgArray
            org.postgresql.util.PGobject))
 
-(set! *warn-on-reflection* true)
-
 (defn jsonb-pgobject [x]
   (doto (PGobject.)
     (.setType "jsonb")
@@ -38,7 +36,7 @@
                  (or (-> context
                          :com.walmartlabs.lacinia/connection-params
                          :authorization)))
-        sysrev-dev-key (-> context :pedestal :opts :sysrev-dev-key)]
+        sysrev-dev-key (-> context :pedestal :config :secrets :sysrev-dev-key)]
     (and sysrev-dev-key (= auth (str "Bearer " sysrev-dev-key)))))
 
 (defmacro ensure-sysrev-dev [context & body]
@@ -167,7 +165,7 @@
   [path-seq]
   (mapv #(if (= ":datapub/*" %) :* %) path-seq))
 
-(defn resolve-Dataset-indices [context _ {:keys [id]}]
+(defn resolve-Dataset#indices [context _ {:keys [id]}]
   (with-tx-context [context context]
     (when-not (public-dataset? context id)
       (ensure-sysrev-dev context))
@@ -236,7 +234,7 @@
                   {:cursor (str id) :node {:id id}}))
            (split-at (dec limit))))}))
 
-(defn resolve-ListDatasetsEdge-node [context _ {:keys [node]}]
+(defn resolve-ListDatasetsEdge#node [context _ {:keys [node]}]
   (resolve-dataset context node _))
 
 (defn server-url [{:keys [headers scheme server-name server-port]}]
@@ -331,8 +329,8 @@
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                      :datasetId (:dataset-id $)})))))))
 
-(defn resolve-Dataset-entities
-  [context {:keys [externalId groupingId :as args]} {:keys [id]}]
+(defn resolve-Dataset#entities
+  [context {:keys [externalId groupingId] :as args} {:keys [id]}]
   (let [where [:and
                [:= :dataset-id id]
                (when externalId
@@ -360,7 +358,7 @@
                     {:cursor (str id) :node {:id id}}))
              (split-at (dec limit))))})))
 
-(defn resolve-DatasetEntitiesEdge-node [context _ {:keys [node]}]
+(defn resolve-DatasetEntitiesEdge#node [context _ {:keys [node]}]
   (resolve-dataset-entity context node _))
 
 (def ^DateTimeFormatter http-datetime-formatter

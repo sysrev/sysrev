@@ -136,7 +136,9 @@
     (assert project-id)
     (log/infof "importing (%d) pmid articles to project (#%d)"
                (count pmids) project-id)
-    (import/import-pmid-vector project-id {:pmids pmids} {:use-future? false})
+    (import/import-pmid-vector
+     {:web-server (:web-server @test/*test-system*)}
+     project-id {:pmids pmids} {:use-future? false})
     (Thread/sleep 20)
     (b/init-route (str "/p/" project-id "/add-articles") :silent true)))
 

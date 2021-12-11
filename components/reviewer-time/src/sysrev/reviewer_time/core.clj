@@ -6,8 +6,6 @@
   (:import (java.sql Timestamp)
            (java.time Duration Instant LocalDateTime ZoneId ZoneOffset)))
 
-(set! *warn-on-reflection* true)
-
 (def ^{:doc "The time credited after the last recorded event."}
   ^Duration
   after-duration

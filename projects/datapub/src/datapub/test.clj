@@ -31,7 +31,7 @@
     graphql-response))
 
 (defn execute! [system query & [variables]]
-  (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)]
+  (let [sysrev-dev-key (-> system :pedestal :config :secrets :sysrev-dev-key)]
     (-> (response-for system
                       :post "/api"
                       :headers {"Authorization" (str "Bearer " sysrev-dev-key)
@@ -44,7 +44,7 @@
   (-> query :selections first selection/arguments))
 
 (defn execute-subscription! [system f query & [variables opts]]
-  (let [sysrev-dev-key (-> system :pedestal :opts :sysrev-dev-key)
+  (let [sysrev-dev-key (-> system :pedestal :config :secrets :sysrev-dev-key)
         {:keys [timeout-ms]
          :or {timeout-ms 30000}} opts
         schema (-> system :pedestal :service-map :graphql-schema)
@@ -185,6 +185,7 @@
 
 (defn load-all-fixtures! [system]
   (load-ctgov-dataset! system)
-  (create-dataset! system {:name "Unused"})
-  (load-fda-drugs-docs-dataset! system)
+  (when-not (get-in system [:s3 :client-opts :disabled?])
+    (create-dataset! system {:name "Unused"})
+    (load-fda-drugs-docs-dataset! system))
   nil)

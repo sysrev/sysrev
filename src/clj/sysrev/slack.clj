@@ -46,7 +46,7 @@
                {:session {:identity (select-keys ident [:user-id :email])}}))
       (dissoc :web-server)))
 
-(defn log-slack-request-exception [request e & {:keys [force]}]
+(defn log-slack-request-exception [request ^Throwable e & {:keys [force]}]
   (when (or force (= :prod (:profile env)))
     (try (log-slack
           [(format "*Request*:\n```%s```"

@@ -58,6 +58,7 @@
         (try
           (db/with-transaction
             (import/import-pubmed-search
+             {:web-server (:web-server @test/*test-system*)}
              new-project-id {:search-term search-term}
              {:use-future? false}))
           ;; Do we have the correct amount of PMIDS?
@@ -86,6 +87,7 @@
         (try (is (= 0 (project/project-article-count project-id)))
              (is (completes? (db/with-transaction
                                (import/import-endnote-xml
+                                {:web-server (:web-server @test/*test-system*)}
                                 project-id input {:use-future? false}))))
              (is (= 112 (project/project-article-count project-id)))
              (finally (project/delete-project project-id))))
@@ -96,6 +98,7 @@
                (is (= 0 (project/project-article-count project-id)))
                (is (completes? (db/with-transaction
                                  (import/import-endnote-xml
+                                  {:web-server (:web-server @test/*test-system*)}
                                   project-id {:file file :filename filename}
                                   {:use-future? false}))))
                (is (= 100 (project/project-article-count project-id)))
@@ -113,6 +116,7 @@
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
                             (import/import-pmid-file
+                             {:web-server (:web-server @test/*test-system*)}
                              project-id input {:use-future? false}))))
           (is (= 200 (project/project-article-count project-id)))
           (log/info "checking articles-csv export")
@@ -136,6 +140,7 @@
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
                             (import/import-pdf-zip
+                             {:web-server (:web-server @test/*test-system*)}
                              project-id {:file file :filename filename}
                              {:use-future? false}))))
           (is (= 4 (project/project-article-count project-id)))
@@ -154,6 +159,7 @@
             {:keys [project-id]} (project/create-project "test import-ds-pubmed-titles")]
         (try (db/with-transaction
                (import/import-pubmed-search
+                {:web-server (:web-server @test/*test-system*)}
                 project-id {:search-term search-term}
                 {:use-future? false}))
              (let [adata (q/find [:article :a] {:a.project-id project-id}

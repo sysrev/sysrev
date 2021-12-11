@@ -40,7 +40,7 @@
     "react-infinite-scroll-component": "^6.1.0",
     "react-json-view": "^1.21.3",
     "react-markdown": "^5.0.3",
-    "react-pdf": "^5.2.0",
+    "react-pdf": "5.5.0",
     "react-rnd": "^10.2.4",
     "react-xml-viewer": "^1.1.0",
     "remark-gfm": "^1.0.0",

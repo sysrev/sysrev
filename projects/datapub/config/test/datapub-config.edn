@@ -4,8 +4,7 @@
                            :hostname "localhost"
                            :port 8566}}
  :env :test
- :pedestal {:port 0
-            :sysrev-dev-key "***REMOVED***"}
+ :pedestal {:port 0}
  :postgres {:create-if-not-exists? true
             :embedded? true
             :dbname "datapub"
@@ -15,4 +14,5 @@
             :user "postgres"}
  :s3 {:datapub-bucket {:create? true
                        :name "datapub.dev"}}
+ :secrets {:sysrev-dev-key "***REMOVED***"}
  :tesseract {:enabled? true}}

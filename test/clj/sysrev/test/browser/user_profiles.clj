@@ -106,7 +106,7 @@
           (b/take-screenshot :warn)))))
 
 (deftest-browser correct-project-activity
-  (test/db-connected?) test-user
+  (and (test/db-connected?) (not (test/remote-test?))) test-user
   [{:keys [user-id email]} test-user
    project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"

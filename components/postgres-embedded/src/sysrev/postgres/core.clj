@@ -8,8 +8,6 @@
             [sysrev.flyway.interface :as flyway])
   (:import (com.opentable.db.postgres.embedded EmbeddedPostgres EmbeddedPostgres$Builder PgBinaryResolver PgDirectoryResolver)))
 
-(set! *warn-on-reflection* true)
-
 (def binary-resolver
   (reify PgBinaryResolver
     (^java.io.InputStream getPgBinary [this ^String system ^String machine-hardware]
@@ -75,18 +73,22 @@
       (let [pg (.start (embedded-pg-builder (:port config)))]
         (-> pg .getPostgresDatabase .getConnection .createStatement
             (.executeUpdate (str "CREATE DATABASE " (:dbname config))))
-        (let [datasource (make-datasource config)]
+        (let [datasource (make-datasource config)
+              datasource-long-running (make-datasource config)]
           (flyway/migrate! datasource)
           (assoc this
-                 :datasource datasource :pg pg
-                 :query-cache db/*query-cache* :query-cache-enabled db/*query-cache-enabled*)))))
+                 :datasource datasource
+                 :datasource-long-running datasource-long-running
+                 :pg pg
+                 :query-cache db/*query-cache*
+                 :query-cache-enabled db/*query-cache-enabled*)))))
   (stop [this]
     (if-not datasource
       this
       (do
         (hikari-cp/close-datasource datasource)
         (.close pg)
-        (assoc this :datasource nil :pg nil)))))
+        (assoc this :datasource nil :datasource-long-running nil :pg nil)))))
 
 (defn postgres [& [postgres-overrides]]
   (map->Postgres {:config (get-config postgres-overrides)}))

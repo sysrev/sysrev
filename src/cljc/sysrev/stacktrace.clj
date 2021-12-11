@@ -7,10 +7,13 @@
                                   testing-vars-str with-test-out]]
             [clojure.test.junit :as junit]))
 
+(defn class-name [^StackTraceElement el]
+  (.getClassName el))
+
 (defn- boring-element?
   "Check if stacktrace element should be filtered out when printing."
-  [e]
-  (some #(str/starts-with? (.getClassName e) %)
+  [el]
+  (some #(str/starts-with? (class-name el) %)
         ["clojure.test" "clojure.lang" "clojure.main" "leiningen"
          "org.postgresql.jdbc" "org.postgresql.core" "clojure.java.jdbc"
          "com.zaxxer.hikari" "ring.middleware"]))
@@ -19,13 +22,13 @@
   "Drop all stacktrace elements below entry point to project code."
   [elements]
   (->> (reverse elements)
-       (drop-while #(not (str/includes? (.getClassName %) "sysrev")))
+       (drop-while #(not (str/includes? (class-name %) "sysrev")))
        (reverse)))
 
 (defn filter-stacktrace?
   "Check whether stacktrace element filtering should be used."
   [elements]
-  (some #(str/includes? (.getClassName %) "sysrev") elements))
+  (some #(str/includes? (class-name %) "sysrev") elements))
 
 (defn filter-stacktrace-elements
   "Filter a sequence of stacktrace elements to remove unhelpful entries."
@@ -60,7 +63,7 @@
 ;; Replacement for clojure.stacktrace/print-cause-trace
 (defn print-cause-trace-custom
   ([tr] (print-cause-trace-custom tr nil))
-  ([tr n]
+  ([^Throwable tr n]
    (print-stack-trace-custom tr n)
    (when-let [cause (.getCause tr)]
      (print "Caused by: " )

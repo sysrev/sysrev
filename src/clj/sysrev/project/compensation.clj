@@ -176,7 +176,7 @@
   (db/with-transaction
     (vec (for [{:keys [user-id]} (project-users project-id)]
            (let [compensation-owed (compensation-owed-to-user-by-project project-id user-id)
-                 admin-fee (Math/round (* admin-fee compensation-owed))]
+                 admin-fee (Math/round ^Double (* admin-fee compensation-owed))]
              {:user-id user-id
               :compensation-owed compensation-owed
               :admin-fee admin-fee
