@@ -531,7 +531,8 @@
        "toolbarGroup-Shapes"
        "underlineToolGroupButton"]
       (when read-only?
-        ["highlightToolButton"
+        ["annotationPopup"
+         "highlightToolButton"
          "ribbons"
          "textHighlightToolButton"
          "toolsHeader"]))
