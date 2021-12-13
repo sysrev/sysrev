@@ -181,7 +181,7 @@
     (or (empty? answer)
       (boolean
         (every?
-          #(some? (:selection %))
+          #(some? (:value %))
           (vals answer))))
     "string"
     (or (empty? answer)

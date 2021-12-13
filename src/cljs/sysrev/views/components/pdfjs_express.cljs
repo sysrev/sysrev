@@ -48,7 +48,7 @@
               :content [(-> (assoc-in xfdf [:attrs :name] annotation-id)
                             (update :content (fnil conj [])
                                     {:tag :xmlns.http%3A%2F%2Fns.adobe.com%2Fxfdf%2F/contents
-                                     :content [selection]}))]}]})
+                                     :content [(or selection "")]}))]}]})
 
 (defn Viewer []
   (let [doc-loaded? (r/atom false)

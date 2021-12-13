@@ -517,7 +517,6 @@
        "freeTextToolButton"
        "freeTextToolGroupButton"
        "linkButton"
-       "shapeToolGroupButton"
        "squigglyToolGroupButton"
        "stickyToolButton"
        "stickyToolGroupButton"
@@ -544,8 +543,9 @@
          (let [^js ann-mgr (.-annotationManager ^js (.-Core viewer))]
            (doseq [^js a annotations
                    :let [contents (.getContents a)
-                         id (.-Id a)]]
-             (when (seq contents) ; Ignore spurious blank annotations
+                         id (.-Id a)
+                         subject (.-Subject a)]]
+             (when (or (seq contents) (= "Rectangle" subject)) ; Ignore spurious blank annotations
                (.then
                 (.exportAnnotations ann-mgr #js{:annotList #js[a]})
                 (fn [xml-str]
