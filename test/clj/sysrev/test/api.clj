@@ -15,6 +15,14 @@
             sysrev.web.routes.api.handlers
             [sysrev.util :refer [in?]]))
 
+#_:clj-kondo/ignore
+(deftest ^{:doc "Make sure we don't inadvertently include log4j2 due to a transitive
+   or vendored dependency. See CVE-2021-44228."}
+  test-no-log4j2
+  (with-test-system [system {}]
+    (is (thrown? ClassNotFoundException
+                 (import 'org.apache.logging.log4j.core.lookup.JndiLookup)))))
+
 ;; HTTP client functions for testing API handlers
 (defn webapi-request [method route body & {:keys [url]}]
   (let [url (or url (:url (get-selenium-config)))

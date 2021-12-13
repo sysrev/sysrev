@@ -12,6 +12,13 @@
            java.util.Base64
            org.apache.commons.io.IOUtils))
 
+(deftest ^{:doc "Make sure we don't inadvertently include log4j2 due to a transitive
+   or vendored dependency. See CVE-2021-44228."}
+  test-no-log4j2
+  (test/with-test-system [system {}]
+    (is (thrown? ClassNotFoundException
+                 (import 'org.apache.logging.log4j.core.lookup.JndiLookup)))))
+
 (defn parse-json
   "Convert a String or PGObject to keywordized json.
 
