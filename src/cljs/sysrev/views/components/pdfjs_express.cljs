@@ -83,7 +83,7 @@
               (reset! last-url url)
               (reset! doc-loaded? false)
               (if (seq url)
-                (do (.loadDocument ui url)
+                (do (.loadDocument ui url {:extension "pdf"})
                     (letfn [(loaded-listener []
                               (reset! doc-loaded? true)
                               (.removeEventListener doc-viewer "documentLoaded" loaded-listener))]
