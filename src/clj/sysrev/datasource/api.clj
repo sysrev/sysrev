@@ -188,7 +188,6 @@
   written. The `enrich-articles` method takes a coll of articles and
   enriches them with additional data."
   [articles]
-  (println articles)
   (->> (group-by :datasource-name articles)
        (map (fn [[k v]] (some->> v (enrich-articles k))))
        flatten))
