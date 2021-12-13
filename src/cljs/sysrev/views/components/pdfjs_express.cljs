@@ -3,7 +3,8 @@
             [clojure.data.xml :as dxml]
             [medley.core :as medley]
             [reagent.core :as r]
-            [reagent.dom :as rdom]))
+            [reagent.dom :as rdom]
+            [re-frame.core :refer [subscribe]]))
 
 (def default-features
   ["Copy"
@@ -110,6 +111,7 @@
                     ^js ann-mgr (.-annotationManager ^js (.-Core vwr))
                     ann-list (.getAnnotationsList ann-mgr)
                     existing-ids (into #{} (map #(.-Id ^object %) ann-list))]
+                (.setCurrentUser ann-mgr @(subscribe [:user/username]))
                 (doseq [[id m] anns]
                   (when-not (existing-ids id)
                     (.importAnnotations ann-mgr (dxml/emit-str (xfdf-doc m)))))
