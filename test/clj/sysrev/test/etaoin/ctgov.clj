@@ -14,8 +14,8 @@
     (let [article-title "Single Ascending Dose Study of SAR443820 in Healthy Adult Chinese and Japanese Female and Male Participants"]
       (testing "Searching and importing articles works"
         (doto driver
-          (ea/click-visible {:fn/has-class "project-title"
-                             :fn/has-text "Public Project 1200001"})
+          (ea/go (e/absolute-url system "/u/1000001/p/1200001/add-articles"))
+          (ea/click-visible [{:id :enable-import}])
           (ea/click-visible [{:id :import-articles}
                              {:fn/has-text "ClinicalTrials"}])
           (ea/wait-visible [{:fn/has-class "ctgov-search"} {:tag :input}])
