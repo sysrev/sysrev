@@ -272,9 +272,10 @@
                 (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))            (when externalId
               (dispatch [:require [:datapub-entities-for-external-id 1 externalId]]))
             (when (not= versions version-entity-ids)
-              (swap! state assoc
-                     :current-version (dec (count version-entity-ids))
-                     :versions (vec version-entity-ids)))
+              (js/setTimeout
+               #(swap! state assoc
+                       :current-version (dec (count version-entity-ids))
+                       :versions (vec version-entity-ids))))
             (when version-entity
               [:div
                [:div
@@ -339,9 +340,10 @@
             (when groupingId
               (dispatch [:require [:datapub-entities-for-grouping-id 3 groupingId]]))
             (when (not= versions version-entity-ids)
-              (swap! state assoc
-                     :current-version (dec (count version-entity-ids))
-                     :versions (vec version-entity-ids)))
+              (js/setTimeout
+               #(swap! state assoc
+                       :current-version (dec (count version-entity-ids))
+                       :versions (vec version-entity-ids))))
             (when version-entity
               [:div
                [:div
