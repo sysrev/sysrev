@@ -106,7 +106,7 @@
             (when @doc-loaded?
               (let [anns (some-> annotations deref
                                  (#(when (map? %)
-                                     (->> (medley/map-keys str %) ; Convert any UUIDs
+                                     (->> (medley/map-keys str %) ; Convert UUIDs
                                           (medley/filter-vals (comp (partial = document-id) :document-id))))))
                     ^js ann-mgr (.-annotationManager ^js (.-Core vwr))
                     ann-list (.getAnnotationsList ann-mgr)

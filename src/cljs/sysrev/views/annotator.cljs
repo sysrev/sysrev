@@ -499,7 +499,7 @@
          (let [^js ann-mgr (.-annotationManager ^js (.-Core viewer))]
            (doseq [^js a annotations
                    :let [contents (.getContents a)
-                         id (.-Id a)
+                         id (uuid (.-Id a))
                          subject (.-Subject a)]]
              (when (or (seq contents) (= "Rectangle" subject)) ; Ignore spurious blank annotations
                (.then
@@ -516,5 +516,5 @@
 
          (= "delete" action)
          (doseq [^js a annotations]
-           (dispatch-sync [::remove-ann annotation-context (.-Id a)]))))}
+           (dispatch-sync [::remove-ann annotation-context (uuid (.-Id a))]))))}
     opts)])
