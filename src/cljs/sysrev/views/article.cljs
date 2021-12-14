@@ -34,11 +34,15 @@
                 vals
                 (mapcat vals)
                 (keep (fn [{:keys [answer]}]
-                        (when (and (map? answer) (:xfdf (first (vals answer))))
-                          (let [m (-> answer vals first
-                                      (select-keys [:annotation-id :document-id :selection :xfdf]))]
-                            [(:annotation-id m) m]))))
-                (into {}))))
+                        (when (map? answer)
+                          (->> answer vals
+                               (reduce
+                                #(assoc
+                                  %
+                                  (:annotation-id %2)
+                                  (select-keys %2 [:annotation-id :document-id :selection :xfdf]))
+                                {})))))
+                (reduce merge))))
 
 (defn- display-author-names [nmax authors]
   (str (str/join ", " (take nmax authors))
