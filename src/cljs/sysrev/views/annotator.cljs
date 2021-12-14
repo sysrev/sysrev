@@ -292,47 +292,6 @@
            [:i.red.circle.times.icon]
            (when full-width? "Delete")]]])]]))
 
-(defn ^:unused AddAnnotation
-  "Render absolute-positioned \"Add Annotation\" button
-  within AnnotationCapture container."
-  [{:keys [class] :as context}]
-  (when (seq @(subscribe [::get context [:selection]]))
-    (let [pdf? (= class "pdf")
-          {:keys [selection positions]} @(subscribe [::get context])
-          {:keys [client-x client-y ctarget-x ctarget-y scroll-x scroll-y]} positions
-          dark-theme? @(subscribe [:self/dark-theme?])
-          [x y] [;; position values all recorded from the latest mouse selection event
-                 (+
-                  ;; mouse position from selection event
-                  client-x
-                  ;; take the difference from position of `div.annotation-capture`
-                  ;; (direct parent element of this)
-                  (- ctarget-x)
-                  ;; add the window scroll offset
-                  ;;
-                  ;; (except don't for PDF, because this is all positioned inside
-                  ;;  a Semantic modal, which has taken over scrolling for all
-                  ;;  the content inside it.
-                  ;;
-                  ;;  apparently the `clientX` and `get-element-position` calculations
-                  ;;  already account for the scrolling in this context.)
-                  (if pdf? 0 scroll-x)
-                  ;; subtract ~half the width of the popup element for centering
-                  (- 60))
-                 ;; y calculations same as x
-                 (+
-                  client-y
-                  (- ctarget-y)
-                  (if pdf? 0 scroll-y)
-                  ;; shift the popup element slightly above the selection
-                  (- 50))]]
-      [:div.ui.button.add-annotation-popup
-       {:class (css [(and dark-theme? (not pdf?)) "dark-theme" :else "secondary"])
-        :style {:top (str y "px")
-                :left (str x "px")
-                :display (when (empty? selection) "none")}}
-       "Add Annotation"])))
-
 ;; Returns map of all annotations for context.
 ;; Includes new-annotation entry when include-new is true.
 (reg-sub :annotator/all-annotations
@@ -385,9 +344,6 @@
   (dispatch [:require (annotator-data-item context)])
   (let [{:keys [root-label-id label-id _]} @(subscribe [::annotation-label-data])
         all-values @(subscribe [:label/all-values root-label-id label-id])
-        ;; [LEGACY ANNOTATIONS]
-        ;; annotations @(subscribe [:annotator/user-annotations context self-id
-        ;;                          {:only-saved true}])
         label-name @(subscribe [:label/display root-label-id label-id])
         annotations @(subscribe [:annotator/label-annotations context])]
     [:div.ui.segments.annotation-menu {:class class}
@@ -488,7 +444,6 @@
             true))]
     [:div.annotation-capture {:on-mouse-up update-selection
                               :on-touch-end update-selection}
-     #_ [AddAnnotation context]
      child]))
 
 (defn clean-up-xfdf-annotation

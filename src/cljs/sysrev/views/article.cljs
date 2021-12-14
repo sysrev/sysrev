@@ -26,63 +26,6 @@
 
 (def XMLViewerComponent (r/adapt-react-class XMLViewer))
 
-#_
-(def-data :article/annotations
-  :loaded?
-  (fn [db project-id article-id _]
-    (-> (get-in db [:data :project project-id :annotations])
-        (contains? article-id)))
-  :uri (fn [project-id article-id _]
-         (str "/api/annotations/" article-id))
-  :content (fn [project-id _ _] {:project-id project-id})
-  :process
-  (fn [{:keys [db]} [project-id article-id _] {:keys [annotations]}]
-    {:db (assoc-in db [:data :project project-id :annotations article-id]
-                   (or annotations []))}))
-
-#_
-(reg-sub
- ::article-annotations
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ article-id _]]
-   (get-in project [:annotations article-id])))
-
-#_
-(defn slug-string->sentence-string
-  "Convert a slug string into a normal English sentence.
-  ex: gene_or_gene_product -> Gene or gene product"
-  [string]
-  (-> string (str/replace #"_" " ")))
-
-;; this is for non-user-created annotations
-#_
-(defn process-annotations
-  [raw-annotations]
-  (->> raw-annotations
-       ;; filter out everything but reach
-       (filterv #(= "reach" (:ontology %)))
-       ;; process into an overlay
-       (mapv #(-> % (assoc :word (:name %)
-                           :annotation (str (slug-string->sentence-string (:semantic_class %))))))
-       ;; remove duplicates
-       (group-by #(str/lower-case (:word %)))
-       vals
-       (map first)))
-
-#_
-(defn get-annotations
-  "Get annotations with a delay of seconds"
-  [article-id & {:keys [delay]
-                 :or {delay 3}}]
-  (let [project-id @(subscribe [:active-project-id])
-        article-id-state (subscribe [:visible-article-id])]
-    (js/setTimeout
-     (fn [_]
-       (when (= article-id @article-id-state)
-         (dispatch [:require [:article/annotations project-id article-id]])))
-     (* delay 1000))))
-
 (reg-sub ::pdf-annotations
          (fn [[_ article-id]]
            (subscribe [:article/labels article-id]))
@@ -173,10 +116,6 @@
         annotations
         (filter-annotations-by-field
                     @(subscribe [:annotator/label-annotations ann-context])
-                     ;; [LEGACY ANNOTATIONS]
-                     ;; #_(if (and self-id on-review?)
-                     ;;   @(subscribe [:annotator/user-annotations ann-context self-id])
-                     ;;   @(subscribe [:annotator/all-annotations ann-context true]))
                      field-name text)]
     [annotator/AnnotationCapture ann-context field-name
      [annotation/AnnotatedText (vals annotations) text
@@ -196,15 +135,6 @@
             date @(subscribe [:article/date article-id])
             pdfs @(subscribe [:article/pdfs article-id])
             [pdf] pdfs
-            #_ annotations-raw #_ @(subscribe [::article-annotations article-id])
-            #_ annotations #_ (condp = context
-                                :article-list
-                                (process-annotations annotations-raw)
-                                :review
-                                (->> @(subscribe [:project/keywords])
-                                     vals
-                                     (mapv :value)
-                                     (mapv #(hash-map :word %))))
             annotator? (= :annotations @(subscribe [:review-interface]))
             pdf-url (pdf/view-s3-pdf-url project-id article-id (:key pdf) (:filename pdf))
             visible-url (if (and pdf (empty? abstract))
@@ -212,7 +142,6 @@
                           @(subscribe [:view-field :article [article-id :pdf-url]]))
             pdf-only? (and title visible-url (:filename pdf)
                            (= (str/trim title) (str/trim (:filename pdf))))]
-        ;;(get-annotations article-id)
         [:div
          ;; abstract / pdf selection
          (when (and (not-empty pdfs) (not-empty abstract))
