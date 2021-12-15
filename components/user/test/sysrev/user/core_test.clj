@@ -1,15 +1,15 @@
 (ns sysrev.user.core-test
   (:require [clojure.string :as str]
             [orchestra.spec.test :as st]
-            [sysrev.fixtures.interface :refer [wrap-fixtures]])
+            #_[sysrev.fixtures.interface :refer [wrap-fixtures]])
   (:use clojure.test
-        sysrev.user.core))
+        #_sysrev.user.core))
 
 (st/instrument)
 
-(use-fixtures :each wrap-fixtures)
+#_(use-fixtures :each wrap-fixtures)
 
-(deftest test-unique-username
+#_(deftest test-unique-username
   (testing "Unique usernames with no conflicts"
     (is (= "test-user-0xff" (unique-username "test_user_0xff@insilica.co"))))
   (testing "Unique usernames with conflicts"
