@@ -1,3 +1,4 @@
+;; https://github.com/polyfy/polylith/blob/master/doc/ws.md#settings
 {:vcs {:name "git" :auto-add false}
  :top-namespace "sysrev"
  :interface-ns "interface"
