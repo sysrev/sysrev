@@ -63,6 +63,7 @@
       (fn [this]
         (-> (WebViewer
              #js{:extension "pdf"
+                 :licenseKey "7p73z8HHl8MotUxQWKHQ"
                  :path "/js/pdfjs-express"}
              (first (.-children (rdom/dom-node this))))
             (.then (fn [^js vwr]
