@@ -132,6 +132,10 @@
   :test {:extra-paths ["config/test" "test/clj"]
          :extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
                       etaoin/etaoin {:mvn/version "0.4.6"}
+                      lambdaisland/kaocha {:mvn/version "1.60.945"}
+                      lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
+                      lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
+                                                     :sha "ab025bc42416e235937a112db435001f9d1b4c23"}
                       org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
                       org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}
                       prestancedesign/get-port {:mvn/version "0.1.1"}
