@@ -102,9 +102,7 @@
                          (apply concat)
                          vec)
                     user-name (when user-id
-                                (some-> (q/find-one :web-user {:user-id user-id} :email)
-                                        (str/split #"@" 2)
-                                        first))
+                                (q/find-one :web-user {:user-id user-id} :username))
                     project-name (q/find-one :project {:project-id project-id} :name)
                     notification (remove-vals nil? {:adding-user-id user-id
                                                     :adding-user-name user-name

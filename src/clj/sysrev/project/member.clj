@@ -45,12 +45,11 @@
       user-id :create? true :returning :subscriber-id)
      (notification/topic-for-name
       (str ":project " project-id) :create? true :returning :topic-id))
-    (let [[new-user-email] (q/find :web-user {:user-id user-id} :email)
-          [project-name] (q/find :project {:project-id project-id} :name)]
+    (let [[project-name] (q/find :project {:project-id project-id} :name)]
       (notification/create-notification
        {:image-uri (str "/api/user/" user-id "/avatar")
         :new-user-id user-id
-        :new-user-name (first (str/split new-user-email #"@"))
+        :new-user-name (first (q/find :web-user {:user-id user-id} :username))
         :project-id project-id
         :project-name project-name
         :type :project-has-new-user}))
