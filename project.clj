@@ -52,7 +52,7 @@
                  [nilenso/honeysql-postgres "0.2.6"]
                  [org.clojure/java.data "1.0.86"] ;; next.jdbc needs latest
                  [com.github.seancorfield/next.jdbc "1.2.731"]
-                 [org.flywaydb/flyway-core "8.0.1"]
+                 [org.flywaydb/flyway-core "8.2.0"]
 
 ;;; Web server
                  [aleph "0.4.7-alpha7"]
