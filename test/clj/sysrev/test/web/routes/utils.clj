@@ -1,7 +1,8 @@
 (ns sysrev.test.web.routes.utils
-  (:require [clojure.string :as str]
-            [ring.mock.request :as mock]
-            [sysrev.util :as util]))
+  (:require
+   [clojure.string :as str]
+   [ring.mock.request :as mock]
+   [sysrev.util :as util]))
 
 ;; from https://gist.github.com/cyppan/864c09c479d1f0902da5
 (defn parse-cookies

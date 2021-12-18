@@ -6,7 +6,6 @@
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [clojure.pprint :as pprint]
-            sysrev.test.all
             [sysrev.test.core :as test :refer [get-selenium-config]]))
 
 (defn -main [& _args]

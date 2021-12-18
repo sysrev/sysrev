@@ -1,20 +1,37 @@
 (ns sysrev.test.etaoin.core
-  (:require [clojure.string :as str]
-            [clojure.java.io :as io]
-            [clojure.test :refer [deftest is]]
-            [clojure.tools.logging :as log]
-            [cheshire.core :refer [generate-stream]]
-            [etaoin.api :as ea]
-            [sysrev.config :refer [env]]
-            [sysrev.test.core :as test]
-            [sysrev.test.browser.core :as b]
-            [sysrev.util :as util])
-  (:import [clojure.lang ExceptionInfo]
-           java.util.Date
-           [java.net URL URLDecoder]))
+  (:require
+   [cheshire.core :refer [generate-stream]]
+   [clojure.java.io :as io]
+   [clojure.string :as str]
+   [clojure.test :refer [is]]
+   [clojure.tools.logging :as log]
+   [etaoin.api :as ea]
+   [sysrev.config :refer [env]]
+   [sysrev.datasource.api :as ds-api]
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]
+   [sysrev.group.core :as group]
+   [sysrev.payment.plans :as plans]
+   [sysrev.payment.stripe :as stripe]
+   [sysrev.project.core :as project]
+   [sysrev.project.member :as member]
+   [sysrev.test.core :as test]
+   [sysrev.user.core :as user]
+   [sysrev.util :as util])
+  (:import
+   (clojure.lang ExceptionInfo)
+   (java.net URL URLDecoder)
+   (java.util Date)))
 
-(defonce ^:dynamic *driver* (atom {}))
-(defonce ^:dynamic *cleanup-users* (atom []))
+(defn not-class [cls]
+  (format "not([class*=\"%s\"])" cls))
+
+(def not-disabled (not-class "disabled"))
+
+(def loader-elements-css
+  [(str "div.ui.loader.active" (not-class "loading-indicator"))
+   "div.ui.dimmer.active > .ui.loader"
+   ".ui.button.loading"])
 
 (defn root-url [& [system]]
   (let [{:keys [url]} (test/get-selenium-config system)]
@@ -23,38 +40,30 @@
 (defn absolute-url [system path]
   (str (root-url system) path))
 
-(defn setup-visual-chromedriver!
-  "Used to setup for testing at repl"
-  []
-  (reset! *driver* (ea/chrome)))
-
 (defn js-execute [driver script]
   (ea/js-execute driver script))
 
-(defn get-url []
-  (ea/get-url @*driver*))
+(defn get-path [driver]
+  (-> (ea/get-url driver) URL. .getPath))
 
-(defn get-path []
-  (-> (get-url) URL. .getPath))
-
-(defn sysrev-url? []
-  (when-let [url (util/ignore-exceptions (get-url))]
+(defn sysrev-url? [driver]
+  (when-let [url (util/ignore-exceptions (ea/get-url driver))]
     (some #(str/includes? url %) #{"localhost" "sysrev"})))
 
 (defn browser-console-logs [driver]
-  (when (sysrev-url?)
+  (when (sysrev-url? driver)
     (try (not-empty (js-execute driver "return sysrev.base.get_console_logs();"))
          (catch Throwable _
            (log/warn "unable to read console logs")))))
 
 (defn browser-console-warnings [driver]
-  (when (sysrev-url?)
+  (when (sysrev-url? driver)
     (try (not-empty (js-execute driver "return sysrev.base.get_console_warnings();"))
          (catch Throwable _
            (log/warn "unable to read console warnings")))))
 
 (defn browser-console-errors [driver]
-  (when (sysrev-url?)
+  (when (sysrev-url? driver)
     (try (not-empty (js-execute driver "return sysrev.base.get_console_errors();"))
          (catch Throwable _
            (log/warn "unable to read console errors")))))
@@ -79,14 +88,14 @@
     (log-console-messages driver :warn))
   nil)
 
-(defn wait-exists [q & [timeout interval]]
+(defn wait-exists [driver q & [timeout interval]]
   (ea/with-wait-timeout (or (some-> timeout (/ 1000.0)) 15)
     (ea/with-wait-interval (or (some-> interval (/ 1000.0)) 0.020)
-      (ea/wait-exists @*driver* q))))
+      (ea/wait-exists driver q))))
 
-(defn exists? [q & {:keys [wait] :or {wait true}}]
-  (when wait (wait-exists q))
-  (ea/exists? @*driver* q))
+(defn exists? [driver q & {:keys [wait] :or {wait true}}]
+  (when wait (wait-exists driver q))
+  (ea/exists? driver q))
 
 (defn ajax-pending-requests [driver]
   (some-> (js-execute driver "return sysrev.loading.all_pending_requests();")
@@ -102,90 +111,67 @@
   "Returns true if no ajax requests in browser have been active for
   duration milliseconds (default 30)."
   [driver & [duration]]
-  (< (ajax-activity-duration driver) (- (b/make-delay (or duration 30)))))
+  (< (ajax-activity-duration driver) (- (or duration 30))))
 
 (defn wait-loading
-  [& {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
+  [driver & {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
   (let [timeout (or timeout 15000)
-        interval (or interval b/web-default-interval)]
+        interval (or interval 20)]
     (dotimes [_ (or loop 1)]
-      (when pre-wait (Thread/sleep (b/make-delay
-                                    (if (integer? pre-wait) pre-wait 25))))
+      (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
       (try (test/wait-until
-            (fn [] (and (ajax-inactive? @*driver* inactive-ms)
-                        (every? #(not (ea/exists? @*driver* {:css %}))
-                                b/loader-elements-css)))
+            (fn [] (and (ajax-inactive? driver inactive-ms)
+                        (every? #(not (ea/exists? driver {:css %}))
+                                loader-elements-css)))
             timeout interval)
            (catch ExceptionInfo e
-             (when-not (ajax-inactive? @*driver* inactive-ms)
+             (when-not (ajax-inactive? driver inactive-ms)
                (log/warnf "[wait-loading] ajax blocking =>\n%s"
-                          (try (-> (ajax-pending-requests @*driver*) util/pp-str str/trim-newline)
+                          (try (-> (ajax-pending-requests driver) util/pp-str str/trim-newline)
                                (catch Throwable _
                                  "<error while trying to read pending requests>"))))
-             (when-let [q-blocking (seq (filterv #(ea/exists? @*driver* {:css %})
-                                                 b/loader-elements-css))]
+             (when-let [q-blocking (seq (filterv #(ea/exists? driver {:css %})
+                                                 loader-elements-css))]
                (log/warnf "[wait-loading] elements blocking =>\n%s"
                           (str/join "\n" q-blocking)))
              (throw e))))))
 
-(defn go [relative-url & {:keys [init silent]
-                          :or {init false silent false}}]
-  (let [full-url (str (root-url) relative-url)]
+(defn go [{:keys [driver system]}
+          relative-url
+          & {:keys [init silent]
+             :or {init false silent false}}]
+  {:pre [(map? driver) (not-empty driver)]}
+  (let [full-url (absolute-url system relative-url)]
     (when-not silent
       (if init
         (log/info "loading" full-url)
         (log/info "navigating to" relative-url)))
-    (when-not init (wait-loading :pre-wait true))
-    (when-not init (check-browser-console-clean @*driver*))
+    (when-not init (wait-loading driver :pre-wait true))
+    (when-not init (check-browser-console-clean driver))
     (if init
-      (ea/go @*driver* full-url)
-      (js-execute @*driver* (format "sysrev.nav.set_token(\"%s\")" relative-url)))
-    (wait-exists :app)
-    (wait-loading :pre-wait true)
-    (check-browser-console-clean @*driver*)))
+      (ea/go driver full-url)
+      (js-execute driver (format "sysrev.nav.set_token(\"%s\")" relative-url)))
+    (wait-exists driver :app)
+    (wait-loading driver :pre-wait true)
+    (check-browser-console-clean driver)))
 
-(defn click [q & {:keys [if-not-exists delay timeout external?]
-                  :or {if-not-exists :wait, delay 50}}]
-  (letfn [(wait [ms]
-            (if external?
-              (Thread/sleep (+ ms 25))
-              (wait-loading :pre-wait ms :timeout timeout)))]
-    (let [ ;; auto-exclude "disabled" class when q is css
-          q (if external? q (-> q b/not-disabled b/not-loading))
-          delay (b/make-delay delay)]
-      (when (= if-not-exists :wait)
-        (if timeout
-          ;; wrap `ea/with-wait-timeout` only if timeout value was passed
-          (ea/with-wait-timeout (/ timeout 1000.0)
-            (ea/wait-enabled @*driver* q))
-          ;; otherwise use global default
-          (ea/wait-enabled @*driver* q)))
-      (when-not (and (= if-not-exists :skip) (not (ea/exists? @*driver* q)))
-        (try (ea/click @*driver* q)
-             (catch Throwable _
-               (log/warnf "got exception clicking %s, trying again..." (pr-str q))
-               (wait (+ delay 200))
-               (ea/click @*driver* q))))
-      (wait delay)
-      (check-browser-console-clean @*driver*))))
-
-(defn fill [q string & {:keys [delay clear?]
-                        :or {delay 40, clear? false}}]
-  (wait-loading :pre-wait delay)
-  (wait-exists q)
+(defn fill [driver q string & {:keys [delay clear?]
+                               :or {delay 40, clear? false}}]
+  (wait-loading driver :pre-wait delay)
+  (wait-exists driver q)
   (when clear?
-    (ea/clear @*driver* q)
-    (wait-loading :pre-wait delay))
-  (ea/fill @*driver* q string)
-  (wait-loading :pre-wait delay))
+    (ea/clear driver q)
+    (wait-loading driver :pre-wait delay))
+  (ea/fill driver q string)
+  (wait-loading driver :pre-wait delay))
 
-(defn enabled? [q & {:keys [wait] :or {wait true}}]
-  (when wait (wait-exists q))
-  (ea/enabled? @*driver* q))
+(defn enabled? [driver q & {:keys [wait] :or {wait true}}]
+  (when wait (wait-exists driver q))
+  (ea/enabled? driver q))
 
 ;; used for local debug purposes
-(defn take-screenshot []
-  (ea/screenshot @*driver* (str "./" (gensym) ".png")))
+(defn take-screenshot [driver]
+  (ea/screenshot driver (str "./" (gensym) ".png")))
 
 (defn- dump-logs [logs filename & [opt]]
   (generate-stream
@@ -243,23 +229,27 @@
           (postmortem-handler ~driver ~opts)
           (throw e#))))
 
-(defmacro deftest-etaoin
-  "A macro for creating an etaoin browser test. Used in tandem with etaoin-fixture. A dynamic atom var of type vector, *cleanup-users*, is used to cleanup tests users. Populate it within the body of deftest-etaoin. e.g. `(swap! *cleanup-users* conj {:user-id user-id)`"
-  [name body]
-  (let [name-str (clojure.core/name name)]
-    `(deftest ~name
-       (binding [*cleanup-users* (atom [])]
-         (util/with-print-time-elapsed ~name-str
-           (log/infof "")
-           (log/infof "[[ %s started ]]" ~name-str)
-           (try (with-postmortem @*driver* {:dir "/tmp/sysrev/etaoin"}
-                  (ea/with-wait-timeout 15
-                    (go "/" :init true)
-                    ~body
-                    (check-browser-console-clean @*driver*)))
-                (finally
-                  (doseq [{user-id# :user-id} @*cleanup-users*]
-                    (b/cleanup-test-user! :user-id user-id# :groups true)))))))))
+(defn try-wait
+  "Runs a wait function in try-catch block to avoid exception on
+  timeout; returns true on success, false on timeout."
+  [wait-fn & args]
+  (test/succeeds? (do (apply wait-fn args) true)))
+
+(defmacro is*
+  "Runs (is pred-form), then on failure runs (assert pred-form)."
+  [pred-form]
+  `(or (is ~pred-form)
+       (assert ~pred-form)))
+
+(defmacro is-soon
+  "Runs (is* pred-form) after attempting to wait for pred-form to
+  evaluate as logical true."
+  [driver pred-form timeout interval]
+  `(let [driver# ~driver
+         pred# (fn [] ~pred-form)]
+     (or (try-wait ea/wait-predicate pred# ~timeout ~interval)
+       (when driver# (take-screenshot driver# :error)))
+     (is* (pred#))))
 
 (defn run-headless? []
   (not (:test-browser-show env)))
@@ -286,43 +276,52 @@
          (let [~bindings {:driver driver# :system system#}]
            ~@body)))))
 
-#_:clj-kondo/ignore
-(defn etaoin-fixture
-  "A fixture for running browser tests with etaoin. Used in tandem with deftest-etaoin."
-  [f]
-  (with-driver [driver]
-    (binding [*driver* (atom driver)]
-      (f))))
+(defn click [driver q]
+  (try
+    (ea/click driver q)
+    (catch ExceptionInfo e
+      (if (some->> e ex-data :response :value :message
+                   (re-find #"^stale element reference.*"))
+        (click driver q)
+        (throw e)))))
 
-(defn new-project [project-name]
+(defn click-visible [driver q & [opt]]
+  (try
+    (ea/click-visible driver q opt)
+    (catch ExceptionInfo e
+      (if (some->> e ex-data :response :value :message
+                   (re-find #"^stale element reference.*"))
+        (click-visible driver q opt)
+        (throw e)))))
+
+(defn new-project [{:keys [driver] :as test-resources} project-name]
   (log/info "creating project" (pr-str project-name))
-  (go "/" :silent true)
-  (click {:css "#new-project.button"})
-  (fill {:css "#create-project div.project-name input"} project-name)
-  (click "//button[contains(text(),'Create Project')]")
-  (when (test/remote-test?) (Thread/sleep 500))
-  (wait-exists (str "//div[contains(@class,'project-title')]"
-                    "//a[contains(text(),'" project-name "')]"))
-  (wait-loading :pre-wait true))
+  (go test-resources "/" :init true :silent true)
+  (doto driver
+    (click-visible {:css "#new-project.button"})
+    (fill {:css "#create-project div.project-name input"} project-name)
+    (click-visible "//button[contains(text(),'Create Project')]")
+    (wait-exists (str "//div[contains(@class,'project-title')]"
+                             "//a[contains(text(),'" project-name "')]"))
+    (wait-loading :pre-wait true)))
 
-(defn select-datasource [datasource-name]
-  (wait-exists :enable-import)
-  (when (exists? {:css (b/not-disabled "#enable-import")} :wait false)
-    (click :enable-import))
+(defn select-datasource [driver datasource-name]
+  (wait-exists driver :enable-import)
+  (when (exists? driver {:css (str "#enable-import:" not-disabled)} :wait false)
+    (click-visible driver :enable-import))
   (let [datasource-item (str "//div[contains(@class,'datasource-item')]"
                              "//p[contains(text(),'" datasource-name "')]")]
-    (click datasource-item)
-    (wait-exists (str "//div[contains(@class,'datasource-item')"
-                      "      and contains(@class,'active')]"
-                      "//p[contains(text(),'" datasource-name "')]"))
-    (Thread/sleep 100)))
+    (click-visible driver datasource-item)
+    (wait-exists driver (str "//div[contains(@class,'datasource-item')"
+                             "      and contains(@class,'active')]"
+                             "//p[contains(text(),'" datasource-name "')]"))))
 
 (defn uppy-attach-files
   "Given a coll of file names in the resources dir, attach the files to
   uppy file element."
-  [coll]
-  (wait-exists "//button[contains(text(),'browse files')]")
-  (fill {:css "input[name='files[]']"}
+  [driver coll]
+  (wait-exists driver "//button[contains(text(),'browse files')]")
+  (fill driver {:css "input[name='files[]']"}
         (->> (for [s (util/ensure-vector coll)]
                (-> s io/resource .getFile URLDecoder/decode))
              (str/join "\n"))

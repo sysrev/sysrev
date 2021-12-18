@@ -77,7 +77,6 @@
     {:new-articles (remove have-article? articles)
      :existing-article-ids existing-article-ids}))
 
-#_:clj-kondo/ignore
 ;; TODO: store article-location data in datasource
 (defn- import-articles-impl
   "Implements single-threaded import of articles from a new project-source.

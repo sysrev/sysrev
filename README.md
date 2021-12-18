@@ -365,8 +365,6 @@ false
 ## Testing
 
 Testing is done both locally and on our Jenkins continuous deployment server at builds.insilica.co.
-If a new test namespace is created, it should be added to the sysrev.test.all in order for it to be
-picked up by the Jenkins test server.
 
 To switch between using the production and development versions of the compiled ClojureScript:
 

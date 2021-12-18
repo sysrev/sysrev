@@ -23,7 +23,6 @@
         org.clojure/math.combinatorics {:mvn/version "0.1.6"}
         crypto-random/crypto-random {:mvn/version "1.2.1"}
         me.raynes/fs {:mvn/version "1.4.6"}
-        eftest/eftest {:mvn/version "0.5.9"}
 
 ;;; Data formats
         org.clojure/data.json {:mvn/version "2.2.2"}
@@ -53,10 +52,9 @@
         com.github.seancorfield/next.jdbc {:mvn/version "1.2.731"}
 
 ;;; Web server
-        aleph/aleph {:mvn/version "0.4.6"}
+        aleph/aleph {:mvn/version "0.4.7-alpha10"}
         com.taoensso/sente {:mvn/version "1.16.2"}
         compojure/compojure {:mvn/version "1.6.2"}
-        manifold/manifold {:mvn/version "0.1.8"}
         ring/ring {:mvn/version "1.9.4"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         ring-transit/ring-transit {:mvn/version "0.1.6"}
@@ -98,16 +96,6 @@
              ;; We need to specify the paths too for the poly tool
              :extra-paths ["components/postgres-embedded/src"]}
   :+postgres {:extra-deps {poly/postgres {:local/root "components/postgres"}}}
-  ;; :+dev-deps should always be used with :test, so don't duplicate anything
-  :+dev-deps {:extra-paths ["development/src"]
-              :extra-deps {cider/cider-nrepl {:mvn/version "0.27.2"}
-                           nrepl/nrepl {:mvn/version "0.8.3"}
-                           refactor-nrepl/refactor-nrepl {:mvn/version "3.1.0"}
-
-                           poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
-                           poly/datapub-import {:local/root "components/datapub-import"}
-                           poly/fda-drugs {:local/root "components/fda-drugs"}
-                           poly/sqlite {:local/root "components/sqlite"}}}
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
@@ -130,14 +118,12 @@
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-paths ["config/test" "test/clj"]
-         :extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
+         :extra-deps {eftest/eftest {:mvn/version "0.5.9"}
                       etaoin/etaoin {:mvn/version "0.4.6"}
                       lambdaisland/kaocha {:mvn/version "1.60.945"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
                                                      :sha "ab025bc42416e235937a112db435001f9d1b4c23"}
-                      org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
-                      org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}
                       prestancedesign/get-port {:mvn/version "0.1.1"}
 
                       poly/datapub {:local/root "projects/datapub"}

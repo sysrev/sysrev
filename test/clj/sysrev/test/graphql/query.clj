@@ -1,22 +1,20 @@
 (ns sysrev.test.graphql.query
-  (:require [clojure.set :as set]
-            [clojure.string :as str]
-            [clojure.test :refer [deftest is use-fixtures]]
-            [clojure.walk :as walk]
-            [honeysql.helpers :as sqlh :refer [sset where select from]]
-            [medley.core :as medley]
-            [sysrev.api :as api]
-            [sysrev.db.core :as db]
-            [sysrev.label.answer :as answer]
-            [sysrev.project.member :as member]
-            [sysrev.test.core :as test :refer [default-fixture database-rollback-fixture]]
-            [sysrev.test.browser.core :as b]
-            [sysrev.test.graphql.core :refer [graphql-request graphql-fixture api-key]]
-            [sysrev.util :as util]
-            [venia.core :as venia]))
-
-(use-fixtures :once default-fixture graphql-fixture)
-(use-fixtures :each database-rollback-fixture)
+  (:require
+   [clojure.set :as set]
+   [clojure.string :as str]
+   [clojure.test :refer :all]
+   [clojure.walk :as walk]
+   [honeysql.helpers :as sqlh :refer [from select sset where]]
+   [medley.core :as medley]
+   [sysrev.api :as api]
+   [sysrev.datasource.api :refer [ds-auth-key]]
+   [sysrev.db.core :as db]
+   [sysrev.label.answer :as answer]
+   [sysrev.project.member :as member]
+   [sysrev.test.core :as test]
+   [sysrev.test.graphql.core :refer [graphql-request]]
+   [sysrev.util :as util]
+   [venia.core :as venia]))
 
 (defn project-article-ids
   [project-id]
@@ -82,14 +80,14 @@
                            x))
                  m))
 
-(deftest project-query
-  (when (and (test/db-connected?) (not (test/remote-test?)))
-    (let [{:keys [email user-id]} (b/create-test-user)
+(deftest ^:bad ^:integration project-query
+  (test/with-test-system [system {}]
+    (let [{:keys [email user-id]} (test/create-test-user)
           project-name  "Graphql - Project Query Test"
           {:keys [project-id]} (get (api/create-project-for-user! project-name user-id false)
                                     :project)
-          test-user-1 (b/create-test-user :email "user1@foo.bar")
-          test-user-2 (b/create-test-user :email "user2@foo.bar")
+          test-user-1 (test/create-test-user :email "user1@foo.bar")
+          test-user-2 (test/create-test-user :email "user2@foo.bar")
           include-label (-> (select :*)
                             (from :label)
                             (where [:and
@@ -205,7 +203,7 @@
                                      :required true}})]
       ;; set the user's api key to use that of sysrev's datasource api key
       (doall (-> (sqlh/update :web_user)
-                 (sset {:api-token @api-key})
+                 (sset {:api-token (ds-auth-key)})
                  (where [:= :user-id user-id])
                  db/do-execute))
       ;; populate with articles from datasource
@@ -218,7 +216,7 @@
                                                         [[:entitiesByExternalIds
                                                           {:dataset 5
                                                            :externalIds ["513" "682"]} [:id]]]}) {\" "\\\""})}]]})
-              graphql-request
+              (->> (graphql-request system))
               (get-in [:data :importArticles])))
       ;; create label definitions
       (is (:valid? (api/sync-labels project-id label-definitions)))
@@ -230,21 +228,21 @@
         (review-all-articles project-id user-id))
       ;; retrieve the project information from the GraphQL project and make sure it is correct
       (let [graphql-resp
-            (-> (venia/graphql-query
-                 {:venia/queries
-                  [[:project {:id project-id}
-                    [:name :id
-                     [:labelDefinitions [:consensus :enabled :name :question :required :type]]
-                     [:groupLabelDefinitions [:enabled :name :question :required :type [:labels [:consensus :enabled :name :question :required :type]]]]
-                     [:articles [:datasource_id :enabled :id :uuid
-                                 [:groupLabels [[:answer
-                                                 [:id :answer :name :question :required :type]]
-                                                :confirmed :consensus :created :id :name :question :required :updated :type
-                                                [:reviewer [:id :name]]]]
-                                 [:labels [:answer :confirmed :consensus :created :id :name :question :required :updated :type
-                                           [:reviewer [:id :name]]]]]]]]]})
-                graphql-request
-                :data)]
+            (->> (venia/graphql-query
+                  {:venia/queries
+                   [[:project {:id project-id}
+                     [:name :id
+                      [:labelDefinitions [:consensus :enabled :name :question :required :type]]
+                      [:groupLabelDefinitions [:enabled :name :question :required :type [:labels [:consensus :enabled :name :question :required :type]]]]
+                      [:articles [:datasource_id :enabled :id :uuid
+                                  [:groupLabels [[:answer
+                                                  [:id :answer :name :question :required :type]]
+                                                 :confirmed :consensus :created :id :name :question :required :updated :type
+                                                 [:reviewer [:id :name]]]]
+                                  [:labels [:answer :confirmed :consensus :created :id :name :question :required :updated :type
+                                            [:reviewer [:id :name]]]]]]]]]})
+                 (graphql-request system)
+                 :data)]
         ;; check project name
         (is (= project-name
                (get-in graphql-resp [:project :name])))
@@ -355,9 +353,5 @@
           ;; each label is identical and equivalent to label answers given
           (is (= (set [(create-answer-map project-id)])
                  (-> final-answers
-                     set))))
-        ;; we're done, let's do some cleanup
-        (b/cleanup-test-user! :email email)
-        (doseq [{:keys [email]} [test-user-1 test-user-2]]
-          (b/delete-test-user :email email))))))
+                     set))))))))
 

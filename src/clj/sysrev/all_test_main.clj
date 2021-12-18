@@ -6,7 +6,6 @@
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [clojure.pprint :as pprint]
-            sysrev.test.all
             [sysrev.test.core :as test]
             [sysrev.config :refer [env]]
             [sysrev.postgres.interface :as postgres]
@@ -18,10 +17,6 @@
                  (pprint/write (-> env :postgres) :stream nil)))
   (log/info (str "running browser tests with config:\n"
                  (pprint/write (test/get-selenium-config) :stream nil)))
-  (when (and (test/db-connected?) (= (-> env :profile) :remote-test))
-    (postgres/start-db!)
-    (project/cleanup-browser-test-projects)
-    (migration/ensure-updated-db))
   (let [fname "target/junit.xml"
         {:keys [fail error] :as result}
         (with-open [w (io/writer fname)]

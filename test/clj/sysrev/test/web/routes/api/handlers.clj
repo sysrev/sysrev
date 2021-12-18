@@ -1,24 +1,23 @@
 (ns sysrev.test.web.routes.api.handlers
-  (:require [clojure.test :refer [deftest is]]
-            [ring.mock.request :as mock]
-            [sysrev.test.core :as test :refer [sysrev-handler with-test-system]]
-            [sysrev.test.browser.core :as b]
-            [sysrev.api :as api]
-            [sysrev.db.queries :as q]
-            [sysrev.group.core :as group]
-            [sysrev.notification.interface :as notification]
-            [sysrev.project.core :as project]
-            [sysrev.user.core :as user]
-            [sysrev.util :as util]))
+  (:require
+   [clojure.test :refer :all]
+   [ring.mock.request :as mock]
+   [sysrev.api :as api]
+   [sysrev.db.queries :as q]
+   [sysrev.group.core :as group]
+   [sysrev.notification.interface :as notification]
+   [sysrev.project.core :as project]
+   [sysrev.test.core :as test :refer [sysrev-handler]]
+   [sysrev.user.core :as user]
+   [sysrev.util :as util]))
 
-#_:clj-kondo/ignore
-(deftest create-project-test
-  (with-test-system [system]
-    (let [handler (sysrev-handler)
-          {:keys [email]} (b/create-test-user)
+(deftest ^:integration create-project-test
+  (test/with-test-system [system {}]
+    (let [handler (sysrev-handler system)
+          {:keys [email password]} (test/create-test-user)
           api-token (-> (handler
                          (-> (mock/request :get "/web-api/get-api-token")
-                             (mock/query-string {:email email :password b/test-password})))
+                             (mock/query-string {:email email :password password})))
                         :body util/read-json :result :api-token)
           create-project-response
           (-> (handler
@@ -34,13 +33,13 @@
       ;; get the article count, should be 0
       (is (= 0 (project/project-article-count new-project-id))))))
 
-(deftest transfer-project-test
-  (with-test-system [system]
-    (let [handler (sysrev-handler)
-          test-user (b/create-test-user)
-          user-foo (b/create-test-user :email "foo@bar.com" :password "foobar")
-          user-baz (b/create-test-user :email "baz@qux.com" :password "bazqux")
-          user-quux (b/create-test-user :email "quux@corge.com" :password "quuxcorge")
+(deftest ^:integration transfer-project-test
+  (test/with-test-system [system {}]
+    (let [handler (sysrev-handler system)
+          test-user (test/create-test-user)
+          user-foo (test/create-test-user)
+          user-baz (test/create-test-user)
+          user-quux (test/create-test-user)
           group-name "Baz Business"
           group-id (:id (api/create-org! (:user-id user-baz) group-name))]
       ;; make test user is an admin
@@ -90,10 +89,10 @@
         ;; delete the group
         (group/delete-group! group-id)))))
 
-(deftest create-notification-test
-  (with-test-system [system]
-    (let [handler (sysrev-handler)
-          test-user (b/create-test-user)
+(deftest ^:integration create-notification-test
+  (test/with-test-system [system {}]
+    (let [handler (sysrev-handler system)
+          test-user (test/create-test-user)
           ;; make test user an admin
           _ (user/set-user-permissions (:user-id test-user) ["user" "admin"])
           ;; login this user

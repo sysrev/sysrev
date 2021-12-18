@@ -16,9 +16,6 @@
             [sysrev.formats.endnote :refer [load-endnote-library-xml]]
             [sysrev.util :as util :refer [in? parse-xml-str xml-find]]))
 
-(use-fixtures :once test/default-fixture)
-#_ (use-fixtures :each test/database-rollback-fixture)
-
 (def ss (partial str/join "\n"))
 
 (def xml-vector-node
@@ -30,26 +27,13 @@
          "</test>"
        "</doc>"]))
 
-(deftest parse-xml
+(deftest ^:unit parse-xml
   (let [pxml (parse-xml-str xml-vector-node)
         els (xml-find pxml [:test :A])]
     (is (= (count els) 3))))
 
-#_
-(deftest pubmed-article-parse
-  (let [[parsed] (pubmed/fetch-pmid-entries-cassandra [11592337])]
-    (is (str/starts-with? (:abstract parsed) "OBJECTIVE: To determine"))
-    (is (str/includes? (:abstract parsed) "\n\nSAMPLE POPULATION: Corneal"))
-    (is (= (str/join "; " (:authors parsed)) "Hendrix, DV.; Ward, DA.; Barnhill, MA."))
-    (is (= (:public-id parsed) "11592337"))))
-
-#_
-(deftest pubmed-article-public-id
-  (let [[parsed] (pubmed/fetch-pmid-entries-cassandra [28280522])]
-    (is (= (:public-id parsed) "28280522"))))
-
-(deftest import-pubmed-search
-  (when (and (test/full-tests?) (not (test/remote-test?)))
+(deftest ^:integration import-pubmed-search
+  (test/with-test-system [system {}]
     (util/with-print-time-elapsed "import-pubmed-search"
       (let [search-term "foo bar"
             pmids (:pmids (pubmed/get-search-query-response search-term 1))
@@ -58,7 +42,7 @@
         (try
           (db/with-transaction
             (import/import-pubmed-search
-             {:web-server (:web-server @test/*test-system*)}
+             {:web-server (:web-server system)}
              new-project-id {:search-term search-term}
              {:use-future? false}))
           ;; Do we have the correct amount of PMIDS?
@@ -79,15 +63,15 @@
     (spit tempfile (-> url http/get :body))
     {:filename fname, :file tempfile}))
 
-(deftest import-endnote-xml
-  (when (not (test/remote-test?))
+(deftest ^:integration import-endnote-xml
+  (test/with-test-system [system {}]
     (util/with-print-time-elapsed "import-endnote-xml"
       (let [input (get-test-file "Sysrev_Articles_5505_20181128.xml")
             {:keys [project-id]} (project/create-project "autotest endnote import")]
         (try (is (= 0 (project/project-article-count project-id)))
              (is (completes? (db/with-transaction
                                (import/import-endnote-xml
-                                {:web-server (:web-server @test/*test-system*)}
+                                {:web-server (:web-server system)}
                                 project-id input {:use-future? false}))))
              (is (= 112 (project/project-article-count project-id)))
              (finally (project/delete-project project-id))))
@@ -98,7 +82,7 @@
                (is (= 0 (project/project-article-count project-id)))
                (is (completes? (db/with-transaction
                                  (import/import-endnote-xml
-                                  {:web-server (:web-server @test/*test-system*)}
+                                  {:web-server (:web-server system)}
                                   project-id {:file file :filename filename}
                                   {:use-future? false}))))
                (is (= 100 (project/project-article-count project-id)))
@@ -107,8 +91,8 @@
                         (every? (every-pred string? not-empty)))))
              (finally (project/delete-project project-id)))))))
 
-(deftest import-pmid-file
-  (when (not (test/remote-test?))
+(deftest ^:integration import-pmid-file
+  (test/with-test-system [system {}]
     (util/with-print-time-elapsed "import-pmid-file"
       (let [input (get-test-file "test-pmids-200.txt")
             {:keys [project-id]} (project/create-project "autotest pmid import")]
@@ -116,7 +100,7 @@
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
                             (import/import-pmid-file
-                             {:web-server (:web-server @test/*test-system*)}
+                             {:web-server (:web-server system)}
                              project-id input {:use-future? false}))))
           (is (= 200 (project/project-article-count project-id)))
           (log/info "checking articles-csv export")
@@ -130,8 +114,8 @@
                                     (csv/parse-csv :strict true)))))
           (finally (project/delete-project project-id)))))))
 
-(deftest import-pdf-zip
-  (when (not (test/remote-test?))
+(deftest ^:integration import-pdf-zip
+  (test/with-test-system [system {}]
     (util/with-print-time-elapsed "import-pdf-zip"
       (let [filename "test-pdf-import.zip"
             file (-> (str "test-files/" filename) io/resource io/file)
@@ -140,7 +124,7 @@
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
                             (import/import-pdf-zip
-                             {:web-server (:web-server @test/*test-system*)}
+                             {:web-server (:web-server system)}
                              project-id {:file file :filename filename}
                              {:use-future? false}))))
           (is (= 4 (project/project-article-count project-id)))
@@ -152,14 +136,14 @@
             (is (= 1 (title-count "Plosker Troglitazone.pdf"))))
           (finally (project/delete-project project-id)))))))
 
-(deftest import-ds-pubmed-titles
-  (when (not (test/remote-test?))
+(deftest ^:integration import-ds-pubmed-titles
+  (test/with-test-system [system {}]
     (util/with-print-time-elapsed "import-ds-pubmed-titles"
       (let [search-term "mouse rat computer six"
             {:keys [project-id]} (project/create-project "test import-ds-pubmed-titles")]
         (try (db/with-transaction
                (import/import-pubmed-search
-                {:web-server (:web-server @test/*test-system*)}
+                {:web-server (:web-server system)}
                 project-id {:search-term search-term}
                 {:use-future? false}))
              (let [adata (q/find [:article :a] {:a.project-id project-id}

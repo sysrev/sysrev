@@ -62,13 +62,9 @@
         sysrev.web.routes.api.core
         sysrev.web.routes.api.handlers
         sysrev.mail.core
-        #_ sysrev.custom.immuno
-        #_ sysrev.custom.ebtc
-        #_ sysrev.custom.insilica
         sysrev.init
         sysrev.shared.keywords
         [sysrev.test.core :exclude [sysrev-handler]]
-        sysrev.test.browser.navigate
         sysrev.stacktrace)
   (:require [cider.nrepl :refer (cider-nrepl-handler)]
             [clojure.spec.alpha :as s]
@@ -83,7 +79,6 @@
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [clj-http.client :as http]
-            [clj-webdriver.taxi :as taxi]
             [clojure.java.io :as io]
             [clojure.data.json :as json]
             [me.raynes.fs :as fs]
@@ -110,12 +105,10 @@
             [sysrev.shared.spec.labels :as sl]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.notes :as snt]
-            sysrev.test.all
             [sysrev.user.interface.spec :as su]
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.test.browser.core :refer :all :exclude [wait-until]])
+            [sysrev.formats.pubmed :as pubmed])
   (:import java.util.UUID))
 
 (def nrepl-handler
