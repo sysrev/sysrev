@@ -31,10 +31,10 @@ cat "$f" | grep "//gulp.series('build')(callback);" > /dev/null
 
 echo "running: gulp install"
 cd "$pwd"/node_modules/fomantic-ui
-gulp install > /dev/null || true
+npx gulp install > /dev/null || true
 echo "running: gulp build-javascript"
 cd "$pwd"/semantic
-gulp build-javascript > /dev/null
+npx gulp build-javascript > /dev/null
 cd "$pwd"
 
 echo "running: ./scripts/build-all-css"
