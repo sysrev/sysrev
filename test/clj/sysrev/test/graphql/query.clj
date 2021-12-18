@@ -80,7 +80,7 @@
                            x))
                  m))
 
-(deftest ^:bad ^:integration project-query
+(deftest ^:bad project-query
   (test/with-test-system [system {}]
     (let [{:keys [email user-id]} (test/create-test-user)
           project-name  "Graphql - Project Query Test"
