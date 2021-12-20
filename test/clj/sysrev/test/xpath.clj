@@ -1,4 +1,4 @@
-(ns sysrev.test.browser.xpath
+(ns sysrev.test.xpath
   (:require [clojure.string :as str]))
 
 (defn xpath

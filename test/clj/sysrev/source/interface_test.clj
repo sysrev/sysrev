@@ -1,36 +1,20 @@
-(ns sysrev.test.import
-  (:require [clojure.test :refer [deftest is use-fixtures]]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [clj-http.client :as http]
-            [clojure-csv.core :as csv]
-            [clojure.java.io :as io]
-            [sysrev.test.core :as test :refer [completes?]]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
-            [sysrev.datasource.api :as ds-api]
-            [sysrev.project.core :as project]
-            [sysrev.export.core :as export]
-            [sysrev.source.import :as import]
-            [sysrev.formats.endnote :refer [load-endnote-library-xml]]
-            [sysrev.util :as util :refer [in? parse-xml-str xml-find]]))
-
-(def ss (partial str/join "\n"))
-
-(def xml-vector-node
-  (ss ["<doc>"
-         "<test>"
-           "<A>1</A>"
-           "<A>2</A>"
-           "<A>3</A>"
-         "</test>"
-       "</doc>"]))
-
-(deftest ^:unit parse-xml
-  (let [pxml (parse-xml-str xml-vector-node)
-        els (xml-find pxml [:test :A])]
-    (is (= (count els) 3))))
+(ns sysrev.source.interface-test
+  (:require
+   [clj-http.client :as http]
+   [clojure-csv.core :as csv]
+   [clojure.java.io :as io]
+   [clojure.test :refer [deftest is]]
+   [clojure.tools.logging :as log]
+   [sysrev.datasource.api :as ds-api]
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]
+   [sysrev.export.core :as export]
+   [sysrev.formats.endnote :refer [load-endnote-library-xml]]
+   [sysrev.formats.pubmed :as pubmed]
+   [sysrev.project.core :as project]
+   [sysrev.source.import :as import]
+   [sysrev.test.core :as test :refer [completes?]]
+   [sysrev.util :as util :refer [in?]]))
 
 (deftest ^:integration import-pubmed-search
   (test/with-test-system [system {}]

@@ -1,4 +1,4 @@
-(ns sysrev.test.graphql.query
+(ns sysrev.graphql.handler-test
   (:require
    [clojure.set :as set]
    [clojure.string :as str]
@@ -11,8 +11,7 @@
    [sysrev.db.core :as db]
    [sysrev.label.answer :as answer]
    [sysrev.project.member :as member]
-   [sysrev.test.core :as test]
-   [sysrev.test.graphql.core :refer [graphql-request]]
+   [sysrev.test.core :as test :refer [graphql-request]]
    [sysrev.util :as util]
    [venia.core :as venia]))
 

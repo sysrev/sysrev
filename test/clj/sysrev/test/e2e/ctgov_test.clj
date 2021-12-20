@@ -1,10 +1,10 @@
-(ns sysrev.test.etaoin.ctgov
+(ns sysrev.test.e2e.ctgov-test
   (:require
    [clojure.test :refer :all]
    [etaoin.api :as ea]
    [sysrev.fixtures.interface :as fixtures]
-   [sysrev.test.etaoin.account :as account]
-   [sysrev.test.etaoin.core :as e]))
+   [sysrev.test.e2e.account :as account]
+   [sysrev.test.e2e.core :as e]))
 
 (deftest ^:e2e test-ctgov-search-import
   (e/with-test-resources [{:keys [driver system] :as test-resources}]

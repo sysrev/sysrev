@@ -1,4 +1,4 @@
-(ns sysrev.test.web.routes.api.handlers
+(ns sysrev.web.routes.api.handlers-test
   (:require
    [clojure.test :refer :all]
    [ring.mock.request :as mock]

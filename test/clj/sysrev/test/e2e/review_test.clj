@@ -1,4 +1,4 @@
-(ns sysrev.test.etaoin.review
+(ns sysrev.test.e2e.review-test
   (:require
    [clojure.java.io :as io]
    [clojure.test :refer :all]
@@ -8,8 +8,8 @@
    [sysrev.project.core :as project]
    [sysrev.project.member :as member]
    [sysrev.test.core :as test]
-   [sysrev.test.etaoin.account :as account]
-   [sysrev.test.etaoin.core :as e]))
+   [sysrev.test.e2e.account :as account]
+   [sysrev.test.e2e.core :as e]))
 
 (deftest ^:e2e test-disabled-required-label
   (e/with-test-resources [{:keys [driver system] :as test-resources}]

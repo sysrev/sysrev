@@ -2,7 +2,5 @@
 {:plugins [:kaocha.plugin/junit-xml
            :kaocha.plugin/print-invocations]
  :kaocha.plugin.junit-xml/target-file "target/junit.xml"
- :tests [{:id :e2e
-          :ns-patterns ["$"]
-          :source-paths ["src/clj" "src/cljc"]
+ :tests [{:source-paths ["src/clj" "src/cljc"]
           :test-paths ["test/clj"]}]}

@@ -1,12 +1,12 @@
-(ns sysrev.test.etaoin.sources
+(ns sysrev.test.e2e.sources-test
   (:require
    [clojure.java.io :as io]
    [clojure.test :refer :all]
    [me.raynes.fs :as fs]
-   [sysrev.test.browser.xpath :as x]
+   [sysrev.test.xpath :as x]
    [sysrev.test.core :as test]
-   [sysrev.test.etaoin.account :as account]
-   [sysrev.test.etaoin.core :as e]))
+   [sysrev.test.e2e.account :as account]
+   [sysrev.test.e2e.core :as e]))
 
 (deftest ^:e2e pdf-files
   (e/with-test-resources [{:keys [driver system] :as test-resources}]

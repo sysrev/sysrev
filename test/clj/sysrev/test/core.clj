@@ -1,10 +1,13 @@
 (ns sysrev.test.core
   (:require
    [clj-time.core :as time]
+   [clojure.data.json :as json]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
    [prestancedesign.get-port :as get-port]
+   [ring.mock.request :as mock]
    [sysrev.config :refer [env]]
+   [sysrev.datasource.api :refer [ds-auth-key]]
    [sysrev.db.core :as db]
    [sysrev.main :as main]
    [sysrev.user.interface :as user]
@@ -124,3 +127,64 @@
     (assoc
      (user/create-user email password)
      :password password)))
+
+;; from https://gist.github.com/cyppan/864c09c479d1f0902da5
+(defn parse-cookies
+  "Given a Cookie header string, parse it into a map"
+  [cookie-string]
+  (when cookie-string
+    (into {} (for [cookie (str/split cookie-string #";")]
+               (let [keyval (map str/trim (.split cookie "=" 2))]
+                 [(keyword (first keyval)) (second keyval)])))))
+
+(defn required-headers-params
+  "Given a handler, return a map containing ring-session and csrf-token"
+  [handler]
+  (let [{:keys [headers body]} (handler (mock/request :get "/api/auth/identity"))
+        {:keys [ring-session]} (-> (get headers "Set-Cookie") first parse-cookies)
+        {:keys [csrf-token]} (util/read-transit-str body)]
+    {:ring-session ring-session
+     :csrf-token csrf-token}))
+
+(defn required-headers
+  "Given a handler, return a fn that acts on a
+  request to add the headers required by the handler"
+  [handler]
+  (let [{:keys [ring-session csrf-token]} (required-headers-params handler)]
+    (fn [request]
+      (-> request
+          (mock/header "x-csrf-token" csrf-token)
+          (mock/header "Cookie" (str "ring-session=" ring-session))
+          (mock/header "Content-Type" "application/transit+json")))))
+
+(defn route-response-builder
+  "Get the response from handler using request method at uri with
+  optional map parameters. When method is :get, parameters are passing
+  in query-string, when method is :post, parameters are passed in body
+  as transit+json. Returns the body as a map"
+  [handler required-headers-fn method uri & [parameters]]
+  (let [request-params-fn (if (= :get method)
+                            #(mock/query-string % parameters)
+                            #(mock/body % (util/write-transit-str parameters)))]
+    (util/read-transit-str
+     (:body (handler (-> (mock/request method uri) request-params-fn required-headers-fn))))))
+
+(defn route-response-fn
+  "Return a fn of method, uri and options parameters for handling a mock
+  request given a handler and required-headers-fn"
+  [handler]
+  (let [required-headers-fn (required-headers handler)]
+    (fn [method uri & [parameters]]
+      (route-response-builder handler required-headers-fn method uri parameters))))
+
+(defn graphql-request
+  "Make a request on app, returning the body as a clojure map"
+  [system query & {:keys [api-key] :or {api-key (ds-auth-key)}}]
+  (let [app (sysrev-handler system)
+        body (-> (app (-> (mock/request :post "/graphql")
+                          (mock/header "Authorization" (str "Bearer " api-key))
+                          (mock/json-body {:query (util/gquery query)})))
+                 :body)]
+    (try (json/read-str body :key-fn keyword)
+         (catch Exception _
+           body))))

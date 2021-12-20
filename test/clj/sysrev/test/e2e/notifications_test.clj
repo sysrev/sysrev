@@ -1,4 +1,4 @@
-(ns sysrev.test.etaoin.notifications
+(ns sysrev.test.e2e.notifications-test
   (:require
    [clojure.string :as str]
    [clojure.test :refer :all]
@@ -12,8 +12,8 @@
    [sysrev.project.invitation :refer [create-invitation!]]
    [sysrev.project.member :refer [add-project-member]]
    [sysrev.test.core :as test]
-   [sysrev.test.etaoin.account :as account]
-   [sysrev.test.etaoin.core :as e]
+   [sysrev.test.e2e.account :as account]
+   [sysrev.test.e2e.core :as e]
    [sysrev.util :as util]))
 
 (defn create-projects-and-invitations! [inviter-id user-id]

@@ -1,11 +1,11 @@
-(ns sysrev.test.etaoin.account
+(ns sysrev.test.e2e.account
   (:require
    [clojure.string :as str]
    [clojure.test :refer [is]]
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
    [etaoin.keys :refer [backspace with-alt]]
-   [sysrev.test.etaoin.core :as e]
+   [sysrev.test.e2e.core :as e]
    [sysrev.util :as util]))
 
 (def default-email "test@example.com")

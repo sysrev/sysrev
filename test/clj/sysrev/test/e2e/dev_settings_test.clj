@@ -1,4 +1,4 @@
-(ns sysrev.test.etaoin.dev-settings
+(ns sysrev.test.e2e.dev-settings-test
   (:require
    [clj-http.client :as http]
    [clojure.string :as str]
@@ -6,10 +6,9 @@
    [etaoin.api :as ea]
    [medley.core :as medley]
    [sysrev.datasource.api :as ds-api :refer [graphql-query read-account]]
-   [sysrev.test.core :as test]
-   [sysrev.test.etaoin.account :as account]
-   [sysrev.test.etaoin.core :as e]
-   [sysrev.test.graphql.core :refer [graphql-request]]
+   [sysrev.test.core :as test :refer [graphql-request]]
+   [sysrev.test.e2e.account :as account]
+   [sysrev.test.e2e.core :as e]
    [sysrev.user.core :refer [get-user-emails user-by-email]]))
 
 (deftest ^:stripe happy-path-enable

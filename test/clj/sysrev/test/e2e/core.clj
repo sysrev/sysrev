@@ -1,4 +1,4 @@
-(ns sysrev.test.etaoin.core
+(ns sysrev.test.e2e.core
   (:require
    [cheshire.core :refer [generate-stream]]
    [clojure.java.io :as io]
