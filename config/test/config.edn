@@ -1,4 +1,8 @@
 {:datapub-embedded "true"
+ :filestore
+ {:type :s3
+  :endpoint "us-east-1"
+  :bucket-name "test.sysrev.us"}
  :postgres
  {:dbname "sysrev_test"
   :user "postgres"

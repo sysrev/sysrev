@@ -40,7 +40,9 @@
 
 (defn-spec s3-credentials ::credentials []
   (-> (:filestore env)
-      (select-keys [:access-key :secret-key :endpoint])))
+      (select-keys [:access-key :secret-key :endpoint])
+      (update :access-key #(or % (:aws-access-key-id env)))
+      (update :secret-key #(or % (:aws-secret-access-key env)))))
 
 (defn ^:repl create-bucket [name]
   (s3/create-bucket (s3-credentials) name))
