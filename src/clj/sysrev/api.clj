@@ -234,7 +234,7 @@
 
     (if error
       {:error error}
-      {:result {:success (when import @import)}})))
+      {:result {:success (future? import)}})))
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."
