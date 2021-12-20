@@ -6,4 +6,4 @@ source vars.sh
 
 ./projects/datapub/run-dev-containers.sh
 
-LOCAL_ONLY=t ENV=dev clj -M:+default:dev:test:repl
+LOCAL_ONLY=t ENV=dev clj -M:dev-embedded:dev:test:repl

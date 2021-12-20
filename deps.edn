@@ -89,14 +89,11 @@
         poly/datapub-client {:local/root "components/datapub-client"}
         poly/flyway {:local/root "components/flyway"}
         poly/notification {:local/root "components/notification"}
+        poly/postgres {:local/root "components/postgres"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
         poly/user {:local/root "components/user"}}
  :aliases
- {:+default {:extra-deps {poly/postgres {:local/root "components/postgres-embedded"}}
-             ;; We need to specify the paths too for the poly tool
-             :extra-paths ["components/postgres-embedded/src"]}
-  :+postgres {:extra-deps {poly/postgres {:local/root "components/postgres"}}}
-  :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
+ {:carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
   :dev {:extra-paths ["config/dev" "development/src"]
@@ -108,6 +105,7 @@
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
                      poly/sqlite {:local/root "components/sqlite"}}}
+  :dev-embedded {:extra-paths ["config/dev-embedded"]}
   :eastwood {:extra-deps {jonase/eastwood {:mvn/version "0.9.9"}}
              :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user sysrev.all-test-main sysrev.browser-test-main]}"]}
   :poly {:extra-deps {polylith/clj-poly
@@ -118,8 +116,11 @@
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-paths ["config/test" "test/clj"]
-         :extra-deps {eftest/eftest {:mvn/version "0.5.9"}
+         :extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
+                      eftest/eftest {:mvn/version "0.5.9"}
                       etaoin/etaoin {:mvn/version "0.4.6"}
+                      io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
+                      io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
                       lambdaisland/kaocha {:mvn/version "1.60.945"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"

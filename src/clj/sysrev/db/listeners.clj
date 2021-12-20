@@ -10,13 +10,13 @@
   (:import (com.impossibl.postgres.api.jdbc PGConnection PGNotificationListener)
            (com.impossibl.postgres.jdbc PGDataSource)))
 
-(defn- pgjdbc-ng-conn ^PGConnection [postgres-config]
-  (let [{:keys [dbname host password port user]} postgres-config
+(defn- pgjdbc-ng-conn ^PGConnection [postgres]
+  (let [{:keys [dbname host password user]} (:config postgres)
         ds (PGDataSource.)]
     (doto ds
       (.setDatabaseName dbname)
-      (.setPassword password)
-      (.setPort port)
+      (.setPassword (or password ""))
+      (.setPort (:bound-port postgres))
       (.setServerName host)
       (.setUser user))
     (.getConnection ds)))
@@ -38,8 +38,8 @@
     (closed [this]
       (closed-f))))
 
-(defn- register-listener [f postgres-config channel-names]
-  (let [conn (pgjdbc-ng-conn postgres-config)
+(defn- register-listener [f postgres channel-names]
+  (let [conn (pgjdbc-ng-conn postgres)
         close? (atom false)]
     (binding [*conn* conn]
       (with-open [stmt (.createStatement conn)]
@@ -49,7 +49,7 @@
           f
           #(when-not @close?
              (log/info "postgres notification listener disconnected. Reconnecting...")
-             (register-listener f postgres-config channel-names))
+             (register-listener f postgres channel-names))
           conn))
         (doseq [s channel-names]
           (.executeUpdate stmt (str "LISTEN " s)))))
@@ -64,11 +64,11 @@
   the matching channel.
 
   Returns a thunk to close the listener."
-  [channel-map postgres-config]
+  [channel-map postgres]
   (register-listener
    (fn [_process-id channel-name payload]
      (go (>! (channel-map channel-name) payload)))
-   postgres-config
+   postgres
    (keys channel-map)))
 
 (defn listener-handlers [listener]
@@ -103,7 +103,7 @@
           (handle-listener f (get channels k)))
         (assoc this
                :channels channels
-               :close-f (register-channels channels (:config postgres))))))
+               :close-f (register-channels channels postgres)))))
   (stop [this]
     (if close-f
       (do (close-f) (assoc this :channels nil :close-f nil))

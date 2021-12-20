@@ -4,11 +4,11 @@
   :endpoint "us-east-1"
   :bucket-name "test.sysrev.us"}
  :postgres
- {:dbname "sysrev"
-  :user "postgres"
-  :password ""
+ {:create-if-not-exists? true
+  :dbname "sysrev"
   :host "localhost"
-  :port 5432}
+  :port 5432
+  :user "postgres"}
  :server
  {:port 4061}
  :max-import-articles 100000

@@ -37,11 +37,11 @@
       this
       (let [embedded-pg (when (:embedded? config)
                           (->> config :port
-                               ((requiring-resolve 'datapub.postgres-embedded/embedded-pg-builder))
-                               ((requiring-resolve 'datapub.postgres-embedded/start!))))
+                               ((requiring-resolve 'sysrev.postgres.embedded/embedded-pg-builder))
+                               ((requiring-resolve 'sysrev.postgres.embedded/start!))))
             ;; If port 0 was specified, we need the actual port used.
             bound-port (if embedded-pg
-                         ((requiring-resolve 'datapub.postgres-embedded/get-port) embedded-pg)
+                         ((requiring-resolve 'sysrev.postgres.embedded/get-port) embedded-pg)
                          (:port config))
             config (assoc config :port bound-port)]
         (when (:create-if-not-exists? config)
@@ -57,7 +57,7 @@
             (try
               (flyway/migrate! datasource)
               (catch Exception e
-                ((requiring-resolve 'datapub.postgres-embedded/stop!) embedded-pg)
+                ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg)
                 (throw e)))
             (flyway/migrate! datasource))
           (assoc this
@@ -79,7 +79,7 @@
             (jdbc/execute! ds ["SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=?" (:dbname config)])
             (jdbc/execute! ds [(str "DROP DATABASE IF EXISTS " (:dbname config))])))
         (when (:embedded? config)
-          ((requiring-resolve 'datapub.postgres-embedded/stop!) embedded-pg))
+          ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg))
         (assoc this
                :bound-port nil :datasource nil :datasource-long-running nil
                :embedded-pg nil :query-cache nil :query-cache-enabled nil)))))
