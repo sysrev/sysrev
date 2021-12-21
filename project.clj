@@ -17,6 +17,7 @@
             "run-tests"              ["with-profile" "+test-config" "eftest"]
             "jenkins"                ["with-profile" "+jenkins" "eftest"]
             "junit"                  ["with-profile" "+test,+test-all" "run"]
+            "repl"                   ["run" "-m" "sysrev.user"]
             "test-aws-dev-browser"   ["with-profile" "+test-remote,+test-browser,+test-aws-dev" "run"]
             "test-aws-prod-browser"  ["with-profile" "+test-remote,+test-browser,+test-aws-prod" "run"]
             "test-aws-dev-all"       ["with-profile" "+test-remote,+test-all,+test-aws-dev" "run"]}
