@@ -15,7 +15,8 @@
    [sysrev.web.core :as web]))
 
 (def test-dbname "sysrev_auto_test")
-(def test-db-host (get-in env [:postgres :host]))
+
+(defonce test-system (atom nil))
 
 (defn sysrev-handler [system]
   (web/sysrev-handler (:web-server system)))
@@ -58,32 +59,34 @@
     (apply shell args)))
 
 (defmacro with-test-system [[name-sym] & body]
-  `(when-not (remote-test?)
-     (binding [db/*active-db* (atom nil)
-               db/*conn* nil
-               db/*query-cache* (atom {})
-               db/*query-cache-enabled* (atom true)
-               db/*transaction-query-cache* nil]
-       (let [postgres# (:postgres env)
-             system# (main/start-non-global!
-                      :config
-                      {:datapub-embedded true
-                       :server {:port (get-port/get-port)}}
-                      :postgres-overrides
-                      {:create-if-not-exists? true
-                       :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
-                       :embedded? true
-                       :host test-db-host
-                       :port (get-port/get-port)}
-                      :system-map-f
-                      #(-> (apply main/system-map %&)
-                           (dissoc :scheduler)))
-             ~name-sym system#]
-         (binding [env (merge env (:config system#))]
-           (try
-             (do ~@body)
-             (finally
-               (main/stop! system#))))))))
+  `(binding [db/*active-db* (atom nil)
+             db/*conn* nil
+             db/*query-cache* (atom {})
+             db/*query-cache-enabled* (atom false)
+             db/*transaction-query-cache* nil]
+     (let [postgres# (:postgres env)
+           system# (swap!
+                    test-system
+                    (fn [sys#]
+                      (or sys#
+                          (main/start-non-global!
+                           :config
+                           {:datapub-embedded true
+                            :server {:port (get-port/get-port)}}
+                           :postgres-overrides
+                           {:create-if-not-exists? true
+                            :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                            :embedded? true
+                            :host "localhost"
+                            :port 0
+                            :user "postgres"}
+                           :system-map-f
+                           #(-> (apply main/system-map %&)
+                                (dissoc :scheduler))))))
+           ~name-sym system#]
+       (reset! db/*active-db* (:postgres system#))
+       (binding [env (merge env (:config system#))]
+         (do ~@body)))))
 
 (defmacro completes? [form]
   `(do ~form true))
