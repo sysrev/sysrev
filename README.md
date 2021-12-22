@@ -136,13 +136,6 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 
     `repl> (sysrev.init/start-app)`
 
-* when running tests in the repl that use default-fixture , reset the web-asset-path
-
-```clojure
-repl> (sysrev.web.index/set-web-asset-path)
-"/out"
-```
-
 * You can switch databases for the app
 ```clojure
 repl> (sysrev.init/start-app {:dbname "sysrev_test"})
@@ -365,11 +358,6 @@ false
 ## Testing
 
 Testing is done both locally and on our Jenkins continuous deployment server at builds.insilica.co.
-
-To switch between using the production and development versions of the compiled ClojureScript:
-
-> (sysrev.web.index/set-web-asset-path "/out-production")
-> (sysrev.web.index/set-web-asset-path "/out-dev")
 
 ## Fixing Remote Testing Issues
 

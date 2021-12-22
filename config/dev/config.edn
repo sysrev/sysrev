@@ -16,4 +16,5 @@
  :mock-email true
  :e-util-api-key "***REMOVED***"
  :profile :dev
- :private-config "config.local.edn"}
+ :private-config "config.local.edn"
+ :web-server {:web-asset-path "/out-dev"}}

@@ -10,4 +10,5 @@
  :max-import-articles 100000
  :max-bulk-invitations 100
  :e-util-api-key "***REMOVED***"
- :private-config "config.local.edn"}
+ :private-config "config.local.edn"
+ :web-server {:web-asset-path "/out-production"}}

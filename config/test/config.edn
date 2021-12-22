@@ -11,4 +11,5 @@
  :max-bulk-invitations 100
  :mock-email true
  :e-util-api-key "***REMOVED***"
- :private-config "config.local.edn"}
+ :private-config "config.local.edn"
+ :web-server {:web-asset-path "/out-production"}}

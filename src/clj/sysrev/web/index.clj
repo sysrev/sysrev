@@ -12,13 +12,7 @@
             [sysrev.project.core :as project]
             [sysrev.util :as util :refer [today-string]]))
 
-(defonce web-asset-path (atom "/out"))
-
 (defonce lucky-orange-enabled (atom (= (:profile env) :prod)))
-
-(defn set-web-asset-path [& [path]]
-  (let [path (or path "/out")]
-    (reset! web-asset-path path)))
 
 (defn- user-theme [{:keys [session] :as _request}]
   (if-let [user-id (-> session :identity :user-id)]
@@ -57,7 +51,7 @@
 ;;; see: https://github.com/unpkg/unpkg.com/issues/48
 ;;; https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js?meta
 
-(defn index [& [request maintainence-msg]]
+(defn index [request & [maintainence-msg]]
   (page/html5
    (into
     [:head
@@ -118,7 +112,8 @@
       (let [js-name (if (= (:profile env) :prod)
                       (str "sysrev-" build/build-id ".js")
                       "sysrev.js")]
-        (page/include-js (str @web-asset-path "/" js-name))))
+        (page/include-js (str (get-in request [:web-server :config :web-server :web-asset-path])
+                              "/" js-name))))
     (when-not (:local-only env)
       [:div
        [:script {:type "text/javascript"} "_linkedin_partner_id = \"2703428\"; window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || []; window._linkedin_data_partner_ids.push(_linkedin_partner_id);"]
