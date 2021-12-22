@@ -21,7 +21,9 @@
 (def pro-plans      (set (concat user-pro-plans legacy-plans org-pro-plans)))
 
 (defn pro? [plan-nickname]
-  (str/starts-with? plan-nickname pro-prefix))
+  (and
+    (string? plan-nickname)
+    (str/starts-with? plan-nickname pro-prefix)))
 
 ;; Everyone is Premium (formerly team pro) now
 (def user-pro? pro?)
