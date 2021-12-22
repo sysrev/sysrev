@@ -4,6 +4,7 @@
    [clojure.data.json :as json]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
+   [medley.core :as medley]
    [prestancedesign.get-port :as get-port]
    [ring.mock.request :as mock]
    [sysrev.config :refer [env]]
@@ -71,8 +72,10 @@
                       (or sys#
                           (main/start-non-global!
                            :config
-                           {:datapub-embedded true
-                            :server {:port (get-port/get-port)}}
+                           (medley/deep-merge
+                            env
+                            {:datapub-embedded true
+                             :server {:port (get-port/get-port)}})
                            :postgres-overrides
                            {:create-if-not-exists? true
                             :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
