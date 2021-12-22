@@ -330,3 +330,15 @@
                (-> s io/resource .getFile URLDecoder/decode))
              (str/join "\n"))
         :delay 200))
+
+(def loader-elements-css
+  [(str "div.ui.loader.active:" (not-class "loading-indicator"))
+   "div.ui.dimmer.active > .ui.loader"
+   ".ui.button.loading"])
+
+(defn wait-until-loading-completes
+  [driver]
+  (ea/wait-predicate
+   (fn []
+     (and (ajax-inactive? driver)
+          (not (some #(ea/exists? driver {:css %}) loader-elements-css))))))
