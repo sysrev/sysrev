@@ -260,7 +260,11 @@
            headless?# (:headless? opts# (run-headless?))]
        (doseq [driver-type# [:chrome]]
          (ea/with-driver driver-type#
-           (merge {:headless headless?# :size [1600 1000]} opts#)
+           (merge
+            {:headless headless?#
+             :path-browser (when (.exists (io/file "chrome")) "./chrome")
+             :size [1600 1000]}
+            opts#)
            driver#
            (with-postmortem driver# {:dir "/tmp/sysrev/etaoin"}
              (let [~driver-sym driver#
