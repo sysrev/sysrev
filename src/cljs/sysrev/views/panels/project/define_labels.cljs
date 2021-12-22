@@ -439,8 +439,10 @@
       [Modal {:trigger (r/as-element
                          [:button.ui.fluid.large.labeled.icon.button
                           {:on-click  (fn [e]
-                                        (.preventDefault e)
-                                        (.stopPropagation e))}
+                                        (when (.-preventDefault e)
+                                          (.preventDefault e))
+                                        (when (.-stopPropagation e)
+                                          (.stopPropagation e)))}
                           [:i.file.import.icon]
                           "Import Label"])
               :class "tiny"
