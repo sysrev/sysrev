@@ -128,7 +128,8 @@
                       poly/file-util {:local/root "components/file-util"}
                       poly/fixtures {:local/root "components/fixtures"}
                       poly/pdf-read {:local/root "components/pdf-read"}
-                      poly/tesseract {:local/root "components/tesseract"}}}
+                      poly/tesseract {:local/root "components/tesseract"}}
+         :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]}
   :test-aws-dev {:extra-paths ["config/test-aws-dev"]}
   :test-aws-prod {:extra-paths ["config/test-aws-prod"]}
   :test-s3-dev {:extra-paths ["config/test-s3-dev"]}}}
