@@ -1,2 +1,0 @@
-replace_script=/insilica/sysrev/scripts/replace-filename-spaces
-find . -name \*.pdf -type f -print0 | xargs -n1 -0 $replace_script
