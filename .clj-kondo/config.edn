@@ -82,6 +82,7 @@
                                         sysrev.views.semantic          S
 ;;; sysrev test namespaces
                                         etaoin.api                     ea
+                                        sysrev.etaoin-test.interface   et
                                         sysrev.test.core               test
                                         sysrev.test.etaoin.core        e
                                         sysrev.test.fixtures           test-fixtures}}}

@@ -114,7 +114,6 @@
   :test {:extra-paths ["config/test" "test/clj"]
          :extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
                       eftest/eftest {:mvn/version "0.5.9"}
-                      etaoin/etaoin {:mvn/version "0.4.6"}
                       io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
                       io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
                       lambdaisland/kaocha {:mvn/version "1.60.945"}
@@ -125,6 +124,7 @@
 
                       poly/datapub {:local/root "projects/datapub"}
                       poly/datapub-test {:local/root "projects/datapub/datapub-test"}
+                      poly/etaoin-test {:local/root "components/etaoin-test"}
                       poly/file-util {:local/root "components/file-util"}
                       poly/fixtures {:local/root "components/fixtures"}
                       poly/pdf-read {:local/root "components/pdf-read"}

@@ -5,6 +5,7 @@
    [etaoin.api :as ea]
    [sysrev.api :refer [clone-project-for-org! import-articles-from-pdfs]]
    [sysrev.db.queries :as q]
+   [sysrev.etaoin-test.interface :as et]
    [sysrev.group.core :refer [add-user-to-group! create-group!]]
    [sysrev.label.answer :refer [set-user-article-labels]]
    [sysrev.label.core :refer [add-label-overall-include]]
@@ -30,17 +31,17 @@
       (account/log-in test-resources user)
       (testing "Notifications button and drop-down work when empty."
         (doto driver
-          (e/click-visible {:fn/has-class :notifications-icon})
-          (ea/wait-visible {:fn/has-text "You don't have any notifications yet"})))
+          (et/is-click-visible {:fn/has-class :notifications-icon})
+          (et/is-wait-visible {:fn/has-text "You don't have any notifications yet"})))
       (let [[project-a] (create-projects-and-invitations! inviter-id user-id)]
         (testing "Notifications button and drop-down work."
           (doto driver
             (ea/refresh)
-            (ea/wait-visible {:fn/has-class :notifications-count
+            (et/is-wait-visible {:fn/has-class :notifications-count
                               :fn/has-text "2"})
-            (e/click-visible {:fn/has-class :notifications-icon})
-            (e/click-visible [{:fn/has-class :notifications-container}
-                              {:fn/has-text (:name project-a)}]))
+            (et/is-click-visible {:fn/has-class :notifications-icon})
+            (et/is-click-visible [{:fn/has-class :notifications-container}
+                                  {:fn/has-text (:name project-a)}]))
           (is (nil? (ea/wait-predicate
                      #(= (str "/user/" user-id "/invitations") (e/get-path driver))))))))))
 
@@ -77,9 +78,9 @@
         (testing ":project-has-new-article notifications"
           (is (true? (:success result)))
           (doto driver
-            (e/click-visible {:fn/has-class :notifications-icon})
-            (ea/wait-visible {:fn/has-class :notifications-footer})
-            (e/click-visible [{:fn/has-class :notifications-container}
+            (et/is-click-visible {:fn/has-class :notifications-icon})
+            (et/is-wait-visible {:fn/has-class :notifications-footer})
+            (et/click-visible [{:fn/has-class :notifications-container}
                               {:fn/has-text "new article review"}])
             (is (nil? (ea/wait-predicate
                        #(str/ends-with? (e/get-path driver) (str "/p/" project-a-id "/article/" article-id)))))))))))
@@ -98,15 +99,12 @@
       (account/log-in test-resources user)
       (testing ":group-has-new-project notifications"
         (doto driver
-          (e/click-visible {:fn/has-class :notifications-icon})
-          (ea/wait-visible {:fn/has-class :notifications-footer})
-          (ea/wait-visible [{:fn/has-class :notifications-container}
+          (et/is-click-visible {:fn/has-class :notifications-icon})
+          (et/is-wait-visible {:fn/has-class :notifications-footer})
+          (et/is-wait-visible [{:fn/has-class :notifications-container}
                             {:fn/has-text "EntoGEM"}])
-          (-> (ea/visible? [{:fn/has-class :notifications-container}
-                            {:fn/has-text "TestGroupA"}])
-              is)
-          (e/click [{:fn/has-class :notifications-container}
-                    {:fn/has-text "TestGroupA"}]))
+          (et/is-click-visible [{:fn/has-class :notifications-container}
+                                {:fn/has-text "TestGroupA"}]))
         (is (nil? (ea/wait-predicate
                    #(str/ends-with? (e/get-path driver) (str "/p/" dest-project-id "/add-articles")))))))))
 
@@ -131,12 +129,11 @@
         (testing ":project-has-new-article notifications"
           (is (true? (:success result)))
           (doto driver
-            (e/click-visible {:fn/has-class :notifications-icon})
-            (ea/wait-visible {:fn/has-class :notifications-footer})
-            (ea/wait-visible {:fn/has-text "Mangiferin"}))
-          (is (ea/visible? driver {:fn/has-text (:username article-adder)}))
-          (is (ea/visible? driver {:fn/has-text "added a new article"}))
-          (e/click driver {:fn/has-text "Mangiferin"})
+            (et/is-click-visible {:fn/has-class :notifications-icon})
+            (et/is-wait-visible {:fn/has-class :notifications-footer})
+            (et/is-wait-visible {:fn/has-text (:username article-adder)})
+            (et/is-wait-visible {:fn/has-text "added a new article"})
+            (et/is-click-visible {:fn/has-text "Mangiferin"}))
           (let [article-id (q/find-one [:article-data :ad]
                                        {:a.project-id project-a-id
                                         :ad.title "sysrev-7539906377827440850.pdf"}
@@ -155,10 +152,9 @@
       (add-project-member project-a-id (:user-id new-user))
       (testing ":project-has-new-user notifications"
         (doto driver
-          (ea/click-visible {:fn/has-class :notifications-icon})
-          (ea/wait-visible {:fn/has-class :notifications-footer}))
-        (is (ea/visible? driver {:fn/has-text "Mangiferin"}))
-        (is (ea/visible? driver {:fn/has-text (:username new-user)}))
-        (e/click driver {:fn/has-text "Mangiferin"})
+          (et/is-click-visible {:fn/has-class :notifications-icon})
+          (et/is-wait-visible {:fn/has-class :notifications-footer})
+          (et/is-wait-visible {:fn/has-text (:username new-user)})
+          (et/is-click-visible {:fn/has-text "Mangiferin"}))
         (is (nil? (ea/wait-predicate
                    #(str/ends-with? (e/get-path driver) (str "/p/" project-a-id "/users")))))))))

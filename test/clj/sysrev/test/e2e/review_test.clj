@@ -4,6 +4,7 @@
    [clojure.test :refer :all]
    [etaoin.api :as ea]
    [sysrev.api :as api]
+   [sysrev.etaoin-test.interface :as et]
    [sysrev.label.core :as label]
    [sysrev.project.core :as project]
    [sysrev.project.member :as member]
@@ -40,12 +41,12 @@
           (ea/refresh))
         (e/go test-resources (str "/p/" project-id "/review"))
         (doto driver
-          (e/click-visible [{:fn/has-class "label-edit"}
+          (et/click-visible [{:fn/has-class "label-edit"}
                             {:fn/has-text "Yes"}])
           (ea/wait 1)
           (-> (ea/has-class? {:fn/has-class "save-labels"} "disabled")
               not is)
-          (e/click-visible [{:fn/has-class "label-edit"}
+          (et/click-visible [{:fn/has-class "label-edit"}
                             {:fn/has-text "?"}])
           (ea/wait 1)
           (-> (ea/has-class? {:fn/has-class "save-labels"} "disabled")

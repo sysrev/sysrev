@@ -6,6 +6,7 @@
    [etaoin.api :as ea]
    [medley.core :as medley]
    [sysrev.datasource.api :as ds-api :refer [graphql-query read-account]]
+   [sysrev.etaoin-test.interface :as et]
    [sysrev.test.core :as test :refer [graphql-request]]
    [sysrev.test.e2e.account :as account]
    [sysrev.test.e2e.core :as e]
@@ -17,8 +18,8 @@
           api-key (-> user :email user-by-email :api-token)]
       (account/log-in test-resources user)
       (doto driver
-        (e/click-visible :user-name-link)
-        (e/click-visible :user-settings)
+        (et/click-visible :user-name-link)
+        (et/click-visible :user-settings)
         ;; user can't enable their dev account
         (e/wait-exists :enable-dev-account)
         (-> (ea/disabled? :enable-dev-account) is))
@@ -38,9 +39,9 @@
       (account/change-user-plan! test-resources user-id "Unlimited_User")
       (doto driver
         ;; user toggles their dev account
-        (e/click-visible :user-name-link)
-        (e/click-visible :user-settings)
-        (e/click-visible "//input[@id='enable-dev-account']/..")
+        (et/click-visible :user-name-link)
+        (et/click-visible :user-settings)
+        (et/click-visible "//input[@id='enable-dev-account']/..")
         ;; check that the ui says the dev account is enabled
         (-> (e/enabled? driver "//input[@id='enable-dev-account']/parent::div[contains(@class,'checked')]")
             is))
@@ -63,9 +64,9 @@
       (account/log-in test-resources user)
       ;; change plan and enable dev account
       (account/change-user-plan! test-resources user-id "Unlimited_User")
-      (e/click-visible :user-name-link)
-      (e/click-visible :user-settings)
-      (e/click-visible "//input[@id='enable-dev-account']/..")
+      (et/click-visible :user-name-link)
+      (et/click-visible :user-settings)
+      (et/click-visible "//input[@id='enable-dev-account']/..")
       ;; check that the ui says the dev account is enabled
       (is (e/enabled? "//input[@id='enable-dev-account']/parent::div[contains(@class,'checked')]"))
       ;; user can login to datasource
@@ -76,15 +77,15 @@
         (is (get-in login-resp [:cookies "token" :value])))
       ;; change password on sysrev, login to datasource
       ;; with new password
-      (e/click-visible :log-out-link)
-      (e/click-visible :log-in-link)
-      (e/click-visible "//a[contains(text(),'Forgot Password?')]")
+      (et/click-visible :log-out-link)
+      (et/click-visible :log-in-link)
+      (et/click-visible "//a[contains(text(),'Forgot Password?')]")
       (e/fill "//input[@name='email']" (:email user) :clear? true)
-      (e/click-visible "//button[@name='submit']")
+      (et/click-visible "//button[@name='submit']")
       (e/exists? "//div[contains(text(),'An email has been sent with a link to reset your password.')]")
       (e/go (str "/reset-password/" (-> (user-by-email (:email user)) :reset-code)))
       (e/fill "//input[@name='password']" (str/reverse (:password user)) :clear? true)
-      (e/click-visible "//button[@name='submit']")
+      (et/click-visible "//button[@name='submit']")
       (account/log-in {:email (:email user)
                        :password (str/reverse (:password user))})
       (is (e/exists? :log-out-link))
@@ -94,11 +95,11 @@
                                                  :password (str/reverse password)}})]
         (is (get-in login-resp [:cookies "token" :value])))
       ;; change primary email address
-      (e/click-visible :user-name-link)
-      (e/click-visible :user-email)
-      (e/click-visible "//button[contains(text(),'Add a New')]")
+      (et/click-visible :user-name-link)
+      (et/click-visible :user-email)
+      (et/click-visible "//button[contains(text(),'Add a New')]")
       (e/fill :new-email-address new-email :clear? true)
-      (e/click-visible :new-email-address-submit)
+      (et/click-visible :new-email-address-submit)
       (e/wait-exists (str "//div[contains(@class,'email-unverified') and contains(@class,'label')]"
                           "/parent::h4[contains(text(),'" new-email "')]"))
       ;; verify the email

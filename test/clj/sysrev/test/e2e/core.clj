@@ -7,16 +7,8 @@
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
    [sysrev.config :refer [env]]
-   [sysrev.datasource.api :as ds-api]
-   [sysrev.db.core :as db]
-   [sysrev.db.queries :as q]
-   [sysrev.group.core :as group]
-   [sysrev.payment.plans :as plans]
-   [sysrev.payment.stripe :as stripe]
-   [sysrev.project.core :as project]
-   [sysrev.project.member :as member]
+   [sysrev.etaoin-test.interface :as et]
    [sysrev.test.core :as test]
-   [sysrev.user.core :as user]
    [sysrev.util :as util])
   (:import
    (clojure.lang ExceptionInfo)
@@ -281,31 +273,13 @@
          (let [~bindings {:driver driver# :system system#}]
            ~@body)))))
 
-(defn click [driver q]
-  (try
-    (ea/click driver q)
-    (catch ExceptionInfo e
-      (if (some->> e ex-data :response :value :message
-                   (re-find #"^stale element reference.*"))
-        (click driver q)
-        (throw e)))))
-
-(defn click-visible [driver q & [opt]]
-  (try
-    (ea/click-visible driver q opt)
-    (catch ExceptionInfo e
-      (if (some->> e ex-data :response :value :message
-                   (re-find #"^stale element reference.*"))
-        (click-visible driver q opt)
-        (throw e)))))
-
 (defn new-project [{:keys [driver] :as test-resources} project-name]
   (log/info "creating project" (pr-str project-name))
   (go test-resources "/" :init true :silent true)
   (doto driver
-    (click-visible {:css "#new-project.button"})
+    (et/click-visible {:css "#new-project.button"})
     (fill {:css "#create-project div.project-name input"} project-name)
-    (click-visible "//button[contains(text(),'Create Project')]")
+    (et/click-visible "//button[contains(text(),'Create Project')]")
     (wait-exists (str "//div[contains(@class,'project-title')]"
                              "//a[contains(text(),'" project-name "')]"))
     (wait-loading :pre-wait true)))
@@ -313,10 +287,10 @@
 (defn select-datasource [driver datasource-name]
   (wait-exists driver :enable-import)
   (when (exists? driver {:css (str "#enable-import:" not-disabled)} :wait false)
-    (click-visible driver :enable-import))
+    (et/click-visible driver :enable-import))
   (let [datasource-item (str "//div[contains(@class,'datasource-item')]"
                              "//p[contains(text(),'" datasource-name "')]")]
-    (click-visible driver datasource-item)
+    (et/click-visible driver datasource-item)
     (wait-exists driver (str "//div[contains(@class,'datasource-item')"
                              "      and contains(@class,'active')]"
                              "//p[contains(text(),'" datasource-name "')]"))))

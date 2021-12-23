@@ -3,6 +3,7 @@
    [clojure.string :as str]
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
+   [sysrev.etaoin-test.interface :as et]
    [sysrev.test.e2e.core :as e]
    [sysrev.test.xpath :as xpath]
    [sysrev.util :as util]))
@@ -55,10 +56,10 @@
   (log/info "creating label definition")
   (doto driver
     (ea/go (e/absolute-url system (str "/p/" project-id "/labels/edit")))
-    (e/click-visible (add-label-button value-type))
+    (et/click-visible (add-label-button value-type))
     (ea/wait-visible (str "//form[" (xpath/contains-class "define-label") "]"))
     (set-label-definition (str "//form[" (xpath/contains-class "define-label") "]") label-map)
-    (e/click-visible xpath/save-button)
+    (et/click-visible xpath/save-button)
     e/wait-until-loading-completes))
 
 (defn label-column-xpath [& {:keys [label-id short-label]}]
@@ -79,7 +80,7 @@
 
 (defmethod set-label-answer! :boolean
   [driver {:keys [short-label value]}]
-  (e/click-visible driver (str (label-grid-xpath :short-label short-label)
+  (et/click-visible driver (str (label-grid-xpath :short-label short-label)
                                "/div[contains(@class,'label-edit-value')]"
                                "//div[contains(@class,'button') and "
                                (format "text()='%s'"

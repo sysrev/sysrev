@@ -1,14 +1,13 @@
 (ns sysrev.test.e2e.account
   (:require
    [clojure.string :as str]
-   [clojure.test :refer [is]]
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
-   [etaoin.keys :refer [backspace with-alt]]
+   [sysrev.etaoin-test.interface :as et]
+   [sysrev.payment.plans :as plans]
    [sysrev.test.core :as test]
    [sysrev.test.e2e.core :as e]
-   [sysrev.util :as util]
-   [sysrev.payment.plans :as plans]))
+   [sysrev.util :as util]))
 
 (def default-email "test@example.com")
 (def default-password "testexample")
@@ -24,13 +23,13 @@
       (e/wait-exists :login-email-input)
       (ea/fill-multi {:login-email-input email
                       :login-password-input password})
-      (e/click-visible "//button[contains(text(),'Register')]")
+      (et/click-visible "//button[contains(text(),'Register')]")
       (e/wait-exists :new-project))
     {:email email :password password}))
 
 (defn log-out [{:keys [driver]}]
   (doto driver
-    (e/click-visible :log-out-link)
+    (et/click-visible :log-out-link)
     (ea/wait-visible :log-in-link)))
 
 (defn log-in
@@ -41,7 +40,7 @@
      (ea/wait-exists :login-email-input)
      (ea/fill-multi {:login-email-input email
                      :login-password-input password})
-     (e/click-visible {:css "button[name='submit']"})
+     (et/click-visible {:css "button[name='submit']"})
      (ea/wait-visible {:fn/has-text "Your Projects"}))))
 
 (defn change-user-plan! [{:keys [system]} user-id plan-nickname]

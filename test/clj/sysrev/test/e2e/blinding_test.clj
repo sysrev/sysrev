@@ -4,6 +4,7 @@
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
    [sysrev.api :as api]
+   [sysrev.etaoin-test.interface :as et]
    [sysrev.project.member :as member]
    [sysrev.source.import :as import]
    [sysrev.test.core :as test]
@@ -18,8 +19,8 @@
     (log/infof "changing label blinding to %s" (boolean blinding?))
     (doto driver
       (ea/go (e/absolute-url system (str "/p/" project-id "/settings")))
-      (e/click-visible {:css (str q ":" e/not-disabled ":" e/not-active)})
-      (e/click-visible {:css "div.project-options button.save-changes"})
+      (et/click-visible {:css (str q ":" e/not-disabled ":" e/not-active)})
+      (et/click-visible {:css "div.project-options button.save-changes"})
       e/wait-until-loading-completes)))
 
 (deftest ^:e2e label-blinding
@@ -47,7 +48,7 @@
       (dotimes [_ 3]
         (doto driver
           (labels/set-label-answer! (assoc labels/include-label-definition :value true))
-          (e/click-visible {:css ".button.save-labels"})
+          (et/is-click-visible {:css ".button.save-labels"})
           e/wait-until-loading-completes))
       ;; log in as user2
       (doto test-resources
@@ -58,16 +59,14 @@
         (ea/go (e/absolute-url system (str "/p/" project-id "/articles")))
         e/wait-until-loading-completes
         ;; review times are visible
-        (ea/wait-exists {:css ".ui.updated-time"})
+        (et/is-wait-exists {:css ".ui.updated-time"})
         ;; check that no answers are visible
-        (-> (ea/exists? {:css "div.answer-cell"})
-            not is)
+        (et/is-not-exists? {:css "div.answer-cell"})
         ;; go to an article
-        (e/click-visible {:css "div.article-list-article"})
+        (et/is-click-visible {:css "div.article-list-article"})
         e/wait-until-loading-completes
         ;; check that no article labels are visible
-        (-> (ea/exists? {:css ".article-labels-view"})
-            not is))
+        (et/is-not-exists? {:css ".article-labels-view"}))
       ;; add user2 as a member and check for blinding again
       (member/add-project-member project-id (:user-id user2))
       (doto driver
@@ -75,13 +74,11 @@
         (ea/go (e/absolute-url system (str "/p/" project-id "/articles")))
         e/wait-until-loading-completes
         ;; review times are visible
-        (ea/wait-exists {:css ".ui.updated-time"})
+        (et/is-wait-exists {:css ".ui.updated-time"})
         ;; check that no answers are visible
-        (-> (ea/exists? {:css "div.answer-cell"})
-            not is)
+        (et/is-not-exists? {:css "div.answer-cell"})
         ;; go to an article
-        (e/click-visible {:css "div.article-list-article"})
+        (et/is-click-visible {:css "div.article-list-article"})
         e/wait-until-loading-completes
         ;; check that no article labels are visible
-        (-> (ea/exists? {:css ".article-labels-view"})
-            not is)))))
+        (et/is-not-exists? {:css ".article-labels-view"})))))
