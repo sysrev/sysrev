@@ -12,6 +12,7 @@
    [sysrev.db.core :as db]
    [sysrev.main :as main]
    [sysrev.postgres.interface :as pg]
+   [sysrev.test.fixtures :as test-fixtures]
    [sysrev.user.interface :as user]
    [sysrev.util :as util :refer [in? shell]]
    [sysrev.web.core :as web]))
@@ -71,22 +72,23 @@
                     test-system
                     (fn [sys#]
                       (or sys#
-                          (main/start-non-global!
-                           :config
-                           (medley/deep-merge
-                            env
-                            {:datapub-embedded true
-                             :server {:port (get-port/get-port)}})
-                           :postgres-overrides
-                           {:create-if-not-exists? true
-                            :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
-                            :embedded? true
-                            :host "localhost"
-                            :port 0
-                            :user "postgres"}
-                           :system-map-f
-                           #(-> (apply main/system-map %&)
-                                (dissoc :scheduler))))))
+                          (-> (main/start-non-global!
+                               :config
+                               (medley/deep-merge
+                                env
+                                {:datapub-embedded true
+                                 :server {:port (get-port/get-port)}})
+                               :postgres-overrides
+                               {:create-if-not-exists? true
+                                :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                                :embedded? true
+                                :host "localhost"
+                                :port 0
+                                :user "postgres"}
+                               :system-map-f
+                               #(-> (apply main/system-map %&)
+                                    (dissoc :scheduler)))
+                              test-fixtures/load-all-fixtures!))))
            ~name-sym system#]
        (reset! db/*active-db* (:postgres system#))
        (binding [env (merge env (:config system#))]

@@ -5,7 +5,6 @@
                                [ ;; ignore unresolved symbols inside these macro forms
                                 (sysrev.db.queries/def-find-type nil)
                                 (sysrev.util/with-print-time-elapsed nil)
-                                (sysrev.test.browser.core/deftest-browser nil)
                                 (sysrev.macros/sr-defroute nil)
                                 (sysrev.macros/sr-defroute-project nil)
                                 (sysrev.macros/def-panel nil)
@@ -82,16 +81,12 @@
                                         sysrev.loading                 loading
                                         sysrev.views.semantic          S
 ;;; sysrev test namespaces
-                                        clj-webdriver.taxi             taxi
-                                        sysrev.test.core               test
-                                        sysrev.test.browser.core       b
-                                        sysrev.test.etaoin.core        e
                                         etaoin.api                     ea
-                                        sysrev.test.browser.navigate   nav
-                                        sysrev.test.browser.xpath      x}}}
+                                        sysrev.test.core               test
+                                        sysrev.test.etaoin.core        e
+                                        sysrev.test.fixtures           test-fixtures}}}
  :output {:exclude-files ["^components/cloudformation-templates"
                           "src/clj/sysrev/user.clj"
                           "src/cljs/sysrev/user.cljs"
                           "src/scripts/repl.clj"]}
- :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
-           sysrev.test.etaoin.core/deftest-etaoin clojure.test/deftest}}
+ :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all}}
