@@ -6,7 +6,7 @@
             [com.stuartsierra.component :as component]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
-            [sysrev.postgres.interface :as postgres]))
+            [sysrev.postgres.interface :as pg]))
 
 (def ^{:doc "Table names specified in the order that they should be loaded in.
              Fixtures are loaded from resources/sysrev/fixtures/{{name}}.edn"}
@@ -44,18 +44,18 @@
   (let [db (or db @db/*active-db*)]
     (ensure-not-prod-db! (:config db))
     (doseq [[table records] (get-fixtures)]
-      (db/execute!
+      (pg/execute!
        (:datasource db)
        {:insert-into table
         :values records}))))
 
 (defn wrap-fixtures [f]
-  (let [config (-> (postgres/get-config)
+  (let [config (-> (pg/get-config)
                    (update :dbname #(str % (rand-int Integer/MAX_VALUE)))
                    (assoc :create-if-not-exists? true
                           :delete-on-stop? true))]
     (ensure-not-prod-db! config)
-    (let [pg (component/start (postgres/postgres config))]
+    (let [pg (component/start (pg/postgres config))]
       (binding [db/*active-db* (atom (db/make-db-config config))]
         (load-fixtures!)
         (f))

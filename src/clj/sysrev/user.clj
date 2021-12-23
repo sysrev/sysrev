@@ -64,7 +64,6 @@
         sysrev.mail.core
         sysrev.init
         sysrev.shared.keywords
-        [sysrev.test.core :exclude [sysrev-handler]]
         sysrev.stacktrace)
   (:require [cider.nrepl :refer (cider-nrepl-handler)]
             [clojure.spec.alpha :as s]
@@ -105,6 +104,7 @@
             [sysrev.shared.spec.labels :as sl]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.notes :as snt]
+            [sysrev.test.core :as test]
             [sysrev.user.interface.spec :as su]
             [sysrev.db.queries :as q]
             [sysrev.api :as api]

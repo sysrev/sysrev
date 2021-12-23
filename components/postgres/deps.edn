@@ -1,3 +1,6 @@
-{:paths ["src" "resources"]
- :deps {com.stuartsierra/component {:mvn/version "1.0.0"}
-        hikari-cp/hikari-cp {:mvn/version "2.13.0"}}}
+{:paths ["src"]
+ :deps {com.github.seancorfield/honeysql {:mvn/version "2.1.833"}
+        com.github.seancorfield/next.jdbc {:mvn/version "1.2.761"}
+        com.stuartsierra/component {:mvn/version "1.0.0"}
+        hikari-cp/hikari-cp {:mvn/version "2.13.0"}
+        org.postgresql/postgresql {:mvn/version "42.3.1"}}}

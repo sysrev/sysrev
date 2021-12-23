@@ -67,12 +67,13 @@
                                         sysrev.init                    init
                                         sysrev.label.core              label
                                         sysrev.label.answer            answer
-                                        sysrev.user.core               user
+                                        sysrev.postgres.interface      pg
                                         sysrev.project.core            project
                                         sysrev.sendgrid                sendgrid
                                         sysrev.slack                   slack
                                         sysrev.source.core             source
                                         sysrev.source.import           import
+                                        sysrev.user.core               user
                                         sysrev.util                    util
 ;;; sysrev namespaces  [CLJS]
                                         sysrev.action.core             action

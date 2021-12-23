@@ -1,16 +1,14 @@
 (ns sysrev.all-test-main
   (:gen-class)
-  (:require [clojure.test :refer [*test-out*]]
-            [eftest.runner :refer [run-tests find-tests]]
-            eftest.report.junit
-            [clojure.java.io :as io]
-            [clojure.tools.logging :as log]
-            [clojure.pprint :as pprint]
-            [sysrev.test.core :as test]
-            [sysrev.config :refer [env]]
-            [sysrev.postgres.interface :as postgres]
-            [sysrev.project.core :as project]
-            [sysrev.db.migration :as migration]))
+  (:require
+   [clojure.java.io :as io]
+   [clojure.pprint :as pprint]
+   [clojure.test :refer [*test-out*]]
+   [clojure.tools.logging :as log]
+   [eftest.report.junit]
+   [eftest.runner :refer [find-tests run-tests]]
+   [sysrev.config :refer [env]]
+   [sysrev.test.core :as test]))
 
 (defn -main [& _args]
   (log/info (str "running database tests with config:\n"

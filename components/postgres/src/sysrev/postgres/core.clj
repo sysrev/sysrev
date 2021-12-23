@@ -1,11 +1,15 @@
 (ns sysrev.postgres.core
-  (:require [com.stuartsierra.component :as component]
-            [hikari-cp.core :as hikari-cp]
-            [next.jdbc :as jdbc]
-            [sysrev.db.core :as db]
-            [sysrev.config :refer [env]]
-            [sysrev.flyway.interface :as flyway])
-  (:import (org.postgresql.util PSQLException)))
+  (:require
+   [com.stuartsierra.component :as component]
+   [hikari-cp.core :as hikari-cp]
+   [honey.sql :as sql]
+   [next.jdbc :as jdbc]
+   [next.jdbc.result-set :as result-set]
+   [sysrev.config :refer [env]]
+   [sysrev.db.core :as db]
+   [sysrev.flyway.interface :as flyway])
+  (:import
+   (org.postgresql.util PSQLException)))
 
 (defn get-config [& [postgres-overrides]]
   (-> env :postgres
@@ -87,3 +91,20 @@
 (defn postgres [& [postgres-overrides]]
   (map->Postgres
    {:config (get-config postgres-overrides)}))
+
+(doseq [op [(keyword "@@") ;; Register postgres text search operator
+            ;; Register JSON operators
+            (keyword "->") (keyword "->>") (keyword "#>") (keyword "#>>")]]
+  (sql/register-op! op))
+
+(def jdbc-opts
+  {:builder-fn result-set/as-kebab-maps})
+
+(defn execute! [connectable sqlmap]
+  (jdbc/execute! connectable (sql/format sqlmap) jdbc-opts))
+
+(defn execute-one! [connectable sqlmap]
+  (jdbc/execute-one! connectable (sql/format sqlmap) jdbc-opts))
+
+(defn plan [connectable sqlmap]
+  (jdbc/plan connectable (sql/format sqlmap) jdbc-opts))

@@ -41,19 +41,6 @@
           _type-name (.getParameterTypeName meta i)]
       (.setObject s i num))))
 
-(doseq [op [(keyword "@@") (keyword "->") (keyword "->>")
-            (keyword "#>") (keyword "#>>")]]
-  (honey.sql/register-op! op))
-
-(def jdbc-opts
-  {:builder-fn result-set/as-kebab-maps})
-
-(defn execute! [connectable sqlmap]
-  (jdbc/execute! connectable (honey.sql/format sqlmap) jdbc-opts))
-
-(defn execute-one! [connectable sqlmap]
-  (jdbc/execute-one! connectable (honey.sql/format sqlmap) jdbc-opts))
-
 ;; https://github.com/seancorfield/next-jdbc/blob/develop/doc/tips-and-tricks.md
 (defn ->pgobject
   "Transforms Clojure data to a PGobject that contains the data as
