@@ -73,7 +73,8 @@
         value (.getValue v)]
     (if (#{"jsonb" "json"} type)
       (when value
-        (with-meta (json/read-str value :key-fn keyword) {:pgtype type}))
+        (some-> (json/read-str value :key-fn keyword)
+                (with-meta {:pgtype type})))
       value)))
 
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
