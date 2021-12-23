@@ -13,7 +13,7 @@
 
 (deftest ^:stripe happy-path-enable
   (e/with-test-resources [{:keys [driver system] :as test-resources}]
-    (let [user (test/create-test-user)
+    (let [{:keys [user-id] :as user} (test/create-test-user)
           api-key (-> user :email user-by-email :api-token)]
       (account/log-in test-resources user)
       (doto driver
@@ -35,7 +35,7 @@
                  first
                  :message)))
       ;; user adds a valid stripe card
-      (account/change-user-plan test-resources)
+      (account/change-user-plan! test-resources user-id "Unlimited_User")
       (doto driver
         ;; user toggles their dev account
         (e/click-visible :user-name-link)
@@ -62,7 +62,7 @@
           user-id (:user-id (user-by-email (:email user)))]
       (account/log-in test-resources user)
       ;; change plan and enable dev account
-      (account/change-user-plan)
+      (account/change-user-plan! test-resources user-id "Unlimited_User")
       (e/click-visible :user-name-link)
       (e/click-visible :user-settings)
       (e/click-visible "//input[@id='enable-dev-account']/..")
@@ -115,7 +115,7 @@
                                                  :password (str/reverse password)}})]
         (is (get-in login-resp [:cookies "token" :value])))
       ;; disable pro account
-      (account/change-user-plan)
+      (account/change-user-plan! test-resources user-id "Basic")
       ;; make sure sysrev graphql access is disabled
       (is (= "user does not have a have pro account"
              (-> (graphql-request [[:__schema [[:mutationType [[:fields [:name]]]]]]]

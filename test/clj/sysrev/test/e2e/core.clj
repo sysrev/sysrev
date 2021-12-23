@@ -26,6 +26,7 @@
 (defn not-class [cls]
   (format "not([class*=\"%s\"])" cls))
 
+(def not-active (not-class "active"))
 (def not-disabled (not-class "disabled"))
 
 (def loader-elements-css

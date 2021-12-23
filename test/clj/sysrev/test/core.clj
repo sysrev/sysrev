@@ -11,6 +11,7 @@
    [sysrev.datasource.api :refer [ds-auth-key]]
    [sysrev.db.core :as db]
    [sysrev.main :as main]
+   [sysrev.postgres.interface :as pg]
    [sysrev.user.interface :as user]
    [sysrev.util :as util :refer [in? shell]]
    [sysrev.web.core :as web]))
@@ -194,3 +195,15 @@
     (try (json/read-str body :key-fn keyword)
          (catch Exception _
            body))))
+
+(defn execute! [system sqlmap]
+  (-> system :postgres :datasource
+      (pg/execute! sqlmap)))
+
+(defn execute-one! [system sqlmap]
+  (-> system :postgres :datasource
+      (pg/execute-one! sqlmap)))
+
+(defn plan [system sqlmap]
+  (-> system :postgres :datasource
+      (pg/plan sqlmap)))

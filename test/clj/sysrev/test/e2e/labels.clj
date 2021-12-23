@@ -4,13 +4,18 @@
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
    [sysrev.test.e2e.core :as e]
-   [sysrev.test.xpath :as xpath]))
+   [sysrev.test.xpath :as xpath]
+   [sysrev.util :as util]))
 
 (def add-label-button
   {"annotation" xpath/add-annotation-label-button
    "boolean" xpath/add-boolean-label-button
    "categorical" xpath/add-categorical-label-button
    "string" xpath/add-string-label-button})
+
+(def include-label-definition {:value-type "boolean"
+                               :short-label "Include"
+                               :required true})
 
 (defn set-checkbox-button
   "When selected? is true, set checkbox defined by q to 'on',
@@ -55,3 +60,28 @@
     (set-label-definition (str "//form[" (xpath/contains-class "define-label") "]") label-map)
     (e/click-visible xpath/save-button)
     e/wait-until-loading-completes))
+
+(defn label-column-xpath [& {:keys [label-id short-label]}]
+  (util/assert-single label-id short-label)
+  (str "//div[contains(@class,'label-edit') and contains(@class,'column') and "
+       (cond label-id    (format "@data-label-id='%s'" (str label-id))
+             short-label (format "@data-short-label='%s'" short-label))
+       "]"))
+
+(defn label-grid-xpath [& {:keys [label-id short-label] :as args}]
+  (str (util/apply-keyargs label-column-xpath args)
+       "/div[contains(@class,'label-edit') and contains(@class,'grid')]"))
+
+(defmulti set-label-answer!
+  "Set answer value for a single label on current article."
+  (fn [driver {:keys [value-type]}]
+    (keyword value-type)))
+
+(defmethod set-label-answer! :boolean
+  [driver {:keys [short-label value]}]
+  (e/click-visible driver (str (label-grid-xpath :short-label short-label)
+                               "/div[contains(@class,'label-edit-value')]"
+                               "//div[contains(@class,'button') and "
+                               (format "text()='%s'"
+                                       (case value true "Yes" false "No" nil "?"))
+                               "]")))
