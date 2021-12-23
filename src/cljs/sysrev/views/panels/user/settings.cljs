@@ -242,7 +242,7 @@
          [Radio {:toggle true
                  :id "enable-dev-account"
                  :label "Developer Account"
-                 :checked @enabled?
+                 :checked (boolean @enabled?)
                  :disabled (not (plans-info/pro? (:nickname @plan)))
                  :on-click (fn [_e] (toggle-dev-account! enabled?))}]
          [ui/CursorMessage error-message {:negative true}]])
