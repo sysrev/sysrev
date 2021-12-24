@@ -1,5 +1,11 @@
 (ns sysrev.shared.components)
 
+(defn loading-indicator [active]
+  (if active
+    [:div.item.loading-indicator
+     [:div.ui.small.active.inline.loader.loading-indicator]]
+    [:div.item.loading-indicator-disabled]))
+
 (defn loading-content
   [& {:keys [logo-url] :or {logo-url "/'"}}]
   [:div#main-content
@@ -9,8 +15,8 @@
       [:img.ui.middle.aligned.image
        {:src "/SysRev_header_2.png" :alt "SysRev"
         :width "90" :height "28"}]]
+     (loading-indicator true)
      [:div.right.menu]]]])
-
 
 #?(:cljs
    (defn table [columns rows & {:keys [header props]}]

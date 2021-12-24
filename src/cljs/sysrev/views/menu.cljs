@@ -8,13 +8,11 @@
             [sysrev.views.panels.notifications :refer [NotificationsButton]]
             [sysrev.views.panels.user.profile :refer [Avatar]]
             [sysrev.views.panels.search :refer [SiteSearch]]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.shared.components :as shared]))
 
 (defn loading-indicator []
-  (if @loading/loading-indicator
-    [:div.item.loading-indicator
-     [:div.ui.small.active.inline.loader.loading-indicator]]
-    [:div.item.loading-indicator-disabled]))
+  [shared/loading-indicator @loading/loading-indicator])
 
 (defn toggle-ui-theme [logged-in? settings]
   (let [new-theme (if (= "Dark" (:ui-theme settings)) "Default" "Dark")]
