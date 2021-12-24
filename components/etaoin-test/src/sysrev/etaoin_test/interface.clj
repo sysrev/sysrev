@@ -3,6 +3,16 @@
   (:require
    [sysrev.etaoin-test.core :as core]))
 
+(defn clear
+  "Clears one or more input elements.
+
+  Uses the Ctrl-Home, Ctrl-Shift-End, Delete key sequence to clear the
+  input in order to ensure that event handlers are fired. Use
+  `etaoin.api/clear` if you need to clear an element without keypresses and
+  don't care about event handlers."
+  [driver q & more-qs]
+  (apply core/clear driver q more-qs))
+
 (defn click
   "Clicks on an element.
 

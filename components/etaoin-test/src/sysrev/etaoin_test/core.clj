@@ -1,7 +1,8 @@
 (ns sysrev.etaoin-test.core
   (:require
    [clojure.test :refer [is]]
-   [etaoin.api :as ea])
+   [etaoin.api :as ea]
+   [etaoin.keys :as keys])
   (:import
    (clojure.lang ExceptionInfo)))
 
@@ -21,6 +22,10 @@
           (throw (ex-info "Too many retries for stale element" {} e))
           (retry-stale-element f (inc (or retries 0))))
         (throw e)))))
+
+(defn clear [driver q & more-qs]
+  (doseq [query (cons q more-qs)]
+    (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete)))
 
 (defn click [driver q]
   (retry-stale-element #(ea/click driver q)))
