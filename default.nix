@@ -20,8 +20,8 @@ mkShell {
     jdk
     (leiningen.override { jdk = jdk; })
     lessc
+    nodePackages.npm # should come before nodejs for latest version
     nodejs
-    nodePackages.npm
     polylith
     postgresql_13
     python39Packages.cfn-lint
