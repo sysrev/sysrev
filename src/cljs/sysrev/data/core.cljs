@@ -1,6 +1,7 @@
 (ns sysrev.data.core
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer-macros [defn-spec]]
+            [reagent.core :as r]
             [re-frame.core :refer [dispatch reg-sub reg-event-db reg-event-fx
                                    trim-v reg-fx]]
             [re-frame.db :refer [app-db]]
@@ -10,7 +11,7 @@
 
 (defonce
   ^{:doc "Holds static definitions for data items fetched from server"}
-  data-defs (atom {}))
+  data-defs (r/cursor loading/ajax-db [:data]))
 
 (defn loading?
   "Tests if any AJAX data request matching `query` is currently pending.
@@ -39,6 +40,7 @@
 (s/def ::uri (s/or :fn fn? :string string?))
 (s/def ::method keyword?)
 (s/def ::content-type string?)
+(s/def ::hide-loading boolean?)
 
 (defn-spec def-data map?
   "Create a definition for a data item to fetch from server.
@@ -85,22 +87,27 @@
 
   `:on-error` - Similar to `:process` but called on HTTP error
   status. cofx value includes an `:error` key, which is taken from
-  the `:error` field of the server response."
+  the `:error` field of the server response.
+
+  `:hide-loading` - If true, don't render global loading indicator while
+  this request is pending."
   [name ::item-name &
-   {:keys [uri loaded? prereqs content process on-error method content-type]
+   {:keys [uri loaded? prereqs content process on-error method content-type hide-loading]
     :or {method :get, prereqs (constantly [[:identity]])}
     :as fields}
    (s/? (s/keys* :req-un [::uri ::loaded? ::process]
-                 :opt-un [::prereqs ::content ::on-error ::method ::content-type]))]
+                 :opt-un [::prereqs ::content ::on-error ::method ::content-type
+                          ::hide-loading]))]
   (s/assert ::item-name name)
   (s/assert ::uri uri)
   (s/assert ::loaded? loaded?)
   (s/assert ::process process)
   (s/assert ::prereqs prereqs)
-  (when content (s/assert ::content content))
-  (when content-type (s/assert ::content-type content-type))
-  (when on-error (s/assert ::on-error on-error))
-  (when method (s/assert ::method method))
+  (when (some? content)      (s/assert ::content content))
+  (when (some? content-type) (s/assert ::content-type content-type))
+  (when (some? on-error)     (s/assert ::on-error on-error))
+  (when (some? method)       (s/assert ::method method))
+  (when (some? hide-loading) (s/assert ::hide-loading hide-loading))
   (swap! data-defs assoc name
          (-> (merge fields {:prereqs prereqs :method method})
              (update :uri #(cond-> % (string? %) (constantly))))))
@@ -323,5 +330,3 @@
 
 (defn load-data [& item]
   (dispatch [:data/load (into [] item)]))
-
-

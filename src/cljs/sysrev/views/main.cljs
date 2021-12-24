@@ -1,8 +1,6 @@
 (ns sysrev.views.main
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
-            [sysrev.data.core :as data]
-            [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]
             [sysrev.dnd :as dnd]
             [sysrev.views.article]
@@ -172,13 +170,7 @@
            [:div#toplevel {:class (css [landing? "landing"])
                            :ref #(reset! !ref %)}
             [:div#main-content {:class (css [(review/display-sidebar?) "annotator"]
-                                            [landing? "landing"]
-                                            [(or (not @(subscribe [:data/ready?]))
-                                                 (data/loading?
-                                                  nil :ignore (into loading/ignore-data-names
-                                                                    #{:pdf/open-access-available?
-                                                                      :pdf/article-pdfs})))
-                                             "loading"])}
+                                            [landing? "landing"])}
              [header-menu]
              [:div.panel-content {:class (css [(not landing?) "ui container"])}
               (if (review/display-sidebar?)
