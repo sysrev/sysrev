@@ -98,7 +98,8 @@
   :process
   (fn [{:keys [db]} _ {:keys [notifications]}]
     {:db (-> (merge-notifications db notifications)
-             (assoc-in [:state :notifications :loaded-new?] true))}))
+             (assoc-in [:state :notifications :loaded-new?] true))})
+  :hide-loading true)
 
 (def-action :notifications/set-consumed
   :uri (fn [user-id] (str "/api/user/" user-id "/notifications/set-consumed"))
