@@ -57,8 +57,7 @@
    (assoc-in notification [:content :type] :project-has-new-user)))
 
 (defmethod consume-notification-dispatches :project-invitation [notification]
-  [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]
-])
+  [[:nav (str "/user/" (get-in notification [:content :user-id]) "/invitations")]])
 
 (defmethod consume-notification-dispatches :system
   [notification]
@@ -78,8 +77,8 @@
              (get-in db [:state :notifications :loaded-by-day args]))
   :uri (fn [user-id & {:as query-params}]
          (apply str "/api/user/" user-id "/notifications/by-day"
-              (when (seq query-params)
-                ["?" (http/generate-query-string query-params)])))
+                (when (seq query-params)
+                  ["?" (http/generate-query-string query-params)])))
   :process
   (fn [{:keys [db]}
        [_user-id & {:keys [start-at]} :as args]
@@ -124,10 +123,10 @@
                       now (js/Date.)]
                   {:db
                    (assoc-in db [:data :notifications]
-                          (reduce
-                           #(update % %2 assoc :consumed now :viewed now)
-                           (get-in db [:data :notifications])
-                           nids))
+                             (reduce
+                              #(update % %2 assoc :consumed now :viewed now)
+                              (get-in db [:data :notifications])
+                              nids))
                    :dispatch-n
                    (into
                     [(when (seq nids)
@@ -142,10 +141,10 @@
                       now (js/Date.)]
                   {:db
                    (assoc-in db [:data :notifications]
-                          (reduce
-                           #(assoc-in % [%2 :viewed] now)
-                           (get-in db [:data :notifications])
-                           nids))
+                             (reduce
+                              #(assoc-in % [%2 :viewed] now)
+                              (get-in db [:data :notifications])
+                              nids))
                    :dispatch-n [(when (seq nids)
                                   [:action [:notifications/set-viewed
                                             (current-user-id db) nids]])]})))
