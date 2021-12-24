@@ -13,8 +13,7 @@
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.pdfjs-express :as pdfjs-express]
             ["react-hotkeys-hook" :refer [useHotkeys]]
-            [sysrev.util :as util :refer
-             [map-values filter-values css index-by nbsp]]))
+            [sysrev.util :as util :refer [css index-by nbsp]]))
 
 (def view :annotator)
 
@@ -41,12 +40,17 @@
 (reg-event-db ::clear-annotations [trim-v]
               (fn [db [context]]
                 (-> (set-field db context [:annotations] {})
-                    (set-field context [:new-annotation] nil)
                     (set-field context [:editing-id] nil))))
 
 (reg-event-db ::remove-ann [trim-v]
               (fn [db [context ann-id]]
                 (update-field db context [:annotations] #(dissoc % ann-id))))
+
+(reg-event-db ::cancel-new-ann [trim-v]
+              (fn [db [context]]
+                (-> (set-field db context [:editing-id] nil)
+                    (set-field context [:selection] nil)
+                    (update-field context [:annotations] #(dissoc % draft-ann-id)))))
 
 (reg-event-db ::save-draft-ann [trim-v]
               (fn [db [context]]
@@ -128,7 +132,7 @@
 
 (defn- sort-class-options [entries]
   (vec (->> entries
-            (map-values (fn [x] (update x :last-used #(some-> % tc/to-long))))
+            (medley/map-vals (fn [x] (update x :last-used #(some-> % tc/to-long))))
             (sort-by (fn [[_class {:keys [last-used count]}]]
                        [(or last-used 0) count]))
             reverse)))
@@ -273,7 +277,7 @@
          [:div.eight.wide.field
           [:button {:class (css button-class "cancel-edit")
                     :on-click (util/wrap-user-event
-                               #(set [:editing-id] nil)
+                               #(dispatch-sync [::cancel-new-ann context])
                                :prevent-default true)}
            [:i.times.icon]
            (when full-width? "Cancel")]]]
@@ -294,28 +298,20 @@
 
 ;; Returns map of all annotations for context.
 ;; Includes new-annotation entry when include-new is true.
+#_
 (reg-sub :annotator/all-annotations
-         (fn [[_ context _]]
-           [(subscribe [::get context [:new-annotation]])
-            (subscribe (annotator-data-item context))])
-         (fn [[new-annotation annotations]
-              [_ _ include-new]]
-           (cond->> annotations
-             (and new-annotation include-new)
-             (merge {(:annotation-id new-annotation) new-annotation}))))
+         (fn [[_ context _]] (subscribe (annotator-data-item context)))
+         (fn [annotations [_ _ include-new]]
+           (cond-> annotations
+             (not include-new) (dissoc draft-ann-id))))
 
 ;; Returns map of annotations for context filtered by user-id.
 ;; Includes new-annotation entry for self-id unless only-saved is true.
 (reg-sub :annotator/user-annotations
-         (fn [[_ context _ & _]]
-           [(subscribe [:self/user-id])
-            (subscribe [::get context [:new-annotation]])
-            (subscribe (annotator-data-item context))])
-         (fn [[self-id new-annotation annotations]
-              [_ _ user-id & [{:keys [only-saved]}]]]
-           (cond->> (filter-values #(= (:user-id %) user-id) annotations)
-             (and new-annotation (= user-id self-id) (not only-saved))
-             (merge {(:annotation-id new-annotation) new-annotation}))))
+         (fn [[_ context _ & _]] (subscribe (annotator-data-item context)))
+         (fn [annotations [_ _ user-id & [{:keys [only-saved]}]]]
+           (cond-> (medley/filter-vals #(= (:user-id %) user-id) annotations)
+             only-saved (dissoc draft-ann-id))))
 
 (reg-sub :annotator/label-annotations
          (fn [[_ context]]
@@ -430,7 +426,7 @@
             (let [selection-map (get-selection field)]
               (set [:selection] (:selection selection-map))
               (if (empty? (:selection selection-map))
-                (set [:new-annotation] nil)
+                (dispatch-sync [::cancel-new-ann context])
                 (let [entry {:annotation-id draft-ann-id ;(str "ann-" (util/random-id))
                              :selection (:selection selection-map)
                              :context (-> (dissoc selection-map :selection)
@@ -438,9 +434,8 @@
                              :annotation ""
                              :value (:selection selection-map)
                              :semantic-class nil}]
-                  (set [:new-annotation] entry)
-                  (set [:editing-id] (:annotation-id entry))
-                  (set-ann (:annotation-id entry) nil entry))))
+                  (set [:editing-id] draft-ann-id)
+                  (set-ann draft-ann-id nil entry))))
             true))]
     [:div.annotation-capture {:on-mouse-up update-selection
                               :on-touch-end update-selection}
