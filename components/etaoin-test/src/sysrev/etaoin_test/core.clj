@@ -1,8 +1,10 @@
 (ns sysrev.etaoin-test.core
   (:require
+   [clojure.spec.alpha :as s]
    [clojure.test :refer [is]]
    [etaoin.api :as ea]
-   [etaoin.keys :as keys])
+   [etaoin.keys :as keys]
+   [sysrev.etaoin-test.interface.spec :as spec])
   (:import
    (clojure.lang ExceptionInfo)))
 
@@ -27,11 +29,25 @@
   (doseq [query (cons q more-qs)]
     (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete)))
 
+(s/fdef clear
+  :args (s/cat :driver ::spec/driver :queries (s/+ ::spec/query))
+  :ret nil?)
+
 (defn click [driver q]
-  (retry-stale-element #(ea/click driver q)))
+  (retry-stale-element #(ea/click driver q))
+  nil)
+
+(s/fdef click
+  :args (s/cat :driver ::spec/driver :q ::spec/query)
+  :ret nil?)
 
 (defn click-visible [driver q & [opt]]
-  (retry-stale-element #(ea/click-visible driver q opt)))
+  (retry-stale-element #(ea/click-visible driver q opt))
+  nil)
+
+(s/fdef click-visible
+  :args (s/cat :driver ::spec/driver :q ::spec/query :opt (s/? (s/nilable map?)))
+  :ret nil?)
 
 (defmacro is-catch-timeout [& body]
   `(is
