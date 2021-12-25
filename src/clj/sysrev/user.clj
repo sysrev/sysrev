@@ -69,7 +69,7 @@
             [clojure.spec.alpha :as s]
             [clojure.edn :as edn]
             hashp.core
-            [orchestra.spec.test :as t]
+            [orchestra.spec.test :as st]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :as log]
@@ -116,6 +116,7 @@
          (conj cider.nrepl.middleware/cider-middleware 'refactor-nrepl.middleware/wrap-refactor)))
 
 (defn -main []
+  (st/instrument)
   (try
     (sysrev.init/start-app)
     (fixtures/load-fixtures!)

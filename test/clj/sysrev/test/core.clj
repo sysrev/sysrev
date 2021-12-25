@@ -5,6 +5,7 @@
    [clojure.string :as str]
    [clojure.tools.logging :as log]
    [medley.core :as medley]
+   [orchestra.spec.test :as st]
    [prestancedesign.get-port :as get-port]
    [ring.mock.request :as mock]
    [sysrev.config :refer [env]]
@@ -72,23 +73,24 @@
                     test-system
                     (fn [sys#]
                       (or sys#
-                          (-> (main/start-non-global!
-                               :config
-                               (medley/deep-merge
-                                env
-                                {:datapub-embedded true
-                                 :server {:port (get-port/get-port)}})
-                               :postgres-overrides
-                               {:create-if-not-exists? true
-                                :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
-                                :embedded? true
-                                :host "localhost"
-                                :port 0
-                                :user "postgres"}
-                               :system-map-f
-                               #(-> (apply main/system-map %&)
-                                    (dissoc :scheduler)))
-                              test-fixtures/load-all-fixtures!))))
+                          (do (st/instrument)
+                              (-> (main/start-non-global!
+                                   :config
+                                   (medley/deep-merge
+                                    env
+                                    {:datapub-embedded true
+                                     :server {:port (get-port/get-port)}})
+                                   :postgres-overrides
+                                   {:create-if-not-exists? true
+                                    :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+                                    :embedded? true
+                                    :host "localhost"
+                                    :port 0
+                                    :user "postgres"}
+                                   :system-map-f
+                                   #(-> (apply main/system-map %&)
+                                        (dissoc :scheduler)))
+                                  test-fixtures/load-all-fixtures!)))))
            ~name-sym system#]
        (reset! db/*active-db* (:postgres system#))
        (binding [env (merge env (:config system#))]
