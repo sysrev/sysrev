@@ -23,7 +23,8 @@
 (defn pro? [plan-nickname]
   (and
     (string? plan-nickname)
-    (str/starts-with? plan-nickname pro-prefix)))
+    (or (= premium-product plan-nickname)
+        (str/starts-with? plan-nickname pro-prefix))))
 
 ;; Everyone is Premium (formerly team pro) now
 (def user-pro? pro?)
