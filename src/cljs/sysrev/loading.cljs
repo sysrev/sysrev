@@ -12,7 +12,7 @@
          data-sent action-sent
          data-returned action-returned)
 
-(defonce ^:private ajax-db (r/atom {}))
+(defonce ajax-db (r/atom {}))
 
 (s/def ::item-name keyword?)
 (s/def ::item (s/and vector?, #(pos? (count %)), #(s/valid? ::item-name (first %))))
@@ -116,18 +116,17 @@
 ;;; Loading indicator
 ;;;
 
-(def ignore-data-names #{:article/annotations
-                         :project/sources
-                         :project/important-terms-text
-                         :pdf/open-access-available?})
+(defn- ignore-data-names []
+  (->> (:data @ajax-db) (medley/filter-vals :hide-loading) keys set))
 
-(def ignore-action-names #{:sources/delete})
+(defn- ignore-action-names []
+  (->> (:action @ajax-db) (medley/filter-vals :hide-loading) keys set))
 
 (defn- any-data-for-indicator? []
-  (data-loading? nil :ignore ignore-data-names))
+  (data-loading? nil :ignore (ignore-data-names)))
 
 (defn- any-action-for-indicator? []
-  (action-running? nil :ignore ignore-action-names))
+  (action-running? nil :ignore (ignore-action-names)))
 
 (defn- any-loading-for-indicator?
   "Tests for any pending AJAX requests that should trigger display of

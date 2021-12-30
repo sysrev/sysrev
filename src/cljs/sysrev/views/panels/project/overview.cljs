@@ -250,7 +250,8 @@
                              result)})
   :on-error (fn [{:keys [db error]} [project-id] _]
               {:db (assoc-in db [:data :project project-id :important-terms-text]
-                             {:error error})}))
+                             {:error error})})
+  :hide-loading true)
 
 (reg-sub :project/important-terms-text
          (fn [[_ _ project-id]] (subscribe [:project/raw project-id]))
