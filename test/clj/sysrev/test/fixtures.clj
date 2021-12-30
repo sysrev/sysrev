@@ -18,11 +18,11 @@
               :nickname "Basic"
               :product "prod_CGogIJeUzLDpT5"
               :product-name "Basic"}
-             {:amount 1000
-              :id "plan_F9W1NG280yvot4"
-              :interval "month"
-              :nickname "Unlimited_User"
-              :product "prod_E5vx4t4aAix3Rn"
+             {:amount 0
+              :id "price_1JiMtNBnQHYQNUvu9WCddYgT"
+              :interval "year"
+              :nickname "Unlimited_Org_Annual_free"
+              :product "prod_E5w0gncEj2V07N"
               :product-name "Premium"}]}))
 
 (defn load-all-fixtures! [system]
