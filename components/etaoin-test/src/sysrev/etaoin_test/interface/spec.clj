@@ -10,7 +10,8 @@
 (s/def ::type keyword?)
 (s/def ::url string?)
 (s/def ::driver
-  (s/keys :req-un [::args ::capabilities ::headless ::host ::locator ::port ::type ::url]))
+  (s/keys :req-un [::args ::capabilities ::host ::locator ::port ::type ::url]
+          :opt-un [::headless]))
 ;; Example driver:
 #_{:args ("chromedriver" "--port=40547"),
    :capabilities {:chromeOptions {:args ("--window-size=1600,1000" "--headless"),
