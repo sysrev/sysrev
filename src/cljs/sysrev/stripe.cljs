@@ -52,8 +52,7 @@
              {:db (-> (panel-set db :need-card? false)
                       (panel-set    :error-message nil)
                       (panel-set    :form-disabled false))
-              :dispatch-n [[:plans/clear-error-message!]
-                           [:data/load [:user/default-source user-id]]]})
+              :dispatch-n [[:data/load [:user/default-source user-id]]]})
   :on-error (fn [{:keys [db error]} _ _]
               {:db (panel-set db :error-message (:message error))}))
 
