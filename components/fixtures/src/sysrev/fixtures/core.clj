@@ -44,10 +44,11 @@
   (let [db (or db @db/*active-db*)]
     (ensure-not-prod-db! (:config db))
     (doseq [[table records] (get-fixtures)]
-      (pg/execute!
-       (:datasource db)
-       {:insert-into table
-        :values records}))))
+      (when (seq records)
+        (pg/execute!
+         (:datasource db)
+         {:insert-into table
+          :values records})))))
 
 (defn wrap-fixtures [f]
   (let [config (-> (pg/get-config)
