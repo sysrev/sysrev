@@ -11,7 +11,7 @@
 
 (deftest ^:e2e test-happy-path-project-description
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [{:keys [user-id] :as user} (test/create-test-user)
+    (let [{:keys [user-id] :as user} (test/create-test-user system)
           {:keys [project]} (api/create-project-for-user!
                              "Markdown Test" user-id true)
           {:keys [project-id]} project

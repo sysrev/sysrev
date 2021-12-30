@@ -14,7 +14,7 @@
 (deftest ^:integration create-project-test
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
-          {:keys [email password]} (test/create-test-user)
+          {:keys [email password]} (test/create-test-user system)
           api-token (-> (handler
                          (-> (mock/request :get "/web-api/get-api-token")
                              (mock/query-string {:email email :password password})))
@@ -36,10 +36,10 @@
 (deftest ^:integration transfer-project-test
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
-          test-user (test/create-test-user)
-          user-foo (test/create-test-user)
-          user-baz (test/create-test-user)
-          user-quux (test/create-test-user)
+          test-user (test/create-test-user system)
+          user-foo (test/create-test-user system)
+          user-baz (test/create-test-user system)
+          user-quux (test/create-test-user system)
           group-name "Baz Business"
           group-id (:id (api/create-org! (:user-id user-baz) group-name))]
       ;; make test user is an admin
@@ -92,7 +92,7 @@
 (deftest ^:integration create-notification-test
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
-          test-user (test/create-test-user)
+          test-user (test/create-test-user system)
           ;; make test user an admin
           _ (user/set-user-permissions (:user-id test-user) ["user" "admin"])
           ;; login this user

@@ -81,12 +81,12 @@
 
 (deftest ^:bad project-query
   (test/with-test-system [system {}]
-    (let [{:keys [email user-id]} (test/create-test-user)
+    (let [{:keys [email user-id]} (test/create-test-user system)
           project-name  "Graphql - Project Query Test"
           {:keys [project-id]} (get (api/create-project-for-user! project-name user-id false)
                                     :project)
-          test-user-1 (test/create-test-user :email "user1@foo.bar")
-          test-user-2 (test/create-test-user :email "user2@foo.bar")
+          test-user-1 (test/create-test-user system :email "user1@foo.bar")
+          test-user-2 (test/create-test-user system :email "user2@foo.bar")
           include-label (-> (select :*)
                             (from :label)
                             (where [:and

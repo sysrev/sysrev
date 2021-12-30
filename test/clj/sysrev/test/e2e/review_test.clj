@@ -14,7 +14,7 @@
 
 (deftest ^:e2e test-disabled-required-label
   (e/with-test-resources [{:keys [driver system] :as test-resources}]
-    (let [{:keys [user-id] :as user} (test/create-test-user)
+    (let [{:keys [user-id] :as user} (test/create-test-user system)
           project-id (:project-id (project/create-project "Disabled Required Label"))]
       (member/add-project-member project-id user-id
                                  :permissions ["admin" "member"])

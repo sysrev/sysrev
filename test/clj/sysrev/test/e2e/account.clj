@@ -4,8 +4,6 @@
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
    [sysrev.etaoin-test.interface :as et]
-   [sysrev.payment.plans :as plans]
-   [sysrev.test.core :as test]
    [sysrev.test.e2e.core :as e]
    [sysrev.util :as util]))
 
@@ -42,14 +40,3 @@
                      :login-password-input password})
      (et/click-visible {:css "button[name='submit']"})
      (ea/wait-visible {:fn/has-text "Your Projects"}))))
-
-(defn change-user-plan! [{:keys [system]} user-id plan-nickname]
-  (let [plan (test/execute-one!
-              system
-              {:select :id
-               :from :stripe-plan
-               :where [:= :nickname plan-nickname]})]
-    (when-not plan
-      (throw (ex-info "Plan not found" {:nickname plan-nickname})))
-    (plans/add-user-to-plan! user-id (:stripe-plan/id plan) "fake_subscription")))
-

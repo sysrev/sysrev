@@ -12,6 +12,7 @@
    [sysrev.datasource.api :refer [ds-auth-key]]
    [sysrev.db.core :as db]
    [sysrev.main :as main]
+   [sysrev.payment.plans :as plans]
    [sysrev.postgres.interface :as pg]
    [sysrev.test.fixtures :as test-fixtures]
    [sysrev.user.interface :as user]
@@ -21,6 +22,18 @@
 (def test-dbname "sysrev_auto_test")
 
 (defonce test-system (atom nil))
+
+(defn execute! [system sqlmap]
+  (-> system :postgres :datasource
+      (pg/execute! sqlmap)))
+
+(defn execute-one! [system sqlmap]
+  (-> system :postgres :datasource
+      (pg/execute-one! sqlmap)))
+
+(defn plan [system sqlmap]
+  (-> system :postgres :datasource
+      (pg/plan sqlmap)))
 
 (defn sysrev-handler [system]
   (web/sysrev-handler (:web-server system)))
@@ -130,14 +143,25 @@
   ([pred timeout] `(wait-until* ~(pr-str pred) ~pred ~timeout))
   ([pred timeout interval] `(wait-until* ~(pr-str pred) ~pred ~timeout ~interval)))
 
-(defn create-test-user [& [{:keys [email password]
+(defn change-user-plan! [system user-id plan-nickname]
+  (let [plan (execute-one!
+              system
+              {:select :id
+               :from :stripe-plan
+               :where [:= :nickname plan-nickname]})]
+    (when-not plan
+      (throw (ex-info "Plan not found" {:nickname plan-nickname})))
+    (plans/add-user-to-plan! user-id (:stripe-plan/id plan) "fake_subscription")))
+
+(defn create-test-user [system
+                        & [{:keys [email password]
                             :or {email "browser+test@insilica.co"
                                  password (util/random-id)}}]]
   (let [[name domain] (str/split email #"@")
-        email (format "%s+%s@%s" name (util/random-id) domain)]
-    (assoc
-     (user/create-user email password)
-     :password password)))
+        email (format "%s+%s@%s" name (util/random-id) domain)
+        user (user/create-user email password)]
+    (change-user-plan! system (:user-id user) "Basic")
+    (assoc user :password password)))
 
 ;; from https://gist.github.com/cyppan/864c09c479d1f0902da5
 (defn parse-cookies
@@ -199,15 +223,3 @@
     (try (json/read-str body :key-fn keyword)
          (catch Exception _
            body))))
-
-(defn execute! [system sqlmap]
-  (-> system :postgres :datasource
-      (pg/execute! sqlmap)))
-
-(defn execute-one! [system sqlmap]
-  (-> system :postgres :datasource
-      (pg/execute-one! sqlmap)))
-
-(defn plan [system sqlmap]
-  (-> system :postgres :datasource
-      (pg/plan sqlmap)))

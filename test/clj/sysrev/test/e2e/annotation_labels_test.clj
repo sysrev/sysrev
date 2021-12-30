@@ -14,7 +14,7 @@
                                        :question "Is it?"
                                        :definition {:all-values ["EntityOne" "EntityTwo" "EntityThree"]}
                                        :required false}
-          user (test/create-test-user)
+          user (test/create-test-user system)
           project (:project
                    (api/create-project-for-user!
                     "Browser Test (annotation labels)" (:user-id user) true))]

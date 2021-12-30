@@ -33,7 +33,7 @@
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           route-response (route-response-fn handler)
-          {:keys [email password]} (test/create-test-user)]
+          {:keys [email password]} (test/create-test-user system)]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login"
                                   {:email email :password password})
@@ -57,7 +57,7 @@
     (let [handler (sysrev-handler system)
           search-term "foo bar"
           route-response (route-response-fn handler)
-          {:keys [email password]} (test/create-test-user)
+          {:keys [email password]} (test/create-test-user system)
           test-project-name (str test-project-name " " (util/random-id))]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login" {:email email :password password})
@@ -80,7 +80,7 @@
         ;; I would like a 'get-project' route
         ;;
         ;; deletion can't happen for a user who isn't part of the project
-        (let [non-member (test/create-test-user :email "non@member.com"
+        (let [non-member (test/create-test-user system :email "non@member.com"
                                              :password "nonmember")]
           (route-response :post "/api/auth/login" {:email (:email non-member)
                                                    :password (:password non-member)})
@@ -104,7 +104,7 @@
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           route-response (route-response-fn handler)
-          {:keys [email user-id password]} (test/create-test-user)
+          {:keys [email user-id password]} (test/create-test-user system)
           test-project-name (str test-project-name " " (util/random-id))]
       (is (integer? user-id))
       (user/set-user-permissions user-id ["user"])
@@ -134,8 +134,8 @@
     (let [handler (sysrev-handler system)
           search-term "foo bar"
           route-response (route-response-fn handler)
-          {:keys [email password]} (test/create-test-user)
-          new-user (test/create-test-user :email "baz@qux.com" :password "bazqux")
+          {:keys [email password]} (test/create-test-user system)
+          new-user (test/create-test-user system :email "baz@qux.com" :password "bazqux")
           test-project-name (str test-project-name " " (util/random-id))]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login"
@@ -208,7 +208,7 @@
 (deftest ^:integration delete-project-and-sources
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
-          {:keys [email password]} (test/create-test-user)
+          {:keys [email password]} (test/create-test-user system)
           route-response (route-response-fn handler)
           test-project-name (str test-project-name " " (util/random-id))]
       (let [_ (route-response :post "/api/auth/login" {:email email :password password})
@@ -309,8 +309,8 @@
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           route-response (route-response-fn handler)
-          test-user-a (test/create-test-user)
-          test-user-b (test/create-test-user)
+          test-user-a (test/create-test-user system)
+          test-user-b (test/create-test-user system)
           project-name "Clone SRC Test"
           test-project-name (str project-name " " (util/random-id))]
       ;; login this user
@@ -340,8 +340,8 @@
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           route-response (route-response-fn handler)
-          test-user-a (test/create-test-user)
-          test-user-b (test/create-test-user)
+          test-user-a (test/create-test-user system)
+          test-user-b (test/create-test-user system)
           project-name "Clone SRC Test"
           test-project-name (str project-name " " (util/random-id))
           test-org "Alpha Org"

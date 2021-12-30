@@ -25,15 +25,15 @@
 
 (deftest ^:e2e label-blinding
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [user1 (test/create-test-user)
-          user2 (test/create-test-user)
+    (let [user1 (test/create-test-user system)
+          user2 (test/create-test-user system)
           {:keys [project]} (api/create-project-for-user!
                              "Sysrev Browser Test (label blinding)"
                              (:user-id user1)
                              true)
           {:keys [project-id]} project]
+      (test/change-user-plan! system (:user-id user1) "Unlimited_Org_Annual_free")
       (doto test-resources
-        (account/change-user-plan! (:user-id user1) "Unlimited_User")
         (account/log-in user1)
         ;; set the project setting for label blinding to true
         (change-project-label-blinding! project-id true))

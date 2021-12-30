@@ -14,7 +14,7 @@
 
 (deftest ^:stripe happy-path-enable
   (e/with-test-resources [{:keys [driver system] :as test-resources}]
-    (let [{:keys [user-id] :as user} (test/create-test-user)
+    (let [{:keys [user-id] :as user} (test/create-test-user system)
           api-key (-> user :email user-by-email :api-token)]
       (account/log-in test-resources user)
       (doto driver
@@ -36,7 +36,7 @@
                  first
                  :message)))
       ;; user adds a valid stripe card
-      (account/change-user-plan! test-resources user-id "Unlimited_User")
+      (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
       (doto driver
         ;; user toggles their dev account
         (et/click-visible :user-name-link)
@@ -57,13 +57,13 @@
 
 (deftest ^:stripe account-mutation-tests
   (e/with-test-resources [{:keys [driver system] :as test-resources}]
-    (let [user (test/create-test-user)
+    (let [user (test/create-test-user system)
           api-key (-> user :email user-by-email :api-token)
           new-email (-> (str/split (:email user) #"@") first (str "+alpha@example.com"))
           user-id (:user-id (user-by-email (:email user)))]
       (account/log-in test-resources user)
       ;; change plan and enable dev account
-      (account/change-user-plan! test-resources user-id "Unlimited_User")
+      (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
       (et/click-visible :user-name-link)
       (et/click-visible :user-settings)
       (et/click-visible "//input[@id='enable-dev-account']/..")
@@ -116,7 +116,7 @@
                                                  :password (str/reverse password)}})]
         (is (get-in login-resp [:cookies "token" :value])))
       ;; disable pro account
-      (account/change-user-plan! test-resources user-id "Basic")
+      (test/change-user-plan! system user-id "Basic")
       ;; make sure sysrev graphql access is disabled
       (is (= "user does not have a have pro account"
              (-> (graphql-request [[:__schema [[:mutationType [[:fields [:name]]]]]]]

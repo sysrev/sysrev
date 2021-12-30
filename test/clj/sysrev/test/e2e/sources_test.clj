@@ -12,7 +12,7 @@
 (deftest ^:e2e pdf-files
   (e/with-test-resources [{:keys [driver system] :as test-resources}]
     (testing "PDF imports work"
-      (let [user (test/create-test-user)
+      (let [user (test/create-test-user system)
             res-path "test-files/test-pdf-import"
             files (for [f (fs/list-dir (io/resource res-path))]
                     (str res-path "/" (fs/base-name f)))]
