@@ -1,4 +1,4 @@
 {:paths ["src" "resources"]
- :deps {org.flywaydb/flyway-core {:mvn/version "7.9.1"}}
+ :deps {org.flywaydb/flyway-core {:mvn/version "8.2.0"}}
  :aliases {:test {:extra-paths ["test"]
                   :extra-deps {}}}}

@@ -11,8 +11,6 @@ function check_deps () {
     (echo -e "\nError: npm not found (install Node/NPM on system)" && false)
   lessc -v > /dev/null ||
     (echo -e "\nError: lessc not found ('sudo npm install -g less')" && false)
-  gulp -v > /dev/null ||
-    (echo -e "\nError: gulp not found ('sudo npm install -g gulp')" && false)
   md5sum --version > /dev/null ||
     (echo -e "\nError: md5sum not found (install system package)" && false)
   echo "done"

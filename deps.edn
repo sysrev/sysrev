@@ -79,7 +79,7 @@
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
         medley/medley {:mvn/version "1.3.0"}
-        org.flywaydb/flyway-core {:mvn/version "8.0.1"}
+        org.flywaydb/flyway-core {:mvn/version "8.2.0"}
 
         poly/config {:local/root "components/config"}
         poly/datapub-client {:local/root "components/datapub-client"}

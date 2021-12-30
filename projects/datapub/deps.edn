@@ -32,7 +32,7 @@
         org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.42.v20210604"}
         org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
         org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
-        org.flywaydb/flyway-core {:mvn/version "8.0.1"}
+        org.flywaydb/flyway-core {:mvn/version "8.2.0"}
         org.postgresql/postgresql {:mvn/version "42.2.24"}
         sysrev/config {:local/root "../../components/config"}
         sysrev/file-util {:local/root "../../components/file-util"}
