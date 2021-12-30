@@ -290,7 +290,7 @@
                     :inline "centered"}]]
           changing-interval?
           [UpgradePlan (subscribe [:user/available-plans])]
-          (= (:nickname current-plan) "Basic")
+          (or (nil? current-plan) (= (:nickname current-plan) "Basic"))
           [UpgradePlan (subscribe [:user/available-plans])]
           (plans-info/pro? (:nickname current-plan))
           [DowngradePlan]
