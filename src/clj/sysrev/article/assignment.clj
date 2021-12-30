@@ -4,6 +4,7 @@
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
+            [clj-http.client :as http]
             [sysrev.util :as util]))
 
 (defn record-last-assigned
@@ -33,10 +34,10 @@
       (from [(q/find-article {:project-id project-id} [:article-id :last-assigned]
                              :where [:and
                                      (q/exists      [:article-label :al]
-                                                    {:al.article-id :a.article-id})
+                                               {:al.article-id :a.article-id})
                                      (q/not-exists  [:article-label :al]
-                                                    {:al.article-id :a.article-id
-                                                     :al.user-id user-id})]
+                                                   {:al.article-id :a.article-id
+                                                    :al.user-id user-id})]
                              :with [], :limit 50, :return :query) :ul])
       (order-by [:last-assigned :nulls-first] :%random)
       (limit 1) do-query first :article-id))
@@ -107,7 +108,7 @@
   [project-id]
   (query-any-unlabeled-article project-id))
 
-(defn get-user-label-task [project-id user-id]
+(defn get-user-label-task-internal [project-id user-id]
   (let [{:keys [second-review-prob unlimited-reviews]
          :or   {second-review-prob 0.5
                 unlimited-reviews false}} (project/project-settings project-id)
@@ -130,3 +131,27 @@
                               [fallback :unreviewed]))]
     (when (and article-id status)
       {:article-id article-id :today-count today-count})))
+
+(defn get-user-label-task-external [project-id user-id custom-prioritization-url]
+  (let [today-count (user-confirmed-today-count project-id user-id)
+        response (-> (http/get custom-prioritization-url
+                               {:query-params {:pid project-id
+                                               :uid user-id}
+                                :as :json})
+                     :body)
+        article-id (->
+                     (select :article-id)
+                     (from :article)
+                     (where [:= :article-id (first (:aid response))])
+                     (limit 1) do-query first :article-id)]
+    (when article-id
+      {:article-id article-id :today-count today-count})))
+
+(defn get-user-label-task [project-id user-id]
+  (let [project-settings (project/project-settings project-id)]
+    (or
+      (when-let [custom-prioritization-url (:custom-prioritization-url project-settings)]
+        (try
+          (get-user-label-task-external project-id user-id custom-prioritization-url)
+          (catch Exception _ nil)))
+      (get-user-label-task-internal project-id user-id))))
