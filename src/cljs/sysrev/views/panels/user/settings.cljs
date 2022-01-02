@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.user.settings
-  (:require [ajax.core :refer [PUT]]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.data.core :as data :refer [def-data]]
             [sysrev.action.core :as action :refer [def-action]]
@@ -188,53 +187,50 @@
                  :on-click #(dispatch [:action [:user/set-public-reviewer
                                                 user-id (not enabled)]])}]]))))
 
+(def-action :user/developer-enable
+  :method   :put
+  :uri      (fn [user-id _] (format "/api/user/%d/developer/enable" user-id))
+  :content  (fn [_ enabled] {:enabled? enabled})
+  :process  (fn [_ _ _]
+              {:dispatch-n [[:fetch [:identity]]
+                            [::set [:developer-enable-error] nil]]})
+  :on-error (fn [{:keys [error]} _ _]
+              {:dispatch-n [[:fetch [:identity]]
+                            [::set [:developer-enable-error] (:message error)]]}))
+
 (defn EnableDevAccount []
-  (let [enabled? (subscribe [:user/dev-account-enabled?])
-        loading? (r/atom true)
-        plan (subscribe [:user/current-plan])
-        user-id @(subscribe [:self/user-id])
-        error-message (r/atom "")
-        toggle-dev-account! (fn [enabled?]
-                              (reset! loading? true)
-                              (PUT (str "/api/user/" user-id "/developer/enable")
-                                   {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                    :params {:enabled? (not @enabled?)}
-                                    :handler (fn [{:keys [result]}]
-                                               (reset! loading? false)
-                                               (dispatch [:fetch [:identity]]))
-                                    :error-handler (fn [error-response]
-                                                     (reset! loading? false)
-                                                     (dispatch [:fetch [:identity]])
-                                                     (reset! error-message (str "There was an error: " (get-in error-response [:response :error :message]))))}))]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        [Segment
-         [Header {:as "h4" :dividing true} "Enable Developer Account"]
-         (when @enabled?
-           [:div
-            [:p "API Key: " [:b @(subscribe [:user/api-key])]]
-            [:p "You can login at " [:a {:href "https://datasource.insilica.co" :target "_blank"} "datasource.insilica.co"] " using " [:b @(subscribe [:self/email])] " and your SysRev password."]])
-         (when (not @enabled?)
-           [:div
-            [:p "A developer account allows full access to SysRev and Datasource, the underlying data backend. Create your own custom datasources and import them using the SysRev and Datasource GraphQL interface."]])
-         [:div
-          [:br]
-          [:p "In addition to the SysRev and Datasource GraphQL interface, we provide an " [:a {:href "https://github.com/sysrev/RSysrev" :target "_blank"} "R library"] "."]
-          [:br]]
-         (when (and (not (plans-info/pro? (:nickname @plan)))
-                    (not @enabled?))
-           [:p [:b "Developer Accounts can only be activated by paid subscribers"]])
-         [Radio {:toggle true
-                 :id "enable-dev-account"
-                 :label "Developer Account"
-                 :checked @enabled?
-                 :disabled (not (plans-info/pro? (:nickname @plan)))
-                 :on-click (fn [_e] (toggle-dev-account! enabled?))}]
-         [ui/CursorMessage error-message {:negative true}]])
-      :get-initial-state (fn [_this]
-                           (reset! loading? true)
-                           nil)})))
+  (let [user-id @(subscribe [:self/user-id])
+        email @(subscribe [:self/email])
+        enabled @(subscribe [:user/dev-account-enabled?])
+        plan @(subscribe [:user/current-plan])
+        error-message (r/cursor state [:developer-enable-error])
+        form-disabled? (and (not (plans-info/pro? (:nickname plan)))
+                            (not @(subscribe [:user/dev?])))]
+    [Segment
+     [Header {:as "h4" :dividing true} "Enable Developer Account"]
+     (when enabled
+       [:p "API Key: " [:b @(subscribe [:user/api-key])]])
+     (when enabled
+       [:p "You can login at "
+        [:a {:href "https://datasource.insilica.co" :target "_blank"} "datasource.insilica.co"]
+        " using " [:b email] " and your SysRev password."])
+     (when-not enabled
+       [:p "Create your own custom datasources and import them using the SysRev and Datasource GraphQL interface."])
+     (when-not enabled
+       [:p "A developer account allows full access to SysRev and Datasource, the underlying data backend."])
+     [:p "In addition to the SysRev and Datasource GraphQL interface, we provide an "
+      [:a {:href "https://github.com/sysrev/RSysrev" :target "_blank"} "R library"] "."]
+     (when (and (not (plans-info/pro? (:nickname plan)))
+                (not enabled))
+       [:p [:b "Developer Accounts can only be activated by paid subscribers."]])
+     [Radio {:toggle true
+             :id "enable-dev-account"
+             :label "Developer Account"
+             :checked enabled
+             :disabled form-disabled?
+             :on-click (when-not form-disabled?
+                         #(dispatch [:action [:user/developer-enable user-id (not enabled)]]))}]
+     [ui/CursorMessage error-message {:negative true}]]))
 
 (defn- UserSettings [{:keys [user-id]}]
   [Grid {:class "user-settings" :stackable true :columns 2}

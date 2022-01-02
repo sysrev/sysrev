@@ -146,6 +146,9 @@
                  :returning [:user-id :permissions])
        (finally (clear-user-cache user-id))))
 
+(defn dev-user? [user-id]
+  (some-> (q/get-user user-id :permissions) (-> (in? "admin") boolean)))
+
 (defn valid-password? [email password-attempt]
   (let [entry (user-by-email email)
         encrypted-password (:pw-encrypted-buddy entry)]

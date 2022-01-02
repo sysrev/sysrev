@@ -45,6 +45,9 @@
 (defn delete-user-by-email [email]
   (user/delete-user-by-email email))
 
+(defn dev-user? [user-id]
+  (user/dev-user? user-id))
+
 (defn email-verify-code
   "Return the verification code for this user-id and email, if one exists."
   [user-id email]
