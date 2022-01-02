@@ -1,13 +1,15 @@
 (ns sysrev.views.panels.user.settings
-  (:require [ajax.core :refer [GET PUT]]
+  (:require [ajax.core :refer [PUT]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [sysrev.data.core :as data :refer [def-data]]
+            [sysrev.action.core :as action :refer [def-action]]
             [sysrev.views.semantic :as S :refer
              [Segment Header Grid Column Radio Message]]
             [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.components.core :as ui]
-            [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.util :as util :refer [parse-integer format]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -148,59 +150,43 @@
          {:on-click #(dispatch [:action [:user/delete-account user-id]])}
          "Delete Account"]]])))
 
+(def-data :user/public-reviewer
+  :uri      (fn [user-id] (format "/api/user/%d/groups/public-reviewer/active" user-id))
+  :loaded?  (fn [db user-id] (-> (get-in db [:data :user-public-reviewer])
+                                 (contains? user-id)))
+  :process  (fn [{:keys [db]} [user-id] {:keys [enabled]}]
+              {:db (assoc-in db [:data :user-public-reviewer user-id] (boolean enabled))}))
+
+(reg-sub :user/public-reviewer
+         (fn [db [_ user-id]]
+           (get-in db [:data :user-public-reviewer user-id])))
+
+(def-action :user/set-public-reviewer
+  :method   :put
+  :uri      (fn [user-id _] (format "/api/user/%d/groups/public-reviewer/active" user-id))
+  :content  (fn [_ enabled] {:enabled enabled})
+  :process  (fn [_ [user-id _] _] {:dispatch [:data/load [:user/public-reviewer user-id]]}))
+
 (defn- PublicReviewerOptIn []
-  (let [active? (r/atom nil)
-        loading? (r/atom true)
-        user-id @(subscribe [:self/user-id])
-        error-message (r/atom "")
-        ;; TODO: get this value from identity request instead (way
-        ;; easier, available everywhere)
-        get-opt-in
-        (fn []
-          (reset! loading? true)
-          (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
-               {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                :handler (fn [{:keys [result]}]
-                           (reset! active? (:enabled result))
-                           (reset! loading? false))
-                :error-handler (fn [_]
-                                 (reset! loading? false)
-                                 (reset! error-message "There was an error retrieving opt-in status"))}))
-        put-opt-in!
-        (fn []
-          (reset! loading? true)
-          (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
-               {:params {:enabled (not @active?)}
-                :format :transit
-                :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                :handler (fn [{:keys [result]}]
-                           (reset! active? (:enabled result))
-                           (reset! loading? false))
-                :error-handler (fn [_]
-                                 (reset! loading? false)
-                                 (reset! error-message "There was an error when setting opt-in status"))}))]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        (let [verified @(subscribe [:self/verified])]
-          (when-not (nil? @active?)
-            [Segment
-             [Header {:as "h4" :dividing true} "Public Reviewer Opt In"]
-             (when-not verified
-               [Message {:warning true}
-                [:a {:href (str "/user/" @(subscribe [:self/user-id]) "/email")}
-                 "Your email address is not yet verified."]])
-             [Radio {:toggle true
-                     :id "opt-in-public-reviewer"
-                     :label "Publicly Listed as a Paid Reviewer"
-                     :checked @active?
-                     :disabled (or (not verified) @loading?)
-                     :on-change (fn [_e] (put-opt-in!))}]
-             [ui/CursorMessage error-message {:negative true}]])))
-      :get-initial-state
-      (fn [_this]
-        (reset! loading? true)
-        (get-opt-in))})))
+  (when-let [user-id @(subscribe [:self/user-id])]
+    (with-loader [[:user/public-reviewer user-id]] {}
+      (let [enabled @(subscribe [:user/public-reviewer user-id])
+            verified @(subscribe [:self/verified])
+            loading? (or (data/loading? :user/public-reviewer)
+                         (action/running? :user/set-public-reviewer))]
+        [Segment
+         [Header {:as "h4" :dividing true} "Public Reviewer Opt In"]
+         (when-not verified
+           [Message {:warning true}
+            [:a {:href (str "/user/" user-id "/email")}
+             "Your email address is not yet verified."]])
+         [Radio {:toggle true
+                 :id "opt-in-public-reviewer"
+                 :label "Publicly Listed as a Paid Reviewer"
+                 :checked enabled
+                 :disabled (or (not verified) loading?)
+                 :on-click #(dispatch [:action [:user/set-public-reviewer
+                                                user-id (not enabled)]])}]]))))
 
 (defn EnableDevAccount []
   (let [enabled? (subscribe [:user/dev-account-enabled?])
