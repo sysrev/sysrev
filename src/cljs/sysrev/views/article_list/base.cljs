@@ -232,7 +232,8 @@
 (reg-event-fx ::navigate [trim-v]
               (fn [{:keys [db]} [context & {:keys [article-id redirect?]}]]
                 {:nav [(get-nav-url db context article-id)
-                       :redirect redirect?]}))
+                       :redirect redirect?
+                       :top false]}))
 
 (reg-event-fx :article-list/load-url-params [trim-v]
               (fn [{:keys [db]} [context]]
