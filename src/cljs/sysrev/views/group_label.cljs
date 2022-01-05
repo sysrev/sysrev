@@ -228,13 +228,14 @@
                        (sequential? answer) answer
                        :else                [answer]))
         project-id @(subscribe [:active-project-id])
-        definition @(subscribe [:label/definition root-label-id label-id project-id])
+        definition @(subscribe [::label/definition root-label-id label-id project-id])
         validatable-label? (:validatable-label? definition)
         valid-id? (or (not validatable-label?)
                       @(subscribe [:review/valid-id? root-label-id label-id]))
         valid? (and (valid-answer? root-label-id label-id answer)
+                    valid-id?
                     @(subscribe [:label/valid-string-value?
-                                 root-label-id label-id val]))]
+                                 root-label-id label-id answer]))]
     [:div {:class (when color (str color "-text"))
            :style {:text-align "center"}}
      (cond (not valid?)
