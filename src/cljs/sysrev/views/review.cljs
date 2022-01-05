@@ -26,6 +26,17 @@
 
 (reg-event-fx :review/set-label-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
+                (try
+                  (->
+                    (js/fetch (str "https://resolver.api.identifiers.org/" (js/encodeURIComponent label-value)))
+                    (.then (fn [res]
+                             (-> (.json ^js res)
+                                 (.then (fn [data-aux]
+                                          (let [data (js->clj data-aux :keywordize-keys true)
+                                                valid-id? (seq (get-in data [:payload :resolvedResources]))]
+                                            (dispatch [::validate-value-id root-label-id label-id valid-id?]))))))))
+                  (catch js/Error _e
+                    (dispatch [::validate-value-id root-label-id label-id false])))
                 {:db (set-label-value db article-id root-label-id label-id ith label-value)
                  :fx [[:dispatch
                        [:review/record-reviewer-event
