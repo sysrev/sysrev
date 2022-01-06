@@ -261,7 +261,7 @@
            driver#
            (with-postmortem driver# {:dir "/tmp/sysrev/etaoin"}
              (let [~driver-sym driver#
-                   result# ~@body]
+                   result# (do ~@body)]
                (check-browser-console-clean driver#)
                result#)))))
      (log/info "In a remote environment etaoin browser tests are not run")))
