@@ -36,8 +36,7 @@
         e/wait-until-loading-completes
         ;; Enter description markdown
         (et/is-click-visible create-description-button)
-        (et/is-wait-visible description-input)
-        (ea/fill description-input description-first)
+        (et/is-fill-visible description-input description-first)
         ;; Save description
         (et/is-click-visible save-button)
         ;; Check that the markdown exists
@@ -45,10 +44,9 @@
         (et/is-wait-visible "//h2[contains(text(),'baz qux')]")
         ;; Edit the markdown
         (et/is-click-visible edit-icon)
-        (et/is-wait-visible description-input)
         ;; Make sure textarea contains the previously saved markdown
         (et/is-wait-visible (str "//textarea[text()='" description-first "']"))
-        (ea/fill description-input description-edit)
+        (et/is-fill-visible description-input description-edit)
         (et/is-click-visible save-button)
         (et/is-wait-visible "//h1[contains(text(),'foo bar')]")
         (et/is-wait-visible "//p[contains(text(),'quxx quzz corge')]")

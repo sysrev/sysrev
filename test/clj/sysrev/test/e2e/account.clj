@@ -18,11 +18,10 @@
         email (format "%s+%s@%s" name (util/random-id) domain)]
     (e/go test-resources "/register")
     (doto driver
-      (e/wait-exists :login-email-input)
-      (ea/fill-multi {:login-email-input email
-                      :login-password-input password})
+      (et/fill-visible :login-email-input email)
+      (et/fill-visible :login-password-input password)
       (et/click-visible "//button[contains(text(),'Register')]")
-      (e/wait-exists :new-project))
+      (ea/wait-visible :new-project))
     {:email email :password password}))
 
 (defn log-out [{:keys [driver]}]
@@ -35,8 +34,7 @@
    (log/info "logging in" (str "(" email ")"))
    (doto driver
      (ea/go (e/absolute-url system "/login"))
-     (ea/wait-exists :login-email-input)
-     (ea/fill-multi {:login-email-input email
-                     :login-password-input password})
+     (et/fill-visible :login-email-input email)
+     (et/fill-visible :login-password-input password)
      (et/click-visible {:css "button[name='submit']"})
      (ea/wait-visible {:fn/has-text "Your Projects"}))))

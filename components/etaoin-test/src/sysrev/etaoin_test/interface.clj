@@ -9,23 +9,54 @@
   Uses the Ctrl-Home, Ctrl-Shift-End, Delete key sequence to clear the
   input in order to ensure that event handlers are fired. Use
   `etaoin.api/clear` if you need to clear an element without keypresses and
-  don't care about event handlers."
+  don't care about event handlers.
+
+  Arguments:
+
+  - `driver`: a etaoin driver instance
+  - `q`: a query term (see `etaoin.api/query`)
+  - `more-qs`: additional query terms, if clearing multiple inputs"
   [driver q & more-qs]
   (apply core/clear driver q more-qs))
 
 (defn click
   "Clicks on an element.
 
-  Automatically retries when a stale element reference exception is thrown."
+  Automatically retries when a stale element reference exception is thrown.
+
+  Arguments:
+
+  - `driver`: a etaoin driver instance
+  - `q`: a query term (see `etaoin.api/query`)"
   [driver q]
   (core/click driver q))
 
 (defn click-visible
   "Waits until an element becomes visible, then clicks on it.
 
-  Automatically retries when a stale element reference exception is thrown."
+  Automatically retries when a stale element reference exception is thrown.
+
+  Arguments:
+
+  - `driver`: a etaoin driver instance
+  - `q`: a query term (see `etaoin.api/query`)
+  - `opt`: a map of options (see `etaoin.api/wait-predicate`)"
   [driver q & opt]
   (core/click-visible driver q opt))
+
+(defn fill-visible
+  "Waits until an input becomes visible, then adds text to it.
+
+  Automatically retries when a stale element reference exception is thrown.
+
+  Arguments:
+
+  - `driver`: a etaoin driver instance
+  - `q`: a query term (see `etaoin.api/query`)
+  - `text`: A String to add to the input element, or nil
+  - `opt`: a map of options (see `etaoin.api/wait-predicate`)"
+  [driver q text & [opt]]
+  (core/fill-visible driver q text opt))
 
 (defmacro is-click-visible
   "Asserts that `click-visible` succeeds.
@@ -39,10 +70,12 @@
   [driver q & more]
   `(core/is-exists? ~driver ~q ~@more))
 
-(defmacro is-visible?
-  "Asserts that `etaoin.api/visible?` returns true."
-  [driver q & more]
-  `(core/is-visible? ~driver ~q ~@more))
+(defmacro is-fill-visible
+  "Asserts that `fill-visible` succeeds.
+
+  Catches etaoin timeout exceptions and causes a test failure instead."
+  [driver q text & [opt]]
+  `(core/is-fill-visible ~driver ~q ~text ~opt))
 
 (defmacro is-not-exists?
   "Asserts that `etaoin.api/exists?` returns false."
@@ -77,6 +110,11 @@
     (is-pred etaoin.api/exists? :id2))"
   [driver pred & args]
   `(core/is-pred ~driver ~pred ~@args))
+
+(defmacro is-visible?
+  "Asserts that `etaoin.api/visible?` returns true."
+  [driver q & more]
+  `(core/is-visible? ~driver ~q ~@more))
 
 (defmacro is-wait-exists
   "Asserts that `etaoin.api/wait-exists` succeeds.

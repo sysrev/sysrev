@@ -41,12 +41,11 @@
                 xpath)
         field-path #(xpath/field-input-xpath xpath (str "field-" %))]
     (doto driver
-      (ea/wait-visible (field-path "short-label"))
-      (ea/fill (field-path "short-label") short-label)
+      (et/fill-visible (field-path "short-label") short-label)
       (set-checkbox-button (field-path "required") required)
       (set-checkbox-button (field-path "consensus") consensus)
-      (ea/fill (field-path "question") question)
-      (ea/fill (field-path "all-values") (str/join "," all-values)))
+      (et/fill-visible (field-path "question") question)
+      (et/fill-visible (field-path "all-values") (str/join "," all-values)))
     (ea/wait-predicate #(= (ea/get-element-value driver (field-path "all-values"))
                            (str/join "," all-values)))))
 

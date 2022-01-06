@@ -52,7 +52,7 @@
 (defn create-project-org! [driver project-name]
   (doto driver
     (et/click-visible {:css "#new-project.button"})
-    (ea/fill {:css "#create-project .project-name input"} project-name)
+    (et/fill-visible {:css "#create-project .project-name input"} project-name)
     (et/click-visible "//button[contains(text(),'Create Project')]")
     e/wait-until-loading-completes))
 
@@ -87,8 +87,7 @@
         (doto driver
           (et/is-click-visible :user-name-link)
           (et/is-click-visible :user-orgs)
-          (et/is-wait-visible :create-org-input)
-          (ea/fill :create-org-input org-1-name)
+          (et/fill-visible :create-org-input org-1-name)
           (et/is-click-visible :create-org-button)
           (et/is-wait-visible {:css "#new-project.button"}))
         (is (some #{"owner"} (user-group-permission user-id org-1-name))))
@@ -152,7 +151,7 @@
           (et/is-click-visible :user-name-link)
           (et/is-click-visible :user-orgs)
           (et/is-wait-visible :create-org-input)
-          (ea/fill :create-org-input org-1-name)
+          (et/fill-visible :create-org-input org-1-name)
           (et/is-click-visible :create-org-button)
           (et/is-wait-visible (q/error-message (str "An organization with the name '" org-1-name "' already exists.")))))
       (testing "blank orgs can't be created"

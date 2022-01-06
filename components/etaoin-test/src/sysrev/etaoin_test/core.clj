@@ -49,6 +49,19 @@
   :args (s/cat :driver ::spec/driver :q ::spec/query :opt (s/? (s/nilable map?)))
   :ret nil?)
 
+(defn fill-visible [driver q text & [opt]]
+  (retry-stale-element #(doto driver
+                          (ea/wait-visible q opt)
+                          (ea/fill q text)))
+  nil)
+
+(s/fdef fill-visible
+  :args (s/cat :driver ::spec/driver
+               :q ::spec/query
+               :text (s/nilable string?)
+               :opt (s/? (s/nilable map?)))
+  :ret nil?)
+
 (defmacro is-catch-timeout [& body]
   `(is
     (try
@@ -90,3 +103,7 @@
 (defmacro is-click-visible [driver q & [opt]]
   `(is-catch-timeout
     (click-visible ~driver ~q ~opt)))
+
+(defmacro is-fill-visible [driver q & [opt]]
+  `(is-catch-timeout
+    (fill-visible ~driver ~q ~opt)))

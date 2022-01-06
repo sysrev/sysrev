@@ -25,8 +25,7 @@
       (doto driver
         ea/refresh
         ;; create the private project
-        (et/is-wait-visible {:css "#create-project .project-name input"})
-        (ea/fill {:css "#create-project .project-name input"} "SysRev Browser Test (test-user-create-new)")
+        (et/is-fill-visible {:css "#create-project .project-name input"} "SysRev Browser Test (test-user-create-new)")
         (et/is-click-visible (str "//p[contains(text(),'Private')]"
                                   "/ancestor::div[contains(@class,'row')]"
                                   "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
@@ -49,8 +48,8 @@
         (et/is-click-visible (str "//a[text()='" group-name "']"))
         (et/is-click-visible :new-project)
         ;; create the private project
-        (ea/fill {:css "#create-project .project-name input"}
-                 "SysRev Browser Test (test-group-create-new)")
+        (et/is-fill-visible {:css "#create-project .project-name input"}
+                            "SysRev Browser Test (test-group-create-new)")
         (et/is-click-visible (str "//p[contains(text(),'Private')]"
                                   "/ancestor::div[contains(@class,'row')]"
                                   "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))

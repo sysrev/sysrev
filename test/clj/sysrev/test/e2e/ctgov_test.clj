@@ -30,7 +30,6 @@
       (testing "Imported articles can be searched for in the project"
         (doto driver
           (ea/go (e/absolute-url system "/u/1000001/p/1200001/articles"))
-          (ea/wait-visible {:id :article-search})
-          (ea/fill {:id :article-search} article-title)
+          (et/is-fill-visible {:id :article-search} article-title)
           (et/is-wait-visible {:fn/has-class "article-title"
                                :fn/has-text article-title}))))))
