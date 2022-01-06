@@ -1,4 +1,4 @@
-(ns sysrev.test.e2e.project-creation-test
+(ns sysrev.test.e2e.project-test
   (:require
    [clojure.test :refer :all]
    [etaoin.api :as ea]
@@ -7,6 +7,7 @@
    [sysrev.test.core :as test]
    [sysrev.test.e2e.account :as account]
    [sysrev.test.e2e.core :as e]
+   [sysrev.test.e2e.project :as project]
    [sysrev.util :as util]))
 
 (deftest ^:e2e test-user-create-new
@@ -57,3 +58,28 @@
         ;; is this project private?
         (et/is-wait-visible {:css "i.grey.lock"})
         (et/is-wait-visible "//span[contains(text(),'Private')]")))))
+
+(deftest ^:e2e test-private-project-downgrade
+  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+    (let [{:keys [user-id] :as user} (test/create-test-user system)
+          project-name (str "Baz Qux " (util/random-id))]
+      (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
+      (account/log-in test-resources user)
+      (project/create-project! test-resources project-name)
+      (doto driver
+        (et/is-click-visible {:fn/has-text "Settings"})
+        (et/is-click-visible :public-access_private)
+        (et/is-click-visible :save-options)
+        e/wait-until-loading-completes)
+      (testing "paywall is in place for private projects after user downgrades plan"
+        (test/change-user-plan! system user-id "Basic")
+        (doto driver
+          ea/refresh
+          (et/is-wait-visible {:fn/has-text "This private project is currently inaccessible"})
+          ;; this is a user project, should link to /user/plans
+          (et/is-wait-visible "//a[contains(@href,'/user/plans')]")))
+      (testing "making project public again works"
+        (doto driver
+          (et/is-click-visible {:fn/has-class :set-publicly-viewable})
+          (et/is-click-visible {:fn/has-class :confirm-cancel-form-confirm})
+          (et/is-wait-visible {:fn/has-text "Label Definitions"}))))))
