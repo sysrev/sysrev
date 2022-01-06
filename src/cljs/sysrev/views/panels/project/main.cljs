@@ -30,12 +30,15 @@
       (when project-owner
         [:span
          [:a {:href (or (some-> (:user-id project-owner) user-uri)
-                        (some-> (:group-id project-owner) group-uri))}
+                        (some-> (:group-id project-owner) group-uri))
+              :id :project-title-group-link}
           (if (:user-id project-owner)
             @(subscribe [:user/username (:user-id project-owner)])
             (:name project-owner))]
          [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
-      [:a {:href (project-uri nil "")} project-name]]
+      [:a {:href (project-uri nil "")
+           :id :project-title-project-link}
+       project-name]]
      (when parent-project
        [:div {:style {:margin-top "0.5rem"
                       :font-size "0.9rem"}}
@@ -60,7 +63,8 @@
             logged-in? @(subscribe [:self/logged-in?])
             access-button (fn [content]
                             [:button.ui.tiny.button.project-access
-                             {:on-click (when @(subscribe [:user/project-admin?])
+                             {:id :project-privacy-button
+                              :on-click (when @(subscribe [:user/project-admin?])
                                           #(nav/nav (project-uri nil "/settings")))}
                              content])
             access-label (if public?

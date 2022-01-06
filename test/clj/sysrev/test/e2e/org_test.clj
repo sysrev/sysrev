@@ -3,6 +3,7 @@
    [clojure.string :as str]
    [clojure.test :refer :all]
    [etaoin.api :as ea]
+   [sysrev.api :as api]
    [sysrev.etaoin-test.interface :as et]
    [sysrev.group.core :as group]
    [sysrev.test.core :as test]
@@ -121,7 +122,9 @@
       (testing "an owner can create projects for that org"
         (doto driver
           (et/is-click-visible :org-projects)
-          (create-project-org! org-1-project-name)))
+          (et/is-click-visible :new-project)
+          (et/is-fill-visible {:css "#create-project .project-name input"} org-1-project-name)
+          (et/is-click-visible {:fn/has-text "Create Project"})))
       (testing "admins cannot create projects for that org"
         (doto driver
           (switch-to-org! org-2-name)
@@ -154,4 +157,50 @@
           (et/clear :create-org-input)
           (et/click-visible :create-org-button)
           (et/is-wait-visible (q/error-message "Organization names can't be blank")))))))
+
+(deftest ^:e2e test-private-setting-disabled
+  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+    (let [{:keys [user-id] :as user} (test/create-test-user system)
+          org-name (str "Foo Bar Inc. " (util/random-id))
+          org-id (create-org! test-resources org-name user-id)
+          project-name (str "Foo Bar Article Reviews " (util/random-id))]
+      (account/log-in test-resources user)
+      (e/go test-resources (str "/org/" org-id "/projects"))
+      (testing "private setting is disabled"
+        (doto driver
+          (create-project-org! project-name)
+          (et/is-click-visible :project-privacy-button)
+          (et/is-wait-visible {:fn/has-class :disabled
+                               :id :public-access_private}))))))
+
+(deftest ^:e2e test-private-projects
+  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+    (let [{:keys [user-id] :as user} (test/create-test-user system)
+          org-name (str "Foo Bar Inc. " (util/random-id))
+          org-id (create-org! test-resources org-name user-id)
+          project-name (str "Foo Bar Article Reviews " (util/random-id))
+          _ (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
+          {{:keys [project-id]} :project} (api/create-project-for-org! project-name user-id org-id false)
+          project-url (str "/o/" org-id "/p/" project-id)]
+      (test/change-user-plan! system user-id "Basic")
+      (account/log-in test-resources user)
+      (testing "paywall is in place for private projects after user downgrades plan"
+        (e/go test-resources project-url)
+        (doto driver
+          (et/is-wait-visible {:fn/has-text "This private project is currently inaccessible"})
+          (et/is-wait-visible (str "//a[contains(@href,'/org/" org-id "/plans')]"))))
+      (testing "making project public again works"
+        (doto driver
+          (et/is-click-visible {:fn/has-class :set-publicly-viewable})
+          (et/is-click-visible {:fn/has-class :confirm-cancel-form-confirm})
+          (et/is-wait-visible {:fn/has-text "Label Definitions"})))
+      (testing "can make project private again after upgrading"
+        (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
+        (e/go test-resources (str project-url "/settings"))
+        (doto driver
+          (et/is-click-visible :public-access_private)
+          (et/is-click-visible :save-options)
+          e/wait-until-loading-completes
+          (et/is-click-visible :project-title-project-link)
+          (et/is-wait-visible {:fn/has-text "Label Definitions"}))))))
 
