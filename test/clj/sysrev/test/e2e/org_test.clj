@@ -55,9 +55,9 @@
 
 (defn switch-to-org! [driver org-name]
   (doto driver
-    (et/click-visible :user-name-link)
-    (et/click-visible :user-orgs)
-    (et/click-visible (str "//a[text()='" org-name "']"))
+    (et/is-click-visible :user-name-link)
+    (et/is-click-visible :user-orgs)
+    (et/is-click-visible (str "//a[text()='" org-name "']"))
     e/wait-until-loading-completes))
 
 (defn org-user-table-entries [driver]
