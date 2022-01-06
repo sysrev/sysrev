@@ -14,25 +14,25 @@
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)]
       (account/log-in test-resources user)
-      (doto driver
-        (et/is-click-visible {:css "#new-project.button"})
-        ;; private is disabled
-        (et/is-wait-visible (str "//p[contains(text(),'Private')]"
-                                 "/ancestor::div[contains(@class,'row')]"
-                                 "/descendant::div[contains(@class,'radio') and contains(@class,'disabled')]")))
-      ;; upgrade plan
+      (testing "private setting is disabled for basic plan user"
+        (doto driver
+          (et/is-click-visible {:css "#new-project.button"})
+          (et/is-wait-visible [{:fn/has-class :public-or-private}
+                               {:fn/has-classes [:disabled :radio]}])))
       (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
-      (doto driver
-        ea/refresh
-        ;; create the private project
-        (et/is-fill-visible {:css "#create-project .project-name input"} "SysRev Browser Test (test-user-create-new)")
-        (et/is-click-visible (str "//p[contains(text(),'Private')]"
+      (testing "private projects work for unlimited plan user"
+        (ea/refresh driver)
+        (testing "create private project"
+          (doto driver
+            (et/is-fill-visible {:css "#create-project .project-name input"} "SysRev Browser Test (test-user-create-new)")
+            (et/is-click-visible (str "//p[contains(text(),'Private')]"
                                   "/ancestor::div[contains(@class,'row')]"
                                   "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
-        (et/is-click-visible "//button[contains(text(),'Create Project')]")
-        ;; is this project private?
-        (et/is-wait-visible {:css "i.grey.lock"})
-        (et/is-wait-visible "//span[contains(text(),'Private')]")))))
+            (et/is-click-visible "//button[contains(text(),'Create Project')]")))
+        (testing "project is private"
+          (doto driver
+            (et/is-wait-visible {:css "i.grey.lock"})
+            (et/is-wait-visible "//span[contains(text(),'Private')]")))))))
 
 (deftest ^:e2e test-group-create-new
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
