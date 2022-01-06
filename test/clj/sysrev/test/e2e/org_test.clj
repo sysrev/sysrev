@@ -40,14 +40,10 @@
                            "/ancestor::h4" "//label"))
     (et/click-visible :org-change-role-button)))
 
-(defn create-org! [driver org-name]
-  (doto driver
-    (et/click-visible :user-name-link)
-    (et/click-visible :user-orgs)
-    (ea/wait-visible :create-org-input)
-    (ea/fill :create-org-input org-name)
-    (et/click-visible :create-org-button)
-    e/wait-until-loading-completes))
+(defn create-org! [{:keys [system]} org-name owner-id]
+  (let [group-id (group/create-group! org-name)]
+    (group/add-user-to-group! owner-id group-id :permissions ["owner"])
+    group-id))
 
 (defn create-project-org! [driver project-name]
   (doto driver
@@ -111,12 +107,11 @@
           (et/is-wait-visible :org-user-table)
           (et/is-not-visible? {:fn/has-class "change-org-user"})))
       (testing "when an org is switched, the correct user list shows up"
-        (doto test-resources
-          account/log-out
-          (account/log-in user))
-        (doto driver
-          (create-org! org-2-name)
-          (et/is-click-visible :org-members))
+        (let [org-id (create-org! test-resources org-2-name user-id)]
+          (doto test-resources
+            account/log-out
+            (account/log-in user)
+            (e/go (str "/org/" org-id "/users"))))
         ;; should only be one user in this org
         (is (= {username {:name username :permission "owner"}}
                (org-user-table-entries driver)))
