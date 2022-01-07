@@ -124,7 +124,8 @@
           (et/is-click-visible :org-projects)
           (et/is-click-visible :new-project)
           (et/is-fill-visible {:css "#create-project .project-name input"} org-1-project-name)
-          (et/is-click-visible {:fn/has-text "Create Project"})))
+          (et/is-click-visible {:fn/has-text "Create Project"})
+          e/wait-until-loading-completes))
       (testing "admins cannot create projects for that org"
         (doto driver
           (switch-to-org! org-2-name)
