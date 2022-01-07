@@ -4,6 +4,8 @@
    [clojure.data.json :as json]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
+   [kaocha.repl :as kr]
+   [kaocha.testable :as kt]
    [medley.core :as medley]
    [orchestra.spec.test :as st]
    [prestancedesign.get-port :as get-port]
@@ -223,3 +225,37 @@
     (try (json/read-str body :key-fn keyword)
          (catch Exception _
            body))))
+
+(defn test-namespaces
+  "Returns a seq test namespaces for the given config as keywords, not symbols.
+
+  Config is loaded by `kaocha.repl/config`.
+
+  Adapted from https://www.juxt.pro/blog/parallel-kaocha"
+  [& [extra-config]]
+  (->> (kr/test-plan extra-config)
+       kt/test-seq
+       (filter #(= :kaocha.type/ns (:kaocha.testable/type %)))
+       (map :kaocha.testable/id)
+       sort))
+
+(defn rotating-subset
+  "Returns a subset of the items from a coll
+
+  `index`: The zero-based index of the desired subset
+  `total-subsets`: The total number of subsets
+  `coll`: The coll to produce subsets from"
+  [index total-subsets coll]
+  (keep-indexed
+   (fn [i item]
+     (when (= index (rem i total-subsets))
+       item))
+   coll))
+
+(defn run-test-subset! [{:keys [extra-config index total-subsets]}]
+  (let [nses (rotating-subset index total-subsets (test-namespaces extra-config))
+        result (apply kr/run (concat nses [(or extra-config {})]))]
+    (System/exit (if (or (pos? (:kaocha.result/error result))
+                         (pos? (:kaocha.result/fail result)))
+                   1
+                   0))))
