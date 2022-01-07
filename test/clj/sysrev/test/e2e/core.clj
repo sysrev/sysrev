@@ -15,6 +15,12 @@
    (java.net URL URLDecoder)
    (java.util Date)))
 
+;; for REPL evaluation
+(def run-headless? (constantly false))
+
+(defn run-headless? []
+  (not (:test-browser-show env)))
+
 (defn not-class [cls]
   (format "not([class*=\"%s\"])" cls))
 
@@ -243,9 +249,6 @@
      (or (try-wait ea/wait-predicate pred# ~timeout ~interval)
        (when driver# (take-screenshot driver# :error)))
      (is* (pred#))))
-
-(defn run-headless? []
-  (not (:test-browser-show env)))
 
 (defmacro with-driver [[driver-sym opts] & body]
   `(if-not (test/remote-test?)
