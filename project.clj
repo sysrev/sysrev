@@ -1,4 +1,6 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
+  ;; dependencies are read from deps.edn by the lein-tools-deps plugin
+
   :min-lein-version "2.8.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-server"
