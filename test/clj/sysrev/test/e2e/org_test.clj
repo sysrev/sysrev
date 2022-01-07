@@ -17,29 +17,29 @@
        "/ancestor::tr"
        "/td/div[contains(@class,'change-org-user')]"))
 
-(defn add-user-to-org!
+(defmacro add-user-to-org!
   "Must be in Organization Settings of the project to add user to"
   [driver username]
-  (doto driver
-    (et/click-visible :org-members)
-    (et/click-visible :add-member-button)
-    (ea/wait-visible :org-search-users-input)
-    ;; fill should work here, but doesn't
-    (ea/fill-human :org-search-users-input username {:mistake-prob 0 :pause-max 0.01})
-    (et/click-visible :submit-add-member)
-    e/wait-until-loading-completes))
+  `(doto ~driver
+     (et/is-click-visible :org-members)
+     (et/is-click-visible :add-member-button)
+     (et/is-wait-visible :org-search-users-input)
+     ;; fill should work here, but doesn't
+     (ea/fill-human :org-search-users-input ~username {:mistake-prob 0 :pause-max 0.01})
+     (et/is-click-visible :submit-add-member)
+     e/wait-until-loading-completes))
 
-(defn change-user-permission!
+(defmacro change-user-permission!
   "Set username to permission. Must be in Organization Settings of the
   org you wish to change permissions in. permission is either 'Owner',
   'Admin', or 'Member'."
   [driver username permission]
-  (doto driver
-    (et/click-visible (change-user-permission-dropdown-xpath username))
-    (et/click-visible {:fn/has-text "Change role"})
-    (et/click-visible (str "//label[contains(text(),'" permission "')]"
-                           "/ancestor::h4" "//label"))
-    (et/click-visible :org-change-role-button)))
+  `(doto ~driver
+     (et/is-click-visible (change-user-permission-dropdown-xpath ~username))
+     (et/is-click-visible {:fn/has-text "Change role"})
+     (et/is-click-visible (str "//label[contains(text(),'" ~permission "')]"
+                               "/ancestor::h4" "//label"))
+     (et/is-click-visible :org-change-role-button)))
 
 (defn create-org! [{:keys [system]} org-name owner-id]
   (let [group-id (group/create-group! org-name)]
@@ -53,12 +53,12 @@
     (et/click-visible "//button[contains(text(),'Create Project')]")
     e/wait-until-loading-completes))
 
-(defn switch-to-org! [driver org-name]
-  (doto driver
-    (et/is-click-visible :user-name-link)
-    (et/is-click-visible :user-orgs)
-    (et/is-click-visible (str "//a[text()='" org-name "']"))
-    e/wait-until-loading-completes))
+(defmacro switch-to-org! [driver org-name]
+  `(doto ~driver
+     (et/is-click-visible :user-name-link)
+     (et/is-click-visible :user-orgs)
+     (et/is-click-visible (str "//a[text()='" ~org-name "']"))
+     e/wait-until-loading-completes))
 
 (defn org-user-table-entries [driver]
   (ea/wait-visible driver :org-user-table)
