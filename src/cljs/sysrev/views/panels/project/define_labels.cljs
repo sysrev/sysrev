@@ -518,6 +518,10 @@
                   :tooltip ["Examples of possible label values for reviewers."
                             "Displayed as tooltip in review interface."]
                   :optional true}
+   :default-value {:path [:definition :default-value]
+                   :display "Default label value"
+                   :tooltip ["Default label value"]
+                  :optional true}
    :all-values   {:path [:definition :all-values]
                   :display "Categories (comma-separated options)"
                   :tooltip ["List of values allowed for label."
@@ -674,6 +678,16 @@
                                     (reset! all-values nil)
                                     (reset! all-values (str/split value #","))))}
                    errors)])
+      [ui/TextInputField
+        (make-args :default-value
+                   {:label "Default value"
+                    :tooltip ["Default value"]
+                    :disabled (not is-owned?)
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! all-values nil)
+                                    (reset! all-values (str/split value #","))))}
+                   errors)]
      ;; required
      [ui/LabeledCheckboxField
       (make-args :required
@@ -777,6 +791,26 @@
                           (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
+     (let [error (get-in @errors [:definition :validatable-label?])]
+         [:div.field.validatable-label {:class (when error "error")
+                                        :style {:width "100%"}}
+          [FormLabelWithTooltip
+           "Hide label?"
+           ["Hide label from the reviewer"]]
+          
+          [ui/LabeledCheckbox
+           {:checked? (not @validatable-label?)
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? (not checked?)))
+            :label "No"}]
+          [ui/LabeledCheckbox
+           {:checked? @validatable-label?
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! validatable-label? checked?))
+            :label "Yes"}]
+          [show-error-msg error]])
      (when is-owned?
        [:div.field {:style {:margin-bottom "0.75em"}}
         [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
