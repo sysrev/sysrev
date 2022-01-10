@@ -6,11 +6,11 @@
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [clojure.pprint :as pprint]
-            [sysrev.test.core :as test :refer [get-selenium-config]]))
+            [sysrev.test.core :as test]))
 
 (defn -main [& _args]
   (log/info (str "running browser tests with config:\n"
-                 (pprint/write (get-selenium-config) :stream nil)))
+                 (pprint/write (test/get-selenium-config @test/test-system) :stream nil)))
   (let [fname "target/junit.xml"
         {:keys [fail error] :as result}
         (with-open [w (io/writer fname)]

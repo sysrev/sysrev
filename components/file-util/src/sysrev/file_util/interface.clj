@@ -1,7 +1,8 @@
 (ns sysrev.file-util.interface
-  (:require [sysrev.file-util.core :as core])
-  (:import (java.io InputStream)
-           (java.nio.file Path)))
+  (:require
+   [sysrev.file-util.core :as core])
+  (:import
+   (java.nio.file Path)))
 
 (defn copy!
   "Copies an input-stream or a path to `path`.

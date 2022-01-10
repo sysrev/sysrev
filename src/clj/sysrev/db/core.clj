@@ -14,7 +14,6 @@
             [honeysql.helpers :as sqlh :refer [select from where]]
             [honeysql.format :as sqlf]
             honeysql-postgres.format
-            [next.jdbc :as jdbc]
             [next.jdbc.prepare :as prepare]
             [next.jdbc.result-set :as result-set]
             [postgre-types.json :refer [add-jsonb-type]]

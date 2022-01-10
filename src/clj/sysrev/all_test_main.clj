@@ -14,7 +14,7 @@
   (log/info (str "running database tests with config:\n"
                  (pprint/write (-> env :postgres) :stream nil)))
   (log/info (str "running browser tests with config:\n"
-                 (pprint/write (test/get-selenium-config) :stream nil)))
+                 (pprint/write (test/get-selenium-config @test/test-system) :stream nil)))
   (let [fname "target/junit.xml"
         {:keys [fail error] :as result}
         (with-open [w (io/writer fname)]

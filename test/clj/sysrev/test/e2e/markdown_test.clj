@@ -1,7 +1,6 @@
 (ns sysrev.test.e2e.markdown-test
   (:require
    [clojure.test :refer :all]
-   [etaoin.api :as ea]
    [sysrev.api :as api]
    [sysrev.etaoin-test.interface :as et]
    [sysrev.source.import :as import]

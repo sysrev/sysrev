@@ -27,7 +27,7 @@
 
 (defmulti set-label-definition
   "Set definition for label using browser interface."
-  (fn [driver xpath {:keys [value-type]}]
+  (fn [_driver _xpath {:keys [value-type]}]
     (keyword value-type)))
 
 (defmethod set-label-definition :annotation
@@ -74,7 +74,7 @@
 
 (defmulti set-label-answer!
   "Set answer value for a single label on current article."
-  (fn [driver {:keys [value-type]}]
+  (fn [_driver {:keys [value-type]}]
     (keyword value-type)))
 
 (defmethod set-label-answer! :boolean

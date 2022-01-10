@@ -8,7 +8,7 @@
    [sysrev.test.e2e.labels :as labels]))
 
 (deftest ^:e2e test-annotation-labels
-  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
+  (e/with-test-resources [{:keys [system] :as test-resources} {}]
     (let [annotation-label-definition {:value-type "annotation"
                                        :short-label "Test Label 1"
                                        :question "Is it?"

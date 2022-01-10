@@ -8,7 +8,7 @@
    [sysrev.test.e2e.core :as e]))
 
 (deftest ^:e2e test-ctgov-search-import
-  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (fixtures/load-fixtures! (:postgres system))
     (account/log-in test-resources {:email "test_user_1@insilica.co"
                                     :password "override"})

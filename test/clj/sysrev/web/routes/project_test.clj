@@ -1,16 +1,18 @@
 (ns sysrev.web.routes.project-test
-  (:require [clojure.test :refer :all]
-            [clojure.string :as str]
-            [medley.core :as medley :refer [find-first]]
-            [sysrev.project.core :as project]
-            [sysrev.project.member :refer [add-project-member set-member-permissions]]
-            [sysrev.source.core :as source]
-            [sysrev.source.import :as import]
-            [sysrev.user.core :as user]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.test.core :as test :refer [route-response-fn sysrev-handler]]
-            [sysrev.test.e2e.core :as e]
-            [sysrev.util :as util :refer [sum]]))
+  (:require
+   [clojure.string :as str]
+   [clojure.test :refer :all]
+   [medley.core :as medley :refer [find-first]]
+   [sysrev.formats.pubmed :as pubmed]
+   [sysrev.project.core :as project]
+   [sysrev.project.member
+    :refer [add-project-member set-member-permissions]]
+   [sysrev.source.core :as source]
+   [sysrev.source.import :as import]
+   [sysrev.test.core :as test :refer [route-response-fn sysrev-handler]]
+   [sysrev.test.e2e.core :as e]
+   [sysrev.user.core :as user]
+   [sysrev.util :as util :refer [sum]]))
 
 (def test-project-name "Sysrev Browser Test")
 
@@ -210,100 +212,100 @@
     (let [handler (sysrev-handler system)
           {:keys [email password]} (test/create-test-user system)
           route-response (route-response-fn handler)
-          test-project-name (str test-project-name " " (util/random-id))]
-      (let [_ (route-response :post "/api/auth/login" {:email email :password password})
-            create-project-response (route-response :post "/api/create-project"
-                                                    {:project-name test-project-name
-                                                     :public-access true})
-            project-id (get-in create-project-response [:result :project :project-id])
-            get-pubmed-source (fn [search-term]
-                                (-> (route-response :get "/api/project-sources"
-                                                    {:project-id project-id})
-                                    (get-in [:result :sources])
-                                    (->> (find-first #(= (get-in % [:meta :search-term])
-                                                         search-term)))))
-            ;; add articles to the project
-            _ (route-response :post "/api/import-articles/pubmed"
+          test-project-name (str test-project-name " " (util/random-id))
+          _ (route-response :post "/api/auth/login" {:email email :password password})
+          create-project-response (route-response :post "/api/create-project"
+                                                  {:project-name test-project-name
+                                                   :public-access true})
+          project-id (get-in create-project-response [:result :project :project-id])
+          get-pubmed-source (fn [search-term]
+                              (-> (route-response :get "/api/project-sources"
+                                                  {:project-id project-id})
+                                  (get-in [:result :sources])
+                                  (->> (find-first #(= (get-in % [:meta :search-term])
+                                                       search-term)))))
+          ;; add articles to the project
+          _ (route-response :post "/api/import-articles/pubmed"
+                            {:project-id project-id
+                             :search-term "foo bar" :source "PubMed"})
+          _ (wait-for-project-import route-response project-id 1)
+          _ (e/is-soon nil
+                       (= (count (pubmed/get-all-pmids-for-query "foo bar"))
+                          (:article-count (get-pubmed-source "foo bar")))
+                       20000 2000)
+          foo-bar-search-source (get-pubmed-source "foo bar")
+          foo-bar-search-source-id (:source-id foo-bar-search-source)
+          project-info (route-response :get "/api/project-info" {:project-id project-id})
+          project-label (second (first (get-in project-info [:result :project :labels])))
+          label-id (get-in project-label [:label-id])
+          article-to-label (route-response :get "/api/label-task"
+                                           {:project-id project-id})
+          _ (is (contains? article-to-label :result))
+          _ (is (map? (:result article-to-label)))
+          _ (is (contains? (:result article-to-label) :article))
+          article-id (get-in article-to-label [:result :article :article-id])]
+      ;; the project does not have labeled articles, this should not
+      ;; be true
+      (is (not (project/project-has-labeled-articles? project-id)))
+      ;; set an article label to true
+      (route-response :post "/api/set-labels" {:project-id project-id
+                                               :article-id article-id
+                                               :label-values {label-id true}
+                                               :confirm? true
+                                               :resolve? false
+                                               :change? false})
+      ;; now the project has labeled articles
+      (is (project/project-has-labeled-articles? project-id))
+      #_ (is (get-in (route-response :post "/api/delete-project"
+                                     {:project-id project-id})
+                     [:result :success]))
+      ;; the project source has labeled articles as well
+      (is (source/source-has-labeled-articles? foo-bar-search-source-id))
+      ;; the project source can not be deleted
+      (is (= "Source contains reviewed articles"
+             (get-in (route-response :post "/api/delete-source"
+                                     {:project-id project-id
+                                      :source-id foo-bar-search-source-id})
+                     [:error :message])))
+      (let [_ (route-response :post "/api/import-articles/pubmed"
                               {:project-id project-id
-                               :search-term "foo bar" :source "PubMed"})
-            _ (wait-for-project-import route-response project-id 1)
+                               :search-term "grault" :source "PubMed"})
+            _ (wait-for-project-import route-response project-id 2)
             _ (e/is-soon nil
-                         (= (count (pubmed/get-all-pmids-for-query "foo bar"))
-                            (:article-count (get-pubmed-source "foo bar")))
+                         (= (count (pubmed/get-all-pmids-for-query "grault"))
+                            (:article-count (get-pubmed-source "grault")))
                          20000 2000)
-            foo-bar-search-source (get-pubmed-source "foo bar")
-            foo-bar-search-source-id (:source-id foo-bar-search-source)
-            project-info (route-response :get "/api/project-info" {:project-id project-id})
-            project-label (second (first (get-in project-info [:result :project :labels])))
-            label-id (get-in project-label [:label-id])
-            article-to-label (route-response :get "/api/label-task"
-                                             {:project-id project-id})
-            _ (is (contains? article-to-label :result))
-            _ (is (map? (:result article-to-label)))
-            _ (is (contains? (:result article-to-label) :article))
-            article-id (get-in article-to-label [:result :article :article-id])]
-        ;; the project does not have labeled articles, this should not
-        ;; be true
-        (is (not (project/project-has-labeled-articles? project-id)))
-        ;; set an article label to true
-        (route-response :post "/api/set-labels" {:project-id project-id
-                                                 :article-id article-id
-                                                 :label-values {label-id true}
-                                                 :confirm? true
-                                                 :resolve? false
-                                                 :change? false})
-        ;; now the project has labeled articles
-        (is (project/project-has-labeled-articles? project-id))
-        #_ (is (get-in (route-response :post "/api/delete-project"
-                                       {:project-id project-id})
-                       [:result :success]))
-        ;; the project source has labeled articles as well
-        (is (source/source-has-labeled-articles? foo-bar-search-source-id))
-        ;; the project source can not be deleted
-        (is (= "Source contains reviewed articles"
-               (get-in (route-response :post "/api/delete-source"
-                                       {:project-id project-id
-                                        :source-id foo-bar-search-source-id})
-                       [:error :message])))
-        (let [_ (route-response :post "/api/import-articles/pubmed"
-                                {:project-id project-id
-                                 :search-term "grault" :source "PubMed"})
-              _ (wait-for-project-import route-response project-id 2)
-              _ (e/is-soon nil
-                           (= (count (pubmed/get-all-pmids-for-query "grault"))
-                              (:article-count (get-pubmed-source "grault")))
-                           20000 2000)
-              grault-search-source (get-pubmed-source "grault")
-              grault-search-source-id (:source-id grault-search-source)]
-          ;; are the total project articles equivalent to the sum of its two sources?
-          (is (= (count (pubmed/get-all-pmids-for-query "grault"))
-                 (:article-count grault-search-source)))
-          (e/is-soon nil
-                     (= (project/project-article-count project-id)
-                        (+ (:article-count foo-bar-search-source)
-                           (:article-count grault-search-source)))
-                     15000 1000)
-          ;; try it another way
-          (e/is-soon nil
-                     (= (project/project-article-count project-id)
-                        (sum (map :article-count
-                                  (get-in (route-response :get "/api/project-sources"
-                                                          {:project-id project-id})
-                                          [:result :sources]))))
-                     15000 1000)
-          ;; can grault-search-source be deleted?
-          (is (get-in (route-response :post "/api/delete-source"
-                                      {:project-id project-id
-                                       :source-id grault-search-source-id})
-                      [:result :success]))
-          ;; are the total articles equivalent to sum of its single source?
-          (e/is-soon nil
-                     (= (project/project-article-count project-id)
-                        (sum (map :article-count
-                                  (get-in (route-response :get "/api/project-sources"
-                                                          {:project-id project-id})
-                                          [:result :sources]))))
-                     15000 1000))))))
+            grault-search-source (get-pubmed-source "grault")
+            grault-search-source-id (:source-id grault-search-source)]
+        ;; are the total project articles equivalent to the sum of its two sources?
+        (is (= (count (pubmed/get-all-pmids-for-query "grault"))
+               (:article-count grault-search-source)))
+        (e/is-soon nil
+                   (= (project/project-article-count project-id)
+                      (+ (:article-count foo-bar-search-source)
+                         (:article-count grault-search-source)))
+                   15000 1000)
+        ;; try it another way
+        (e/is-soon nil
+                   (= (project/project-article-count project-id)
+                      (sum (map :article-count
+                                (get-in (route-response :get "/api/project-sources"
+                                                        {:project-id project-id})
+                                        [:result :sources]))))
+                   15000 1000)
+        ;; can grault-search-source be deleted?
+        (is (get-in (route-response :post "/api/delete-source"
+                                    {:project-id project-id
+                                     :source-id grault-search-source-id})
+                    [:result :success]))
+        ;; are the total articles equivalent to sum of its single source?
+        (e/is-soon nil
+                   (= (project/project-article-count project-id)
+                      (sum (map :article-count
+                                (get-in (route-response :get "/api/project-sources"
+                                                        {:project-id project-id})
+                                        [:result :sources]))))
+                   15000 1000)))))
 
 (deftest ^:integration clone-user-project-test
   (test/with-test-system [system {}]

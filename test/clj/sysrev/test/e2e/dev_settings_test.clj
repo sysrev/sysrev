@@ -1,19 +1,17 @@
 (ns sysrev.test.e2e.dev-settings-test
   (:require
-   [clj-http.client :as http]
-   [clojure.string :as str]
    [clojure.test :refer :all]
    [etaoin.api :as ea]
    [medley.core :as medley]
-   [sysrev.datasource.api :as ds-api :refer [graphql-query read-account]]
+   [sysrev.datasource.api :as ds-api :refer [read-account]]
    [sysrev.etaoin-test.interface :as et]
    [sysrev.test.core :as test :refer [graphql-request]]
    [sysrev.test.e2e.account :as account]
    [sysrev.test.e2e.core :as e]
-   [sysrev.user.core :refer [get-user-emails user-by-email]]))
+   [sysrev.user.core :refer [user-by-email]]))
 
 (deftest ^:stripe happy-path-enable
-  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
           api-key (-> user :email user-by-email :api-token)]
       (account/log-in test-resources user)
@@ -55,8 +53,8 @@
       (is (= api-key (get-in (read-account {:api-key api-key})
                              [:data :account :apiKey]))))))
 
-(deftest ^:stripe account-mutation-tests
-  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+#_(deftest ^:stripe account-mutation-tests
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user (test/create-test-user system)
           api-key (-> user :email user-by-email :api-token)
           new-email (-> (str/split (:email user) #"@") first (str "+alpha@example.com"))

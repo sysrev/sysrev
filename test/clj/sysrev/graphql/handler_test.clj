@@ -81,7 +81,7 @@
 
 (deftest ^:bad project-query
   (test/with-test-system [system {}]
-    (let [{:keys [email user-id]} (test/create-test-user system)
+    (let [{:keys [user-id]} (test/create-test-user system)
           project-name  "Graphql - Project Query Test"
           {:keys [project-id]} (get (api/create-project-for-user! project-name user-id false)
                                     :project)

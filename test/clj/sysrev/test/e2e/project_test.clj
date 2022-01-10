@@ -59,7 +59,7 @@
         (et/is-wait-visible "//span[contains(text(),'Private')]")))))
 
 (deftest ^:e2e test-private-project-downgrade
-  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
           project-name (str "Baz Qux " (util/random-id))]
       (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
@@ -84,7 +84,7 @@
           (et/is-wait-visible {:fn/has-text "Label Definitions"}))))))
 
 (deftest ^:e2e test-private-project-plan-upgrade
-  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
           project-name (str "Baz Qux " (util/random-id))]
       (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")

@@ -1,4 +1,5 @@
 {:linters {:redefined-var {:level :off}
+           :refer-all {:level :off}
            :use {:level :off}
            :unresolved-var {:level :off}
            :unresolved-symbol {:exclude
@@ -9,7 +10,6 @@
                                 (sysrev.macros/sr-defroute-project nil)
                                 (sysrev.macros/def-panel nil)
                                 (sysrev.graphql.core/with-datasource-proxy nil)
-                                (orchestra.core/defn-spec nil)
                                 (clojure.core.cache/defcache nil)
                                 (compojure.core/GET nil)
                                 (compojure.core/POST nil)
@@ -22,10 +22,8 @@
            :unused-binding {:exclude-destructured-keys-in-fn-args true}
            :unused-namespace {:exclude [clojure.string
                                         clojure.tools.logging
-                                        sysrev.util
                                         medley.core
-                                        clj-webdriver.taxi
-                                        clojure.string]}
+                                        sysrev.util]}
            :unused-referred-var {:exclude {clojure.test [is deftest testing]
                                            re-frame.core [dispatch subscribe]}}
            :consistent-alias {:aliases {
@@ -90,4 +88,7 @@
                           "src/clj/sysrev/user.clj"
                           "src/cljs/sysrev/user.cljs"
                           "src/scripts/repl.clj"]}
- :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all}}
+ :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
+           sysrev.db.core/with-long-transaction clojure.core/with-open
+           sysrev.test.core/with-test-system clojure.core/with-open
+           sysrev.test.e2e.core/with-test-resources clojure.core/with-open}}

@@ -74,11 +74,11 @@
 
 (deftest ^:e2e test-simple-org
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [{:keys [email user-id username] :as user} (test/create-test-user system)
+    (let [{:keys [user-id username] :as user} (test/create-test-user system)
           org-1-name (str "Foo Bar Inc. " (util/random-id))
           org-2-name (str "Baz Qux " (util/random-id))
           org-1-project-name (str "Foo Bar Article Reviews " (util/random-id))
-          {user-1-id :user-id user-1-name :username :as user-1} (test/create-test-user system)]
+          {user-1-name :username :as user-1} (test/create-test-user system)]
       (account/log-in test-resources user)
       (testing "a person can create a org and they are automatically made owners"
         (doto driver
@@ -160,7 +160,7 @@
           (et/is-wait-visible (q/error-message "Organization names can't be blank")))))))
 
 (deftest ^:e2e test-private-setting-disabled
-  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
           org-name (str "Foo Bar Inc. " (util/random-id))
           org-id (create-org! test-resources org-name user-id)
@@ -175,7 +175,7 @@
                                :id :public-access_private}))))))
 
 (deftest ^:e2e test-private-projects
-  (e/with-test-resources [{:keys [driver system] :as test-resources}]
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
           org-name (str "Foo Bar Inc. " (util/random-id))
           org-id (create-org! test-resources org-name user-id)
