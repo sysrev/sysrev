@@ -1,6 +1,10 @@
 (ns build
-  (:require [clojure.tools.build.api :as b]
-            [org.corfield.build :as bb]))
+  (:require
+   [clojure.tools.build.api :as b]
+   [org.corfield.build :as bb]
+   [sysrev.file-util.interface :as file-util])
+  (:import
+   (java.nio.file Files FileSystems Path)))
 
 (def lib 'insilica/sysrev)
 (def version
@@ -32,17 +36,32 @@
               (recur ids)))))))
 
 (defn run-e2e-tests [opts]
-  (let [subsets 2
-        futs (map (fn [i]
-                  (future
-                    (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/run-test-subset!" ":index" (str i) ":total-subsets" (str subsets) ":extra-config" "{:kaocha/fail-fast? true :kaocha.filter/focus-meta [:e2e]}"]
-                                :err :capture
-                                :out :capture})))
-                (range subsets))]
-    (loop [[fut & more] (await-first-result futs 300)]
-      (if (zero? (:exit @fut))
-        (when more (recur (await-first-result more 300)))
-        (do (doseq [ft futs]
-              (future-cancel ft))
-            (throw (ex-info "Tests failed" {:result @fut}))))))
+  (println "Running end-to-end tests...")
+  (let [subsets 2]
+    (file-util/with-temp-files [junit-files
+                                {:num-files subsets
+                                 :prefix "junit-"
+                                 :suffix ".xml"}]
+      (let [kaocha-config {:kaocha/fail-fast? true
+                           :kaocha.filter/focus-meta [:e2e]}
+            futs (map (fn [i]
+                        (future
+                          (-> (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/run-test-subset!"
+                                                         ":extra-config" (pr-str (assoc kaocha-config :kaocha.plugin.junit-xml/target-file (str (nth junit-files i))))
+                                                         ":index" (str i)
+                                                         ":total-subsets" (str subsets)]
+                                          :err :capture
+                                          :out :capture})
+                              (assoc :junit-file (nth junit-files i)))))
+                      (range subsets))]
+        (loop [[fut & more] (await-first-result futs 300)]
+          (if (zero? (:exit @fut))
+            (when more (recur (await-first-result more 300)))
+            (let [{:keys [err junit-file out] :as result} @fut]
+              (doseq [ft futs]
+                (future-cancel ft))
+              (println err)
+              (println out)
+              (file-util/copy! junit-file (file-util/get-path "target/junit.xml") #{:replace-existing})
+              (throw (ex-info "Tests failed" {:result result}))))))))
   opts)

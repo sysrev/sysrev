@@ -90,7 +90,8 @@
         poly/user {:local/root "components/user"}}
  :aliases
  {:build {:deps {io.github.seancorfield/build-clj
-                 {:git/tag "v0.6.7" :git/sha "22c2d09"}}
+                 {:git/tag "v0.6.7" :git/sha "22c2d09"}
+                 poly/file-util {:local/root "components/file-util"}}
           :ns-default build}
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
