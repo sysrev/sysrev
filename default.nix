@@ -16,6 +16,7 @@ mkShell {
     (clojure.override { jdk = jdk; })
     entr # for ./scripts/watch-css
     (flyway.override { jre_headless = jdk; })
+    git
     glibcLocales # postgres and rlwrap (used by clj) need this
     jdk
     (leiningen.override { jdk = jdk; })
