@@ -35,6 +35,36 @@
           (do (Thread/sleep sleep-ms)
               (recur ids)))))))
 
+(defn run-test-suite-serial [opts focus-meta]
+  (file-util/with-temp-file [junit-file
+                             {:prefix "junit-"
+                              :suffix ".xml"}]
+    (let [kaocha-config {:kaocha/fail-fast? true
+                         :kaocha.filter/focus-meta [focus-meta]
+                         :kaocha.plugin.junit-xml/target-file junit-file}
+          {:keys [exit] :as result}
+          #__ (b/process {:command-args ["bin/kaocha"
+                                         "--fail-fast"
+                                         "--focus-meta" (str focus-meta)
+                                         "--junit-xml-file" (str junit-file)]})]
+      (when-not (zero? exit)
+        (throw (ex-info "Tests failed" {:result result})))))
+  opts)
+
+(defn run-tests-serial [opts]
+  (doseq [suite [:unit :integration :e2e]]
+    (println "Running" (name suite) "tests...")
+    (run-test-suite-serial opts suite))
+  opts)
+
+(defn run-unit-tests [opts]
+  (println "Running unit tests...")
+  (run-tests-serial opts :unit))
+
+(defn run-integration-tests [opts]
+  (println "Running integration tests...")
+  (run-tests-serial opts :integration))
+
 (defn run-e2e-tests [opts]
   (println "Running end-to-end tests...")
   (let [subsets 2]

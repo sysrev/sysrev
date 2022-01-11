@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-set -eux
+set -eu
 
-rm -rf ./target
+rm -rf target
 
-rm -f target/junit.xml
-
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** bin/kaocha --focus-meta :unit --focus-meta :integration --fail-fast
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** clj -T:build run-e2e-tests
+DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** clj -T:build run-tests-serial
 
