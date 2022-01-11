@@ -193,7 +193,7 @@ node {
     if (branch == 'production') {
       if (currentBuild.result == 'SUCCESS') {
         try {
-          sshagent(['sysrev-admin']) {
+          sshagent(['sysrev-git']) {
             sh "git push ${gitUrl} HEAD:master -f"
           }
         } catch (exc) {
