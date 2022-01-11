@@ -259,3 +259,31 @@
                          (pos? (:kaocha.result/fail result)))
                    1
                    0))))
+
+(def test-suites #{:e2e :integration :skip :unit})
+
+(defn find-orphaned-tests!
+  "Find any tests that aren't labeled with meta in `test-suites`.
+
+  E.g., each test should look like this:
+  `(deftest ^:unit test-abc ,,,)`
+  or:
+  `(deftest ^:skip test-abc ,,,)`
+
+  This will find tests that have missing or invalid meta:
+  `(deftest test-xyz ,,,)`
+  `(deftest ^:unt test-xyz ,,,)`"
+  [& [extra-config]]
+  (->> (kr/test-plan extra-config)
+       kt/test-seq
+       (filter (fn [{:kaocha.testable/keys [meta type]}]
+                 (and (= :kaocha.type/var type)
+                      (every? (complement meta) test-suites))))
+       (map :kaocha.testable/id)))
+
+(defn find-orphaned-tests-cli! [& [extra-config]]
+  (let [tests (find-orphaned-tests! extra-config)]
+    (when (seq tests)
+      (doseq [t tests]
+        (prn t))
+      (System/exit 1))))

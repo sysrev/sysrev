@@ -79,7 +79,7 @@
                            x))
                  m))
 
-(deftest ^:bad project-query
+(deftest ^:skip project-query
   (test/with-test-system [system {}]
     (let [{:keys [user-id]} (test/create-test-user system)
           project-name  "Graphql - Project Query Test"

@@ -35,6 +35,17 @@
           (do (Thread/sleep sleep-ms)
               (recur ids)))))))
 
+(defn find-orphaned-tests [opts]
+  (println "Checking test suite assignments")
+  (let [{:keys [exit out]}
+        #__ (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/find-orphaned-tests-cli!"]
+                        :out :capture})]
+    (when-not (zero? exit)
+      (println "Found orphans, tests not in a test suite:")
+      (println out)
+      (System/exit 1)))
+  opts)
+
 (defn run-test-suite-serial [opts focus-meta]
   (file-util/with-temp-file [junit-file
                              {:prefix "junit-"
@@ -52,6 +63,7 @@
   opts)
 
 (defn run-tests-serial [opts]
+  (find-orphaned-tests opts)
   (doseq [suite [:unit :integration :e2e]]
     (println "Running" (name suite) "tests...")
     (run-test-suite-serial opts suite))
