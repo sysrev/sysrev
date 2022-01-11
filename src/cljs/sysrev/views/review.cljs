@@ -10,7 +10,7 @@
             [sysrev.data.core :as data]
             [sysrev.loading :as loading]
             [sysrev.state.nav :as nav :refer [project-uri]]
-            [sysrev.state.label :refer [get-label-raw]]
+            [sysrev.state.label :as label :refer [get-label-raw]]
             [sysrev.state.note :refer [sync-article-notes]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.semantic :as S :refer [Icon Message]]
@@ -24,19 +24,25 @@
     (assoc-in db [:state :review :labels article-id root-label-id :labels ith label-id]
               label-value)))
 
+(defn check-validatable-label [root-label-id label-id ith label-value]
+  (let [project-id @(subscribe [:active-project-id])
+        definition @(subscribe [::label/definition root-label-id label-id project-id])]
+    (when (:validatable-label? definition)
+      (try
+        (->
+          (js/fetch (str "https://resolver.api.identifiers.org/" (js/encodeURIComponent label-value)))
+          (.then (fn [res]
+                   (-> (.json ^js res)
+                       (.then (fn [data-aux]
+                                (let [data (js->clj data-aux :keywordize-keys true)
+                                      valid-id? (seq (get-in data [:payload :resolvedResources]))]
+                                  (dispatch [::validate-value-id root-label-id label-id ith valid-id?]))))))))
+        (catch js/Error _e
+          (dispatch [::validate-value-id root-label-id label-id ith false]))))))
+
 (reg-event-fx :review/set-label-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
-                (try
-                  (->
-                    (js/fetch (str "https://resolver.api.identifiers.org/" (js/encodeURIComponent label-value)))
-                    (.then (fn [res]
-                             (-> (.json ^js res)
-                                 (.then (fn [data-aux]
-                                          (let [data (js->clj data-aux :keywordize-keys true)
-                                                valid-id? (seq (get-in data [:payload :resolvedResources]))]
-                                            (dispatch [::validate-value-id root-label-id label-id valid-id?]))))))))
-                  (catch js/Error _e
-                    (dispatch [::validate-value-id root-label-id label-id false])))
+                (check-validatable-label root-label-id label-id ith label-value)
                 {:db (set-label-value db article-id root-label-id label-id ith label-value)
                  :fx [[:dispatch
                        [:review/record-reviewer-event
@@ -86,24 +92,12 @@
                              :project-id (nav/active-project-id db)}]]]]}))
 
 (reg-event-fx ::validate-value-id
-              (fn [{:keys [db]} [_ root-label-id label-id valid-id?]]
-                {:db (assoc-in db [:state :identifier-validations (str root-label-id "_" label-id)] (boolean valid-id?))}))
+              (fn [{:keys [db]} [_ root-label-id label-id ith valid-id?]]
+                {:db (assoc-in db [:state :identifier-validations root-label-id label-id ith] (boolean valid-id?))}))
 
 (reg-event-fx ::set-string-value
               (fn [{:keys [db]} [kw article-id root-label-id label-id ith value-idx label-value curvals]]
-                (let [{:keys [definition]} (get-label-raw db label-id)]
-                  (when (:validatable-label? definition)
-                    (try
-                      (->
-                        (js/fetch (str "https://resolver.api.identifiers.org/" (js/encodeURIComponent label-value)))
-                        (.then (fn [res]
-                                 (-> (.json ^js res)
-                                     (.then (fn [data-aux]
-                                              (let [data (js->clj data-aux :keywordize-keys true)
-                                                    valid-id? (seq (get-in data [:payload :resolvedResources]))]
-                                                (dispatch [::validate-value-id root-label-id label-id valid-id?]))))))))
-                      (catch js/Error _e
-                        (dispatch [::validate-value-id root-label-id label-id false])))))
+                (check-validatable-label root-label-id label-id nil label-value)
                 {:db (set-label-value db article-id root-label-id label-id ith
                                       (assoc (vec curvals) value-idx label-value))
                  :fx [[:dispatch
@@ -199,12 +193,23 @@
         (valid-string-value? definition answer))
     "group" (empty? answer)))
 
-(defn valid-group-answers? [group-labels group-answers]
-  (every?
-    (fn [[label-id answer]]
-      (let [label (get group-labels label-id)]
-        (valid-answer? (:value-type label) answer (:definition label))))
-    (apply concat group-answers)))
+(defn valid-answer-id? [definition root-label-id label-id identifier-validations]
+  (or (not (-> definition :validatable-label?))
+      (->> (vals (get-in identifier-validations [root-label-id label-id]))
+           (filter false?)
+           (empty?))))
+
+(defn valid-group-answers? [label answer identifier-validations]
+  (let [root-label-id (:label-id label)
+        group-labels (:labels label)
+        group-answers (vals (:labels answer))]
+    (every?
+      (fn [[label-id answer]]
+        (let [label (get group-labels label-id)]
+          (and
+            (valid-answer-id? (:definition label) root-label-id label-id identifier-validations)
+            (valid-answer? (:value-type label) answer (:definition label)))))
+      (apply concat group-answers))))
 
 (reg-sub :review/invalid-labels
          (fn [[_ project-id article-id]]
@@ -217,16 +222,9 @@
                   (fn [[label-id answer]]
                     (let [label (get labels-raw label-id)]
                       (if (:labels answer)
+                        (valid-group-answers? label answer identifier-validations)
                         (and
-                          (or (not (-> label :definition :validatable-label?))
-                              (every? #(true? (get identifier-validations (str (:label-id label) "_" (:label-id %)))) (:labels label)))
-                          (valid-group-answers? (:labels label)
-                                                (vals (:labels answer))))
-
-                        (and
-                          (or (not (-> label :definition :validatable-label?))
-                              (not (false? (get identifier-validations (str "na" (:label-id label))))))
-                          
+                          (valid-answer-id? (:definition label) "na" (:label-id label) identifier-validations)
                           (valid-answer? (:value-type label) answer
                                          (:definition label))))))))))
 
@@ -235,8 +233,8 @@
            (get-in db [:state :identifier-validations])))
 
 (reg-sub :review/valid-id?
-         (fn [db [_ root-label-id label-id]]
-           (let [identifier-validation (get-in db [:state :identifier-validations (str root-label-id "_" label-id)])]
+         (fn [db [_ root-label-id label-id ith]]
+           (let [identifier-validation (get-in db [:state :identifier-validations root-label-id label-id ith])]
              (or (nil? identifier-validation) identifier-validation))))
 
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]

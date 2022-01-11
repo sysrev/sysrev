@@ -5,10 +5,9 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
-            [sysrev.state.label :as label]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.views.review :as review]
-            [sysrev.state.label :refer [get-label-raw]]
+            [sysrev.state.label :as label]
             [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
                                            TableBody TableHeaderCell TableCell Input Popup]]
             ["react-datasheet" :as react-datasheet :default ReactDataSheet]
@@ -231,11 +230,9 @@
         definition @(subscribe [::label/definition root-label-id label-id project-id])
         validatable-label? (:validatable-label? definition)
         valid-id? (or (not validatable-label?)
-                      @(subscribe [:review/valid-id? root-label-id label-id]))
+                      @(subscribe [:review/valid-id? root-label-id label-id ith]))
         valid? (and (valid-answer? root-label-id label-id answer)
-                    valid-id?
-                    @(subscribe [:label/valid-string-value?
-                                 root-label-id label-id answer]))]
+                    valid-id?)]
     [:div {:class (when color (str color "-text"))
            :style {:text-align "center"}}
      (cond (not valid?)
@@ -284,11 +281,9 @@
         definition @(subscribe [::label/definition root-label-id label-id project-id])
         validatable-label? (:validatable-label? definition)
         valid-id? (or (not validatable-label?)
-                      @(subscribe [:review/valid-id? root-label-id label-id]))
+                      @(subscribe [:review/valid-id? root-label-id label-id ith]))
         valid? (and valid-id?
-                    (valid-answer? root-label-id label-id answer)
-                    @(subscribe [:label/valid-string-value?
-                                 root-label-id label-id value]))]
+                    (valid-answer? root-label-id label-id answer))]
     ;; handle validity checking of string values
     (if (= value-type "string")
       [:<>
