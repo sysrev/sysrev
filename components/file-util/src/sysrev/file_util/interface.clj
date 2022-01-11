@@ -13,6 +13,11 @@
   [is-or-path ^Path path copy-options]
   (core/copy! is-or-path path copy-options))
 
+(defn ^Path create-directories!
+  "Creates a directory by creating all nonexistent parent directories first."
+  [^Path dir]
+  (core/create-directories! dir))
+
 (defn get-path
   "Converts a path string, or a sequence of strings that when joined form
   a path string, to a Path.

@@ -43,6 +43,9 @@
          ^"[Ljava.nio.file.CopyOption;" (into-array CopyOption)
          f)))
 
+(defn ^Path create-directories! [^Path dir]
+  (Files/createDirectories dir (make-array FileAttribute 0)))
+
 ; We use ZipFile instead of ZipInputstream because zips have a central
 ; directory at the end, which ZipInputStream incorrectly ignores:
 ; https://en.wikipedia.org/wiki/ZIP_(file_format)#Structure
