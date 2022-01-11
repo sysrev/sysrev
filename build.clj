@@ -1,10 +1,11 @@
 (ns build
   (:require
+   [clojure.data.xml :as dxml]
+   [clojure.string :as str]
    [clojure.tools.build.api :as b]
    [org.corfield.build :as bb]
-   [sysrev.file-util.interface :as file-util])
-  (:import
-   (java.nio.file Files FileSystems Path)))
+   [sysrev.file-util.interface :as file-util]
+   [sysrev.junit.interface :as junit]))
 
 (def lib 'insilica/sysrev)
 (def version
@@ -15,6 +16,10 @@
               "-SNAPSHOT"))))
 
 ;; Most fns should return the opts map so they can be easily threeaded
+
+(defn create-target-dir [opts]
+  (file-util/create-directories! (file-util/get-path "target"))
+  opts)
 
 (defn build-cljs [opts]
   (b/process {:command-args ["npx" "shadow-cljs" "release" "prod"]
@@ -46,27 +51,64 @@
       (System/exit 1)))
   opts)
 
-(defn run-test-suite-serial [opts focus-meta]
-  (file-util/with-temp-file [junit-file
-                             {:prefix "junit-"
-                              :suffix ".xml"}]
-    (let [kaocha-config {:kaocha/fail-fast? true
-                         :kaocha.filter/focus-meta [focus-meta]
-                         :kaocha.plugin.junit-xml/target-file junit-file}
-          {:keys [exit] :as result}
-          #__ (b/process {:command-args ["bin/kaocha"
-                                         "--fail-fast"
-                                         "--focus-meta" (str focus-meta)
-                                         "--junit-xml-file" (str junit-file)]})]
-      (when-not (zero? exit)
-        (throw (ex-info "Tests failed" {:result result})))))
+(defn run-test-suite-serial [opts focus-meta & [junit-file]]
+  (let [run (fn [junit-file]
+              (let [kaocha-config {:kaocha/fail-fast? true
+                                   :kaocha.filter/focus-meta [focus-meta]
+                                   :kaocha.plugin.junit-dxml/target-file junit-file}
+                    {:keys [exit] :as result}
+                    #__ (b/process {:command-args ["bin/kaocha"
+                                                   "--fail-fast"
+                                                   "--focus-meta" (str focus-meta)
+                                                   "--junit-xml-file" (str junit-file)]})]
+                (when-not (zero? exit)
+                  (throw (ex-info "Tests failed" {:result result})))))]
+    (if junit-file
+      (run junit-file)
+      (file-util/with-temp-file [junit-file
+                                 {:prefix "junit-"
+                                  :suffix ".xml"}]
+        (run junit-file))))
   opts)
+
+(defn parse-junit-xml [input-stream]
+  (try
+    (dxml/parse input-stream)
+    (catch javax.xml.stream.XMLStreamException e
+      ;; Ignore empty files, e.g., for test suites that haven't been run yet
+      (let [loc (.getLocation e)]
+        (when-not (and (= 1 (.getColumnNumber loc))
+                       (= 1 (.getLineNumber loc))
+                       (str/includes? (.getMessage e) "Premature end of file"))
+          (throw e))))))
+
+(defn merge-junit-files [out-file in-files]
+  (let [in-streams (map #(java.io.FileInputStream. (str %)) in-files)]
+    (try
+      (let [junit (->> in-streams
+                       (map parse-junit-xml)
+                       (apply junit/merge-xml))]
+        (with-open [out-file (java.io.FileWriter. (str out-file))]
+          (dxml/emit junit out-file)))
+      (finally
+        (doseq [is in-streams] (.close is))))))
 
 (defn run-tests-serial [opts]
   (find-orphaned-tests opts)
-  (doseq [suite [:unit :integration :e2e]]
-    (println "Running" (name suite) "tests...")
-    (run-test-suite-serial opts suite))
+  (create-target-dir opts)
+  (let [suites [:unit :integration :e2e]]
+    (file-util/with-temp-files [junit-files
+                                {:num-files (count suites)
+                                 :prefix "junit-"
+                                 :suffix ".xml"}]
+      (try
+        (doseq [[suite junit-file] (map vector suites junit-files)]
+          (println "Running" (name suite) "tests...")
+          (run-test-suite-serial opts suite junit-file))
+        (merge-junit-files "target/junit.xml" junit-files)
+        (catch clojure.lang.ExceptionInfo e
+          (merge-junit-files "target/junit.xml" junit-files)
+          (throw e)))))
   opts)
 
 (defn run-unit-tests [opts]
@@ -89,7 +131,7 @@
             futs (map (fn [i]
                         (future
                           (-> (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/run-test-subset!"
-                                                         ":extra-config" (pr-str (assoc kaocha-config :kaocha.plugin.junit-xml/target-file (str (nth junit-files i))))
+                                                         ":extra-config" (pr-str (assoc kaocha-config :kaocha.plugin.junit-dxml/target-file (str (nth junit-files i))))
                                                          ":index" (str i)
                                                          ":total-subsets" (str subsets)]
                                           :err :capture
