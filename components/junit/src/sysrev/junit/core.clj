@@ -1,4 +1,6 @@
 (ns sysrev.junit.core
+  "Operations on JUnit XML data.
+  The best JUnit XML documentation is https://llg.cubic.org/docs/junit/"
   (:require
    [clojure.data.xml :as dxml]
    [clojure.spec.alpha :as s]
