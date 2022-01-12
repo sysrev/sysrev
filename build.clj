@@ -71,22 +71,11 @@
         (run junit-file))))
   opts)
 
-(defn parse-junit-xml [input-stream]
-  (try
-    (dxml/parse input-stream)
-    (catch javax.xml.stream.XMLStreamException e
-      ;; Ignore empty files, e.g., for test suites that haven't been run yet
-      (let [loc (.getLocation e)]
-        (when-not (and (= 1 (.getColumnNumber loc))
-                       (= 1 (.getLineNumber loc))
-                       (str/includes? (.getMessage e) "Premature end of file"))
-          (throw e))))))
-
 (defn merge-junit-files [out-file in-files]
   (let [in-streams (map #(java.io.FileInputStream. (str %)) in-files)]
     (try
       (let [junit (->> in-streams
-                       (map parse-junit-xml)
+                       (map dxml/parse)
                        (apply junit/merge-xml))]
         (with-open [out-file (java.io.FileWriter. (str out-file))]
           (dxml/emit junit out-file)))
@@ -96,19 +85,20 @@
 (defn run-tests-serial [opts]
   (find-orphaned-tests opts)
   (create-target-dir opts)
-  (let [suites [:unit :integration :e2e]]
+  (let [suites [:unit :integration :e2e]
+        junit-target (file-util/get-path "target/junit.xml")]
     (file-util/with-temp-files [junit-files
                                 {:num-files (count suites)
                                  :prefix "junit-"
                                  :suffix ".xml"}]
-      (try
-        (doseq [[suite junit-file] (map vector suites junit-files)]
-          (println "Running" (name suite) "tests...")
-          (run-test-suite-serial opts suite junit-file))
-        (merge-junit-files "target/junit.xml" junit-files)
-        (catch clojure.lang.ExceptionInfo e
-          (merge-junit-files "target/junit.xml" junit-files)
-          (throw e)))))
+      (doseq [[suite junit-file i] (map vector suites junit-files (range))]
+        (println "Running" (name suite) "tests...")
+        (try
+          (run-test-suite-serial opts suite junit-file)
+          (catch clojure.lang.ExceptionInfo e
+            (merge-junit-files junit-target (take (inc i) junit-files))
+            (throw e))))
+      (merge-junit-files junit-target junit-files)))
   opts)
 
 (defn run-unit-tests [opts]
