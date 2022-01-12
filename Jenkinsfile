@@ -84,8 +84,13 @@ node {
           sendSlackMsg ('Tests failed (attempt 2 of 2)')
         }
       } finally {
-        try { junit 'target/junit.xml'
-        } catch (exc2) { echo "!!! target/junit.xml not found" }
+        try {
+          junit 'target/junit.xml'
+        } catch (exc2) {
+          echo "!!! target/junit.xml not found or no testcases found in it"
+          currentBuild.result = 'UNSTABLE'
+          sendSlackMsg ('Test results not found')
+        }
 
         if (currentBuild.result != 'UNSTABLE') {
           currentBuild.result = 'SUCCESS'
