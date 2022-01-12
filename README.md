@@ -20,7 +20,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 
 1. Clone this repository
 
-        git clone <yourname>@bitbucket.org:insilica/systematic_review.git sysrev
+        git clone <yourname>@github.com:insilica/systematic_review.git sysrev
         cd sysrev
 
 1. Install OpenJDK 8 (or Oracle release) via system package manager
