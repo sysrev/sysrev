@@ -27,7 +27,8 @@
                      (->> (map (comp f attr :attrs) ms)
                           (reduce +)
                           str))]
-      (dxml/element
+      (apply
+       dxml/element
        :testsuite
        {:errors (sum-attr parse-long :errors)
         :failures (sum-attr parse-long :failures)
@@ -37,7 +38,9 @@
         :time (sum-attr parse-double :time)
         :timestamp timestamp}
        (dxml/element :system-err {} (concat-content :system-err))
-       (dxml/element :system-out {} (concat-content :system-out))))))
+       (dxml/element :system-out {} (concat-content :system-out))
+       (filter #(= :testcase (:tag %))
+               (mapcat :content ms))))))
 
 (s/fdef merge-testsuite-xml
   :args (s/cat :testsuites (s/* ::spec/testsuite))
