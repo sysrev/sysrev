@@ -1,6 +1,8 @@
 #kaocha/v1
 {:plugins [:kaocha.plugin/junit-xml
-           :kaocha.plugin/print-invocations]
+           :kaocha.plugin/print-invocations
+           :kaocha.plugin/profiling]
  :kaocha.plugin.junit-xml/target-file "target/junit.xml"
+ :kaocha.plugin.profiling/profiling? false
  :tests [{:source-paths ["src/clj" "src/cljc"]
           :test-paths ["test/clj"]}]}
