@@ -26,7 +26,7 @@
                                 (filter #(= tag (:tag %)))
                                 (mapcat :content)))
           sum-attr (fn [f attr]
-                     (->> (map (comp f attr :attrs) ms)
+                     (->> (map #(f (or (some-> % :attrs attr) "0")) ms)
                           (reduce +)
                           str))]
       (apply
@@ -36,6 +36,7 @@
         :failures (sum-attr parse-long :failures)
         :name name
         :package package
+        :skipped (sum-attr parse-long :skipped)
         :tests (sum-attr parse-long :tests)
         :time (sum-attr parse-double :time)
         :timestamp timestamp}

@@ -125,7 +125,7 @@
                       lambdaisland/kaocha {:mvn/version "1.60.945"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
-                                                     :sha "0725b237daf135641f40ae2ed2f40409b0de8908"}
+                                                     :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
                       prestancedesign/get-port {:mvn/version "0.1.1"}
 
                       poly/datapub {:local/root "projects/datapub"}
