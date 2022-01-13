@@ -42,8 +42,8 @@
         :tests (sum-attr parse-long :tests)
         :time (sum-attr parse-double :time)
         :timestamp timestamp}
-       (dxml/element :system-err {} (concat-content :system-err))
-       (dxml/element :system-out {} (concat-content :system-out))
+       (apply dxml/element :system-err {} (concat-content :system-err))
+       (apply dxml/element :system-out {} (concat-content :system-out))
        (filter #(= :testcase (:tag %))
                (mapcat :content ms))))))
 
