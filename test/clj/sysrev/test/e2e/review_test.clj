@@ -51,3 +51,13 @@
           (ea/wait 1)
           (-> (ea/has-class? {:fn/has-class "save-labels"} "disabled")
               is))))))
+
+(deftest ^:kaocha/pending ^:e2e test-create-project-and-review-article)
+
+(deftest ^:kaocha/pending ^:e2e test-review-label-components)
+
+(deftest ^:kaocha/pending ^:e2e test-articles-data)
+
+(deftest ^:kaocha/pending ^:e2e test-last-assigned)
+
+(deftest ^:kaocha/pending ^:e2e test-unlimited-reviews)

@@ -29,3 +29,7 @@
           (et/is-wait-exists {:css ".pdf-view .pdf-page-container .pdf-page"})
           (et/is-click-visible {:css (x/project-menu-item :articles)} )
           (et/is-wait-exists {:css "a.column.article-title"}))))))
+
+(deftest ^:kaocha/pending ^:e2e test-pdf-interface)
+
+(deftest ^:kaocha/pending ^:e2e test-import-ris-file)

@@ -59,6 +59,8 @@
         (et/is-wait-visible {:css "i.grey.lock"})
         (et/is-wait-visible "//span[contains(text(),'Private')]")))))
 
+(deftest ^:kaocha/pending ^:e2e test-project-routes)
+
 (deftest ^:e2e test-private-project-downgrade
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
@@ -133,3 +135,7 @@
         (et/clear driver :article-search)
         (e/wait-until-loading-completes driver)
         (is (= 8 (article-count driver)))))))
+
+(deftest ^:kaocha/pending ^:e2e test-gengroups-crud)
+
+(deftest ^:kaocha/pending ^:e2e test-gengroups-assign)
