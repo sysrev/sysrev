@@ -260,17 +260,15 @@
                    1
                    0))))
 
-(def test-suites #{:e2e :integration :skip :unit})
+(def test-suites #{:e2e :integration :unit})
 
 (defn find-orphaned-tests!
   "Find any tests that aren't labeled with meta in `test-suites`.
 
   E.g., each test should look like this:
   `(deftest ^:unit test-abc ,,,)`
-  or:
-  `(deftest ^:skip test-abc ,,,)`
 
-  This will find tests that have missing or invalid meta:
+  This will return tests that have missing or invalid meta:
   `(deftest test-xyz ,,,)`
   `(deftest ^:unt test-xyz ,,,)`"
   [& [extra-config]]

@@ -79,7 +79,7 @@
                            x))
                  m))
 
-(deftest ^:skip project-query
+(deftest ^:kaocha/pending ^:integration project-query
   (test/with-test-system [system {}]
     (let [{:keys [user-id]} (test/create-test-user system)
           project-name  "Graphql - Project Query Test"

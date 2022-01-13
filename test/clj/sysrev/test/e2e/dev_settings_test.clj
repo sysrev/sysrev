@@ -10,7 +10,7 @@
    [sysrev.test.e2e.core :as e]
    [sysrev.user.core :refer [user-by-email]]))
 
-(deftest ^:skip happy-path-enable
+(deftest ^:kaocha/pending ^:e2e happy-path-enable
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
           api-key (-> user :email user-by-email :api-token)]
@@ -53,8 +53,8 @@
       (is (= api-key (get-in (read-account {:api-key api-key})
                              [:data :account :apiKey]))))))
 
-#_(deftest ^:skip account-mutation-tests
-  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
+(deftest ^:kaocha/pending ^:e2e account-mutation-tests
+  #_(e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user (test/create-test-user system)
           api-key (-> user :email user-by-email :api-token)
           new-email (-> (str/split (:email user) #"@") first (str "+alpha@example.com"))
