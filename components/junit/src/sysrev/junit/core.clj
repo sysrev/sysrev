@@ -4,7 +4,9 @@
   (:require
    [clojure.data.xml :as dxml]
    [clojure.spec.alpha :as s]
-   [sysrev.junit.interface.spec :as spec]))
+   [sysrev.junit.interface.spec :as spec])
+  (:import
+   (java.io FileInputStream FileWriter)))
 
 (defn parse-double [s]
   (try
@@ -65,3 +67,15 @@
 (s/fdef merge-xml
   :args (s/cat :testsuitess (s/* ::spec/testsuites))
   :ret (s/nilable ::spec/testsuites))
+
+(defn merge-files! [out-file in-files]
+  (let [in-streams (map #(FileInputStream. (str %)) in-files)]
+    (try
+      (let [junit (->> in-streams
+                       (map dxml/parse)
+                       (apply merge-xml))]
+        (with-open [out-file (FileWriter. (str out-file))]
+          (dxml/emit junit out-file)))
+      (finally
+        (doseq [is in-streams] (.close is)))))
+  out-file)

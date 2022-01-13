@@ -13,6 +13,8 @@
    [sysrev.config :refer [env]]
    [sysrev.datasource.api :refer [ds-auth-key]]
    [sysrev.db.core :as db]
+   [sysrev.file-util.interface :as file-util]
+   [sysrev.junit.interface :as junit]
    [sysrev.main :as main]
    [sysrev.payment.plans :as plans]
    [sysrev.postgres.interface :as pg]
@@ -260,28 +262,71 @@
                    1
                    0))))
 
-(def test-suites #{:e2e :integration :unit})
+(def test-kind-order [:unit :integration :e2e])
+(def test-kinds (into #{} test-kind-order))
 
-(defn find-orphaned-tests!
-  "Find any tests that aren't labeled with meta in `test-suites`.
+(defn tests-by-kind [& [extra-config]]
+  (->> (kr/test-plan extra-config)
+       kt/test-seq
+       (reduce
+        (fn [result {:kaocha.testable/keys [id meta type]}]
+          (if (not= :kaocha.type/var type)
+            result
+            (update result
+                    (into #{} (keep #(when (meta %) %) test-kinds))
+                    (fnil conj #{}) ;; A set is used to deduplicate tests that are in more than one test suite
+                    id)))
+        {})))
+
+(defn find-invalid-tests!
+  "Find any tests that aren't labeled with meta in `test-kinds` or have meta
+  from more than one kind.
 
   E.g., each test should look like this:
   `(deftest ^:unit test-abc ,,,)`
 
   This will return tests that have missing or invalid meta:
   `(deftest test-xyz ,,,)`
-  `(deftest ^:unt test-xyz ,,,)`"
+  `(deftest ^:unt test-xyz ,,,)`
+  `(deftest ^:unit ^:e2e test-xyz ,,,)`"
   [& [extra-config]]
-  (->> (kr/test-plan extra-config)
-       kt/test-seq
-       (filter (fn [{:kaocha.testable/keys [meta type]}]
-                 (and (= :kaocha.type/var type)
-                      (every? (complement meta) test-suites))))
-       (map :kaocha.testable/id)))
+  (->> (tests-by-kind extra-config)
+       (medley/filter-keys #(not= 1 (count %)))
+       vals
+       (apply concat)))
 
-(defn find-orphaned-tests-cli! [& [extra-config]]
-  (let [tests (find-orphaned-tests! extra-config)]
+(defn find-invalid-tests-cli! [& [extra-config]]
+  (log/info "Checking test kind assignments")
+  (let [tests (find-invalid-tests! extra-config)]
     (when (seq tests)
+      (log/info (str "Found tests with no valid test kind metadata (one of " (pr-str test-kinds) ") or that have metadata for more than one test kind"))
       (doseq [t tests]
-        (prn t))
-      (System/exit 1))))
+        (log/info t))
+      (System/exit 1)))
+  (log/info "All tests are assigned to a valid test kind"))
+
+(defn create-target-dir! []
+  (file-util/create-directories! (file-util/get-path "target")))
+
+(defn run-tests-cli! [& [{:keys [extra-config]}]]
+  (find-invalid-tests-cli! extra-config)
+  (create-target-dir!)
+  (let [test-ids (tests-by-kind extra-config)
+        junit-target (file-util/get-path "target/junit.xml")]
+    (file-util/with-temp-files [junit-files
+                                {:num-files (count test-kind-order)
+                                 :prefix "junit-"
+                                 :suffix ".xml"}]
+      (doseq [[kind junit-file i] (map vector test-kind-order junit-files (range))]
+        (log/info "Running" (name kind) "tests")
+        (let [kind-config (merge extra-config {:kaocha.plugin.junit-xml/target-file junit-file})
+              {:kaocha.result/keys [error fail]}
+              #__ (apply kr/run (concat (get test-ids #{kind}) [kind-config]))
+              tests-passed? (not (or (pos? error) (pos? fail)))]
+          (if tests-passed?
+            (log/info (name kind) "tests passed")
+            (do (log/error (name kind) "tests failed")
+                (junit/merge-files! junit-target (take (inc i) junit-files))
+                (System/exit 1)))))
+      (junit/merge-files! junit-target junit-files)
+      (System/exit 0))))

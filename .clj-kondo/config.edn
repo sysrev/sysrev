@@ -90,5 +90,7 @@
                           "src/scripts/repl.clj"]}
  :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
            sysrev.db.core/with-long-transaction clojure.core/with-open
+           sysrev.file-util.interface/with-temp-file clojure.core/with-open
+           sysrev.file-util.interface/with-temp-files clojure.core/with-open
            sysrev.test.core/with-test-system clojure.core/with-open
            sysrev.test.e2e.core/with-test-resources clojure.core/with-open}}

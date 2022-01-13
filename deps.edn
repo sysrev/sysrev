@@ -90,9 +90,7 @@
         poly/user {:local/root "components/user"}}
  :aliases
  {:build {:deps {io.github.seancorfield/build-clj
-                 {:git/tag "v0.6.7" :git/sha "22c2d09"}
-                 poly/file-util {:local/root "components/file-util"}
-                 poly/junit {:local/root "components/junit"}}
+                 {:git/tag "v0.6.7" :git/sha "22c2d09"}}
           :ns-default build}
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
@@ -105,7 +103,6 @@
                      poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
-                     poly/junit {:local/root "components/junit"}
                      poly/sqlite {:local/root "components/sqlite"}}}
   :dev-embedded {:extra-paths ["config/dev-embedded"]}
   :eastwood {:extra-deps {jonase/eastwood {:mvn/version "0.9.9"}}
@@ -133,6 +130,7 @@
                       poly/etaoin-test {:local/root "components/etaoin-test"}
                       poly/file-util {:local/root "components/file-util"}
                       poly/fixtures {:local/root "components/fixtures"}
+                      poly/junit {:local/root "components/junit"}
                       poly/pdf-read {:local/root "components/pdf-read"}
                       poly/tesseract {:local/root "components/tesseract"}}
          :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]}
