@@ -30,10 +30,10 @@
     (ea/wait-visible :log-in-link)))
 
 (defn log-in
-  ([{:keys [driver system]} {:keys [email password]}]
+  ([{:keys [driver] :as test-resources} {:keys [email password]}]
    (log/info "logging in" (str "(" email ")"))
+   (e/go test-resources "/login")
    (doto driver
-     (ea/go (e/absolute-url system "/login"))
      (et/fill-visible :login-email-input email)
      (et/fill-visible :login-password-input password)
      (et/click-visible {:css "button[name='submit']"})

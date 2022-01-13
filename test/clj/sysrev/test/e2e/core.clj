@@ -11,7 +11,6 @@
    [sysrev.test.core :as test]
    [sysrev.util :as util])
   (:import
-   (clojure.lang ExceptionInfo)
    (java.net URL URLDecoder)
    (java.util Date)))
 
@@ -28,9 +27,10 @@
 (def not-disabled (not-class "disabled"))
 
 (def loader-elements-css
-  [(str "div.ui.loader.active" (not-class "loading-indicator"))
+  [(str "div.ui.loader.active:" (not-class "loading-indicator"))
    "div.ui.dimmer.active > .ui.loader"
-   ".ui.button.loading"])
+   ".ui.button.loading"
+   ".ui.icon.loading"])
 
 (defn root-url [& [system]]
   (let [{:keys [url]} (test/get-selenium-config system)]
@@ -115,60 +115,29 @@
   [driver & [duration]]
   (< (ajax-activity-duration driver) (- (or duration 30))))
 
-(defn wait-loading
-  [driver & {:keys [timeout interval pre-wait loop inactive-ms] :or {pre-wait false}}]
-  (let [timeout (or timeout 15000)
-        interval (or interval 20)]
-    (dotimes [_ (or loop 1)]
-      (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 25)))
-      (try (test/wait-until
-            (fn [] (and (ajax-inactive? driver inactive-ms)
-                        (every? #(not (ea/exists? driver {:css %}))
-                                loader-elements-css)))
-            timeout interval)
-           (catch ExceptionInfo e
-             (when-not (ajax-inactive? driver inactive-ms)
-               (log/warnf "[wait-loading] ajax blocking =>\n%s"
-                          (try (-> (ajax-pending-requests driver) util/pp-str str/trim-newline)
-                               (catch Throwable _
-                                 "<error while trying to read pending requests>"))))
-             (when-let [q-blocking (seq (filterv #(ea/exists? driver {:css %})
-                                                 loader-elements-css))]
-               (log/warnf "[wait-loading] elements blocking =>\n%s"
-                          (str/join "\n" q-blocking)))
-             (throw e))))))
+(defn wait-until-loading-completes
+  [driver]
+  (ea/wait-predicate
+   (fn []
+     (and (ajax-inactive? driver)
+          (not (some #(ea/exists? driver {:css %}) loader-elements-css))))))
 
-(defn go [{:keys [driver system]}
-          relative-url
-          & {:keys [init silent]
-             :or {init false silent false}}]
+(defn go [{:keys [driver system]} relative-url]
   {:pre [(map? driver) (not-empty driver)]}
-  (let [full-url (absolute-url system relative-url)]
-    (when-not silent
-      (if init
-        (log/info "loading" full-url)
-        (log/info "navigating to" relative-url)))
-    (when-not init (wait-loading driver :pre-wait true))
-    (when-not init (check-browser-console-clean driver))
-    (if init
+  (let [full-url (absolute-url system relative-url)
+        init? (= "data:," (ea/get-url driver))]
+    (if init?
+      (log/info "loading" full-url)
+      (log/info "navigating to" relative-url))
+    (when-not init? (check-browser-console-clean driver))
+    (if init?
       (ea/go driver full-url)
       (js-execute driver (format "sysrev.nav.set_token(\"%s\")" relative-url)))
-    (wait-exists driver :app)
-    (wait-loading driver :pre-wait true)
+    (wait-until-loading-completes driver)
     (check-browser-console-clean driver)))
 
 (defn go-project [test-resources project-id project-relative-url]
   (go test-resources (str "/p/" project-id project-relative-url)))
-
-(defn fill [driver q string & {:keys [delay clear?]
-                               :or {delay 40, clear? false}}]
-  (wait-loading driver :pre-wait delay)
-  (wait-exists driver q)
-  (when clear?
-    (ea/clear driver q)
-    (wait-loading driver :pre-wait delay))
-  (ea/fill driver q string)
-  (wait-loading driver :pre-wait delay))
 
 (defn enabled? [driver q & {:keys [wait] :or {wait true}}]
   (when wait (wait-exists driver q))
@@ -284,14 +253,13 @@
 
 (defn new-project [{:keys [driver] :as test-resources} project-name]
   (log/info "creating project" (pr-str project-name))
-  (go test-resources "/" :init true :silent true)
+  (go test-resources "/new")
   (doto driver
-    (et/click-visible {:css "#new-project.button"})
-    (fill {:css "#create-project div.project-name input"} project-name)
+    (et/fill-visible {:css "#create-project div.project-name input"} project-name)
     (et/click-visible "//button[contains(text(),'Create Project')]")
-    (wait-exists (str "//div[contains(@class,'project-title')]"
+    (ea/wait-exists (str "//div[contains(@class,'project-title')]"
                              "//a[contains(text(),'" project-name "')]"))
-    (wait-loading :pre-wait true)))
+    wait-until-loading-completes))
 
 (defn select-datasource [driver datasource-name]
   (wait-exists driver :enable-import)
@@ -308,22 +276,9 @@
   "Given a coll of file names in the resources dir, attach the files to
   uppy file element."
   [driver coll]
-  (wait-exists driver "//button[contains(text(),'browse files')]")
-  (fill driver {:css "input[name='files[]']"}
-        (->> (for [s (util/ensure-vector coll)]
-               (-> s io/resource .getFile URLDecoder/decode))
-             (str/join "\n"))
-        :delay 200))
-
-(def loader-elements-css
-  [(str "div.ui.loader.active:" (not-class "loading-indicator"))
-   "div.ui.dimmer.active > .ui.loader"
-   ".ui.button.loading"
-   ".ui.icon.loading"])
-
-(defn wait-until-loading-completes
-  [driver]
-  (ea/wait-predicate
-   (fn []
-     (and (ajax-inactive? driver)
-          (not (some #(ea/exists? driver {:css %}) loader-elements-css))))))
+  (doto driver
+    (ea/wait-exists {:fn/has-class :uppy-Dashboard-input})
+    (ea/fill {:fn/has-class :uppy-Dashboard-input}
+             (->> (for [s (util/ensure-vector coll)]
+                    (-> s io/resource .getFile URLDecoder/decode))
+                  (str/join "\n")))))
