@@ -37,4 +37,4 @@
      (et/fill-visible :login-email-input email)
      (et/fill-visible :login-password-input password)
      (et/click-visible {:css "button[name='submit']"})
-     (ea/wait-visible {:fn/has-text "Your Projects"}))))
+     e/wait-until-loading-completes)))
