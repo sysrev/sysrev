@@ -83,7 +83,7 @@
 (def-webapi
   :import-pmids :post
   {:required [:project-id :pmids]
-   :require-admin? true
+   :project-role "admin"
    :check-answers? true
    :doc (->> ["\"pmids\": array of integer PubMed IDs"
               ""
@@ -116,7 +116,7 @@
 (def-webapi
   :import-article-text :post
   {:required [:project-id :articles]
-   :require-admin? true
+   :project-role "admin"
    :check-answers? true
    :doc (->> ["articles: array of article maps"
               ""
