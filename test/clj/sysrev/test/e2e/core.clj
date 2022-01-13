@@ -49,6 +49,9 @@
   (when-let [url (util/ignore-exceptions (ea/get-url driver))]
     (some #(str/includes? url %) #{"localhost" "sysrev"})))
 
+(defn current-user-id [driver]
+  (js-execute driver "return sysrev.state.identity.current_user_id(window.re_frame.db.app_db.state);"))
+
 (defn browser-console-logs [driver]
   (when (sysrev-url? driver)
     (try (not-empty (js-execute driver "return sysrev.base.get_console_logs();"))
