@@ -50,7 +50,7 @@
     (some #(str/includes? url %) #{"localhost" "sysrev"})))
 
 (defn current-user-id [driver]
-  (js-execute driver "return sysrev.state.identity.current_user_id(window.re_frame.db.app_db.state);"))
+  (js-execute driver "return sysrev.state.identity.current_user_id(sysrev.state.core.re_frame_db_state());"))
 
 (defn browser-console-logs [driver]
   (when (sysrev-url? driver)
