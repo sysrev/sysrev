@@ -4,6 +4,7 @@
    [etaoin.api :as ea]
    [sysrev.etaoin-test.interface :as et]
    [sysrev.group.core :as group]
+   [sysrev.source.import :as import]
    [sysrev.test.core :as test]
    [sysrev.test.e2e.account :as account]
    [sysrev.test.e2e.core :as e]
@@ -107,3 +108,28 @@
         (doto driver
           ea/refresh
           (et/is-wait-visible {:fn/has-text "Label Definitions"}))))))
+
+(deftest ^:e2e test-article-search
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
+    (let [user (test/create-test-user system)
+          _ (account/log-in test-resources user)
+          project-id (project/create-project! test-resources (str "Test Article Search " (util/random-id)))
+          article-count (fn [driver]
+                          (count (ea/query-all driver {:css ".article-list-segments .article-list-article"})))]
+      (import/import-pmid-vector
+       (select-keys system [:web-server])
+       project-id
+       {:pmids [33222245 32891636 25706626 25215519 23790141 22716928 19505094 9656183]}
+       {:use-future? false})
+      (e/go-project test-resources project-id "/articles")
+      (testing "filtering by search terms"
+        (et/is-fill-visible driver :article-search "CO2")
+        (e/wait-until-loading-completes driver)
+        (is (= 3 (article-count driver)))
+        (et/is-fill-visible driver :article-search " earth")
+        (e/wait-until-loading-completes driver)
+        (is (= 1 (article-count driver))))
+      (testing "clearing the search input shows all articles"
+        (et/clear driver :article-search)
+        (e/wait-until-loading-completes driver)
+        (is (= 8 (article-count driver)))))))

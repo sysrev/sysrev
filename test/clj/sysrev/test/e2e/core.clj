@@ -157,6 +157,9 @@
     (wait-loading driver :pre-wait true)
     (check-browser-console-clean driver)))
 
+(defn go-project [test-resources project-id project-relative-url]
+  (go test-resources (str "/p/" project-id project-relative-url)))
+
 (defn fill [driver q string & {:keys [delay clear?]
                                :or {delay 40, clear? false}}]
   (wait-loading driver :pre-wait delay)
@@ -315,7 +318,8 @@
 (def loader-elements-css
   [(str "div.ui.loader.active:" (not-class "loading-indicator"))
    "div.ui.dimmer.active > .ui.loader"
-   ".ui.button.loading"])
+   ".ui.button.loading"
+   ".ui.icon.loading"])
 
 (defn wait-until-loading-completes
   [driver]
