@@ -329,6 +329,29 @@
             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                      :datasetId (:dataset-id $)})))))))
 
+(defn resolve-datasetEntitiesById
+  [context {:keys [ids] :as args} _]
+  (connection-helper
+   context args
+   {:count-f
+    (fn [{:keys [context]}]
+      (->> {:select :%count.id
+            :from :entity
+            :where [:in :id ids]}
+           (execute-one! context)
+           :count))
+    :edges-f
+    (fn [{:keys [context cursor limit]}]
+      (->> {:select :id
+            :from :entity
+            :limit limit
+            :where [:and [:> :id cursor] [:in :id ids]]
+            :order-by [:id]}
+           (execute! context)
+           (map (fn [{:entity/keys [id]}]
+                  {:cursor (str id) :node {:id id}}))
+           (split-at (dec limit))))}))
+
 (defn resolve-Dataset#entities
   [context {:keys [externalId groupingId] :as args} {:keys [id]}]
   (let [where [:and

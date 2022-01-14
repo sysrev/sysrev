@@ -172,6 +172,11 @@ input UpdateDatasetInput {
 
 type Query {
   dataset(id: PositiveInt!) : Dataset
+  datasetEntitiesById(
+    after: String
+    first: NonNegativeInt
+    ids: [PositiveInt]
+  ) : DatasetEntitiesConnection
   datasetEntity(id: PositiveInt!) : DatasetEntity
   listDatasets(
     after: String

@@ -36,6 +36,13 @@
   [return]
   (q/q-dataset return))
 
+(defn q-dataset-entities-by-id
+  "Returns the string representation of a datasetEntitiesById query.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (q/q-dataset-entities-by-id return))
+
 (defn q-dataset-entity
   "Returns the string representation of a datasetEntity query.
 
