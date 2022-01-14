@@ -273,12 +273,7 @@
     (let [ex (partial ex! system)
           ds-id (-> (ex (dpcq/m-create-dataset "id")
                         {:input {:name "test-dataset-entities-pagination"}})
-                    (get-in [:data :createDataset :id]))
-          q-dataset#entities
-          #__ (fn [return]
-                (str "query($after: String, $first: NonNegativeInt, $id: PositiveInt!){dataset(id: $id){entities(after: $after, first: $first){"
-                     (dpcq/return->string return)
-                     "}}}"))]
+                    (get-in [:data :createDataset :id]))]
       (doseq [i (range 15)]
         (ex (dpcq/m-create-dataset-entity "id")
             {:input
