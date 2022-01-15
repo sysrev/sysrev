@@ -2,7 +2,6 @@
   (:require
    [clojure.test :refer :all]
    [clojure.tools.logging :as log]
-   [etaoin.api :as ea]
    [sysrev.api :as api]
    [sysrev.etaoin-test.interface :as et]
    [sysrev.project.member :as member]
@@ -14,11 +13,11 @@
 
 (defn change-project-label-blinding!
   "Change label blinding setting for current project."
-  [{:keys [driver system]} project-id blinding?]
+  [{:keys [driver] :as test-resources} project-id blinding?]
   (let [q (str "button#blind-reviewers_" (boolean blinding?))]
     (log/infof "changing label blinding to %s" (boolean blinding?))
+    (e/go-project test-resources project-id "/settings")
     (doto driver
-      (ea/go (e/absolute-url system (str "/p/" project-id "/settings")))
       (et/click-visible {:css (str q ":" e/not-disabled ":" e/not-active)})
       (et/click-visible {:css "div.project-options button.save-changes"})
       e/wait-until-loading-completes)))
@@ -44,7 +43,7 @@
        {:pmids [25706626 25215519 23790141]}
        {:use-future? false})
       ;; review all articles
-      (ea/go driver (e/absolute-url system (str "/p/" project-id "/review")))
+      (e/go-project test-resources project-id "/review")
       (dotimes [_ 3]
         (doto driver
           (labels/set-label-answer! (assoc labels/include-label-definition :value true))
@@ -54,10 +53,9 @@
       (doto test-resources
         account/log-out
         (account/log-in user2))
+      ;; go to articles page
+      (e/go-project test-resources project-id "/articles")
       (doto driver
-        ;; go to articles page
-        (ea/go (e/absolute-url system (str "/p/" project-id "/articles")))
-        e/wait-until-loading-completes
         ;; review times are visible
         (et/is-wait-exists {:css ".ui.updated-time"})
         ;; check that no answers are visible
@@ -69,10 +67,9 @@
         (et/is-not-exists? {:css ".article-labels-view"}))
       ;; add user2 as a member and check for blinding again
       (member/add-project-member project-id (:user-id user2))
+      ;; go to articles page
+      (e/go-project test-resources project-id "/articles")
       (doto driver
-        ;; go to articles page
-        (ea/go (e/absolute-url system (str "/p/" project-id "/articles")))
-        e/wait-until-loading-completes
         ;; review times are visible
         (et/is-wait-exists {:css ".ui.updated-time"})
         ;; check that no answers are visible
