@@ -312,21 +312,28 @@
   (find-invalid-tests-cli! extra-config)
   (create-target-dir!)
   (let [test-ids (tests-by-kind extra-config)
+        get-tests (fn [kind] (get test-ids #{kind}))
+        test-kinds (filter (comp seq get-tests) test-kind-order)
         junit-target (file-util/get-path "target/junit.xml")]
-    (file-util/with-temp-files [junit-files
-                                {:num-files (count test-kind-order)
-                                 :prefix "junit-"
-                                 :suffix ".xml"}]
-      (doseq [[kind junit-file i] (map vector test-kind-order junit-files (range))]
-        (log/info "Running" (name kind) "tests")
-        (let [kind-config (merge extra-config {:kaocha.plugin.junit-xml/target-file junit-file})
-              {:kaocha.result/keys [error fail]}
-              #__ (apply kr/run (concat (get test-ids #{kind}) [kind-config]))
-              tests-passed? (not (or (pos? error) (pos? fail)))]
-          (if tests-passed?
-            (log/info (name kind) "tests passed")
-            (do (log/error (name kind) "tests failed")
-                (junit/merge-files! junit-target (take (inc i) junit-files))
-                (System/exit 1)))))
-      (junit/merge-files! junit-target junit-files)
-      (System/exit 0))))
+    (if (empty? test-ids)
+      (do
+        (log/error "No tests found")
+        (System/exit 1))
+      (file-util/with-temp-files [junit-files
+                                  {:num-files (count test-kinds)
+                                   :prefix "junit-"
+                                   :suffix ".xml"}]
+        (doseq [[kind junit-file i] (map vector test-kinds junit-files (range))]
+          (log/info "Running" (count (get-tests kind)) (name kind)
+                    (if (< 1 (count (get-tests kind))) "tests" "test"))
+          (let [kind-config (merge extra-config {:kaocha.plugin.junit-xml/target-file junit-file})
+                {:kaocha.result/keys [error fail]}
+                #__ (apply kr/run (concat (get-tests kind) [kind-config]))
+                tests-passed? (not (or (pos? error) (pos? fail)))]
+            (if tests-passed?
+              (log/info (name kind) "tests passed")
+              (do (log/error (name kind) "tests failed")
+                  (junit/merge-files! junit-target (take (inc i) junit-files))
+                  (System/exit 1)))))
+        (junit/merge-files! junit-target junit-files)
+        (System/exit 0)))))

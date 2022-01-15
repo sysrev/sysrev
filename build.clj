@@ -41,9 +41,13 @@
       (System/exit 1)))
   opts)
 
-(defn run-tests [opts]
-  (let [{:keys [exit]}
-        #__ (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/run-tests-cli!"]})]
+(defn run-tests [{:keys [focus] :as opts}]
+  (let [extra-config (if focus
+                       {:kaocha.filter/focus [focus]}
+                       {})
+        {:keys [exit]}
+        #__ (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/run-tests-cli!"
+                                       ":extra-config" (pr-str extra-config)]})]
     (when-not (zero? exit)
       (System/exit 1)))
   opts)
