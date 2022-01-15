@@ -62,25 +62,25 @@
   "Asserts that `click-visible` succeeds.
 
   Catches etaoin timeout exceptions and causes a test failure instead."
-  [driver q & [opt]]
-  `(core/is-click-visible ~driver ~q ~opt))
+  [driver q & [opt msg]]
+  `(core/is-click-visible ~driver ~q ~opt ~msg))
 
 (defmacro is-exists?
   "Asserts that `etaoin.api/exists?` returns true."
-  [driver q & more]
-  `(core/is-exists? ~driver ~q ~@more))
+  [driver q & [msg]]
+  `(core/is-exists? ~driver ~q ~msg))
 
 (defmacro is-fill-visible
   "Asserts that `fill-visible` succeeds.
 
   Catches etaoin timeout exceptions and causes a test failure instead."
-  [driver q text & [opt]]
-  `(core/is-fill-visible ~driver ~q ~text ~opt))
+  [driver q text & [opt msg]]
+  `(core/is-fill-visible ~driver ~q ~text ~opt ~msg))
 
 (defmacro is-not-exists?
   "Asserts that `etaoin.api/exists?` returns false."
-  [driver q & more]
-  `(core/is-not-exists? ~driver ~q ~@more))
+  [driver q & [msg]]
+  `(core/is-not-exists? ~driver ~q ~msg))
 
 (defmacro is-not-pred
   "Asserts that pred, when called with driver as the first argument, returns
@@ -88,15 +88,15 @@
 
   Usage:
   (doto driver
-    (is-not-pred etaoin.api/exists? :id)
-    (is-not-pred etaoin.api/exists? :id2))"
-  [driver pred & args]
-  `(core/is-pred ~driver ~pred ~@args))
+    (is-not-pred nil etaoin.api/exists? :id)
+    (is-not-pred nil etaoin.api/exists? :id2))"
+  [driver msg pred & args]
+  `(core/is-not-pred ~driver ~msg ~pred ~@args))
 
 (defmacro is-not-visible?
   "Asserts that `etaoin.api/visible?` returns false."
-  [driver q & more]
-  `(core/is-not-visible? ~driver ~q ~@more))
+  [driver q & [msg]]
+  `(core/is-not-visible? ~driver ~q ~msg))
 
 (defmacro is-pred
   "Asserts that pred, when called with driver as the first argument, returns
@@ -106,26 +106,26 @@
 
   Usage:
   (doto driver
-    (is-pred etaoin.api/exists? :id)
-    (is-pred etaoin.api/exists? :id2))"
-  [driver pred & args]
-  `(core/is-pred ~driver ~pred ~@args))
+    (is-pred nil etaoin.api/exists? :id)
+    (is-pred nil etaoin.api/exists? :id2))"
+  [driver msg pred & args]
+  `(core/is-pred ~driver ~msg ~pred ~@args))
 
 (defmacro is-visible?
   "Asserts that `etaoin.api/visible?` returns true."
-  [driver q & more]
-  `(core/is-visible? ~driver ~q ~@more))
+  [driver q & [msg]]
+  `(core/is-visible? ~driver ~q ~msg))
 
 (defmacro is-wait-exists
   "Asserts that `etaoin.api/wait-exists` succeeds.
 
   Catches etaoin timeout exceptions and causes a test failure instead."
-  [driver q & [opt]]
-  `(core/is-wait-exists ~driver ~q ~opt))
+  [driver q & [opt msg]]
+  `(core/is-wait-exists ~driver ~q ~opt ~msg))
 
 (defmacro is-wait-visible
   "Asserts that `etaoin.api/wait-visible` succeeds.
 
   Catches etaoin timeout exceptions and causes a test failure instead."
-  [driver q & [opt]]
-  `(core/is-wait-visible ~driver ~q ~opt))
+  [driver q & [opt msg]]
+  `(core/is-wait-visible ~driver ~q ~opt ~msg))

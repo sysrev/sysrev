@@ -62,48 +62,55 @@
                :opt (s/? (s/nilable map?)))
   :ret nil?)
 
-(defmacro is-catch-timeout [& body]
+(defmacro is-catch-timeout [form & [msg]]
   `(is
     (try
-      ~@body
+      ~form
       true
       (catch ExceptionInfo e#
         (if (-> e# ex-data :type (= :etaoin/timeout))
           false
-          (throw e#))))))
+          (throw e#))))
+    ~msg))
 
-(defmacro is-not-pred [driver pred & args]
+(defmacro is-not-pred [driver msg pred & args]
   `(is-catch-timeout
-    (not (~pred ~driver ~@args))))
+    (not (~pred ~driver ~@args))
+    ~msg))
 
-(defmacro is-pred [driver pred & args]
+(defmacro is-pred [driver msg pred & args]
   `(is-catch-timeout
-    (~pred ~driver ~@args)))
+    (~pred ~driver ~@args)
+    ~msg))
 
-(defmacro is-exists? [driver q & more]
-  `(is-pred ~driver ea/exists? ~q ~@more))
+(defmacro is-exists? [driver q & [msg]]
+  `(is-pred ~driver ~msg ea/exists? ~q))
 
-(defmacro is-not-exists? [driver q & more]
-  `(is-not-pred ~driver ea/exists? ~q ~@more))
+(defmacro is-not-exists? [driver q & [msg]]
+  `(is-not-pred ~driver ~msg ea/exists? ~q))
 
-(defmacro is-wait-exists [driver q & [opt]]
+(defmacro is-wait-exists [driver q & [opt msg]]
   `(is-catch-timeout
-    (ea/wait-exists ~driver ~q ~opt)))
+    (ea/wait-exists ~driver ~q ~opt)
+    ~msg))
 
-(defmacro is-visible? [driver q & more]
-  `(is-pred ~driver ea/visible? ~q ~@more))
+(defmacro is-visible? [driver q & [msg]]
+  `(is-pred ~driver ~msg ea/visible? ~q))
 
-(defmacro is-not-visible? [driver q & more]
-  `(is-not-pred ~driver ea/visible? ~q ~@more))
+(defmacro is-not-visible? [driver q & [msg]]
+  `(is-not-pred ~driver ~msg ea/visible? ~q))
 
-(defmacro is-wait-visible [driver q & [opt]]
+(defmacro is-wait-visible [driver q & [opt msg]]
   `(is-catch-timeout
-    (ea/wait-visible ~driver ~q ~opt)))
+    (ea/wait-visible ~driver ~q ~opt)
+    ~msg))
 
-(defmacro is-click-visible [driver q & [opt]]
+(defmacro is-click-visible [driver q & [opt msg]]
   `(is-catch-timeout
-    (click-visible ~driver ~q ~opt)))
+    (click-visible ~driver ~q ~opt)
+    ~msg))
 
-(defmacro is-fill-visible [driver q & [opt]]
+(defmacro is-fill-visible [driver q & [opt msg]]
   `(is-catch-timeout
-    (fill-visible ~driver ~q ~opt)))
+    (fill-visible ~driver ~q ~opt)
+    ~msg))
