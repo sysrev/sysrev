@@ -1,6 +1,7 @@
 (ns sysrev.test.e2e.project
   (:require [etaoin.api :as ea]
             [sysrev.etaoin-test.interface :as et]
+            [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
             [sysrev.test.e2e.core :as e]))
@@ -21,6 +22,7 @@
       (current-project-id driver))
     (let [owner-id (e/current-user-id driver)
           {:keys [project-id]} (project/create-project name)]
+      (label/add-label-overall-include project-id)
       (member/add-project-member
        project-id owner-id
        :permissions ["owner" "admin" "member"])
