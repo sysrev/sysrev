@@ -41,4 +41,5 @@
      (et/fill-visible :login-email-input email)
      (et/fill-visible :login-password-input password)
      (et/click-visible {:css "button[name='submit']"})
-     e/wait-until-loading-completes)))
+     e/wait-until-loading-completes
+     e/check-browser-console-clean)))
