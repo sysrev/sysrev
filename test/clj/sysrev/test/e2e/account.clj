@@ -24,10 +24,14 @@
       (ea/wait-visible :new-project))
     {:email email :password password}))
 
-(defn log-out [{:keys [driver]}]
+(defn log-out [{:keys [driver system]}]
   (doto driver
+    e/check-browser-console-clean
     (et/click-visible :log-out-link)
-    (ea/wait-visible :log-in-link)))
+    (ea/wait-visible :log-in-link)
+    (ea/go (e/absolute-url system "/"))
+    e/wait-until-loading-completes
+    e/check-browser-console-clean))
 
 (defn log-in
   ([{:keys [driver] :as test-resources} {:keys [email password]}]
