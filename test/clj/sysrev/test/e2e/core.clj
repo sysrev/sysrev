@@ -139,6 +139,13 @@
 (defn go-project [test-resources project-id project-relative-url]
   (go test-resources (str "/p/" project-id project-relative-url)))
 
+(defn refresh [driver]
+  (doto driver
+    check-browser-console-clean
+    ea/refresh
+    wait-until-loading-completes
+    check-browser-console-clean))
+
 (defn enabled? [driver q & {:keys [wait] :or {wait true}}]
   (when wait (wait-exists driver q))
   (ea/enabled? driver q))
