@@ -43,7 +43,6 @@
                       (assoc request :body)
                       (assoc context :request))
 
-                 :else
                  (assoc context :response
                         {:status 400
                          :headers {}

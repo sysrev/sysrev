@@ -79,7 +79,7 @@
     ;; hasn't handed over the values of the request to lacinia GraphQL
     :post (try (-> body (json/read-str :key-fn keyword) :query)
                (catch Throwable _ ""))
-    :else ""))
+    ""))
 
 ;; https://github.com/remvee/ring-basic-authentication/blob/master/src/ring/middleware/basic_authentication.clj
 (defn- byte-transform
