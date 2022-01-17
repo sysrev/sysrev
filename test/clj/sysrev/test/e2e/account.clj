@@ -31,7 +31,8 @@
     (ea/wait-visible :log-in-link)
     (ea/go (e/absolute-url system "/"))
     e/wait-until-loading-completes
-    e/check-browser-console-clean))
+    e/check-browser-console-clean)
+  nil)
 
 (defn log-in
   ([{:keys [driver] :as test-resources} {:keys [email password]}]
@@ -42,4 +43,5 @@
      (et/fill-visible :login-password-input password)
      (et/click-visible {:css "button[name='submit']"})
      e/wait-until-loading-completes
-     e/check-browser-console-clean)))
+     e/check-browser-console-clean)
+   (e/current-user-id driver)))
