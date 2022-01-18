@@ -39,7 +39,7 @@ source "amazon-ebs" "datapub" {
   # Ubuntu was failing ~50% of the time due to apt-get not finding packages,
   # so we're using Debian. We reuse the previous AMI by default to save time.
   #source_ami        = "${data.amazon-ami.previous_build.id}"
-  source_ami        = "ami-00fd4f335e00c21ce" # Build from base Debian 11.1
+  source_ami        = "ami-0f2a16d0f6e7c0378" # Build from base Debian 11.2
   ssh_username      = "admin"
   tags = {
     "sysrev:build:git-ref" = "${var.git-ref}"
