@@ -317,6 +317,33 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           #__ (subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
+;; Adapted from https://tonsky.me/blog/pedestal/
+;; I attempted an implementation as described in
+;; https://github.com/pedestal/pedestal/issues/623#issuecomment-508853264
+;; but couldn't get anywhere.
+;; Filtering out Broken pipe reporting
+;; io.pedestal.http.impl.servlet-interceptor/error-stylobate
+(defn error-stylobate [{:keys [request servlet-response] :as context} exception]
+  (let [cause (clojure.stacktrace/root-cause exception)]
+    (if (and (instance? java.io.IOException cause)
+          (= "Broken pipe" (.getMessage cause)))
+      (io.pedestal.log/info :msg (str "Broken pipe for " (-> request :request-method name str/upper-case) " " (:uri request)))
+      (do
+        (io.pedestal.log/error
+         :msg "error-stylobate triggered"
+         :context context)
+        ;; Put exception on its own line so stack trace doesn't get truncated due to size
+        (io.pedestal.log/error :exception exception)))
+    (@#'io.pedestal.http.impl.servlet-interceptor/leave-stylobate context)))
+
+;; io.pedestal.http.impl.servlet-interceptor/stylobate
+(def stylobate
+  (io.pedestal.interceptor/interceptor
+    {:name ::stylobate
+     :enter @#'io.pedestal.http.impl.servlet-interceptor/enter-stylobate
+     :leave @#'io.pedestal.http.impl.servlet-interceptor/leave-stylobate
+     :error error-stylobate}))
+
 (defrecord Pedestal [bound-port config opts secrets-manager service service-map service-map-fn]
   component/Lifecycle
   (start [this]
@@ -328,9 +355,10 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           (let [service-map (service-map-fn
                              (update opts :port #(or % 0)) ; Prevent pedestal exception
                              this)
-                service (if (:port opts)
-                          (http/start (http/create-server service-map))
-                          (http/create-server (assoc service-map :port 0)))
+                service (with-redefs [io.pedestal.http.impl.servlet-interceptor/stylobate stylobate]
+                          (if (:port opts)
+                            (http/start (http/create-server service-map))
+                            (http/create-server (assoc service-map :port 0))))
                 bound-port (some-> service :io.pedestal.http/server
                                    .getURI .getPort)]
             (if (and bound-port (pos-int? bound-port))
