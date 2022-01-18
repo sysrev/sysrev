@@ -116,6 +116,13 @@
   [driver q & [msg]]
   `(core/is-visible? ~driver ~q ~msg))
 
+(defmacro is-wait-pred
+  "Asserts that `(pred)` succeeds.
+
+  Catches etaoin timeout exceptions and causes a test failure instead."
+  [pred & [opt msg]]
+  `(core/is-wait-pred ~pred ~opt ~msg))
+
 (defmacro is-wait-exists
   "Asserts that `etaoin.api/wait-exists` succeeds.
 

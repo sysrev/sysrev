@@ -94,6 +94,11 @@
     (ea/wait-exists ~driver ~q ~opt)
     ~msg))
 
+(defmacro is-wait-pred [pred & [opt msg]]
+  `(is-catch-timeout
+    (ea/wait-predicate ~pred ~opt)
+    ~msg))
+
 (defmacro is-visible? [driver q & [msg]]
   `(is-pred ~driver ~msg ea/visible? ~q))
 
