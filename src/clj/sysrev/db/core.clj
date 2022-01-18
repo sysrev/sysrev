@@ -54,13 +54,15 @@
 (defn <-pgobject
   "Transform PGobject containing `json` or `jsonb` value to Clojure
   data."
-  [^org.postgresql.util.PGobject v]
-  (let [type  (.getType v)
-        value (.getValue v)]
+  [^org.postgresql.util.PGobject obj]
+  (let [type  (.getType obj)
+        value (.getValue obj)]
     (if (#{"jsonb" "json"} type)
       (when value
-        (some-> (json/read-str value :key-fn keyword)
-                (with-meta {:pgtype type})))
+        (let [v (json/read-str value :key-fn keyword)]
+          (if (isa? (class v) clojure.lang.IObj)
+            (with-meta v {:pgtype type})
+            v)))
       value)))
 
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
