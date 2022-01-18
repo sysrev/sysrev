@@ -86,6 +86,16 @@
         :Effect "Allow"
         :Resource "*"}]}}}
 
+   :ListBucketsPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["s3:ListAllMyBuckets"]
+        :Effect "Allow"
+        :Resource "*"}]}}}
+
    ;; https://www.packer.io/docs/builders/amazon
    :PackerBuildPolicy
    {:Type "AWS::IAM::ManagedPolicy"
@@ -156,7 +166,8 @@
     :Properties
     {:GroupName "sysrev-developers"
      :ManagedPolicyArns
-     [(ref :CloudWatchReadPolicy)]}}}
+     [(ref :CloudWatchReadPolicy)
+      (ref :ListBucketsPolicy)]}}}
 
   :Outputs
   (prefixed-outputs

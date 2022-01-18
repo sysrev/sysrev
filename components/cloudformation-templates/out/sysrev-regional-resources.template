@@ -355,6 +355,15 @@
     "LoadBalancer" : {
       "Properties" : {
         "IpAddressType" : "dualstack",
+        "LoadBalancerAttributes" : [ {
+          "Key" : "access_logs.s3.enabled",
+          "Value" : "true"
+        }, {
+          "Key" : "access_logs.s3.bucket",
+          "Value" : {
+            "Ref" : "LoggingBucket"
+          }
+        } ],
         "SecurityGroups" : [ {
           "Fn::GetAtt" : [ "Vpc", "DefaultSecurityGroup" ]
         }, {
@@ -486,6 +495,98 @@
         }
       },
       "Type" : "AWS::EC2::SecurityGroup"
+    },
+    "LoggingBucket" : {
+      "Properties" : {
+        "AccessControl" : "Private",
+        "PublicAccessBlockConfiguration" : {
+          "BlockPublicAcls" : true,
+          "BlockPublicPolicy" : true,
+          "IgnorePublicAcls" : true,
+          "RestrictPublicBuckets" : true
+        }
+      },
+      "Type" : "AWS::S3::Bucket"
+    },
+    "LoggingBucketELBWritePolicy" : {
+      "Properties" : {
+        "Bucket" : {
+          "Ref" : "LoggingBucket"
+        },
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : "s3:PutObject",
+            "Effect" : "Allow",
+            "Principal" : {
+              "AWS" : "arn:aws:iam::127311923021:root"
+            },
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "LoggingBucket"
+              }, "/AWSLogs/", {
+                "Ref" : "AWS::AccountId"
+              }, "/*" ] ]
+            }
+          }, {
+            "Action" : "s3:PutObject",
+            "Condition" : {
+              "StringEquals" : {
+                "s3:x-amz-acl" : "bucket-owner-full-control"
+              }
+            },
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : "delivery.logs.amazonaws.com"
+            },
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "LoggingBucket"
+              }, "/AWSLogs/", {
+                "Ref" : "AWS::AccountId"
+              }, "/*" ] ]
+            }
+          }, {
+            "Action" : "s3:GetBucketAcl",
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : "delivery.logs.amazonaws.com"
+            },
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "LoggingBucket"
+              } ] ]
+            }
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::S3::BucketPolicy"
+    },
+    "LoggingBucketReadPolicy" : {
+      "Properties" : {
+        "Groups" : [ "sysrev-developers" ],
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : [ "s3:GetBucketLocation", "s3:ListBucket" ],
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "LoggingBucket"
+              } ] ]
+            }
+          }, {
+            "Action" : "s3:GetObject",
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "LoggingBucket"
+              }, "/*" ] ]
+            }
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
     },
     "LogsKey" : {
       "Properties" : {

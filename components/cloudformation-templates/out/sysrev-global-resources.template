@@ -117,6 +117,8 @@
         "GroupName" : "sysrev-developers",
         "ManagedPolicyArns" : [ {
           "Ref" : "CloudWatchReadPolicy"
+        }, {
+          "Ref" : "ListBucketsPolicy"
         } ]
       },
       "Type" : "AWS::IAM::Group"
@@ -133,6 +135,19 @@
         "UserName" : "github-actions"
       },
       "Type" : "AWS::IAM::User"
+    },
+    "ListBucketsPolicy" : {
+      "Properties" : {
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : [ "s3:ListAllMyBuckets" ],
+            "Effect" : "Allow",
+            "Resource" : "*"
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
     },
     "PackerBuildPolicy" : {
       "Properties" : {
