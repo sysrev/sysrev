@@ -26,11 +26,7 @@
 (def not-active (not-class "active"))
 (def not-disabled (not-class "disabled"))
 
-(def loader-elements-css
-  [(str "div.ui.loader.active:" (not-class "loading-indicator"))
-   "div.ui.dimmer.active > .ui.loader"
-   ".ui.button.loading"
-   ".ui.icon.loading"])
+(def loader-elements-css [".loader" ".loading"])
 
 (defn root-url [& [system]]
   (let [{:keys [url]} (test/get-selenium-config system)]
@@ -120,7 +116,7 @@
   (ea/wait-predicate
    (fn []
      (and (ajax-inactive? driver)
-          (not (some #(ea/exists? driver {:css %}) loader-elements-css))))))
+          (not (some #(ea/visible? driver {:css %}) loader-elements-css))))))
 
 (defn go [{:keys [driver system]} relative-url]
   {:pre [(map? driver) (not-empty driver)]}
