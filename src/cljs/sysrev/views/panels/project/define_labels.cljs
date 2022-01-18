@@ -589,6 +589,10 @@
         max-length (r/cursor definition [:max-length])
         ;; 
         validatable-label? (r/cursor definition [:validatable-label?])
+        ;; 
+        hidden-label? (r/cursor definition [:hidden-label?])
+        ;; 
+        default-value (r/cursor definition [:default-value])
         ;;;
         errors (r/cursor label [:errors])
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
@@ -599,8 +603,7 @@
                                                   ;; save on server
                                                   (sync-to-server)
                                                   ;; just reset editing
-                                                  (reset! (r/cursor label [:editing?]) false))
-                                                )
+                                                  (reset! (r/cursor label [:editing?]) false)))
                                               :prevent-default true)}
      (when (string? @value-type)
        [:h5.ui.dividing.header.value-type
@@ -681,12 +684,11 @@
       [ui/TextInputField
         (make-args :default-value
                    {:label "Default value"
+                    :value @default-value
                     :tooltip ["Default value"]
                     :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
-                                  (if (empty? value)
-                                    (reset! all-values nil)
-                                    (reset! all-values (str/split value #","))))}
+                                  (reset! default-value value))}
                    errors)]
      ;; required
      [ui/LabeledCheckboxField
@@ -791,24 +793,24 @@
                           (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
-     (let [error (get-in @errors [:definition :validatable-label?])]
-         [:div.field.validatable-label {:class (when error "error")
-                                        :style {:width "100%"}}
+     (let [error (get-in @errors [:definition :hidden-label?])]
+        [:div.field.validatable-label {:class (when error "error")
+                                            :style {:width "100%"}}
           [FormLabelWithTooltip
            "Hide label?"
            ["Hide label from the reviewer"]]
           
           [ui/LabeledCheckbox
-           {:checked? (not @validatable-label?)
+           {:checked? (not @hidden-label?)
             :disabled (not is-owned?)
             :on-change #(let [checked? (-> % .-target .-checked)]
-                          (reset! validatable-label? (not checked?)))
+                          (reset! hidden-label? (not checked?)))
             :label "No"}]
           [ui/LabeledCheckbox
-           {:checked? @validatable-label?
+           {:checked? @hidden-label?
             :disabled (not is-owned?)
             :on-change #(let [checked? (-> % .-target .-checked)]
-                          (reset! validatable-label? checked?))
+                          (reset! hidden-label? checked?))
             :label "Yes"}]
           [show-error-msg error]])
      (when is-owned?

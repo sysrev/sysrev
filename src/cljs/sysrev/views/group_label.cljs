@@ -369,7 +369,8 @@
       (let [answers (subscribe [:review/active-labels article-id "na" group-label-id])
             labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                         (sort-by :project-ordering <)
-                        (filter :enabled))
+                        (filter :enabled)
+                        (filter #(not (-> % :definition :hidden-label?))))
             max-row (r/cursor state [:max-row])
             current-position (r/cursor state [:current-position])
             multi? (subscribe [:label/multi? "na" group-label-id])]
@@ -464,7 +465,8 @@
       (let [answers (subscribe [:review/active-labels article-id "na" group-label-id])
             labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                         (sort-by :project-ordering <)
-                        (filter :enabled))]
+                        (filter :enabled)
+                        (filter #(not (-> % :definition :hidden-label?))))]
         (reset! (r/cursor state [:current-position]) {:row 0 :col 0})
         (reset! (r/cursor state [:max-col]) (- (count labels) 1))
         (reset! (r/cursor state [:max-row]) (- (count (:labels @answers)) 1)))
@@ -477,7 +479,8 @@
                                        article-id "na" group-label-id])
                           :labels count (max 1))
             labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
-                        (filter :enabled))]
+                        (filter :enabled)
+                        (filter #(not (-> % :definition :hidden-label?))))]
         (when (not= (r/props this) (last old-argv))
           (reset! (r/cursor state [:current-position]) {:row 0 :col 0})
           (reset! (r/cursor state [:max-col]) (- (count labels) 1))
@@ -643,7 +646,8 @@
                              group-label-id])
         labels (->> (vals @(subscribe [:label/labels "na" group-label-id]))
                     (sort-by :project-ordering <)
-                    (filter :enabled))
+                    (filter :enabled)
+                    (filter #(not (-> % :definition :hidden-label?))))
         multi? @(subscribe [:label/multi? "na" group-label-id])
         map-arr (comp into-array map)]
     [DataSheet (assoc opts :labels labels :multi? multi?)

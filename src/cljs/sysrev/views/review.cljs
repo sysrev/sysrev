@@ -502,59 +502,60 @@
         question @(subscribe [:label/question "na" label-id])
         on-click-help (util/wrap-user-event #(do nil) :timeout false)
         answer @(subscribe [:review/active-labels article-id "na" label-id "na"])]
-    [:div.ui.column.label-edit {:class label-css-class
-                                :data-label-id (str label-id)
-                                :data-short-label (str label-string)}
-     [:div.ui.middle.aligned.grid.label-edit
-      [ui/Tooltip
-       {:class "label-help"
-        :basic true
-        :hoverable false
-        :distance-away 6
-        :position (if (= n-cols 1)
-                    (if (<= label-position 1) "bottom center" "top center")
-                    (cond (= row-position :left)   "top left"
-                          (= row-position :right)  "top right"
-                          :else                    "top center"))
-        :trigger (let [name-content [:span.name {:class (css [(>= (count label-string) 30)
-                                                              "small-text"])}
-                                     [:span.inner.short-label label-string]]]
-                   (if (and (util/mobile?) (>= (count label-string) 30))
-                     [:div.ui.row.label-edit-name {:on-click on-click-help}
-                      [inclusion-tag article-id "na" label-id "na"]
-                      [:span.name " "]
-                      (when (seq question)
-                        [:i.right.floated.fitted.grey.circle.question.mark.icon])
-                      [:div.clear name-content]]
-                     [:div.ui.row.label-edit-name {:on-click on-click-help
-                                                   :style {:cursor "help"}}
-                      [inclusion-tag article-id "na" label-id "na"]
-                      name-content
-                      (when (seq question)
-                        [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
-        :tooltip [label-help-popup
-                  {:category @(subscribe [:label/category "na" label-id])
-                   :required @(subscribe [:label/required? "na" label-id])
-                   :question @(subscribe [:label/question "na" label-id])
-                   :definition {:examples @(subscribe [:label/examples
-                                                       "na" label-id])}}]}]
-      [:div.ui.row.label-edit-value {:class (condp = value-type
-                                              "boolean"      "boolean"
-                                              "categorical"  "category"
-                                              "annotation"   "annotation"
-                                              "string"       "string"
-                                              "")}
-       [:div.inner (condp = value-type
-                     "boolean" [BooleanLabelInput ["na" label-id "na"] article-id]
-                     "categorical" [CategoricalLabelInput ["na" label-id "na"] article-id]
-                     "annotation" [AnnotationLabelInput ["na" label-id "na"] article-id]
-                     "string" [StringLabelInput ["na" label-id "na"] article-id]
-                     [:div "unknown label - label-column"])]]]
-     (when (missing-answer? label answer)
-       [:div {:style {:text-align "center"
-                      :margin-bottom "0.5rem"}
-              :class  "missing-label-answer"
-              :div (str "missing-label-answer " label-id)} "Required"])]))
+    (when (not (-> label :definition :hidden-label?))
+      [:div.ui.column.label-edit {:class label-css-class
+                                  :data-label-id (str label-id)
+                                  :data-short-label (str label-string)}
+       [:div.ui.middle.aligned.grid.label-edit
+        [ui/Tooltip
+         {:class "label-help"
+          :basic true
+          :hoverable false
+          :distance-away 6
+          :position (if (= n-cols 1)
+                      (if (<= label-position 1) "bottom center" "top center")
+                      (cond (= row-position :left)   "top left"
+                            (= row-position :right)  "top right"
+                            :else                    "top center"))
+          :trigger (let [name-content [:span.name {:class (css [(>= (count label-string) 30)
+                                                                "small-text"])}
+                                       [:span.inner.short-label label-string]]]
+                     (if (and (util/mobile?) (>= (count label-string) 30))
+                       [:div.ui.row.label-edit-name {:on-click on-click-help}
+                        [inclusion-tag article-id "na" label-id "na"]
+                        [:span.name " "]
+                        (when (seq question)
+                          [:i.right.floated.fitted.grey.circle.question.mark.icon])
+                        [:div.clear name-content]]
+                       [:div.ui.row.label-edit-name {:on-click on-click-help
+                                                     :style {:cursor "help"}}
+                        [inclusion-tag article-id "na" label-id "na"]
+                        name-content
+                        (when (seq question)
+                          [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
+          :tooltip [label-help-popup
+                    {:category @(subscribe [:label/category "na" label-id])
+                     :required @(subscribe [:label/required? "na" label-id])
+                     :question @(subscribe [:label/question "na" label-id])
+                     :definition {:examples @(subscribe [:label/examples
+                                                         "na" label-id])}}]}]
+        [:div.ui.row.label-edit-value {:class (condp = value-type
+                                                "boolean"      "boolean"
+                                                "categorical"  "category"
+                                                "annotation"   "annotation"
+                                                "string"       "string"
+                                                "")}
+         [:div.inner (condp = value-type
+                       "boolean" [BooleanLabelInput ["na" label-id "na"] article-id]
+                       "categorical" [CategoricalLabelInput ["na" label-id "na"] article-id]
+                       "annotation" [AnnotationLabelInput ["na" label-id "na"] article-id]
+                       "string" [StringLabelInput ["na" label-id "na"] article-id]
+                       [:div "unknown label - label-column"])]]]
+       (when (missing-answer? label answer)
+         [:div {:style {:text-align "center"
+                        :margin-bottom "0.5rem"}
+                :class  "missing-label-answer"
+                :div (str "missing-label-answer " label-id)} "Required"])])))
 
 (defn- note-input-element [note-name]
   (when @(subscribe [:project/notes nil note-name])
