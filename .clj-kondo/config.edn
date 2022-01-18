@@ -1,4 +1,5 @@
 {:linters {:redefined-var {:level :off}
+           :redundant-do {:level :off}
            :refer-all {:level :off}
            :use {:level :off}
            :unresolved-var {:level :off}
