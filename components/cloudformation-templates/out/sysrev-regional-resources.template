@@ -353,6 +353,7 @@
       "Type" : "AWS::EC2::Route"
     },
     "LoadBalancer" : {
+      "DependsOn" : [ "LoggingBucketELBWritePolicy" ],
       "Properties" : {
         "IpAddressType" : "dualstack",
         "LoadBalancerAttributes" : [ {

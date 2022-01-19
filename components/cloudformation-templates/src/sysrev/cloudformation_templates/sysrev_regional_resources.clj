@@ -307,6 +307,7 @@
 
    :LoadBalancer
    {:Type "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    :DependsOn ["LoggingBucketELBWritePolicy"]
     :Properties
     {:IpAddressType "dualstack"
      :LoadBalancerAttributes
