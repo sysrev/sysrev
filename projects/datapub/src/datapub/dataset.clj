@@ -396,40 +396,51 @@
                     (catch Exception _))]
     (when entity-id
       (with-tx-context [context context]
-        (let [entity (get-entity-content
-                      context entity-id
-                      #{:content :content-hash :created :dataset-id})]
-          (when (:content entity)
+        (let [{:keys [content] :as entity}
+              #__ (get-entity-content
+                   context entity-id
+                   #{:content :content-hash :created :dataset-id})
+              close (fn []
+                      (when (instance? java.io.Closeable content)
+                        (.close content)))]
+          (when content
             (let [hash (or (:content-json/hash entity) (:content-file/content-hash entity))
                   etag (base64url-encode hash)
                   origin (some-> (get-in request [:headers "origin"]) str/lower-case)
-                  public? (call-memo context :public-dataset? (:entity/dataset-id entity))]
-              (cond
-                (not (or (sysrev-dev? context) public?))
-                {:status 403
-                 :body "Forbidden"}
+                  public? (call-memo context :public-dataset? (:entity/dataset-id entity))
+                  response
+                  #__ (cond
+                        (not (or (sysrev-dev? context) public?))
+                        {:status 403
+                         :body "Forbidden"}
 
-                (not= (:content-hash (:path-params request)) (subs etag 0 21))
-                {:status 301
-                 :headers (cond-> {"Location" (content-url-path entity-id hash)}
-                            (and origin (allowed-origins origin))
-                            #__ (assoc "Access-Control-Allow-Origin" origin))}
+                        (not= (:content-hash (:path-params request)) (subs etag 0 21))
+                        {:status 301
+                         :headers (cond-> {"Location" (content-url-path entity-id hash)}
+                                    (and origin (allowed-origins origin))
+                                    #__ (assoc "Access-Control-Allow-Origin" origin))}
 
-                :else
-                {:status 200
-                 :headers (cond-> {"Cache-Control" (if public?
-                                                     "public, max-age=315360000, immutable"
-                                                     "no-cache")
-                                   "Content-Type" (:mediaType entity)
-                                   "ETag" etag
-                                   "Last-Modified" (.format
-                                                    http-datetime-formatter
-                                                    (.toInstant ^Timestamp (:entity/created entity)))
-                                   "Vary" "Origin"}
-                            (and origin (allowed-origins origin))
-                            #__ (assoc "Access-Control-Allow-Origin" origin))
-                 :body (when (not= :head (:request-method request))
-                         (:content entity))}))))))))
+                        :else
+                        {:status 200
+                         :headers (cond-> {"Cache-Control" (if public?
+                                                             "public, max-age=315360000, immutable"
+                                                             "no-cache")
+                                           "Content-Type" (:mediaType entity)
+                                           "ETag" etag
+                                           "Last-Modified" (.format
+                                                            http-datetime-formatter
+                                                            (.toInstant ^Timestamp (:entity/created entity)))
+                                           "Vary" "Origin"}
+                                    (and origin (allowed-origins origin))
+                                    #__ (assoc "Access-Control-Allow-Origin" origin))
+                         :body (when (not= :head (:request-method request))
+                                 (if (instance? java.io.InputStream content)
+                                   (java.nio.channels.Channels/newChannel ^java.io.InputStream content)
+                                   content))})]
+              (when (and (instance? java.io.Closeable content)
+                         (not (instance? java.io.Closeable (:body response))))
+                (.close content))
+              response)))))))
 
 (defn get-existing-content-id [context {:keys [content-hash content-table]}]
   ((keyword (name content-table) "content-id")
