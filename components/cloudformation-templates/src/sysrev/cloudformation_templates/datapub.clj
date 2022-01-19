@@ -92,7 +92,7 @@
    {:Type "AWS::Logs::SubscriptionFilter"
     :Properties
     {:DestinationArn (arn :ErrorFunction)
-     :FilterPattern "?ERROR ?WARN"
+     :FilterPattern "?ERROR"
      :LogGroupName (ref :LogGroup)}}
 
    :RDSMasterCredentials
