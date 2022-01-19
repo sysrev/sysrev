@@ -76,7 +76,7 @@
       },
       "Properties" : {
         "Cooldown" : "30",
-        "HealthCheckGracePeriod" : 300,
+        "HealthCheckGracePeriod" : 450,
         "HealthCheckType" : "ELB",
         "LaunchTemplate" : {
           "LaunchTemplateId" : {

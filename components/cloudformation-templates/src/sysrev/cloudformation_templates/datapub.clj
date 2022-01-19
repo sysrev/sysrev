@@ -322,7 +322,7 @@
     :Properties
     {:Cooldown "30"
      :HealthCheckType "ELB"
-     :HealthCheckGracePeriod 300
+     :HealthCheckGracePeriod 450
      :LaunchTemplate
      {:LaunchTemplateId (ref :LaunchTemplate)
       :Version (get-att :LaunchTemplate "LatestVersionNumber")}
