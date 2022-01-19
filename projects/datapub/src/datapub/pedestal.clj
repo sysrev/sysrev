@@ -266,6 +266,10 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
                                  error-logging-interceptor]
+        download-interceptors (conj json-error-interceptors
+                                    #(dataset/download-DatasetEntity-content
+                                      (assoc app-context :request %)
+                                      (allowed-origins env)))
         routes (into #{["/api"
                         :options
                         (conj json-error-interceptors
@@ -275,12 +279,11 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                         :post (api-interceptors opts compiled-schema app-context)
                         :route-name ::graphql-api]
                        ["/download/DatasetEntity/content/:entity-id/:content-hash"
-                        :get
-                        (conj json-error-interceptors
-                              #(dataset/download-DatasetEntity-content
-                                (assoc app-context :request %)
-                                (allowed-origins env)))
+                        :get download-interceptors
                         :route-name ::DatasetEntity-content]
+                       ["/download/DatasetEntity/content/:entity-id/:content-hash"
+                        :head download-interceptors
+                        :route-name ::DatasetEntity-content-head]
                        ["/download/DatasetEntity/content/:entity-id/:content-hash"
                         :options
                         (conj json-error-interceptors
