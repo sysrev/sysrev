@@ -42,6 +42,18 @@
         :Effect "Deny"
         :Resource "*"}]}}}
 
+   :CloudFormationReadPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["cloudformation:DescribeStackEvents"
+                 "cloudformation:DescribeStackResources"
+                 "cloudformation:ListStacks"]
+        :Effect "Allow"
+        :Resource "*"}]}}}
+
    :CloudWatchReadPolicy
    {:Type "AWS::IAM::ManagedPolicy"
     :Properties
@@ -166,7 +178,8 @@
     :Properties
     {:GroupName "sysrev-developers"
      :ManagedPolicyArns
-     [(ref :CloudWatchReadPolicy)
+     [(ref :CloudFormationReadPolicy)
+      (ref :CloudWatchReadPolicy)
       (ref :ListBucketsPolicy)]}}}
 
   :Outputs

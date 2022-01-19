@@ -83,6 +83,19 @@
       },
       "Type" : "AWS::IAM::ManagedPolicy"
     },
+    "CloudFormationReadPolicy" : {
+      "Properties" : {
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : [ "cloudformation:DescribeStackEvents", "cloudformation:DescribeStackResources", "cloudformation:ListStacks" ],
+            "Effect" : "Allow",
+            "Resource" : "*"
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
+    },
     "CloudWatchReadPolicy" : {
       "Properties" : {
         "PolicyDocument" : {
@@ -116,6 +129,8 @@
       "Properties" : {
         "GroupName" : "sysrev-developers",
         "ManagedPolicyArns" : [ {
+          "Ref" : "CloudFormationReadPolicy"
+        }, {
           "Ref" : "CloudWatchReadPolicy"
         }, {
           "Ref" : "ListBucketsPolicy"
