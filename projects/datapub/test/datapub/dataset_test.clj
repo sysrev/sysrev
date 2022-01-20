@@ -195,6 +195,26 @@
                (ex "query($groupingId: String, $id: PositiveInt){dataset(id:$id){entities(groupingId: $groupingId) {totalCount edges{node{id}}}}}"
                    {:groupingId "gr-id" :id ds-id})))))))
 
+(deftest test-non-existent-entity
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-entity"}})
+                    (get-in [:data :createDataset :id]))
+          entity-id (-> (ex (dpcq/m-create-dataset-entity "id")
+                            {:input
+                             {:datasetId ds-id
+                              :content (json/generate-string {:a 1})
+                              :mediaType "application/json"}})
+                        (get-in [:data :createDatasetEntity :id])
+                        inc)]
+      (testing "Queries for non-existent entities return nil"
+        (is (= {:data {:datasetEntity nil}}
+               (ex (dpcq/q-dataset-entity "id") {:id entity-id})))
+        (is (= {:data {:datasetEntity nil}}
+               (ex (dpcq/q-dataset-entity "contentUrl") {:id entity-id})))
+        (is (= {:data {:datasetEntity nil}}
+               (ex (dpcq/q-dataset-entity "mediaType") {:id entity-id})))))))
+
 (deftest test-entity-ops-with-external-ids
   (test/with-test-system [system {}]
     (let [ex (partial ex! system)

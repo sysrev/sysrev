@@ -300,34 +300,34 @@
   (defn resolve-dataset-entity [context {:keys [id]} _]
     (let [ks (conj (current-selection-names context) :dataset-id)]
       (with-tx-context [context context]
-        (as->
-            (if (some #{:content :contentUrl :mediaType :metadata} ks)
-              (-> (get-entity-content
-                   context id
-                   (conj ks (when (:contentUrl ks) :content-hash)))
-                  (update :content
-                          #(if (instance? InputStream %)
-                             (.encodeToString (Base64/getEncoder)
-                                              (IOUtils/toByteArray ^InputStream %))
-                             %)))
-              (execute-one!
-               context
-               {:select (keep cols-all ks)
-                :from :entity
-                :where [:= :id id]}))
-            $
-          (remap-keys #(inv-cols % %) $)
-          (assoc $
-                 :id id
-                 :contentUrl
-                 (when (:contentUrl ks)
-                   (str (server-url (:request context))
-                        (content-url-path id (or (:content-hash $) (:hash $))))))
-          (if (or (sysrev-dev? context)
-                  (call-memo context :public-dataset? (:dataset-id $)))
-            $
-            (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
-                                     :datasetId (:dataset-id $)})))))))
+        (some->
+         (if (some #{:content :contentUrl :mediaType :metadata} ks)
+           (some-> (get-entity-content
+                    context id
+                    (conj ks (when (:contentUrl ks) :content-hash)))
+                   (update :content
+                           #(if (instance? InputStream %)
+                              (.encodeToString (Base64/getEncoder)
+                                               (IOUtils/toByteArray ^InputStream %))
+                              %)))
+           (execute-one!
+            context
+            {:select (keep cols-all ks)
+             :from :entity
+             :where [:= :id id]}))
+         (as-> $
+             (remap-keys #(inv-cols % %) $)
+           (assoc $
+                  :id id
+                  :contentUrl
+                  (when (:contentUrl ks)
+                    (str (server-url (:request context))
+                         (content-url-path id (or (:content-hash $) (:hash $))))))
+           (if (or (sysrev-dev? context)
+                   (call-memo context :public-dataset? (:dataset-id $)))
+             $
+             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
+                                      :datasetId (:dataset-id $)}))))))))
 
 (defn resolve-datasetEntitiesById
   [context {:keys [ids] :as args} _]
