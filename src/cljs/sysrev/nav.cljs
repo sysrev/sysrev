@@ -2,7 +2,7 @@
   (:require [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-fx reg-fx subscribe]]
             [cljs-http.client :as http]
-            [sysrev.base :refer [history]]
+            [sysrev.base :as base]
             [sysrev.shared.text :as text]
             [sysrev.util :refer [scroll-top]]))
 
@@ -32,10 +32,9 @@
 (defn nav
   "Change the current url. If `redirect` is true, replace current entry in
   HTML5 history stack. If `top` is true (default), scroll to page top."
-  [url & {:keys [params top redirect]
-          :or {top true redirect false}}]
-  ((if redirect pushy/replace-token! pushy/set-token!)
-   history (make-url url params))
+  [url & {:keys [params top redirect] :or {top true redirect false}}]
+  (let [change-url! (if redirect pushy/replace-token! pushy/set-token!)]
+    (change-url! base/history (make-url url params)))
   (when top (scroll-top))
   nil)
 
@@ -58,11 +57,18 @@
               (reload-page)))))
 
 (defn ^:export set-token [path]
-  (pushy/set-token! history path))
+  (pushy/set-token! base/history path))
 
 (defn set-page-title [title]
-  (set! js/document.title (if (string? title)
-                            (str title " | Sysrev")
-                            (text/uri-title js/window.location.pathname))))
+  (set! js/document.title (cond->> (if (string? title)
+                                     (str title " | Sysrev")
+                                     (text/uri-title js/window.location.pathname))
+                            ;; local dev build
+                            base/debug?
+                            (str "[dev] ")
+                            ;; local optimized build
+                            (and (not base/debug?)
+                                 (= js/window.location.hostname "localhost"))
+                            (str "[local] "))))
 
 (reg-fx :set-page-title set-page-title)
