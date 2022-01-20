@@ -213,7 +213,7 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
 (def allowed-origins
   {:dev (constantly true)
    :prod #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
-   :staging #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
+   :staging #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com" "https://datapub.sysrevdev.net"}
    :test (constantly true)})
 
 (defn api-interceptors [{:keys [env]} compiled-schema app-context]
