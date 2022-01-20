@@ -19,6 +19,7 @@
    :DatapubBucket {:MaxLength 63
                    :MinLength 3
                    :Type "String"}
+   :DatapubFilesDomainName {:Type "String"}
    :Env {:AllowedPattern "(dev)|(prod)|(staging)"
          :Type "String"}
    :KeyName {:Default ""
@@ -94,6 +95,54 @@
     {:DestinationArn (arn :ErrorFunction)
      :FilterPattern "?ERROR"
      :LogGroupName (ref :LogGroup)}}
+
+   :FileDistributionCertificate
+   {:Type "AWS::CertificateManager::Certificate"
+    :Properties
+    {:DomainName (ref :DatapubFilesDomainName)
+     :DomainValidationOptions
+     [{:DomainName (ref :DatapubFilesDomainName)
+       :HostedZoneId (import-regional "DatapubHostedZoneId")}]
+     :ValidationMethod "DNS"}}
+
+   :FileDistribution
+   {:Type "AWS::CloudFront::Distribution"
+    :Properties
+    {:DistributionConfig
+     {:Aliases [(ref :DatapubFilesDomainName)]
+      :DefaultCacheBehavior
+      {:AllowedMethods ["GET" "HEAD"]
+       :Compress true
+       :ForwardedValues
+       {:Cookies {:Forward "none"}
+        :QueryString false}
+       :TargetOriginId "DatapubBucketOrigin"
+       :ViewerProtocolPolicy "redirect-to-https"}
+      :Enabled true
+      :HttpVersion "http2"
+      :Origins
+      [{:DomainName (join "" [(ref :DatapubBucket) ".s3.amazonaws.com"])
+        :Id "DatapubBucketOrigin"
+        :S3OriginConfig
+        {:OriginAccessIdentity (join "" ["origin-access-identity/cloudfront/"
+                                         (import-regional "CloudFrontOAI")])}}]
+      :ViewerCertificate
+      {:AcmCertificateArn (ref :FileDistributionCertificate)
+       :SslSupportMethod "sni-only"}}}}
+
+   :FileDistributionRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Properties
+    {:HostedZoneId (import-regional "DatapubHostedZoneId")
+     :RecordSets
+     [{:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
+                     :DNSName (get-att :FileDistribution "DomainName")}
+       :Name (ref :DatapubFilesDomainName)
+       :Type "A"}
+      {:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
+                     :DNSName (get-att :FileDistribution "DomainName")}
+       :Name (ref :DatapubFilesDomainName)
+       :Type "AAAA"}]}}
 
    :RDSMasterCredentials
    {:Type "AWS::SecretsManager::Secret"
@@ -284,7 +333,8 @@
        "set -oeux \n"
 
        "echo \""
-       "{:postgres {:host \\\"" (get-att :RDSInstance "Endpoint.Address") "\\\"\n"
+       "{:files-domain-name \\\"" (ref :DatapubFilesDomainName) "\\\"\n"
+       " :postgres {:host \\\"" (get-att :RDSInstance "Endpoint.Address") "\\\"\n"
        "            :port " (get-att :RDSInstance "Endpoint.Port") "\n"
        "            :user \\\"postgres\\\"}\n"
        " :s3 {:datapub-bucket {:name \\\"" (ref :DatapubBucket) "\\\"}}\n"
