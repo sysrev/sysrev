@@ -23,7 +23,8 @@
   "This template creates the regional resources needed by Sysrev services."
 
   :Parameters
-  {:DatapubDomainName {:Type "String"}
+  {:CloudFrontOAI {:Type "String"}
+   :DatapubDomainName {:Type "String"}
    :DatapubHostedZoneId {:Type "AWS::Route53::HostedZone::Id"}
    :NumberOfAZs {:Type "Number" :Default 3 :MinValue 2 :MaxValue 6}}
 
@@ -367,7 +368,8 @@
   :Outputs
   (prefixed-outputs
    "${AWS::StackName}-"
-   {:CredentialsKeyId [(ref :CredentialsKey)]
+   {:CloudFrontOAI [(ref :CloudFrontOAI)]
+    :CredentialsKeyId [(ref :CredentialsKey)]
     :CredentialsKeyUsePolicyArn [(ref :CredentialsKeyUsePolicy)]
     :DatapubDomainName [(ref :DatapubDomainName)]
     :DatapubHostedZoneId [(ref :DatapubHostedZoneId)]

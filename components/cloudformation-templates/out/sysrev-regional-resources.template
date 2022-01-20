@@ -54,6 +54,16 @@
   },
   "Description" : "This template creates the regional resources needed by Sysrev services.",
   "Outputs" : {
+    "CloudFrontOAI" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-CloudFrontOAI"
+        }
+      },
+      "Value" : {
+        "Ref" : "CloudFrontOAI"
+      }
+    },
     "CredentialsKeyId" : {
       "Export" : {
         "Name" : {
@@ -244,6 +254,9 @@
     }
   },
   "Parameters" : {
+    "CloudFrontOAI" : {
+      "Type" : "String"
+    },
     "DatapubDomainName" : {
       "Type" : "String"
     },

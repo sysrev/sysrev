@@ -161,6 +161,12 @@
       (ref :PackerBuildPolicy)]
      :UserName "github-actions"}}
 
+   :CloudFrontOAI
+   {:Type "AWS::CloudFront::CloudFrontOriginAccessIdentity"
+    :Properties
+    {:CloudFrontOriginAccessIdentityConfig
+     {:Comment "CloudFront Origin Access Identity to allow access to S3 objects"}}}
+
    :DatapubBucket
    {:Type "AWS::S3::Bucket"
     :Properties
@@ -172,6 +178,18 @@
       :RestrictPublicBuckets true}
      :Tags
      (tags :grant "thrive")}}
+
+   :DatapubBucketPolicy
+   {:Type "AWS::S3::BucketPolicy"
+    :Properties
+    {:Bucket (ref :DatapubBucket)
+     :PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action "s3:GetObject"
+        :Effect "Allow"
+        :Principal {:AWS (join "" ["arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity " (ref :CloudFrontOAI)])}
+        :Resource (join "" ["arn:aws:s3:::" (ref :DatapubBucket) "/*"])}]}}}
 
    :DevelopersGroup
    {:Type "AWS::IAM::Group"
@@ -186,6 +204,7 @@
   (prefixed-outputs
    "${AWS::StackName}-"
    {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]
+    :CloudFrontOAI [(ref :CloudFrontOAI)]
     :DatapubBucket [(ref :DatapubBucket)]
     :DevelopersGroupArn [(arn :DevelopersGroup)]}))
 

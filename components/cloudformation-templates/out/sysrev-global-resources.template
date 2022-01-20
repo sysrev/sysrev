@@ -12,6 +12,16 @@
         "Fn::GetAtt" : [ "AdminAccessCloudFormationServiceRole", "Arn" ]
       }
     },
+    "CloudFrontOAI" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-CloudFrontOAI"
+        }
+      },
+      "Value" : {
+        "Ref" : "CloudFrontOAI"
+      }
+    },
     "DatapubBucket" : {
       "Export" : {
         "Name" : {
@@ -20,6 +30,16 @@
       },
       "Value" : {
         "Ref" : "DatapubBucket"
+      }
+    },
+    "DatapubBucketDomainName" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-DatapubBucketDomainName"
+        }
+      },
+      "Value" : {
+        "Fn::GetAtt" : [ "DatapubBucket", "DomainName" ]
       }
     },
     "DevelopersGroupArn" : {
@@ -96,6 +116,14 @@
       },
       "Type" : "AWS::IAM::ManagedPolicy"
     },
+    "CloudFrontOAI" : {
+      "Properties" : {
+        "CloudFrontOriginAccessIdentityConfig" : {
+          "Comment" : "CloudFront Origin Access Identity to allow access to S3 objects"
+        }
+      },
+      "Type" : "AWS::CloudFront::CloudFrontOriginAccessIdentity"
+    },
     "CloudWatchReadPolicy" : {
       "Properties" : {
         "PolicyDocument" : {
@@ -124,6 +152,33 @@
         } ]
       },
       "Type" : "AWS::S3::Bucket"
+    },
+    "DatapubBucketPolicy" : {
+      "Properties" : {
+        "Bucket" : {
+          "Ref" : "DatapubBucket"
+        },
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : "s3:GetObject",
+            "Effect" : "Allow",
+            "Principal" : {
+              "AWS" : {
+                "Fn::Join" : [ "", [ "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ", {
+                  "Ref" : "CloudFrontOAI"
+                } ] ]
+              }
+            },
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "DatapubBucket"
+              }, "/*" ] ]
+            }
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::S3::BucketPolicy"
     },
     "DevelopersGroup" : {
       "Properties" : {
