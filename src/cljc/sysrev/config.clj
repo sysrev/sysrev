@@ -3,10 +3,18 @@
   (:require
    [clojure.edn :as edn]
    [clojure.java.io :as io]
-   [environ.core :as environ]
-   [medley.core :as medley])
+   [environ.core :as environ])
   (:import
    (java.io PushbackReader)))
+
+(def defaults
+  {:postgres {:dbtype "postgres"
+              :flyway-locations ["classpath:/sql"]}})
+
+(defn deep-merge [& args]
+  (if (every? #(or (map? %) (nil? %)) args)
+    (apply merge-with deep-merge args)
+    (last args)))
 
 (defn read-config-file [f]
   (when-let [url (io/resource f)]
@@ -16,7 +24,8 @@
 (defonce ^{:doc "A map of environment variables."
            :dynamic true}
   env (let [{:keys [private-config] :as config} (read-config-file "config.edn")]
-        (medley/deep-merge
+        (deep-merge
+         defaults
          config
          ;; Remove some large values that we don't need to aid debugging.
          (dissoc environ/env :java-class-path :ls-colors)

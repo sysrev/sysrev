@@ -11,7 +11,7 @@
            (com.impossibl.postgres.jdbc PGDataSource)))
 
 (defn- pgjdbc-ng-conn ^PGConnection [postgres]
-  (let [{:keys [dbname host password user]} (:config postgres)
+  (let [{:keys [dbname host password user]} (-> postgres :config :postgres)
         ds (PGDataSource.)]
     (doto ds
       (.setDatabaseName dbname)

@@ -6,7 +6,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.listeners :as listeners]
             [sysrev.db.migration :as migration]
-            [sysrev.postgres.core :as postgres]
+            [sysrev.postgres.core :as pg]
             [sysrev.project.core :as project]
             [sysrev.scheduler.core :as scheduler]
             [sysrev.sente :as sente]
@@ -35,8 +35,10 @@
 
 (defn system-map [& {:keys [config postgres-overrides]}]
   (component/system-map
-   :config config
-   :postgres (postgres/postgres postgres-overrides)
+   :config (-> config :postgres
+                 (merge postgres-overrides)
+                 (->> (assoc config :postgres)))
+   :postgres (component/using (pg/postgres) [:config])
    :postgres-run-after-start (component/using
                               (postgres-run-after-start)
                               [:postgres])

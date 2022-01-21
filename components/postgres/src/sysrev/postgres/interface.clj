@@ -18,9 +18,6 @@
   [connectable sqlmap]
   (core/execute-one! connectable sqlmap))
 
-(defn get-config [& [postgres-overrides]]
-  (core/get-config postgres-overrides))
-
 (defn plan
   "General SQL execution function (for working with result sets).
 
@@ -31,13 +28,10 @@
   [connectable sqlmap]
   (core/plan connectable sqlmap))
 
-(defn start-db! [& [postgres-overrides only-if-new]]
-  (core/start-db! postgres-overrides only-if-new))
-
 (defn postgres
   "Return a record implementing com.stuartsierra.component/Lifecycle
   that starts and stops a connection pool to a postgres DB."
-  [& [postgres-overrides]]
-  (core/postgres postgres-overrides))
+  []
+  (core/postgres))
 
 

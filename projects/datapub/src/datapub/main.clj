@@ -7,10 +7,10 @@
             [com.stuartsierra.component :as component]
             [datapub.file :as file]
             [datapub.pedestal :as pedestal]
-            [datapub.postgres :as postgres]
             [datapub.secrets-manager :as secrets-manager]
             [medley.core :as medley]
-            [sysrev.config.interface :as config]))
+            [sysrev.config.interface :as config]
+            [sysrev.postgres.interface :as pg]))
 
 (def envs #{:dev :prod :staging :test})
 
@@ -36,6 +36,10 @@
   (stop [this]
     this))
 
+(def defaults
+  {:postgres {:dbtype "postgres"
+              :flyway-locations ["classpath:/datapub/flyway"]}})
+
 (defn deep-merge [& args]
   (if (every? #(or (map? %) (nil? %)) args)
     (apply merge-with deep-merge args)
@@ -45,7 +49,7 @@
   (let [{:keys [system-config-file] :as config} (config/get-config "datapub-config.edn")
         local-config (when system-config-file
                        (edn/read-string (slurp system-config-file)))]
-    (-> (deep-merge config local-config)
+    (-> (deep-merge defaults config local-config)
         (update :secrets map->Secrets))))
 
 (defn system-map [{:keys [aws env] :as config}]
@@ -62,7 +66,7 @@
                 (pedestal/pedestal)
                 [:config :postgres :s3 :secrets-manager])
      :postgres (component/using
-                (postgres/postgres)
+                (pg/postgres)
                 [:config])
      :s3 (component/using (file/s3-client aws) [:config])
      :secrets-manager (secrets-manager/client))))

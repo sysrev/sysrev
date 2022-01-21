@@ -8,12 +8,12 @@
             [com.walmartlabs.lacinia.resolve :as resolve]
             [com.walmartlabs.lacinia.selection :as selection]
             [datapub.file :as file]
-            [datapub.postgres :as pg]
             [hasch.core :as hasch]
             [medley.core :as me]
             [next.jdbc :as jdbc]
             [sysrev.file-util.interface :as file-util]
             [sysrev.pdf-read.interface :as pdf-read]
+            [sysrev.postgres.interface :as pg]
             [sysrev.tesseract.interface :as tesseract])
   (:import java.awt.image.BufferedImage
            [java.io InputStream IOException]
