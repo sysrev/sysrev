@@ -321,8 +321,12 @@
                   :id id
                   :contentUrl
                   (when (:contentUrl ks)
-                    (str (server-url (:request context))
-                         (content-url-path id (or (:content-hash $) (:hash $))))))
+                    (let [domain (get-in context [:pedestal :config :files-domain-name])
+                          {:keys [file-hash]} $]
+                      (if (and domain file-hash)
+                        (str "https://" domain "/" (file/content-key file-hash))
+                        (str (server-url (:request context))
+                             (content-url-path id (or (:content-hash $) (:hash $))))))))
            (if (or (sysrev-dev? context)
                    (call-memo context :public-dataset? (:dataset-id $)))
              $
