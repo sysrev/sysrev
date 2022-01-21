@@ -175,6 +175,7 @@
      {:CorsRules
       [{:AllowedMethods ["GET" "HEAD"]
         :AllowedOrigins ["https://staging.sysrev.com"
+                         "https://sysrev.com"
                          "https://www.sysrev.com"]
         :MaxAge 3600}]}
      :PublicAccessBlockConfiguration
