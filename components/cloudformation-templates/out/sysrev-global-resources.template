@@ -32,16 +32,6 @@
         "Ref" : "DatapubBucket"
       }
     },
-    "DatapubBucketDomainName" : {
-      "Export" : {
-        "Name" : {
-          "Fn::Sub" : "${AWS::StackName}-DatapubBucketDomainName"
-        }
-      },
-      "Value" : {
-        "Fn::GetAtt" : [ "DatapubBucket", "DomainName" ]
-      }
-    },
     "DevelopersGroupArn" : {
       "Export" : {
         "Name" : {
@@ -140,6 +130,13 @@
     "DatapubBucket" : {
       "Properties" : {
         "AccessControl" : "Private",
+        "CorsConfiguration" : {
+          "CorsRules" : [ {
+            "AllowedMethods" : [ "GET", "HEAD" ],
+            "AllowedOrigins" : [ "https://staging.sysrev.com", "https://www.sysrev.com" ],
+            "MaxAge" : 3600
+          } ]
+        },
         "PublicAccessBlockConfiguration" : {
           "BlockPublicAcls" : true,
           "BlockPublicPolicy" : true,

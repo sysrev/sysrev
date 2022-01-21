@@ -171,6 +171,12 @@
    {:Type "AWS::S3::Bucket"
     :Properties
     {:AccessControl "Private"
+     :CorsConfiguration
+     {:CorsRules
+      [{:AllowedMethods ["GET" "HEAD"]
+        :AllowedOrigins ["https://staging.sysrev.com"
+                         "https://www.sysrev.com"]
+        :MaxAge 3600}]}
      :PublicAccessBlockConfiguration
      {:BlockPublicAcls true
       :BlockPublicPolicy true

@@ -249,14 +249,12 @@
             "Ref" : "DatapubFilesDomainName"
           } ],
           "DefaultCacheBehavior" : {
-            "AllowedMethods" : [ "GET", "HEAD" ],
-            "Compress" : true,
-            "ForwardedValues" : {
-              "Cookies" : {
-                "Forward" : "none"
-              },
-              "QueryString" : false
+            "AllowedMethods" : [ "GET", "HEAD", "OPTIONS" ],
+            "CachePolicyId" : {
+              "Ref" : "FileDistributionCachePolicy"
             },
+            "CachedMethods" : [ "GET", "HEAD", "OPTIONS" ],
+            "Compress" : true,
             "TargetOriginId" : "DatapubBucketOrigin",
             "ViewerProtocolPolicy" : "redirect-to-https"
           },
@@ -286,6 +284,30 @@
         }
       },
       "Type" : "AWS::CloudFront::Distribution"
+    },
+    "FileDistributionCachePolicy" : {
+      "Properties" : {
+        "CachePolicyConfig" : {
+          "DefaultTTL" : 86400,
+          "MaxTTL" : 31536000,
+          "MinTTL" : 0,
+          "Name" : "Datapub-FileDistributionCachePolicy",
+          "ParametersInCacheKeyAndForwardedToOrigin" : {
+            "CookiesConfig" : {
+              "CookieBehavior" : "none"
+            },
+            "EnableAcceptEncodingGzip" : true,
+            "HeadersConfig" : {
+              "HeaderBehavior" : "whitelist",
+              "Headers" : [ "Access-Control-Request-Headers", "Access-Control-Request-Method", "Origin" ]
+            },
+            "QueryStringsConfig" : {
+              "QueryStringBehavior" : "none"
+            }
+          }
+        }
+      },
+      "Type" : "AWS::CloudFront::CachePolicy"
     },
     "FileDistributionCertificate" : {
       "Properties" : {

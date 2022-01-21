@@ -105,17 +105,37 @@
        :HostedZoneId (import-regional "DatapubHostedZoneId")}]
      :ValidationMethod "DNS"}}
 
+   :FileDistributionCachePolicy
+   {:Type "AWS::CloudFront::CachePolicy"
+    :Properties
+    {:CachePolicyConfig
+     {:DefaultTTL 86400
+      :MaxTTL 31536000
+      :MinTTL 0
+      :Name "Datapub-FileDistributionCachePolicy"
+      :ParametersInCacheKeyAndForwardedToOrigin
+      {:CookiesConfig
+       {:CookieBehavior "none"}
+       :EnableAcceptEncodingGzip true
+       :HeadersConfig
+       {:HeaderBehavior "whitelist"
+        :Headers
+        ["Access-Control-Request-Headers"
+         "Access-Control-Request-Method"
+         "Origin"]}
+       :QueryStringsConfig
+       {:QueryStringBehavior "none"}}}}}
+
    :FileDistribution
    {:Type "AWS::CloudFront::Distribution"
     :Properties
     {:DistributionConfig
      {:Aliases [(ref :DatapubFilesDomainName)]
       :DefaultCacheBehavior
-      {:AllowedMethods ["GET" "HEAD"]
+      {:AllowedMethods ["GET" "HEAD" "OPTIONS"]
+       :CachedMethods ["GET" "HEAD" "OPTIONS"]
+       :CachePolicyId (ref :FileDistributionCachePolicy)
        :Compress true
-       :ForwardedValues
-       {:Cookies {:Forward "none"}
-        :QueryString false}
        :TargetOriginId "DatapubBucketOrigin"
        :ViewerProtocolPolicy "redirect-to-https"}
       :Enabled true
