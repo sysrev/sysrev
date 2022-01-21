@@ -265,6 +265,7 @@
       cols-file (assoc cols-all
                        :content :file-hash
                        :content-hash :content-hash
+                       :file-hash :file-hash
                        :metadata [[:raw "data->>'metadata' as metadata"]])
       cols-json (assoc cols-all
                        :content [[:raw "content::text"]]
@@ -304,7 +305,7 @@
          (if (some #{:content :contentUrl :mediaType :metadata} ks)
            (some-> (get-entity-content
                     context id
-                    (conj ks (when (:contentUrl ks) :content-hash)))
+                    (apply conj ks (when (:contentUrl ks) [:content-hash :file-hash])))
                    (update :content
                            #(if (instance? InputStream %)
                               (.encodeToString (Base64/getEncoder)
