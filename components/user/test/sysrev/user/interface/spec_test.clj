@@ -1,19 +1,17 @@
 (ns sysrev.user.interface.spec-test
-  (:require #_[clojure.spec.alpha :as s]
-            #_[sysrev.user.interface.spec :as su])
-  (:use clojure.test))
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.test :refer :all]
+   [sysrev.user.interface.spec :as su]))
 
-#_
-(deftest test-spec
-  (are [a] (s/valid? ;::su/username a
-            )
+(deftest ^:unit test-spec
+  (are [a] (s/valid? ::su/username a)
     "a"
     "aB"
     "a-b"
     "A-b"
     "tester")
-  (are [a] (not (s/valid? ;::su/username a
-                 ))
+  (are [a] (not (s/valid? ::su/username a))
     "λ"
     "λθ"
     "λ-a"

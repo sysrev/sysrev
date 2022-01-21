@@ -4,6 +4,7 @@
    [clojure.data.json :as json]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
+   [com.stuartsierra.component :as component]
    [kaocha.repl :as kr]
    [kaocha.testable :as kt]
    [medley.core :as medley]
@@ -79,17 +80,21 @@
     (log/info "db-shell:" (->> args (str/join " ") pr-str))
     (apply shell args)))
 
-(defmacro with-test-system [[name-sym] & body]
+(defmacro with-test-system [[name-sym opts] & body]
   `(binding [db/*active-db* (atom nil)
              db/*conn* nil
              db/*query-cache* (atom {})
              db/*query-cache-enabled* (atom false)
              db/*transaction-query-cache* nil]
-     (let [postgres# (:postgres env)
+     (let [opts# ~opts
+           postgres# (:postgres env)
            system# (swap!
                     test-system
                     (fn [sys#]
-                      (or sys#
+                      (or (when sys#
+                            (if (:isolate? opts#)
+                              (do (component/stop sys#) nil)
+                              sys#))
                           (do (st/instrument)
                               (-> (main/start-non-global!
                                    :config
@@ -109,9 +114,13 @@
                                         (dissoc :scheduler)))
                                   test-fixtures/load-all-fixtures!)))))
            ~name-sym system#]
-       (reset! db/*active-db* (:postgres system#))
-       (binding [env (merge env (:config system#))]
-         (do ~@body)))))
+       (try
+         (reset! db/*active-db* (:postgres system#))
+         (binding [env (merge env (:config system#))]
+           (do ~@body))
+         (finally
+           (when (:isolate? opts#)
+             (swap! test-system (fn [sys#] (component/stop sys#) nil))))))))
 
 (defmacro completes? [form]
   `(do ~form true))

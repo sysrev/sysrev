@@ -7,4 +7,7 @@
            :kaocha.plugin/profiling]
  :tests [{:id :sysrev
           :source-paths ["src/clj" "src/cljc"]
-          :test-paths ["test/clj"]}]}
+          :test-paths ["test/clj"
+                       "components/datapub-client/test"
+                       "components/reviewer-time/test"
+                       "components/user/test"]}]}
