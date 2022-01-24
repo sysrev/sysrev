@@ -5,7 +5,7 @@
    [sysrev.test.core :as test]))
 
 (deftest ^:integration create-notification-test
-  (test/with-test-system [_ {:isolate? true}]
+  (test/with-test-system [_ {}]
     (is (integer? (notification/create-notification
                    {:text "Test-System-Notification"
                     :uri "/test-system-uri"

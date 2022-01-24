@@ -8,6 +8,7 @@
    [kaocha.repl :as kr]
    [kaocha.testable :as kt]
    [medley.core :as medley]
+   [next.jdbc :as jdbc]
    [orchestra.spec.test :as st]
    [prestancedesign.get-port :as get-port]
    [ring.mock.request :as mock]
@@ -80,6 +81,33 @@
     (log/info "db-shell:" (->> args (str/join " ") pr-str))
     (apply shell args)))
 
+(defn start-test-system! []
+  (let [system
+        #__ (main/start-non-global!
+             :config
+             (medley/deep-merge
+              env
+              {:datapub-embedded true
+               :server {:port (get-port/get-port)}})
+             :postgres-overrides
+             {:create-if-not-exists? true
+              :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
+              :embedded? true
+              :host "localhost"
+              :port 0
+              :template-dbname "template_sysrev_test"
+              :user "postgres"}
+             :system-map-f
+             #(-> (apply main/system-map %&)
+                  (dissoc :scheduler)))]
+    (let [{:keys [bound-port config]} (:postgres system)
+          {:keys [template-dbname] :as opts} (-> (:postgres config)
+                                                 (assoc :port bound-port))
+          ds (jdbc/get-datasource (assoc opts :dbname template-dbname))]
+      (test-fixtures/load-all-fixtures! ds))
+    (-> system :postgres :datasource-long-running test-fixtures/load-all-fixtures!)
+    system))
+
 (defmacro with-test-system [[name-sym opts] & body]
   `(binding [db/*active-db* (atom nil)
              db/*conn* nil
@@ -94,25 +122,11 @@
                       (or (when sys#
                             (if (:isolate? opts#)
                               (do (component/stop sys#) nil)
-                              sys#))
+                              (let [sys# (component/start sys#)]
+                                 (sysrev.postgres.core/recreate-db! (:postgres sys#))
+                                 sys#)))
                           (do (st/instrument)
-                              (-> (main/start-non-global!
-                                   :config
-                                   (medley/deep-merge
-                                    env
-                                    {:datapub-embedded true
-                                     :server {:port (get-port/get-port)}})
-                                   :postgres-overrides
-                                   {:create-if-not-exists? true
-                                    :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
-                                    :embedded? true
-                                    :host "localhost"
-                                    :port 0
-                                    :user "postgres"}
-                                   :system-map-f
-                                   #(-> (apply main/system-map %&)
-                                        (dissoc :scheduler)))
-                                  test-fixtures/load-all-fixtures!)))))
+                              (start-test-system!)))))
            ~name-sym system#]
        (try
          (reset! db/*active-db* (:postgres system#))

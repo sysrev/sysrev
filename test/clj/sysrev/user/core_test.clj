@@ -6,7 +6,7 @@
    [sysrev.user.core :as user]))
 
 (deftest ^:integration test-unique-username
-  (test/with-test-system [_ {:isolate? true}]
+  (test/with-test-system [_ {}]
     (testing "Unique usernames with no conflicts"
       (is (= "test-user-0xff" (user/unique-username "test_user_0xff@insilica.co"))))
     (testing "Unique usernames with conflicts"

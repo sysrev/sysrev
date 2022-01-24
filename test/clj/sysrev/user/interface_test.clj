@@ -6,7 +6,7 @@
    [sysrev.user.interface :as user]))
 
 (deftest ^:integration test-change-username
-  (test/with-test-system [{:keys [postgres]} {:isolate? true}]
+  (test/with-test-system [{:keys [postgres]} {}]
     (fixtures/load-fixtures! postgres)
     (testing "Changing username of nonexistent user"
       (is (zero? (user/change-username 1000000 "69c2124b-7da8"))))
@@ -15,7 +15,7 @@
       (is (= "test_user_1@insilica.co" (:email (user/user-by-username "69c2124b-7da8")))))))
 
 (deftest ^:integration test-get-users-public-info
-  (test/with-test-system [{:keys [postgres]} {:isolate? true}]
+  (test/with-test-system [{:keys [postgres]} {}]
     (fixtures/load-fixtures! postgres)
     (testing "Public info for nonexistent user"
       (is (empty? (user/get-users-public-info [1000000]))))
@@ -40,7 +40,7 @@
                (set (user/get-users-public-info [1000002 1000001 1000000]))))))))
 
 (deftest ^:integration test-search-users
-  (test/with-test-system [{:keys [postgres]} {:isolate? true}]
+  (test/with-test-system [{:keys [postgres]} {}]
     (fixtures/load-fixtures! postgres)
     (testing "Search with no results"
       (is (empty? (user/search-users "69c2124b"))))
@@ -59,14 +59,14 @@
         (is (= test-user-1 (first (user/search-users "TEST-USER"))))))))
 
 (deftest ^:integration test-user-by-id
-  (test/with-test-system [{:keys [postgres]} {:isolate? true}]
+  (test/with-test-system [{:keys [postgres]} {}]
     (fixtures/load-fixtures! postgres)
     (is (nil? (user/user-by-id 1000000)))
     (is (= "test_user_1@insilica.co" (:email (user/user-by-id 1000001))))
     (is (= "test-user-1" (:username (user/user-by-id 1000001))))))
 
 (deftest ^:integration test-user-by-username
-  (test/with-test-system [{:keys [postgres]} {:isolate? true}]
+  (test/with-test-system [{:keys [postgres]} {}]
     (fixtures/load-fixtures! postgres)
     (is (nil? (user/user-by-username "07d87f33-6926")))
     (is (= "test_user_1@insilica.co" (:email (user/user-by-username "test-user-1"))))))
