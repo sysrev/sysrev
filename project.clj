@@ -110,7 +110,8 @@
                  "components/flyway/src"
                  "components/notification/src"
                  "components/reviewer-time/src"
-                 "components/user/src"]
+                 "components/user/src"
+                 "components/util-lite/src"]
   :aliases {"build-prod"             ["with-profile" "+postgres,+prod" "uberjar"]
             "run-tests"              ["with-profile" "+postgres-embedded,+test-config" "eftest"]
             "jenkins"                ["with-profile" "+postgres-embedded,+jenkins" "eftest"]

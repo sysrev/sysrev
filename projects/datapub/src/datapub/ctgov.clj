@@ -2,30 +2,10 @@
   (:require [cheshire.core :as json]
             [clj-http.client :as client]
             [clojure.data.xml :as xml]
-            [sysrev.datapub-client.interface.queries :as dpcq])
+            [sysrev.datapub-client.interface.queries :as dpcq]
+            [sysrev.util-lite.interface :as ul])
   (:import [java.time Duration ZonedDateTime]
            [java.time.format DateTimeFormatter]))
-
-(defmacro retry
-  "Retry up to n times, doubling interval-ms each time and adding jitter."
-  [{:keys [interval-ms n]} & body]
-  `(let [sym# (gensym "retry")]
-     (loop [interval-ms# ~interval-ms
-            n# ~n]
-       ;; Can't recur from inside the catch, so we use a special return
-       ;; value to signal the need to recur.
-       (let [ret#
-             (try
-               ~@body
-               (catch Exception e#
-                 (if (pos? n#)
-                   sym#
-                   (throw e#))))]
-         (if (= sym# ret#)
-           (do
-             (Thread/sleep interval-ms#)
-             (recur (+ interval-ms# interval-ms# (.longValue ^Integer (rand-int 100))) (dec n#)))
-           ret#)))))
 
 (def study-url "https://clinicaltrials.gov/api/query/full_studies")
 (def rss-feed-url "https://clinicaltrials.gov/ct2/results/rss.xml")
@@ -37,12 +17,12 @@
   (ZonedDateTime/parse s datetime-formatter))
 
 (defn get-new-studies []
-  (retry
+  (ul/retry
    {:interval-ms 1000 :n 10}
    (client/get rss-feed-url {:query-params {:rcv_d 3 :count 10000}})))
 
 (defn get-recent-updates []
-  (retry
+  (ul/retry
    {:interval-ms 1000 :n 10}
    (client/get rss-feed-url {:query-params {:lup_d 3 :count 10000}})))
 
@@ -63,7 +43,7 @@
    (:content item)))
 
 (defn get-study [guid]
-  (retry
+  (ul/retry
    {:interval-ms 1000 :n 10}
    (let [r (client/get study-url {:as :json
                                   :query-params {:expr guid :fmt "JSON"}})
@@ -97,7 +77,7 @@
                    :variables variables}})))
 
 (defn import-study! [url {:keys [auth-header dataset-id study]}]
-  (retry
+  (ul/retry
    {:interval-ms 1000 :n 10}
    (graphql-request
     url
@@ -123,7 +103,7 @@
     nil
 
     (> 100 (- max-rnk min-rnk))
-    (retry
+    (ul/retry
      {:interval-ms 1000 :n 10}
      (->> (client/get study-url {:as :json
                                  :query-params {:fmt "json"

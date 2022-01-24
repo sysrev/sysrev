@@ -34,10 +34,11 @@
         org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
         org.flywaydb/flyway-core {:mvn/version "8.2.0"}
         org.postgresql/postgresql {:mvn/version "42.2.24"}
-        sysrev/config {:local/root "../../components/config"}
-        sysrev/file-util {:local/root "../../components/file-util"}
-        sysrev/pdf-read {:local/root "../../components/pdf-read"}
-        sysrev/tesseract {:local/root "../../components/tesseract"}}
+        poly/config {:local/root "../../components/config"}
+        poly/file-util {:local/root "../../components/file-util"}
+        poly/pdf-read {:local/root "../../components/pdf-read"}
+        poly/tesseract {:local/root "../../components/tesseract"}
+        poly/util-lite {:local/root "../../components/util-lite"}}
  :aliases {:dev {:extra-paths ["test" "config/dev"]
                  :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}
                               sysrev/datapub-client {:local/root "../../components/datapub-client"}}}
