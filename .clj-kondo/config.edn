@@ -73,6 +73,7 @@
                                         sysrev.source.import           import
                                         sysrev.user.core               user
                                         sysrev.util                    util
+                                        sysrev.util-lite.interface     ul
 ;;; sysrev namespaces  [CLJS]
                                         sysrev.action.core             action
                                         sysrev.chartjs                 chartjs

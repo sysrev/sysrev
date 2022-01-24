@@ -34,7 +34,8 @@
         poly/flyway {:local/root "../../components/flyway"}
         poly/postgres {:local/root "../../components/postgres"}
         poly/pdf-read {:local/root "../../components/pdf-read"}
-        poly/tesseract {:local/root "../../components/tesseract"}}
+        poly/tesseract {:local/root "../../components/tesseract"}
+        poly/util-lite {:local/root "../../components/util-lite"}}
  :aliases {:dev {:extra-paths ["test" "config/dev"]
                  :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}
                               sysrev/datapub-client {:local/root "../../components/datapub-client"}}}

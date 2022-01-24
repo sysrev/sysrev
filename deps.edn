@@ -87,7 +87,8 @@
         poly/notification {:local/root "components/notification"}
         poly/postgres {:local/root "components/postgres"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
-        poly/user {:local/root "components/user"}}
+        poly/user {:local/root "components/user"}
+        poly/util-lite {:local/root "components/util-lite"}}
  :aliases
  {:build {:deps {io.github.seancorfield/build-clj
                  {:git/tag "v0.6.7" :git/sha "22c2d09"}}
