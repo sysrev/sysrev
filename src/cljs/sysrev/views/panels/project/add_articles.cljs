@@ -611,7 +611,8 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
 
 (defn DatasourceIcon [{:keys [text value name]}]
   (let [active? (= @(subscribe [:add-articles/import-tab]) value)]
-    [:div.datasource-item {:on-click #(dispatch-sync [:add-articles/import-tab value])
+    [:div.datasource-item {:data-datasource value
+                           :on-click #(dispatch-sync [:add-articles/import-tab value])
                            :class (css [active? "active"])
                            :style {:display "inline-block"
                                    :text-align "center"
