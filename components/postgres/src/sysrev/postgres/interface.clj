@@ -34,4 +34,10 @@
   []
   (core/postgres))
 
+(defn recreate-db!
+  "Recreate the database from a template without stopping the component.
+  Suspends the connection pool and terminates connections to the DB.
 
+  `(get-in postgres [:config :postgres :template-dbname])` must be set."
+  [postgres]
+  (core/recreate-db! postgres))

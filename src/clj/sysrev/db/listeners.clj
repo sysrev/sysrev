@@ -1,14 +1,17 @@
 (ns sysrev.db.listeners
-  (:require [clojure.core.async :refer [<! >! chan go]]
-            [clojure.tools.logging :as log]
-            [com.stuartsierra.component :as component]
-            [medley.core :refer [map-vals]]
-            [sysrev.db.core :refer [*conn*]]
-            [sysrev.notifications.listeners
-             :refer [handle-notification handle-notification-notification-subscriber]]
-            [sysrev.stacktrace :refer [print-cause-trace-custom]])
-  (:import (com.impossibl.postgres.api.jdbc PGConnection PGNotificationListener)
-           (com.impossibl.postgres.jdbc PGDataSource)))
+  (:require
+   [clojure.core.async :refer [<! >! chan go]]
+   [clojure.tools.logging :as log]
+   [com.stuartsierra.component :as component]
+   [medley.core :refer [map-vals]]
+   [sysrev.db.core :refer [*conn*]]
+   [sysrev.notifications.listeners
+    :refer [handle-notification handle-notification-notification-subscriber]]
+   [sysrev.stacktrace :refer [print-cause-trace-custom]]
+   [sysrev.util-lite.interface :as ul])
+  (:import
+   (com.impossibl.postgres.api.jdbc PGConnection PGNotificationListener)
+   (com.impossibl.postgres.jdbc PGDataSource)))
 
 (defn- pgjdbc-ng-conn ^PGConnection [postgres]
   (let [{:keys [dbname host password user]} (-> postgres :config :postgres)
@@ -38,25 +41,17 @@
     (closed [this]
       (closed-f))))
 
-(defn- register-listener [f postgres channel-names]
-  (let [conn (pgjdbc-ng-conn postgres)
-        close? (atom false)]
-    (binding [*conn* conn]
-      (with-open [stmt (.createStatement conn)]
-        (.addNotificationListener
-         conn
-         (build-listener
-          f
-          #(when-not @close?
-             (log/info "postgres notification listener disconnected. Reconnecting...")
-             (register-listener f postgres channel-names))
-          conn))
-        (doseq [s channel-names]
-          (.executeUpdate stmt (str "LISTEN " s)))))
-    (fn []
-      (reset! close? true)
-      (log/info "Closing postgres notification listener.")
-      (.close conn))))
+(defn- register-listener [f closed-f conn channel-names]
+  (binding [*conn* conn]
+    (with-open [stmt (.createStatement conn)]
+      (.addNotificationListener
+       conn
+       (build-listener
+        f
+        closed-f
+        conn))
+      (doseq [s channel-names]
+        (.executeUpdate stmt (str "LISTEN " s))))))
 
 (defn- register-channels
   "Takes a map of channel names to core.async channels. Registers
@@ -64,11 +59,12 @@
   the matching channel.
 
   Returns a thunk to close the listener."
-  [channel-map postgres]
+  [closed-f channel-map conn]
   (register-listener
    (fn [_process-id channel-name payload]
      (go (>! (channel-map channel-name) payload)))
-   postgres
+   closed-f
+   conn
    (keys channel-map)))
 
 (defn listener-handlers [listener]
@@ -92,21 +88,41 @@
           (log/errorf "handle-listener error %s"
                       (with-out-str (print-cause-trace-custom e 20))))))))
 
-(defrecord Listener [channels close-f handlers-f postgres]
+(defrecord Listener [channels handlers-f postgres state]
   component/Lifecycle
   (start [this]
-    (if close-f
+    (if state
       this
-      (let [handlers (handlers-f this)
-            channels (map-vals (fn [_] (chan)) handlers)]
+      (let [_ (log/info "Starting postgres notification listener.")
+            handlers (handlers-f this)
+            channels (map-vals (fn [_] (chan)) handlers)
+            state (atom {:close? false
+                         :conn (pgjdbc-ng-conn postgres)})
+            closed-f (fn closed-f []
+                       (ul/retry
+                        {:interval-ms 1000 :n 100}
+                        (let [{:keys [close? conn]}
+                              #__ (swap! state
+                                         (fn [{:keys [close? conn] :as state}]
+                                           (if (or close? (not (.isClosed conn)))
+                                             state
+                                             (assoc state :conn (pgjdbc-ng-conn postgres)))))]
+                          (when-not close?
+                            (log/info "postgres notification listener disconnected. Reconnecting...")
+                            (register-channels closed-f channels conn)))))]
         (doseq [[k f] handlers]
           (handle-listener f (get channels k)))
+        (register-channels closed-f channels (:conn @state))
         (assoc this
                :channels channels
-               :close-f (register-channels channels postgres)))))
+               :state state))))
   (stop [this]
-    (if close-f
-      (do (close-f) (assoc this :channels nil :close-f nil))
+    (if state
+      (do
+        (log/info "Closing postgres notification listener.")
+        (swap! state assoc :close? true)
+        (.close (:conn @state))
+        (assoc this :channels nil :close? nil :state nil))
       this)))
 
 (defn listener []

@@ -108,6 +108,11 @@
     (-> system :postgres :datasource-long-running test-fixtures/load-all-fixtures!)
     system))
 
+(defn recreate-db! [{:keys [postgres postgres-listener] :as system}]
+  (let [listener (component/stop postgres-listener)]
+    (pg/recreate-db! postgres)
+    (assoc system :postgres-listener (component/start listener))))
+
 (defmacro with-test-system [[name-sym opts] & body]
   `(binding [db/*active-db* (atom nil)
              db/*conn* nil
@@ -122,9 +127,7 @@
                       (or (when sys#
                             (if (:isolate? opts#)
                               (do (component/stop sys#) nil)
-                              (let [sys# (component/start sys#)]
-                                 (sysrev.postgres.core/recreate-db! (:postgres sys#))
-                                 sys#)))
+                              (recreate-db! (component/start sys#))))
                           (do (st/instrument)
                               (start-test-system!)))))
            ~name-sym system#]
@@ -359,4 +362,5 @@
                   (junit/merge-files! junit-target (take (inc i) junit-files))
                   (System/exit 1)))))
         (junit/merge-files! junit-target junit-files)
+        (swap! test-system #(when % (component/stop %) nil))
         (System/exit 0)))))
