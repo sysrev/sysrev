@@ -115,7 +115,7 @@
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
-  :test {:extra-paths ["config/test" "test/clj"]
+  :test {:extra-paths ["config/test" "test/clj" "resources/test"]
          :extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
                       eftest/eftest {:mvn/version "0.5.9"}
                       io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
