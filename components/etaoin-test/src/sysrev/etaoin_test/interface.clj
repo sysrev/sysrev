@@ -19,6 +19,18 @@
   [driver q & more-qs]
   (apply core/clear driver q more-qs))
 
+(defn clear-visible
+  "Waits for input elements to become visible, and then clears them with
+  `clear`.
+
+  Arguments:
+
+  - `driver`: a etaoin driver instance
+  - `q`: a query term (see `etaoin.api/query`)
+  - `more-qs`: additional query terms, if clearing multiple inputs"
+  [driver q & more-qs]
+  (apply core/clear-visible driver q more-qs))
+
 (defn click
   "Clicks on an element.
 

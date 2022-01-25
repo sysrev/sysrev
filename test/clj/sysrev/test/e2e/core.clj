@@ -132,7 +132,7 @@
     (wait-until-loading-completes driver)
     (check-browser-console-clean driver)))
 
-(defn go-project [test-resources project-id project-relative-url]
+(defn go-project [test-resources project-id & [project-relative-url]]
   (go test-resources (str "/p/" project-id project-relative-url)))
 
 (defn refresh [driver]
@@ -285,3 +285,6 @@
              (->> (for [s (util/ensure-vector coll)]
                     (-> s io/resource .getFile URLDecoder/decode))
                   (str/join "\n")))))
+
+(defn panel-name [panel-keys]
+  (str/join "_" (map name panel-keys)))

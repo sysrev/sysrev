@@ -1,6 +1,7 @@
 (ns sysrev.test.e2e.project
   (:require [etaoin.api :as ea]
             [sysrev.etaoin-test.interface :as et]
+            [sysrev.gengroup.core :as gengroup]
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
@@ -30,3 +31,15 @@
       (e/wait-until-loading-completes driver)
       project-id)))
 
+(defn create-project-member-gengroup! [{:keys [driver prefer-browser?] :as test-resources} project-id gengroup-name gengroup-description]
+  (if prefer-browser?
+    (do
+      (e/go-project test-resources project-id "/users")
+      (doto driver
+        (et/click-visible :new-gengroup-btn)
+        (et/fill-visible :gengroup-name-input gengroup-name)
+        (et/fill-visible :gengroup-description-input gengroup-description)
+        (et/click-visible :create-gengroup-btn)
+        (ea/wait-visible {:css ".alert-message.success"})))
+    (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description))
+  nil)
