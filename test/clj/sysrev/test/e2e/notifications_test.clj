@@ -10,18 +10,19 @@
    [sysrev.label.answer :refer [set-user-article-labels]]
    [sysrev.label.core :refer [add-label-overall-include]]
    [sysrev.project.core :refer [create-project]]
-   [sysrev.project.invitation :refer [create-invitation!]]
+   [sysrev.project.invitation :as invitation]
    [sysrev.project.member :refer [add-project-member]]
    [sysrev.test.core :as test]
    [sysrev.test.e2e.account :as account]
    [sysrev.test.e2e.core :as e]
+   [sysrev.test.e2e.project :as e-project]
    [sysrev.util :as util]))
 
 (defn create-projects-and-invitations! [inviter-id user-id]
   (let [project-a (create-project "Mangiferin")
         project-b (create-project "EntoGEM")]
-    (create-invitation! user-id (:project-id project-a) inviter-id "paid-reviewer")
-    (create-invitation! user-id (:project-id project-b) inviter-id "paid-reviewer")
+    (invitation/create-invitation! user-id (:project-id project-a) inviter-id "paid-reviewer")
+    (invitation/create-invitation! user-id (:project-id project-b) inviter-id "paid-reviewer")
     [project-a project-b]))
 
 (deftest ^:e2e notifications-button
@@ -158,3 +159,23 @@
           (et/is-click-visible {:fn/has-text "Mangiferin"}))
         (is (nil? (ea/wait-predicate
                    #(str/ends-with? (e/get-path driver) (str "/p/" project-a-id "/users")))))))))
+
+(deftest ^:e2e test-notifications-page
+  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
+    (let [user-id (account/log-in test-resources (test/create-test-user system))
+          {inviter-id :user-id} (test/create-test-user system)
+          project-id (e-project/create-project! test-resources "test-notifications-page")]
+      (testing "Notifications page works when empty."
+        (e/go test-resources "/")
+        (doto driver
+          (et/is-click-visible {:fn/has-class :notifications-icon})
+          (et/is-click-visible {:fn/has-class :notifications-footer})
+          (et/is-wait-visible {:fn/has-text "You don't have any notifications yet"})))
+      (testing "Notifications page works with project invitations"
+        (invitation/create-invitation! user-id project-id inviter-id "Project invitation")
+        (doto driver
+          e/refresh
+          (et/is-click-visible {:fn/has-class :notifications-icon})
+          (et/is-click-visible {:fn/has-class :notifications-footer})
+          (et/is-click-visible {:fn/has-text "test-notifications-page"})
+          (et/is-wait-visible :user-invitations))))))
