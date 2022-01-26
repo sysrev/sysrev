@@ -15,6 +15,7 @@
    [sysrev.config :refer [env]]
    [sysrev.datasource.api :refer [ds-auth-key]]
    [sysrev.db.core :as db]
+   [sysrev.db.migration :as migration]
    [sysrev.file-util.interface :as file-util]
    [sysrev.junit.interface :as junit]
    [sysrev.main :as main]
@@ -104,8 +105,15 @@
           {:keys [template-dbname] :as opts} (-> (:postgres config)
                                                  (assoc :port bound-port))
           ds (jdbc/get-datasource (assoc opts :dbname template-dbname))]
-      (test-fixtures/load-all-fixtures! ds))
+      (test-fixtures/load-all-fixtures! ds)
+      (binding [db/*active-db* (atom {:datasource ds})
+                db/*conn* nil
+                db/*query-cache* (atom {})
+                db/*query-cache-enabled* (atom false)
+                db/*transaction-query-cache* nil]
+        (migration/ensure-updated-db)))
     (-> system :postgres :datasource-long-running test-fixtures/load-all-fixtures!)
+    (migration/ensure-updated-db)
     system))
 
 (defn recreate-db! [{:keys [postgres postgres-listener] :as system}]
