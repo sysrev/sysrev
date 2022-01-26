@@ -39,20 +39,16 @@
                                       :short-label "bool"})
       (account/log-in test-resources user)
       (testing "Disabled required label doesn't prevent saving"
-        (doto driver
-          (ea/wait-visible {:fn/has-text "Your Projects"})
-          (ea/wait 1)
-          (ea/refresh))
-        (e/go test-resources (str "/p/" project-id "/review"))
+        (e/go-project test-resources project-id "/review")
         (doto driver
           (et/click-visible [{:fn/has-class "label-edit"}
                              {:fn/has-text "Yes"}])
-          (ea/wait 1)
+          e/wait-until-loading-completes
           (-> (ea/has-class? {:fn/has-class "save-labels"} "disabled")
               not is)
           (et/click-visible [{:fn/has-class "label-edit"}
                              {:fn/has-text "?"}])
-          (ea/wait 1)
+          e/wait-until-loading-completes
           (-> (ea/has-class? {:fn/has-class "save-labels"} "disabled")
               is))))))
 
