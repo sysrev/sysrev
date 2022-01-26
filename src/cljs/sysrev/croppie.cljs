@@ -60,7 +60,8 @@
            [:div [:h1 {:style {:color "black"}} @profile-picture-error]])
          (when @profile-picture-loaded?
            [:div
-            [Button {:on-click #(doto (->> (clj->js {:type "blob" :format "png"})
+            [Button {:id :set-avatar
+                     :on-click #(doto (->> (clj->js {:type "blob" :format "png"})
                                            (.result @croppie-instance))
                                   (.then on-croppie-set)
                                   (.catch on-croppie-error))}
