@@ -22,6 +22,7 @@
                             (reset! profile-picture-loaded? true))
         bind-croppie
         (fn [{:keys [points zoom] :as _profile-picture-meta}]
+          (some-> @croppie-instance .destroy)
           (reset! croppie-instance (Croppie.
                                     (js/document.getElementById "croppie-target")
                                     (clj->js {:boundary {:width 150 :height 150}
@@ -68,15 +69,10 @@
              "Upload New Image"]])])
       :component-did-mount
       (fn [_this]
-        (some-> profile-picture-meta (bind-croppie)))
-      :component-will-receive-props
-      (fn [_this new-argv]
-        (bind-croppie (-> new-argv second :profile-picture-meta)))
-      :get-initial-state
-      (fn [_this]
-        (reset! profile-picture-error "")
-        (reset! profile-picture-loaded? false)
-        {})})))
+        (some-> profile-picture-meta bind-croppie))
+      :component-did-update
+      (fn [_this [_ {:keys [profile-picture-meta]}]]
+        (some-> profile-picture-meta bind-croppie))})))
 
 (defn get-meta
   [{:keys [user-id handler error-handler]}]
