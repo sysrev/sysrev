@@ -60,6 +60,18 @@
 ;;; profiling
         criterium/criterium {:mvn/version "0.4.6"}
 
+;; amazonica
+        amazonica/amazonica {:mvn/version "0.3.157"
+                             :exclusions [com.amazonaws/aws-java-sdk
+                                          com.amazonaws/amazon-kinesis-client
+                                          com.amazonaws/dynamodb-streams-kinesis-adapter
+                                          com.fasterxml.jackson.core/jackson-databind
+                                          com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
+                                          com.taoensso/encore
+                                          org.slf4j/slf4j-api]}
+        com.amazonaws/aws-java-sdk-core {:mvn/version "1.11.968"}
+        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.11.968"}
+
 ;;; More libraries
         buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication
         clj-http/clj-http {:mvn/version "3.12.1"}
@@ -67,7 +79,6 @@
         com.velisco/clj-ftp {:mvn/version "0.3.12"}
         com.draines/postal {:mvn/version "2.0.4"} ;; email client
         hashp/hashp {:mvn/version "0.2.1"}
-        amazonica/amazonica {:mvn/version "0.3.152" :exclusions [com.taoensso/encore com.fasterxml.jackson.dataformat/jackson-dataformat-cbor com.fasterxml.jackson.core/jackson-databind org.slf4j/slf4j-api]}
         ;; =1.23.0 because version conflict in latest (1.30.2 breaks selenium)
         com.google.api-client/google-api-client {:mvn/version "1.23.0"}
         environ/environ {:mvn/version "1.2.0"}
