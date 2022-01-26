@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   localstack:
-    image: docker.io/localstack/localstack:0.12.17.5
+    image: docker.io/localstack/localstack:0.13.3.3
     ports:
       - 8566:4566
     environment:
