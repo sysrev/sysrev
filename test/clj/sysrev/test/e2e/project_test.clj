@@ -81,13 +81,11 @@
 
 (deftest ^:e2e test-private-project-downgrade
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [{:keys [user-id] :as user} (test/create-test-user system)
-          project-name (str "Baz Qux " (util/random-id))]
+    (let [user-id (account/log-in test-resources (test/create-test-user system))
+          project-id (e-project/create-project! test-resources (str "Baz Qux " (util/random-id)))]
       (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
-      (account/log-in test-resources user)
-      (e-project/create-project! test-resources project-name)
+      (e/go-project test-resources project-id "/settings")
       (doto driver
-        (et/is-click-visible {:fn/has-text "Settings"})
         (et/is-click-visible :public-access_private)
         (et/is-click-visible :save-options)
         e/wait-until-loading-completes)
@@ -106,13 +104,11 @@
 
 (deftest ^:e2e test-private-project-plan-upgrade
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [{:keys [user-id] :as user} (test/create-test-user system)
-          project-name (str "Baz Qux " (util/random-id))]
+    (let [user-id (account/log-in test-resources (test/create-test-user system))
+          project-id (e-project/create-project! test-resources (str "Baz Qux " (util/random-id)))]
       (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
-      (account/log-in test-resources user)
-      (e-project/create-project! test-resources project-name)
+      (e/go-project test-resources project-id "/settings")
       (doto driver
-        (et/is-click-visible {:fn/has-text "Settings"})
         (et/is-click-visible :public-access_private)
         (et/is-click-visible :save-options)
         e/wait-until-loading-completes)

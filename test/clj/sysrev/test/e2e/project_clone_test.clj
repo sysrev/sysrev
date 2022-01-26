@@ -19,6 +19,7 @@
        project-id
        {:pmids [33222245 32891636 25706626]}
        {:use-future? false})
+      (e/go-project test-resources project-id)
       (testing "Users can clone projects"
         (doto driver
           (et/is-click-visible :clone-button)

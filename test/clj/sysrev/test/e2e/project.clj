@@ -27,8 +27,6 @@
       (member/add-project-member
        project-id owner-id
        :permissions ["owner" "admin" "member"])
-      (e/go test-resources (str "/p/" project-id))
-      (e/wait-until-loading-completes driver)
       project-id)))
 
 (defn create-project-member-gengroup! [{:keys [driver prefer-browser?] :as test-resources} project-id gengroup-name gengroup-description]
