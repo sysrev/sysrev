@@ -62,20 +62,15 @@
      [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
      (when-not (util/should-robot-index? (:uri request))
        [:meta {:name "robots" :content "noindex,nofollow"}])
-     #_[:meta {:name "google-signin-scope" :content "profile email"}]
-     #_[:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
-     #_[:script {:src "https://apis.google.com/js/platform.js"
-                 ;; :async true :defer true
-                 }]
      (apply page/include-css (css-paths :theme (user-theme request)))
-     (favicon-headers)]
+     (favicon-headers)
+     [:script {:async true
+               :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
+                         "&currency=USD&disable-funding="
+                         (str/join "," ["credit" "card"]))
+               :type "text/javascript"}]]
     (when-not (:local-only env)
       [[:script {:async true
-                 :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
-                           "&currency=USD&disable-funding="
-                           (str/join "," ["credit" "card"]))
-                 :type "text/javascript"}]
-       [:script {:async true
                  :src "/ga.js"
                  :type "text/javascript"}]
        (when @lucky-orange-enabled
