@@ -159,9 +159,12 @@
         :error-handler #(js/console.error "[[check-pending-transaction]]: error " %)}))
 
 (defn- ProjectFunds []
-  (let [{:keys [project-funds]} @state
+  (let [project-id @(subscribe [:active-project-id])
+        {:keys [project-funds]} @state
         {:keys [current-balance compensation-outstanding available-funds
                 admin-fees pending-funds]} project-funds]
+    (when (and project-id (not project-funds))
+      (dispatch [:project/get-funds]))
     [:div
      [:h4.ui.dividing.header "Project Funds"]
      [:div.ui.two.column.middle.aligned.vertically.divided.grid
@@ -482,8 +485,6 @@
   :on-route (do (dispatch [::set :project-funds nil])
                 (dispatch [::set :compensation-amount nil])
                 (dispatch [::set :create-compensation-error nil])
-                (dispatch [:project/get-funds])
-                (check-pending-transactions)
                 (get-compensations! state)
                 (get-default-compensation! state)
                 (get-project-users-current-compensation! state)
