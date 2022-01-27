@@ -120,7 +120,7 @@
     (click-visible ~driver ~q ~opt)
     ~msg))
 
-(defmacro is-fill-visible [driver q & [opt msg]]
+(defmacro is-fill-visible [driver q text & [opt msg]]
   `(is-catch-timeout
-    (fill-visible ~driver ~q ~opt)
+    (fill-visible ~driver ~q ~text ~opt)
     ~msg))
