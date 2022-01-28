@@ -73,7 +73,23 @@
                                    "/descendant::*[contains(text(),'$3.00')]"))))
       (testing "Project owner can add funds via PayPal"
         (let [test-id #(str "//*[@data-testid='" (name %) "']")
-              window-size (ea/get-window-size driver)]
+              window-size (ea/get-window-size driver)
+              card-num-qs [:cc (test-id :cardNumber)]
+              expiry-qs [:expiry_value :cardExpiry]
+              cvv-qs [:cvv :cardCvv]
+              phone-qs [:telephone :phone]
+              submit-qs [:pomaSubmit (test-id :pomaGuestSubmitButton)]
+              ;; PayPal HTML varies. These let us find which query is valid.
+              qq (fn [driver q]
+                   (try
+                     (ea/query driver q)
+                     q
+                     (catch clojure.lang.ExceptionInfo e
+                       (when-not (some->> e ex-data :response :value :message
+                                          (re-find #"^no such element:.*"))
+                         (throw e)))))
+              some-q (fn [driver qs]
+                       (some (partial qq driver) qs))]
           (et/is-fill-visible driver :paypal-amount "20")
           (et/is-wait-pred #(e/js-execute driver "return typeof paypal !== 'undefined'"))
           (ea/wait 1) ;; flakey
@@ -82,10 +98,16 @@
           (doto driver
             ea/switch-window-next
             (ea/set-window-size window-size)
-            (et/is-click-visible :createAccount {:timeout 30})
-            (et/is-fill-visible (test-id :cardNumber) "4032038001593510" {:timeout 30})
-            (et/is-fill-visible :cardExpiry "11/24")
-            (et/is-fill-visible :cardCvv "123")
+            (et/is-click-visible :createAccount {:timeout 30}))
+          (et/is-wait-pred #(some-q driver card-num-qs))
+          (et/is-wait-pred #(some-q driver expiry-qs))
+          (et/is-wait-pred #(some-q driver cvv-qs))
+          (et/is-wait-pred #(some-q driver phone-qs))
+          (et/is-wait-pred #(some-q driver submit-qs))
+          (doto driver
+            (et/is-fill-visible (some-q driver card-num-qs) "4032038001593510" {:timeout 30})
+            (et/is-fill-visible (some-q driver expiry-qs) "11/24")
+            (et/is-fill-visible (some-q driver cvv-qs) "123")
             (try ;; This is not always present
               ;; Click it before we get too far down the page, where it could
               ;; block an element.
@@ -97,9 +119,9 @@
             (et/is-fill-visible :billingCity "Baltimore")
             (ea/select :billingState "Maryland")
             (et/is-fill-visible :billingPostalCode "21209")
-            (et/is-fill-visible :phone "222-333-4444")
+            (et/is-fill-visible (some-q driver phone-qs) "222-333-4444")
             (et/is-fill-visible :email "sb-477vju643771@personal.example.com")
-            (et/is-click-visible (test-id :pomaGuestSubmitButton))
+            (et/is-click-visible (some-q driver submit-qs))
             (ea/switch-window (first (ea/get-window-handles driver)))
             (et/is-wait-visible {:fn/text "Payment Processed"} {:timeout 30}))))
       (testing "Project owner can pay reviewers"
