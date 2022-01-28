@@ -70,6 +70,7 @@
       ;; go to articles page
       (e/go-project test-resources project-id "/articles")
       (doto driver
+        e/refresh
         ;; review times are visible
         (et/is-wait-exists {:css ".ui.updated-time"})
         ;; check that no answers are visible
