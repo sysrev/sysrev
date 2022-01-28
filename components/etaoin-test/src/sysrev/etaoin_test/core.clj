@@ -79,12 +79,12 @@
     ~msg))
 
 (defmacro is-not-pred [driver msg pred & args]
-  `(is-catch-timeout
+  `(is
     (not (~pred ~driver ~@args))
     ~msg))
 
 (defmacro is-pred [driver msg pred & args]
-  `(is-catch-timeout
+  `(is
     (~pred ~driver ~@args)
     ~msg))
 
