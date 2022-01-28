@@ -203,52 +203,44 @@
         (get-opt-in))})))
 
 (defn EnableDevAccount []
-  (let [enabled? (subscribe [:user/dev-account-enabled?])
-        loading? (r/atom true)
-        plan (subscribe [:user/current-plan])
-        user-id @(subscribe [:self/user-id])
-        error-message (r/atom "")
-        toggle-dev-account! (fn [enabled?]
-                              (reset! loading? true)
-                              (PUT (str "/api/user/" user-id "/developer/enable")
-                                   {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                    :params {:enabled? (not @enabled?)}
-                                    :handler (fn [{:keys [result]}]
-                                               (reset! loading? false)
-                                               (dispatch [:fetch [:identity]]))
-                                    :error-handler (fn [error-response]
-                                                     (reset! loading? false)
-                                                     (dispatch [:fetch [:identity]])
-                                                     (reset! error-message (str "There was an error: " (get-in error-response [:response :error :message]))))}))]
-    (r/create-class
-     {:reagent-render
-      (fn []
+  (let [error-message (r/atom "")]
+    (fn []
+      (let [enabled? @(subscribe [:user/dev-account-enabled?])
+            plan @(subscribe [:user/current-plan])
+            pro-plan? (plans-info/pro? (:nickname plan))
+            user-id @(subscribe [:self/user-id])
+            toggle-dev-account! (fn []
+                                  (when (or pro-plan? enabled?)
+                                    (PUT (str "/api/user/" user-id "/developer/enable")
+                                         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                          :params {:enabled? (not enabled?)}
+                                          :handler (fn [{:keys [result]}]
+                                                     (dispatch [:fetch [:identity]]))
+                                          :error-handler (fn [error-response]
+                                                           (dispatch [:fetch [:identity]])
+                                                           (reset! error-message (str "There was an error: " (get-in error-response [:response :error :message]))))})))]
         [Segment
          [Header {:as "h4" :dividing true} "Enable Developer Account"]
-         (when @enabled?
+         (when enabled?
            [:div
-            [:p "API Key: " [:b @(subscribe [:user/api-key])]]
+            [:p "API Key: " [:b#user-api-key @(subscribe [:user/api-key])]]
             [:p "You can login at " [:a {:href "https://datasource.insilica.co" :target "_blank"} "datasource.insilica.co"] " using " [:b @(subscribe [:self/email])] " and your SysRev password."]])
-         (when (not @enabled?)
+         (when-not enabled?
            [:div
             [:p "A developer account allows full access to SysRev and Datasource, the underlying data backend. Create your own custom datasources and import them using the SysRev and Datasource GraphQL interface."]])
          [:div
           [:br]
           [:p "In addition to the SysRev and Datasource GraphQL interface, we provide an " [:a {:href "https://github.com/sysrev/RSysrev" :target "_blank"} "R library"] "."]
           [:br]]
-         (when (and (not (plans-info/pro? (:nickname @plan)))
-                    (not @enabled?))
+         (when-not (or pro-plan? enabled?)
            [:p [:b "Developer Accounts can only be activated by paid subscribers"]])
          [Radio {:toggle true
                  :id "enable-dev-account"
                  :label "Developer Account"
-                 :checked (boolean @enabled?)
-                 :disabled (not (plans-info/pro? (:nickname @plan)))
-                 :on-click (fn [_e] (toggle-dev-account! enabled?))}]
-         [ui/CursorMessage error-message {:negative true}]])
-      :get-initial-state (fn [_this]
-                           (reset! loading? true)
-                           nil)})))
+                 :checked (boolean enabled?)
+                 :disabled (not pro-plan?)
+                 :on-click toggle-dev-account!}]
+         [ui/CursorMessage error-message {:negative true}]]))))
 
 (defn- UserSettings [{:keys [user-id]}]
   [Grid {:class "user-settings" :stackable true :columns 2}
