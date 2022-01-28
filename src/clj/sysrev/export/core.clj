@@ -1,16 +1,17 @@
 (ns sysrev.export.core
-  (:require [clojure.string :as str]
-            [honeysql.helpers :as sqlh :refer [order-by merge-where merge-join]]
-            [medley.core :as medley]
-            [sysrev.api :refer [graphql-request]]
-            [sysrev.db.core :refer [do-query with-transaction]]
-            [sysrev.db.queries :as q]
-            [sysrev.annotations :as ann]
-            [sysrev.label.core :as label]
-            [sysrev.project.core :as project]
-            [sysrev.datasource.api :as ds-api]
-            [sysrev.util :as util :refer [in? map-values index-by]]
-            [venia.core :as venia]))
+  (:require
+   [clojure.string :as str]
+   [honeysql.helpers :as sqlh :refer [merge-join merge-where order-by]]
+   [medley.core :as medley]
+   [sysrev.annotations :as ann]
+   [sysrev.api :refer [graphql-request]]
+   [sysrev.datasource.api :as ds-api]
+   [sysrev.db.core :refer [do-query with-transaction]]
+   [sysrev.db.queries :as q]
+   [sysrev.label.core :as label]
+   [sysrev.project.core :as project]
+   [sysrev.util :as util :refer [in? index-by map-values]]
+   [venia.core :as venia]))
 
 (def default-csv-separator "|||")
 
@@ -40,7 +41,10 @@
   articles will be included."
   [project-id & {:keys [article-ids separator]}]
   (with-transaction
-    (let [all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
+    (let [all-labels (-> (q/select-label-where
+                            project-id
+                            [:= nil :root-label-id-local]
+                            [:label-id :short-label :value-type])
                          (order-by :project_ordering :label-id-local) do-query)
           all-articles (-> (project-labeled-article-ids project-id)
                            (ds-api/get-articles-content))
@@ -75,10 +79,11 @@
                user-name (first (str/split email #"@"))
                user-note (:content (get user-notes [article-id user-id]))
                {:keys [primary-title secondary-title authors]} (get all-articles article-id)
-               label-answers (->> (map :label-id all-labels)
-                                  (map (fn [label-id] (->> user-article
-                                                           (filter #(= (:label-id %) label-id))
-                                                           first :answer))))
+               label-answers (map (fn [{:keys [label-id value-type]}]
+                                    (-> (filter #(= (:label-id %) label-id) user-article)
+                                        first :answer
+                                        (cond-> (= "group" value-type) boolean)))
+                                  all-labels)
                all-authors (str/join "; " (map str authors))]
            (mapv (partial stringify-csv-value separator)
                  (concat [article-id primary-title user-name (if (true? resolved?) true nil)]
