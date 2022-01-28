@@ -122,7 +122,7 @@ node {
   stage('PreDeployTest') {
     if (branch == 'production') {
       if (currentBuild.result == 'SUCCESS') {
-        echo 'Running full tests against dev instance...'
+        echo 'Running full tests against staging instance...'
         try {
           sshagent(['sysrev-admin']) {
             withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
@@ -131,7 +131,7 @@ node {
             }
             sendSlackMsgFull ('Deployed to <https://staging.sysrev.com|staging.sysrev.com> for tests', 'blue')
             try {
-              sh './jenkins/test-aws-dev-all'
+              sh './jenkins/test-staging'
               currentBuild.result = 'SUCCESS'
             } catch (exc) {
               currentBuild.result = 'UNSTABLE'
@@ -215,10 +215,10 @@ node {
         echo 'Running tests against deploy host...'
         try {
           if (branch == 'staging') {
-            sh './jenkins/test-aws-dev-all'
+            sh './jenkins/test-staging'
           }
           if (branch == 'production') {
-            sh './jenkins/test-aws-prod-browser'
+            sh './jenkins/test-prod'
           }
           currentBuild.result = 'SUCCESS'
           sendSlackMsg ('PostDeployTest passed')

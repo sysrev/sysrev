@@ -4,5 +4,5 @@ set -eux
 rm -rf ./target
 
 rm -f target/junit.xml
-testcmd1='lein test-aws-prod-browser'
+testcmd1='lein test-prod'
 $testcmd1 || $testcmd1

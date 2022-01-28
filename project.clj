@@ -15,14 +15,13 @@
              #_ "-XX:+UnlockExperimentalVMOptions"
              #_ "-XX:+UseZGC"]
   :source-paths ["src/clj" "src/cljc"]
-  :aliases {"build-prod"             ["with-profile" "+prod" "uberjar"]
-            "run-tests"              ["with-profile" "+test-config" "eftest"]
-            "jenkins"                ["with-profile" "+jenkins" "eftest"]
-            "junit"                  ["with-profile" "+test,+test-all" "run"]
-            "repl"                   ["run" "-m" "sysrev.user"]
-            "test-aws-dev-browser"   ["with-profile" "+test-remote,+test-browser,+test-aws-dev" "run"]
-            "test-aws-prod-browser"  ["with-profile" "+test-remote,+test-browser,+test-aws-prod" "run"]
-            "test-aws-dev-all"       ["with-profile" "+test-remote,+test-all,+test-aws-dev" "run"]}
+  :aliases {"build-prod"   ["with-profile" "+prod" "uberjar"]
+            "run-tests"    ["with-profile" "+test-config" "eftest"]
+            "jenkins"      ["with-profile" "+jenkins" "eftest"]
+            "junit"        ["with-profile" "+test,+test-all" "run"]
+            "repl"         ["run" "-m" "sysrev.user"]
+            "test-prod"    ["with-profile" "+test-remote,+test-browser,+test-prod" "run"]
+            "test-staging" ["with-profile" "+test-remote,+test-browser,+test-staging" "run"]}
   :clean-targets ^{:protect false} ["target"]
   :lein-tools-deps/config {:config-files [:install :user :project]}
   :middleware [lein-tools-deps.plugin/resolve-dependencies-with-deps-edn]
@@ -36,8 +35,8 @@
                               :main sysrev.browser-test-main}
              :test-all       {:lein-tools-deps/config {:aliases [:test]}
                               :main sysrev.all-test-main}
-             :test-aws-dev   {:lein-tools-deps/config {:aliases [:test-aws-dev :test]}}
-             :test-aws-prod  {:lein-tools-deps/config {:aliases [:test-aws-prod :test]}}
+             :test-staging   {:lein-tools-deps/config {:aliases [:test-staging :test]}}
+             :test-prod      {:lein-tools-deps/config {:aliases [:test-prod :test]}}
              :test-s3-dev    {:lein-tools-deps/config {:aliases [:test-s3-dev :test]}}
              :dev            {:lein-tools-deps/config {:aliases [:dev :test]}
                               :jvm-opts ["-Xmx1200m"
