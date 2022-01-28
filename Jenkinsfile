@@ -6,7 +6,7 @@ node {
     returnStdout: true
   ).trim()
 
-  gitUrl = 'git@bitbucket.org:insilica/systematic_review.git'
+  gitUrl = 'git@github.com:insilica/systematic_review.git'
 
   if (env.BRANCH_NAME != null) {
     branch = env.BRANCH_NAME
@@ -198,7 +198,7 @@ node {
     if (branch == 'production') {
       if (currentBuild.result == 'SUCCESS') {
         try {
-          sshagent(['sysrev-admin']) {
+          sshagent(['sysrev-git']) {
             sh "git push ${gitUrl} HEAD:master -f"
           }
         } catch (exc) {

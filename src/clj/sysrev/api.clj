@@ -1559,9 +1559,12 @@
                                              {:api-token :api-key})
         datasource-account (ds-api/read-account sysrev-user)]
     (cond (not (stripe/user-has-pro? user-id))
-          (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
-              {:error {:status forbidden
-                       :message "User does not have a Pro account subscription. Upgrade your account to enable API access"}})
+          (if (user/dev-user? user-id)
+            (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
+                {:error {:status forbidden
+                         :message "Datasource API access not enabled: Account does not have a Pro subscription."}})
+            {:error {:status forbidden
+                     :message "Your account does not have a Pro subscription. Upgrade to enable API access."}} )
           (medley/find-first #(= (:message %) "Account Does Not Exist") (:errors datasource-account))
           ;; the account does not exist
           (let [{:keys [pw-encrypted-buddy email api-token]} (user/user-by-id user-id)]

@@ -265,6 +265,7 @@
       cols-file (assoc cols-all
                        :content :file-hash
                        :content-hash :content-hash
+                       :file-hash :file-hash
                        :metadata [[:raw "data->>'metadata' as metadata"]])
       cols-json (assoc cols-all
                        :content [[:raw "content::text"]]
@@ -300,34 +301,61 @@
   (defn resolve-dataset-entity [context {:keys [id]} _]
     (let [ks (conj (current-selection-names context) :dataset-id)]
       (with-tx-context [context context]
-        (as->
-            (if (some #{:content :contentUrl :mediaType :metadata} ks)
-              (-> (get-entity-content
-                   context id
-                   (conj ks (when (:contentUrl ks) :content-hash)))
-                  (update :content
-                          #(if (instance? InputStream %)
-                             (.encodeToString (Base64/getEncoder)
-                                              (IOUtils/toByteArray ^InputStream %))
-                             %)))
-              (execute-one!
-               context
-               {:select (keep cols-all ks)
-                :from :entity
-                :where [:= :id id]}))
-            $
-          (remap-keys #(inv-cols % %) $)
-          (assoc $
-                 :id id
-                 :contentUrl
-                 (when (:contentUrl ks)
-                   (str (server-url (:request context))
-                        (content-url-path id (or (:content-hash $) (:hash $))))))
-          (if (or (sysrev-dev? context)
-                  (call-memo context :public-dataset? (:dataset-id $)))
-            $
-            (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
-                                     :datasetId (:dataset-id $)})))))))
+        (some->
+         (if (some #{:content :contentUrl :mediaType :metadata} ks)
+           (some-> (get-entity-content
+                    context id
+                    (apply conj ks (when (:contentUrl ks) [:content-hash :file-hash])))
+                   (update :content
+                           #(if (instance? InputStream %)
+                              (.encodeToString (Base64/getEncoder)
+                                               (IOUtils/toByteArray ^InputStream %))
+                              %)))
+           (execute-one!
+            context
+            {:select (keep cols-all ks)
+             :from :entity
+             :where [:= :id id]}))
+         (as-> $
+             (remap-keys #(inv-cols % %) $)
+           (assoc $
+                  :id id
+                  :contentUrl
+                  (when (:contentUrl ks)
+                    (let [domain (get-in context [:pedestal :config :files-domain-name])
+                          {:keys [file-hash]} $]
+                      (if (and domain file-hash)
+                        (str "https://" domain "/" (file/content-key file-hash))
+                        (str (server-url (:request context))
+                             (content-url-path id (or (:content-hash $) (:hash $))))))))
+           (if (or (sysrev-dev? context)
+                   (call-memo context :public-dataset? (:dataset-id $)))
+             $
+             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
+                                      :datasetId (:dataset-id $)}))))))))
+
+(defn resolve-datasetEntitiesById
+  [context {:keys [ids] :as args} _]
+  (connection-helper
+   context args
+   {:count-f
+    (fn [{:keys [context]}]
+      (->> {:select :%count.id
+            :from :entity
+            :where [:in :id ids]}
+           (execute-one! context)
+           :count))
+    :edges-f
+    (fn [{:keys [context cursor limit]}]
+      (->> {:select :id
+            :from :entity
+            :limit limit
+            :where [:and [:> :id cursor] [:in :id ids]]
+            :order-by [:id]}
+           (execute! context)
+           (map (fn [{:entity/keys [id]}]
+                  {:cursor (str id) :node {:id id}}))
+           (split-at (dec limit))))}))
 
 (defn resolve-Dataset#entities
   [context {:keys [externalId groupingId] :as args} {:keys [id]}]
@@ -373,40 +401,51 @@
                     (catch Exception _))]
     (when entity-id
       (with-tx-context [context context]
-        (let [entity (get-entity-content
-                      context entity-id
-                      #{:content :content-hash :created :dataset-id})]
-          (when (:content entity)
+        (let [{:keys [content] :as entity}
+              #__ (get-entity-content
+                   context entity-id
+                   #{:content :content-hash :created :dataset-id})
+              close (fn []
+                      (when (instance? java.io.Closeable content)
+                        (.close content)))]
+          (when content
             (let [hash (or (:content-json/hash entity) (:content-file/content-hash entity))
                   etag (base64url-encode hash)
                   origin (some-> (get-in request [:headers "origin"]) str/lower-case)
-                  public? (call-memo context :public-dataset? (:entity/dataset-id entity))]
-              (cond
-                (not (or (sysrev-dev? context) public?))
-                {:status 403
-                 :body "Forbidden"}
+                  public? (call-memo context :public-dataset? (:entity/dataset-id entity))
+                  response
+                  #__ (cond
+                        (not (or (sysrev-dev? context) public?))
+                        {:status 403
+                         :body "Forbidden"}
 
-                (not= (:content-hash (:path-params request)) (subs etag 0 21))
-                {:status 301
-                 :headers (cond-> {"Location" (content-url-path entity-id hash)}
-                            (and origin (allowed-origins origin))
-                            #__ (assoc "Access-Control-Allow-Origin" origin))}
+                        (not= (:content-hash (:path-params request)) (subs etag 0 21))
+                        {:status 301
+                         :headers (cond-> {"Location" (content-url-path entity-id hash)}
+                                    (and origin (allowed-origins origin))
+                                    #__ (assoc "Access-Control-Allow-Origin" origin))}
 
-                :else
-                {:status 200
-                 :headers (cond-> {"Cache-Control" (if public?
-                                                     "public, max-age=315360000, immutable"
-                                                     "no-cache")
-                                   "Content-Type" (:mediaType entity)
-                                   "ETag" etag
-                                   "Last-Modified" (.format
-                                                    http-datetime-formatter
-                                                    (.toInstant ^Timestamp (:entity/created entity)))
-                                   "Vary" "Origin"}
-                            (and origin (allowed-origins origin))
-                            #__ (assoc "Access-Control-Allow-Origin" origin))
-                 :body (when (not= :head (:request-method request))
-                         (:content entity))}))))))))
+                        :else
+                        {:status 200
+                         :headers (cond-> {"Cache-Control" (if public?
+                                                             "public, max-age=315360000, immutable"
+                                                             "no-cache")
+                                           "Content-Type" (:mediaType entity)
+                                           "ETag" etag
+                                           "Last-Modified" (.format
+                                                            http-datetime-formatter
+                                                            (.toInstant ^Timestamp (:entity/created entity)))
+                                           "Vary" "Origin"}
+                                    (and origin (allowed-origins origin))
+                                    #__ (assoc "Access-Control-Allow-Origin" origin))
+                         :body (when (not= :head (:request-method request))
+                                 (if (instance? java.io.InputStream content)
+                                   (java.nio.channels.Channels/newChannel ^java.io.InputStream content)
+                                   content))})]
+              (when (and (instance? java.io.Closeable content)
+                         (not (instance? java.io.Closeable (:body response))))
+                (.close content))
+              response)))))))
 
 (defn get-existing-content-id [context {:keys [content-hash content-table]}]
   ((keyword (name content-table) "content-id")

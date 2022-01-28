@@ -171,7 +171,9 @@
                     panel-changed?
                     (do (dispatch [:data/after-load data-item
                                    :project-articles-route
-                                   (list set-panel #(js/setTimeout sync-params 30))])
+                                   (list set-panel
+                                         [:scroll-top]
+                                         #(js/setTimeout sync-params 30))])
                         (dispatch set-transition)
                         (al/require-list context)
                         (al/reload-list context))

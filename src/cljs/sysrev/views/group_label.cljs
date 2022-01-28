@@ -5,9 +5,9 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :refer [subscribe reg-event-db reg-event-fx reg-sub trim-v dispatch]]
-            [sysrev.state.label :as label]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.views.review :as review]
+            [sysrev.state.label :as label]
             [sysrev.views.semantic :refer [Button Icon Dropdown Table TableHeader TableRow
                                            TableBody TableHeaderCell TableCell Input Popup]]
             ["react-datasheet" :as react-datasheet :default ReactDataSheet]
@@ -226,7 +226,13 @@
                  (cond (nil? answer)        nil
                        (sequential? answer) answer
                        :else                [answer]))
-        valid? (valid-answer? root-label-id label-id answer)]
+        project-id @(subscribe [:active-project-id])
+        definition @(subscribe [::label/definition root-label-id label-id project-id])
+        validatable-label? (:validatable-label? definition)
+        valid-id? (or (not validatable-label?)
+                      @(subscribe [:review/valid-id? root-label-id label-id ith]))
+        valid? (and (valid-answer? root-label-id label-id answer)
+                    valid-id?)]
     [:div {:class (when color (str color "-text"))
            :style {:text-align "center"}}
      (cond (not valid?)
@@ -271,15 +277,29 @@
                       (dispatch [:review/set-label-value
                                  article-id root-label-id label-id ith value])))
         {:keys [placeholder search? selection? value options multiple?]} props
-        valid? (valid-answer? root-label-id label-id answer)]
+        project-id @(subscribe [:active-project-id])
+        definition @(subscribe [::label/definition root-label-id label-id project-id])
+        validatable-label? (:validatable-label? definition)
+        valid-id? (or (not validatable-label?)
+                      @(subscribe [:review/valid-id? root-label-id label-id ith]))
+        valid? (and valid-id?
+                    (valid-answer? root-label-id label-id answer))]
     ;; handle validity checking of string values
     (if (= value-type "string")
-      [Input {:placeholder placeholder
-              :style {:width "10em"}
-              :error (not valid?)
-              :autoFocus true
-              :value value
-              :onChange on-change}]
+      [:<>
+       [Input {:placeholder placeholder
+               :style {:width "10em"}
+               :error (not valid?)
+               :autoFocus true
+               :value value
+               :onChange on-change}]
+       (when (and validatable-label? valid-id?)
+         [:div
+          [:a {:target "_blank"
+               :style {:margin-top "5px"}
+               :href (str "https://identifiers.org/" value)}
+           [:i.external.alternate.icon]
+           " Identifier info"]])]
       ;; boolean and categorical
       [Dropdown {:placeholder placeholder
                  :style {:width "10em"}

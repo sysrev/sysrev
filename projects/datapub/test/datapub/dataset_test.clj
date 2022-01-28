@@ -195,6 +195,26 @@
                (ex "query($groupingId: String, $id: PositiveInt){dataset(id:$id){entities(groupingId: $groupingId) {totalCount edges{node{id}}}}}"
                    {:groupingId "gr-id" :id ds-id})))))))
 
+(deftest test-non-existent-entity
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-entity"}})
+                    (get-in [:data :createDataset :id]))
+          entity-id (-> (ex (dpcq/m-create-dataset-entity "id")
+                            {:input
+                             {:datasetId ds-id
+                              :content (json/generate-string {:a 1})
+                              :mediaType "application/json"}})
+                        (get-in [:data :createDatasetEntity :id])
+                        inc)]
+      (testing "Queries for non-existent entities return nil"
+        (is (= {:data {:datasetEntity nil}}
+               (ex (dpcq/q-dataset-entity "id") {:id entity-id})))
+        (is (= {:data {:datasetEntity nil}}
+               (ex (dpcq/q-dataset-entity "contentUrl") {:id entity-id})))
+        (is (= {:data {:datasetEntity nil}}
+               (ex (dpcq/q-dataset-entity "mediaType") {:id entity-id})))))))
+
 (deftest test-entity-ops-with-external-ids
   (test/with-test-system [system {}]
     (let [ex (partial ex! system)
@@ -273,12 +293,7 @@
     (let [ex (partial ex! system)
           ds-id (-> (ex (dpcq/m-create-dataset "id")
                         {:input {:name "test-dataset-entities-pagination"}})
-                    (get-in [:data :createDataset :id]))
-          q-dataset#entities
-          #__ (fn [return]
-                (str "query($after: String, $first: NonNegativeInt, $id: PositiveInt!){dataset(id: $id){entities(after: $after, first: $first){"
-                     (dpcq/return->string return)
-                     "}}}"))]
+                    (get-in [:data :createDataset :id]))]
       (doseq [i (range 15)]
         (ex (dpcq/m-create-dataset-entity "id")
             {:input
@@ -316,6 +331,65 @@
                          (ex q {:after end-cursor :first 3 :id ds-id})
                          (ex q {:after end-cursor2 :id ds-id})]
                         (mapcat #(get-in % [:data :dataset :entities :edges]))
+                        (into #{})
+                        count)))))))))
+
+(deftest test-datasetEntitiesById
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id")
+                        {:input {:name "test-datasetEntitiesById"}})
+                    (get-in [:data :createDataset :id]))
+          entity-ids (mapv
+                      (fn [i]
+                        (-> (ex (dpcq/m-create-dataset-entity "id")
+                                {:input
+                                 {:datasetId ds-id
+                                  :content (json/generate-string {:num i})
+                                  :mediaType "application/json"}})
+                            (get-in [:data :createDatasetEntity :id])))
+                      (range 15))]
+      (testing "totalCount is correct"
+        (is (= {:data {:datasetEntitiesById {:totalCount 15}}}
+               (ex (dpcq/q-dataset-entities-by-id "totalCount") {:ids entity-ids}))))
+      (testing "first arg works"
+        (is (= 11
+               (-> (ex (dpcq/q-dataset-entities-by-id "edges{cursor}") {:first 11 :ids entity-ids})
+                   (get-in [:data :datasetEntitiesById :edges])
+                   count)))
+        (is (= [{"num" 0} {"num" 1} {"num" 2} {"num" 3}]
+               (-> (ex (dpcq/q-dataset-entities-by-id "edges{node{content}}") {:first 4 :ids entity-ids})
+                   (get-in [:data :datasetEntitiesById :edges])
+                   (->> (map (comp json/parse-string :content :node)))))
+            "content is correct"))
+      (testing "Pagination with endCursor and after works"
+        (let [end-cursor (-> (ex (dpcq/q-dataset-entities-by-id "pageInfo{endCursor}") {:first 4 :ids entity-ids})
+                             (get-in [:data :datasetEntitiesById :pageInfo :endCursor]))
+              end-cursor2 (-> (ex (dpcq/q-dataset-entities-by-id "pageInfo{endCursor}")
+                                  {:after end-cursor :first 3 :ids entity-ids})
+                              (get-in [:data :datasetEntitiesById :pageInfo :endCursor]))
+              q (dpcq/q-dataset-entities-by-id "edges{cursor}")]
+          (is (string? end-cursor))
+          (is (= 11
+                 (-> (ex q {:after end-cursor :ids entity-ids})
+                     (get-in [:data :datasetEntitiesById :edges])
+                     count)))
+          (is (string? end-cursor2))
+          (is (= 8
+                 (-> (ex q {:after end-cursor2 :ids entity-ids})
+                     (get-in [:data :datasetEntitiesById :edges])
+                     count)))
+          (is (= [{"num" 7} {"num" 8} {"num" 9} {"num" 10}]
+                 (-> (ex (dpcq/q-dataset-entities-by-id "edges{node{content}}") {:after end-cursor2 :first 4 :ids entity-ids})
+                     (get-in [:data :datasetEntitiesById :edges])
+                     (->> (map (comp json/parse-string :content :node)))))
+              "content is correct")
+          (testing "Different pages have no edges in common"
+            (is (= 15
+                   (->> [(ex q {:first 4 :ids entity-ids})
+                         (ex q {:after end-cursor :first 3 :ids entity-ids})
+                         (ex q {:after end-cursor2 :ids entity-ids})]
+                        (mapcat #(get-in % [:data :datasetEntitiesById :edges]))
                         (into #{})
                         count)))))))))
 

@@ -2,6 +2,8 @@
   (:refer-clojure :exclude [ref])
   (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 
+(def ^{:doc "ELB Account Id for us-east-1"} elb-account-id 127311923021)
+
 (def subnets
   (fn-if "6AZs"
          [(ref :SubnetA) (ref :SubnetB) (ref :SubnetC)
@@ -21,7 +23,8 @@
   "This template creates the regional resources needed by Sysrev services."
 
   :Parameters
-  {:DatapubDomainName {:Type "String"}
+  {:CloudFrontOAI {:Type "String"}
+   :DatapubDomainName {:Type "String"}
    :DatapubHostedZoneId {:Type "AWS::Route53::HostedZone::Id"}
    :NumberOfAZs {:Type "Number" :Default 3 :MinValue 2 :MaxValue 6}}
 
@@ -202,6 +205,51 @@
     {:RouteTableId (ref :RouteTable)
      :SubnetId (ref :SubnetF)}}
 
+   :LoggingBucket
+   {:Type "AWS::S3::Bucket"
+    :Properties
+    {:AccessControl "Private"
+     :PublicAccessBlockConfiguration
+     {:BlockPublicAcls true
+      :BlockPublicPolicy true
+      :IgnorePublicAcls true
+      :RestrictPublicBuckets true}}}
+
+   :LoggingBucketReadPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:Groups ["sysrev-developers"]
+     :PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["s3:GetBucketLocation" "s3:ListBucket"]
+        :Effect "Allow"
+        :Resource (join "" ["arn:aws:s3:::" (ref :LoggingBucket)])}
+       {:Action "s3:GetObject"
+        :Effect "Allow"
+        :Resource (join "" ["arn:aws:s3:::" (ref :LoggingBucket) "/*"])}]}}}
+
+   :LoggingBucketELBWritePolicy
+   {:Type "AWS::S3::BucketPolicy"
+    :Properties
+    {:Bucket (ref :LoggingBucket)
+     :PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action "s3:PutObject"
+        :Effect "Allow"
+        :Principal {:AWS (str "arn:aws:iam::" elb-account-id ":root")}
+        :Resource (join "" ["arn:aws:s3:::" (ref :LoggingBucket) "/AWSLogs/" account-id "/*"])}
+       {:Action "s3:PutObject"
+        :Condition {:StringEquals {"s3:x-amz-acl" "bucket-owner-full-control"}}
+        :Effect "Allow"
+        :Principal {:Service "delivery.logs.amazonaws.com"}
+        :Resource (join "" ["arn:aws:s3:::" (ref :LoggingBucket) "/AWSLogs/" account-id "/*"])}
+       {:Action "s3:GetBucketAcl"
+        :Effect "Allow"
+        :Principal {:Service "delivery.logs.amazonaws.com"}
+        :Resource (join "" ["arn:aws:s3:::" (ref :LoggingBucket)])}]}}}
+
    :CredentialsKey
    {:Type "AWS::KMS::Key"
     :Properties
@@ -260,8 +308,12 @@
 
    :LoadBalancer
    {:Type "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    :DependsOn ["LoggingBucketELBWritePolicy"]
     :Properties
     {:IpAddressType "dualstack"
+     :LoadBalancerAttributes
+     [{:Key "access_logs.s3.enabled" :Value "true"}
+      {:Key "access_logs.s3.bucket" :Value (ref :LoggingBucket)}]
      :SecurityGroups
      [(get-att :Vpc "DefaultSecurityGroup")
       (ref :LoadBalancerSecurityGroup)]
@@ -316,7 +368,8 @@
   :Outputs
   (prefixed-outputs
    "${AWS::StackName}-"
-   {:CredentialsKeyId [(ref :CredentialsKey)]
+   {:CloudFrontOAI [(ref :CloudFrontOAI)]
+    :CredentialsKeyId [(ref :CredentialsKey)]
     :CredentialsKeyUsePolicyArn [(ref :CredentialsKeyUsePolicy)]
     :DatapubDomainName [(ref :DatapubDomainName)]
     :DatapubHostedZoneId [(ref :DatapubHostedZoneId)]
