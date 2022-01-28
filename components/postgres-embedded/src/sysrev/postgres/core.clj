@@ -5,7 +5,8 @@
             [hikari-cp.core :as hikari-cp]
             [prestancedesign.get-port :as get-port]
             [sysrev.db.core :as db]
-            [sysrev.flyway.interface :as flyway])
+            [sysrev.flyway.interface :as flyway]
+            [sysrev.util-lite.interface :as ul])
   (:import (com.opentable.db.postgres.embedded EmbeddedPostgres EmbeddedPostgres$Builder PgBinaryResolver PgDirectoryResolver)))
 
 (def binary-resolver
@@ -70,7 +71,9 @@
   (start [this]
     (if datasource
       this
-      (let [pg (.start (embedded-pg-builder (:port config)))]
+      (let [pg (ul/retry
+                {:interval-ms 1000 :n 4}
+                (.start (embedded-pg-builder (:port config))))]
         (-> pg .getPostgresDatabase .getConnection .createStatement
             (.executeUpdate (str "CREATE DATABASE " (:dbname config))))
         (let [datasource (make-datasource config)
