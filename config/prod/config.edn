@@ -11,4 +11,4 @@
  :max-bulk-invitations 100
  :e-util-api-key "***REMOVED***"
  :private-config "config.local.edn"
- :web-server {:web-asset-path "/out-production"}}
+ :web-server {:web-asset-path "/out"}}
