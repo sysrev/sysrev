@@ -15,7 +15,6 @@
         io.replikativ/hasch {:mvn/version "0.3.7"}
         io.staticweb/aws-api-failjure {:mvn/version "1.1.0"}
         medley/medley {:mvn/version "1.3.0"}
-        nrepl/nrepl {:mvn/version "0.8.3"}
         ;; jetty dependencies have to be explicitly manually versioned, or we
         ;; end up with strange, undebuggable exceptions
         org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.42.v20210604"}
@@ -32,6 +31,7 @@
         poly/config {:local/root "../../components/config"}
         poly/file-util {:local/root "../../components/file-util"}
         poly/flyway {:local/root "../../components/flyway"}
+        poly/nrepl {:local/root "../../components/nrepl"}
         poly/postgres {:local/root "../../components/postgres"}
         poly/pdf-read {:local/root "../../components/pdf-read"}
         poly/tesseract {:local/root "../../components/tesseract"}
@@ -40,9 +40,6 @@
                  :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}
                               sysrev/datapub-client {:local/root "../../components/datapub-client"}}}
            :prod {:extra-paths ["config/prod"]}
-           :repl {:extra-deps {cider/cider-nrepl {:mvn/version "0.27.2"}
-                               nrepl/nrepl {:mvn/version "0.8.3"}}
-                  :exec-fn datapub.repl/run-with-fixtures!}
            :staging {:extra-paths ["config/staging"]
                      :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}}}
            :test {:extra-paths ["test" "config/test"]

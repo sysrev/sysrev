@@ -7,6 +7,7 @@
    [sysrev.db.core :as db]
    [sysrev.db.listeners :as listeners]
    [sysrev.db.migration :as migration]
+   [sysrev.nrepl.interface :as nrepl]
    [sysrev.postgres.core :as pg]
    [sysrev.scheduler.core :as scheduler]
    [sysrev.sente :as sente]
@@ -117,5 +118,12 @@
   (reload!)
   ((requiring-resolve 'sysrev.fixtures.interface/load-fixtures!)))
 
+(defonce nrepl (atom nil))
+
+(defn start-nrepl! [config]
+  (swap! nrepl #(component/start
+                 (or % (component/system-map :nrepl (nrepl/map->NRepl {:config config}))))))
+
 (defn -main []
+  (start-nrepl! env)
   (start!))

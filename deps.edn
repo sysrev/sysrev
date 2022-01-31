@@ -96,6 +96,7 @@
         poly/datapub-client {:local/root "components/datapub-client"}
         poly/flyway {:local/root "components/flyway"}
         poly/notification {:local/root "components/notification"}
+        poly/nrepl {:local/root "components/nrepl"}
         poly/postgres {:local/root "components/postgres"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
         poly/user {:local/root "components/user"}
@@ -108,11 +109,7 @@
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
   :dev {:extra-paths ["config/dev" "development/src"]
-        :extra-deps {cider/cider-nrepl {:mvn/version "0.27.2"}
-                     nrepl/nrepl {:mvn/version "0.8.3"}
-                     refactor-nrepl/refactor-nrepl {:mvn/version "3.1.0"}
-
-                     poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
+        :extra-deps {poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
                      poly/sqlite {:local/root "components/sqlite"}}}

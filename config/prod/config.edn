@@ -1,4 +1,5 @@
-{:postgres
+{:nrepl {:port 7888}
+ :postgres
  {:dbname "sysrev"
   :user "postgres"
   :password ""

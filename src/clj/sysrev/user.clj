@@ -26,7 +26,7 @@
         sysrev.formats.pubmed
         sysrev.export.core
         sysrev.export.endnote
-        [sysrev.main :exclude [-main]]
+        [sysrev.main :as main :exclude [-main]]
         sysrev.source.core
         sysrev.source.endnote
         sysrev.source.pdf-zip
@@ -65,8 +65,7 @@
         sysrev.init
         sysrev.shared.keywords
         sysrev.stacktrace)
-  (:require [cider.nrepl :refer (cider-nrepl-handler)]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.edn :as edn]
             hashp.core
             [orchestra.spec.test :as st]
@@ -95,7 +94,6 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [nrepl.server :as nrepl]
             [sysrev.config :refer [env]]
             [sysrev.fixtures.interface :as fixtures]
             [sysrev.shared.spec.core :as sc]
@@ -111,10 +109,6 @@
             [sysrev.formats.pubmed :as pubmed])
   (:import java.util.UUID))
 
-(def nrepl-handler
-  (apply nrepl/default-handler
-         (conj cider.nrepl.middleware/cider-middleware 'refactor-nrepl.middleware/wrap-refactor)))
-
 (defn -main []
   (st/instrument)
   (try
@@ -124,7 +118,6 @@
       (log/error "Exception in sysrev.init/start-app")
       (log/error (.getMessage e))
       (log/error (with-out-str (print-cause-trace-custom e)))))
-  (defonce nrepl (nrepl/start-server :handler nrepl-handler))
-  (spit ".nrepl-port" (:port nrepl))
-  (log/info "Started nREPL on port" (:port nrepl))
+  (main/start-nrepl! env)
+  (spit ".nrepl-port" (:bound-port (:nrepl @main/nrepl)))
   (clojure.main/repl :init #(in-ns 'sysrev.user)))
