@@ -22,6 +22,7 @@
    :DatapubFilesDomainName {:Type "String"}
    :Env {:AllowedPattern "(dev)|(prod)|(staging)"
          :Type "String"}
+   :InstanceType {:Type "String"}
    :KeyName {:Default ""
              :Type "String"}
    :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
@@ -341,7 +342,7 @@
          :VolumeType "gp3"}}]
       :IamInstanceProfile {:Arn (get-att :InstanceProfile "Arn")}
       :ImageId (ref :AMI)
-      :InstanceType "t3a.small"
+      :InstanceType (ref :InstanceType)
       :KeyName (fn-if :HasKeyName
                       (ref :KeyName)
                       no-value)

@@ -39,6 +39,9 @@
       "AllowedPattern" : "(dev)|(prod)|(staging)",
       "Type" : "String"
     },
+    "InstanceType" : {
+      "Type" : "String"
+    },
     "KeyName" : {
       "Default" : "",
       "Type" : "String"
@@ -433,7 +436,9 @@
           "ImageId" : {
             "Ref" : "AMI"
           },
-          "InstanceType" : "t3a.small",
+          "InstanceType" : {
+            "Ref" : "InstanceType"
+          },
           "KeyName" : {
             "Fn::If" : [ "HasKeyName", {
               "Ref" : "KeyName"
