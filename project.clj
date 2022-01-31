@@ -18,7 +18,6 @@
   :aliases {"build-prod"   ["with-profile" "+prod" "uberjar"]
             "run-tests"    ["with-profile" "+test-config" "eftest"]
             "jenkins"      ["with-profile" "+jenkins" "eftest"]
-            "junit"        ["with-profile" "+test,+test-all" "run"]
             "repl"         ["run" "-m" "sysrev.user"]
             "test-prod"    ["with-profile" "+test-remote,+test-browser,+test-prod" "run"]
             "test-staging" ["with-profile" "+test-remote,+test-browser,+test-staging" "run"]}
@@ -33,11 +32,8 @@
                               :aot [sysrev.main]}
              :test-browser   {:lein-tools-deps/config {:aliases [:test]}
                               :main sysrev.browser-test-main}
-             :test-all       {:lein-tools-deps/config {:aliases [:test]}
-                              :main sysrev.all-test-main}
              :test-staging   {:lein-tools-deps/config {:aliases [:test-staging :test]}}
              :test-prod      {:lein-tools-deps/config {:aliases [:test-prod :test]}}
-             :test-s3-dev    {:lein-tools-deps/config {:aliases [:test-s3-dev :test]}}
              :dev            {:lein-tools-deps/config {:aliases [:dev :test]}
                               :jvm-opts ["-Xmx1200m"
                                          "-Djdk.attach.allowAttachSelf=true"]
