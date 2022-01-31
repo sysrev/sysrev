@@ -1,16 +1,16 @@
 (ns sysrev.main
   (:gen-class)
-  (:require [clojure.tools.logging :as log]
-            [com.stuartsierra.component :as component]
-            [sysrev.config :refer [env]]
-            [sysrev.db.core :as db]
-            [sysrev.db.listeners :as listeners]
-            [sysrev.db.migration :as migration]
-            [sysrev.postgres.core :as pg]
-            [sysrev.project.core :as project]
-            [sysrev.scheduler.core :as scheduler]
-            [sysrev.sente :as sente]
-            [sysrev.web.core :as web]))
+  (:require
+   [clojure.tools.logging :as log]
+   [com.stuartsierra.component :as component]
+   [sysrev.config :refer [env]]
+   [sysrev.db.core :as db]
+   [sysrev.db.listeners :as listeners]
+   [sysrev.db.migration :as migration]
+   [sysrev.postgres.core :as pg]
+   [sysrev.scheduler.core :as scheduler]
+   [sysrev.sente :as sente]
+   [sysrev.web.core :as web]))
 
 (defrecord PostgresRunAfterStart [done?]
   component/Lifecycle
@@ -21,7 +21,6 @@
         (db/set-active-db! (:postgres this))
         (when-not (#{:remote-test :test} (:profile env))
           (migration/ensure-updated-db))
-        (project/cleanup-browser-test-projects)
         (assoc this :done? true))))
   (stop [this]
     (if done?
