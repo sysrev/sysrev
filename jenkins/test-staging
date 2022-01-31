@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-set -eux
+set -eu
 
 rm -rf ./target
 
-SYSREV_FULL_TESTS=1
-testcmd1='lein test-staging'
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** $testcmd1 || (cat target/junit.xml && $testcmd1)
+rm -f target/junit.xml
+testcmd1='clj -T:build run-tests-staging'
+$testcmd1 || $testcmd1

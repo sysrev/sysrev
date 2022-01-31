@@ -118,7 +118,7 @@
                      poly/sqlite {:local/root "components/sqlite"}}}
   :dev-embedded {:extra-paths ["config/dev-embedded"]}
   :eastwood {:extra-deps {jonase/eastwood {:mvn/version "0.9.9"}}
-             :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user sysrev.all-test-main sysrev.browser-test-main]}"]}
+             :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user"]}
   :poly {:extra-deps {polylith/clj-poly
                       {:deps/root "projects/poly"
                        :git/url "https://github.com/polyfy/polylith.git"

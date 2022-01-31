@@ -6,7 +6,7 @@
   :port 5432}
  :server
  {:port 4133}
- :selenium
+ :test-remote
  {:protocol "https"
   :host "sysrev.com"}
  :profile :remote-test

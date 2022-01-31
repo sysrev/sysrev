@@ -15,35 +15,21 @@
              #_ "-XX:+UnlockExperimentalVMOptions"
              #_ "-XX:+UseZGC"]
   :source-paths ["src/clj" "src/cljc"]
-  :aliases {"build-prod"   ["with-profile" "+prod" "uberjar"]
-            "run-tests"    ["with-profile" "+test-config" "eftest"]
-            "jenkins"      ["with-profile" "+jenkins" "eftest"]
-            "repl"         ["run" "-m" "sysrev.user"]
-            "test-prod"    ["with-profile" "+test-remote,+test-browser,+test-prod" "run"]
-            "test-staging" ["with-profile" "+test-remote,+test-browser,+test-staging" "run"]}
+  :aliases {"build-prod" ["with-profile" "+prod" "uberjar"]
+            "repl"       ["run" "-m" "sysrev.user"]}
   :clean-targets ^{:protect false} ["target"]
   :lein-tools-deps/config {:config-files [:install :user :project]}
   :middleware [lein-tools-deps.plugin/resolve-dependencies-with-deps-edn]
   :plugins [[org.clojars.john-shaffer/lein-tools-deps "0.4.6-1"]]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :profiles {:prod           {:lein-tools-deps/config {:aliases [:prod]}
-                              :main sysrev.main
-                              :aot [sysrev.main]}
-             :test-browser   {:lein-tools-deps/config {:aliases [:test]}
-                              :main sysrev.browser-test-main}
-             :test-staging   {:lein-tools-deps/config {:aliases [:test-staging :test]}}
-             :test-prod      {:lein-tools-deps/config {:aliases [:test-prod :test]}}
-             :dev            {:lein-tools-deps/config {:aliases [:dev :test]}
+  :profiles {:dev            {:lein-tools-deps/config {:aliases [:dev :test]}
                               :jvm-opts ["-Xmx1200m"
                                          "-Djdk.attach.allowAttachSelf=true"]
                               :plugins [[lein-eftest "0.5.9"]]}
+             :prod           {:lein-tools-deps/config {:aliases [:prod]}
+                              :main sysrev.main
+                              :aot [sysrev.main]}
              :repl           {:plugins [[lein-environ "1.2.0"]]}
              :test           {:lein-tools-deps/config {:aliases [:test]}
-                              :jvm-opts ["-Xmx1000m"]}
-             :test-remote    {:lein-tools-deps/config {:aliases [:test]}
-                              :jvm-opts ["-Xmx1000m"]}
-             :jenkins        {:lein-tools-deps/config {:aliases [:test]}
-                              :eftest {:report eftest.report.junit/report
-                                       :report-to-file "target/junit.xml"
-                                       :thread-count 4}}})
+                              :jvm-opts ["-Xmx1000m"]}})

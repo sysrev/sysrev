@@ -8,7 +8,7 @@
  :server
  {:port 4132}
  :sysrev-dev-key "***REMOVED***"
- :selenium
+ :test-remote
  {:protocol "https"
   :host "staging.sysrev.com"}
  :profile :remote-test

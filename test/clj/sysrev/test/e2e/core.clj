@@ -230,23 +230,21 @@
      (is* (pred#))))
 
 (defmacro with-driver [[driver-sym opts] & body]
-  `(if-not (test/remote-test?)
-     (let [opts# ~opts
-           headless?# (:headless? opts# (run-headless?))]
-       (doseq [driver-type# [:chrome]]
-         (ea/with-driver driver-type#
-           (merge
-            {:headless headless?#
-             :path-browser (when (.exists (io/file "chrome")) "./chrome")
-             :size [1600 1000]}
-            opts#)
-           driver#
-           (with-postmortem driver# {:dir "/tmp/sysrev/etaoin"}
-             (let [~driver-sym driver#
-                   result# (do ~@body)]
-               (check-browser-console-clean driver#)
-               result#)))))
-     (log/info "In a remote environment etaoin browser tests are not run")))
+  `(let [opts# ~opts
+         headless?# (:headless? opts# (run-headless?))]
+     (doseq [driver-type# [:chrome]]
+       (ea/with-driver driver-type#
+         (merge
+          {:headless headless?#
+           :path-browser (when (.exists (io/file "chrome")) "./chrome")
+           :size [1600 1000]}
+          opts#)
+         driver#
+         (with-postmortem driver# {:dir "/tmp/sysrev/etaoin"}
+           (let [~driver-sym driver#
+                 result# (do ~@body)]
+             (check-browser-console-clean driver#)
+             result#))))))
 
 (defmacro with-test-resources [[bindings opts] & body]
   `(let [opts# ~opts]

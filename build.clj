@@ -41,13 +41,25 @@
       (System/exit 1)))
   opts)
 
-(defn run-tests [{:keys [focus] :as opts}]
-  (let [extra-config (if focus
-                       {:kaocha.filter/focus [focus]}
-                       {})
+(defn run-tests [{:keys [aliases focus focus-meta] :as opts}]
+  (let [extra-config (cond-> {}
+                       focus (assoc :kaocha.filter/focus [focus])
+                       focus-meta (assoc :kaocha.filter/focus-meta [focus-meta]))
         {:keys [exit]}
-        #__ (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/run-tests-cli!"
+        #__ (b/process {:command-args ["clj"
+                                       (str "-X:" (str/join ":" (or aliases [:test])))
+                                       "sysrev.test.core/run-tests-cli!"
                                        ":extra-config" (pr-str extra-config)]})]
     (when-not (zero? exit)
       (System/exit 1)))
   opts)
+
+(defn run-tests-staging [opts]
+  (run-tests (assoc opts
+                    :aliases [:test-staging :test]
+                    :focus-meta :remote)))
+
+(defn run-tests-prod [opts]
+  (run-tests (assoc opts
+                    :aliases [:test-prod :test]
+                    :focus-meta :remote)))

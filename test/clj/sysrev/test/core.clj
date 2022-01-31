@@ -52,11 +52,13 @@
   (max 4 (quot (cpu-count) 2)))
 
 (defn get-selenium-config [system]
-  (let [{:keys [protocol host port] :as config}
-        (or (:selenium env)
-            {:protocol "http"
-             :host "localhost"
-             :port (-> system :web-server :bound-port)})]
+  (let [{:keys [test-remote]} (:config system)
+        {:keys [protocol host port] :as config}
+        (if (seq test-remote)
+          test-remote
+          {:protocol "http"
+           :host "localhost"
+           :port (-> system :web-server :bound-port)})]
     (assoc config
            :url (str protocol "://" host (if port (str ":" port) "") "/"))))
 
@@ -68,9 +70,6 @@
 
 (defn test-profile? []
   (in? [:test :remote-test] (-> env :profile)))
-
-(defn remote-test? []
-  (= :remote-test (-> env :profile)))
 
 (defn test-db-shell-args [& [postgres-overrides]]
   (let [{:keys [dbname user host port]}
@@ -128,20 +127,23 @@
              db/*query-cache-enabled* (atom false)
              db/*transaction-query-cache* nil]
      (let [opts# ~opts
-           postgres# (:postgres env)
-           system# (swap!
-                    test-system
-                    (fn [sys#]
-                      (or (when sys#
-                            (if (:isolate? opts#)
-                              (do (component/stop sys#) nil)
-                              (recreate-db! (component/start sys#))))
-                          (do (st/instrument)
-                              (start-test-system!)))))
+           config# (or (:config opts#) env)
+           postgres# (:postgres config#)
+           system# (if (seq (:test-remote config#))
+                     {:config config#}
+                     (swap!
+                      test-system
+                      (fn [sys#]
+                        (or (when sys#
+                              (if (:isolate? opts#)
+                                (do (component/stop sys#) nil)
+                                (recreate-db! (component/start sys#))))
+                            (do (st/instrument)
+                                (start-test-system!))))))
            ~name-sym system#]
        (try
          (reset! db/*active-db* (:postgres system#))
-         (binding [env (merge env (:config system#))]
+         (binding [env (merge config# (:config system#))]
            (do ~@body))
          (finally
            (when (:isolate? opts#)
