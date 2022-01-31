@@ -2,7 +2,8 @@
        :secret-access-key "test"
        :endpoint-override {:protocol :http
                            :hostname "localhost"
-                           :port 8566}}
+                           :port 8566}
+       :region "us-east-1"}
  :env :test
  :pedestal {:port 0}
  :postgres {:create-if-not-exists? true
