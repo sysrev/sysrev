@@ -1,7 +1,6 @@
 (ns sysrev.web.routes.project
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure-csv.core :as csv]
             [clojure.tools.logging :as log]
             [compojure.core :refer [GET POST PUT]]
             [ring.util.response :as response]
@@ -727,29 +726,29 @@
                              :user-answers
                              (-> (export/export-user-answers-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (util/write-csv)
                                  (create-export-tempfile))
                              :group-answers
                              (-> (export/export-group-answers-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (util/write-csv)
                                  (create-export-tempfile))
                              :articles-csv
                              (-> (export/export-articles-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (util/write-csv)
                                  (create-export-tempfile))
                              :annotations-csv
                              (-> (export/export-annotations-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (util/write-csv)
                                  (create-export-tempfile))
                              :endnote-xml
                              (project-to-endnote-xml
                               project-id :article-ids article-ids :to-file true)
                              :group-label-csv
                              (-> (export/export-group-label-csv project-id :label-id label-id)
-                                 (csv/write-csv)
+                                 (util/write-csv)
                                  (create-export-tempfile))
                              :json
                              (-> (api/project-json project-id)
@@ -817,7 +816,7 @@
 (dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
          (with-authorize request {:allow-public true}
            (-> (export/export-user-answers-csv (active-project request))
-               (csv/write-csv)
+               (util/write-csv)
                (web/csv-file-response (-> request :params :filename))))))
 
 ;;;
