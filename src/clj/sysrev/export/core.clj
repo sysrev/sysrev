@@ -99,7 +99,10 @@
   [project-id & {:keys [article-ids separator]}]
   (with-transaction
     (let [project-url (str "https://sysrev.com/p/" project-id)
-          all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
+          all-labels (-> (q/select-label-where
+                          project-id
+                          [:= nil :root-label-id-local]
+                          [:label-id :short-label :value-type])
                          (order-by :project_ordering :label-id-local) do-query)
           all-articles (-> (project-labeled-article-ids project-id)
                            (ds-api/get-articles-content))
@@ -130,22 +133,29 @@
                user-notes (map :content (get anotes article-id))
                consensus (label/article-consensus-status project-id article-id)
                resolved-labels (label/article-resolved-labels project-id article-id)
-               get-label-values (fn [label-id]
-                                  (as-> (if (seq resolved-labels)
-                                          (get resolved-labels label-id)
-                                          (->> (get aanswers article-id)
-                                               (filter #(= (:label-id %) label-id))
-                                               (map :answer)
-                                               (map #(if (sequential? %) % [%]))
-                                               (apply concat) distinct sort)) xs
-                                    (if (sequential? xs) xs [xs])))
+               get-label-values
+               #__ (fn [{:keys [label-id value-type]}]
+                     (as-> (if (seq resolved-labels)
+                             (get resolved-labels label-id)
+                             (->> (get aanswers article-id)
+                                  (map
+                                   (fn [{:keys [answer] :as resolved}]
+                                     (when (= label-id (:label-id resolved))
+                                       (cond
+                                         (= "group" value-type) [(boolean answer)]
+                                         (sequential? answer) answer
+                                         :else [answer]))))
+                                  (apply concat) distinct sort))
+                         $
+                       (if (and (empty? $) (= "group" value-type)) [false] $)
+                       (if (sequential? $) $ [$])))
                all-authors (str/join "; " (map str authors))
                all-notes (str/join "; " (map pr-str user-notes))
                article-url (str project-url "/article/" article-id)]
            (mapv (partial stringify-csv-value separator)
                  (concat [article-id article-url (name (or consensus :none))
                           user-count user-names]
-                         (->> all-labels (map (comp get-label-values :label-id)))
+                         (map get-label-values all-labels)
                          [all-notes primary-title secondary-title all-authors]))))))))
 
 ;; TODO: include article external urls in export
