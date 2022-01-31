@@ -147,7 +147,7 @@
                                          :else [answer]))))
                                   (apply concat) distinct sort))
                          $
-                       (if (and (empty? $) (= "group" value-type)) [false] $)
+                       (if (and (sequential? $) (empty? $) (= "group" value-type)) [false] $)
                        (if (sequential? $) $ [$])))
                all-authors (str/join "; " (map str authors))
                all-notes (str/join "; " (map pr-str user-notes))
