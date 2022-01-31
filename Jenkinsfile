@@ -75,14 +75,8 @@ node {
         sh './jenkins/test'
       } catch (exc) {
         sh 'cat target/junit.xml || true'
-        sendSlackMsg ('Tests failed (attempt 1 of 2) ...')
-        try {
-          sh './jenkins/test'
-        } catch (exc2) {
-          sh 'cat target/junit.xml || true'
-          currentBuild.result = 'UNSTABLE'
-          sendSlackMsg ('Tests failed (attempt 2 of 2)')
-        }
+        currentBuild.result = 'UNSTABLE'
+        sendSlackMsg ('Tests failed')
       } finally {
         try {
           junit 'target/junit.xml'
