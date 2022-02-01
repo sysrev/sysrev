@@ -133,9 +133,9 @@
           context {:authorization (get-authorization-key request)
                    :request request}
           authorization-result (authorized? query vars context)
-          result (if (get-in authorization-result [:resolved-value :value])
-                   (execute compiled-schema query vars context)
-                   authorization-result)]
+          result (if (-> authorization-result :resolved-value :behavior (= :error))
+                   {:errors [(-> authorization-result :resolved-value :data)]}
+                   (execute compiled-schema query vars context))]
       {:status (if (seq (:errors result)) 400 200)
        :headers {"Content-Type" "application/json"}
        :body (json/write-str (transform-keys-to-json result))})))

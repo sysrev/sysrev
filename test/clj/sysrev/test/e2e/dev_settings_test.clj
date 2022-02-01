@@ -19,7 +19,7 @@
              (-> (graphql-request system
                                   [[:__schema [[:mutationType [[:fields [:name]]]]]]]
                                   :api-key api-key)
-                 :resolved_value :data first :message))
+                 :errors first :message))
           "Basic plan user can't access the sysrev API")
       (is (= "Account Does Not Exist"
              (-> (read-account {:api-key api-key})

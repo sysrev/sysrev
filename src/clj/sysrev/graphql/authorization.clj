@@ -5,8 +5,8 @@
             [sysrev.user.interface :refer [user-by-api-token user-settings]]))
 
 (defn fail [message & [more]]
-  (resolve-as false [(cond-> {:message message}
-                       more (merge more))]))
+  (resolve-as false (cond-> {:message message}
+                      more (merge more))))
 
 (def authorized?
   ^ResolverResult
@@ -18,12 +18,12 @@
             (fail "api-token not supplied in request headers as Authorization: Bearer <api-token>")
             ;; this to allow sysrev to make queries on itself
             (= authorization (ds-api/ds-auth-key))
-            (resolve-as true true)
+            (resolve-as true)
             (not (stripe/user-has-pro? user-id))
             (fail "user does not have a have pro account")
             (not user-id)
             (fail "api-token is not associated with a user")
             (not dev-account-enabled?)
             (fail "dev account is not enabled for that user")
-            :else (resolve-as true true)))))
+            :else (resolve-as true)))))
 
