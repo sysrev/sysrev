@@ -1,10 +1,10 @@
 {:paths ["src"]
- :deps {org.apache.pdfbox/pdfbox {:mvn/version "2.0.22"}
+ :deps {org.apache.pdfbox/pdfbox {:mvn/version "2.0.25"}
         ;; Optional dependencies from https://pdfbox.apache.org/2.0/dependencies.html
         ;; and https://svn.apache.org/viewvc/pdfbox/trunk/parent/pom.xml?view=markup
         com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
         com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
         org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.3"}
-        org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
-        org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
-        org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}}}
+        org.bouncycastle/bcmail-jdk15on {:mvn/version "1.70"}
+        org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.70"}
+        org.bouncycastle/bcprov-jdk15on {:mvn/version "1.70"}}}

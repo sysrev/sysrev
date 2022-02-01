@@ -40,7 +40,7 @@ jobs:
 
       - name: Deploy Sysrev-Global-Resources template
         id: deploy
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
         with:
           name: Sysrev-Global-Resources
           capabilities: "CAPABILITY_IAM,CAPABILITY_NAMED_IAM"
@@ -77,7 +77,7 @@ jobs:
 
       - name: Deploy Sysrev-Regional-Resources template to staging
         if: github.ref_name == 'staging'
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'
@@ -87,7 +87,7 @@ jobs:
 
       - name: Deploy Sysrev-Regional-Resources template to prod
         if: github.ref_name == 'production'
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.3
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'

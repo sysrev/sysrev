@@ -1,2 +1,2 @@
 {:paths ["src"]
- :deps {org.clojure/data.xml {:mvn/version "0.2.0-alpha3"}}}
+ :deps {org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}}}
