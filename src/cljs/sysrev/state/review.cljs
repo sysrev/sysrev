@@ -4,7 +4,6 @@
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
-            [sysrev.state.label :as label]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel active-project-id]]
@@ -166,12 +165,11 @@
       (last vs))))
 
 (reg-sub :review/active-labels
-         (fn [[_ article-id root-label-id label-id _]]
+         (fn [[_ article-id _ _ _]]
            [(subscribe [:self/user-id])
             (subscribe [::labels])
-            (subscribe [:article/labels article-id])
-            (subscribe [:active-project-id])])
-         (fn [[user-id ui-labels article-labels project-id]
+            (subscribe [:article/labels article-id])])
+         (fn [[user-id ui-labels article-labels]
               [_ article-id root-label-id label-id ith]]
            (let [ui-vals (get-in ui-labels [article-id] {})
                  article-vals (->> (get-in article-labels [user-id] {})

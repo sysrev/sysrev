@@ -324,8 +324,6 @@
   [[root-label-id label-id ith] article-id]
   (let [multi? @(subscribe [:label/multi? root-label-id label-id])
         class-for-idx #(str root-label-id "_" label-id "-" ith "__value_" %)
-        project-id @(subscribe [:active-project-id])
-        definition @(subscribe [::label/definition root-label-id label-id project-id]) 
         curvals (or (not-empty @(subscribe [:review/active-labels
                                             article-id root-label-id label-id ith]))
                     [""])
