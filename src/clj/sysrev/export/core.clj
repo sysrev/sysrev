@@ -147,8 +147,10 @@
                                          :else [answer]))))
                                   (apply concat) distinct sort))
                          $
-                       (if (and (sequential? $) (empty? $) (= "group" value-type)) [false] $)
-                       (if (sequential? $) $ [$])))
+                       (if (sequential? $) $ [$])
+                       (if (= "group" value-type)
+                         (if (#{[false] [nil]} $) [false] [true])
+                         $)))
                all-authors (str/join "; " (map str authors))
                all-notes (str/join "; " (map pr-str user-notes))
                article-url (str project-url "/article/" article-id)]
