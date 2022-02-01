@@ -298,7 +298,7 @@
                    1
                    0))))
 
-(def test-kind-order [:unit :integration :e2e])
+(def test-kind-order [:unit :integration :e2e :optional])
 (def test-kinds (into #{} test-kind-order))
 
 (defn tests-by-kind [& [extra-config]]
@@ -349,7 +349,9 @@
   (create-target-dir!)
   (let [test-ids (tests-by-kind extra-config)
         get-tests (fn [kind] (get test-ids #{kind}))
-        test-kinds (filter (comp seq get-tests) test-kind-order)
+        test-kinds (filter #(when-not (= :optional %)
+                              (seq (get-tests %)))
+                           test-kind-order)
         junit-target (file-util/get-path "target/junit.xml")]
     (if (empty? test-ids)
       (do

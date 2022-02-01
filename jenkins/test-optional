@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -eu
+
+rm -rf target
+
+DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** bin/kaocha --focus-meta :optional --no-fail-fast

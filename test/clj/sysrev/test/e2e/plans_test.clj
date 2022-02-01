@@ -42,7 +42,7 @@
   ;; Wait due to flakieness
   (ea/wait driver 3))
 
-(deftest ^:e2e ^:kaocha/pending test-plans-page
+(deftest ^:optional test-plans-page
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user (test/create-test-user system)]
       (create-customer! user)
@@ -56,7 +56,7 @@
         (et/is-click-visible {:css ".button.upgrade-plan"})
         (et/is-wait-visible [:user_billing {:fn/has-text "Team Pro"}])))))
 
-(deftest ^:e2e ^:kaocha/pending test-plans-page-validation
+(deftest ^:optional test-plans-page-validation
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user (test/create-test-user system)]
       (create-customer! user)
@@ -69,7 +69,7 @@
         (et/is-wait-visible {:fn/text "Your card's expiration date is incomplete."})
         (et/is-wait-visible {:fn/text "Your card's security code is incomplete."})))))
 
-(deftest ^:e2e ^:kaocha/pending test-card-declined
+(deftest ^:optional test-card-declined
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user (test/create-test-user system)]
       (create-customer! user)
@@ -82,7 +82,7 @@
         (et/is-click-visible {:css ".button.use-card"})
         (et/is-wait-visible {:fn/has-text "Your card was declined"})))))
 
-(deftest ^:e2e ^:kaocha/pending test-processing-error
+(deftest ^:optional test-processing-error
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user (test/create-test-user system)]
       (create-customer! user)

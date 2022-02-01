@@ -128,7 +128,8 @@
                       eftest/eftest {:mvn/version "0.5.9"}
                       io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
                       io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
-                      lambdaisland/kaocha {:mvn/version "1.60.945"}
+                      lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
+                                           :sha "d4cf224dd81f6a21860d1cf496251bf3be67910f"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
                                                      :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}

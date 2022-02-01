@@ -88,12 +88,30 @@ node {
 
         if (currentBuild.result != 'UNSTABLE') {
           currentBuild.result = 'SUCCESS'
-          if (branch == 'staging' ||
-              branch == 'production') {
-            sendSlackMsgFull ('Tests passed','blue')
-          } else {
-            sendSlackMsg ('Tests passed')
-          }
+          sendSlackMsg ('Tests passed')
+        }
+      }
+    }
+  }
+  stage('OptionalTests') {
+    if (currentBuild.result == 'SUCCESS' &&
+        branch != 'staging' &&
+        branch != 'production' ) {
+      echo 'Running optional tests...'
+      try {
+        sh './jenkins/test-optional'
+        sendSlackMsg ('Optional tests passed')
+      } catch (exc) {
+        sh 'cat target/junit.xml || true'
+        currentBuild.result = 'UNSTABLE'
+        sendSlackMsg ('Optional tests failed')
+      } finally {
+        try {
+          junit 'target/junit.xml'
+        } catch (exc2) {
+          echo "!!! target/junit.xml not found or no testcases found in it"
+          currentBuild.result = 'UNSTABLE'
+          sendSlackMsg ('Test results not found')
         }
       }
     }

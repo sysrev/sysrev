@@ -25,7 +25,7 @@
                                :imported false
                                :confirm-time (db/sql-now)})))))
 
-(deftest ^:kaocha/pending ^:e2e test-project-compensation
+(deftest ^:optional test-project-compensation
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
           reviewer-1 (test/create-test-user system)
