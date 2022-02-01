@@ -204,4 +204,3 @@
                  (not= 0 after-count)
                  (seq (filter #(= % after-count) exponential-steps)))
         (predict-api/schedule-predict-update project-id)))))
-

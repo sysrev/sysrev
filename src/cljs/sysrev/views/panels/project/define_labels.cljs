@@ -681,15 +681,10 @@
                                     (reset! all-values nil)
                                     (reset! all-values (str/split value #","))))}
                    errors)])
-      [ui/TextInputField
-        (make-args :default-value
-                   {:label "Default value"
-                    :value @default-value
-                    :tooltip ["Default value"]
-                    :disabled (not is-owned?)
-                    :on-change #(let [value (-> % .-target .-value)]
-                                  (reset! default-value value))}
-                   errors)]
+
+     
+     
+      
      ;; required
      [ui/LabeledCheckboxField
       (make-args :required
@@ -793,6 +788,54 @@
                           (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
+
+
+     (case @value-type
+       "boolean"
+       [:div.field.inclusion-values {:style {:width "100%"}}
+        [FormLabelWithTooltip
+         "Default Value"
+         ["Please select a default value for this label"]]
+        [ui/LabeledCheckbox
+         {:checked? (true? @default-value)
+          :disabled (not is-owned?)
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (when checked?
+                          (reset! default-value true)))
+          :label "True"}]
+        [ui/LabeledCheckbox
+         {:checked? (false? @default-value)
+          :disabled (not is-owned?)
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (when checked?
+                          (reset! default-value false)))
+          :label "False"}]]
+
+       "categorical"
+       [ui/TextInputField
+        (make-args :default-value
+                   {:default-value (str/join "," @default-value)
+                    :display "Default label value (comma-separated)"
+                    :prompt "Comma separated default values" 
+                    :disabled (not is-owned?)
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! default-value nil)
+                                    (reset! default-value (str/split value #","))))}
+                   errors)]
+       
+       "string"
+       [ui/TextInputField
+        (make-args :default-value
+                   {:label "Default value"
+                    :value (str/join "," @default-value)
+                    :tooltip ["Default value"]
+                    :disabled (not is-owned?)
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! default-value nil)
+                                    (reset! default-value (str/split value #","))))}
+                   errors)])
      (let [error (get-in @errors [:definition :hidden-label?])]
         [:div.field.validatable-label {:class (when error "error")
                                             :style {:width "100%"}}
