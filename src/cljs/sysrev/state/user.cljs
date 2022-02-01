@@ -51,4 +51,4 @@
 
 (reg-sub :user/dev-account-enabled?
          (fn [[_ user-id]] (subscribe [::user user-id]))
-         #(:dev-account-enabled? %))
+         (comp boolean :dev-account-enabled?))
