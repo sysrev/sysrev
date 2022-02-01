@@ -1,16 +1,16 @@
 {:linters {:redefined-var {:level :off}
+           :redundant-do {:level :off}
+           :refer-all {:level :off}
            :use {:level :off}
            :unresolved-var {:level :off}
            :unresolved-symbol {:exclude
                                [ ;; ignore unresolved symbols inside these macro forms
                                 (sysrev.db.queries/def-find-type nil)
                                 (sysrev.util/with-print-time-elapsed nil)
-                                (sysrev.test.browser.core/deftest-browser nil)
                                 (sysrev.macros/sr-defroute nil)
                                 (sysrev.macros/sr-defroute-project nil)
                                 (sysrev.macros/def-panel nil)
                                 (sysrev.graphql.core/with-datasource-proxy nil)
-                                (orchestra.core/defn-spec nil)
                                 (clojure.core.cache/defcache nil)
                                 (compojure.core/GET nil)
                                 (compojure.core/POST nil)
@@ -23,10 +23,8 @@
            :unused-binding {:exclude-destructured-keys-in-fn-args true}
            :unused-namespace {:exclude [clojure.string
                                         clojure.tools.logging
-                                        sysrev.util
                                         medley.core
-                                        clj-webdriver.taxi
-                                        clojure.string]}
+                                        sysrev.util]}
            :unused-referred-var {:exclude {clojure.test [is deftest testing]
                                            re-frame.core [dispatch subscribe]}}
            :consistent-alias {:aliases {
@@ -67,13 +65,16 @@
                                         sysrev.init                    init
                                         sysrev.label.core              label
                                         sysrev.label.answer            answer
-                                        sysrev.user.core               user
+                                        sysrev.nrepl.interface         nrepl
+                                        sysrev.postgres.interface      pg
                                         sysrev.project.core            project
                                         sysrev.sendgrid                sendgrid
                                         sysrev.slack                   slack
                                         sysrev.source.core             source
                                         sysrev.source.import           import
+                                        sysrev.user.core               user
                                         sysrev.util                    util
+                                        sysrev.util-lite.interface     ul
 ;;; sysrev namespaces  [CLJS]
                                         sysrev.action.core             action
                                         sysrev.chartjs                 chartjs
@@ -81,16 +82,19 @@
                                         sysrev.loading                 loading
                                         sysrev.views.semantic          S
 ;;; sysrev test namespaces
-                                        clj-webdriver.taxi             taxi
-                                        sysrev.test.core               test
-                                        sysrev.test.browser.core       b
-                                        sysrev.test.etaoin.core        e
                                         etaoin.api                     ea
-                                        sysrev.test.browser.navigate   nav
-                                        sysrev.test.browser.xpath      x}}}
+                                        sysrev.etaoin-test.interface   et
+                                        sysrev.test.core               test
+                                        sysrev.test.etaoin.core        e
+                                        sysrev.test.fixtures           test-fixtures}}}
  :output {:exclude-files ["^components/cloudformation-templates"
                           "src/clj/sysrev/user.clj"
                           "src/cljs/sysrev/user.cljs"
                           "src/scripts/repl.clj"]}
- :lint-as {orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
-           sysrev.test.etaoin.core/deftest-etaoin clojure.test/deftest}}
+ :lint-as {datapub.test/with-test-system clojure.core/with-open
+           orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
+           sysrev.db.core/with-long-transaction clojure.core/with-open
+           sysrev.file-util.interface/with-temp-file clojure.core/with-open
+           sysrev.file-util.interface/with-temp-files clojure.core/with-open
+           sysrev.test.core/with-test-system clojure.core/with-open
+           sysrev.test.e2e.core/with-test-resources clojure.core/with-open}}

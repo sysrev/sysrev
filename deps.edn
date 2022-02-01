@@ -1,12 +1,4 @@
-{:paths ["src/clj"
-         "src/cljc"
-         "components/config/src"
-         "components/datapub-client/src"
-         "components/flyway/src"
-         "components/notification/src"
-         "components/reviewer-time/src"
-         "components/user/src"
-         "resources"]
+{:paths ["src/clj" "src/cljc" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
 
 ;;; clojure.spec
@@ -31,7 +23,6 @@
         org.clojure/math.combinatorics {:mvn/version "0.1.6"}
         crypto-random/crypto-random {:mvn/version "1.2.1"}
         me.raynes/fs {:mvn/version "1.4.6"}
-        eftest/eftest {:mvn/version "0.5.9"}
 
 ;;; Data formats
         org.clojure/data.json {:mvn/version "2.2.2"}
@@ -49,22 +40,17 @@
 ;;; Postgres
         com.impossibl.pgjdbc-ng/pgjdbc-ng {:mvn/version "0.8.7"}
         org.clojure/java.jdbc {:mvn/version "0.7.12"}
-        org.postgresql/postgresql {:mvn/version "42.2.24"}
         joda-time/joda-time {:mvn/version "2.10.10"}
         clj-time/clj-time {:mvn/version "0.15.2" :exclusions [joda-time/joda-time]}
         postgre-types/postgre-types {:mvn/version "0.0.4"}
-        hikari-cp/hikari-cp {:mvn/version "2.13.0"}
         clj-postgresql/clj-postgresql {:mvn/version "0.7.0" :exclusions [org.clojure/java.jdbc cheshire/cheshire prismatic/schema]}
         honeysql/honeysql {:mvn/version "0.9.8"}
-        com.github.seancorfield/honeysql {:mvn/version "2.1.818"}
         nilenso/honeysql-postgres {:mvn/version "0.2.6"}
-        com.github.seancorfield/next.jdbc {:mvn/version "1.2.731"}
 
 ;;; Web server
-        aleph/aleph {:mvn/version "0.4.6"}
+        aleph/aleph {:mvn/version "0.4.7-alpha10"}
         com.taoensso/sente {:mvn/version "1.16.2"}
         compojure/compojure {:mvn/version "1.6.2"}
-        manifold/manifold {:mvn/version "0.1.8"}
         ring/ring {:mvn/version "1.9.4"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         ring-transit/ring-transit {:mvn/version "0.1.6"}
@@ -74,6 +60,18 @@
 ;;; profiling
         criterium/criterium {:mvn/version "0.4.6"}
 
+;; amazonica
+        amazonica/amazonica {:mvn/version "0.3.157"
+                             :exclusions [com.amazonaws/aws-java-sdk
+                                          com.amazonaws/amazon-kinesis-client
+                                          com.amazonaws/dynamodb-streams-kinesis-adapter
+                                          com.fasterxml.jackson.core/jackson-databind
+                                          com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
+                                          com.taoensso/encore
+                                          org.slf4j/slf4j-api]}
+        com.amazonaws/aws-java-sdk-core {:mvn/version "1.11.968"}
+        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.11.968"}
+
 ;;; More libraries
         buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication
         clj-http/clj-http {:mvn/version "3.12.1"}
@@ -81,7 +79,6 @@
         com.velisco/clj-ftp {:mvn/version "0.3.12"}
         com.draines/postal {:mvn/version "2.0.4"} ;; email client
         hashp/hashp {:mvn/version "0.2.1"}
-        amazonica/amazonica {:mvn/version "0.3.152" :exclusions [com.taoensso/encore com.fasterxml.jackson.dataformat/jackson-dataformat-cbor com.fasterxml.jackson.core/jackson-databind org.slf4j/slf4j-api]}
         ;; =1.23.0 because version conflict in latest (1.30.2 breaks selenium)
         com.google.api-client/google-api-client {:mvn/version "1.23.0"}
         environ/environ {:mvn/version "1.2.0"}
@@ -92,111 +89,60 @@
         org.clojure/core.memoize {:mvn/version "0.7.2"}
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
-        lambdaisland/regal {:mvn/version "0.0.97"} ;; portable regexes
         medley/medley {:mvn/version "1.3.0"}
-        org.flywaydb/flyway-core {:mvn/version "8.0.1"}}
+        org.flywaydb/flyway-core {:mvn/version "8.2.0"}
+
+        poly/config {:local/root "components/config"}
+        poly/datapub-client {:local/root "components/datapub-client"}
+        poly/flyway {:local/root "components/flyway"}
+        poly/notification {:local/root "components/notification"}
+        poly/nrepl {:local/root "components/nrepl"}
+        poly/postgres {:local/root "components/postgres"}
+        poly/reviewer-time {:local/root "components/reviewer-time"}
+        poly/user {:local/root "components/user"}
+        poly/util-lite {:local/root "components/util-lite"}}
  :aliases
- {:+default {:extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "13.3.0"}
-                          io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "13.3.0"}}
-             :extra-paths ["components/postgres-embedded/src"
-                           "components/postgres-embedded/resources"]}
-  :+postgres {:extra-paths ["components/postgres/src"
-                            "components/postgres/resources"]}
+ {:build {:deps {io.github.seancorfield/build-clj
+                 {:git/tag "v0.6.7" :git/sha "22c2d09"}}
+          :ns-default build}
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "8e9a29b9b985a89ce0aa0b7f4117e072a07bed44"}}
           :main-opts ["-m" "carve.main"]}
-  :dev {:extra-deps {cider/cider-nrepl {:mvn/version "0.27.2"}
-                     com.cognitect.aws/api {:mvn/version "0.8.524"},
-                     com.cognitect.aws/endpoints {:mvn/version "1.1.12.65"}
-                     com.cognitect.aws/s3 {:mvn/version "814.2.978.0"}
-                     com.cognitect.aws/secretsmanager {:mvn/version "814.2.1008.0"}
-                     com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}
-                     io.replikativ/hasch {:mvn/version "0.3.7"}
-                     io.staticweb/aws-api-failjure {:mvn/version "1.1.0"}
-                     net.sourceforge.tess4j/tess4j {:mvn/version "4.5.5"
-                                                    :exclusions [bouncycastle/bctsp-jdk14]}
-                     nrepl/nrepl {:mvn/version "0.8.3"}
-                     org.apache.pdfbox/pdfbox {:mvn/version "2.0.22"}
-                     org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty/jetty-client {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty/jetty-http {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty/jetty-server {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty/jetty-servlet {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty/jetty-util {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty.http2/http2-server {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
-                     org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
-                     prestancedesign/get-port {:mvn/version "0.1.1"}
-                     refactor-nrepl/refactor-nrepl {:mvn/version "3.1.0"}
-                     ;; pdf-read deps
-                     com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
-                     com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
-                     org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.3"}
-                     org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
-                     org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
-                     org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
-                     sysrev/cloudformation-templates {:local/root "components/cloudformation-templates"}
-                     sysrev/datapub {:local/root "projects/datapub"}
-                     sysrev/datapub-import {:local/root "components/datapub-import"}
-                     sysrev/datapub-test {:local/root "projects/datapub/datapub-test"}
-                     sysrev/fda-drugs {:local/root "components/fda-drugs"}
-                     sysrev/sqlite {:local/root "components/sqlite"}}
-        :extra-paths ["config/dev"
-                      "development/src"
-                      "components/datapub-client/src"
-                      "components/flyway/resources"
-                      "components/flyway/src"
-                      "components/notification/resources"
-                      "components/notification/src"
-                      "components/file-util/src"
-                      "components/fixtures/resources"
-                      "components/fixtures/src"
-                      "components/pdf-read/src"
-                      "components/reviewer-time/resources"
-                      "components/reviewer-time/src"
-                      "components/tesseract/src"
-                      "components/user/resources"
-                      "components/user/src"]}
+  :dev {:extra-paths ["config/dev" "development/src"]
+        :extra-deps {poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
+                     poly/datapub-import {:local/root "components/datapub-import"}
+                     poly/fda-drugs {:local/root "components/fda-drugs"}
+                     poly/sqlite {:local/root "components/sqlite"}}}
+  :dev-embedded {:extra-paths ["config/dev-embedded"]}
   :eastwood {:extra-deps {jonase/eastwood {:mvn/version "0.9.9"}}
-             :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user sysrev.all-test-main sysrev.browser-test-main]}"]}
+             :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user"]}
+  :poly {:extra-deps {polylith/clj-poly
+                      {:deps/root "projects/poly"
+                       :git/url "https://github.com/polyfy/polylith.git"
+                       :sha "436d80d6a504d5f87d679da775a48e8101c8a3ec"}}
+         :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
+  :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
-  :test {:extra-deps {clj-webdriver/clj-webdriver {:mvn/version "0.7.2"}
-                      com.walmartlabs/lacinia-pedestal {:mvn/version "1.0"}
-                      io.replikativ/hasch {:mvn/version "0.3.7"}
-                      etaoin/etaoin {:mvn/version "0.4.6"}
-                      net.sourceforge.tess4j/tess4j {:mvn/version "4.5.5"
-                                                     :exclusions [bouncycastle/bctsp-jdk14]}
-                      org.apache.pdfbox/pdfbox {:mvn/version "2.0.22"}
-                      org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.42.v20210604"}
-                      org.eclipse.jetty/jetty-server {:mvn/version "9.4.42.v20210604"}
-                      org.eclipse.jetty/jetty-servlet {:mvn/version "9.4.42.v20210604"}
-                      org.eclipse.jetty/jetty-util {:mvn/version "9.4.42.v20210604"}
-                      org.eclipse.jetty.http2/http2-server {:mvn/version "9.4.42.v20210604"}
-                      org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.42.v20210604"}
-                      org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.42.v20210604"}
-                      org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.42.v20210604"}
-                      org.seleniumhq.selenium/selenium-java {:mvn/version "3.8.1"}
-                      org.seleniumhq.selenium/selenium-server {:mvn/version "3.8.1"}
-                      ;; pdf-read deps
-                      com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
-                      com.github.jai-imageio/jai-imageio-jpeg2000 {:mvn/version "1.4.0"}
-                      org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.3"}
-                      org.bouncycastle/bcmail-jdk15on {:mvn/version "1.69"}
-                      org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.69"}
-                      org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
-                      sysrev/datapub {:local/root "projects/datapub"}
-                      sysrev/datapub-test {:local/root "projects/datapub/datapub-test"}}
-         :extra-paths ["components/e2e/resources"
-                       "components/e2e/src"
-                       "components/e2e/test"
-                       "components/notification/test"
-                       "components/file-util/src"
-                       "components/fixtures/test"
-                       "components/flyway/test"
-                       "components/pdf-read/src"
-                       "components/reviewer-time/test"
-                       "components/tesseract/src"
-                       "components/user/test"
-                       "test/clj"]}}}
+  :test {:extra-paths ["config/test" "test/clj" "resources/test"]
+         :extra-deps {com.opentable.components/otj-pg-embedded {:mvn/version "0.13.3"}
+                      eftest/eftest {:mvn/version "0.5.9"}
+                      io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
+                      io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
+                      lambdaisland/kaocha {:mvn/version "1.60.945"}
+                      lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
+                      lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
+                                                     :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
+                      prestancedesign/get-port {:mvn/version "0.1.1"}
+
+                      poly/datapub {:local/root "projects/datapub"}
+                      poly/datapub-test {:local/root "projects/datapub/datapub-test"}
+                      poly/etaoin-test {:local/root "components/etaoin-test"}
+                      poly/file-util {:local/root "components/file-util"}
+                      poly/fixtures {:local/root "components/fixtures"}
+                      poly/junit {:local/root "components/junit"}
+                      poly/pdf-read {:local/root "components/pdf-read"}
+                      poly/tesseract {:local/root "components/tesseract"}}
+         :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]}
+  :test-staging {:extra-paths ["config/test-staging"]}
+  :test-prod {:extra-paths ["config/test-prod"]}
+  :test-s3-dev {:extra-paths ["config/test-s3-dev"]}}}

@@ -16,7 +16,7 @@
                             (assoc client-opts :credentials-provider
                                    (credentials/basic-credentials-provider creds))
                             client-opts)
-              client-opts (select-keys client-opts [:api :credentials-provider :endpoint-override])
+              client-opts (select-keys client-opts [:api :credentials-provider :endpoint-override :region])
               this (assoc this :client (aws/client client-opts))]
           (if after-start
             (after-start this)

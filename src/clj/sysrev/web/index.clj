@@ -12,13 +12,7 @@
             [sysrev.project.core :as project]
             [sysrev.util :as util :refer [today-string]]))
 
-(defonce web-asset-path (atom "/out"))
-
 (defonce lucky-orange-enabled (atom (= (:profile env) :prod)))
-
-(defn set-web-asset-path [& [path]]
-  (let [path (or path "/out")]
-    (reset! web-asset-path path)))
 
 (defn- user-theme [{:keys [session] :as _request}]
   (if-let [user-id (-> session :identity :user-id)]
@@ -57,7 +51,7 @@
 ;;; see: https://github.com/unpkg/unpkg.com/issues/48
 ;;; https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js?meta
 
-(defn index [& [request maintainence-msg]]
+(defn index [request & [maintainence-msg]]
   (page/html5
    (into
     [:head
@@ -68,20 +62,15 @@
      [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
      (when-not (util/should-robot-index? (:uri request))
        [:meta {:name "robots" :content "noindex,nofollow"}])
-     #_[:meta {:name "google-signin-scope" :content "profile email"}]
-     #_[:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
-     #_[:script {:src "https://apis.google.com/js/platform.js"
-                 ;; :async true :defer true
-                 }]
      (apply page/include-css (css-paths :theme (user-theme request)))
-     (favicon-headers)]
+     (favicon-headers)
+     [:script {:async true
+               :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
+                         "&currency=USD&disable-funding="
+                         (str/join "," ["credit" "card"]))
+               :type "text/javascript"}]]
     (when-not (:local-only env)
       [[:script {:async true
-                 :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
-                           "&currency=USD&disable-funding="
-                           (str/join "," ["credit" "card"]))
-                 :type "text/javascript"}]
-       [:script {:async true
                  :src "/ga.js"
                  :type "text/javascript"}]
        (when @lucky-orange-enabled
@@ -118,7 +107,8 @@
       (let [js-name (if (= (:profile env) :prod)
                       (str "sysrev-" build/build-id ".js")
                       "sysrev.js")]
-        (page/include-js (str @web-asset-path "/" js-name))))
+        (page/include-js (str (get-in request [:web-server :config :web-server :web-asset-path])
+                              "/" js-name))))
     (when-not (:local-only env)
       [:div
        [:script {:type "text/javascript"} "_linkedin_partner_id = \"2703428\"; window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || []; window._linkedin_data_partner_ids.push(_linkedin_partner_id);"]

@@ -222,7 +222,8 @@
   [{:keys [user-id modal-open]}]
   [Modal {:trigger
           (r/as-element
-           [:div.ui {:data-tooltip "Change Your Avatar"
+           [:div.ui {:id :change-avatar
+                     :data-tooltip "Change Your Avatar"
                      :data-position "bottom center"}
             [ProfileAvatar {:user-id user-id
                             :modal-open #(reset! modal-open true)}]])

@@ -1,14 +1,11 @@
 (ns sysrev.file.document
-  (:require [clojure.tools.logging :as log]
-            [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
-            [sysrev.file.core :as file]
-            [sysrev.file.s3 :as s3]))
-
-;; for clj-kondo
-(declare lookup-document-file list-project-documents save-document-file)
+  (:require
+   [clojure.spec.alpha :as s]
+   [orchestra.core :refer [defn-spec]]
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]
+   [sysrev.file.core :as file]
+   [sysrev.file.s3 :as s3]))
 
 ;;;
 ;;; "Project Documents" files.
@@ -53,32 +50,3 @@
                   {:delete-time nil})
         (q/create :project-document {:s3-id s3-id :project-id project-id :user-id user-id}
                   :returning :*)))))
-
-;;;
-;;; migration
-;;;
-
-(defn- create-document-file [{:keys [key filename project-id user-id created delete-time]
-                              :as fields}]
-  (db/with-clear-project-cache project-id
-    (let [s3-id (#'file/create-s3store (-> (select-keys fields [:key :filename :created])
-                                           (update :key str)))]
-      (q/create :project-document
-                (assoc (select-keys fields [:project-id :user-id :delete-time])
-                       :s3-id s3-id)))))
-
-(defn migrate-filestore-table-needed? []
-  (and (q/table-exists? :project-document)
-       (zero? (q/find-count :project-document {}))
-       (try (pos? (q/find-count :filestore {}))
-            (catch Throwable _ false))))
-
-(defn migrate-filestore-table []
-  (db/with-transaction
-   (when (migrate-filestore-table-needed?)
-     (log/info "creating entries in project-document")
-     (doseq [{:keys [project-id user-id file-id name upload-time delete-time]}
-             (q/find :filestore {} :*)]
-       (create-document-file {:key file-id :filename name
-                              :project-id project-id :user-id user-id
-                              :created upload-time :delete-time delete-time})))))

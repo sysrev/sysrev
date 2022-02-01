@@ -1,16 +1,17 @@
 (ns sysrev.main
   (:gen-class)
-  (:require [clojure.tools.logging :as log]
-            [com.stuartsierra.component :as component]
-            [sysrev.config :refer [env]]
-            [sysrev.db.core :as db]
-            [sysrev.db.listeners :as listeners]
-            [sysrev.db.migration :as migration]
-            [sysrev.postgres.core :as postgres]
-            [sysrev.project.core :as project]
-            [sysrev.scheduler.core :as scheduler]
-            [sysrev.sente :as sente]
-            [sysrev.web.core :as web]))
+  (:require
+   [clojure.tools.logging :as log]
+   [com.stuartsierra.component :as component]
+   [sysrev.config :refer [env]]
+   [sysrev.db.core :as db]
+   [sysrev.db.listeners :as listeners]
+   [sysrev.db.migration :as migration]
+   [sysrev.nrepl.interface :as nrepl]
+   [sysrev.postgres.core :as pg]
+   [sysrev.scheduler.core :as scheduler]
+   [sysrev.sente :as sente]
+   [sysrev.web.core :as web]))
 
 (defrecord PostgresRunAfterStart [done?]
   component/Lifecycle
@@ -21,7 +22,6 @@
         (db/set-active-db! (:postgres this))
         (when-not (#{:remote-test :test} (:profile env))
           (migration/ensure-updated-db))
-        (project/cleanup-browser-test-projects)
         (assoc this :done? true))))
   (stop [this]
     (if done?
@@ -35,8 +35,10 @@
 
 (defn system-map [& {:keys [config postgres-overrides]}]
   (component/system-map
-   :config config
-   :postgres (postgres/postgres postgres-overrides)
+   :config (-> config :postgres
+                 (merge postgres-overrides)
+                 (->> (assoc config :postgres)))
+   :postgres (component/using (pg/postgres) [:config])
    :postgres-run-after-start (component/using
                               (postgres-run-after-start)
                               [:postgres])
@@ -116,5 +118,12 @@
   (reload!)
   ((requiring-resolve 'sysrev.fixtures.interface/load-fixtures!)))
 
+(defonce nrepl (atom nil))
+
+(defn start-nrepl! [config]
+  (swap! nrepl #(component/start
+                 (or % (component/system-map :nrepl (nrepl/map->NRepl {:config config}))))))
+
 (defn -main []
+  (start-nrepl! env)
   (start!))

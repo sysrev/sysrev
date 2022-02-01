@@ -6,4 +6,4 @@ source vars.sh
 
 ./projects/datapub/run-dev-containers.sh
 
-clj -M:dev:test:repl:\+postgres
+LOCAL_ONLY=t ENV=dev clj -M:dev:test:repl

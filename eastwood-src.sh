@@ -2,4 +2,4 @@
 
 set -eu
 
-clj -M:+postgres:dev:eastwood
+clj -M:dev:eastwood

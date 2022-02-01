@@ -1,0 +1,21 @@
+{:datapub-embedded "true"
+ :filestore
+ {:type :s3
+  :endpoint "us-east-1"
+  :bucket-name "test.sysrev.us"}
+ :postgres
+ {:create-if-not-exists? true
+  :dbname "sysrev"
+  :embedded? true
+  :host "localhost"
+  :port 0
+  :user "postgres"}
+ :server
+ {:port 4061}
+ :max-import-articles 100000
+ :max-bulk-invitations 100
+ :mock-email true
+ :e-util-api-key "***REMOVED***"
+ :profile :dev
+ :private-config "config.local.edn"
+ :web-server {:web-asset-path "/out-dev"}}

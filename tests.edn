@@ -1,0 +1,14 @@
+#kaocha/v1
+{:fail-fast? true
+ :kaocha.plugin.capture-output/capture-output? true
+ :kaocha.plugin.junit-xml/target-file "target/junit.xml"
+ :kaocha.plugin.profiling/profiling? false
+ :plugins [:kaocha.plugin/junit-xml
+           :kaocha.plugin/print-invocations
+           :kaocha.plugin/profiling]
+ :tests [{:id :sysrev
+          :source-paths ["src/clj" "src/cljc"]
+          :test-paths ["test/clj"
+                       "components/datapub-client/test"
+                       "components/reviewer-time/test"
+                       "components/user/test"]}]}

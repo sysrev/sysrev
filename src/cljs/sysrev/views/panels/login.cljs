@@ -319,7 +319,8 @@
          [field-error :email]
          [field-error :password]
          [:button.ui.fluid.primary.button
-          {:type "submit" :name "submit"
+          {:id :login-submit-button
+           :type "submit" :name "submit"
            :class (css [(and register? (action/running? :auth/register))
                         "loading"])}
           (cond landing?   "Sign Up"

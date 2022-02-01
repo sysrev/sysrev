@@ -1,9 +1,10 @@
 (ns sysrev.user.interface.spec-test
-  (:require [clojure.spec.alpha :as s]
-            [sysrev.user.interface.spec :as su])
-  (:use clojure.test))
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.test :refer :all]
+   [sysrev.user.interface.spec :as su]))
 
-(deftest test-spec
+(deftest ^:unit test-spec
   (are [a] (s/valid? ::su/username a)
     "a"
     "aB"

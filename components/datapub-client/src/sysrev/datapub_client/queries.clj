@@ -37,6 +37,11 @@
        (return->string return)
        "}}"))
 
+(defn q-dataset-entities-by-id [return]
+  (str "query($after: String, $first: NonNegativeInt, $ids: [PositiveInt]){datasetEntitiesById(after: $after, first: $first, ids: $ids){"
+       (return->string return)
+       "}}"))
+
 (defn q-dataset-entity [return]
   (str "query($id: PositiveInt!){datasetEntity(id: $id){"
        (return->string return)

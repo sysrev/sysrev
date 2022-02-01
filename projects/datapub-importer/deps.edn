@@ -1,7 +1,12 @@
 {:paths ["config/dev"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        sysrev/config {:local/root "../../components/config"}
+        sysrev/datapub-client {:local/root "../../components/datapub-client"}
         sysrev/datapub-import {:local/root "../../components/datapub-import"}
-        sysrev/one-shot-runner {:local/root "../../bases/one-shot-runner"}}
+        sysrev/fda-drugs {:local/root "../../components/fda-drugs"}
+        sysrev/file-util {:local/root "../../components/file-util"}
+        sysrev/one-shot-runner {:local/root "../../bases/one-shot-runner"}
+        sysrev/sqlite {:local/root "../../components/sqlite"}}
  :aliases {:prod {:replace-paths ["config/prod"]}
            :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
                      :exec-fn hf.depstar/uberjar

@@ -39,10 +39,12 @@
 
 (defn make-error-response
   [http-code etype emessage & [exception response]]
-  (cond-> response
-    true (-> (assoc :status http-code)
-             (update-in [:body :error] assoc :type etype :message emessage))
-    exception (assoc-in [:body :error :exception] (str exception))))
+  (-> response
+      (assoc :status http-code)
+      (update-in [:body :error] assoc :type etype :message emessage)
+      (cond->
+          exception (assoc-in [:body :error :exception] (str exception))
+          (and exception (#{:dev :test} (:profile env))) (assoc-in [:body :error :stacktrace] (with-out-str (print-cause-trace-custom exception))))))
 
 (defn validation-failed-response [etype emessage spec explain-data]
   {:status 500

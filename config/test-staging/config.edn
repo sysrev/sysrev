@@ -1,0 +1,19 @@
+{:datapub-embedded "true"
+ :postgres
+ {:dbname "sysrev"
+  :user "postgres"
+  :password ""
+  :host "localhost"
+  :port 5471}
+ :server
+ {:port 4132}
+ :sysrev-dev-key "***REMOVED***"
+ :test-remote
+ {:protocol "https"
+  :host "staging.sysrev.com"}
+ :profile :remote-test
+ :max-import-articles 100000
+ :max-bulk-invitations 100
+ :mock-email true
+ :e-util-api-key "***REMOVED***"
+ :private-config "config.local.edn"}

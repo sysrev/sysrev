@@ -167,7 +167,8 @@
      [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
      [:button.ui.blue.button
-      {:class (when disable-import? "disabled")}
+      {:class (when disable-import? "disabled")
+       :id :import-articles-pubmed}
       [:i.download.icon] " Import"]]))
 
 (defn PubMedSearchLink

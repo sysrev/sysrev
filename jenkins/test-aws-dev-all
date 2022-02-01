@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -eux
-
-rm -rf ./target
-
-SYSREV_FULL_TESTS=1
-testcmd1='lein test-aws-dev-all'
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** $testcmd1 || (cat target/junit.xml && $testcmd1)

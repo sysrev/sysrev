@@ -89,7 +89,8 @@
              [[:article project-id article-id]])
   :process (fn [{:keys [db]} [_ article-id] {:keys [available? key]}]
              {:db (article/update-article db article-id {:open-access-available? available?
-                                                         :key key})}))
+                                                         :key key})})
+  :hide-loading true)
 
 (def-data :pdf/article-pdfs
   :loaded? (fn [db _project-id article-id]

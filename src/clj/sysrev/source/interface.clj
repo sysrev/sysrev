@@ -77,7 +77,6 @@
     {:new-articles (remove have-article? articles)
      :existing-article-ids existing-article-ids}))
 
-#_:clj-kondo/ignore
 ;; TODO: store article-location data in datasource
 (defn- import-articles-impl
   "Implements single-threaded import of articles from a new project-source.
@@ -102,9 +101,7 @@
                          (apply concat)
                          vec)
                     user-name (when user-id
-                                (some-> (q/find-one :web-user {:user-id user-id} :email)
-                                        (str/split #"@" 2)
-                                        first))
+                                (q/find-one :web-user {:user-id user-id} :username))
                     project-name (q/find-one :project {:project-id project-id} :name)
                     notification (remove-vals nil? {:adding-user-id user-id
                                                     :adding-user-name user-name
@@ -154,20 +151,19 @@
    {:keys [article-refs get-articles prepare-article on-article-added types] :as impl}
    {:keys [threads] :as opts}]
   (assert (map? request))
-  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
-    (if (> threads 1)
-      (try (let [group-size (->> (quot (count article-refs) threads) (max 1))
-                 thread-groups (->> article-refs (partition-all group-size))
-                 threads (doall (for [thread-refs thread-groups]
-                                  (future (import-articles-impl
-                                           request project-id source-id
-                                           (assoc impl :article-refs thread-refs)
-                                           opts))))]
-             (every? true? (mapv deref threads)))
-           (catch Exception e
-             (log/error "Error in import-source-articles:" (.getMessage e))
-             false))
-      (import-articles-impl request project-id source-id impl opts))))
+  (if (> threads 1)
+    (try (let [group-size (->> (quot (count article-refs) threads) (max 1))
+               thread-groups (->> article-refs (partition-all group-size))
+               threads (doall (for [thread-refs thread-groups]
+                                (future (import-articles-impl
+                                         request project-id source-id
+                                         (assoc impl :article-refs thread-refs)
+                                         opts))))]
+           (every? true? (mapv deref threads)))
+         (catch Exception e
+           (log/error "Error in import-source-articles:" (.getMessage e))
+           false))
+    (import-articles-impl request project-id source-id impl opts)))
 
 (defn after-source-import
   "Handles success or failure after an import attempt has finished."
@@ -247,20 +243,19 @@
   (let [source-id (source/create-source project-id (assoc source-meta :importing-articles? true))
         do-import
         (fn []
-          (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
-            (->> (try
-                   (when (and filename file)
-                     (source/save-import-file source-id filename file))
-                   (import-source-articles
-                    request project-id source-id
-                    (-> (assoc impl :article-refs (get-article-refs))
-                        (dissoc :get-article-refs))
-                    {:threads threads :user-id user-id})
-                   (catch Exception e
-                     (log/error "import-source-impl failed -" (.getMessage e))
-                     (.printStackTrace e)
-                     false))
-                 (after-source-import request project-id source-id))))]
+          (->> (try
+                 (when (and filename file)
+                   (source/save-import-file source-id filename file))
+                 (import-source-articles
+                  request project-id source-id
+                  (-> (assoc impl :article-refs (get-article-refs))
+                      (dissoc :get-article-refs))
+                  {:threads threads :user-id user-id})
+                 (catch Exception e
+                   (log/error "import-source-impl failed -" (.getMessage e))
+                   (.printStackTrace e)
+                   false))
+               (after-source-import request project-id source-id)))]
     {:source-id source-id
      :import (if use-future? (future (do-import)) (do-import))}))
 

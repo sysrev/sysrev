@@ -20,7 +20,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 
 1. Clone this repository
 
-        git clone <yourname>@bitbucket.org:insilica/systematic_review.git sysrev
+        git clone <yourname>@github.com:insilica/systematic_review.git sysrev
         cd sysrev
 
 1. Install OpenJDK 8 (or Oracle release) via system package manager
@@ -135,13 +135,6 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 * When a route is changed, you must restart the web server
 
     `repl> (sysrev.init/start-app)`
-
-* when running tests in the repl that use default-fixture , reset the web-asset-path
-
-```clojure
-repl> (sysrev.web.index/set-web-asset-path)
-"/out"
-```
 
 * You can switch databases for the app
 ```clojure
@@ -365,13 +358,6 @@ false
 ## Testing
 
 Testing is done both locally and on our Jenkins continuous deployment server at builds.insilica.co.
-If a new test namespace is created, it should be added to the sysrev.test.all in order for it to be
-picked up by the Jenkins test server.
-
-To switch between using the production and development versions of the compiled ClojureScript:
-
-> (sysrev.web.index/set-web-asset-path "/out-production")
-> (sysrev.web.index/set-web-asset-path "/out-dev")
 
 ## Fixing Remote Testing Issues
 

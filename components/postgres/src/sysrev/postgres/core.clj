@@ -1,28 +1,21 @@
 (ns sysrev.postgres.core
-  (:require [com.stuartsierra.component :as component]
-            [hikari-cp.core :as hikari-cp]
-            [next.jdbc :as jdbc]
-            [sysrev.db.core :as db]
-            [sysrev.config :refer [env]]
-            [sysrev.flyway.interface :as flyway])
-  (:import (org.postgresql.util PSQLException)))
-
-(defn get-config [& [postgres-overrides]]
-  (-> env :postgres
-      (merge postgres-overrides)
-      (update :dbtype #(or % "postgres"))))
-
-(defn start-db! [& [postgres-overrides only-if-new]]
-  (let [db-config (db/make-db-config (get-config postgres-overrides))]
-    (flyway/migrate! (:datasource db-config))
-    (db/set-active-db! db-config only-if-new)))
+  (:require
+   [com.stuartsierra.component :as component]
+   [hikari-cp.core :as hikari-cp]
+   [honey.sql :as sql]
+   [next.jdbc :as jdbc]
+   [next.jdbc.result-set :as result-set]
+   [sysrev.flyway.interface :as flyway])
+  (:import
+   (org.postgresql.util PSQLException)))
 
 (defn make-datasource
   "Creates a Postgres db pool object to use with JDBC."
   [config]
-  (-> {:minimum-idle 4
+  (-> {:adapter "postgresql"
+       :allow-pool-suspension true
        :maximum-pool-size 10
-       :adapter "postgresql"}
+       :minimum-idle 4}
       (assoc :username (:user config)
              :password (:password config)
              :database-name (:dbname config)
@@ -30,60 +23,117 @@
              :port-number (:port config))
       hikari-cp/make-datasource))
 
+(defn create-db-if-not-exists! [{:keys [template-dbname] :as opts}]
+  (let [ds (jdbc/get-datasource (dissoc opts :dbname))]
+    (try
+      (jdbc/execute! ds [(str "CREATE DATABASE " (:dbname opts)
+                              (some->> template-dbname (str " TEMPLATE ")))])
+      (catch PSQLException e
+        (when-not (re-find #"database .* already exists" (.getMessage e))
+          (throw e))))))
+
+(defn create-template-db-if-not-exists! [{:keys [flyway-locations template-dbname] :as opts}]
+  (try
+    (jdbc/execute! (jdbc/get-datasource (dissoc opts :dbname))
+                   [(str "CREATE DATABASE " template-dbname)])
+    (catch PSQLException e
+      (when-not (re-find #"database .* already exists" (.getMessage e))
+        (throw e))))
+  (-> (assoc opts :dbname template-dbname)
+      jdbc/get-datasource
+      (flyway/migrate! flyway-locations)))
+
+(defn drop-db! [{:keys [dbname] :as opts}]
+  (let [ds (jdbc/get-datasource (dissoc opts :dbname))]
+    (jdbc/execute! ds ["UPDATE pg_database SET datallowconn='false' WHERE datname=?" dbname])
+    (jdbc/execute! ds ["SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=?" dbname])
+    (jdbc/execute! ds [(str "DROP DATABASE IF EXISTS " dbname)])))
+
 (defrecord Postgres [bound-port config datasource datasource-long-running embedded-pg]
   component/Lifecycle
   (start [this]
     (if datasource
       this
-      (let [embedded-pg (when (:embedded? config)
-                          (->> config :port
-                               ((requiring-resolve 'datapub.postgres-embedded/embedded-pg-builder))
-                               ((requiring-resolve 'datapub.postgres-embedded/start!))))
+      (let [{:keys [flyway-locations template-dbname] :as opts} (:postgres config)
+            embedded-pg (when (:embedded? opts)
+                          (->> opts :port
+                               ((requiring-resolve 'sysrev.postgres.embedded/embedded-pg-builder))
+                               ((requiring-resolve 'sysrev.postgres.embedded/start!))))
             ;; If port 0 was specified, we need the actual port used.
             bound-port (if embedded-pg
-                         ((requiring-resolve 'datapub.postgres-embedded/get-port) embedded-pg)
-                         (:port config))
-            config (assoc config :port bound-port)]
-        (when (:create-if-not-exists? config)
-          (let [ds (jdbc/get-datasource (dissoc config :dbname))]
-            (try
-              (jdbc/execute! ds [(str "CREATE DATABASE " (:dbname config))])
-              (catch PSQLException e
-                (when-not (re-find #"database .* already exists" (.getMessage e))
-                  (throw e))))))
-        (let [datasource (make-datasource config)
-              datasource-long-running (make-datasource config)]
-          (if embedded-pg
-            (try
-              (flyway/migrate! datasource)
-              (catch Exception e
-                ((requiring-resolve 'datapub.postgres-embedded/stop!) embedded-pg)
-                (throw e)))
-            (flyway/migrate! datasource))
-          (assoc this
-                 :bound-port bound-port
-                 :datasource datasource
-                 :datasource-long-running datasource-long-running
-                 :embedded-pg embedded-pg
-                 :query-cache db/*query-cache*
-                 :query-cache-enabled db/*query-cache-enabled*)))))
+                         ((requiring-resolve 'sysrev.postgres.embedded/get-port) embedded-pg)
+                         (:port opts))
+            opts (assoc opts
+                        :password (get-in config [:secrets :postgres :password] (:password opts))
+                        :port bound-port)]
+        (try
+          (when (:create-if-not-exists? opts)
+            (when template-dbname
+              (create-template-db-if-not-exists! opts))
+            (create-db-if-not-exists! opts))
+          (let [datasource (make-datasource opts)
+                datasource-long-running (make-datasource opts)]
+            (when-not template-dbname
+              (flyway/migrate! datasource-long-running flyway-locations))
+            (assoc this
+                   :bound-port bound-port
+                   :datasource datasource
+                   :datasource-long-running datasource-long-running
+                   :embedded-pg embedded-pg
+                   :query-cache (try @(requiring-resolve 'sysrev.db.core/*query-cache*)
+                                     (catch java.io.FileNotFoundException _))
+                   :query-cache-enabled (try @(requiring-resolve 'sysrev.db.core/*query-cache-enabled*)
+                                             (catch java.io.FileNotFoundException _))))
+          (catch Exception e
+            (when embedded-pg
+              ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg))
+            (throw e))))))
   (stop [this]
     (if-not datasource
       this
-      (do
+      (let [opts (:postgres config)]
         (hikari-cp/close-datasource datasource)
         (hikari-cp/close-datasource datasource-long-running)
-        (when (:delete-on-stop? config)
-          (let [ds (jdbc/get-datasource (dissoc config :dbname))]
-            (jdbc/execute! ds ["UPDATE pg_database SET datallowconn='false' WHERE datname=?" (:db-name config)])
-            (jdbc/execute! ds ["SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=?" (:dbname config)])
-            (jdbc/execute! ds [(str "DROP DATABASE IF EXISTS " (:dbname config))])))
-        (when (:embedded? config)
-          ((requiring-resolve 'datapub.postgres-embedded/stop!) embedded-pg))
+        (when (:delete-on-stop? opts)
+          (drop-db! opts))
+        (when (:embedded? opts)
+          ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg))
         (assoc this
                :bound-port nil :datasource nil :datasource-long-running nil
                :embedded-pg nil :query-cache nil :query-cache-enabled nil)))))
 
-(defn postgres [& [postgres-overrides]]
-  (map->Postgres
-   {:config (get-config postgres-overrides)}))
+(defn postgres []
+  (map->Postgres {}))
+
+(doseq [op [(keyword "@@") ;; Register postgres text search operator
+            ;; Register JSON operators
+            (keyword "->") (keyword "->>") (keyword "#>") (keyword "#>>")]]
+  (sql/register-op! op))
+
+(def jdbc-opts
+  {:builder-fn result-set/as-kebab-maps})
+
+(defn execute! [connectable sqlmap]
+  (jdbc/execute! connectable (sql/format sqlmap) jdbc-opts))
+
+(defn execute-one! [connectable sqlmap]
+  (jdbc/execute-one! connectable (sql/format sqlmap) jdbc-opts))
+
+(defn plan [connectable sqlmap]
+  (jdbc/plan connectable (sql/format sqlmap) jdbc-opts))
+
+(defn recreate-db! [{:keys [bound-port config datasource
+                            query-cache query-cache-enabled]
+                     :as postgres}]
+  (let [pool (.getHikariPoolMXBean datasource)
+        opts (-> (:postgres config) (assoc :port bound-port))]
+    (.suspendPool pool)
+    (.softEvictConnections pool)
+    (drop-db! opts)
+    (when query-cache
+      (reset! query-cache {}))
+    (create-db-if-not-exists! opts)
+    (when query-cache
+      (reset! query-cache {}))
+    (.resumePool pool)
+    postgres))

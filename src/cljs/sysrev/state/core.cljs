@@ -1,9 +1,15 @@
 (ns sysrev.state.core
   (:require [re-frame.core :refer
              [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
+            [re-frame.db]
             [sysrev.base :as base :refer [ga-event]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :as util :refer [dissoc-in]]))
+
+(defn ^:export re-frame-db-state
+  "Exported for tests to use."
+  []
+  @re-frame.db/app-db)
 
 (reg-event-db :initialize-db (constantly base/default-db))
 

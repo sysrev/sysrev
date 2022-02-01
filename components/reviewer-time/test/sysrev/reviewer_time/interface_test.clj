@@ -1,6 +1,7 @@
 (ns sysrev.reviewer-time.interface-test
-  (:use clojure.test
-        sysrev.reviewer-time.interface))
+  (:require
+   [clojure.test :refer :all]
+   [sysrev.reviewer-time.interface :as reviewer-time]))
 
 (def after-duration (java.time.Duration/ofMinutes 2))
 (def idle-duration (java.time.Duration/ofHours 1))
@@ -8,12 +9,12 @@
 (defn ldt [^String s]
   (java.time.LocalDateTime/parse s))
 
-(deftest test-to-intervals
+(deftest ^:unit test-to-intervals
   (testing "Handles empty sequences properly"
-    (is (empty? (to-intervals nil)))
-    (is (empty? (to-intervals []))))
+    (is (empty? (reviewer-time/to-intervals nil)))
+    (is (empty? (reviewer-time/to-intervals []))))
   (let [interval-keys #{:article-id :project-id :last-event-time :start :end}
-        to-intervals* (fn [events] (->> events to-intervals
+        to-intervals* (fn [events] (->> events reviewer-time/to-intervals
                                         (map #(select-keys % interval-keys))))]
     (testing "Works correctly on a single event"
       (->> [#:reviewer-event{:article-id 36900004

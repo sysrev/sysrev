@@ -128,7 +128,7 @@
             "Only people you've invited to the project can see it."]
            [:p {:style {:margin-top "0.25rem"}}
             "Private Projects are only available for "
-            [:a {:href "/pricing"} "Pro Accounts"]
+            [:a {:href "/pricing"} "Premium Accounts"]
             "."]]]]]]
       [Divider]
       [Button {:type :submit :positive true

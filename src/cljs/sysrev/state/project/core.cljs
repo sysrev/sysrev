@@ -105,7 +105,8 @@
   :process (fn [_ [project-id _] {:keys [success]}]
              (when success
                {:dispatch-n (list [:reload [:project project-id]]
-                                  [:reload [:project/sources project-id]])})))
+                                  [:reload [:project/sources project-id]])}))
+  :hide-loading true)
 
 (reg-sub :project/controlled-by?
          (fn [[_ project-id user-id]]

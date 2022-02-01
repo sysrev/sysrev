@@ -50,7 +50,7 @@ node {
     if (currentBuild.result != 'FAILURE') {
       echo 'Running browser tests against remote host...'
       try {
-        sh './jenkins/test-aws-prod-browser'
+        sh './jenkins/test-prod'
         currentBuild.result = 'SUCCESS'
       } catch (exc) {
         currentBuild.result = 'FAILURE'

@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-set -eux
+set -eu
 
-rm -rf ./target
+rm -rf target
 
-rm -f target/junit.xml
-
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** lein jenkins
+DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** clj -T:build run-tests
 

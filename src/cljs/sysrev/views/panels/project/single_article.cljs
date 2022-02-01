@@ -84,7 +84,8 @@
 
 (def-panel :project? true :panel panel
   :uri "/article/:article-id" :params [project-id article-id] :name article-id
-  :on-route (let [article-id (util/parse-integer article-id)
+  :on-route (let [prev-article-id @(subscribe [:article-view/article-id])
+                  article-id (util/parse-integer article-id)
                   item [:article project-id article-id]
                   have-project? @(subscribe [:have? [:project project-id]])
                   set-panel [:set-active-panel panel]
@@ -92,10 +93,14 @@
               (if (integer? article-id)
                 (do (if (not have-project?)
                       (do (dispatch set-panel)
-                          (dispatch set-article))
+                          (dispatch set-article)
+                          (dispatch [:scroll-top]))
                       (dispatch [:data/after-load item :article-route
-                                 (list set-panel set-article)]))
+                                 (cond-> (list set-panel set-article)
+                                   ;; scroll to top when entering article page
+                                   (not= prev-article-id article-id)
+                                   (concat (list [:scroll-top]))) ]))
                     (dispatch [:data/load item]))
-                (do (util/log "invalid article id")
+                (do (util/log-err "invalid article id")
                     (nav/nav "/"))))
   :content (fn [child] [Panel child]))

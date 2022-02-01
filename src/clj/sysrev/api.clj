@@ -234,7 +234,7 @@
 
     (if error
       {:error error}
-      {:result {:success (when import @import)}})))
+      {:result {:success (future? import)}})))
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."
@@ -386,30 +386,35 @@
 
 (defn send-welcome-email [email]
   (sendgrid/send-html-email
-    email "Welcome to SysRev!"
-    (str "Hi, <br>
+   email "Welcome to SysRev!"
+   (str "Hi, <br>
     Thank you for joining SysRev!<br>
     <br>
-    To create your first project, just log in at " (shared/make-link :sysrev.com  "sysrev.com") " and click the big green <b>New</b> button.<br>
+    To create your first project, just log in at " (shared/make-link :sysrev.com  "sysrev.com")
+        " and click the big green <b>New</b> button.<br>
     Once you create a project, you can import documents and invite friends to help you review.<br>
-    Try joining the \"Welcome to SysRev\" project with this " (shared/make-link :welcome-invite-link "invite link") " and see what it is like to be a SysRev 'reviewer'.<br>
+    Try joining the \"Welcome to SysRev\" project with this "
+        (shared/make-link :welcome-invite-link "invite link")
+        " and see what it is like to be a SysRev 'reviewer'.<br>
     <br>
-    Learn more at the SysRev youtube channel, which has videos like the " (shared/make-link :getting-started-video "getting started guide")
-    ", and " (shared/make-link :getting-started-topic "blog.sysrev.com") " which gives a few short tutorials.
+    Learn more at the SysRev youtube channel, which has videos like the "
+        (shared/make-link :getting-started-video "getting started guide")
+        ", and " (shared/make-link :getting-started-topic "blog.sysrev.com")
+        " which gives a few short tutorials.
     <br><br>
     <b>Managed Reviews</b><br>
     SysRev can be hired to help set up, manage, and analyze your large projects.
     Check out our mangiferin project ("(shared/make-link :mangiferin-part-one "blog post")") for an example managed review.
     To learn more about managed reviews, just reply to this message with questions, or submit a project description at "
-    (shared/make-link :managed-review-landing "sysrev.com/managed-review")"<br>
+        (shared/make-link :managed-review-landing "sysrev.com/managed-review")"<br>
     <br>
     Thank you for using SysRev, please email me at TJ@sysrev.com with any questions.<br>
     From,<br>
     TJ<br>
     Director of Managed Review - SysRev.com<br>"
-         (shared/make-link :youtube "Youtube Channel") "<br>"
-         (shared/make-link :twitter "Twitter @sysrev1") "<br>"
-         (shared/make-link :blog "blog.sysrev.com") "<br>")))
+        (shared/make-link :youtube "Youtube Channel") "<br>"
+        (shared/make-link :twitter "Twitter @sysrev1") "<br>"
+        (shared/make-link :blog "blog.sysrev.com") "<br>")))
 
 (defn register-user!
   "Register a user and add them as a stripe customer"
@@ -1554,9 +1559,12 @@
                                              {:api-token :api-key})
         datasource-account (ds-api/read-account sysrev-user)]
     (cond (not (stripe/user-has-pro? user-id))
-          (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
-              {:error {:status forbidden
-                       :message "User does not have a Pro account subscription. Upgrade your account to enable API access"}})
+          (if (user/dev-user? user-id)
+            (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
+                {:error {:status forbidden
+                         :message "Datasource API access not enabled: Account does not have a Pro subscription."}})
+            {:error {:status forbidden
+                     :message "Your account does not have a Pro subscription. Upgrade to enable API access."}} )
           (medley/find-first #(= (:message %) "Account Does Not Exist") (:errors datasource-account))
           ;; the account does not exist
           (let [{:keys [pw-encrypted-buddy email api-token]} (user/user-by-id user-id)]
@@ -1621,13 +1629,13 @@
 
 (defn user-notifications-by-day [user-id {:keys [created-after limit]}]
   (let [created-after (when created-after
-                           (some-> (try (Long/parseLong created-after)
-                                        (catch Exception _))
-                                   epoch-millis->LocalDateTime
-                                   (.atZone (java.time.ZoneId/of "UTC"))
-                                   .toInstant java.sql.Timestamp/from))
+                        (some-> (try (Long/parseLong created-after)
+                                     (catch Exception _))
+                                epoch-millis->LocalDateTime
+                                (.atZone (java.time.ZoneId/of "UTC"))
+                                .toInstant java.sql.Timestamp/from))
         limit (-> (try (Long/parseLong limit) (catch Exception _))
-                     (or 50) (min 50))
+                  (or 50) (min 50))
         {:keys [notifications start-of-day]}
         #__ (user-notifications-by-day*
              user-id {:created-after created-after :limit limit})]

@@ -1,0 +1,17 @@
+{:postgres
+ {:dbname "sysrev_test"
+  :user "postgres"
+  :password ""
+  :host "localhost"
+  :port 5432}
+ :server
+ {:port 4133}
+ :test-remote
+ {:protocol "https"
+  :host "sysrev.com"}
+ :profile :remote-test
+ :max-import-articles 100000
+ :max-bulk-invitations 100
+ :mock-email true
+ :e-util-api-key "***REMOVED***"
+ :private-config "config.local.edn"}

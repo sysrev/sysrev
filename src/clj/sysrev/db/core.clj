@@ -14,7 +14,6 @@
             [honeysql.helpers :as sqlh :refer [select from where]]
             [honeysql.format :as sqlf]
             honeysql-postgres.format
-            [next.jdbc :as jdbc]
             [next.jdbc.prepare :as prepare]
             [next.jdbc.result-set :as result-set]
             [postgre-types.json :refer [add-jsonb-type]]
@@ -41,19 +40,6 @@
           _type-name (.getParameterTypeName meta i)]
       (.setObject s i num))))
 
-(doseq [op [(keyword "@@") (keyword "->") (keyword "->>")
-            (keyword "#>") (keyword "#>>")]]
-  (honey.sql/register-op! op))
-
-(def jdbc-opts
-  {:builder-fn result-set/as-kebab-maps})
-
-(defn execute! [connectable sqlmap]
-  (jdbc/execute! connectable (honey.sql/format sqlmap) jdbc-opts))
-
-(defn execute-one! [connectable sqlmap]
-  (jdbc/execute-one! connectable (honey.sql/format sqlmap) jdbc-opts))
-
 ;; https://github.com/seancorfield/next-jdbc/blob/develop/doc/tips-and-tricks.md
 (defn ->pgobject
   "Transforms Clojure data to a PGobject that contains the data as
@@ -68,12 +54,15 @@
 (defn <-pgobject
   "Transform PGobject containing `json` or `jsonb` value to Clojure
   data."
-  [^org.postgresql.util.PGobject v]
-  (let [type  (.getType v)
-        value (.getValue v)]
+  [^org.postgresql.util.PGobject obj]
+  (let [type  (.getType obj)
+        value (.getValue obj)]
     (if (#{"jsonb" "json"} type)
       (when value
-        (with-meta (json/read-str value :key-fn keyword) {:pgtype type}))
+        (let [v (json/read-str value :key-fn keyword)]
+          (if (isa? (class v) clojure.lang.IObj)
+            (with-meta v {:pgtype type})
+            v)))
       value)))
 
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed

@@ -11,8 +11,7 @@
                                 :sysrev-dev-key (str (java.util.UUID/randomUUID)))
                         system-map)})
 
-#_:clj-kondo/ignore
-(deftest test-get-dataset-entity
+(deftest ^:integration test-get-dataset-entity
   (with-test-system [system (test-system-config)]
     (load-ctgov-dataset! system)
     (let [endpoint (str "http://localhost:"
@@ -21,7 +20,7 @@
       (is (= {:externalId "NCT04983004" :mediaType "application/json"}
              (get-dataset-entity 1 [:externalId :mediaType] :endpoint endpoint))))))
 
-(deftest test-search-dataset
+(deftest ^:integration test-search-dataset
     (with-test-system [system (test-system-config)]
       (let [auth-token (get-in system [:pedestal :sysrev-dev-key])
             endpoint (str "ws://localhost:"

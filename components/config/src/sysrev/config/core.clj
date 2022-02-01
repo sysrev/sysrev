@@ -1,12 +1,15 @@
 (ns sysrev.config.core
-  (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]))
+  (:require
+   [clojure.edn :as edn]
+   [clojure.java.io :as io])
+  (:import
+   (java.io PushbackReader)))
 
 (defn get-config [filename]
-  (if-let [r (io/resource filename)]
-    (let [s (slurp r)]
+  (if-let [resource (io/resource filename)]
+    (with-open [reader (-> resource io/reader PushbackReader.)]
       (try
-        (edn/read-string s)
+        (edn/read reader)
         (catch Exception e
           (throw
            (ex-info (str "Error parsing EDN in config file \"" filename

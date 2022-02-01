@@ -1,7 +1,7 @@
 (ns sysrev.web.routes.project
-  (:require [clojure.string :as str]
+  (:require [clojure-csv.core :as csv]
+            [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure-csv.core :as csv]
             [clojure.tools.logging :as log]
             [compojure.core :refer [GET POST PUT]]
             [ring.util.response :as response]
@@ -46,6 +46,17 @@
 ;;;
 ;;; Functions for project routes
 ;;;
+
+(def utf8-bom (String. (byte-array (mapv int [239 187 191]))))
+
+(defn write-csv
+  "Return a string of `table` in CSV format, with the UTF-8 BOM added for
+  Excel.
+
+  See https://www.edmundofuentes.com/blog/2020/06/13/excel-utf8-csv-bom-string/"
+  [table & opts]
+  (str utf8-bom
+       (apply csv/write-csv table opts)))
 
 (defn record-user-project-interaction [request]
   (let [user-id (current-user-id request)
@@ -360,8 +371,8 @@
            (label/project-article-status-counts (active-project request)))))
 
 (dr (GET "/api/important-terms-text" request
-      (with-authorize request {:allow-public true}
-        (api/project-important-terms-text (active-project request)))))
+         (with-authorize request {:allow-public true}
+           (api/project-important-terms-text (active-project request)))))
 
 (dr (GET "/api/prediction-histograms" request
          (with-authorize request {:allow-public true}
@@ -379,8 +390,8 @@
          (with-authorize request {:allow-public true}
            (let [{:keys [#_ n]} (-> request :params)]
              (api/project-concordance
-               (active-project request)
-               :keep-resolved (= "true" (get-in request [:params :keep-resolved])))))))
+              (active-project request)
+              :keep-resolved (= "true" (get-in request [:params :keep-resolved])))))))
 
 (dr (GET "/api/countgroup" request
          (with-authorize request {:allow-public true}
@@ -469,7 +480,7 @@
              (do
                (assign/record-last-assigned article-id)
                {:result (merge (article-info-full (active-project request) article-id)
-                             {:today-count today-count})})
+                               {:today-count today-count})})
              {:result :none}))))
 
 
@@ -727,29 +738,29 @@
                              :user-answers
                              (-> (export/export-user-answers-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :group-answers
                              (-> (export/export-group-answers-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :articles-csv
                              (-> (export/export-articles-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :annotations-csv
                              (-> (export/export-annotations-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (csv/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :endnote-xml
                              (project-to-endnote-xml
                               project-id :article-ids article-ids :to-file true)
                              :group-label-csv
                              (-> (export/export-group-label-csv project-id :label-id label-id)
-                                 (csv/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :json
                              (-> (api/project-json project-id)
@@ -792,7 +803,7 @@
                                                      (name export-type) download-id filename])))}))))
 
 (dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
-      (with-authorize request {:allow-public true}
+         (with-authorize request {:allow-public true}
            (let [project-id (active-project request)
                  export-type (-> request :params :export-type keyword)
                  {:keys [download-id filename]} (-> request :params)
@@ -817,7 +828,7 @@
 (dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
          (with-authorize request {:allow-public true}
            (-> (export/export-user-answers-csv (active-project request))
-               (csv/write-csv)
+               (write-csv)
                (web/csv-file-response (-> request :params :filename))))))
 
 ;;;

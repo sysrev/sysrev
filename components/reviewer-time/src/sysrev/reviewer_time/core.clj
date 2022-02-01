@@ -2,7 +2,8 @@
   (:require [com.walmartlabs.lacinia.executor :as executor]
             [com.walmartlabs.lacinia.selection :as selection]
             [medley.core :as medley]
-            [sysrev.db.core :as db])
+            [sysrev.db.core :as db]
+            [sysrev.postgres.interface :as pg])
   (:import (java.sql Timestamp)
            (java.time Duration Instant LocalDateTime ZoneId ZoneOffset)))
 
@@ -44,7 +45,7 @@
   (->> events
        (map #(select-keys % #{:article-id :event-type :project-id :user-id}))
        (hash-map :insert-into :reviewer-event :values)
-       (db/execute! connectable)))
+       (pg/execute! connectable)))
 
 (defn to-intervals [events]
   (when (seq events)
@@ -87,7 +88,7 @@
 (defn get-project-events
   [connectable project-id
    & {:keys [^LocalDateTime start ^LocalDateTime end user-ids]}]
-  (db/execute!
+  (pg/execute!
    connectable
    {:select :*
     :from :reviewer-event
@@ -145,7 +146,7 @@
                        :user-ids reviewerIds)
         intervals (mapcat (fn [[k v]] (map #(assoc % :user-id k) v)) intervals-map)
         usernames (when (get-selection-path context [:intervals :reviewer :name])
-                    (->> (db/execute!
+                    (->> (pg/execute!
                           conn
                           {:select [:user-id :username] :from :web-user
                            :where [:in :user-id [:lift (keys intervals-map)]]})

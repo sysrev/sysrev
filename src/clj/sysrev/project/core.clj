@@ -344,11 +344,6 @@
                  :order-by [[:al.updated-time :desc] [:al.article-id :desc]]
                  :limit 1)))
 
-(defn cleanup-browser-test-projects []
-  (delete-all-projects-with-name "Sysrev Browser Test")
-  (when-let [test-user-id (q/find-one :web-user {:email "browser+test@insilica.co"} :user-id)]
-    (delete-solo-projects-from-user test-user-id)))
-
 (defn search-projects-important-terms
   "Return a list of projects containing important terms in the given query"
   [q & {:keys [limit] :or {limit 10}}]

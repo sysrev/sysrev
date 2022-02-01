@@ -120,6 +120,14 @@
       (app/wrap-web-server web-server)
       wrap-exit-on-full-connection-pool))
 
+(defn wrap-sysrev-graphql
+  "Ring handler wrapper for GraphQL routes"
+  [handler & {:keys [web-server]}]
+  (-> handler
+      (app/wrap-dynamic-vars web-server)
+      (app/wrap-web-server web-server)
+      wrap-exit-on-full-connection-pool))
+
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
                                      ajax-post-fn
                                      web-server]}]
@@ -142,6 +150,9 @@
         app-routes (wrap-dev-reload
                     (fn []
                       (c/wrap-routes (app-routes) #(wrap-sysrev-app % :web-server web-server))))
+        graphql-routes (wrap-dev-reload
+                        (fn []
+                          (c/wrap-routes graphql-routes #(wrap-sysrev-graphql % :web-server web-server))))
         html-routes (wrap-dev-reload
                      (fn []
                        (c/wrap-routes html-routes #(wrap-sysrev-html % :web-server web-server))))]

@@ -6,4 +6,4 @@ source vars.sh
 
 ./projects/datapub/run-dev-containers.sh
 
-ENV=dev lein with-profile +dev,+postgres,+repl,+local-repl repl
+ENV=dev lein with-profile +dev,+repl,+local-repl repl

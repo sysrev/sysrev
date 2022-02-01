@@ -42,6 +42,18 @@
         :Effect "Deny"
         :Resource "*"}]}}}
 
+   :CloudFormationReadPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["cloudformation:DescribeStackEvents"
+                 "cloudformation:DescribeStackResources"
+                 "cloudformation:ListStacks"]
+        :Effect "Allow"
+        :Resource "*"}]}}}
+
    :CloudWatchReadPolicy
    {:Type "AWS::IAM::ManagedPolicy"
     :Properties
@@ -83,6 +95,16 @@
                  "logs:StartQuery"
                  "logs:StopQuery"
                  "logs:TestMetricFilter"]
+        :Effect "Allow"
+        :Resource "*"}]}}}
+
+   :ListBucketsPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["s3:ListAllMyBuckets"]
         :Effect "Allow"
         :Resource "*"}]}}}
 
@@ -139,10 +161,23 @@
       (ref :PackerBuildPolicy)]
      :UserName "github-actions"}}
 
+   :CloudFrontOAI
+   {:Type "AWS::CloudFront::CloudFrontOriginAccessIdentity"
+    :Properties
+    {:CloudFrontOriginAccessIdentityConfig
+     {:Comment "CloudFront Origin Access Identity to allow access to S3 objects"}}}
+
    :DatapubBucket
    {:Type "AWS::S3::Bucket"
     :Properties
     {:AccessControl "Private"
+     :CorsConfiguration
+     {:CorsRules
+      [{:AllowedMethods ["GET" "HEAD"]
+        :AllowedOrigins ["https://staging.sysrev.com"
+                         "https://sysrev.com"
+                         "https://www.sysrev.com"]
+        :MaxAge 3600}]}
      :PublicAccessBlockConfiguration
      {:BlockPublicAcls true
       :BlockPublicPolicy true
@@ -151,17 +186,32 @@
      :Tags
      (tags :grant "thrive")}}
 
+   :DatapubBucketPolicy
+   {:Type "AWS::S3::BucketPolicy"
+    :Properties
+    {:Bucket (ref :DatapubBucket)
+     :PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action "s3:GetObject"
+        :Effect "Allow"
+        :Principal {:AWS (join "" ["arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity " (ref :CloudFrontOAI)])}
+        :Resource (join "" ["arn:aws:s3:::" (ref :DatapubBucket) "/*"])}]}}}
+
    :DevelopersGroup
    {:Type "AWS::IAM::Group"
     :Properties
     {:GroupName "sysrev-developers"
      :ManagedPolicyArns
-     [(ref :CloudWatchReadPolicy)]}}}
+     [(ref :CloudFormationReadPolicy)
+      (ref :CloudWatchReadPolicy)
+      (ref :ListBucketsPolicy)]}}}
 
   :Outputs
   (prefixed-outputs
    "${AWS::StackName}-"
    {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]
+    :CloudFrontOAI [(ref :CloudFrontOAI)]
     :DatapubBucket [(ref :DatapubBucket)]
     :DevelopersGroupArn [(arn :DevelopersGroup)]}))
 

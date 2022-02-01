@@ -1,21 +1,21 @@
 (ns sysrev.article.core
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
-            [clojure.tools.logging :as log]
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
-            [sysrev.project.core :refer [project-overall-label-id]]
-            [sysrev.datasource.api :as ds-api]
-            [sysrev.shared.spec.article :as sa]
-            [sysrev.util :as util :refer [in? map-values index-by]]))
-
-;; for clj-kondo
-(declare article-to-sql)
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.tools.logging :as log]
+   [orchestra.core :refer [defn-spec]]
+   [sysrev.datasource.api :as ds-api]
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]
+   [sysrev.project.core :refer [project-overall-label-id]]
+   [sysrev.shared.spec.article :as sa]
+   [sysrev.shared.spec.core :as sc]
+   [sysrev.util :as util :refer [in? index-by map-values]]))
 
 (defn-spec article-to-sql map?
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
-  [article ::sa/article-partial, & [conn] (s/? any?)]
+  [article ::sa/article-partial
+   & [conn] (s/? any?)]
   (try (-> article
            (cond-> (:authors article)
              (update :authors #(db/to-sql-array "text" % conn)))
@@ -30,8 +30,10 @@
          (log/warn "article =" (pr-str article))
          (throw e))))
 
-(defn-spec add-article int?
-  [article ::sa/article-partial, project-id int?, & [conn] (s/? any?)]
+(defn-spec add-article ::sa/article-id
+  [article ::sa/article-partial
+   project-id ::sc/sql-serial-id
+   & [conn] (s/? any?)]
   (q/create :article (-> (article-to-sql article conn)
                          (assoc :project-id project-id))
             :returning :article-id))
@@ -40,7 +42,10 @@
   [:article-data-id :article-id :article-uuid :duplicate-of :enabled
    :last-user-assigned :last-user-review :parent-article-uuid :project-id])
 
-(defn add-articles [articles project-id & [conn]]
+(defn-spec add-articles (s/every ::sa/article-id)
+  [articles (s/every ::sa/article-partial)
+   project-id ::sc/sql-serial-id
+   & [conn] (s/? any?)]
   (vec (q/create :article (mapv #(-> (select-keys % article-cols)
                                      (article-to-sql conn)
                                      (assoc :project-id project-id))
@@ -48,7 +53,10 @@
                  :returning :article-id)))
 
 (defn-spec set-user-article-note map?
-  [article-id int?, user-id int?, note-name string?, content (s/nilable string?)]
+  [article-id ::sa/article-id
+   user-id ::sc/user-id
+   note-name string?
+   content (s/nilable string?)]
   (let [{:keys [project-id project-note-id] :as pnote}
         (q/find-one [:article :a] {:a.article-id article-id :pn.name note-name}
                     :pn.*, :join [[[:project :p]       :a.project-id]
@@ -74,7 +82,8 @@
                            fields, :returning :*)))))))
 
 (defn-spec article-user-notes-map (s/map-of int? any?)
-  [project-id int?, article-id int?]
+  [project-id ::sc/sql-serial-id
+   article-id ::sa/article-id]
   (db/with-project-cache project-id [:article article-id :notes :user-notes-map]
     (->> (q/find [:article :a] {:a.article-id article-id} [:an.* :pn.name]
                  :join [[[:article-note :an] :a.article-id]
@@ -82,12 +91,16 @@
          (group-by :user-id)
          (map-values #(->> % (index-by :name) (map-values :content))))))
 
-(defn-spec remove-article-flag int?
-  [article-id int?, flag-name string?]
-  (q/delete :article-flag {:article-id article-id :flag-name flag-name}))
+(defn-spec remove-article-flag nil?
+  [article-id ::sa/article-id
+   flag-name string?]
+  (q/delete :article-flag {:article-id article-id :flag-name flag-name})
+  nil)
 
 (defn-spec set-article-flag map?
-  [article-id int?, flag-name string?, disable? boolean?
+  [article-id ::sa/article-id
+   flag-name string?
+   disable? boolean?
    & [meta] (s/? (s/cat :meta map?))]
   (db/with-transaction
     (remove-article-flag article-id flag-name)
@@ -97,21 +110,28 @@
                              :meta (some-> meta db/to-jsonb)}
               :returning :*)))
 
-(defn article-locations-map [article-id]
+(defn-spec article-locations-map (s/nilable (s/every map?))
+  [article-id ::sa/article-id]
   (q/find :article-location {:article-id article-id}
           [:source :external-id], :group-by :source))
 
-(defn article-flags-map [article-id]
+(defn-spec article-flags-map (s/nilable (s/every map?))
+  [article-id ::sa/article-id]
   (q/find [:article :a] {:a.article-id article-id}
           (db/table-fields :aflag [:disable :date-created :meta])
           :join [[:article-flag :aflag] :a.article-id]
           :index-by :flag-name))
 
-(defn article-sources-list [article-id]
+(defn-spec article-sources-list (s/nilable (s/every ::sc/sql-serial-id))
+  [article-id ::sa/article-id]
   (q/find [:article :a] {:a.article-id article-id} :as.source-id
           :join [[:article-source :as] :a.article-id]))
 
-(defn article-score [article-id & {:keys [predict-run-id]}]
+(s/def :sysrev.article.core.article-score/predict-run-id (s/nilable ::sc/sql-serial-id))
+
+(defn-spec article-score ::sa/score
+  [article-id ::sa/article-id
+   & {:keys [predict-run-id]} (s/keys* :opt-un [:sysrev.article.core.article-score/predict-run-id])]
   (db/with-transaction
     (let [project-id (q/get-article article-id :project-id)
           predict-run-id (or predict-run-id (q/project-latest-predict-run-id project-id))]
@@ -122,7 +142,9 @@
                                    :label-value "TRUE"}
                   :val))))
 
-(defn article-predictions [article-id & {:keys [predict-run-id]}]
+(defn-spec article-predictions map?
+  [article-id ::sa/article-id
+   & {:keys [predict-run-id]} (s/keys* :opt-un [:sysrev.article.core.article-score/predict-run-id])]
   (->> (db/with-transaction
          (let [predict-run-id (or predict-run-id (-> (q/get-article article-id :project-id)
                                                      (q/project-latest-predict-run-id)))]
@@ -135,7 +157,11 @@
                  (assoc-in acc [label-id label-value] val))
                {})))
 
-(defn get-article
+(def get-article-items #{:flags :locations :score :sources})
+
+(s/def :sysrev.article.core.get-article/items (s/every get-article-items))
+
+(defn-spec get-article ::sa/article-partial
   "Queries for article data by id, with data from other tables included.
 
   `items` is an optional sequence of keywords configuring which values
@@ -143,9 +169,10 @@
 
   `predict-run-id` allows for specifying a non-default prediction run to
   use for the prediction score."
-  [article-id & {:keys [items predict-run-id]
-                 :or {items [:locations :score :flags :sources]}}]
-  (assert (->> items (every? #(in? [:locations :score :flags :sources] %))))
+  [article-id ::sa/article-id
+   & {:keys [items predict-run-id]
+      :or {items get-article-items}}
+   (s/keys* :opt-un [:sysrev.article.core.get-article/items ::predict-run-id])]
   (let [article (ds-api/get-article-content article-id)
         get-item (fn [item-key f] (when (in? items item-key)
                                     (constantly {item-key (f)})))
@@ -163,7 +190,8 @@
     (some-> (not-empty article) (merge item-values))))
 
 ;; TODO: move this to cljc, client project duplicates this function
-(defn article-location-urls [locations]
+(defn-spec article-location-urls (s/every string?)
+  [locations ::sa/locations]
   (->> [:pubmed :doi :pii :nct]
        (map (fn [source]
               (map #(let [ext-id (:external-id %)]
@@ -182,9 +210,10 @@
   nil
   #_ (some->> (q/get-article _article-id :raw) (re-find #"PMC\d+")))
 
-(defn modify-articles-by-id
+(defn-spec modify-articles-by-id nil?
   "Runs SQL update setting `values` on articles in `article-ids`."
-  [article-ids values]
+  [article-ids (s/every ::sa/article-id)
+   values map?]
   (doseq [id-group (partition-all 100 article-ids)]
     (when (seq id-group)
       (q/modify :article {:article-id id-group} values))))

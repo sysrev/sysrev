@@ -4,7 +4,7 @@ set -eu
 source vars.sh
 
 compile=true
-namespace=''
+test_id=''
 
 # https://stackoverflow.com/questions/7069682/how-to-get-arguments-with-flags-in-bash/21128172
 print_usage() {
@@ -13,7 +13,7 @@ print_usage() {
     echo "options:"
     echo "-h  show this help section"
     echo "-c  when false, don't compile clojurescript before testing. defaults to true"
-    echo "-n  a single namespace to test, defaults to all of them"
+    echo "-n  a single namespace or var to test. runs all tests when blank"
 }
 
 while getopts 'hc:n:' flag; do
@@ -21,7 +21,7 @@ while getopts 'hc:n:' flag; do
 	h) print_usage
 	   exit 1;;
 	c) compile="${OPTARG}" ;;
-	n) namespace="${OPTARG}" ;;
+	n) test_id="${OPTARG}" ;;
 	*) print_usage
 	   exit 1 ;;
     esac
@@ -35,8 +35,8 @@ if [ $compile = true ]; then
     cd ..
 fi
 
-if [ -z $namespace ]; then
-    ENV=test time lein with-profile +postgres eftest
+if [ -z $test_id ]; then
+    ENV=test time clj -T:build run-tests
 else
-    ENV=test time lein with-profile +postgres eftest $namespace
+    ENV=test time clj -T:build run-tests :focus :$test_id
 fi

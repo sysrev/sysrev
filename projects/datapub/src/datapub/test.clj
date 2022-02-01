@@ -1,17 +1,21 @@
 (ns datapub.test
-  (:require [cheshire.core :as json]
-            [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [com.stuartsierra.component :as component]
-            [com.walmartlabs.lacinia.constants :as constants]
-            [com.walmartlabs.lacinia.parser :as parser]
-            [com.walmartlabs.lacinia.selection :as selection]
-            [datapub.main :as main]
-            [io.pedestal.test :as test]
-            [medley.core :as medley]
-            [sysrev.datapub-client.interface.queries :as dpcq])
-  (:import java.util.Base64
-           org.apache.commons.io.IOUtils))
+  (:require
+   [cheshire.core :as json]
+   [clj-gatling.core :as clj-gatling]
+   [clojure.edn :as edn]
+   [clojure.java.io :as io]
+   [com.stuartsierra.component :as component]
+   [com.walmartlabs.lacinia.constants :as constants]
+   [com.walmartlabs.lacinia.parser :as parser]
+   [com.walmartlabs.lacinia.selection :as selection]
+   [datapub.main :as main]
+   [io.pedestal.test :as test]
+   [medley.core :as medley]
+   [org.httpkit.client :as hkc]
+   [sysrev.datapub-client.interface.queries :as dpcq])
+  (:import
+   (java.util Base64)
+   (org.apache.commons.io IOUtils)))
 
 (defn run-tests [opts]
   ;; https://clojureverse.org/t/why-doesnt-my-program-exit/3754/8
@@ -189,3 +193,33 @@
     (create-dataset! system {:name "Unused"})
     (load-fda-drugs-docs-dataset! system))
   nil)
+
+;; Load testing
+
+(defn download-request [_]
+  (let [{:keys [status]} @(hkc/get "https://www.datapub.dev/download/DatasetEntity/content/1/ltDNzv_BI7B1xDwusSpkM")]
+    (= status 200)))
+
+(defn run-download! [concurrency]
+  (clj-gatling/run
+    {:name "Simulation"
+     :scenarios [{:name "Download test scenario"
+                  :steps [{:name "Root"
+                           :request download-request}]}]}
+    {:concurrency concurrency}))
+
+(defn content-url-request [_]
+  (let [{:keys [status]} @(hkc/post
+                           "https://www.datapub.dev/api"
+                           {:headers {"Content-Type" "application/json"}
+                            :body (json/generate-string
+                                   {:query "{dataset(id:1){entities{edges{node{contentUrl}}}}}"})})]
+    (= status 200)))
+
+(defn run-content-url! [concurrency]
+  (clj-gatling/run
+    {:name "Simulation"
+     :scenarios [{:name "contentUrl test scenario"
+                  :steps [{:name "Root"
+                           :request content-url-request}]}]}
+    {:concurrency concurrency}))

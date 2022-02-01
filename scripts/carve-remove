@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -eu
 
-config="$(cat carve-config.edn | sed -Ee s/':dry-run\? true'/':dry-run\? false'/g)"
+config="$(cat .carve/config.edn | sed -Ee s/':dry-run\? true'/':dry-run\? false'/g)"
 
 clojure -M:carve --opts "$config"

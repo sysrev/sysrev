@@ -1,25 +1,16 @@
 (ns sysrev.db.migration
-  (:require [clojure.tools.logging :as log]
-            [sysrev.annotations :refer [delete-invalid-annotations migrate-old-annotations]]
-            [sysrev.api :as api]
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
-            [sysrev.file.document :refer [migrate-filestore-table]]
-            [sysrev.group.core :as group]
-            [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
-            [sysrev.payment.stripe :as stripe :refer [update-stripe-plans-table]]
-            [sysrev.project.core :as project]
-            [sysrev.user.interface :as user]
-            [sysrev.util :as util]))
-
-(defn ensure-user-email-entries
-  "Migrate to new email verification system, should only be run when the
-  user-email table is essentially empty"
-  []
-  (db/with-transaction
-    (when (zero? (q/find-count :user-email {}))
-      (doseq [{:keys [user-id email]} (q/find :web-user {})]
-        (user/create-email-verification! user-id email :principal true)))))
+  (:require
+   [clojure.tools.logging :as log]
+   [sysrev.annotations
+    :refer [delete-invalid-annotations migrate-old-annotations]]
+   [sysrev.api :as api]
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]
+   [sysrev.group.core :as group]
+   [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
+   [sysrev.payment.stripe :as stripe :refer [update-stripe-plans-table]]
+   [sysrev.project.core :as project]
+   [sysrev.util :as util]))
 
 (defn ensure-groups
   "Ensure that there are always the required SysRev groups"
@@ -49,10 +40,8 @@
   "Runs everything to update database entries to latest format."
   []
   (doseq [migrate-fn [#'update-stripe-plans-table
-                      #'ensure-user-email-entries
                       #'ensure-groups
                       #'migrate-all-project-article-resolve
-                      #'migrate-filestore-table
                       #'delete-invalid-annotations
                       #'migrate-old-annotations]]
     (log/info "Running " (str migrate-fn))

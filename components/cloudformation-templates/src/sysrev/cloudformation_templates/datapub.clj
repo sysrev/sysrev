@@ -19,8 +19,10 @@
    :DatapubBucket {:MaxLength 63
                    :MinLength 3
                    :Type "String"}
+   :DatapubFilesDomainName {:Type "String"}
    :Env {:AllowedPattern "(dev)|(prod)|(staging)"
          :Type "String"}
+   :InstanceType {:Type "String"}
    :KeyName {:Default ""
              :Type "String"}
    :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
@@ -92,8 +94,76 @@
    {:Type "AWS::Logs::SubscriptionFilter"
     :Properties
     {:DestinationArn (arn :ErrorFunction)
-     :FilterPattern "?ERROR ?WARN"
+     :FilterPattern "?ERROR"
      :LogGroupName (ref :LogGroup)}}
+
+   :FileDistributionCertificate
+   {:Type "AWS::CertificateManager::Certificate"
+    :Properties
+    {:DomainName (ref :DatapubFilesDomainName)
+     :DomainValidationOptions
+     [{:DomainName (ref :DatapubFilesDomainName)
+       :HostedZoneId (import-regional "DatapubHostedZoneId")}]
+     :ValidationMethod "DNS"}}
+
+   :FileDistributionCachePolicy
+   {:Type "AWS::CloudFront::CachePolicy"
+    :Properties
+    {:CachePolicyConfig
+     {:DefaultTTL 86400
+      :MaxTTL 31536000
+      :MinTTL 0
+      :Name "Datapub-FileDistributionCachePolicy"
+      :ParametersInCacheKeyAndForwardedToOrigin
+      {:CookiesConfig
+       {:CookieBehavior "none"}
+       :EnableAcceptEncodingGzip true
+       :HeadersConfig
+       {:HeaderBehavior "whitelist"
+        :Headers
+        ["Access-Control-Request-Headers"
+         "Access-Control-Request-Method"
+         "Origin"]}
+       :QueryStringsConfig
+       {:QueryStringBehavior "none"}}}}}
+
+   :FileDistribution
+   {:Type "AWS::CloudFront::Distribution"
+    :Properties
+    {:DistributionConfig
+     {:Aliases [(ref :DatapubFilesDomainName)]
+      :DefaultCacheBehavior
+      {:AllowedMethods ["GET" "HEAD" "OPTIONS"]
+       :CachedMethods ["GET" "HEAD" "OPTIONS"]
+       :CachePolicyId (ref :FileDistributionCachePolicy)
+       :Compress true
+       :TargetOriginId "DatapubBucketOrigin"
+       :ViewerProtocolPolicy "redirect-to-https"}
+      :Enabled true
+      :HttpVersion "http2"
+      :Origins
+      [{:DomainName (join "" [(ref :DatapubBucket) ".s3.amazonaws.com"])
+        :Id "DatapubBucketOrigin"
+        :S3OriginConfig
+        {:OriginAccessIdentity (join "" ["origin-access-identity/cloudfront/"
+                                         (import-regional "CloudFrontOAI")])}}]
+      :ViewerCertificate
+      {:AcmCertificateArn (ref :FileDistributionCertificate)
+       :SslSupportMethod "sni-only"}}}}
+
+   :FileDistributionRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Properties
+    {:HostedZoneId (import-regional "DatapubHostedZoneId")
+     :RecordSets
+     [{:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
+                     :DNSName (get-att :FileDistribution "DomainName")}
+       :Name (ref :DatapubFilesDomainName)
+       :Type "A"}
+      {:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
+                     :DNSName (get-att :FileDistribution "DomainName")}
+       :Name (ref :DatapubFilesDomainName)
+       :Type "AAAA"}]}}
 
    :RDSMasterCredentials
    {:Type "AWS::SecretsManager::Secret"
@@ -272,7 +342,7 @@
          :VolumeType "gp3"}}]
       :IamInstanceProfile {:Arn (get-att :InstanceProfile "Arn")}
       :ImageId (ref :AMI)
-      :InstanceType "t3a.small"
+      :InstanceType (ref :InstanceType)
       :KeyName (fn-if :HasKeyName
                       (ref :KeyName)
                       no-value)
@@ -284,7 +354,8 @@
        "set -oeux \n"
 
        "echo \""
-       "{:postgres {:host \\\"" (get-att :RDSInstance "Endpoint.Address") "\\\"\n"
+       "{:files-domain-name \\\"" (ref :DatapubFilesDomainName) "\\\"\n"
+       " :postgres {:host \\\"" (get-att :RDSInstance "Endpoint.Address") "\\\"\n"
        "            :port " (get-att :RDSInstance "Endpoint.Port") "\n"
        "            :user \\\"postgres\\\"}\n"
        " :s3 {:datapub-bucket {:name \\\"" (ref :DatapubBucket) "\\\"}}\n"
@@ -322,7 +393,7 @@
     :Properties
     {:Cooldown "30"
      :HealthCheckType "ELB"
-     :HealthCheckGracePeriod 300
+     :HealthCheckGracePeriod 450
      :LaunchTemplate
      {:LaunchTemplateId (ref :LaunchTemplate)
       :Version (get-att :LaunchTemplate "LatestVersionNumber")}

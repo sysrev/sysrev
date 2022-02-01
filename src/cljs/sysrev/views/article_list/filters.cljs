@@ -852,7 +852,7 @@
 
 (defn- ExportFiltersInfo [context]
   (let [article-count @(al/sub-article-count (al/cached context))]
-    [:div.ui.two.column.middle.aligned.grid.raised.segment.export-filters-info
+    [:div.ui.two.column.middle.aligned.grid.segment.export-filters-info
      [:div.left.aligned.column>h5.ui.header "Active Filters"]
      [:div.right.aligned.column
       [:div.ui.label (str article-count " articles")]]]))
@@ -959,7 +959,7 @@
      (when expand-export
        [:div.ui.segment.export-data-content
         [:h6.ui.right.aligned.header
-         {:style {:margin "2px 0 8px 0"}}
+         {:style {:margin "6px 0 8px 0"}}
          [:a {:href @(subscribe [:project/uri nil "/export"])}
           "What do these mean?"]]
         [ExportFiltersInfo context]

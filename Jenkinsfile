@@ -6,7 +6,7 @@ node {
     returnStdout: true
   ).trim()
 
-  gitUrl = 'git@bitbucket.org:insilica/systematic_review.git'
+  gitUrl = 'git@github.com:insilica/systematic_review.git'
 
   if (env.BRANCH_NAME != null) {
     branch = env.BRANCH_NAME
@@ -75,17 +75,16 @@ node {
         sh './jenkins/test'
       } catch (exc) {
         sh 'cat target/junit.xml || true'
-        sendSlackMsg ('Tests failed (attempt 1 of 2) ...')
-        try {
-          sh './jenkins/test'
-        } catch (exc2) {
-          sh 'cat target/junit.xml || true'
-          currentBuild.result = 'UNSTABLE'
-          sendSlackMsg ('Tests failed (attempt 2 of 2)')
-        }
+        currentBuild.result = 'UNSTABLE'
+        sendSlackMsg ('Tests failed')
       } finally {
-        try { junit 'target/junit.xml'
-        } catch (exc2) { echo "!!! target/junit.xml not found" }
+        try {
+          junit 'target/junit.xml'
+        } catch (exc2) {
+          echo "!!! target/junit.xml not found or no testcases found in it"
+          currentBuild.result = 'UNSTABLE'
+          sendSlackMsg ('Test results not found')
+        }
 
         if (currentBuild.result != 'UNSTABLE') {
           currentBuild.result = 'SUCCESS'
@@ -117,7 +116,7 @@ node {
   stage('PreDeployTest') {
     if (branch == 'production') {
       if (currentBuild.result == 'SUCCESS') {
-        echo 'Running full tests against dev instance...'
+        echo 'Running full tests against staging instance...'
         try {
           sshagent(['sysrev-admin']) {
             withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
@@ -126,7 +125,7 @@ node {
             }
             sendSlackMsgFull ('Deployed to <https://staging.sysrev.com|staging.sysrev.com> for tests', 'blue')
             try {
-              sh './jenkins/test-aws-dev-all'
+              sh './jenkins/test-staging'
               currentBuild.result = 'SUCCESS'
             } catch (exc) {
               currentBuild.result = 'UNSTABLE'
@@ -193,7 +192,7 @@ node {
     if (branch == 'production') {
       if (currentBuild.result == 'SUCCESS') {
         try {
-          sshagent(['sysrev-admin']) {
+          sshagent(['sysrev-git']) {
             sh "git push ${gitUrl} HEAD:master -f"
           }
         } catch (exc) {
@@ -210,10 +209,10 @@ node {
         echo 'Running tests against deploy host...'
         try {
           if (branch == 'staging') {
-            sh './jenkins/test-aws-dev-all'
+            sh './jenkins/test-staging'
           }
           if (branch == 'production') {
-            sh './jenkins/test-aws-prod-browser'
+            sh './jenkins/test-prod'
           }
           currentBuild.result = 'SUCCESS'
           sendSlackMsg ('PostDeployTest passed')

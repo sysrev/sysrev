@@ -1,10 +1,8 @@
 {:datapub-embedded "true"
- :postgres
- {:dbname "sysrev_test"
-  :user "postgres"
-  :password ""
-  :host "localhost"
-  :port 5432}
+ :filestore
+ {:type :s3
+  :endpoint "us-east-1"
+  :bucket-name "test.sysrev.us"}
  :server
  {:port 4131}
  :sysrev-dev-key "***REMOVED***"
@@ -13,4 +11,5 @@
  :max-bulk-invitations 100
  :mock-email true
  :e-util-api-key "***REMOVED***"
- :private-config "config.local.edn"}
+ :private-config "config.local.edn"
+ :web-server {:web-asset-path "/out-production"}}

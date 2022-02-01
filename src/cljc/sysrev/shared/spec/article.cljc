@@ -23,11 +23,6 @@
 (s/def ::enabled (s/nilable boolean?))
 (s/def ::duplicate-of (s/nilable integer?))
 
-;; unused article fields
-;; TODO: remove these fields from schema
-(s/def ::notes (s/nilable string?))
-(s/def ::keywords (s/nilable (s/coll-of string?)))
-
 ;; additional article map fields (not fields of `article` table)
 (s/def ::score (s/and (s/nilable number?)
                       #(or (nil? %)
@@ -47,9 +42,9 @@
 (s/def ::article-partial
   (s/keys :opt-un
           [::article-id ::primary-title ::secondary-title
-           ::abstract ::work-type ::notes ::remote-database-name
+           ::abstract ::work-type ::remote-database-name
            ::year ::authors ::urls ::document-ids ::project-id ::raw
-           ::keywords ::article-uuid ::enabled ::duplicate-of
+           ::article-uuid ::enabled ::duplicate-of
            ::score ::locations ::flags]))
 
 (s/def ::article-or-id (s/or :id ::sc/article-id

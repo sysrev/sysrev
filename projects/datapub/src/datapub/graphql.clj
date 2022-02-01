@@ -49,6 +49,7 @@
    :DatasetEntitiesEdge {:node #'dataset/resolve-DatasetEntitiesEdge#node}
    :ListDatasetsEdge {:node #'dataset/resolve-ListDatasetsEdge#node}
    :Query {:dataset #'dataset/resolve-dataset
+           :datasetEntitiesById #'dataset/resolve-datasetEntitiesById
            :datasetEntity #'dataset/resolve-dataset-entity
            :listDatasets #'dataset/list-datasets}
    :Mutation {:createDataset #'dataset/create-dataset!

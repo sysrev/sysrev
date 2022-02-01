@@ -43,7 +43,6 @@
                       (assoc request :body)
                       (assoc context :request))
 
-                 :else
                  (assoc context :response
                         {:status 400
                          :headers {}
@@ -213,7 +212,7 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
 (def allowed-origins
   {:dev (constantly true)
    :prod #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
-   :staging #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com"}
+   :staging #{"https://www.datapub.dev" "https://sysrev.com" "https://staging.sysrev.com" "https://datapub.sysrevdev.net"}
    :test (constantly true)})
 
 (defn api-interceptors [{:keys [env]} compiled-schema app-context]
@@ -266,6 +265,10 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
                                  error-logging-interceptor]
+        download-interceptors (conj json-error-interceptors
+                                    #(dataset/download-DatasetEntity-content
+                                      (assoc app-context :request %)
+                                      (allowed-origins env)))
         routes (into #{["/api"
                         :options
                         (conj json-error-interceptors
@@ -275,12 +278,11 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
                         :post (api-interceptors opts compiled-schema app-context)
                         :route-name ::graphql-api]
                        ["/download/DatasetEntity/content/:entity-id/:content-hash"
-                        :get
-                        (conj json-error-interceptors
-                              #(dataset/download-DatasetEntity-content
-                                (assoc app-context :request %)
-                                (allowed-origins env)))
+                        :get download-interceptors
                         :route-name ::DatasetEntity-content]
+                       ["/download/DatasetEntity/content/:entity-id/:content-hash"
+                        :head download-interceptors
+                        :route-name ::DatasetEntity-content-head]
                        ["/download/DatasetEntity/content/:entity-id/:content-hash"
                         :options
                         (conj json-error-interceptors
@@ -317,6 +319,33 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           #__ (subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
+;; Adapted from https://tonsky.me/blog/pedestal/
+;; I attempted an implementation as described in
+;; https://github.com/pedestal/pedestal/issues/623#issuecomment-508853264
+;; but couldn't get anywhere.
+;; Filtering out Broken pipe reporting
+;; io.pedestal.http.impl.servlet-interceptor/error-stylobate
+(defn error-stylobate [{:keys [request servlet-response] :as context} exception]
+  (let [cause (clojure.stacktrace/root-cause exception)]
+    (if (and (instance? java.io.IOException cause)
+          (= "Broken pipe" (.getMessage cause)))
+      (io.pedestal.log/info :msg (str "Broken pipe for " (-> request :request-method name str/upper-case) " " (:uri request)))
+      (do
+        (io.pedestal.log/error
+         :msg "error-stylobate triggered"
+         :context context)
+        ;; Put exception on its own line so stack trace doesn't get truncated due to size
+        (io.pedestal.log/error :exception exception)))
+    (@#'io.pedestal.http.impl.servlet-interceptor/leave-stylobate context)))
+
+;; io.pedestal.http.impl.servlet-interceptor/stylobate
+(def stylobate
+  (io.pedestal.interceptor/interceptor
+    {:name ::stylobate
+     :enter @#'io.pedestal.http.impl.servlet-interceptor/enter-stylobate
+     :leave @#'io.pedestal.http.impl.servlet-interceptor/leave-stylobate
+     :error error-stylobate}))
+
 (defrecord Pedestal [bound-port config opts secrets-manager service service-map service-map-fn]
   component/Lifecycle
   (start [this]
@@ -328,9 +357,10 @@ https://github.com/jaydenseric/graphql-multipart-request-spec"}
           (let [service-map (service-map-fn
                              (update opts :port #(or % 0)) ; Prevent pedestal exception
                              this)
-                service (if (:port opts)
-                          (http/start (http/create-server service-map))
-                          (http/create-server (assoc service-map :port 0)))
+                service (with-redefs [io.pedestal.http.impl.servlet-interceptor/stylobate stylobate]
+                          (if (:port opts)
+                            (http/start (http/create-server service-map))
+                            (http/create-server (assoc service-map :port 0))))
                 bound-port (some-> service :io.pedestal.http/server
                                    .getURI .getPort)]
             (if (and bound-port (pos-int? bound-port))

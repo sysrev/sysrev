@@ -133,7 +133,8 @@
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id] {:keys [sources]}]
-             {:db (assoc-in db [:data :project project-id :sources] sources)}))
+             {:db (assoc-in db [:data :project project-id :sources] sources)})
+  :hide-loading true)
 
 (def-data :project-source/sample-article
   :loaded? (fn [db project-id source-id]

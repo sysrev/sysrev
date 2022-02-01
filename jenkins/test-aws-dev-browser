@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -eux
-
-rm -rf ./target
-
-rm -f target/junit.xml
-testcmd1='lein test-aws-dev-browser'
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** $testcmd1 || $testcmd1

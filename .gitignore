@@ -87,6 +87,7 @@ client/semantic
 /scripts/clj-kondo.old
 
 # Nix derivations
+gcroots
 result
 result-*
 
