@@ -1,65 +1,71 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
-  (:require [clojure.data.json :as json]
-            [clojure.java.io :as io]
-            [clojure.set :as set]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [orchestra.core :refer [defn-spec]]
-            [clojure.tools.logging :as log]
-            [clj-time.core :as t]
-            [clj-time.coerce :as tc]
-            [me.raynes.fs :as fs]
-            [medley.core :as medley]
-            [ring.mock.request :as mock]
-            [ring.util.response :as response]
-            [sysrev.cache :refer [db-memo]]
-            [sysrev.config :refer [env]]
-            [sysrev.db.core :as db :refer [with-transaction]]
-            [sysrev.db.queries :as q]
-            [sysrev.biosource.annotations :as api-ann]
-            [sysrev.biosource.importance :as importance]
-            [sysrev.biosource.predict :as predict-api]
-            [sysrev.biosource.concordance :as concordance-api]
-            [sysrev.biosource.countgroup :as biosource-contgroup]
-            [sysrev.datasource.api :as ds-api]
-            [sysrev.project.core :as project]
-            [sysrev.project.member :as member]
-            [sysrev.project.charts :as charts]
-            [sysrev.project.clone :as clone]
-            [sysrev.project.description :as description]
-            [sysrev.project.funds :as funds]
-            [sysrev.project.compensation :as compensation]
-            [sysrev.project.invitation :as invitation]
-            [sysrev.article.core :as article]
-            [sysrev.annotations :as ann]
-            [sysrev.label.core :as label]
-            [sysrev.label.define :as ldefine]
-            [sysrev.group.core :as group]
-            [sysrev.gengroup.core :as gengroup]
-            [sysrev.file.core :as file]
-            [sysrev.file.s3 :as s3-file]
-            [sysrev.file.article :as article-file]
-            [sysrev.file.user-image :as user-image]
-            [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
-            [sysrev.notification.interface :as notification]
-            [sysrev.payment.stripe :as stripe]
-            [sysrev.payment.paypal :as paypal]
-            [sysrev.payment.plans :as plans]
-            [sysrev.source.core :as source]
-            [sysrev.source.import :as import]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.sendgrid :as sendgrid]
-            [sysrev.stacktrace :refer [print-cause-trace-custom]]
-            [sysrev.shared.notifications :refer [combine-notifications]]
-            [sysrev.shared.text :as shared]
-            [sysrev.shared.spec.project :as sp]
-            [sysrev.user.interface :as user :refer [user-by-email]]
-            [sysrev.user.interface.spec :as su]
-            [sysrev.encryption :as enc]
-            [sysrev.util :as util :refer [in? index-by req-un parse-integer sum uuid-from-string]])
-  (:import (java.util UUID)
-           (java.util.zip ZipOutputStream ZipEntry)))
+  (:require
+   [clj-time.coerce :as tc]
+   [clj-time.core :as t]
+   [clojure.data.json :as json]
+   [clojure.java.io :as io]
+   [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [clojure.tools.logging :as log]
+   [me.raynes.fs :as fs]
+   [medley.core :as medley]
+   [orchestra.core :refer [defn-spec]]
+   [ring.mock.request :as mock]
+   [ring.util.response :as response]
+   [sysrev.annotations :as ann]
+   [sysrev.article.core :as article]
+   [sysrev.biosource.annotations :as api-ann]
+   [sysrev.biosource.concordance :as concordance-api]
+   [sysrev.biosource.countgroup :as biosource-contgroup]
+   [sysrev.biosource.importance :as importance]
+   [sysrev.biosource.predict :as predict-api]
+   [sysrev.cache :refer [db-memo]]
+   [sysrev.config :refer [env]]
+   [sysrev.datasource.api :as ds-api]
+   [sysrev.db.core :as db :refer [with-transaction]]
+   [sysrev.db.queries :as q]
+   [sysrev.encryption :as enc]
+   [sysrev.file.article :as article-file]
+   [sysrev.file.core :as file]
+   [sysrev.file.s3 :as s3-file]
+   [sysrev.file.user-image :as user-image]
+   [sysrev.formats.pubmed :as pubmed]
+   [sysrev.gengroup.core :as gengroup]
+   [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
+   [sysrev.group.core :as group]
+   [sysrev.label.core :as label]
+   [sysrev.label.define :as ldefine]
+   [sysrev.notification.interface :as notification]
+   [sysrev.payment.paypal :as paypal]
+   [sysrev.payment.plans :as plans]
+   [sysrev.payment.stripe :as stripe]
+   [sysrev.project.charts :as charts]
+   [sysrev.project.clone :as clone]
+   [sysrev.project.compensation :as compensation]
+   [sysrev.project.core :as project]
+   [sysrev.project.description :as description]
+   [sysrev.project.funds :as funds]
+   [sysrev.project.invitation :as invitation]
+   [sysrev.project.member :as member]
+   [sysrev.sendgrid :as sendgrid]
+   [sysrev.shared.notifications :refer [combine-notifications]]
+   [sysrev.shared.spec.project :as sp]
+   [sysrev.shared.text :as shared]
+   [sysrev.source.core :as source]
+   [sysrev.source.import :as import]
+   [sysrev.stacktrace :refer [print-cause-trace-custom]]
+   [sysrev.user.interface :as user :refer [user-by-email]]
+   [sysrev.user.interface.spec :as su]
+   [sysrev.util
+    :as
+    util
+    :refer
+    [in? index-by parse-integer req-un sum uuid-from-string]])
+  (:import
+   (java.util UUID)
+   (java.util.zip ZipEntry ZipOutputStream)))
 
 ;; HTTP error codes
 (def payment-required 402)
@@ -140,17 +146,16 @@
   "Given a project-id and org-id, sync the permissions of each member with the project"
   [project-id org-id]
   (db/with-clear-project-cache project-id
-    (let [users-in-group (group/read-users-in-group (group/group-id->name org-id))]
-      (doall (for [user users-in-group]
-               (let [org-perms (:permissions user)
-                     perms (cond (in? org-perms "owner")
-                                 ["member" "admin"]
-                                 (in? org-perms "admin")
-                                 ["member" "admin"]
-                                 (in? org-perms "member")
-                                 ["member"])]
-                 (member/add-project-member project-id (:user-id user)
-                                            :permissions perms)))))))
+    (doseq [{:keys [permissions user-id]} (group/read-users-in-group
+                                           (group/group-id->name org-id))]
+      (let [new-perms (cond
+                        (some #{"owner" "admin"} permissions) ["member" "admin"]
+                        (some #{"member"} permissions) ["member"])
+            existing-perms (member/member-roles project-id user-id)]
+        (if (and (empty? existing-perms) (seq new-perms))
+          (member/add-project-member project-id user-id :permissions new-perms :notify? false)
+          (when (not= new-perms existing-perms)
+            (member/set-member-permissions project-id user-id new-perms)))))))
 
 (defn-spec create-project-for-org! (req-un ::project)
   "Create a new project for org-id using project-name and insert a
@@ -1646,7 +1651,7 @@
                      notifications)
      :next-created-after start-of-day}))
 
-(defn user-notifications-new [user-id {:keys [limit]}]
+(defn user-notifications-new [user-id & [{:keys [limit]}]]
   (with-transaction
     (let [subscriber-id (notification/subscriber-for-user
                          user-id :create? true :returning :subscriber-id)

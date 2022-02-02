@@ -30,7 +30,9 @@
 (defn-spec add-project-member nil?
   "Add a user to the list of members of a project."
   [project-id int?, user-id int? &
-   {:keys [permissions] :or {permissions ["member"]}}
+   {:keys [notify? permissions]
+    :or {notify? true
+         permissions ["member"]}}
    (opt-keys ::sp/permissions)]
   (db/with-clear-project-cache project-id
     (q/create :project-member {:project-id project-id, :user-id user-id
@@ -40,19 +42,20 @@
     ;; set their compensation to the project default
     (when-let [comp-id (compensation/get-default-project-compensation project-id)]
       (compensation/start-compensation-period-for-user! comp-id user-id))
-    (notification/subscribe-to-topic
-     (notification/subscriber-for-user
-      user-id :create? true :returning :subscriber-id)
-     (notification/topic-for-name
-      (str ":project " project-id) :create? true :returning :topic-id))
-    (let [[project-name] (q/find :project {:project-id project-id} :name)]
-      (notification/create-notification
-       {:image-uri (str "/api/user/" user-id "/avatar")
-        :new-user-id user-id
-        :new-user-name (first (q/find :web-user {:user-id user-id} :username))
-        :project-id project-id
-        :project-name project-name
-        :type :project-has-new-user}))
+    (when notify?
+      (notification/subscribe-to-topic
+       (notification/subscriber-for-user
+        user-id :create? true :returning :subscriber-id)
+       (notification/topic-for-name
+        (str ":project " project-id) :create? true :returning :topic-id))
+      (let [[project-name] (q/find :project {:project-id project-id} :name)]
+        (notification/create-notification
+         {:image-uri (str "/api/user/" user-id "/avatar")
+          :new-user-id user-id
+          :new-user-name (first (q/find :web-user {:user-id user-id} :username))
+          :project-id project-id
+          :project-name project-name
+          :type :project-has-new-user})))
     nil))
 
 (defn-spec remove-project-member int?
