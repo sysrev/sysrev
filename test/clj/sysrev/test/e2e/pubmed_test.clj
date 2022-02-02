@@ -30,7 +30,7 @@
     (some-> driver
             (ea/get-element-value q) Long/parseLong)))
 
-(deftest ^:e2e test-search
+(deftest ^:optional test-search
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (account/log-in test-resources (test/create-test-user system))
     (testing "Pubmed search works"
