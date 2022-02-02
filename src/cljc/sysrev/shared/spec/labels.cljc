@@ -18,7 +18,7 @@
 (s/def ::definition (s/nilable map?))
 (s/def ::enabled boolean?)
 (s/def ::owner-project-id ::sp/project-id)
-(s/def ::global-label-id (s/nilable ::sc/uuid))
+(s/def ::global-label-id ::sc/uuid)
 
 (defspec-keys+partial ::label ::label-partial
   [::label-id ::label-id-local ::project-id ::project-ordering ::value-type ::name

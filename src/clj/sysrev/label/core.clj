@@ -1,22 +1,36 @@
 (ns sysrev.label.core
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
-            [clojure.set :as set]
-            [clojure.walk :as walk]
-            [clj-time.core :as t]
-            [clj-time.coerce :as tc]
-            [clj-time.format :as tf]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [select from where merge-where insert-into values]]
-            [honeysql-postgres.helpers :as psqlh]
-            [medley.core :as medley]
-            [sysrev.db.core :as db :refer [do-query with-project-cache]]
-            [sysrev.db.queries :as q]
-            [sysrev.encryption :as enc]
-            [sysrev.project.core :as project]
-            [sysrev.shared.spec.labels :as sl]
-            [sysrev.util :as util :refer [in? map-values index-by or-default sanitize-uuids
-                                          sum uuid-from-string]]))
+  (:require
+   [clj-time.coerce :as tc]
+   [clj-time.core :as t]
+   [clj-time.format :as tf]
+   [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [clojure.walk :as walk]
+   [honeysql-postgres.helpers :as psqlh]
+   [honeysql.core :as sql]
+   [honeysql.helpers
+    :as sqlh
+    :refer [from insert-into merge-where select values where]]
+   [medley.core :as medley]
+   [orchestra.core :refer [defn-spec]]
+   [sysrev.db.core :as db :refer [do-query with-project-cache]]
+   [sysrev.db.queries :as q]
+   [sysrev.encryption :as enc]
+   [sysrev.project.core :as project]
+   [sysrev.shared.spec.labels :as sl]
+   [sysrev.util
+    :as
+    util
+    :refer
+    [in?
+     index-by
+     map-values
+     or-default
+     sanitize-uuids
+     sum
+     uuid-from-string]])
+  (:import
+   (java.util UUID)))
 
 ;; for clj-kondo
 (declare user-article-confirmed? get-label)
@@ -49,26 +63,29 @@
                     root-label-id-local nil}}]
   (assert (in? valid-label-categories category))
   (assert (in? valid-label-value-types value-type))
-  (db/with-clear-project-cache project-id
-    (q/create :label
-              (cond-> {:project-id project-id
-                       :project-ordering (when enabled
-                                           (if root-label-id-local
-                                             project-ordering
-                                             (next-project-ordering project-id root-label-id-local)))
-                       :value-type value-type
-                       :name name
-                       :question question
-                       :short-label short-label
-                       :required required
-                       :category category
-                       :definition (db/to-jsonb definition)
-                       :enabled enabled
-                       :root-label-id-local root-label-id-local
-                       :owner-project-id project-id}
-                (boolean? consensus)        (assoc :consensus consensus)
-                (= name "overall include")  (assoc :consensus true))
-              :returning :*)))
+  (let [uuid (UUID/randomUUID)]
+    (db/with-clear-project-cache project-id
+      (q/create :label
+                (cond-> {:project-id project-id
+                         :project-ordering (when enabled
+                                             (if root-label-id-local
+                                               project-ordering
+                                               (next-project-ordering project-id root-label-id-local)))
+                         :value-type value-type
+                         :name name
+                         :question question
+                         :short-label short-label
+                         :required required
+                         :category category
+                         :definition (db/to-jsonb definition)
+                         :enabled enabled
+                         :label-id uuid
+                         :global-label-id uuid
+                         :root-label-id-local root-label-id-local
+                         :owner-project-id project-id}
+                  (boolean? consensus)        (assoc :consensus consensus)
+                  (= name "overall include")  (assoc :consensus true))
+                :returning :*))))
 
 (defn add-label-entry-boolean
   "Creates an entry for a boolean label definition.
@@ -491,6 +508,7 @@
     (db/with-transaction
       (let [{:keys [enabled value-type name short-label required category label-id definition]} m
             label-existed? (not (string? label-id)) ; remember: new labels are strings
+            uuid (when-not label-existed? (UUID/randomUUID))
             current-label (if label-existed?
                             ;; label exists
                             (-> (select :*)
@@ -510,7 +528,9 @@
                                           :category category
                                           :enabled enabled
                                           :question "N/A"
-                                          :definition definition}])
+                                          :definition definition
+                                          :label-id uuid
+                                          :global-label-id uuid}])
                                 (psqlh/returning :*)
                                 do-query
                                 first))
@@ -608,11 +628,12 @@
       (clone-label label-id target-project-id))))
 
 (defn detach-label [project-id label-id]
-  (let [label (get-label label-id)]
-    (db/with-clear-project-cache project-id
-                                 (q/modify :label {:label-id (:label-id label)}
-                                           {:owner-project-id project-id
-                                            :global-label-id nil})
-                                 (q/modify :label {:root-label-id-local (:label-id-local label)}
-                                           {:owner-project-id project-id
-                                            :global-label-id nil}))))
+  (let [{:keys [label-id label-id-local]} (get-label label-id)]
+    (db/with-clear-project-cache
+      project-id
+      (q/modify :label {:label-id label-id}
+                {:owner-project-id project-id
+                 :global-label-id label-id})
+      (q/modify :label {:root-label-id-local label-id-local}
+                {:owner-project-id project-id
+                 :global-label-id label-id}))))

@@ -2,6 +2,7 @@
   :consensus true
   :definition [:lift {:inclusion-values [true]}]
   :enabled true
+  :global-label-id #uuid "c4f5481e-6008-4011-8210-ce6d3bc0f1e8"
   :label-id #uuid "c4f5481e-6008-4011-8210-ce6d3bc0f1e8"
   :label-id-local 15100001
   :name "overall include"
@@ -15,6 +16,7 @@
   :consensus true
   :definition [:lift {:inclusion-values [true]}]
   :enabled true
+  :global-label-id #uuid "a1624cc6-77ff-4079-89aa-7ca7bc9a768b"
   :label-id #uuid "a1624cc6-77ff-4079-89aa-7ca7bc9a768b"
   :label-id-local 15100002
   :name "overall include"
@@ -28,6 +30,7 @@
   :consensus false
   :definition [:lift {:all-values ["one" "two" "three"]}]
   :enabled true
+  :global-label-id #uuid "f41e6392-db88-464c-8f9f-4ffa78beee15"
   :label-id #uuid "f41e6392-db88-464c-8f9f-4ffa78beee15"
   :label-id-local 15100003
   :name "annotationqBGDXt"
