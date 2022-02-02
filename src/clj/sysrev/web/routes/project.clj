@@ -738,29 +738,29 @@
                              :user-answers
                              (-> (export/export-user-answers-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (util/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :group-answers
                              (-> (export/export-group-answers-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (util/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :articles-csv
                              (-> (export/export-articles-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (util/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :annotations-csv
                              (-> (export/export-annotations-csv
                                   project-id :article-ids article-ids :separator separator)
-                                 (util/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :endnote-xml
                              (project-to-endnote-xml
                               project-id :article-ids article-ids :to-file true)
                              :group-label-csv
                              (-> (export/export-group-label-csv project-id :label-id label-id)
-                                 (util/write-csv)
+                                 (write-csv)
                                  (create-export-tempfile))
                              :json
                              (-> (api/project-json project-id)
@@ -828,7 +828,7 @@
 (dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
          (with-authorize request {:allow-public true}
            (-> (export/export-user-answers-csv (active-project request))
-               (util/write-csv)
+               (write-csv)
                (web/csv-file-response (-> request :params :filename))))))
 
 ;;;

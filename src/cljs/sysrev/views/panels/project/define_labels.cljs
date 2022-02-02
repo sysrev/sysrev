@@ -520,6 +520,10 @@
                   :tooltip ["Examples of possible label values for reviewers."
                             "Displayed as tooltip in review interface."]
                   :optional true}
+   :default-value {:path [:definition :default-value]
+                   :display "Default label value"
+                   :tooltip ["Default label value"]
+                  :optional true}
    :all-values   {:path [:definition :all-values]
                   :display "Categories (comma-separated options)"
                   :tooltip ["List of values allowed for label."
@@ -587,6 +591,10 @@
         max-length (r/cursor definition [:max-length])
         ;; 
         validatable-label? (r/cursor definition [:validatable-label?])
+        ;; 
+        hidden-label? (r/cursor definition [:hidden-label?])
+        ;; 
+        default-value (r/cursor definition [:default-value])
         ;;;
         errors (r/cursor label [:errors])
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
@@ -597,8 +605,7 @@
                                                   ;; save on server
                                                   (sync-to-server)
                                                   ;; just reset editing
-                                                  (reset! (r/cursor label [:editing?]) false))
-                                                )
+                                                  (reset! (r/cursor label [:editing?]) false)))
                                               :prevent-default true)}
      (when (string? @value-type)
        [:h5.ui.dividing.header.value-type
@@ -676,6 +683,10 @@
                                     (reset! all-values nil)
                                     (reset! all-values (str/split value #","))))}
                    errors)])
+
+     
+     
+      
      ;; required
      [ui/LabeledCheckboxField
       (make-args :required
@@ -779,6 +790,76 @@
                           (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
+
+
+     (case @value-type
+       "boolean"
+       [:div.field.inclusion-values {:style {:width "100%"}}
+        [FormLabelWithTooltip
+         "Default Value"
+         ["Please select a default value for this label"]]
+        [ui/LabeledCheckbox
+         {:checked? (true? @default-value)
+          :disabled (not is-owned?)
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (when checked?
+                          (reset! default-value true)))
+          :label "True"}]
+        [ui/LabeledCheckbox
+         {:checked? (false? @default-value)
+          :disabled (not is-owned?)
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (when checked?
+                          (reset! default-value false)))
+          :label "False"}]]
+
+       "categorical"
+       [ui/TextInputField
+        (make-args :default-value
+                   {:default-value (str/join "," @default-value)
+                    :display "Default label value (comma-separated)"
+                    :prompt "Comma separated default values" 
+                    :disabled (not is-owned?)
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! default-value nil)
+                                    (reset! default-value (str/split value #","))))}
+                   errors)]
+       
+       "string"
+       [ui/TextInputField
+        (make-args :default-value
+                   {:label "Default value"
+                    :value (str/join "," @default-value)
+                    :tooltip ["Default value"]
+                    :disabled (not is-owned?)
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! default-value nil)
+                                    (reset! default-value (str/split value #","))))}
+                   errors)]
+       
+       [:span])
+     (let [error (get-in @errors [:definition :hidden-label?])]
+        [:div.field.validatable-label {:class (when error "error")
+                                            :style {:width "100%"}}
+          [FormLabelWithTooltip
+           "Hide label?"
+           ["Hide label from the reviewer"]]
+          
+          [ui/LabeledCheckbox
+           {:checked? (not @hidden-label?)
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! hidden-label? (not checked?)))
+            :label "No"}]
+          [ui/LabeledCheckbox
+           {:checked? @hidden-label?
+            :disabled (not is-owned?)
+            :on-change #(let [checked? (-> % .-target .-checked)]
+                          (reset! hidden-label? checked?))
+            :label "Yes"}]
+          [show-error-msg error]])
      (when is-owned?
        [:div.field {:style {:margin-bottom "0.75em"}}
         [:div.ui.two.column.grid {:style {:margin "-0.5em"}}

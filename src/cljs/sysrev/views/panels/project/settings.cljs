@@ -661,3 +661,4 @@
   :on-route (do (data/reload :project project-id)
                 (dispatch [:set-active-panel panel]))
   :content [Panel])
+

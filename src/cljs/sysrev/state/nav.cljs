@@ -33,7 +33,9 @@
                 {:db (assoc-in db [:state :active-panel] panel)
                  :dispatch-n (concat [[:review/reset-ui-labels]
                                       [:review/reset-ui-notes]
-                                      [:reset-transient-fields panel]])}))
+                                      [:reset-transient-fields panel]
+                                      (when (= panel [:project :review])
+                                        [:review/set-default-values])])}))
 
 (defn lookup-project-url [db url-id]
   (when url-id (get-in db [:data :project-lookups url-id] :loading)))

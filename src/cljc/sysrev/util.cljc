@@ -12,8 +12,7 @@
                        [cljs-time.core :as t]
                        [cljs-time.coerce :as tc]
                        [cljs-time.format :as tf]])
-            #?@(:clj  [[clojure-csv.core :as csv]
-                       [clojure.main :refer [demunge]]
+            #?@(:clj  [[clojure.main :refer [demunge]]
                        [clojure.data.json :as json]
                        [clojure.java.shell :refer [sh]]
                        [clojure.java.io :as io]
@@ -1294,13 +1293,3 @@
 
                    :else href))))
 
-#?(:clj
-   (let [utf8-bom (String. (byte-array (mapv int [239 187 191])))]
-     (defn write-csv
-       "Return a string of `table` in CSV format, with the UTF-8 BOM added for
-  Excel.
-
-  See https://www.edmundofuentes.com/blog/2020/06/13/excel-utf8-csv-bom-string/"
-       [table & opts]
-       (str utf8-bom
-            (apply csv/write-csv table opts)))))

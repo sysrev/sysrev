@@ -2,7 +2,7 @@
   (:require [clojure.walk :as walk]
             [clojure.string :as str]
             [re-frame.core :refer
-             [subscribe reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
+             [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -44,6 +44,22 @@
       (assoc-in [:data :review project-id :task-id] article-id)
       (assoc-in [:data :review project-id :today-count] today-count)))
 
+(reg-event-fx :review/set-default-values [trim-v]
+              (fn [_ []]
+                (let [article-id @(subscribe [:review/task-id])
+                      user-id @(subscribe [:self/user-id])
+                      project-id @(subscribe [:active-project-id])
+                      article-labels @(subscribe [:article/labels article-id])]
+                  {:dispatch-n (when (empty? (get-in article-labels [user-id] {}))
+                                 (let [project-labels @(subscribe [:project/labels-raw project-id])
+                                       default-values (->> project-labels
+                                                           (map #(vector (first %) (-> % second :definition :default-value)))
+                                                           (filter second))]
+                                   (map 
+                                     (fn [[label-id default-value]]
+                                       [:review/set-label-value article-id "na" label-id nil default-value])
+                                     default-values)))})))
+
 (def-data :review/task
   :loaded? (fn [db project-id] (review-task-id db project-id))
   :uri (constantly "/api/label-task")
@@ -56,7 +72,8 @@
       (let [{:keys [article-id] :as article}
             #__ (merge article {:labels labels :notes notes})]
         (cond-> {:db (-> (load-review-task db project-id (:article-id article) today-count)
-                         (article/load-article article))}
+                         (article/load-article article))
+                 :dispatch [:review/set-default-values]}
           (= (active-panel db) [:project :review])
           #__ (merge {:fx [[:scroll-top true]
                            [:dispatch
@@ -263,8 +280,9 @@
                                :project-id project-id}]]]]})))
 
 ;; Reset state of locally changed label values in review interface
-(reg-event-db :review/reset-ui-labels
-              #(assoc-in % [:state :review :labels] {}))
+(reg-event-fx :review/reset-ui-labels
+              (fn [{:keys [db]}]
+                {:db (assoc-in db [:state :review :labels] {})}))
 
 (reg-event-db :set-review-interface
               (fn [db [_ interface]]
