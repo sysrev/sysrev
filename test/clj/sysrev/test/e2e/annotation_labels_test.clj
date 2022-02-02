@@ -7,7 +7,7 @@
    [sysrev.test.e2e.core :as e]
    [sysrev.test.e2e.labels :as labels]))
 
-(deftest ^:e2e test-annotation-labels
+(deftest ^:e2e ^:kaocha/pending test-annotation-labels
   (e/with-test-resources [{:keys [system] :as test-resources} {}]
     (let [annotation-label-definition {:value-type "annotation"
                                        :short-label "Test Label 1"
