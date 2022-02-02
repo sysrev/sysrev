@@ -368,6 +368,7 @@
      (not (nil? on-mouse-up)) (assoc :on-mouse-up on-mouse-up)
      (not (nil? on-mouse-down)) (assoc :on-mouse-down on-mouse-down)
      autofocus (assoc :autoFocus true)
+     disabled (assoc :disabled true)
      read-only (assoc :readOnly true))])
 
 (defn TextInputField
@@ -408,29 +409,33 @@
       (not (nil? on-mouse-up)) (assoc :on-mouse-up on-mouse-up)
       (not (nil? on-mouse-down)) (assoc :on-mouse-down on-mouse-down)
       autofocus (assoc :autoFocus true)
+      disabled (assoc :disabled true)
       read-only (assoc :readOnly true))]
    (when error
      [:div.ui.red.message error])])
 
 (defn LabeledCheckbox
   "Checkbox input element with label."
-  [{:keys [checked? on-change label]}]
-  [:div.ui.checkbox {:style {:margin-right "0.5em"}}
+  [{:keys [checked? disabled label on-change]}]
+  [:div.ui.checkbox {:class (css [disabled "disabled"])
+                     :style {:margin-right "0.5em"}}
    [:input {:type "checkbox"
             :on-change (wrap-user-event on-change :timeout false)
-            :checked checked?}]
+            :checked (boolean checked?)
+            :disabled (boolean disabled)}]
    [:label label]])
 
 (defn LabeledCheckboxField
   "Form field with labeled checkbox and optional tooltip."
-  [{:keys [error on-change checked? label tooltip disabled? field-class optional]}]
+  [{:keys [checked? disabled error field-class label on-change optional tooltip]}]
   [:div.field {:key [:label label]
                :class (css field-class [error "error"])}
    [:div.ui.checkbox {:style {:width "100%"} ;; need width 100% to fit tooltip
-                      :class (css [disabled? "disabled"])}
+                      :class (css [disabled "disabled"])}
     [:input {:type "checkbox"
              :on-change (wrap-user-event on-change :timeout false)
-             :checked (boolean checked?)}]
+             :checked (boolean checked?)
+             :disabled (boolean disabled)}]
     [FormLabelInfo label :tooltip tooltip :optional optional]]
    (when error
      [:div.ui.red.message error])])
