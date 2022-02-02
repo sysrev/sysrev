@@ -94,7 +94,7 @@
             (is (every? (fn [article-id]
                           (some #(in? % (str article-id)) articles-csv))
                         article-ids))
-            (is (= articles-csv (-> (csv/write-csv articles-csv)
+            (is (= articles-csv (-> (util/write-csv articles-csv)
                                     (csv/parse-csv :strict true)))))
           (finally (project/delete-project project-id)))))))
 
