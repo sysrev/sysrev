@@ -837,7 +837,9 @@
                                   (if (empty? value)
                                     (reset! default-value nil)
                                     (reset! default-value (str/split value #","))))}
-                   errors)])
+                   errors)]
+       
+       [:span])
      (let [error (get-in @errors [:definition :hidden-label?])]
         [:div.field.validatable-label {:class (when error "error")
                                             :style {:width "100%"}}
