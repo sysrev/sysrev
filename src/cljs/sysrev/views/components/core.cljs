@@ -355,18 +355,20 @@
    (cond-> {:type "text"
             :on-change on-change
             :class (css [disabled "disabled"])}
-     (not (nil? default-value)) (merge {:default-value default-value})
-     (and (nil? default-value)
-          (not (nil? value)))
-     (merge {:value (cond-> value
-                      (in? [cljs.core/Atom ratom/RAtom ratom/RCursor ratom/Reaction]
-                           (type value))
-                      (deref))})
-     (not (nil? placeholder)) (merge {:placeholder placeholder})
-     (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
-     (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
-     autofocus (merge {:autoFocus true})
-     read-only (merge {:readOnly true}))])
+     (not (nil? default-value)) (assoc :default-value default-value)
+     (and (nil? default-value) (not (nil? value)))
+     #__ (assoc :value (if (#{cljs.core/Atom
+                              reagent.ratom/RAtom
+                              reagent.ratom/RCursor
+                              reagent.ratom/Reaction}
+                            (type value))
+                         @value
+                         value))
+     (not (nil? placeholder)) (assoc :placeholder placeholder)
+     (not (nil? on-mouse-up)) (assoc :on-mouse-up on-mouse-up)
+     (not (nil? on-mouse-down)) (assoc :on-mouse-down on-mouse-down)
+     autofocus (assoc :autoFocus true)
+     read-only (assoc :readOnly true))])
 
 (defn TextInputField
   "Props:
@@ -393,21 +395,20 @@
     (cond-> {:type "text"
              :on-change on-change
              :class (css [disabled "disabled"])}
-      (not (nil? default-value)) (merge {:default-value default-value})
-      (and (nil? default-value)
-           (not (nil? value)))
-      (merge {:value (if (in? [cljs.core/Atom
+      (not (nil? default-value)) (assoc :default-value default-value)
+      (and (nil? default-value) (not (nil? value)))
+      #__ (assoc :value (if (#{cljs.core/Atom
                                reagent.ratom/RAtom
                                reagent.ratom/RCursor
-                               reagent.ratom/Reaction]
-                              (type value))
-                       @value
-                       value)})
-      (not (nil? placeholder)) (merge {:placeholder placeholder})
-      (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
-      (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
-      autofocus (merge {:autoFocus true})
-      read-only (merge {:readOnly true}))]
+                               reagent.ratom/Reaction}
+                             (type value))
+                          @value
+                          value))
+      (not (nil? placeholder)) (assoc :placeholder placeholder)
+      (not (nil? on-mouse-up)) (assoc :on-mouse-up on-mouse-up)
+      (not (nil? on-mouse-down)) (assoc :on-mouse-down on-mouse-down)
+      autofocus (assoc :autoFocus true)
+      read-only (assoc :readOnly true))]
    (when error
      [:div.ui.red.message error])])
 
