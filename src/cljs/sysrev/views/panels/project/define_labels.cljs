@@ -1259,7 +1259,7 @@
 
 (defn LabelsTable [labels-atom]
   (let [project-id @(subscribe [:active-project-id])
-        is-editin-label? @(subscribe [::is-editing-label?])
+        is-editing-label? @(subscribe [::is-editing-label?])
         label-filters @(subscribe [::get :label-filters])
         self-email @(subscribe [:self/email])
         status-filter-fn (fn [label]
@@ -1318,7 +1318,7 @@
                    ;:cellStyle {:backgroundColor "#eee"}
                    }])
                [{:field "short-label" :title "Name"}]
-               (when (not is-editin-label?)
+               (when (not is-editing-label?)
                  [{:field "value-type" :title "Type"}
                   {:field "consensus" :title "Consensus"}
                   {:field "inclusion" :title "Inclusion"}
@@ -1349,12 +1349,12 @@
      [:div.row
       [:div.column.override-dark
        [:> MaterialTable
-        {:title "Labels "
+        {:title "Labels"
          :components {:Toolbar (fn []
                                 (r/as-element
                                   [:div.ui.attached.stackable
                                    {:style {:padding "5px 10px"}}
-                                   [:h3 "Labels "
+                                   [:h3 "Labels"
                                     [:select.ui.dropdown.MuiTableDropdown
                                      {:style {:margin-left "5px"}
                                       :value (:status label-filters)
