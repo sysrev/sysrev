@@ -1,11 +1,13 @@
 (ns sysrev.label.define
-  (:require [clojure.string :as str]
-            [clojure.set :as set]
-            [bouncer.core :as b]
-            [bouncer.validators :as v :refer [defvalidator]]
-            [honeysql.helpers :as sqlh :refer [select from where]]
-            [sysrev.db.core :as db :refer [do-query]]
-            [sysrev.label.core :as label]))
+  (:require
+   [bouncer.core :as b]
+   [bouncer.validators :as v]
+   [clojure.set :as set]
+   [clojure.string :as str]
+   [honeysql.helpers :as sqlh :refer [from select where]]
+   [sysrev.db.core :as db :refer [do-query]]
+   [sysrev.db.queries :as q]
+   [sysrev.label.core :as label]))
 
 ;; label validations
 
@@ -109,21 +111,28 @@
     [v/every #(contains? (set (:all-values definition)) %)
      :message "Inclusion values must each be present in list of categories"]]})
 
-(defn annotation-definition-validations
-  [_ _]
-  {})
-
-(declare label-validations)
-(declare group)
-
-(defvalidator group
-  [value]
-  (let [sublabels (-> value :labels vals)]
-    (map #(label-validations %) sublabels)))
+(defn short-label-unique? [short-label {:keys [label-id project-id root-label-id-local] :as label}]
+  (if-let [group-label (::group-label label)]
+    (-> group-label :labels vals
+        (->> (map (comp str/trim str/lower-case :short-label)))
+        frequencies
+        (get (str/trim (str/lower-case short-label)))
+        (#(< (or % 0) 2)))
+    (-> (q/find :label {} :label-id
+                :where [:and
+                        (when (uuid? label-id)
+                          [:not= :label-id label-id])
+                        [:= :project-id project-id]
+                        [:= :root-label-id-local root-label-id-local]
+                        [:=
+                         [:trim [:lower :short-label]]
+                         [:trim [:lower short-label]]]])
+        some? not)))
 
 (defn label-validations
   "Given a label, return a validation map for it"
-  [{:keys [value-type required definition label-id global-label-id]}]
+  [{:keys [value-type required definition label-id global-label-id]
+    :as label}]
   {:value-type
    [[v/required
      :message "[Error] Label type is not set"]
@@ -155,20 +164,18 @@
    :short-label [[v/required
                   :message "Display name must be provided"]
                  [v/string
-                  :message "[Error] Invalid value for \"Display Name\""]]
+                  :message "[Error] Invalid value for \"Display Name\""]
+                 [#(short-label-unique? % label)
+                  :message "There is already a label with this name"]]
 
    :required [[boolean-or-nil?
                :message "[Error] Invalid value for \"Required\""]]
-
-   :consensus [#_ [#(not (and (true? %) (false? required)))
-                   :message "Answer must be required when requiring consensus"]]
 
    ;; each value-type has a different definition
    :definition (condp = value-type
                  "boolean" boolean-definition-validations
                  "string" string-definition-validations
                  "categorical" (categorical-definition-validations definition label-id global-label-id)
-                 "annotation" (annotation-definition-validations definition label-id)
                  "group" [[#(label-validations %)]]
                  {})})
 
@@ -192,7 +199,9 @@
   [m]
   (and (b/valid? m (label-validations m))
        (not (nil? (-> m :labels)))
-       (regular-labels-valid? (-> m :labels vals))))
+       (->> m :labels vals
+            (map #(assoc % ::group-label m))
+            regular-labels-valid?)))
 
 (defn group-labels-valid?
   [coll]
@@ -233,9 +242,9 @@
   [m]
   (let [label-id (:label-id m)
         label-validation (regular-label-validated m)
-        labels (-> m :labels vals)
+        labels (->> m :labels vals (map #(assoc % ::group-label m)))
         labels-validation (regular-labels-validated labels)]
-    (if (nil? labels)
+    (if (empty? labels)
       ;; note: because code in define_labels.cljs does a postwalk and looks for :labels
       ;; this must use :labels-error and NOT :labels to avoid this error
       (assoc-in label-validation [label-id :errors :labels-error] '("Group label must include at least one sub label"))
