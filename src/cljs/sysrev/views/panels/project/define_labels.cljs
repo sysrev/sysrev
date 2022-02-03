@@ -1294,7 +1294,6 @@
                                                   (.stopPropagation ev)
                                                   (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
                                      [:> mui/Icon "keyboard_arrow_down"]]]))))
-                   ;:cellStyle {:backgroundColor "#ddd"}
                    :headerStyle {:width "10px"}}
                   {:field "ordering-display-2" :title "#" :width "10px"
                    :defaultSort "asc" :type "numeric"
@@ -1314,15 +1313,12 @@
                                      {:on-click (fn [ev]
                                                   (.stopPropagation ev)
                                                   (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
-                                     [:> mui/Icon "keyboard_arrow_down"]]]))))
-                   ;:cellStyle {:backgroundColor "#eee"}
-                   }])
-               [{:field "short-label" :title "Name"}]
-               (when (not is-editing-label?)
-                 [{:field "value-type" :title "Type"}
-                  {:field "consensus" :title "Consensus"}
-                  {:field "inclusion" :title "Inclusion"}
-                  {:field "required" :title "Required"}]))
+                                     [:> mui/Icon "keyboard_arrow_down"]]]))))}])
+               [{:field "short-label" :title "Name"}
+                {:field "value-type" :title "Type" :hidden is-editing-label?}
+                {:field "consensus" :title "Consensus" :hidden is-editing-label?}
+                {:field "inclusion" :title "Inclusion" :hidden is-editing-label?}
+                {:field "required" :title "Required" :hidden is-editing-label?}])
         rows (->> @labels-atom vals
                   filter-labels
                   (mapcat
@@ -1367,9 +1363,6 @@
          :parentChildData (fn [row rows]
                             (.find ^js rows #(= (.-id ^js %) (.-parentId ^js row))))
          :data (clj->js (sort-by :ordering-display-2 rows))
-         ;; :cellEditable {:onCellEditApproved (fn [new-val old-val row-data column-def]
-         ;;                                      (new js/Promise (fn [res rej]
-         ;;                                                        (res true))))}
          :actions (when self-email
                     [(fn [rowData]
                        (clj->js
