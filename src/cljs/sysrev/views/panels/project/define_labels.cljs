@@ -3,7 +3,7 @@
             [clojure.walk :as walk]
             [medley.core :refer [find-first]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch-sync dispatch reg-sub]]
+            [re-frame.core :refer [subscribe dispatch-sync dispatch reg-event-db reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
             ["@material-ui/core" :as mui]
             ["@insilica-org/material-table" :refer [default] :rename {default MaterialTable}]
@@ -36,6 +36,10 @@
 (setup-panel-state panel [:project :project :labels :edit] :state state
                    :get [panel-get ::get] 
                    :set [panel-set ::set])
+
+(reg-sub      ::error-message #(panel-get % :error-message))
+(reg-event-db ::error-message [trim-v]
+              (fn [db [msg]] (panel-set db :error-message msg)))
 
 (defn find-label [label-id labels]
   (some #(when (= (:label-id %) label-id) %) labels))
@@ -314,7 +318,6 @@
   (action/running? :labels/sync-project-labels))
 
 (defn SaveLabelButton [_label & {:keys [on-click]}]
-  
   [:button.ui.small.fluid.positive.labeled.icon.button
    {:type "submit"
     :class (css [(save-request-active?) "loading"]
@@ -477,7 +480,9 @@
                    (dispatch [::set :editing-label-id nil]))
                ;; update local state (includes error messages)
                (set-local-labels! labels))
-             {}))
+             {})
+  :on-error (fn [{:keys [error]} _ _]
+              {:dispatch-n [[::set [:error-message] (:message error)]]}))
 
 (defn InclusionTag [{:keys [category answer definition value-type]}]
   (let [{:keys [inclusion-values]} definition
@@ -556,7 +561,8 @@
   (label-setting-field-args setting @errors extra))
 
 (defn LabelEditForm [labels-atom root-label-id label]
-  (let [show-error-msg #(when % [:div.ui.red.message %])
+  (let [show-error-msg #(some->> (or % @(subscribe [::error-message]))
+                                 (vector :div.ui.red.message))
         value-type (r/cursor label [:value-type])
         ;;; all types
         ;; required, string
