@@ -30,9 +30,17 @@ done
 scripts/build-css
 
 if [ $compile = true ]; then
-    cd client
-    npx shadow-cljs release prod
-    cd ..
+    changes="$(scripts/find-client-changes)"
+    if [ ! -z "$changes" ] ; then
+        echo "Found client changes:"
+        echo -e "$(echo "$changes" | head -n100)\n"
+        echo -e "Rebuilding client code...\n"
+        cd client
+        npx shadow-cljs release prod
+        cd ..
+    else
+        echo "Client code not changed"
+    fi
 fi
 
 if [ -z $test_id ]; then
