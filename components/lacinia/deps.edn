@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {com.walmartlabs/lacinia {:mvn/version "1.1"}}}

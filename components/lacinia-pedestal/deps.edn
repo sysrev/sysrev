@@ -1,0 +1,19 @@
+{:paths ["src"]
+ :deps {com.walmartlabs/lacinia-pedestal {:mvn/version "1.1"}
+        io.aviso/logging {:mvn/version "1.0"}
+        ;; jetty dependencies have to be explicitly manually versioned, or we
+        ;; end up with strange, undebuggable exceptions
+        org.eclipse.jetty/jetty-alpn-server {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty/jetty-client {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty/jetty-http {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty/jetty-server {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty/jetty-servlet {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty/jetty-util {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty.http2/http2-server {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.44.v20210927"}
+        org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.44.v20210927"}
+
+        poly/component {:local/root "../component"}
+        poly/lacinia {:local/root "../lacinia"}
+        poly/medley {:local/root "../medley"}}}

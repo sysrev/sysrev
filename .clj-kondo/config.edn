@@ -65,6 +65,8 @@
                                         sysrev.init                    init
                                         sysrev.label.core              label
                                         sysrev.label.answer            answer
+                                        sysrev.lacinia.interface       s-lacin
+                                        sysrev.lacinia-pedestal.interface s-l-p
                                         sysrev.nrepl.interface         nrepl
                                         sysrev.postgres.interface      pg
                                         sysrev.project.core            project
