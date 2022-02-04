@@ -70,6 +70,19 @@
   [driver q text & [opt]]
   (core/fill-visible driver q text opt))
 
+(defn has-class?
+  "Checks whether an element has a specific class.
+
+  Automatically retries when a stale element reference exception is thrown.
+
+  Arguments:
+
+  - `driver`: a etaoin driver instance
+  - `q`: a query term (see `etaoin.api/query`)
+  - `class` : a css class string"
+  [driver q class]
+  (core/has-class? driver q class))
+
 (defmacro is-click-visible
   "Asserts that `click-visible` succeeds.
 

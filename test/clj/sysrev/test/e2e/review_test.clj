@@ -44,12 +44,12 @@
           (et/click-visible [{:fn/has-class "label-edit"}
                              {:fn/has-text "Yes"}])
           e/wait-until-loading-completes
-          (-> (ea/has-class? {:fn/has-class "save-labels"} "disabled")
+          (-> (et/has-class? {:fn/has-class "save-labels"} "disabled")
               not is)
           (et/click-visible [{:fn/has-class "label-edit"}
                              {:fn/has-text "?"}])
           e/wait-until-loading-completes
-          (-> (ea/has-class? {:fn/has-class "save-labels"} "disabled")
+          (-> (et/has-class? {:fn/has-class "save-labels"} "disabled")
               is))))))
 
 ;; This was commented out at https://github.com/insilica/systematic_review/blob/6c88a410e51116ee7c1826aa30215fd1994c029a/test/clj/sysrev/test/browser/review_articles.clj#L210

@@ -72,6 +72,9 @@
                :opt (s/? (s/nilable map?)))
   :ret nil?)
 
+(defn has-class? [driver q class]
+  (retry-stale-element #(ea/has-class? driver q class)))
+
 (defmacro is-catch-timeout [form & [msg]]
   `(is
     (try
