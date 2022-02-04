@@ -1,0 +1,3 @@
+;; An empty component providing a common library version
+{:paths []
+ :deps {com.stuartsierra/component {:mvn/version "1.0.0"}}}

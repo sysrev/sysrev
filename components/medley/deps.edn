@@ -1,0 +1,3 @@
+;; An empty component providing a common library version
+{:paths []
+ :deps {medley/medley {:mvn/version "1.3.0"}}}
