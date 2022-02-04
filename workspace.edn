@@ -6,6 +6,7 @@
  :compact-views #{}
  :tag-patterns {:table "stable-*" :release "v[0-9]*" }
  :projects {"datapub" {:alias "dp"}
-            "datapub-importer" {:alias "dpi"}
+            "datapub-importer" {:alias "dp-i"}
             "development" {:alias "dev"}
-            "sysrev" {:alias "sys"}}}
+            "sysrev" {:alias "s"}
+            "sysrev-api" {:alias "s-api"}}}

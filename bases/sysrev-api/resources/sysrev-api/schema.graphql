@@ -1,0 +1,10 @@
+# Guidelines for schema design:
+# https://graphqlmastery.com/blog/graphql-best-practices-for-graphql-schema-design
+
+# *Connection, *Edge, and PageInfo from the GraphQL Cursor Connections Specification:
+# https://relay.dev/graphql/connections.htm
+
+"A DateTime in ISO-8061 instant format, such as \"2011-12-03T10:15:30Z\"."
+scalar DateTime
+scalar NonNegativeInt
+scalar PositiveInt

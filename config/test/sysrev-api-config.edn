@@ -1,0 +1,9 @@
+{:env :dev
+ :pedestal {:port 0}
+ :postgres {:create-if-not-exists? true
+            :embedded? true
+            :dbname "sysrev"
+            :dbtype "postgres"
+            :host "localhost"
+            :port 0
+            :user "postgres"}}

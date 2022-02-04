@@ -34,7 +34,6 @@
         clojure-csv/clojure-csv {:mvn/version "2.0.1"}
 
 ;;; GraphQL
-        com.walmartlabs/lacinia {:mvn/version "1.1"}
         vincit/venia {:mvn/version "0.2.5"}
 
 ;;; Postgres
@@ -89,13 +88,10 @@
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
 
-        poly/config {:local/root "components/config"}
         poly/datapub-client {:local/root "components/datapub-client"}
-        poly/flyway {:local/root "components/flyway"}
         poly/notification {:local/root "components/notification"}
-        poly/nrepl {:local/root "components/nrepl"}
-        poly/postgres {:local/root "components/postgres"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
+        poly/sysrev-api {:local/root "bases/sysrev-api"}
         poly/user {:local/root "components/user"}
         poly/util-lite {:local/root "components/util-lite"}}
  :aliases
