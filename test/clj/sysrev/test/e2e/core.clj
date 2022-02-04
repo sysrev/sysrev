@@ -117,7 +117,8 @@
   (ea/wait-predicate
    (fn []
      (and (ajax-inactive? driver)
-          (not (some #(ea/visible? driver {:css %}) loader-elements-css))))))
+          (not (some #(ea/visible? driver {:css %}) loader-elements-css)))))
+  (Thread/sleep 30))
 
 (defn go [{:keys [driver system]} relative-url]
   {:pre [(map? driver) (not-empty driver)]}
