@@ -778,9 +778,13 @@
               (str/includes? "Windows"))))
 
 #?(:clj (defn linux? []
-          (some-> (System/getProperty "os.name")
-                  (str/lower-case)
-                  (str/includes? "linux"))))
+          (-> (System/getProperty "os.name")
+              (str/lower-case)
+              (str/includes? "linux"))))
+
+#?(:clj (defn mac? []
+          (-> (System/getProperty "os.name")
+              (str/includes? "Mac"))))
 
 #?(:clj (defn temp-dir []
           (str (or (:tmpdir env) (:java-io-tmpdir env))

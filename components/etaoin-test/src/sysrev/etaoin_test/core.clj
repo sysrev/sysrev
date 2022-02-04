@@ -4,7 +4,8 @@
    [clojure.test :refer [is]]
    [etaoin.api :as ea]
    [etaoin.keys :as keys]
-   [sysrev.etaoin-test.interface.spec :as spec])
+   [sysrev.etaoin-test.interface.spec :as spec]
+   [sysrev.util :as util])
   (:import
    (clojure.lang ExceptionInfo)))
 
@@ -27,12 +28,16 @@
 
 (defn clear [driver q & more-qs]
   (doseq [query (cons q more-qs)]
-    (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete)))
+    (if (util/mac?)
+      (ea/fill driver query (keys/with-command \a) keys/backspace)
+      (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete))))
 
 (defn clear-visible [driver q & more-qs]
   (doseq [query (cons q more-qs)]
     (ea/wait-visible driver query)
-    (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete)))
+    (if (util/mac?)
+      (ea/fill driver query (keys/with-command \a) keys/backspace)
+      (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete))))
 
 (s/fdef clear
   :args (s/cat :driver ::spec/driver :queries (s/+ ::spec/query))
