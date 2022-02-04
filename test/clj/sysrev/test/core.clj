@@ -7,6 +7,7 @@
    [com.stuartsierra.component :as component]
    [kaocha.repl :as kr]
    [kaocha.testable :as kt]
+   [kaocha.watch :as kw]
    [medley.core :as medley]
    [next.jdbc :as jdbc]
    [orchestra.spec.test :as st]
@@ -353,10 +354,23 @@
                               (seq (get-tests %)))
                            test-kind-order)
         junit-target (file-util/get-path "target/junit.xml")]
-    (if (empty? test-ids)
+    (cond
+      (empty? test-ids)
       (do
         (log/error "No tests found")
         (System/exit 1))
+
+      (:kaocha/watch? extra-config)
+      (let [[exit-code finish!] (kw/run (kr/config extra-config))]
+        (try
+          @exit-code
+          (catch InterruptedException _
+            (finish!)
+            @exit-code))
+        (swap! test-system #(when % (component/stop %) nil))
+        (System/exit exit-code))
+
+      :else
       (file-util/with-temp-files [junit-files
                                   {:num-files (count test-kinds)
                                    :prefix "junit-"

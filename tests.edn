@@ -1,6 +1,5 @@
 #kaocha/v1
-{:fail-fast? true
- :kaocha.plugin.capture-output/capture-output? true
+{:kaocha.plugin.capture-output/capture-output? true
  :kaocha.plugin.junit-xml/target-file "target/junit.xml"
  :kaocha.plugin.profiling/profiling? false
  :plugins [:kaocha.plugin/junit-xml

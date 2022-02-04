@@ -3,5 +3,5 @@ set -eu
 
 rm -rf target
 
-DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** clj -T:build run-tests
+DBEMBEDDED=true ENV=test SYSREV_DEV_KEY=***REMOVED*** clj -T:build run-tests :fail-fast? true
 

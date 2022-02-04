@@ -41,13 +41,16 @@
       (System/exit 1)))
   opts)
 
-(defn run-tests [{:keys [aliases focus focus-meta] :as opts}]
+(defn run-tests [{:keys [aliases fail-fast? focus focus-meta randomize? watch?] :as opts}]
   (let [extra-config (cond-> {}
+                       fail-fast? (assoc :kaocha/fail-fast? true)
                        focus (assoc :kaocha.filter/focus [focus])
-                       focus-meta (assoc :kaocha.filter/focus-meta [focus-meta]))
+                       focus-meta (assoc :kaocha.filter/focus-meta [focus-meta])
+                       randomize? (assoc :kaocha.plugin.randomize/randomize? randomize?)
+                       watch? (assoc :kaocha/watch? true))
         {:keys [exit]}
         #__ (b/process {:command-args ["clj"
-                                       (str "-X:" (str/join ":" (or aliases [:test])))
+                                       (str "-X" (str/join "" (or aliases [:test])))
                                        "sysrev.test.core/run-tests-cli!"
                                        ":extra-config" (pr-str extra-config)]})]
     (when-not (zero? exit)
