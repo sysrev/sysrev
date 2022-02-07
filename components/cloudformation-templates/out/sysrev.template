@@ -1,0 +1,132 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Conditions" : {
+    "RDSIo1Storage" : {
+      "Fn::Equals" : [ "io1", {
+        "Ref" : "RDSStorageType"
+      } ]
+    }
+  },
+  "Description" : "This template creates the Sysrev AutoScalingGroup.",
+  "Parameters" : {
+    "RDSAllocatedStorage" : {
+      "AllowedPattern" : "[1-9][0-9]+",
+      "Description" : "Minimum allocated storage in GB. Must be at least 20.",
+      "Type" : "String"
+    },
+    "RDSInstanceClass" : {
+      "Type" : "String"
+    },
+    "RDSIops" : {
+      "Default" : 1000,
+      "Description" : "Provisioned Iops for the storage. Only used when RDSStorageType is io1.",
+      "MinValue" : 1000,
+      "Type" : "Number"
+    },
+    "RDSStorageType" : {
+      "AllowedPattern" : "(gp2)|(io1)",
+      "Type" : "String"
+    }
+  },
+  "Resources" : {
+    "RDSInstance" : {
+      "DeletionPolicy" : "Snapshot",
+      "Properties" : {
+        "AllocatedStorage" : {
+          "Ref" : "RDSAllocatedStorage"
+        },
+        "AllowMajorVersionUpgrade" : true,
+        "AutoMinorVersionUpgrade" : true,
+        "BackupRetentionPeriod" : 7,
+        "CopyTagsToSnapshot" : true,
+        "DBInstanceClass" : {
+          "Ref" : "RDSInstanceClass"
+        },
+        "DBInstanceIdentifier" : "sysrev",
+        "DBName" : "sysrev",
+        "DBSubnetGroupName" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-RDSSubnetGroupName"
+        },
+        "DeletionProtection" : true,
+        "EnablePerformanceInsights" : true,
+        "Engine" : "postgres",
+        "EngineVersion" : "11.14",
+        "Iops" : {
+          "Fn::If" : [ "RDSIo1Storage", {
+            "Ref" : "RDSIops"
+          }, {
+            "Ref" : "AWS::NoValue"
+          } ]
+        },
+        "MasterUserPassword" : {
+          "Fn::Sub" : "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}"
+        },
+        "MasterUsername" : {
+          "Fn::Sub" : "{{resolve:secretsmanager:${RDSMasterCredentials}::username}}"
+        },
+        "MaxAllocatedStorage" : 1000,
+        "MultiAZ" : false,
+        "PreferredBackupWindow" : "08:48-09:18",
+        "PreferredMaintenanceWindow" : "Sun:05:57-Sun:06:27",
+        "PubliclyAccessible" : false,
+        "StorageEncrypted" : true,
+        "StorageType" : {
+          "Ref" : "RDSStorageType"
+        },
+        "VPCSecurityGroups" : [ {
+          "Ref" : "RDSSecurityGroup"
+        } ]
+      },
+      "Type" : "AWS::RDS::DBInstance",
+      "UpdateReplacePolicy" : "Snapshot"
+    },
+    "RDSMasterCredentials" : {
+      "Properties" : {
+        "GenerateSecretString" : {
+          "ExcludeCharacters" : "\"@/\\",
+          "GenerateStringKey" : "password",
+          "PasswordLength" : 32,
+          "SecretStringTemplate" : "{\"username\": \"postgres\"}"
+        },
+        "KmsKeyId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-CredentialsKeyId"
+        }
+      },
+      "Type" : "AWS::SecretsManager::Secret"
+    },
+    "RDSSecurityGroup" : {
+      "Properties" : {
+        "GroupDescription" : "Sysrev RDS Instances",
+        "SecurityGroupIngress" : [ {
+          "FromPort" : 5432,
+          "IpProtocol" : "tcp",
+          "SourceSecurityGroupId" : {
+            "Ref" : "SysrevSecurityGroup"
+          },
+          "ToPort" : 5432
+        } ],
+        "VpcId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
+        }
+      },
+      "Type" : "AWS::EC2::SecurityGroup"
+    },
+    "SysrevSecurityGroup" : {
+      "Properties" : {
+        "GroupDescription" : "Sysrev Servers",
+        "SecurityGroupIngress" : [ {
+          "FromPort" : 4041,
+          "IpProtocol" : "tcp",
+          "SourceSecurityGroupId" : {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerSecurityGroupId"
+          },
+          "ToPort" : 4041
+        } ],
+        "VpcId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
+        }
+      },
+      "Type" : "AWS::EC2::SecurityGroup"
+    }
+  }
+}
