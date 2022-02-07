@@ -151,7 +151,7 @@
                           [:= :root-label-id-local root-label-id-local]]))
       (q/modify :label {:label-id label-id}
                 (-> (assoc values-map :project-ordering ordering)
-                    (select-keys #{:category :consensus :definition :name :question :required :short-label :value-type})))
+                    (select-keys #{:category :consensus :definition :enabled :name :project-ordering :question :required :short-label :value-type})))
       ;; Update shared labels
       (let [shared-in-project-ids (map :project-id (-> (select :%distinct.project-id)
                                                        (from :label)
