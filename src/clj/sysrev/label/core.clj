@@ -151,22 +151,16 @@
                           [:= :root-label-id-local root-label-id-local]]))
       (q/modify :label {:label-id label-id}
                 (-> (assoc values-map :project-ordering ordering)
-                    (dissoc :label-id :project-id :owner-project-id :global-label-id)))
+                    (select-keys #{:category :consensus :definition :name :question :required :short-label :value-type})))
       ;; Update shared labels
       (let [shared-in-project-ids (map :project-id (-> (select :%distinct.project-id)
                                                        (from :label)
                                                        (where [:= :global-label-id label-id])
                                                        do-query))]
         (q/modify :label {:global-label-id label-id}
-                  (-> values-map
-                      (dissoc :label-id
-                              :label-id-local
-                              :enabled
-                              :project-id
-                              :owner-project-id
-                              :global-label-id
-                              :project-ordering
-                              :root-label-id-local)))
+                  (select-keys
+                   values-map
+                   #{:category :consensus :definition :name :question :required :short-label :value-type}))
         (mapv db/clear-project-cache shared-in-project-ids)))))
 
 (defn set-project-ordering-sequence
