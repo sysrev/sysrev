@@ -217,15 +217,6 @@
                          (and (keyword? %) (util/parse-integer (name %)))
                          (name)))))
 
-(defn sanitize-labels2
-  "Sanitize input from the label editor."
-  [m]
-  (-> (sanitize-labels m)
-      (medley/map-vals
-       (fn [{:keys [labels] :as label}]
-         (cond-> (select-keys label [:category :consensus :definition :enabled :global-label-id :label-id :label-id-local :name :owner-project-id :project-id :project-ordering :question :required :root-label-id-local :short-label :value-type])
-           (seq labels) (update :labels (sanitize-labels2 labels)))))))
-
 (defn article-user-labels-map [article-id]
   (-> (q/select-article-by-id article-id [:al.* :l.enabled])
       (q/join-article-labels)

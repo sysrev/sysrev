@@ -131,8 +131,7 @@
 
 (defn label-validations
   "Given a label, return a validation map for it"
-  [{:keys [value-type required definition label-id global-label-id]
-    :as label}]
+  [{:keys [value-type required definition label-id global-label-id]}]
   {:value-type
    [[v/required
      :message "[Error] Label type is not set"]
@@ -164,9 +163,7 @@
    :short-label [[v/required
                   :message "Display name must be provided"]
                  [v/string
-                  :message "[Error] Invalid value for \"Display Name\""]
-                 [#(short-label-unique? % label)
-                  :message "There is already a label with this name"]]
+                  :message "[Error] Invalid value for \"Display Name\""]]
 
    :required [[boolean-or-nil?
                :message "[Error] Invalid value for \"Required\""]]
@@ -200,7 +197,6 @@
   (and (b/valid? m (label-validations m))
        (not (nil? (-> m :labels)))
        (->> m :labels vals
-            (map #(assoc % ::group-label m))
             regular-labels-valid?)))
 
 (defn group-labels-valid?
@@ -242,7 +238,7 @@
   [m]
   (let [label-id (:label-id m)
         label-validation (regular-label-validated m)
-        labels (->> m :labels vals (map #(assoc % ::group-label m)))
+        labels (->> m :labels vals)
         labels-validation (regular-labels-validated labels)]
     (if (empty? labels)
       ;; note: because code in define_labels.cljs does a postwalk and looks for :labels

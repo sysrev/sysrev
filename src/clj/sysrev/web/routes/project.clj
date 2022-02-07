@@ -568,7 +568,7 @@
           (with-authorize request {:roles ["admin"]}
             (api/sync-labels
              (active-project request)
-             (-> request :body :labels label/sanitize-labels2)))))
+             (-> request :body :labels label/sanitize-labels)))))
 
 (dr (POST "/api/get-label-share-code" request
           (with-authorize request {:roles ["admin"]}
