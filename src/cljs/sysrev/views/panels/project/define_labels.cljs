@@ -647,7 +647,7 @@
      (when (= @value-type "string")
        [ui/TextInputField
         (make-args :regex
-                   {:default-value (or (not-empty (first @regex)) "")
+                   {:value (or (not-empty (first @regex)) "")
                     :disabled (not is-owned?)
                     :on-change (util/on-event-value
                                  #(reset! regex (some-> % str/trim not-empty vector)))}
@@ -656,38 +656,38 @@
      (when (= @value-type "string")
        [ui/TextInputField
         (make-args :examples
-                   {:default-value (str/join "," @examples)
+                   {:value (str/join "," @examples)
                     :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! examples nil)
-                                    (reset! examples (str/split value #","))))}
+                                    (reset! examples (str/split value #"," -1))))}
                    errors)])
      (when (= @value-type "categorical")
        ;; FIX: whitespace not trimmed from input strings;
        ;; need to run db migration to fix all existing values
        [ui/TextInputField
         (make-args :all-values
-                   {:default-value (str/join "," @all-values)
+                   {:value (str/join "," @all-values)
                     :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! all-values nil)
-                                    (reset! all-values (str/split value #","))))}
+                                    (reset! all-values (str/split value #"," -1))))}
                    errors)])
      (when (= @value-type "annotation")
        ;; FIX: whitespace not trimmed from input strings;
        ;; need to run db migration to fix all existing values
        [ui/TextInputField
         (make-args :all-values
-                   {:default-value (str/join "," @all-values)
+                   {:value (str/join "," @all-values)
                     :label "Entities (comma-separated options)"
                     :tooltip ["Entities to annotate."]
                     :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! all-values nil)
-                                    (reset! all-values (str/split value #","))))}
+                                    (reset! all-values (str/split value #"," -1))))}
                    errors)])
 
      
@@ -822,14 +822,14 @@
        "categorical"
        [ui/TextInputField
         (make-args :default-value
-                   {:default-value (str/join "," @default-value)
+                   {:value (str/join "," @default-value)
                     :display "Default label value (comma-separated)"
                     :prompt "Comma separated default values" 
                     :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! default-value nil)
-                                    (reset! default-value (str/split value #","))))}
+                                    (reset! default-value (str/split value #"," -1))))}
                    errors)]
        
        "string"
@@ -842,7 +842,7 @@
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! default-value nil)
-                                    (reset! default-value (str/split value #","))))}
+                                    (reset! default-value (str/split value #"," -1))))}
                    errors)]
        
        [:span])
