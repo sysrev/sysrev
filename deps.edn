@@ -91,6 +91,7 @@
         poly/notification {:local/root "components/notification"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
         poly/sysrev-api {:local/root "bases/sysrev-api"}
+        poly/sysrev-api-client {:local/root "components/sysrev-api-client"}
         poly/user {:local/root "components/user"}
         poly/util-lite {:local/root "components/util-lite"}}
  :aliases

@@ -74,6 +74,7 @@
                                         sysrev.slack                   slack
                                         sysrev.source.core             source
                                         sysrev.source.import           import
+                                        sysrev.sysrev-api-client.interface.queries sacq
                                         sysrev.user.core               user
                                         sysrev.util                    util
                                         sysrev.util-lite.interface     ul
