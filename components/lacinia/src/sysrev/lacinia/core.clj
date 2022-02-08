@@ -1,5 +1,6 @@
 (ns sysrev.lacinia.core
   (:require
+   [clojure.string :as str]
    [com.walmartlabs.lacinia.constants :as constants]
    [com.walmartlabs.lacinia.executor :as executor]
    [com.walmartlabs.lacinia.selection :as selection]
@@ -28,6 +29,12 @@
     (instance? Timestamp datetime)
     (serialize-DateTime (.toInstant ^Timestamp datetime))))
 
+(defn parse-NonBlankString [x]
+  (cond
+    (not (string? x)) (throw (ex-info "Must be a string." {:value x}))
+    (str/blank? x) (throw (ex-info "Must not be blank." {:value x}))
+    :else x))
+
 (defn parse-NonNegativeInt [x]
   (if (nat-int? x)
     x
@@ -44,6 +51,9 @@
   {:DateTime
    {:parse #'parse-DateTime
     :serialize #'serialize-DateTime}
+   :NonBlankString
+   {:parse #'parse-NonBlankString
+    :serialize identity}
    :NonNegativeInt
    {:parse #'parse-NonNegativeInt
     :serialize identity}
