@@ -11,9 +11,11 @@
   core/error-logging-interceptor)
 
 (defn graphiql-ide-handler
-  "Returns a vector of interceptors for a GraphiQL IDE."
-  [request]
-  (core/graphiql-ide-handler request))
+  "Returns a vector of interceptors for a GraphiQL IDE.
+
+  `opts`: A map of options passed to `com.walmartlabs.lacinia.pedestal2/graphiql-ide-handler`"
+  [opts]
+  (core/graphiql-ide-handler opts))
 
 (defn pedestal
   "Returns a Pedestal component implementing

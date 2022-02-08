@@ -22,11 +22,14 @@
    [medley.core :as medley]
    [ring.util.request :as rur]))
 
-(defn graphiql-ide-handler [request]
-  ((pedestal2/graphiql-ide-handler
-    {:ide-connection-params
-     {:authorization (get-in request [:headers "authorization"])}})
-   request))
+(defn graphiql-ide-handler [opts]
+  (fn [request]
+    ((pedestal2/graphiql-ide-handler
+      (medley/deep-merge
+       {:ide-connection-params
+        {:authorization (get-in request [:headers "authorization"])}}
+       opts))
+     request)))
 
 (def body-data-interceptor
   (interceptor/interceptor

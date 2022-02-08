@@ -5,7 +5,7 @@
    [datapub.dataset :as dataset]
    [datapub.graphql :as graphql]
    [io.pedestal.http :as http]
-   [sysrev.lacinia-pedestal.interface :as s-l-p]
+   [sysrev.lacinia-pedestal.interface :as slp]
    [taoensso.timbre :as t]
    [clojure.spec.alpha :as s]))
 
@@ -32,7 +32,7 @@
         app-context {:opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
-                                 s-l-p/error-logging-interceptor]
+                                 slp/error-logging-interceptor]
         download-interceptors (conj json-error-interceptors
                                     #(dataset/download-DatasetEntity-content
                                       (assoc app-context :request %)
@@ -42,7 +42,7 @@
                         json-error-interceptors
                         :route-name ::graphql-api-cors-preflight]
                        ["/api"
-                        :post (s-l-p/api-interceptors compiled-schema app-context)
+                        :post (slp/api-interceptors compiled-schema app-context)
                         :route-name ::graphql-api]
                        ["/download/DatasetEntity/content/:entity-id/:content-hash"
                         :get download-interceptors
@@ -62,7 +62,7 @@
                        ["/ide"
                         :get
                         (conj json-error-interceptors
-                              s-l-p/graphiql-ide-handler)
+                              (slp/graphiql-ide-handler {}))
                         :route-name ::graphiql-ide]
                        ["/throw-exception"
                         :post
@@ -83,8 +83,8 @@
          graphql/load-schema
          {:app-context app-context
           :subscription-interceptors
-          #__ (s-l-p/subscription-interceptors compiled-schema app-context)
+          #__ (slp/subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
 (defn pedestal []
-  (s-l-p/pedestal service-map))
+  (slp/pedestal service-map))
