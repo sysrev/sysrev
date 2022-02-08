@@ -1,4 +1,4 @@
-{:env :dev
+{:env :test
  :pedestal {:port 0}
  :postgres {:create-if-not-exists? true
             :embedded? true

@@ -3,7 +3,7 @@
    [clojure.core.async :refer [chan]]
    [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
    [io.pedestal.http :as http]
-   [sysrev.lacinia-pedestal.interface :as s-l-p]
+   [sysrev.lacinia-pedestal.interface :as slp]
    [sysrev.sysrev-api.graphql :as graphql]))
 
 (defn allowed-origins [env]
@@ -21,13 +21,13 @@
         app-context {:opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
-                                 s-l-p/error-logging-interceptor]
-        routes (into #{["/api"
+                                 slp/error-logging-interceptor]
+        routes (into #{["/"
                         :options
                         json-error-interceptors
                         :route-name ::graphql-api-cors-preflight]
-                       ["/api"
-                        :post (s-l-p/api-interceptors compiled-schema app-context)
+                       ["/"
+                        :post (slp/api-interceptors compiled-schema app-context)
                         :route-name ::graphql-api]
                        ["/health"
                         :get
@@ -37,7 +37,7 @@
                        ["/ide"
                         :get
                         (conj json-error-interceptors
-                              s-l-p/graphiql-ide-handler)
+                              (slp/graphiql-ide-handler {:api-path "/"}))
                         :route-name ::graphiql-ide]}
                      (pedestal2/graphiql-asset-routes "/assets/graphiql"))]
     (-> {:env env
@@ -53,8 +53,8 @@
          graphql/load-schema
          {:app-context app-context
           :subscription-interceptors
-          #__ (s-l-p/subscription-interceptors compiled-schema app-context)
+          #__ (slp/subscription-interceptors compiled-schema app-context)
           :values-chan-fn #(chan 10)}))))
 
 (defn pedestal []
-  (s-l-p/pedestal service-map))
+  (slp/pedestal service-map))

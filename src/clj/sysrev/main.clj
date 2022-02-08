@@ -11,6 +11,8 @@
    [sysrev.postgres.core :as pg]
    [sysrev.scheduler.core :as scheduler]
    [sysrev.sente :as sente]
+   [sysrev.sysrev-api.main]
+   [sysrev.sysrev-api.pedestal]
    [sysrev.web.core :as web]))
 
 (defrecord PostgresRunAfterStart [done?]
@@ -36,8 +38,8 @@
 (defn system-map [& {:keys [config postgres-overrides]}]
   (component/system-map
    :config (-> config :postgres
-                 (merge postgres-overrides)
-                 (->> (assoc config :postgres)))
+               (merge postgres-overrides)
+               (->> (assoc config :postgres)))
    :postgres (component/using (pg/postgres) [:config])
    :postgres-run-after-start (component/using
                               (postgres-run-after-start)
@@ -46,18 +48,23 @@
                        (listeners/listener)
                        [:postgres :sente])
    :scheduler (component/using
-                (if (#{:test :remote-test} (:profile env))
-                  (scheduler/mock-scheduler)
-                  (scheduler/scheduler))
+               (if (#{:test :remote-test} (:profile env))
+                 (scheduler/mock-scheduler)
+                 (scheduler/scheduler))
                [:config :postgres])
    :sente (component/using
            (sente/sente :receive-f sente/receive-sente-channel!)
            [:config :postgres])
+   :sysrev-api-config (sysrev.sysrev-api.main/get-config)
+   :sysrev-api-pedestal (component/using
+                         (sysrev.sysrev-api.pedestal/pedestal)
+                         {:config :sysrev-api-config
+                          :postgres :postgres})
    :web-server (component/using
                 (web/web-server
                  :handler-f web/sysrev-handler
                  :port (-> config :server :port))
-                [:config :postgres :sente])))
+                [:config :postgres :sente :sysrev-api-pedestal])))
 
 (defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."
