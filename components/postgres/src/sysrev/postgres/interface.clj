@@ -18,6 +18,13 @@
   [connectable sqlmap]
   (core/execute-one! connectable sqlmap))
 
+(defn jsonb-pgobject
+  "Returns a jsonb-type `org.postgresql.util.PGobject` representing `x`.
+
+  `x` will be JSON-encoded by `cheshire.core/generate-string`."
+  [x]
+  (core/jsonb-pgobject x))
+
 (defn plan
   "General SQL execution function (for working with result sets).
 

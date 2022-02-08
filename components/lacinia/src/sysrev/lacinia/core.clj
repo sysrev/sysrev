@@ -1,4 +1,9 @@
 (ns sysrev.lacinia.core
+  (:require
+   [com.walmartlabs.lacinia.constants :as constants]
+   [com.walmartlabs.lacinia.executor :as executor]
+   [com.walmartlabs.lacinia.selection :as selection]
+   [medley.core :as medley])
   (:import
    (java.sql Timestamp)
    (java.time Instant)
@@ -51,3 +56,21 @@
 
 (defn resolve-value [_ _ value]
   value)
+
+(defn current-selection-names [context]
+  (-> context
+      executor/selection
+      (or (get-in context [constants/parsed-query-key :selections 0]))
+      selection/selections
+      (->> (map (comp selection/field-name selection/field)))
+      set))
+
+(defn denamespace-keys [map-or-seq]
+  (cond (map? map-or-seq) (medley/map-keys (comp keyword name) map-or-seq)
+        (sequential? map-or-seq) (map denamespace-keys map-or-seq)))
+
+(defn remap-keys [key-f map-or-seq]
+  (cond (map? map-or-seq) (->> map-or-seq
+                               denamespace-keys
+                               (medley/map-keys key-f))
+        (sequential? map-or-seq) (map (partial remap-keys key-f) map-or-seq)))

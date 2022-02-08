@@ -1,35 +1,29 @@
 (ns datapub.dataset
-  (:require [cheshire.core :as json]
-            [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
-            [com.walmartlabs.lacinia.constants :as constants]
-            [com.walmartlabs.lacinia.executor :as executor]
-            [com.walmartlabs.lacinia.resolve :as resolve]
-            [com.walmartlabs.lacinia.selection :as selection]
-            [datapub.file :as file]
-            [hasch.core :as hasch]
-            [medley.core :as me]
-            [next.jdbc :as jdbc]
-            [sysrev.file-util.interface :as file-util]
-            [sysrev.pdf-read.interface :as pdf-read]
-            [sysrev.postgres.interface :as pg]
-            [sysrev.tesseract.interface :as tesseract])
-  (:import java.awt.image.BufferedImage
-           [java.io InputStream IOException]
-           java.nio.file.Path
-           java.sql.Timestamp
-           [java.time Instant ZoneId]
-           java.time.format.DateTimeFormatter
-           java.util.Base64
-           org.apache.commons.io.IOUtils
-           org.postgresql.jdbc.PgArray
-           org.postgresql.util.PGobject))
-
-(defn jsonb-pgobject [x]
-  (doto (PGobject.)
-    (.setType "jsonb")
-    (.setValue (json/generate-string x))))
+  (:require
+   [cheshire.core :as json]
+   [clojure.edn :as edn]
+   [clojure.java.io :as io]
+   [clojure.string :as str]
+   [com.walmartlabs.lacinia.resolve :as resolve]
+   [datapub.file :as file]
+   [hasch.core :as hasch]
+   [medley.core :as me]
+   [next.jdbc :as jdbc]
+   [sysrev.file-util.interface :as file-util]
+   [sysrev.lacinia.interface :as sl]
+   [sysrev.pdf-read.interface :as pdf-read]
+   [sysrev.postgres.interface :as pg]
+   [sysrev.tesseract.interface :as tesseract])
+  (:import
+   (java.awt.image BufferedImage)
+   (java.io InputStream IOException)
+   (java.nio.file Path)
+   (java.sql Timestamp)
+   (java.time Instant ZoneId)
+   (java.time.format DateTimeFormatter)
+   (java.util Base64)
+   (org.apache.commons.io IOUtils)
+   (org.postgresql.jdbc PgArray)))
 
 (defn sysrev-dev? [context]
   (let [auth (-> context :request :headers (get "authorization")
@@ -52,26 +46,6 @@
 
 (defn plan [context sqlmap]
   (pg/plan (:tx context) sqlmap))
-
-(defn current-selection-names [context]
-  (-> context
-      executor/selection
-      (or (get-in context [constants/parsed-query-key :selections 0]))
-      selection/selections
-      (->> (map (comp selection/field-name selection/field)))
-      set))
-
-(defn denamespace-keys [map-or-seq]
-  (cond (map? map-or-seq) (me/map-keys (comp keyword name) map-or-seq)
-        (sequential? map-or-seq) (map denamespace-keys map-or-seq)))
-
-(defn remap-keys
-  "Removes namespaces from keys and remaps the keys by key-f."
-  [key-f map-or-seq]
-  (cond (map? map-or-seq) (->> map-or-seq
-                               denamespace-keys
-                               (me/map-keys key-f))
-        (sequential? map-or-seq) (map (partial remap-keys key-f) map-or-seq)))
 
 (defn public-dataset? [context id]
   (-> context
@@ -108,10 +82,10 @@
     (with-tx-context [context context]
       (when-not (public-dataset? context id)
         (ensure-sysrev-dev context))
-      (let [ks (conj (current-selection-names context) :id)
+      (let [ks (conj (sl/current-selection-names context) :id)
             select (keep cols ks)]
         (-> (when (seq select)
-              (remap-keys
+              (sl/remap-keys
                inv-cols
                (execute-one!
                 context
@@ -197,7 +171,7 @@
        (resolve/resolve-as nil {:message "Invalid cursor."
                                 :cursor after})
        (with-tx-context [context context]
-         (let [ks (current-selection-names context)
+         (let [ks (sl/current-selection-names context)
                ct (when (:totalCount ks)
                     (count-f {:context context}))
                limit (inc (min 100 (or first* 100)))
@@ -299,7 +273,7 @@
       (assoc :mediaType "application/json"))))
 
   (defn resolve-dataset-entity [context {:keys [id]} _]
-    (let [ks (conj (current-selection-names context) :dataset-id)]
+    (let [ks (conj (sl/current-selection-names context) :dataset-id)]
       (with-tx-context [context context]
         (some->
          (if (some #{:content :contentUrl :mediaType :metadata} ks)
@@ -317,7 +291,7 @@
              :from :entity
              :where [:= :id id]}))
          (as-> $
-             (remap-keys #(inv-cols % %) $)
+             (sl/remap-keys #(inv-cols % %) $)
            (assoc $
                   :id id
                   :contentUrl
@@ -527,12 +501,12 @@
                    {:insert-into content-table
                     :values
                     [(if (= :content-json content-table)
-                       {:content (jsonb-pgobject content)
+                       {:content (pg/jsonb-pgobject content)
                         :content-id {:select :id :from :content}
                         :hash content-hash}
                        {:content-hash content-hash
                         :content-id {:select :id :from :content}
-                        :data (jsonb-pgobject data)
+                        :data (pg/jsonb-pgobject data)
                         :file-hash file-hash
                         :media-type mediaType})]}]]
                  :insert-into :entity

@@ -6,7 +6,6 @@
 
 ;;; Force versions of indirect dependencies
         com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.1"}
-        cheshire/cheshire {:mvn/version "5.10.2"}
         commons-io/commons-io {:mvn/version "2.11.0"}
         commons-codec/commons-codec {:mvn/version "1.15"}
         org.apache.commons/commons-compress {:mvn/version "1.21"}
