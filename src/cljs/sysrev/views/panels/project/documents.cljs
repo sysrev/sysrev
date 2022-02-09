@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [cljs-time.core :as t]
             [cljs-time.coerce :refer [from-date]]
+            [goog.string]
             [re-frame.core :refer
              [subscribe dispatch reg-event-db reg-sub trim-v]]
             [sysrev.state.ui :refer [set-panel-field]]

@@ -33,12 +33,12 @@
    :filters (extract-filters-from-url url-filter)})
 
 (defmethod import-source :project-filter
-  [request _x project-id {:keys [source-project-id url-filter]} & {:as options}]
+  [request source-type project-id {:keys [source-project-id url-filter]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :url-filter]) url-filter))
                 (filter #(= (get-in % [:meta :source-project-id]) source-project-id))))
     (do (log/warnf "import-source %s - source exists: %s"
-                   _x (pr-str {:source-project-id source-project-id :url-filter url-filter}))
+                   source-type (pr-str {:source-project-id source-project-id :url-filter url-filter}))
         {:error {:message (format "%s already imported"
                                   (pr-str {:source-project-id source-project-id
                                            :url-filter url-filter}))}})
@@ -58,8 +58,8 @@
         (let [{:keys [article-type article-subtype]} (first types)]
           (import-source-impl
            request project-id
-           (source/make-source-meta _x {:source-project-id source-project-id
-                                        :url-filter url-filter})
+           (source/make-source-meta source-type {:source-project-id source-project-id
+                                                 :url-filter url-filter})
            {:types {:article-type article-type :article-subtype article-subtype}
             :get-article-refs (constantly articles)
             :get-articles identity}

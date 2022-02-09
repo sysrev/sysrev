@@ -6,6 +6,14 @@ let
   };
   pkgs = import nixpkgs {};
   inherit (pkgs) fetchurl lib stdenv;
+  clj-kondo = pkgs.clj-kondo.overrideAttrs( oldAttrs: rec {
+    pname = "clj-kondo";
+    version = "2022.01.15";
+    src = fetchurl {
+      url = "https://github.com/clj-kondo/${pname}/releases/download/v${version}/${pname}-${version}-standalone.jar";
+      sha256 = "0hfdl9har8albi7xxclainlvll5vhvssgifdyi5i2sq65q5rsm5k";
+    };
+  });
   jdk = pkgs.openjdk8;
 in with pkgs;
 mkShell {
@@ -34,7 +42,7 @@ mkShell {
     export POSTGRES_DIRECTORY="${postgresql_13}"
     rm chrome
     ln -s ${chromium}/bin/chromium chrome
-    rm scripts/clj-kondo
+    rm -f scripts/clj-kondo
     ln -s ${clj-kondo}/bin/clj-kondo scripts/
   '';
 }

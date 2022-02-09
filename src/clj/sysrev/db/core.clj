@@ -433,8 +433,8 @@
              count)
          (finally (close-active-db)))))
 
-(defmethod sqlf/fn-handler "textmatch" [_ a b & _more]
-  (assert (nil? _more))
+(defmethod sqlf/fn-handler "textmatch" [_ a b & more]
+  (assert (nil? more))
   (str (sqlf/to-sql-value a) " @@ " (sqlf/to-sql-value b)))
 
 (defn notify! [topic & [^String x]]

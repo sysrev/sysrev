@@ -1,4 +1,5 @@
 {:linters {:redefined-var {:level :off}
+           :reduce-without-init {:level :error}
            :redundant-do {:level :off}
            :refer-all {:level :off}
            :use {:level :off}
@@ -18,6 +19,8 @@
                                 (compojure.core/DELETE nil)
                                 (compojure.core/context nil)
                                 (bouncer.validators/defvalidator nil)
+                                ;; New in clojure 1.11
+                                abs
                                 ;; ignore unresolved symbols from setup-panel-state macro
                                 panel-get panel-set]}
            :unused-binding {:exclude-destructured-keys-in-fn-args true}
@@ -27,6 +30,7 @@
                                         sysrev.util]}
            :unused-referred-var {:exclude {clojure.test [is deftest testing]
                                            re-frame.core [dispatch subscribe]}}
+           :used-underscored-binding {:level :error}
            :consistent-alias {:aliases {
 ;;; clojure api namespaces
                                         clojure.data.json              json

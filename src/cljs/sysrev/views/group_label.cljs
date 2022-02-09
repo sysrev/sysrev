@@ -140,8 +140,8 @@
      (assoc-in article-labels-cursor reordered-modified-labels))))
 
 (reg-event-fx :review/delete-group-label-instance
-              (fn [{:keys [db]} [_ article-id root-label-id ith]]
-                {:db (delete-label-instance db [_ article-id root-label-id ith])}))
+              (fn [{:keys [db]} [query-id article-id root-label-id ith]]
+                {:db (delete-label-instance db [query-id article-id root-label-id ith])}))
 
 (defn on-key-down-listener [e]
   (when (= "Tab" (.-code e))

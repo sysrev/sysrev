@@ -77,16 +77,16 @@
       (do (log/warn "import-source RIS - non-empty filename-sources: " filename-sources)
           {:error {:message (str filename " already imported")}})
       ;; attempt to create a RIS citation
-      (let [{:keys [status] :as _response}
+      (let [{:keys [status] :as response}
             (ds-api/create-ris-file {:file file :filename filename})
-            {:keys [status body] :as _response}
+            {:keys [status body]}
             (if (= status 200)
-              _response
+              response
               (do (log/warnf "import-source :ris - parsing failed for original file\n%s"
-                             (select-keys _response [:status :body]))
+                             (select-keys response [:status :body]))
                   (ds-api/create-ris-file {:file (make-corrected-ris-file file)
                                            :filename filename})))
-            {:keys [hash error #_ reason]} body]
+            {:keys [hash error]} body]
         (if (not= status 200)
           (do (log-slack-custom [(format "*RIS file import failed*:\n```%s```"
                                          (util/pp-str {:project-id project-id

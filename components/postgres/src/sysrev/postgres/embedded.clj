@@ -5,7 +5,7 @@
 
 (def binary-resolver
   (reify PgBinaryResolver
-    (^java.io.InputStream getPgBinary [this ^String system ^String machine-hardware]
+    (^java.io.InputStream getPgBinary [_this ^String system ^String machine-hardware]
      (-> (format "postgres-%s-%s.txz" system machine-hardware)
          str/lower-case
          io/resource
@@ -13,7 +13,7 @@
 
 (def directory-resolver
   (reify PgDirectoryResolver
-    (getDirectory [this _override-working-directory]
+    (getDirectory [_this _override-working-directory]
       (io/file (System/getenv "POSTGRES_DIRECTORY")))))
 
 (defn ^EmbeddedPostgres$Builder embedded-pg-builder [port]

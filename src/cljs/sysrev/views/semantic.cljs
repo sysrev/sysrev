@@ -1,5 +1,6 @@
 (ns sysrev.views.semantic
   (:require ["semantic-ui-react" :as S]
+            [goog.object]
             [reagent.core :as r]))
 
 ;; from https://gist.github.com/TimoKramer/7e93758afb81dcad985fafccc613153a

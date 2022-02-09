@@ -35,10 +35,10 @@
   https://impossibl.github.io/pgjdbc-ng/docs/0.8.7/user-guide/#extensions-notifications"
   [f closed-f conn]
   (reify PGNotificationListener
-    (notification [this process-id channel-name payload]
+    (notification [_this process-id channel-name payload]
       (binding [*conn* conn]
         (f process-id channel-name payload)))
-    (closed [this]
+    (closed [_this]
       (closed-f))))
 
 (defn- register-listener [f closed-f conn channel-names]

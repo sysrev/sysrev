@@ -96,9 +96,7 @@
                          :with [], :limit 100, :return :query) :sub])
                  (order-by [:last-assigned :nulls-first] :%random)
                  (limit 30) do-query seq)
-             (reduce (fn [a b] (if (> (Math/abs (- (or (:val a) 0.0) 0.5))
-                                      (Math/abs (- (or (:val b) 0.0) 0.5)))
-                                 b a)))
+             (apply min-key #(abs (- (or (:val %) 0.0) 0.5)))
              :article-id)
     (query-any-unlabeled-article project-id)))
 

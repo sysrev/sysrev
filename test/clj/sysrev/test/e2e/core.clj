@@ -7,6 +7,7 @@
    [clojure.tools.logging :as log]
    [etaoin.api :as ea]
    [me.raynes.fs :as fs]
+   [remvee.base64 :as base64]
    [sysrev.config :refer [env]]
    [sysrev.etaoin-test.interface :as et]
    [sysrev.test.core :as test]
@@ -14,6 +15,11 @@
   (:import
    (java.net URL URLDecoder)
    (java.util Date)))
+
+(defn bytes->base64
+  "Returns a base64-encoded string corresponding to `bytes`."
+  ^String [^bytes bytes]
+  (apply str (base64/encode bytes)))
 
 ;; for REPL evaluation
 (def run-headless? (constantly false))
@@ -279,7 +285,7 @@
 (defn dropzone-upload
   "Given a filename, upload it to dropzone"
   [driver filename]
-  (let [base64-file (-> filename io/resource io/file util/slurp-bytes util/bytes->base64)
+  (let [base64-file (-> filename io/resource io/file util/slurp-bytes bytes->base64)
         upload-blob-js (when (seq base64-file)
                          (str "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e}); c.name='" (fs/base-name filename) "'; return c} "
                               (format "return sysrev.util.add_dropzone_file_blob(base64toBlob, '%s');" base64-file)))]
