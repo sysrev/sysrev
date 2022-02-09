@@ -922,14 +922,13 @@
                     [:div [LabelEditForm labels @root-label-id
                            (r/cursor labels [(:label-id label)])]]))]))
       [Divider]
-      (when is-owned?
-        [:div.ui.one.column.stackable.grid
-         [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)
-                             (max-group-label-ordering @root-label-id)]]
-         [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels)
-                             (max-group-label-ordering @root-label-id)]]
-         [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels)
-                             (max-group-label-ordering @root-label-id)]]])]
+      [:div.ui.one.column.stackable.grid
+       [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)
+                           (max-group-label-ordering @root-label-id)]]
+       [:div.column.group [AddLabelButton "categorical" (partial add-new-group-label! labels)
+                           (max-group-label-ordering @root-label-id)]]
+       [:div.column.group [AddLabelButton "string" (partial add-new-group-label! labels)
+                           (max-group-label-ordering @root-label-id)]]]]
      [:div.field {:style {:margin-bottom "0.75em"}}
       (when is-owned?
         [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
