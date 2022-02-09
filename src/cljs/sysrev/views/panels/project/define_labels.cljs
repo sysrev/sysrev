@@ -360,11 +360,15 @@
            [:div.ui.active.dimmer
             [:div.ui.loader]]])
         [ModalDescription
-         [Button {:primary true
-                  :on-click (util/wrap-prevent-default
-                              #(reset! modal-open false))
-                  :id "close-share-label-btn"}
-          "OK"]]]])))
+         (when @share-code
+           [Button {:id "share-label-button-copy"
+                    :on-click (util/wrap-prevent-default
+                               (fn []
+                                 (-> (aget js/navigator "clipboard") (.writeText @share-code))
+                                 (dispatch [:alert {:content "Answers copied to clipboard" :opts {:success true}}])
+                                 (reset! modal-open false)))
+                    :primary true}
+            "Copy"])]]])))
 
 (defn EditLabelButton
   "label is a cursor into the state representing the label"
