@@ -67,7 +67,7 @@
                              "Unexpected Slack Message Error")))))))
 
 (defn log-request-exception [request e]
-  (try (log/error "Request:\n" (pp-str request)
+  (try (log/error "Request:\n" (pp-str (request-info request))
                   "Exception:\n" (with-out-str (print-cause-trace-custom e)))
        (log-slack-request-exception request e)
        (catch Throwable e2
