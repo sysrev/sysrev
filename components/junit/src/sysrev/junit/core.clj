@@ -8,16 +8,6 @@
   (:import
    (java.io FileInputStream FileWriter)))
 
-(defn parse-double [s]
-  (try
-    (Double/parseDouble s)
-    (catch Exception _)))
-
-(defn parse-long [s]
-  (try
-    (Long/parseLong s)
-    (catch Exception _)))
-
 (defn merge-testsuite-xml [& ms]
   (if (< (count ms) 2)
     (first ms)

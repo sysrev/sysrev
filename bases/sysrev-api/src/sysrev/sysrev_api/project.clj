@@ -9,10 +9,6 @@
     :refer [execute-one! with-tx-context]]
    [sysrev.sysrev-api.user :as user]))
 
-;; Remove in Clojure 1.11
-(defn parse-long [s]
-  (Long/valueOf s))
-
 (def project-cols
   {:created :date-created
    :id :project-id

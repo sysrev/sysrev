@@ -9,7 +9,7 @@
 
 (defn current-project-id [driver]
   (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (e/get-path driver))]
-    (some-> id-str Long/parseLong)))
+    (some-> id-str parse-long)))
 
 (defn create-project! [{:keys [driver prefer-browser?] :as test-resources} name]
   (if prefer-browser?

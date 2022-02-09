@@ -1633,12 +1633,11 @@
 
 (defn user-notifications-by-day [user-id {:keys [created-after limit]}]
   (let [created-after (when created-after
-                        (some-> (try (Long/parseLong created-after)
-                                     (catch Exception _))
+                        (some-> created-after parse-long
                                 epoch-millis->LocalDateTime
                                 (.atZone (java.time.ZoneId/of "UTC"))
                                 .toInstant java.sql.Timestamp/from))
-        limit (-> (try (Long/parseLong limit) (catch Exception _))
+        limit (-> (some-> limit parse-long)
                   (or 50) (min 50))
         {:keys [notifications start-of-day]}
         #__ (user-notifications-by-day*
@@ -1654,7 +1653,7 @@
   (with-transaction
     (let [subscriber-id (notification/subscriber-for-user
                          user-id :create? true :returning :subscriber-id)
-          limit (-> (try (Long/parseLong limit) (catch Exception _))
+          limit (-> (some-> limit parse-long)
                     (or 50) (min 50))]
       {:success true
        :notifications

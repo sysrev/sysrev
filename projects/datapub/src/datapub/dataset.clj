@@ -164,9 +164,7 @@
   Look at list-datasets for an example implementation."
   [context {first* :first :keys [after]} {:keys [count-f edges-f]}]
   (with-tx-context [context context]
-   (let [cursor (if (empty? after)
-                  0
-                  (try (Long/parseLong after) (catch Exception _)))]
+   (let [cursor (if (empty? after) 0 (parse-long after))]
      (if (and after (not (and cursor (nat-int? cursor))))
        (resolve/resolve-as nil {:message "Invalid cursor."
                                 :cursor after})
@@ -369,10 +367,7 @@
 
 (defn download-DatasetEntity-content [context allowed-origins]
   (let [request (:request context)
-        entity-id (try
-                    (some-> request :path-params :entity-id
-                            Long/parseLong)
-                    (catch Exception _))]
+        entity-id (some-> request :path-params :entity-id parse-long)]
     (when entity-id
       (with-tx-context [context context]
         (let [{:keys [content] :as entity}
