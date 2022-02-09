@@ -895,13 +895,15 @@
      ;; short-label
      [ui/TextInputField
       (make-args :short-label
-                 {:value short-label
+                 {:disabled (not is-owned?)
+                  :value short-label
                   :on-change #(reset! short-label (-> % .-target .-value))}
                  errors)]
      ;; multi?
      [ui/LabeledCheckboxField
       (make-args :multi?
                  {:checked? @multi?
+                  :disabled (not is-owned?)
                   :on-change #(reset! multi? (-> % .-target .-checked boolean))}
                  errors)]
      [:div {:class (css "sub-labels-edit-form"
