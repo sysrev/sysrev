@@ -1,5 +1,7 @@
 {:paths ["src" "resources"]
- :deps {poly/config {:local/root "../../components/config"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.0-beta1"}
+
+        poly/config {:local/root "../../components/config"}
         poly/flyway {:local/root "../../components/flyway"}
         poly/lacinia-pedestal {:local/root "../../components/lacinia-pedestal"}
         poly/nrepl {:local/root "../../components/nrepl"}

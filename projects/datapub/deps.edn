@@ -1,5 +1,5 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.0-beta1"}
         org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}
         clj-http/clj-http {:mvn/version "3.12.3"}
         com.cognitect.aws/api {:mvn/version "0.8.539"},

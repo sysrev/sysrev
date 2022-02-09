@@ -1,5 +1,5 @@
 {:paths ["src/clj" "src/cljc" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.0-beta1"}
 
 ;;; clojure.spec
         orchestra/orchestra {:mvn/version "2021.01.01-1"}
