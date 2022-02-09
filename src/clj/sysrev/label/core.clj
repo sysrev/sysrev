@@ -28,9 +28,7 @@
      or-default
      sanitize-uuids
      sum
-     uuid-from-string]])
-  (:import
-   (java.util UUID)))
+     uuid-from-string]]))
 
 ;; for clj-kondo
 (declare user-article-confirmed? get-label)
@@ -63,7 +61,7 @@
                     root-label-id-local nil}}]
   (assert (in? valid-label-categories category))
   (assert (in? valid-label-value-types value-type))
-  (let [uuid (UUID/randomUUID)]
+  (let [uuid (random-uuid)]
     (db/with-clear-project-cache project-id
       (q/create :label
                 (cond-> {:project-id project-id
@@ -256,7 +254,7 @@
                         :ar.*, :join [[:article :a] :ar.article-id])
                 (group-by :article-id)
                 (map-values (fn [xs] (first (->> xs (sort-by #(-> % :resolve-time tc/to-epoch) >)))))
-                (map-values (fn [x] (some-> x (update :label-ids #(mapv util/to-uuid %)))))))]
+                (map-values (fn [x] (some-> x (update :label-ids #(mapv parse-uuid %)))))))]
       (apply merge (for [article-id (keys all-labels)]
                      {article-id
                       {:updated-time (get-in all-labels [article-id :updated-time])
@@ -289,7 +287,7 @@
   (if direct?
     (some-> (first (q/find :article-resolve {:article-id article-id} :*
                            :order-by [:resolve-time :desc], :limit 1))
-            (update :label-ids #(mapv util/to-uuid %)))
+            (update :label-ids #(mapv parse-uuid %)))
     (-> (query-public-article-labels project-id)
         (get-in [article-id :resolve]))))
 
@@ -502,7 +500,7 @@
     (db/with-transaction
       (let [{:keys [enabled value-type name short-label required category label-id definition]} m
             label-existed? (not (string? label-id)) ; remember: new labels are strings
-            uuid (when-not label-existed? (UUID/randomUUID))
+            uuid (when-not label-existed? (random-uuid))
             current-label (if label-existed?
                             ;; label exists
                             (-> (select :*)

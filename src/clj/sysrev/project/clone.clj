@@ -288,60 +288,6 @@
         (copy-project-article-labels src-id dest-id))))
   (log/info "clone-subproject-articles done"))
 
-#_
-(defn load-endnote-doc-ids
-  "Parse an Endnote XML file mapping article-uuid values (custom5 field)
-  to document-id values."
-  [reader]
-  (->> (endnote/load-endnote-library-xml reader)
-       (map (fn [entry]
-              (let [entry
-                    (-> entry
-                        (select-keys [:custom5 :document-ids])
-                        (#(assoc % :article-uuid (to-uuid (:custom5 %))))
-                        (dissoc :custom5))]
-                [(:article-uuid entry)
-                 (:document-ids entry)])))
-       (apply concat)
-       (apply hash-map)))
-
-#_
-(defn clone-subproject-endnote
-  "Clones a project from the subset of articles in `parent-id` project that
-  are contained in Endnote XML export file `endnote-path`. Also imports
-  `document` entries using file `endnote-path` and directory `pdfs-path`,
-  and attaches `document-id` values to article entries.
-
-  The `endnote-path` file must be in the format created by
-  `filter-endnote-xml-includes` (has the original `article-uuid` values
-  attached to each Endnote article entry under field `:custom5`).
-
-  Copies most project definition entries over from the parent project
-  (eg. project members, label definitions, keywords).
-
-  The `project` and `article` entries will reference the parent project using
-  fields `parent-project-id` and `parent-article-uuid`."
-  [project-name parent-id endnote-path pdfs-path]
-  (with-transaction
-    (let [article-doc-ids (-> endnote-path io/file io/reader load-endnote-doc-ids)
-          article-uuids (keys article-doc-ids)
-          child-id
-          (:project-id (project/create-project
-                        project-name :parent-project-id parent-id))]
-      (project/add-project-note child-id {})
-      (log/info (format "created child project (#%d, '%s')"
-                        child-id project-name))
-      (populate-child-project-articles
-       parent-id child-id article-uuids)
-      (log/info (format "loaded %d articles"
-                        (project/project-article-count child-id)))
-      (copy-project-members parent-id child-id)
-      ;; (local-pdf/load-article-documents child-id pdfs-path)
-      ;; (local-pdf/load-project-document-ids child-id article-doc-ids)
-      (copy-project-label-defs parent-id child-id)
-      (copy-project-keywords parent-id child-id)
-      (log/info "clone-subproject-endnote done"))))
-
 (defn copy-article-source-defs!
   "Given a src-project-id and dest-project-id, create source entries in dest-project-id and return a map of
   {<src-source-id> <dest-source-id>

@@ -1,19 +1,27 @@
 (ns sysrev.project.core
-  (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [honeysql.helpers :as sqlh :refer [from join merge-join select sset where]]
-            [medley.core :as medley]
-            [orchestra.core :refer [defn-spec]]
-            [sysrev.db.core :as db :refer [do-query with-project-cache with-transaction]]
-            [sysrev.db.queries :as q]
-            [sysrev.shared.keywords :refer [canonical-keyword]]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.keywords :as skw]
-            [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.notes :as snt]
-            [sysrev.shared.spec.project :as sp]
-            [sysrev.util :as util :refer [filter-values index-by map-values opt-keys]])
-  (:import (java.util UUID)))
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [honeysql.helpers
+    :as sqlh
+    :refer [from join merge-join select sset where]]
+   [medley.core :as medley]
+   [orchestra.core :refer [defn-spec]]
+   [sysrev.db.core
+    :as db
+    :refer [do-query with-project-cache with-transaction]]
+   [sysrev.db.queries :as q]
+   [sysrev.shared.keywords :refer [canonical-keyword]]
+   [sysrev.shared.spec.core :as sc]
+   [sysrev.shared.spec.keywords :as skw]
+   [sysrev.shared.spec.labels :as sl]
+   [sysrev.shared.spec.notes :as snt]
+   [sysrev.shared.spec.project :as sp]
+   [sysrev.util
+    :as
+    util
+    :refer
+    [filter-values index-by map-values opt-keys]]))
 
 ;; for clj-kondo
 (declare delete-project)
@@ -42,7 +50,7 @@
    {:keys [parent-project-id]} (opt-keys ::parent-project-id)]
   (q/create :project {:name project-name
                       :enabled true
-                      :project-uuid (UUID/randomUUID)
+                      :project-uuid (random-uuid)
                       :settings (db/to-jsonb default-project-settings)
                       :parent-project-id parent-project-id}
             :returning :*))

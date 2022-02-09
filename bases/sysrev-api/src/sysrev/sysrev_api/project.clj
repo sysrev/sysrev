@@ -7,9 +7,7 @@
    [sysrev.postgres.interface :as pg]
    [sysrev.sysrev-api.core :as core
     :refer [execute-one! with-tx-context]]
-   [sysrev.sysrev-api.user :as user])
-  (:import
-   (java.util UUID)))
+   [sysrev.sysrev-api.user :as user]))
 
 ;; Remove in Clojure 1.11
 (defn parse-long [s]
@@ -74,7 +72,7 @@
                                                       :settings (pg/jsonb-pgobject settings)}]
                                             :returning :project-id})
                              :project/project-id)
-              label-id (UUID/randomUUID)]
+              label-id (random-uuid)]
           (execute-one! context
                         {:insert-into :label
                          :values [(assoc default-inclusion-label

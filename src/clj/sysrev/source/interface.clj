@@ -1,18 +1,18 @@
 (ns sysrev.source.interface
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [medley.core :refer [remove-vals]]
-            [sysrev.db.core :as db :refer [*conn*]]
-            [sysrev.db.queries :as q]
-            [sysrev.article.core :as article]
-            [sysrev.datasource.core :as ds]
-            [sysrev.notification.interface :refer [create-notification]]
-            [sysrev.source.core :as source]
-            [sysrev.biosource.predict :as predict-api]
-            [sysrev.slack :refer [log-slack-custom]]
-            [sysrev.stacktrace :as strace]
-            [sysrev.util :as util :refer [in? parse-integer pp-str]])
-  (:import java.util.UUID))
+  (:require
+   [clojure.string :as str]
+   [clojure.tools.logging :as log]
+   [medley.core :refer [remove-vals]]
+   [sysrev.article.core :as article]
+   [sysrev.biosource.predict :as predict-api]
+   [sysrev.datasource.core :as ds]
+   [sysrev.db.core :as db :refer [*conn*]]
+   [sysrev.db.queries :as q]
+   [sysrev.notification.interface :refer [create-notification]]
+   [sysrev.slack :refer [log-slack-custom]]
+   [sysrev.source.core :as source]
+   [sysrev.stacktrace :as strace]
+   [sysrev.util :as util :refer [in? parse-integer pp-str]]))
 
 (defn- add-articles-data [{:keys [article-type article-subtype] :as types} articles]
   (doall (for [article articles]
@@ -33,7 +33,7 @@
               (update :primary-title
                       #(if (empty? %)
                          (format "[No Title Found] %s"
-                                 (-> (UUID/randomUUID) str (str/split #"-") first))
+                                 (-> (random-uuid) str (str/split #"-") first))
                          %))))
         ;; do initial processing on `articles` to create db entries
         articles-prepared (mapv prepare-article-full articles)

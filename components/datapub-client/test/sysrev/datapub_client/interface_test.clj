@@ -8,7 +8,7 @@
   {:get-system-map #(-> %
                         (update :pedestal assoc
                                 :port 0
-                                :sysrev-dev-key (str (java.util.UUID/randomUUID)))
+                                :sysrev-dev-key (str (random-uuid)))
                         system-map)})
 
 (deftest ^:integration test-get-dataset-entity

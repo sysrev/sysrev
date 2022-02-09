@@ -106,8 +106,7 @@
             [sysrev.user.interface.spec :as su]
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
-            [sysrev.formats.pubmed :as pubmed])
-  (:import java.util.UUID))
+            [sysrev.formats.pubmed :as pubmed]))
 
 (defn -main []
   (st/instrument)

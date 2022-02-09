@@ -64,7 +64,6 @@
     :refer
     [in? index-by parse-integer req-un sum uuid-from-string]])
   (:import
-   (java.util UUID)
    (java.util.zip ZipEntry ZipOutputStream)))
 
 ;; HTTP error codes
@@ -780,7 +779,7 @@
   {:success true})
 
 ;; to manually add funds:
-;;  (funds/create-project-fund-entry! {:project-id <project-id> :user-id <user-id> :transaction-id (str (UUID/randomUUID)) :transaction-source "Manual Entry" :amount 20000 :created (util/to-epoch (db/sql-now))})
+;;  (funds/create-project-fund-entry! {:project-id <project-id> :user-id <user-id> :transaction-id (str (random-uuid)) :transaction-source "Manual Entry" :amount 20000 :created (util/to-epoch (db/sql-now))})
 ;; in the database:
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 (defn pay-user!
@@ -808,7 +807,7 @@
              {:project-id project-id
               :user-id user-id
               :amount (- admin-fee)
-              :transaction-id (str (UUID/randomUUID))
+              :transaction-id (str (random-uuid))
               :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)})
             {:result "success"}))))))
 

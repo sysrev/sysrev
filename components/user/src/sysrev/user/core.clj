@@ -1,26 +1,24 @@
 (ns sysrev.user.core
-  (:require [buddy.core.codecs :as codecs]
-            [buddy.core.hash :as hash]
-            buddy.hashers
-            [clj-time.coerce :as tc]
-            [clojure.set :refer [rename-keys]]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            crypto.random
-            [honeysql.core :as sql]
-            [honeysql.helpers
-             :as
-             sqlh
-             :refer
-             [from join merge-join order-by select where]]
-            [orchestra.core :refer [defn-spec]]
-            [sysrev.db.core :as db :refer [do-query sql-now with-transaction]]
-            [sysrev.db.queries :as q]
-            [sysrev.payment.stripe :as stripe]
-            [sysrev.project.core :as project]
-            [sysrev.user.interface.spec :as su]
-            [sysrev.util :as util :refer [in? map-values]])
-  (:import java.util.UUID))
+  (:require
+   [buddy.core.codecs :as codecs]
+   [buddy.core.hash :as hash]
+   [buddy.hashers]
+   [clj-time.coerce :as tc]
+   [clojure.set :refer [rename-keys]]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [crypto.random]
+   [honeysql.core :as sql]
+   [honeysql.helpers
+    :as sqlh
+    :refer [from join merge-join order-by select where]]
+   [orchestra.core :refer [defn-spec]]
+   [sysrev.db.core :as db :refer [do-query sql-now with-transaction]]
+   [sysrev.db.queries :as q]
+   [sysrev.payment.stripe :as stripe]
+   [sysrev.project.core :as project]
+   [sysrev.user.interface.spec :as su]
+   [sysrev.util :as util :refer [in? map-values]]))
 
 (def user-public-cols
   [:date-created :introduction :user-id :user-uuid :username])
@@ -113,7 +111,7 @@
               (if-not (user-by-username t)
                 t
                 (recur (str sfx (rand-int 10))))
-              (str (UUID/randomUUID)))))))))
+              (str (random-uuid)))))))))
 
 (defn create-user [email password & {:keys [user-id permissions google-user-id]
                                      :or {permissions ["user"]}}]
@@ -123,7 +121,7 @@
                                             :verify-code nil ;; (crypto.random/hex 16)
                                             :permissions (db/to-sql-array "text" permissions)
                                             :date-created :%now
-                                            :user-uuid (UUID/randomUUID)
+                                            :user-uuid (random-uuid)
                                             :api-token (generate-api-token)}
                                      user-id (assoc :user-id user-id)
                                      password (assoc :pw-encrypted-buddy

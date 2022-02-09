@@ -1,8 +1,8 @@
 (ns sysrev.web.session
-  (:require [ring.middleware.session.store :refer [SessionStore]]
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q])
-  (:import [java.util UUID]))
+  (:require
+   [ring.middleware.session.store :refer [SessionStore]]
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]))
 
 (defn get-session [skey]
   (first (q/find :session {:skey skey})))
@@ -18,7 +18,7 @@
           (dissoc :anti-forgery-token))))
   (write-session [_ key data]
     (db/with-transaction
-      (let [key (or key (str (UUID/randomUUID)))
+      (let [key (or key (str (random-uuid)))
             data (or data {})
             ss (get-session key)]
         (if (nil? ss)

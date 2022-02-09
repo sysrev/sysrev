@@ -12,7 +12,6 @@
    [sysrev.label.answer :as answer]
    [sysrev.project.member :as member]
    [sysrev.test.core :as test :refer [graphql-request]]
-   [sysrev.util :as util]
    [venia.core :as venia]))
 
 (defn project-article-ids
@@ -308,7 +307,7 @@
         (let [non-group-answer->map (fn [m]
                                       (->> m
                                            (map (fn [{:keys [answer id type]}]
-                                                  (hash-map (util/to-uuid id)
+                                                  (hash-map (parse-uuid id)
                                                             ;; special case for boolean
                                                             (if (= type "boolean")
                                                               (-> answer first read-string)
@@ -318,7 +317,7 @@
                                   (->> m
                                        (map (fn [{:keys [id answer]}]
                                               (hash-map
-                                               (util/to-uuid id)
+                                               (parse-uuid id)
                                                {:labels
                                                 (->> (map-indexed (fn [idx itm]
                                                                     (hash-map (str idx)

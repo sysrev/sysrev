@@ -14,4 +14,4 @@
       (is (str/starts-with? (user/unique-username "user_1@insilica.co") "user-1-")))
     (testing "Very long usernames with conflicts"
       (user/create-user "a123456789012345678901234567890123456789@insilica.co" "override")
-      (is (java.util.UUID/fromString (user/unique-username "a123456789012345678901234567890123456789@insilica.co"))))))
+      (is (parse-uuid (user/unique-username "a123456789012345678901234567890123456789@insilica.co"))))))

@@ -171,7 +171,6 @@
         (re-matches
          #"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" s))))
 
-
 (def email-regex
   #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 
@@ -791,9 +790,6 @@
 
 #?(:clj (defn pp-str [x]
           (with-out-str (pp/pprint x))))
-
-#?(:clj (defn random-uuid []
-          (UUID/randomUUID)))
 
 #?(:clj (defmacro log-exception [^Throwable e & {:keys [level] :or {level :error}}]
           `(let [e# ~e]
