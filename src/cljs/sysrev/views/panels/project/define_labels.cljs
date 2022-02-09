@@ -1417,7 +1417,13 @@
      [LabelsTable labels]
      (when admin?
        [:div {:style {:margin-top "1rem"}}
-        (if group-labels-allowed?
+        (cond
+          ;; Hide buttons when editing a label
+          ;; See https://github.com/insilica/systematic_review/issues/21
+          @(subscribe [::editing-label])
+          [:<>]
+
+          group-labels-allowed?
           [:div.ui.four.column.stackable.grid
            [:div.column [AddLabelButton "boolean" add-new-label!]]
            [:div.column [AddLabelButton "categorical" add-new-label!]]
@@ -1425,6 +1431,8 @@
            [:div.column [AddLabelButton "group" add-new-label!]]
            [:div.column [AddLabelButton "annotation" add-new-label!]]
            [:div.column [ImportLabelButton]]]
+
+          :else
           [:div.ui.three.column.stackable.grid
            [:div.column [AddLabelButton "boolean" add-new-label!]]
            [:div.column [AddLabelButton "categorical" add-new-label!]]
