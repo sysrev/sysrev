@@ -1,6 +1,7 @@
 {:linters {:redefined-var {:level :off}
-           :reduce-without-init {:level :error}
+           :reduce-without-init {:level :warning}
            :redundant-do {:level :off}
+           :redundant-fn-wrapper {:level :warning}
            :refer-all {:level :off}
            :use {:level :off}
            :unresolved-var {:level :off}
@@ -19,8 +20,6 @@
                                 (compojure.core/DELETE nil)
                                 (compojure.core/context nil)
                                 (bouncer.validators/defvalidator nil)
-                                ;; New in clojure 1.11
-                                abs
                                 ;; ignore unresolved symbols from setup-panel-state macro
                                 panel-get panel-set]}
            :unused-binding {:exclude-destructured-keys-in-fn-args true}

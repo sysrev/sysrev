@@ -803,7 +803,7 @@
 
 (defn LabelAnswerEditorColumn [_article-id]
   (r/create-class
-   {:component-did-mount #(util/update-sidebar-height)
+   {:component-did-mount util/update-sidebar-height
     :reagent-render (fn [article-id]
                       [:div.label-editor-column>div.ui.segments.label-editor-view
                        [LabelsColumns article-id

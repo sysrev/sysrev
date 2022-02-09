@@ -29,7 +29,7 @@
   [:div {:id (str "org-" group-id)
          :class "user-org-entry"
          :style {:margin-bottom "1em"}}
-   [:a {:href (str "/org/" group-id "/projects") :on-click #(util/scroll-top)}
+   [:a {:href (str "/org/" group-id "/projects") :on-click util/scroll-top}
     group-name]
    [Divider]])
 

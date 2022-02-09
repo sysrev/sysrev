@@ -89,7 +89,7 @@
 
 (defn SidebarAnnotationMenu []
   (r/create-class
-   {:component-did-mount #(util/update-sidebar-height)
+   {:component-did-mount util/update-sidebar-height
     :reagent-render
     (fn []
       (let [article-id @(subscribe [:visible-article-id])

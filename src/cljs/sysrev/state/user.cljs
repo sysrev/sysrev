@@ -7,7 +7,7 @@
 
 (reg-sub :user/all-user-ids
          :<- [::users]
-         #(keys %))
+         keys)
 
 (reg-sub ::user
          :<- [::users]

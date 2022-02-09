@@ -8,10 +8,10 @@ let
   inherit (pkgs) fetchurl lib stdenv;
   clj-kondo = pkgs.clj-kondo.overrideAttrs( oldAttrs: rec {
     pname = "clj-kondo";
-    version = "2022.01.15";
+    version = "2022.02.09";
     src = fetchurl {
       url = "https://github.com/clj-kondo/${pname}/releases/download/v${version}/${pname}-${version}-standalone.jar";
-      sha256 = "0hfdl9har8albi7xxclainlvll5vhvssgifdyi5i2sq65q5rsm5k";
+      sha256 = "0p6vw3i6hif90ygfcrmjbgk5s7xk2bbvknn72nrxw9dv8jgy7wsr";
     };
   });
   jdk = pkgs.openjdk8;

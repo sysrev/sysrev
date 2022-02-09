@@ -268,7 +268,7 @@
         "Any User"
         @(subscribe [:user/username %]))
      value on-change multiple?
-     #(parse-integer %)]))
+     parse-integer]))
 
 (defn describe-source [source-id]
   (when source-id
@@ -510,7 +510,7 @@
         direction
         (fn [v] (update-filter #(assoc % :direction v)))
         false
-        #(keyword %)]]
+        keyword]]
       [:div.eight.wide.field
        [:label "Prediction Score"]
        [:div.ui.fluid.right.icon.input

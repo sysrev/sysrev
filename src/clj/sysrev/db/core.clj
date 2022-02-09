@@ -133,8 +133,7 @@
 
 ;; Add JDBC conversion methods for Postgres jsonb type
 (add-jsonb-type
- (fn [writer]
-   (json/write-str writer))
+ json/write-str
  (fn [reader]
    (json/read-str reader :key-fn keyword)))
 

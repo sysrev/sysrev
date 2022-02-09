@@ -124,7 +124,7 @@
   [annotations _string]
   (let [occupied-chars (sort (flatten (mapv :index
                                             annotations)))
-        no-annotations-indices (merge (mapv #(vector %1 %2)
+        no-annotations-indices (merge (mapv vector
                                             (take-nth 2 (rest occupied-chars))
                                             (rest (take-nth 2 occupied-chars)))
                                       [(last occupied-chars)])]

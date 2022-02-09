@@ -176,7 +176,7 @@
                  "boolean" boolean-definition-validations
                  "string" string-definition-validations
                  "categorical" (categorical-definition-validations definition label-id global-label-id)
-                 "group" [[#(label-validations %)]]
+                 "group" [[label-validations]]
                  {})})
 
 (defn split-labels-set
@@ -206,7 +206,7 @@
 (defn group-labels-valid?
   [coll]
   (->> coll
-       (map #(group-label-valid? %))
+       (map group-label-valid?)
        (every? true?)))
 
 (defn all-labels-valid?

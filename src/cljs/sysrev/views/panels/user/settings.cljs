@@ -126,11 +126,11 @@
       [:div
        [:button.ui.primary.button
         {:class (if (and valid? modified?) "" "disabled")
-         :on-click #(save-changes)}
+         :on-click save-changes}
         "Save changes"]
        [:button.ui.button
         {:class (if modified? "" "disabled")
-         :on-click #(reset-fields)}
+         :on-click reset-fields}
         "Reset"]]]]))
 
 (defn- UserDevTools []

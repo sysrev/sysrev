@@ -61,7 +61,7 @@
                                      default-values)))})))
 
 (def-data :review/task
-  :loaded? (fn [db project-id] (review-task-id db project-id))
+  :loaded? review-task-id
   :uri (constantly "/api/label-task")
   :prereqs (fn [project-id] [[:project project-id]])
   :content (fn [project-id] {:project-id project-id})

@@ -89,7 +89,7 @@
 
 (reg-sub :self/logged-in?
          :<- [:self/user-id]
-         #(some? %))
+         some?)
 
 (reg-sub ::self-state #(get-in % [:state :self]))
 

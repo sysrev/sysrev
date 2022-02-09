@@ -9,7 +9,7 @@
 
 (reg-sub ::member-ids
          (fn [[_ project-id]] (subscribe [::members project-id]))
-         #(keys %))
+         keys)
 
 ;; Interface for getting list of user-id values for members of
 ;; project. Filters to remove dev users, to ensure dev users are

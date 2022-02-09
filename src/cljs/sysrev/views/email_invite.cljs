@@ -23,7 +23,7 @@
 
 (reg-sub ::emails
          :<- [::emails-text]
-         (fn [text] (text->emails text)))
+         text->emails)
 
 (def-action :project/send-invites
   :uri      "/api/send-project-invites"

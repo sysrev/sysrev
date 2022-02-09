@@ -305,8 +305,8 @@
               (fn [{:keys [db]}]
                 {:dispatch-n
                  (->> (get-missing-items db)
-                      (remove #(loading/item-failed? %))
-                      (remove #(loading? %))
+                      (remove loading/item-failed?)
+                      (remove loading?)
                       (mapv (fn [item] [:fetch item])))}))
 
 (reg-fx :fetch-missing

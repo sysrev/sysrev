@@ -608,7 +608,7 @@
        [ui/SaveCancelForm
         :can-save? changed?
         :can-reset? changed?
-        :on-save #(save-permissions)
+        :on-save save-permissions
         :on-reset #(do (reset-permissions)
                        (reset-permissions-fields))
         :saving?

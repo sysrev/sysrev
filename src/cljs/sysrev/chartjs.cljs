@@ -35,7 +35,7 @@
   (let [ref (atom nil)]
     (r/create-class
      {:constructor              #(swap! (r/state-atom %) assoc :chart-instance nil)
-      :component-did-mount      #(render-chart %)
+      :component-did-mount      render-chart
       :component-did-update     #(do (some-> (r/state %) :chart-instance (.destroy))
                                      (render-chart %))
       :component-will-unmount   #(some-> (r/state %) :chart-instance (.destroy))
