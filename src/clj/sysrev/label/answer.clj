@@ -45,7 +45,8 @@
 (defn filter-valid-label-values [labels label-values]
   (->> label-values
        (mapv (fn [[label-id answer]]
-               (label-answer-valid? (get labels label-id) answer)))
+               (let [label (get labels label-id)]
+                 (and (:enabled label) (label-answer-valid? label answer)))))
        (remove nil?)
        (apply merge)))
 
