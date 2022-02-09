@@ -618,7 +618,7 @@
         (str (str/capitalize @value-type) " Label")])
 
      (when-not is-owned?
-       [:p "This is a shared label. In order to make edits you can detach it from its parent project but you won't leverage anymore from data in other projects."])
+       [:p "This is a shared label. In order to make edits you can detach it from its parent project, but you won't leverage from data in other projects anymore."])
 
      ;; short-label
      [ui/TextInputField
