@@ -3,7 +3,8 @@
    [com.walmartlabs.lacinia.constants :as constants]
    [com.walmartlabs.lacinia.executor :as executor]
    [com.walmartlabs.lacinia.selection :as selection]
-   [medley.core :as medley])
+   [medley.core :as medley]
+   [sysrev.json.interface :as json])
   (:import
    (java.sql Timestamp)
    (java.time Instant)
@@ -28,10 +29,42 @@
     (instance? Timestamp datetime)
     (serialize-DateTime (.toInstant ^Timestamp datetime))))
 
+(defn parse-JSON [x]
+  (if-not (string? x)
+    (throw (ex-info "Must be a string representing JSON data." {:value x}))
+    (-> (json/read-str x)
+        (try (catch Exception e
+               (throw (ex-info (str "Invalid JSON: " (.getMessage e))
+                               {:value x})))))))
+
+(defn serialize-JSON [x]
+  (json/write-str x))
+
+(defn parse-NonNegativeInt [x]
+  (if (nat-int? x)
+    x
+    (throw (ex-info "Must be a non-negative integer."
+                    {:value x}))))
+
+(defn parse-PositiveInt [x]
+  (if (pos-int? x)
+    x
+    (throw (ex-info "Must be a positive integer."
+                    {:value x}))))
+
 (def scalars
   {:DateTime
    {:parse #'parse-DateTime
     :serialize #'serialize-DateTime}
+   :JSON
+   {:parse #'parse-JSON
+    :serialize #'serialize-JSON}
+   :NonNegativeInt
+   {:parse #'parse-NonNegativeInt
+    :serialize identity}
+   :PositiveInt
+   {:parse #'parse-PositiveInt
+    :serialize identity}
    :Upload
    {:parse identity
     :serialize (constantly nil)}})
