@@ -24,7 +24,6 @@
         me.raynes/fs {:mvn/version "1.4.6"}
 
 ;;; Data formats
-        org.clojure/data.json {:mvn/version "2.4.0"}
         com.cognitect/transit-clj {:mvn/version "1.0.329"}
         org.clojure/data.csv {:mvn/version "1.0.0"}
         org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}

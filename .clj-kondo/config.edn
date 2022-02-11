@@ -66,6 +66,7 @@
                                         sysrev.db.queries              q
                                         sysrev.group.core              group
                                         sysrev.init                    init
+                                        sysrev.json.interface          json
                                         sysrev.label.core              label
                                         sysrev.label.answer            answer
                                         sysrev.lacinia.interface       sl

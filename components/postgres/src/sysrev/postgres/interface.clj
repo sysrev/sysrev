@@ -21,7 +21,7 @@
 (defn jsonb-pgobject
   "Returns a jsonb-type `org.postgresql.util.PGobject` representing `x`.
 
-  `x` will be JSON-encoded by `cheshire.core/generate-string`."
+  `x` will be JSON-encoded by `sysrev.json.interface/write-str`."
   [x]
   (core/jsonb-pgobject x))
 

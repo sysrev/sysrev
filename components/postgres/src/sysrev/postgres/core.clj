@@ -1,19 +1,19 @@
 (ns sysrev.postgres.core
   (:require
-   [cheshire.core :as json]
    [com.stuartsierra.component :as component]
    [hikari-cp.core :as hikari-cp]
    [honey.sql :as sql]
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as result-set]
-   [sysrev.flyway.interface :as flyway])
+   [sysrev.flyway.interface :as flyway]
+   [sysrev.json.interface :as json])
   (:import
    (org.postgresql.util PGobject PSQLException)))
 
 (defn jsonb-pgobject [x]
   (doto (PGobject.)
     (.setType "jsonb")
-    (.setValue (json/generate-string x))))
+    (.setValue (json/write-str x))))
 
 (defn make-datasource
   "Creates a Postgres db pool object to use with JDBC."
