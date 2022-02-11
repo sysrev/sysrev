@@ -21,7 +21,7 @@
 
   The return arg is processed by `return->string`."
   [return]
-  (str "query($id: String!){project(id: $id){"
+  (str "query($id: ID!){project(id: $id){"
        (return->string return)
        "}}"))
 

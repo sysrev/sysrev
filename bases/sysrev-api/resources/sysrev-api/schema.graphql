@@ -30,7 +30,7 @@ type PageInfo {
 
 type Project {
   "The project's unique id."
-  id: String!
+  id: ID!
 
   "When the project was created."
   created: DateTime!
@@ -50,7 +50,7 @@ type Project {
 
 type ProjectLabel {
   "The label's unique id."
-  id: String!
+  id: ID!
 
   "Whether answers checked for consensus among users. If true, articles are marked as conflicted if user answers are not identical."
   consensus: Boolean!
@@ -88,7 +88,7 @@ input CreateProjectInput {
 }
 
 type Query {
-  project(id: String!) : Project
+  project(id: ID!): Project
 }
 
 type Mutation {

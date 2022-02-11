@@ -1,6 +1,5 @@
 (ns sysrev.lacinia.core
   (:require
-   [clojure.string :as str]
    [com.walmartlabs.lacinia.constants :as constants]
    [com.walmartlabs.lacinia.executor :as executor]
    [com.walmartlabs.lacinia.selection :as selection]

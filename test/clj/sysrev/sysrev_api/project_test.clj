@@ -26,10 +26,10 @@
         (is (= {:data {:project {:id project-1-id :name "a" :public true}}}
                (execute! (sacq/q-project "id name public") {:id project-1-id}))))
       (testing "Projects cannot be created with blank names"
-        (is (= ["Scalar value is not parsable as type `NonBlankString': Must not be blank."]
+        (is (= ["Project name cannot be blank"]
                (->> (create-project! {:name "" :public true})
                     :errors (map :message))))
-        (is (= ["Scalar value is not parsable as type `NonBlankString': Must not be blank."]
+        (is (= ["Project name cannot be blank"]
                (->> (create-project! {:name " " :public true})
                     :errors (map :message)))))
       (testing "Anonymous users cannot create projects"

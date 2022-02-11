@@ -58,8 +58,11 @@
 (defn createProject! [context {{:keys [name public]} :input} _]
   (with-tx-context [context context]
     (let [user-id (user/current-user-id context)]
-      (if-not user-id
-        (resolve/resolve-as nil {:message "Invalid API token"})
+      (cond
+        (not user-id) (resolve/resolve-as nil {:message "Invalid API token"})
+        (str/blank? name) (resolve/resolve-as nil {:message "Project name cannot be blank"
+                                                   :name name})
+        :else
         (let [settings {:public-access public
                         :second-review-prob 0.5}
               project-id (-> context
