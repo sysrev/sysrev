@@ -183,11 +183,11 @@
                                         :limit limit}))]
            {:edges edges
             :pageInfo
-            {:endCursor (:cursor (last edges) "")
+            {:endCursor (:cursor (last edges))
              :hasNextPage (boolean (seq more))
              ;; The spec allows hasPreviousPage to return true when unknown.
              :hasPreviousPage (not (or (zero? cursor) (= ct (count edges))))
-             :startCursor (:cursor (first edges) "")}
+             :startCursor (:cursor (first edges))}
             :totalCount ct}))))))
 
 (defn list-datasets [context args _]

@@ -16,7 +16,7 @@ enum ProjectLabelType {
 "PageInfo as defined by the GraphQL Cursor Connections Specification: https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo"
 type PageInfo {
   "The cursor corresponding to the last node in edges."
-  endCursor: String!
+  endCursor: String
 
   "Used to indicate whether more edges exist following the set defined by the client's arguments."
   hasNextPage: Boolean!
@@ -25,7 +25,7 @@ type PageInfo {
   hasPreviousPage: Boolean!
 
   "The cursor corresponding to the first node in edges."
-  startCursor: String!
+  startCursor: String
 }
 
 type Project {
