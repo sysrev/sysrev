@@ -108,7 +108,8 @@
                                        :sha "df552797a198b6701fb2d92390fce7c59205ea77"}}
           :main-opts ["-m" "carve.main"]}
   :dev {:extra-paths ["config/dev" "development/src"]
-        :extra-deps {poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
+        :extra-deps {acyclic/squiggly-clojure {:mvn/version "0.1.9-20180723.201217-2"}
+                     poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
                      poly/sqlite {:local/root "components/sqlite"}}}
