@@ -15,6 +15,7 @@ jobs:
   deploy-global-resources:
     outputs:
       cloudfront-oai: ${{ steps.deploy.outputs.CloudFrontOAI }}
+      datapub-hosted-zone-id: ${{ steps.deploy.outputs.DatapubHostedZoneId }}
       service-role-arn: ${{ steps.deploy.outputs.AdminAccessCloudFormationServiceRoleArn }}
     runs-on: ubuntu-latest
     steps:
@@ -38,6 +39,16 @@ jobs:
           aws-region: us-east-1
           mask-aws-account-id: no
 
+      - name: Set Sysrev-Global-Resources staging parameters
+        if: github.ref_name == 'staging'
+        run: |
+          echo "GLOBAL_PARAMS=DatapubZoneApex=datapubdev.net,Env=staging,InsilicaZoneApex=,SysrevZoneApex=sysrevdev.net" >> $GITHUB_ENV
+
+      - name: Set Sysrev-Global-Resources production parameters
+        if: github.ref_name == 'production'
+        run: |
+          echo "GLOBAL_PARAMS=DatapubZoneApex=datapub.dev,Env=prod,InsilicaZoneApex=insilica.co,SysrevZoneApex=sysrev.com" >> $GITHUB_ENV
+
       - name: Deploy Sysrev-Global-Resources template
         id: deploy
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
@@ -45,6 +56,7 @@ jobs:
           name: Sysrev-Global-Resources
           capabilities: "CAPABILITY_IAM,CAPABILITY_NAMED_IAM"
           no-fail-on-empty-changeset: '1'
+          parameter-overrides: ${{ env.GLOBAL_PARAMS }}
           template: components/cloudformation-templates/out/sysrev-global-resources.template
 
       - name: Echo template outputs
@@ -81,7 +93,7 @@ jobs:
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},DatapubDomainName=datapub.sysrevdev.net,DatapubHostedZoneId=Z01310163M0NHSJUCFG3V,NumberOfAZs=6
+          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},DatapubDomainName=www.datapubdev.net,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template
 
@@ -91,6 +103,6 @@ jobs:
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},DatapubDomainName=www.datapub.dev,DatapubHostedZoneId=Z05777473DXKBD94EEPU2,NumberOfAZs=6
+          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},DatapubDomainName=www.datapub.dev,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template

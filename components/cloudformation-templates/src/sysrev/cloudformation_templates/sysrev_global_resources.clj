@@ -2,12 +2,205 @@
   (:refer-clojure :exclude [ref])
   (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 
+(defn google-mx-recordset [domain-name]
+  {:Name domain-name
+   :ResourceRecords
+   ["1 ASPMX.L.GOOGLE.COM"
+    "5 ALT1.ASPMX.L.GOOGLE.COM"
+    "5 ALT2.ASPMX.L.GOOGLE.COM"
+    "10 ALT3.ASPMX.L.GOOGLE.COM"
+    "10 ALT4.ASPMX.L.GOOGLE.COM"]
+   :TTL "3600"
+   :Type "MX"})
+
+(defn no-email-recordsets
+  "Protect domains that currently send no email from being used for spoofing.
+
+  Important: Make sure there is also an entry \"v=spf1 -all\" in a TXT record
+  for the domain apex.
+
+  See https://www.gov.uk/guidance/protect-domains-that-dont-send-email"
+  [domain-name]
+  [{:Name domain-name
+    :ResourceRecords ["0 ."]
+    :TTL "3600"
+    :Type "MX"}
+   {:Name (join "." ["_dmarc" domain-name])
+    :ResourceRecords ["\"v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s;fo=1\""]
+    :TTL "3600"
+    :Type "TXT"}
+   {:Name (join "." ["*._domainkey" domain-name])
+    :ResourceRecords ["\"v=DKIM1; p=\""]
+    :TTL "3600"
+    :Type "TXT"}])
+
+(defn simple-records [domain-name ttl type m]
+  (->> (sort-by first m)
+       (mapv
+        (fn [[subdomain target]]
+          {:Name (join "." [subdomain domain-name])
+           :ResourceRecords [target]
+           :TTL (str ttl)
+           :Type type}))))
+
 (deftemplate template
   :Description
   "This template creates the global resources needed by Sysrev services."
 
+  :Parameters
+  {:DatapubZoneApex {:Description "The DNS zone apex for Datapub with no final period, e.g., \"datapub.dev\""
+                     :Type "String"}
+   :Env {:AllowedPattern "(dev)|(prod)|(staging)"
+         :Type "String"}
+   :InsilicaZoneApex {:Description "The DNS zone apex for Insilica with no final period, e.g., \"insilica.co\""
+                      :Type "String"}
+   :SysrevZoneApex {:Description "The DNS zone apex for Sysrev with no final period, e.g., \"sysrev.com\""
+                    :Type "String"}}
+
+  :Conditions
+  {:HasInsilicaZone
+   (fn-not (equals "" (ref :InsilicaZoneApex)))
+   :IsProd (equals "prod" (ref :Env))}
+
   :Resources
-  {:AdminAccessCloudFormationServiceRole
+  {:DatapubHostedZone
+   {:Type "AWS::Route53::HostedZone"
+    :Properties
+    {:Name (ref :DatapubZoneApex)}}
+
+   :DatapubRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Properties
+    {:HostedZoneId (ref :DatapubHostedZone)
+     :RecordSets
+     (concat
+      [{:Name (ref :DatapubZoneApex)
+        :ResourceRecords ["54.210.22.161"]
+        :TTL "900"
+        :Type "A"}
+       {:Name (ref :DatapubZoneApex)
+        :ResourceRecords ["\"v=spf1 -all\""]
+        :TTL "900"
+        :Type "TXT"}]
+      (no-email-recordsets (ref :DatapubZoneApex)))}}
+
+   :InsilicaHostedZone
+   {:Type "AWS::Route53::HostedZone"
+    :Condition "HasInsilicaZone"
+    :Properties
+    {:Name (ref :InsilicaZoneApex)}}
+
+   :InsilicaRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Condition "HasInsilicaZone"
+    :Properties
+    {:HostedZoneId (ref :InsilicaHostedZone)
+     :RecordSets
+     (concat
+      [{:Name (ref :InsilicaZoneApex)
+        :ResourceRecords ["198.185.159.144" "198.185.159.145" "198.49.23.144" "198.49.23.145"]
+        :TTL "900"
+        :Type "A"}
+       (fn-if
+        :IsProd
+        {:Name (ref :InsilicaZoneApex)
+         :ResourceRecords ["\"v=spf1 -all\""]
+         :TTL "900"
+         :Type "TXT"}
+        no-value)]
+      (simple-records
+       (ref :InsilicaZoneApex) 900 "A"
+       {"api" "52.203.104.249"
+        "blog" "52.203.104.249"
+        "builds" "18.233.186.220"
+        "datasource" "54.210.22.161"
+        "db1" "54.234.183.33"
+        "db2" "54.148.8.116"
+        "db3" "52.89.182.113"
+        "jenkins" "18.233.186.220"
+        "k8s" "34.230.43.8"
+        "oldat" "52.1.46.20"
+        "oldwww" "52.1.46.20"
+        "ws1" "71.114.106.111"
+        "ws2" "71.114.106.111"
+        "ws3" "173.69.192.8"})
+      (simple-records
+       (ref :InsilicaZoneApex) 900 "CNAME"
+       {"www" "ext-cust.squarespace.com."
+        "yysm3rhf2z7tazxrhxkc" "verify.squarespace.com."}))}}
+
+   :InsilicaEmailRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Condition "HasInsilicaZone"
+    :Properties
+    {:HostedZoneId (ref :InsilicaHostedZone)
+     :RecordSets
+     (fn-if
+      :IsProd
+      [(google-mx-recordset (ref :InsilicaZoneApex))]
+      (no-email-recordsets (ref :InsilicaZoneApex)))}}
+
+   :SysrevHostedZone
+   {:Type "AWS::Route53::HostedZone"
+    :Properties
+    {:Name (ref :SysrevZoneApex)}}
+
+   :SysrevRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Properties
+    {:HostedZoneId (ref :SysrevHostedZone)
+     :RecordSets
+     (concat
+      [{:Name (ref :SysrevZoneApex)
+        :ResourceRecords ["54.210.22.161"]
+        :TTL "900"
+        :Type "A"}
+       {:Name (ref :SysrevZoneApex)
+        :ResourceRecords
+        ["\"google-site-verification=vieuiGhh2_y23yudDal67UXxBLsMTeB1DdGm0pCbvPI\""
+         "\"google-site-verification=Vj_PTRD5B_p2WCrbtTN6QCKAVfLNGTtDXCewRUKCYeY\""
+         (fn-if
+          :IsProd
+          "\"v=spf1 -all\""
+          no-value)]
+        :TTL "900"
+        :Type "TXT"}
+       {:Name (join "." ["_github-pages-challenge-sysrev" (ref :SysrevZoneApex)])
+        :ResourceRecords ["\"c3d762f72d636152f716897fe47d67\""]
+        :TTL "900"
+        :Type "TXT"}]
+      (simple-records
+       (ref :SysrevZoneApex) 900 "A"
+       {"analytics" "54.210.22.161"
+        "blog" "54.210.22.161"
+        "blog.staging" "52.1.46.20"
+        "data" "23.227.38.32"
+        "internal" "54.210.22.161"
+        "pubmed" "54.210.22.161"
+        "srplumber" "54.210.22.161"
+        "staging" "52.1.46.20"
+        "ws1" "71.114.106.111"
+        "www" "54.210.22.161"})
+      (simple-records
+       (ref :SysrevZoneApex) 900 "CNAME"
+       {"9253050" "sendgrid.net."
+        "em680" "u9253050.wl051.sendgrid.net."
+        "r" "sysrev.github.io."
+        "s1._domainkey" "s1.domainkey.u9253050.wl051.sendgrid.net."
+        "s2._domainkey" "s2.domainkey.u9253050.wl051.sendgrid.net."
+        "url5505" "sendgrid.net."}))}}
+
+   :SysrevEmailRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Properties
+    {:HostedZoneId (ref :SysrevHostedZone)
+     :RecordSets
+     (fn-if
+      :IsProd
+      [(google-mx-recordset (ref :SysrevZoneApex))]
+      (no-email-recordsets (ref :SysrevZoneApex)))}}
+
+   :AdminAccessCloudFormationServiceRole
    {:Type "AWS::IAM::Role"
     :Properties
     {:AssumeRolePolicyDocument
@@ -213,7 +406,10 @@
    {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]
     :CloudFrontOAI [(ref :CloudFrontOAI)]
     :DatapubBucket [(ref :DatapubBucket)]
-    :DevelopersGroupArn [(arn :DevelopersGroup)]}))
+    :DatapubHostedZoneId [(ref :DatapubHostedZone)]
+    :DevelopersGroupArn [(arn :DevelopersGroup)]
+    :InsilicaHostedZoneId [(ref :InsilicaHostedZone) nil :HasInsilicaZone]
+    :SysrevHostedZoneId [(ref :SysrevHostedZone)]}))
 
 (comment
   (write-template "components/cloudformation-templates/out/sysrev-global-resources.template"
