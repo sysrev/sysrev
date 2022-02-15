@@ -6,6 +6,16 @@
 (defn import-regional [export-name]
   (import-value (str "Sysrev-Regional-Resources-" export-name)))
 
+(defn public-port [port]
+  [{:CidrIp "0.0.0.0/0"
+    :IpProtocol "tcp"
+    :FromPort port
+    :ToPort port}
+   {:CidrIpv6 "::/0"
+    :IpProtocol "tcp"
+    :FromPort port
+    :ToPort port}])
+
 (deftemplate template
   :Description
   "This template creates the Sysrev AutoScalingGroup."
@@ -42,10 +52,7 @@
     :Properties
     {:GroupDescription "Sysrev Servers"
      :SecurityGroupIngress
-     [{:IpProtocol "tcp"
-       :FromPort 4041
-       :ToPort 4041
-       :SourceSecurityGroupId (import-regional "LoadBalancerSecurityGroupId")}]
+     (mapcat public-port [22 80 443])
      :VpcId (import-regional "VpcId")}}
 
    :RDSSecurityGroup

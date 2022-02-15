@@ -115,12 +115,35 @@
       "Properties" : {
         "GroupDescription" : "Sysrev Servers",
         "SecurityGroupIngress" : [ {
-          "FromPort" : 4041,
+          "CidrIp" : "0.0.0.0/0",
+          "FromPort" : 22,
           "IpProtocol" : "tcp",
-          "SourceSecurityGroupId" : {
-            "Fn::ImportValue" : "Sysrev-Regional-Resources-LoadBalancerSecurityGroupId"
-          },
-          "ToPort" : 4041
+          "ToPort" : 22
+        }, {
+          "CidrIpv6" : "::/0",
+          "FromPort" : 22,
+          "IpProtocol" : "tcp",
+          "ToPort" : 22
+        }, {
+          "CidrIp" : "0.0.0.0/0",
+          "FromPort" : 80,
+          "IpProtocol" : "tcp",
+          "ToPort" : 80
+        }, {
+          "CidrIpv6" : "::/0",
+          "FromPort" : 80,
+          "IpProtocol" : "tcp",
+          "ToPort" : 80
+        }, {
+          "CidrIp" : "0.0.0.0/0",
+          "FromPort" : 443,
+          "IpProtocol" : "tcp",
+          "ToPort" : 443
+        }, {
+          "CidrIpv6" : "::/0",
+          "FromPort" : 443,
+          "IpProtocol" : "tcp",
+          "ToPort" : 443
         } ],
         "VpcId" : {
           "Fn::ImportValue" : "Sysrev-Regional-Resources-VpcId"
