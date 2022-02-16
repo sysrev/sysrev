@@ -12,7 +12,7 @@
                                              import-source-articles import-source-impl]]))
 
 (defn-spec get-entities (s/coll-of map?)
-  [endpoint string?, ids (s/coll-of nat-int?)]
+  [endpoint string?, ids (s/coll-of string?)]
   (map
    (fn [id]
      (let [{:keys [content externalId]} (dpc/get-dataset-entity

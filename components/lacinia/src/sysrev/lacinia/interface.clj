@@ -21,6 +21,13 @@
   [map-or-seq]
   (core/denamespace-keys map-or-seq))
 
+(defn ^Long parse-int-id
+  "Returns parsed Long value if the string represents a normalized integer
+  value (one that begins with a digit 1-9, not a zero or +/-).
+  Returns nil otherwise."
+  [^String id]
+  (core/parse-int-id id))
+
 (defn remap-keys
   "Removes namespaces from keywords and symbols in the map(s) and
   applies key-f to the keys of the map(s).

@@ -3,8 +3,6 @@
    [next.jdbc :as jdbc]
    [sysrev.postgres.interface :as pg]))
 
-(def re-int-id #"[1-9][0-9]*")
-
 (defmacro with-tx-context
   "Either use an existing :tx in the context, or create a new transaction
   and assign it to :tx in the context."

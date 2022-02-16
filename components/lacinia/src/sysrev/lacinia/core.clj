@@ -29,40 +29,18 @@
     (instance? Timestamp datetime)
     (serialize-DateTime (.toInstant ^Timestamp datetime))))
 
-(defn parse-NonBlankString [x]
-  (cond
-    (not (string? x)) (throw (ex-info "Must be a string." {:value x}))
-    (str/blank? x) (throw (ex-info "Must not be blank." {:value x}))
-    :else x))
-
-(defn parse-NonNegativeInt [x]
-  (if (nat-int? x)
-    x
-    (throw (ex-info "Must be a non-negative integer."
-                    {:value x}))))
-
-(defn parse-PositiveInt [x]
-  (if (pos-int? x)
-    x
-    (throw (ex-info "Must be a positive integer."
-                    {:value x}))))
-
 (def scalars
   {:DateTime
    {:parse #'parse-DateTime
     :serialize #'serialize-DateTime}
-   :NonBlankString
-   {:parse #'parse-NonBlankString
-    :serialize identity}
-   :NonNegativeInt
-   {:parse #'parse-NonNegativeInt
-    :serialize identity}
-   :PositiveInt
-   {:parse #'parse-PositiveInt
-    :serialize identity}
    :Upload
    {:parse identity
     :serialize (constantly nil)}})
+
+(defn ^Long parse-int-id [^String id]
+  (case (first id)
+    (\1 \2 \3 \4 \5 \6 \7 \8 \9) (parse-long id)
+    nil))
 
 (defn resolve-value [_ _ value]
   value)

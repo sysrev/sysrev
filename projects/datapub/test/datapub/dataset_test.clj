@@ -59,7 +59,7 @@
     (let [ex (partial ex! system)
           ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-dataset"}})
                     (get-in [:data :createDataset :id]))]
-      (is (integer? ds-id))
+      (is (string? ds-id))
       (is (= {:data {:dataset {:name "test-dataset" :public false}}}
              (ex (dpcq/q-dataset [:name :public]) {:id ds-id})))
       (is (= {:data {:listDatasets
@@ -146,7 +146,7 @@
                               :content (json/generate-string {:a 1})
                               :mediaType "application/json"}})
                         (get-in [:data :createDatasetEntity :id]))]
-      (is (pos-int? entity-id))
+      (is (string? entity-id))
       (is (= {:data {:datasetEntity {:content "{\"a\": 1}" :mediaType "application/json"}}}
              (ex (dpcq/q-dataset-entity "content mediaType") {:id entity-id})))
       (testing "createDatasetEntity returns all fields"
@@ -168,13 +168,13 @@
                   :content (json/generate-string {:a 3})
                   :mediaType "application/json"}})
             (get-in [:data :createDatasetEntity :id])
-            pos-int?
+            string?
             is))
       (testing "Can list entities"
         (is (= {:data
                 {:dataset
                  {:entities
-                  {:edges [{:node {:id 1}} {:node {:id 2}} {:node {:id 3}}]
+                  {:edges [{:node {:id "1"}} {:node {:id "2"}} {:node {:id "3"}}]
                    :totalCount 3}}}}
                (ex (dpcq/q-dataset "entities {totalCount edges{node{id}}}")
                    {:id ds-id}))))
@@ -182,17 +182,17 @@
         (is (= {:data
                 {:dataset
                  {:entities
-                  {:edges [{:node {:id 2}}]
+                  {:edges [{:node {:id "2"}}]
                    :totalCount 1}}}}
-               (ex "query($externalId: String, $id: PositiveInt){dataset(id:$id){entities(externalId: $externalId) {totalCount edges{node{id}}}}}"
+               (ex "query($externalId: String, $id: ID){dataset(id:$id){entities(externalId: $externalId) {totalCount edges{node{id}}}}}"
                    {:externalId "ex-id" :id ds-id}))))
       (testing "Can list entities by groupingId"
         (is (= {:data
                 {:dataset
                  {:entities
-                  {:edges [{:node {:id 2}}]
+                  {:edges [{:node {:id "2"}}]
                    :totalCount 1}}}}
-               (ex "query($groupingId: String, $id: PositiveInt){dataset(id:$id){entities(groupingId: $groupingId) {totalCount edges{node{id}}}}}"
+               (ex "query($groupingId: String, $id: ID){dataset(id:$id){entities(groupingId: $groupingId) {totalCount edges{node{id}}}}}"
                    {:groupingId "gr-id" :id ds-id})))))))
 
 (deftest test-non-existent-entity
@@ -206,7 +206,7 @@
                               :content (json/generate-string {:a 1})
                               :mediaType "application/json"}})
                         (get-in [:data :createDatasetEntity :id])
-                        inc)]
+                        parse-long inc str)]
       (testing "Queries for non-existent entities return nil"
         (is (= {:data {:datasetEntity nil}}
                (ex (dpcq/q-dataset-entity "id") {:id entity-id})))
@@ -239,7 +239,7 @@
                          (ex {:id ds-id})
                          :data :dataset :entities :edges
                          (->> (map #(get-in % [:node :id]))) first)]
-          (is (pos-int? A11-id))
+          (is (string? A11-id))
           (is (= A11-id (-> (ex (dpcq/m-create-dataset-entity "id")
                                 {:input
                                  {:content (json/generate-string ["A1" 1])
@@ -691,7 +691,7 @@
           ctgov (create-entity "ctgov-Prot_SAP_000.pdf")
           fda (create-entity "fda-008372Orig1s044ltr.pdf")]
       (testing "Can create and retrieve a PDF entity"
-        (is (pos-int? (:id armstrong)))
+        (is (string? (:id armstrong)))
         (is (= {"title" "Armstrong Thesis Abstract"}
                (some-> armstrong :metadata json/parse-string)))
         (is (= {:data {:datasetEntity {:content (:content armstrong) :mediaType "application/pdf"}}}
@@ -703,8 +703,8 @@
               armstrong* (-> (ex (dpcq/q-dataset-entity "id metadata")
                                  {:id (:id armstrong)})
                              (get-in [:data :datasetEntity]))]
-          (is (pos-int? (:id armstrong*)))
-          (is (pos-int? (:id armstrong2)))
+          (is (string? (:id armstrong*)))
+          (is (string? (:id armstrong2)))
           (is (not= (:id armstrong*) (:id armstrong2)))
           (is (= {"title" "Armstrong Thesis Abstract"}
                  (some-> armstrong* :metadata json/parse-string)))
@@ -769,7 +769,7 @@
           (is (empty? (ex-search! (search-q text "eueuoxuexau")))))
         (testing "Scanned PDFs are processed with OCR and are searchable"
           (let [ziagen (create-entity "020978_S016_ZIAGEN.pdf")]
-            (is (pos-int? (:id ziagen)))
+            (is (string? (:id ziagen)))
             (is (= #{{:externalId "020978_S016_ZIAGEN.pdf"}}
                    (ex-search! (search-q ocr-text "abacavir"))))
             (is (= #{{:externalId "020978_S016_ZIAGEN.pdf"}}
@@ -816,7 +816,7 @@
                          String.))]
       (testing "JSON uploads through contentUpload work and can be retrieved at contentUrl"
         (let [entity-a (upload-entity! (json/generate-string {"a" [0]}) "application/json")]
-          (is (pos-int? (:id entity-a)))
+          (is (string? (:id entity-a)))
           (is (string? (:contentUrl entity-a)))
           (is (= {"a" [0]}
                  (some-> entity-a :content json/parse-string)
@@ -824,7 +824,7 @@
       (testing "PDF uploads through contentUpload work and can be retrieved at contentUrl"
         (let [armstrong (upload-entity! (upload-stream "armstrong-thesis-2003-abstract.pdf")
                                         "application/pdf")]
-          (is (pos-int? (:id armstrong)))
+          (is (string? (:id armstrong)))
           (is (string? (:contentUrl armstrong)))
           (is (= (sha3-256 (upload-stream "armstrong-thesis-2003-abstract.pdf"))
                  (some-> armstrong :contentUrl URL. .openStream sha3-256))))))))

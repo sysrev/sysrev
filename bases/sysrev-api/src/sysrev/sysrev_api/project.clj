@@ -18,7 +18,7 @@
 (def project-cols-inv (-> project-cols (dissoc :public) core/inv-cols))
 
 (defn resolve-project [context {:keys [id]} _]
-  (when-let [int-id (when (re-matches core/re-int-id id) (parse-long id))]
+  (when-let [int-id (sl/parse-int-id id)]
     (with-tx-context [context context]
       (let [user-id (user/current-user-id context)
             ks (sl/current-selection-names context)

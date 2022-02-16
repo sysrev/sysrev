@@ -307,7 +307,7 @@
         {:keys [condition countries gender intervention
                 recruitment sponsor-class study-type]}
         #__ filters]
-    {:datasetId 1
+    {:datasetId "1"
      :uniqueExternalIds true
      :query
      (->> {:type "AND"

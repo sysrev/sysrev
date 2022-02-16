@@ -6,8 +6,6 @@
 
 "A DateTime in ISO-8061 instant format, such as \"2011-12-03T10:15:30Z\"."
 scalar DateTime
-scalar NonNegativeInt
-scalar PositiveInt
 scalar Upload
 
 enum DatasetIndexType {
@@ -22,7 +20,7 @@ enum SearchDatasetQueryInputType {
 "A Dataset is a searchable set of DatasetEntity objects."
 type Dataset {
   "The unique id of the Dataset."
-  id: PositiveInt!
+  id: ID!
 
   "A description of the Dataset."
   description: String
@@ -31,7 +29,7 @@ type Dataset {
   entities(
     after: String
     externalId: String
-    first: NonNegativeInt
+    first: Int
     groupingId: String
   ): DatasetEntitiesConnection!
 
@@ -48,7 +46,7 @@ type Dataset {
 type DatasetEntitiesConnection {
   edges: [DatasetEntitiesEdge]
   pageInfo: PageInfo!
-  totalCount: NonNegativeInt
+  totalCount: Int
 }
 
 type DatasetEntitiesEdge {
@@ -58,10 +56,10 @@ type DatasetEntitiesEdge {
 
 type DatasetEntity {
   "The unique id."
-  id: PositiveInt!
+  id: ID!
 
   "The string representation of the content. This will be null when the content is large. Use contentUrl in that case."
-  content: String
+  content: String @deprecated(reason: "content is deprecated. Use contentUrl instead.")
 
   "A url at which the entity content can be accessed."
   contentUrl: String!
@@ -92,7 +90,7 @@ type DatasetIndex {
 type ListDatasetsConnection {
   edges: [ListDatasetsEdge]
   pageInfo: PageInfo!
-  totalCount: NonNegativeInt
+  totalCount: Int
 }
 
 type ListDatasetsEdge {
@@ -118,7 +116,7 @@ type PageInfo {
 input CreateDatasetEntityInput {
   content: String
   contentUpload: Upload
-  datasetId: PositiveInt!
+  datasetId: ID!
   externalCreated: DateTime
   externalId: String
   groupingId: String
@@ -127,7 +125,7 @@ input CreateDatasetEntityInput {
 }
 
 input CreateDatasetIndexInput {
-  datasetId: PositiveInt!
+  datasetId: ID!
   path: String!
   type: DatasetIndexType!
 }
@@ -140,22 +138,22 @@ input CreateDatasetInput {
 
 input UpdateDatasetInput {
   description: String
-  id: PositiveInt!
+  id: ID!
   name: String
   public: Boolean
 }
 
 type Query {
-  dataset(id: PositiveInt!) : Dataset
+  dataset(id: ID!) : Dataset
   datasetEntitiesById(
     after: String
-    first: NonNegativeInt
-    ids: [PositiveInt]
+    first: Int
+    ids: [ID]
   ) : DatasetEntitiesConnection
-  datasetEntity(id: PositiveInt!) : DatasetEntity
+  datasetEntity(id: ID!) : DatasetEntity
   listDatasets(
     after: String
-    first: NonNegativeInt
+    first: Int
   ) : ListDatasetsConnection
 }
 

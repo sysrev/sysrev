@@ -2,13 +2,13 @@
 # separate the definitions from the main schema.
 
 input DatasetEntitiesInput {
-  datasetId: PositiveInt!
+  datasetId: ID!
   uniqueExternalIds: Boolean
   uniqueGroupingIds: Boolean
 }
 
 input SearchDatasetInput {
-  datasetId: PositiveInt!
+  datasetId: ID!
   query: SearchDatasetQueryInput!
   uniqueExternalIds: Boolean
   uniqueGroupingIds: Boolean

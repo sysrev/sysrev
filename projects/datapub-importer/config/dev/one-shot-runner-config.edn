@@ -1,4 +1,4 @@
 {:common-opts {:auth-token "***REMOVED***"
                :endpoint "http://localhost:8121/api"}
  :tasks [(sysrev.datapub-import.interface/import-fda-drugs-docs!
-          {:dataset-id 2})]}
+          {:dataset-id "2"})]}

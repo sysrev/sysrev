@@ -7,12 +7,6 @@
 "A DateTime in ISO-8061 instant format, such as \"2011-12-03T10:15:30Z\"."
 scalar DateTime
 
-"A String with at least one non-whitespace character."
-scalar NonBlankString
-
-"A non-negative integer."
-scalar NonNegativeInt
-
 enum ProjectLabelType {
   BOOLEAN
   CATEGORICAL
@@ -44,7 +38,7 @@ type Project {
   "The labels associated with this project."
   labels(
     after: String
-    first: NonNegativeInt
+    first: Int
   ): ProjectLabelsConnection!
 
   "The project's name."
@@ -80,7 +74,7 @@ type ProjectLabel {
 type ProjectLabelsConnection {
   edges: [ProjectLabelsEdge]
   pageInfo: PageInfo!
-  totalCount: NonNegativeInt
+  totalCount: Int
 }
 
 type ProjectLabelsEdge {
@@ -89,7 +83,7 @@ type ProjectLabelsEdge {
 }
 
 input CreateProjectInput {
-  name: NonBlankString!
+  name: String!
   public: Boolean!
 }
 

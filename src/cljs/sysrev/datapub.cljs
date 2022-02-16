@@ -14,17 +14,17 @@
             (.getAttribute "data-datapub-ws"))))
 
 (defn dataset-entity [return]
-  (str "query($id: PositiveInt!){datasetEntity(id: $id){" return "}}"))
+  (str "query($id: ID!){datasetEntity(id: $id){" return "}}"))
 
 (defn dataset-entities-for-external-id [return]
   (str
-   "query($datasetId: PositiveInt!, $externalId: String!){
+   "query($datasetId: ID!, $externalId: String!){
        dataset(id: $datasetId){
            entities(externalId: $externalId){edges{node{" return "}}}}}"))
 
 (defn dataset-entities-for-grouping-id [return]
   (str
-   "query($datasetId: PositiveInt!, $groupingId: String!){
+   "query($datasetId: ID!, $groupingId: String!){
        dataset(id: $datasetId){
            entities(groupingId: $groupingId){edges{node{" return "}}}}}"))
 

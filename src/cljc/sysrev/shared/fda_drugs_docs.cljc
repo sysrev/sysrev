@@ -70,7 +70,7 @@
   (let [{:keys [filters search]} (canonicalize-query query)
         {:keys [active-ingredient application-type document-type
                 drug-name review-document-type]} filters]
-    {:datasetId 3
+    {:datasetId "3"
      :uniqueGroupingIds true
      :query
      (->> {:type "AND"

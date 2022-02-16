@@ -182,7 +182,7 @@
 (defn datapub-has-url? [opts url]
   (-> (dpc/execute!
        (assoc opts
-              :query "query($id: PositiveInt! $externalId: String!){dataset(id: $id){entities(externalId: $externalId){totalCount}}}"
+              :query "query($id: ID! $externalId: String!){dataset(id: $id){entities(externalId: $externalId){totalCount}}}"
               :variables {:externalId (canonical-url url)
                           :id (:dataset-id opts)}))
       (get-in [:data :dataset :entities :totalCount])

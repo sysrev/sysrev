@@ -47,9 +47,9 @@
 (defn plan [context sqlmap]
   (pg/plan (:tx context) sqlmap))
 
-(defn public-dataset? [context id]
+(defn public-dataset? [context ^Long int-id]
   (-> context
-      (execute-one! {:select :public :from :dataset :where [:= :id id]})
+      (execute-one! {:select :public :from :dataset :where [:= :id int-id]})
       :dataset/public
       boolean))
 
@@ -79,20 +79,21 @@
       inv-cols (me/map-kv (fn [k v] [v k]) cols)]
 
   (defn resolve-dataset [context {:keys [id]} _]
-    (with-tx-context [context context]
-      (when-not (public-dataset? context id)
-        (ensure-sysrev-dev context))
-      (let [ks (conj (sl/current-selection-names context) :id)
-            select (keep cols ks)]
-        (-> (when (seq select)
-              (sl/remap-keys
-               inv-cols
-               (execute-one!
-                context
-                {:select select
-                 :from :dataset
-                 :where [:= :id id]})))
-            (assoc :id id)))))
+    (when-let [int-id (sl/parse-int-id id)]
+      (with-tx-context [context context]
+        (when-not (public-dataset? context int-id)
+          (ensure-sysrev-dev context))
+        (let [ks (conj (sl/current-selection-names context) :id)
+              select (keep cols ks)]
+          (-> (when (seq select)
+                (sl/remap-keys
+                 inv-cols
+                 (execute-one!
+                  context
+                  {:select select
+                   :from :dataset
+                   :where [:= :id int-id]})))
+              (assoc :id id))))))
 
   (defn create-dataset! [context {:keys [input]} _]
     (ensure-sysrev-dev
@@ -105,24 +106,25 @@
                    :values [(me/map-keys cols input)]
                    :returning :id})]
          (when id
-           (resolve-dataset context {:id id} nil))))))
+           (resolve-dataset context {:id (str id)} nil))))))
 
   (defn update-dataset! [context {{:keys [id] :as input} :input} _]
-    (ensure-sysrev-dev
-     context
-     (with-tx-context [context context]
-       (let [set (me/map-keys cols (dissoc input :id))
-             {:dataset/keys [id]}
-             #__ (if (empty? set)
-                   {:dataset/id id}
-                   (execute-one!
-                    context
-                    {:update :dataset
-                     :set set
-                     :where [:= :id id]
-                     :returning :id}))]
-         (when id
-           (resolve-dataset context {:id id} nil)))))))
+    (when-let [int-id (sl/parse-int-id id)]
+      (ensure-sysrev-dev
+       context
+       (with-tx-context [context context]
+         (let [set (me/map-keys cols (dissoc input :id))
+               {:dataset/keys [id]}
+               #__ (if (empty? set)
+                     {:dataset/id id}
+                     (execute-one!
+                      context
+                      {:update :dataset
+                       :set set
+                       :where [:= :id int-id]
+                       :returning :id}))]
+           (when id
+             (resolve-dataset context {:id (str id)} nil))))))))
 
 (defn internal-path-vec
   "Returns a path vector for use in postgres. Numbers are turned into strings,
@@ -140,22 +142,23 @@
   (mapv #(if (= ":datapub/*" %) :* %) path-seq))
 
 (defn resolve-Dataset#indices [context _ {:keys [id]}]
-  (with-tx-context [context context]
-    (when-not (public-dataset? context id)
-      (ensure-sysrev-dev context))
-    (->> (execute!
-          context
-          {:select [:path :type-name]
-           :from :dataset-index-spec
-           :join [:index-spec [:= :id :index-spec-id]]
-           :where [:= :dataset-id id]})
-         (map
-          (fn [{:index-spec/keys [path type-name]}]
-            {:path (->> ^PgArray path
-                        .getArray
-                        internal-path-vec
-                        pr-str)
-             :type (keyword (str/upper-case type-name))})))))
+  (when-let [int-id (sl/parse-int-id id)]
+    (with-tx-context [context context]
+      (when-not (public-dataset? context id)
+        (ensure-sysrev-dev context))
+      (->> (execute!
+            context
+            {:select [:path :type-name]
+             :from :dataset-index-spec
+             :join [:index-spec [:= :id :index-spec-id]]
+             :where [:= :dataset-id int-id]})
+           (map
+            (fn [{:index-spec/keys [path type-name]}]
+              {:path (->> ^PgArray path
+                          .getArray
+                          internal-path-vec
+                          pr-str)
+               :type (keyword (str/upper-case type-name))}))))))
 
 (defn connection-helper
   "Helper to resolve GraphQL Cursor Connections as specified by
@@ -203,7 +206,7 @@
             :order-by [:id]}
            (execute! context)
            (map (fn [{:dataset/keys [id]}]
-                  {:cursor (str id) :node {:id id}}))
+                  {:cursor (str id) :node {:id (str id)}}))
            (split-at (dec limit))))}))
 
 (defn resolve-ListDatasetsEdge#node [context _ {:keys [node]}]
@@ -244,14 +247,14 @@
                        :content-hash :hash
                        :externalId :external-id)]
 
-  (defn get-entity-content [context id ks]
+  (defn get-entity-content [context ^Long int-id ks]
     (or
      (as-> context $
        (execute-one!
         $
         {:select (keep cols-file ks)
          :from :entity
-         :where [:= :id id]
+         :where [:= :id int-id]
          :join [:content-file [:= :content-file.content-id :entity.content-id]]})
        (some->
         $
@@ -266,97 +269,101 @@
        context
        {:select (keep cols-json ks)
         :from :entity
-        :where [:= :id id]
+        :where [:= :id int-id]
         :join [:content-json [:= :content-json.content-id :entity.content-id]]})
       (assoc :mediaType "application/json"))))
 
   (defn resolve-dataset-entity [context {:keys [id]} _]
-    (let [ks (conj (sl/current-selection-names context) :dataset-id)]
-      (with-tx-context [context context]
-        (some->
-         (if (some #{:content :contentUrl :mediaType :metadata} ks)
-           (some-> (get-entity-content
-                    context id
-                    (apply conj ks (when (:contentUrl ks) [:content-hash :file-hash])))
-                   (update :content
-                           #(if (instance? InputStream %)
-                              (.encodeToString (Base64/getEncoder)
-                                               (IOUtils/toByteArray ^InputStream %))
-                              %)))
-           (execute-one!
-            context
-            {:select (keep cols-all ks)
-             :from :entity
-             :where [:= :id id]}))
-         (as-> $
-             (sl/remap-keys #(inv-cols % %) $)
-           (assoc $
-                  :id id
-                  :contentUrl
-                  (when (:contentUrl ks)
-                    (let [domain (get-in context [:pedestal :config :files-domain-name])
-                          {:keys [file-hash]} $]
-                      (if (and domain file-hash)
-                        (str "https://" domain "/" (file/content-key file-hash))
-                        (str (server-url (:request context))
-                             (content-url-path id (or (:content-hash $) (:hash $))))))))
-           (if (or (sysrev-dev? context)
-                   (call-memo context :public-dataset? (:dataset-id $)))
-             $
-             (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
-                                      :datasetId (:dataset-id $)}))))))))
+    (when-let [int-id (sl/parse-int-id id)]
+      (let [ks (conj (sl/current-selection-names context) :dataset-id)]
+        (with-tx-context [context context]
+          (some->
+           (if (some #{:content :contentUrl :mediaType :metadata} ks)
+             (some-> (get-entity-content
+                      context int-id
+                      (apply conj ks (when (:contentUrl ks) [:content-hash :file-hash])))
+                     (update :content
+                             #(if (instance? InputStream %)
+                                (.encodeToString (Base64/getEncoder)
+                                                 (IOUtils/toByteArray ^InputStream %))
+                                %)))
+             (execute-one!
+              context
+              {:select (keep cols-all ks)
+               :from :entity
+               :where [:= :id int-id]}))
+           (as-> $
+               (sl/remap-keys #(inv-cols % %) $)
+             (assoc $
+                    :id id
+                    :contentUrl
+                    (when (:contentUrl ks)
+                      (let [domain (get-in context [:pedestal :config :files-domain-name])
+                            {:keys [file-hash]} $]
+                        (if (and domain file-hash)
+                          (str "https://" domain "/" (file/content-key file-hash))
+                          (str (server-url (:request context))
+                               (content-url-path id (or (:content-hash $) (:hash $))))))))
+             (if (or (sysrev-dev? context)
+                     (call-memo context :public-dataset? (:dataset-id $)))
+               $
+               (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
+                                        :datasetId (:dataset-id $)})))))))))
 
 (defn resolve-datasetEntitiesById
   [context {:keys [ids] :as args} _]
-  (connection-helper
-   context args
-   {:count-f
-    (fn [{:keys [context]}]
-      (->> {:select :%count.id
-            :from :entity
-            :where [:in :id ids]}
-           (execute-one! context)
-           :count))
-    :edges-f
-    (fn [{:keys [context cursor limit]}]
-      (->> {:select :id
-            :from :entity
-            :limit limit
-            :where [:and [:> :id cursor] [:in :id ids]]
-            :order-by [:id]}
-           (execute! context)
-           (map (fn [{:entity/keys [id]}]
-                  {:cursor (str id) :node {:id id}}))
-           (split-at (dec limit))))}))
+  (let [int-ids (keep sl/parse-int-id ids)]
+    (when (seq int-ids)
+      (connection-helper
+       context args
+       {:count-f
+        (fn [{:keys [context]}]
+          (->> {:select :%count.id
+                :from :entity
+                :where [:in :id int-ids]}
+               (execute-one! context)
+               :count))
+        :edges-f
+        (fn [{:keys [context cursor limit]}]
+          (->> {:select :id
+                :from :entity
+                :limit limit
+                :where [:and [:> :id cursor] [:in :id int-ids]]
+                :order-by [:id]}
+               (execute! context)
+               (map (fn [{:entity/keys [id]}]
+                      {:cursor (str id) :node {:id (str id)}}))
+               (split-at (dec limit))))}))))
 
 (defn resolve-Dataset#entities
   [context {:keys [externalId groupingId] :as args} {:keys [id]}]
-  (let [where [:and
-               [:= :dataset-id id]
-               (when externalId
-                 [:= :external-id externalId])
-               (when groupingId
-                 [:= :grouping-id groupingId])]]
-    (connection-helper
-     context args
-     {:count-f
-      (fn [{:keys [context]}]
-        (->> {:select :%count.id
-              :from :entity
-              :where where}
-             (execute-one! context)
-             :count))
-      :edges-f
-      (fn [{:keys [context cursor limit]}]
-        (->> {:select :id
-              :from :entity
-              :limit limit
-              :where [:and [:> :id cursor] where]
-              :order-by [:id]}
-             (execute! context)
-             (map (fn [{:entity/keys [id]}]
-                    {:cursor (str id) :node {:id id}}))
-             (split-at (dec limit))))})))
+  (when-let [int-id (sl/parse-int-id id)]
+    (let [where [:and
+                 [:= :dataset-id int-id]
+                 (when externalId
+                   [:= :external-id externalId])
+                 (when groupingId
+                   [:= :grouping-id groupingId])]]
+      (connection-helper
+       context args
+       {:count-f
+        (fn [{:keys [context]}]
+          (->> {:select :%count.id
+                :from :entity
+                :where where}
+               (execute-one! context)
+               :count))
+        :edges-f
+        (fn [{:keys [context cursor limit]}]
+          (->> {:select :id
+                :from :entity
+                :limit limit
+                :where [:and [:> :id cursor] where]
+                :order-by [:id]}
+               (execute! context)
+               (map (fn [{:entity/keys [id]}]
+                      {:cursor (str id) :node {:id (str id)}}))
+               (split-at (dec limit))))}))))
 
 (defn resolve-DatasetEntitiesEdge#node [context _ {:keys [node]}]
   (resolve-dataset-entity context node _))
@@ -460,29 +467,30 @@
    (with-tx-context [context context]
      (if (empty? (execute-one! context {:select :id
                                         :from :dataset
-                                        :where [:= :id datasetId]}))
+                                        :where [:= :id (sl/parse-int-id datasetId)]}))
        (resolve/resolve-as nil {:message "There is no dataset with that id."
                                 :datasetId datasetId})
-       (let [existing-content-id
+       (let [dataset-int-id (sl/parse-int-id datasetId)
+             existing-content-id
              #__ (get-existing-content-id
                   context
                   {:content-hash content-hash :content-table content-table})
              external-created (some-> externalCreated .toEpochMilli Timestamp.)
              identifiers {:content-id existing-content-id
-                          :dataset-id datasetId
+                          :dataset-id dataset-int-id
                           :external-created external-created
                           :external-id externalId
                           :grouping-id groupingId}]
          (if existing-content-id
            (if-let [existing-entity (get-existing-entity context identifiers)]
-             (resolve-dataset-entity context {:id (:entity/id existing-entity)} nil)
+             (resolve-dataset-entity context {:id (str (:entity/id existing-entity))} nil)
              ;; Insert entity referencing existing content
              (-> context
                  (execute-one!
                   {:insert-into :entity
                    :returning :id
                    :values [identifiers]})
-                 :entity/id
+                 :entity/id str
                  (#(resolve-dataset-entity context {:id %} nil))))
            ;; Create new content and insert entity referencing it
            (-> context
@@ -506,7 +514,7 @@
                         :media-type mediaType})]}]]
                  :insert-into :entity
                  :returning :id
-                 :values [(-> {:dataset-id datasetId
+                 :values [(-> {:dataset-id dataset-int-id
                                :content-id (or existing-content-id
                                                {:select :id :from :content})
                                :external-created external-created}
@@ -516,7 +524,7 @@
                               ((if groupingId
                                  #(assoc % :grouping-id groupingId)
                                  identity)))]})
-               :entity/id
+               :entity/id str
                (#(resolve-dataset-entity context {:id %} nil)))))))))
 
 (defmulti create-dataset-entity! (fn [_ {{:keys [mediaType]} :input} _]
@@ -636,10 +644,11 @@
 (defn dataset-entities-subscription [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds]} :input} source-stream]
   (ensure-sysrev-dev
    context
-   (let [q {:select :id
+   (let [int-id (sl/parse-int-id datasetId)
+         q {:select :id
             :from :entity
             :where [:and
-                    [:= :dataset-id datasetId]
+                    [:= :dataset-id int-id]
                     (when (or uniqueExternalIds uniqueGroupingIds)
                       [:in [:concat [:coalesce :external-created :created] :created]
                        {:select [[[:max [:concat [:coalesce :external-created :created] :created]]]]
@@ -650,17 +659,19 @@
                                   [:= :e.external-id :entity.external-id]
                                   [:= :e.grouping-id :entity.grouping-id])]}])]}
          fut (future
-               (try
-                 (with-tx-context [context context]
-                   (reduce
-                    (fn [_ row]
-                      (source-stream
-                       (resolve-dataset-entity context {:id (:id row)} nil)))
-                    nil
-                    (plan context q))
-                   (source-stream nil))
-                 (catch Exception e
-                   (prn e))))]
+               (if-not int-id
+                 (source-stream nil)
+                 (try
+                   (with-tx-context [context context]
+                     (reduce
+                      (fn [_ row]
+                        (source-stream
+                         (resolve-dataset-entity context {:id (str (:id row))} nil)))
+                      nil
+                      (plan context q))
+                     (source-stream nil))
+                   (catch Exception e
+                     (prn e)))))]
      (fn [] (future-cancel fut)))))
 
 (defn valid-index-path? [path-vec]
@@ -694,37 +705,40 @@
           (get-index-spec context path-vec type)))))
 
 (defn resolve-dataset-index [context {:keys [datasetId path type]} _]
-  (let [path-vec (try (edn/read-string path) (catch Exception _))]
-    (when (valid-index-path? path-vec)
-      (with-tx-context [context context]
-        (when-not (public-dataset? context datasetId)
-          (ensure-sysrev-dev context))
-        (some->
-         (get-index-spec context path-vec (-> type name str/lower-case))
-         :index-spec/id
-         (as-> $
-             (execute-one!
-              context
-              {:select true
-               :from :dataset-index-spec
-               :where [:and
-                       [:= :dataset-id datasetId]
-                       [:= :index-spec-id $]]})
-           (when $
-             {:path (pr-str path-vec)
-              :type type})))))))
+  (when-let [dataset-int-id (sl/parse-int-id datasetId)]
+    (let [path-vec (try (edn/read-string path) (catch Exception _))]
+      (when (valid-index-path? path-vec)
+        (with-tx-context [context context]
+          (when-not (public-dataset? context dataset-int-id)
+            (ensure-sysrev-dev context))
+          (some->
+           (get-index-spec context path-vec (-> type name str/lower-case))
+           :index-spec/id
+           (as-> $
+               (execute-one!
+                context
+                {:select true
+                 :from :dataset-index-spec
+                 :where [:and
+                         [:= :dataset-id dataset-int-id]
+                         [:= :index-spec-id $]]})
+             (when $
+               {:path (pr-str path-vec)
+                :type type}))))))))
 
 (defn create-dataset-index! [context {{:keys [datasetId path type]} :input} _]
   (ensure-sysrev-dev
    context
-   (let [path-vec (try (edn/read-string path) (catch Exception _))]
+   (let [dataset-int-id (sl/parse-int-id datasetId)
+         path-vec (try (edn/read-string path) (catch Exception _))]
      (if-not (valid-index-path? path-vec)
        (resolve/resolve-as nil {:message "Invalid index path."
                                 :path path}))
      (with-tx-context [context context]
-       (if (empty? (execute-one! context {:select :id
-                                          :from :dataset
-                                          :where [:= :id datasetId]}))
+       (if (or (not dataset-int-id)
+               (empty? (execute-one! context {:select :id
+                                              :from :dataset
+                                              :where [:= :id dataset-int-id]})))
          (resolve/resolve-as nil {:message "There is no dataset with that id."
                                   :datasetId datasetId})
          (let [index-spec-id (->> type name str/lower-case
@@ -736,7 +750,7 @@
              :on-conflict []
              :do-nothing []
              :values
-             [{:dataset-id datasetId
+             [{:dataset-id dataset-int-id
                :index-spec-id index-spec-id}]})
            (resolve-dataset-index
             context
@@ -818,13 +832,14 @@
 
 (defn search-dataset-query->select
   [context {:keys [datasetId query uniqueExternalIds uniqueGroupingIds]}]
-  (let [index-spec-ids (reduce
-                        #(assoc % %2 (get-index-spec-ids-for-path context datasetId %2))
+  (let [dataset-int-id (parse-long datasetId)
+        index-spec-ids (reduce
+                        #(assoc % %2 (get-index-spec-ids-for-path context dataset-int-id %2))
                         {}
                         (get-search-query-paths query))
         where (search-dataset-query->sqlmap index-spec-ids query)
         q {:select :entity-id
-           :from (keyword (str "indexed-entity-" datasetId))
+           :from (keyword (str "indexed-entity-" dataset-int-id))
            :where where}]
     (if-not (or uniqueExternalIds uniqueGroupingIds)
       q
@@ -852,40 +867,42 @@
   [context
    {{:keys [datasetId query uniqueExternalIds uniqueGroupingIds] :as input} :input}
    source-stream]
-  (cond
-    (and uniqueExternalIds uniqueGroupingIds)
-    (fail-subscription
-     source-stream
-      {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."})
+  (let [dataset-int-id (sl/parse-int-id datasetId)]
+    (cond
+      (and uniqueExternalIds uniqueGroupingIds)
+      (fail-subscription
+       source-stream
+       {:message "uniqueExternalIds and uniqueGroupingIds cannot both be true."})
 
-    (empty? (select-keys query search-dataset-query-keys))
-    (fail-subscription
-     source-stream
-     {:message (str "At least one of these keys must be set: "
-                    (str/join search-dataset-query-keys))
-      :query query})
+      (empty? (select-keys query search-dataset-query-keys))
+      (fail-subscription
+       source-stream
+       {:message (str "At least one of these keys must be set: "
+                      (str/join search-dataset-query-keys))
+        :query query})
 
-    (not (or (sysrev-dev? context)
-             (with-tx-context [context context]
-               (public-dataset? context datasetId))))
-    (fail-subscription
-     source-stream
-     {:datasetId datasetId
-      :message "You are not authorized to access entities in that dataset."})
+      (not (and dataset-int-id
+                (or (sysrev-dev? context)
+                    (with-tx-context [context context]
+                      (public-dataset? context dataset-int-id)))))
+      (fail-subscription
+       source-stream
+       {:datasetId datasetId
+        :message "You are not authorized to access entities in that dataset."})
 
-    :else
-    (let [fut (future
-                (try
-                  (with-tx-context [context context]
-                    (let [q (search-dataset-query->select context input)]
-                      (when (some identity (rest q))
-                        (reduce
-                         (fn [_ row]
-                           (source-stream
-                            (resolve-dataset-entity context {:id (:entity_id row)} nil)))
-                         nil
-                         (plan context q))))
-                    (source-stream nil))
-                  (catch Exception e
-                    (prn e))))]
-      (fn [] (future-cancel fut)))))
+      :else
+      (let [fut (future
+                  (try
+                    (with-tx-context [context context]
+                      (let [q (search-dataset-query->select context input)]
+                        (when (some identity (rest q))
+                          (reduce
+                           (fn [_ row]
+                             (source-stream
+                              (resolve-dataset-entity context {:id (str (:entity_id row))} nil)))
+                           nil
+                           (plan context q))))
+                      (source-stream nil))
+                    (catch Exception e
+                      (prn e))))]
+        (fn [] (future-cancel fut))))))
