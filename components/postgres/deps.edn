@@ -1,9 +1,9 @@
 {:paths ["src"]
  :deps {cheshire/cheshire {:mvn/version "5.10.2"}
         com.github.seancorfield/honeysql {:mvn/version "2.2.861"}
-        com.github.seancorfield/next.jdbc {:mvn/version "1.2.761"}
+        com.github.seancorfield/next.jdbc {:mvn/version "1.2.772"}
         hikari-cp/hikari-cp {:git/url "https://github.com/insilica/hikari-cp.git"
                              :sha "716ddf4e1a49cd424179e8b4d75a05436da8113d"}
-        org.postgresql/postgresql {:mvn/version "42.3.2"}
+        org.postgresql/postgresql {:mvn/version "42.3.3"}
 
         poly/component {:local/root "../component"}}}

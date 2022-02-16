@@ -4,6 +4,7 @@
         poly/datapub-client {:local/root "../../components/datapub-client"}
         poly/flyway {:local/root "../../components/flyway"}
         poly/notification {:local/root "../../components/notification"}
+        poly/postgres {:local/root "../../components/postgres"}
         poly/reviewer-time {:local/root "../../components/reviewer-time"}
         poly/sysrev {:local/root "."}
         poly/user {:local/root "../../components/user"}}

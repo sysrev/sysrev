@@ -6,8 +6,8 @@
                   :extra-deps {com.cognitect/test-runner
                                {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                 :sha "cc75980b43011773162b485f46f939dc5fba91e4"}
-                               co.insilica/datapub
+                               poly/datapub
                                {:local/root "../../projects/datapub"}
-                               co.insilica/datapub-test
+                               poly/datapub-test
                                {:local/root "../../projects/datapub/datapub-test"}}
                   :exec-fn cognitect.test-runner.api/test}}}

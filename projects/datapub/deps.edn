@@ -3,7 +3,7 @@
         org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}
         clj-http/clj-http {:mvn/version "3.12.3"}
         com.cognitect.aws/api {:mvn/version "0.8.539"},
-        com.cognitect.aws/endpoints {:mvn/version "1.1.12.150"}
+        com.cognitect.aws/endpoints {:mvn/version "1.1.12.153"}
         com.cognitect.aws/s3 {:mvn/version "814.2.1053.0"}
         com.cognitect.aws/secretsmanager {:mvn/version "814.2.1066.0"}
         com.fzakaria/slf4j-timbre {:mvn/version "0.3.21"}
@@ -23,13 +23,13 @@
         poly/tesseract {:local/root "../../components/tesseract"}
         poly/util-lite {:local/root "../../components/util-lite"}}
  :aliases {:dev {:extra-paths ["test" "config/dev"]
-                 :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}
-                              sysrev/datapub-client {:local/root "../../components/datapub-client"}}}
+                 :extra-deps {poly/datapub-test {:local/root "datapub-test"}
+                              poly/datapub-client {:local/root "../../components/datapub-client"}}}
            :prod {:extra-paths ["config/prod"]}
            :staging {:extra-paths ["config/staging"]
-                     :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}}}
+                     :extra-deps {poly/datapub-test {:local/root "datapub-test"}}}
            :test {:extra-paths ["test" "config/test"]
-                  :extra-deps {co.insilica/datapub-test {:local/root "datapub-test"}
+                  :extra-deps {poly/datapub-test {:local/root "datapub-test"}
                                poly/datapub-client {:local/root "../../components/datapub-client"}}
                   :exec-fn datapub.test/run-tests}
            :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}

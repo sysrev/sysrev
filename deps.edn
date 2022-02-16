@@ -14,7 +14,7 @@
 ;;; Logging
         org.clojure/tools.logging {:mvn/version "1.2.4"}
         ch.qos.logback/logback-classic {:mvn/version "1.2.10"}
-        org.slf4j/jul-to-slf4j {:mvn/version "1.7.35"}
+        org.slf4j/jul-to-slf4j {:mvn/version "1.7.36"}
 
 ;;; Libraries
         org.clojure/test.check {:mvn/version "1.1.1"}
@@ -25,7 +25,7 @@
 
 ;;; Data formats
         org.clojure/data.json {:mvn/version "2.4.0"}
-        com.cognitect/transit-clj {:mvn/version "1.0.324"}
+        com.cognitect/transit-clj {:mvn/version "1.0.329"}
         org.clojure/data.csv {:mvn/version "1.0.0"}
         org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}
         org.clojure/data.zip {:mvn/version "1.0.0"}
@@ -67,8 +67,8 @@
                                           com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                           com.taoensso/encore
                                           org.slf4j/slf4j-api]}
-        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.152"}
-        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.152"}
+        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.159"}
+        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.159"}
 
 ;;; More libraries
         buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication
@@ -83,12 +83,19 @@
         hickory/hickory {:mvn/version "0.7.1"} ;; html parser
         kanwei/sitemap {:mvn/version "0.3.1"} ;; sitemap alternative with clojure.spec fix
         org.clojure/core.async {:mvn/version "1.5.648"}
-        org.clojure/core.memoize {:mvn/version "1.0.253"}
+        org.clojure/core.memoize {:mvn/version "1.0.257"}
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
 
+        poly/config {:local/root "components/config"}
         poly/datapub-client {:local/root "components/datapub-client"}
+        poly/file-util {:local/root "components/file-util"}
+        poly/flyway {:local/root "components/flyway"}
+        poly/lacinia {:local/root "components/lacinia"}
+        poly/lacinia-pedestal {:local/root "components/lacinia-pedestal"}
         poly/notification {:local/root "components/notification"}
+        poly/nrepl {:local/root "components/nrepl"}
+        poly/postgres {:local/root "components/postgres"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
         poly/sysrev-api {:local/root "bases/sysrev-api"}
         poly/sysrev-api-client {:local/root "components/sysrev-api-client"}
@@ -112,7 +119,7 @@
   :poly {:extra-deps {polylith/clj-poly
                       {:deps/root "projects/poly"
                        :git/url "https://github.com/polyfy/polylith.git"
-                       :sha "19aaaa78094a433862d999c82b3536714ab96973"}}
+                       :sha "20223297d6ed39ad3c3ed960410dea908c58b5ed"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
@@ -123,7 +130,7 @@
                       eftest/eftest {:mvn/version "0.5.9"}
                       io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
                       io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
-                      lambdaisland/kaocha {:mvn/version "1.62.993"}
+                      lambdaisland/kaocha {:mvn/version "1.63.998"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
                                                      :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
