@@ -138,39 +138,6 @@ input CreateDatasetInput {
   public: Boolean
 }
 
-input DatasetEntitiesInput {
-  datasetId: PositiveInt!
-  uniqueExternalIds: Boolean
-  uniqueGroupingIds: Boolean
-}
-
-input SearchDatasetInput {
-  datasetId: PositiveInt!
-  query: SearchDatasetQueryInput!
-  uniqueExternalIds: Boolean
-  uniqueGroupingIds: Boolean
-}
-
-input SearchDatasetQueryInput {
-  query: [SearchDatasetQueryInput]
-  string: [SearchDatasetQueryStringInput]
-  text: [SearchDatasetQueryTextInput]
-  type: SearchDatasetQueryInputType!
-}
-
-input SearchDatasetQueryStringInput {
-  eq: String!
-  ignoreCase: Boolean
-  path: String!
-}
-
-"Do a text search against the specified text indices, or every text index."
-input SearchDatasetQueryTextInput {
-  paths: [String]
-  search: String!
-  useEveryIndex: Boolean
-}
-
 input UpdateDatasetInput {
   description: String
   id: PositiveInt!
@@ -199,13 +166,3 @@ type Mutation {
   updateDataset(input: UpdateDatasetInput!) : Dataset
 }
 
-type Subscription {
-  datasetEntities(input: DatasetEntitiesInput!): DatasetEntity
-  searchDataset(input: SearchDatasetInput!): DatasetEntity
-}
-
-schema {
-  query: Query
-  mutation: Mutation
-  subscription: Subscription
-}

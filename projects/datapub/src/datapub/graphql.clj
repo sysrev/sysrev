@@ -28,6 +28,7 @@
 (defn load-schema []
   (-> (io/resource "datapub/schema.graphql")
       slurp
+      (str (slurp (io/resource "datapub/schema-subscription.graphql")))
       (pschema/parse-schema {:resolvers resolvers
                              :scalars s-lacin/scalars
                              :streamers streamers})
