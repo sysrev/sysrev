@@ -6,8 +6,7 @@
    [datapub.graphql :as graphql]
    [io.pedestal.http :as http]
    [sysrev.lacinia-pedestal.interface :as slp]
-   [taoensso.timbre :as t]
-   [clojure.spec.alpha :as s]))
+   [taoensso.timbre :as t]))
 
 (defn allowed-origins [env]
   {:allowed-origins

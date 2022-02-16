@@ -1,7 +1,7 @@
 (ns datapub.ctgov
   (:require [cheshire.core :as json]
-            [clj-http.client :as client]
-            [clojure.data.xml :as xml]
+            [clj-http.client :as http]
+            [clojure.data.xml :as dxml]
             [sysrev.datapub-client.interface.queries :as dpcq]
             [sysrev.util-lite.interface :as ul])
   (:import [java.time Duration ZonedDateTime]
@@ -19,16 +19,16 @@
 (defn get-new-studies []
   (ul/retry
    {:interval-ms 1000 :n 10}
-   (client/get rss-feed-url {:query-params {:rcv_d 3 :count 10000}})))
+   (http/get rss-feed-url {:query-params {:rcv_d 3 :count 10000}})))
 
 (defn get-recent-updates []
   (ul/retry
    {:interval-ms 1000 :n 10}
-   (client/get rss-feed-url {:query-params {:lup_d 3 :count 10000}})))
+   (http/get rss-feed-url {:query-params {:lup_d 3 :count 10000}})))
 
 (defn rss->items [rss]
   (->> rss
-       xml/parse-str
+       dxml/parse-str
        :content
        (mapcat :content)
        (filter #(= :item (:tag %)))))
@@ -45,8 +45,8 @@
 (defn get-study [guid]
   (ul/retry
    {:interval-ms 1000 :n 10}
-   (let [r (client/get study-url {:as :json
-                                  :query-params {:expr guid :fmt "JSON"}})
+   (let [r (http/get study-url {:as :json
+                                :query-params {:expr guid :fmt "JSON"}})
          full-studies (get-in r [:body :FullStudiesResponse :FullStudies])]
      (when (not= 1 (count full-studies))
        (throw (ex-info "Unexpected response." {:response r})))
@@ -67,7 +67,7 @@
          (map get-study))))
 
 (defn graphql-request [url query & [variables options]]
-  (client/post
+  (http/post
    url
    (merge
     options
@@ -91,10 +91,10 @@
      {"Authorization" auth-header}})))
 
 (defn get-num-studies-available []
-  (-> (client/get study-url {:as :json
-                             :query-params {:fmt "json"
-                                            :max_rnk 1
-                                            :min_rnk 1}})
+  (-> (http/get study-url {:as :json
+                           :query-params {:fmt "json"
+                                          :max_rnk 1
+                                          :min_rnk 1}})
       :body :FullStudiesResponse :NStudiesAvail))
 
 (defn get-studies-in-range [min-rnk max-rnk]
@@ -105,10 +105,10 @@
     (> 100 (- max-rnk min-rnk))
     (ul/retry
      {:interval-ms 1000 :n 10}
-     (->> (client/get study-url {:as :json
-                                 :query-params {:fmt "json"
-                                                :max_rnk max-rnk
-                                                :min_rnk min-rnk}})
+     (->> (http/get study-url {:as :json
+                               :query-params {:fmt "json"
+                                              :max_rnk max-rnk
+                                              :min_rnk min-rnk}})
           :body :FullStudiesResponse :FullStudies
           (map :Study)))
 

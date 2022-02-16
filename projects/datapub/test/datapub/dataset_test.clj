@@ -1,6 +1,6 @@
 (ns datapub.dataset-test
   (:require [cheshire.core :as json]
-            [clj-http.client :as client]
+            [clj-http.client :as http]
             [clojure.java.io :as io]
             [clojure.test :refer :all]
             [datapub.dataset :refer :all]
@@ -15,7 +15,7 @@
 (deftest ^{:doc "Make sure we don't inadvertently include log4j2 due to a transitive
    or vendored dependency. See CVE-2021-44228."}
   test-no-log4j2
-  (test/with-test-system [system {}]
+  (test/with-test-system [_ {}]
     (is (thrown? ClassNotFoundException
                  (import 'org.apache.logging.log4j.core.lookup.JndiLookup)))))
 
@@ -74,11 +74,11 @@
 
 (deftest test-list-datasets
   (test/with-test-system [system {}]
-    (let [ex (partial ex! system)
-          ds-ids (->> #(-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-dataset"}})
-                           (get-in [:data :createDataset :id]))
-                      (repeatedly 10)
-                      doall)]
+    (let [ex (partial ex! system)]
+      (->> #(-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-dataset"}})
+                (get-in [:data :createDataset :id]))
+           (repeatedly 10)
+           doall)
       (testing "totalCount is correct"
         (is (= {:data {:listDatasets {:totalCount 10}}}
                (ex (dpcq/q-list-datasets "totalCount")))))
@@ -585,11 +585,6 @@
 (deftest test-unique-grouping-ids
   (test/with-test-system [system {}]
     (let [ex (partial ex! system)
-          sub-json-dataset-entities! (fn [return-keys variables]
-                                       (->> (subscribe-dataset-entities!
-                                             system return-keys variables)
-                                            (map #(update % :content parse-json))
-                                            (into #{})))
           ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-grouping"}})
                     (get-in [:data :createDataset :id]))
           sub-json-dataset-entities! (fn [return-keys variables]
@@ -687,9 +682,9 @@
                       (get-in [:data :createDatasetEntity])
                       (assoc :content content))))
           armstrong (create-entity "armstrong-thesis-2003-abstract.pdf"
-                                   {:title "Armstrong Thesis Abstract"})
-          ctgov (create-entity "ctgov-Prot_SAP_000.pdf")
-          fda (create-entity "fda-008372Orig1s044ltr.pdf")]
+                                   {:title "Armstrong Thesis Abstract"})]
+      (create-entity "ctgov-Prot_SAP_000.pdf")
+      (create-entity "fda-008372Orig1s044ltr.pdf")
       (testing "Can create and retrieve a PDF entity"
         (is (string? (:id armstrong)))
         (is (= {"title" "Armstrong Thesis Abstract"}
@@ -801,7 +796,7 @@
                                    {"0" ["variables.input.contentUpload"]})}
                                  {:name "0"
                                   :content content}]}
-                               (->> (client/post api-url))
+                               (->> (http/post api-url))
                                :body
                                (json/parse-string keyword)
                                test/throw-errors

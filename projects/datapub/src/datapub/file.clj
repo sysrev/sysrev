@@ -1,14 +1,14 @@
 (ns datapub.file
-  (:require [aws-api-failjure :as aaf]
-            [clojure.string :as str]
-            [cognitect.aws.client.api :as aws]
-            [cognitect.aws.credentials :as credentials]
-            [com.stuartsierra.component :as component]
-            [datapub.aws-client :as aws-client])
-  (:import java.io.InputStream
-           java.nio.file.Path
-           java.security.MessageDigest
-           java.util.Base64))
+  (:require
+   [aws-api-failjure :as aaf]
+   [clojure.string :as str]
+   [cognitect.aws.client.api :as aws]
+   [datapub.aws-client :as aws-client])
+  (:import
+   (java.io InputStream)
+   (java.nio.file Path)
+   (java.security MessageDigest)
+   (java.util Base64)))
 
 (defn sha3-256 ^bytes [^InputStream in]
   (let [md (MessageDigest/getInstance "SHA3-256")
@@ -61,7 +61,7 @@
             :request {:Bucket (bucket-name s3)
                       :Key (content-key file-hash)}})]
     (if-let [anom (:cognitect.anomalies/category r)]
-      (when-not (= :cognitect.anomalies/not-found)
+      (when-not (= :cognitect.anomalies/not-found anom)
         (throw (aaf/->ex-info r)))
       r)))
 
@@ -84,7 +84,7 @@
             :request {:Bucket (bucket-name s3)
                       :Key (content-key file-hash)}})]
     (if-let [anom (:cognitect.anomalies/category r)]
-      (when-not (= :cognitect.anomalies/not-found)
+      (when-not (= :cognitect.anomalies/not-found anom)
         (throw (aaf/->ex-info r)))
       r)))
 

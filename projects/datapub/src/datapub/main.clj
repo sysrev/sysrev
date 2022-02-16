@@ -15,7 +15,7 @@
 (defrecord Secrets [])
 
 (defmethod clojure.core/print-method Secrets
-  [system ^java.io.Writer writer]
+  [_ ^java.io.Writer writer]
   (.write writer "#<Secrets>"))
 
 (defn resolve-secrets [m secrets-manager]

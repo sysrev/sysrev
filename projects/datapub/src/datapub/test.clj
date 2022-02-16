@@ -72,6 +72,7 @@
               (deliver done false))
         d @done]
     (close-streamer)
+    (future-cancel fut)
     (if d
       @results
       (throw (RuntimeException. "Streamer exceeded timeout")))))

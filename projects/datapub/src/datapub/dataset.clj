@@ -7,7 +7,7 @@
    [com.walmartlabs.lacinia.resolve :as resolve]
    [datapub.file :as file]
    [hasch.core :as hasch]
-   [medley.core :as me]
+   [medley.core :as medley]
    [next.jdbc :as jdbc]
    [sysrev.file-util.interface :as file-util]
    [sysrev.lacinia.interface :as sl]
@@ -76,7 +76,7 @@
             :description :description
             :name :name
             :public :public}
-      inv-cols (me/map-kv (fn [k v] [v k]) cols)]
+      inv-cols (medley/map-kv (fn [k v] [v k]) cols)]
 
   (defn resolve-dataset [context {:keys [id]} _]
     (when-let [int-id (sl/parse-int-id id)]
@@ -103,7 +103,7 @@
              #__ (execute-one!
                   context
                   {:insert-into :dataset
-                   :values [(me/map-keys cols input)]
+                   :values [(medley/map-keys cols input)]
                    :returning :id})]
          (when id
            (resolve-dataset context {:id (str id)} nil))))))
@@ -113,7 +113,7 @@
       (ensure-sysrev-dev
        context
        (with-tx-context [context context]
-         (let [set (me/map-keys cols (dissoc input :id))
+         (let [set (medley/map-keys cols (dissoc input :id))
                {:dataset/keys [id]}
                #__ (if (empty? set)
                      {:dataset/id id}
@@ -167,28 +167,28 @@
   Look at list-datasets for an example implementation."
   [context {first* :first :keys [after]} {:keys [count-f edges-f]}]
   (with-tx-context [context context]
-   (let [cursor (if (empty? after) 0 (parse-long after))]
-     (if (and after (not (and cursor (nat-int? cursor))))
-       (resolve/resolve-as nil {:message "Invalid cursor."
-                                :cursor after})
-       (with-tx-context [context context]
-         (let [ks (sl/current-selection-names context)
-               ct (when (:totalCount ks)
-                    (count-f {:context context}))
-               limit (inc (min 100 (or first* 100)))
-               [edges more] (when (and (or (nil? first*) (pos? first*))
-                                       (or (:edges ks) (:pageInfo ks)))
-                              (edges-f {:context context
-                                        :cursor cursor
-                                        :limit limit}))]
-           {:edges edges
-            :pageInfo
-            {:endCursor (:cursor (last edges))
-             :hasNextPage (boolean (seq more))
-             ;; The spec allows hasPreviousPage to return true when unknown.
-             :hasPreviousPage (not (or (zero? cursor) (= ct (count edges))))
-             :startCursor (:cursor (first edges))}
-            :totalCount ct}))))))
+    (let [cursor (if (empty? after) 0 (parse-long after))]
+      (if (and after (not (and cursor (nat-int? cursor))))
+        (resolve/resolve-as nil {:message "Invalid cursor."
+                                 :cursor after})
+        (with-tx-context [context context]
+          (let [ks (sl/current-selection-names context)
+                ct (when (:totalCount ks)
+                     (count-f {:context context}))
+                limit (inc (min 100 (or first* 100)))
+                [edges more] (when (and (or (nil? first*) (pos? first*))
+                                        (or (:edges ks) (:pageInfo ks)))
+                               (edges-f {:context context
+                                         :cursor cursor
+                                         :limit limit}))]
+            {:edges edges
+             :pageInfo
+             {:endCursor (:cursor (last edges))
+              :hasNextPage (boolean (seq more))
+              ;; The spec allows hasPreviousPage to return true when unknown.
+              :hasPreviousPage (not (or (zero? cursor) (= ct (count edges))))
+              :startCursor (:cursor (first edges))}
+             :totalCount ct}))))))
 
 (defn list-datasets [context args _]
   (connection-helper
@@ -210,7 +210,7 @@
            (split-at (dec limit))))}))
 
 (defn resolve-ListDatasetsEdge#node [context _ {:keys [node]}]
-  (resolve-dataset context node _))
+  (resolve-dataset context node nil))
 
 (defn server-url [{:keys [headers scheme server-name server-port]}]
   (str (or (some-> headers (get "x-forwarded-proto") str/lower-case #{"http" "https"})
@@ -366,7 +366,7 @@
                (split-at (dec limit))))}))))
 
 (defn resolve-DatasetEntitiesEdge#node [context _ {:keys [node]}]
-  (resolve-dataset-entity context node _))
+  (resolve-dataset-entity context node nil))
 
 (def ^DateTimeFormatter http-datetime-formatter
   (.withZone DateTimeFormatter/RFC_1123_DATE_TIME
@@ -380,10 +380,7 @@
         (let [{:keys [content] :as entity}
               #__ (get-entity-content
                    context entity-id
-                   #{:content :content-hash :created :dataset-id})
-              close (fn []
-                      (when (instance? java.io.Closeable content)
-                        (.close content)))]
+                   #{:content :content-hash :created :dataset-id})]
           (when content
             (let [hash (or (:content-json/hash entity) (:content-file/content-hash entity))
                   etag (base64url-encode hash)
@@ -545,7 +542,7 @@
                  (or content
                      (when (string? contentUpload) contentUpload)
                      (-> contentUpload :tempfile io/file slurp)))
-                (catch Exception e))]
+                (catch Exception _))]
      (if (empty? json)
        (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."})
        (if (seq metadata)
@@ -559,9 +556,9 @@
 
 (defn condense-whitespace [s]
   (as-> (str/split s #"\-\n") $
-      (str/join "" $)
-      (str/split $ #"\s+")
-      (str/join " " $)))
+    (str/join "" $)
+    (str/split $ #"\s+")
+    (str/join " " $)))
 
 (defn pdf-text [^Path path tesseract]
   (try
@@ -624,7 +621,7 @@
            (resolve/resolve-as nil {:message (str "Invalid content or contentUpload: Not a valid PDF file.")})
            (let [file-hash (file/file-sha3-256 path)
                  data (->> (assoc text :metadata json)
-                           (me/remove-vals nil?))
+                           (medley/remove-vals nil?))
                  content-hash (-> {:data data
                                    :file-hash
                                    (.encode (Base64/getEncoder) file-hash)}
@@ -733,35 +730,34 @@
          path-vec (try (edn/read-string path) (catch Exception _))]
      (if-not (valid-index-path? path-vec)
        (resolve/resolve-as nil {:message "Invalid index path."
-                                :path path}))
-     (with-tx-context [context context]
-       (if (or (not dataset-int-id)
-               (empty? (execute-one! context {:select :id
-                                              :from :dataset
-                                              :where [:= :id dataset-int-id]})))
-         (resolve/resolve-as nil {:message "There is no dataset with that id."
-                                  :datasetId datasetId})
-         (let [index-spec-id (->> type name str/lower-case
-                                  (get-or-create-index-spec! context path-vec)
-                                  :index-spec/id)]
-           (execute-one!
-            context
-            {:insert-into :dataset-index-spec
-             :on-conflict []
-             :do-nothing []
-             :values
-             [{:dataset-id dataset-int-id
-               :index-spec-id index-spec-id}]})
-           (resolve-dataset-index
-            context
-            {:datasetId datasetId
-             :path (pr-str (-> path-vec internal-path-vec external-path-vec))
-             :type type}
-            nil)))))))
+                                :path path})
+       (with-tx-context [context context]
+         (if (or (not dataset-int-id)
+                 (empty? (execute-one! context {:select :id
+                                                :from :dataset
+                                                :where [:= :id dataset-int-id]})))
+           (resolve/resolve-as nil {:message "There is no dataset with that id."
+                                    :datasetId datasetId})
+           (let [index-spec-id (->> type name str/lower-case
+                                    (get-or-create-index-spec! context path-vec)
+                                    :index-spec/id)]
+             (execute-one!
+              context
+              {:insert-into :dataset-index-spec
+               :on-conflict []
+               :do-nothing []
+               :values
+               [{:dataset-id dataset-int-id
+                 :index-spec-id index-spec-id}]})
+             (resolve-dataset-index
+              context
+              {:datasetId datasetId
+               :path (pr-str (-> path-vec internal-path-vec external-path-vec))
+               :type type}
+              nil))))))))
 
 (defn string-query->sqlmap [_ {:keys [eq ignoreCase path]}]
   (let [path-vec (internal-path-vec (edn/read-string path))
-        v [(keyword "#>>") :indexed-data [:array path-vec]]
         maybe-lower #(if ignoreCase [:lower %] %)]
     [:in
      (maybe-lower (pr-str eq))
@@ -790,7 +786,7 @@
   of its children.
 
   index-spec-ids should be a map of path string -> vector of index-spec-ids."
- [index-spec-ids {:keys [query string text type]}]
+  [index-spec-ids {:keys [query string text type]}]
   (apply
    vector
    (case type

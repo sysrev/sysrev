@@ -3,7 +3,7 @@
             [com.walmartlabs.lacinia.parser.schema :as pschema]
             [com.walmartlabs.lacinia.schema :as schema]
             [datapub.dataset :as dataset]
-            [sysrev.lacinia.interface :as s-lacin]))
+            [sysrev.lacinia.interface :as sl]))
 
 (def resolvers
   {:Dataset {:entities #'dataset/resolve-Dataset#entities
@@ -18,8 +18,8 @@
               :createDatasetEntity #'dataset/create-dataset-entity!
               :createDatasetIndex #'dataset/create-dataset-index!
               :updateDataset #'dataset/update-dataset!}
-   :Subscription {:datasetEntities s-lacin/resolve-value
-                  :searchDataset s-lacin/resolve-value}})
+   :Subscription {:datasetEntities sl/resolve-value
+                  :searchDataset sl/resolve-value}})
 
 (def streamers
   {:Subscription {:datasetEntities #'dataset/dataset-entities-subscription
@@ -30,6 +30,6 @@
       slurp
       (str (slurp (io/resource "datapub/schema-subscription.graphql")))
       (pschema/parse-schema {:resolvers resolvers
-                             :scalars s-lacin/scalars
+                             :scalars sl/scalars
                              :streamers streamers})
       schema/compile))
