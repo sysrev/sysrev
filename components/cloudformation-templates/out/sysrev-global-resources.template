@@ -36,6 +36,16 @@
         "Ref" : "CloudFrontOAI"
       }
     },
+    "CodeBucket" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-CodeBucket"
+        }
+      },
+      "Value" : {
+        "Ref" : "CodeBucket"
+      }
+    },
     "DatapubBucket" : {
       "Export" : {
         "Name" : {
@@ -190,6 +200,43 @@
       },
       "Type" : "AWS::IAM::ManagedPolicy"
     },
+    "CodeBucket" : {
+      "Properties" : {
+        "AccessControl" : "Private",
+        "PublicAccessBlockConfiguration" : {
+          "BlockPublicAcls" : true,
+          "BlockPublicPolicy" : true,
+          "IgnorePublicAcls" : true,
+          "RestrictPublicBuckets" : true
+        }
+      },
+      "Type" : "AWS::S3::Bucket"
+    },
+    "CodeBucketFullAccessPolicy" : {
+      "Properties" : {
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : "*",
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "CodeBucket"
+              } ] ]
+            }
+          }, {
+            "Action" : "*",
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "CodeBucket"
+              }, "/*" ] ]
+            }
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
+    },
     "DatapubBucket" : {
       "Properties" : {
         "AccessControl" : "Private",
@@ -315,6 +362,8 @@
           "Ref" : "AdminAccessCloudFormationServicePassRolePolicy"
         }, {
           "Ref" : "CloudFormationCreateUpdatePolicy"
+        }, {
+          "Ref" : "CodeBucketFullAccessPolicy"
         }, {
           "Ref" : "PackerBuildPolicy"
         } ],

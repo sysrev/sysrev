@@ -15,6 +15,7 @@ jobs:
   deploy-global-resources:
     outputs:
       cloudfront-oai: ${{ steps.deploy.outputs.CloudFrontOAI }}
+      code-bucket: ${{ steps.deploy.outputs.CodeBucket }}
       datapub-hosted-zone-id: ${{ steps.deploy.outputs.DatapubHostedZoneId }}
       service-role-arn: ${{ steps.deploy.outputs.AdminAccessCloudFormationServiceRoleArn }}
     runs-on: ubuntu-latest
@@ -93,7 +94,7 @@ jobs:
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},DatapubDomainName=www.datapubdev.net,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
+          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},CodeBucket=${{ needs.deploy-global-resources.outputs.code-bucket }},DatapubDomainName=www.datapubdev.net,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template
 
@@ -103,6 +104,6 @@ jobs:
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},DatapubDomainName=www.datapub.dev,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
+          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},CodeBucket=${{ needs.deploy-global-resources.outputs.code-bucket }},DatapubDomainName=www.datapub.dev,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template

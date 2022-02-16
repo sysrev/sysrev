@@ -24,6 +24,9 @@
 
   :Parameters
   {:CloudFrontOAI {:Type "String"}
+   :CodeBucket {:MaxLength 63
+                :MinLength 3
+                :Type "String"}
    :DatapubDomainName {:Type "String"}
    :DatapubHostedZoneId {:Type "AWS::Route53::HostedZone::Id"}
    :NumberOfAZs {:Type "Number" :Default 3 :MinValue 2 :MaxValue 6}}
@@ -369,6 +372,7 @@
   (prefixed-outputs
    "${AWS::StackName}-"
    {:CloudFrontOAI [(ref :CloudFrontOAI)]
+    :CodeBucket [(ref :CodeBucket)]
     :CredentialsKeyId [(ref :CredentialsKey)]
     :CredentialsKeyUsePolicyArn [(ref :CredentialsKeyUsePolicy)]
     :DatapubDomainName [(ref :DatapubDomainName)]

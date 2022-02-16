@@ -64,6 +64,16 @@
         "Ref" : "CloudFrontOAI"
       }
     },
+    "CodeBucket" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-CodeBucket"
+        }
+      },
+      "Value" : {
+        "Ref" : "CodeBucket"
+      }
+    },
     "CredentialsKeyId" : {
       "Export" : {
         "Name" : {
@@ -255,6 +265,11 @@
   },
   "Parameters" : {
     "CloudFrontOAI" : {
+      "Type" : "String"
+    },
+    "CodeBucket" : {
+      "MaxLength" : 63,
+      "MinLength" : 3,
       "Type" : "String"
     },
     "DatapubDomainName" : {

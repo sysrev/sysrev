@@ -200,6 +200,31 @@
       [(google-mx-recordset (ref :SysrevZoneApex))]
       (no-email-recordsets (ref :SysrevZoneApex)))}}
 
+   :CodeBucket
+   {:Type "AWS::S3::Bucket"
+    :Properties
+    {:AccessControl "Private"
+     :PublicAccessBlockConfiguration
+     {:BlockPublicAcls true
+      :BlockPublicPolicy true
+      :IgnorePublicAcls true
+      :RestrictPublicBuckets true}}}
+
+   :CodeBucketFullAccessPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Effect "Allow"
+        :Action "*"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :CodeBucket)])}
+       {:Effect "Allow"
+        :Action "*"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :CodeBucket) "/*"])}]}}}
+
    :AdminAccessCloudFormationServiceRole
    {:Type "AWS::IAM::Role"
     :Properties
@@ -351,6 +376,7 @@
     {:ManagedPolicyArns
      [(ref :AdminAccessCloudFormationServicePassRolePolicy)
       (ref :CloudFormationCreateUpdatePolicy)
+      (ref :CodeBucketFullAccessPolicy)
       (ref :PackerBuildPolicy)]
      :UserName "github-actions"}}
 
@@ -405,6 +431,7 @@
    "${AWS::StackName}-"
    {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]
     :CloudFrontOAI [(ref :CloudFrontOAI)]
+    :CodeBucket [(ref :CodeBucket)]
     :DatapubBucket [(ref :DatapubBucket)]
     :DatapubHostedZoneId [(ref :DatapubHostedZone)]
     :DevelopersGroupArn [(arn :DevelopersGroup)]
