@@ -33,17 +33,6 @@
       },
       "Type" : "AWS::CertificateManager::Certificate"
     },
-    "ApolloKeySecret" : {
-      "Properties" : {
-        "KmsKeyId" : {
-          "Fn::ImportValue" : "Sysrev-Regional-Resources-CredentialsKeyId"
-        },
-        "SecretString" : {
-          "Ref" : "ApolloKey"
-        }
-      },
-      "Type" : "AWS::SecretsManager::Secret"
-    },
     "GatewayHandlerFunction" : {
       "Properties" : {
         "AutoPublishAlias" : "GraphQLGateway",
@@ -59,7 +48,7 @@
           "Variables" : {
             "APOLLO_GRAPH_REF" : "sysrev@current",
             "APOLLO_KEY" : {
-              "Fn::Sub" : "{{resolve:secretsmanager:${ApolloKeySecret}::}}"
+              "Ref" : "ApolloKey"
             }
           }
         },

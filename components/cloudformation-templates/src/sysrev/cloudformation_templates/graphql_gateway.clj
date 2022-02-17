@@ -19,13 +19,7 @@
    :LambdaKey {:Type "String"}}
 
   :Resources
-  {:ApolloKeySecret
-   {:Type "AWS::SecretsManager::Secret"
-    :Properties
-    {:KmsKeyId (import-regional "CredentialsKeyId")
-     :SecretString (ref :ApolloKey)}}
-
-   :ApiCertificate
+  {:ApiCertificate
    {:Type "AWS::CertificateManager::Certificate"
     :Properties
     {:DomainName (join "." ["api" (import-regional :SysrevZoneApex)])
@@ -53,7 +47,7 @@
      :Environment
      {:Variables
       {:APOLLO_GRAPH_REF "sysrev@current"
-       :APOLLO_KEY (sub "{{resolve:secretsmanager:${ApolloKeySecret}::}}")}}
+       :APOLLO_KEY (ref :ApolloKey)}}
      :Handler "lambda.handler"
      :MemorySize 128
      :PackageType "Zip"
