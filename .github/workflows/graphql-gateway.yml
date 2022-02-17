@@ -91,6 +91,12 @@ jobs:
           curl -sSL https://rover.apollo.dev/nix/v0.4.3 | sh
           echo "$HOME/.rover/bin" >> $GITHUB_PATH
 
+      - name: Upload subgraph schemas to Apollo Studio
+        run: |
+          rover subgraph publish sysrev@current --name datapub --schema projects/datapub/resources/datapub/schema.graphql --routing-url https://www.datapub.dev/api
+        env:
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+
       - name: Compose the supergraph schema
         run: rover supergraph compose --config ./supergraph-config.yaml > ./supergraph.graphql
         working-directory: projects/graphql-gateway
