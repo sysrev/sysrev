@@ -13,6 +13,7 @@ jobs:
   get-global-resources:
     outputs:
       datapub-bucket: ${{ steps.get-stack-outputs.outputs.DatapubBucket }}
+      datapub-zone-apex: ${{ steps.get-stack-outputs.outputs.DatapubZoneApex }}
       service-role-arn: ${{ steps.get-stack-outputs.outputs.AdminAccessCloudFormationServiceRoleArn }}
     runs-on: ubuntu-latest
     steps:
@@ -134,7 +135,7 @@ jobs:
         with:
           name: Datapub
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: "AMI=${{ env.AMI }},AutoScalingMaxSize=2,AutoScalingMinSize=1,DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},DatapubFilesDomainName=files.datapubdev.net,Env=staging,InstanceType=t3a.small,KeyName=john-20.04,RDSAllocatedStorage=100,RDSInstanceClass=db.t4g.micro,RDSStorageType=gp2,SlackToken=${{ secrets.DATAPUB_SLACK_TOKEN }}"
+          parameter-overrides: "AMI=${{ env.AMI }},AutoScalingMaxSize=2,AutoScalingMinSize=1,DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},DatapubFilesDomainName=files.${{ needs.get-global-resources.outputs.datapub-zone-apex }},Env=staging,InstanceType=t3a.small,KeyName=john-20.04,RDSAllocatedStorage=100,RDSInstanceClass=db.t4g.micro,RDSStorageType=gp2,SlackToken=${{ secrets.DATAPUB_SLACK_TOKEN }}"
           role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/datapub.template
 
@@ -144,7 +145,7 @@ jobs:
         with:
           name: Datapub
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: "AMI=${{ env.AMI }},AutoScalingMaxSize=10,AutoScalingMinSize=1,DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},DatapubFilesDomainName=files.datapub.dev,Env=prod,RDSAllocatedStorage=500,InstanceType=t3.medium,RDSInstanceClass=db.m6g.large,RDSIops=3000,RDSStorageType=io1,SlackToken=${{ secrets.DATAPUB_SLACK_TOKEN }}"
+          parameter-overrides: "AMI=${{ env.AMI }},AutoScalingMaxSize=10,AutoScalingMinSize=1,DatapubBucket=${{ needs.get-global-resources.outputs.datapub-bucket }},DatapubFilesDomainName=files.${{ needs.get-global-resources.outputs.datapub-zone-apex }},Env=prod,RDSAllocatedStorage=500,InstanceType=t3.medium,RDSInstanceClass=db.m6g.large,RDSIops=3000,RDSStorageType=io1,SlackToken=${{ secrets.DATAPUB_SLACK_TOKEN }}"
           role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/datapub.template
 

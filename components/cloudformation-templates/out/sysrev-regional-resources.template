@@ -101,7 +101,9 @@
         }
       },
       "Value" : {
-        "Ref" : "DatapubDomainName"
+        "Fn::Join" : [ ".", [ "www", {
+          "Ref" : "DatapubZoneApex"
+        } ] ]
       }
     },
     "DatapubHostedZoneId" : {
@@ -112,6 +114,16 @@
       },
       "Value" : {
         "Ref" : "DatapubHostedZoneId"
+      }
+    },
+    "DatapubZoneApex" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-DatapubZoneApex"
+        }
+      },
+      "Value" : {
+        "Ref" : "DatapubZoneApex"
       }
     },
     "LoadBalancerArn" : {
@@ -194,6 +206,26 @@
         "Ref" : "RDSSubnetGroup"
       }
     },
+    "SysrevHostedZoneId" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-SysrevHostedZoneId"
+        }
+      },
+      "Value" : {
+        "Ref" : "SysrevHostedZoneId"
+      }
+    },
+    "SysrevZoneApex" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-SysrevZoneApex"
+        }
+      },
+      "Value" : {
+        "Ref" : "SysrevZoneApex"
+      }
+    },
     "VpcId" : {
       "Export" : {
         "Name" : {
@@ -272,17 +304,25 @@
       "MinLength" : 3,
       "Type" : "String"
     },
-    "DatapubDomainName" : {
-      "Type" : "String"
-    },
     "DatapubHostedZoneId" : {
       "Type" : "AWS::Route53::HostedZone::Id"
+    },
+    "DatapubZoneApex" : {
+      "Description" : "The DNS zone apex for Datapub with no final period, e.g., \"datapub.dev\"",
+      "Type" : "String"
     },
     "NumberOfAZs" : {
       "Default" : 3,
       "MaxValue" : 6,
       "MinValue" : 2,
       "Type" : "Number"
+    },
+    "SysrevHostedZoneId" : {
+      "Type" : "String"
+    },
+    "SysrevZoneApex" : {
+      "Description" : "The DNS zone apex for Sysrev with no final period, e.g., \"sysrev.com\"",
+      "Type" : "String"
     }
   },
   "Resources" : {
@@ -328,11 +368,15 @@
     "DatapubCertificate" : {
       "Properties" : {
         "DomainName" : {
-          "Ref" : "DatapubDomainName"
+          "Fn::Join" : [ ".", [ "www", {
+            "Ref" : "DatapubZoneApex"
+          } ] ]
         },
         "DomainValidationOptions" : [ {
           "DomainName" : {
-            "Ref" : "DatapubDomainName"
+            "Fn::Join" : [ ".", [ "www", {
+              "Ref" : "DatapubZoneApex"
+            } ] ]
           },
           "HostedZoneId" : {
             "Ref" : "DatapubHostedZoneId"

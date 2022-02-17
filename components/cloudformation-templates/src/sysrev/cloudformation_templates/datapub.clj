@@ -245,12 +245,12 @@
      [{:AliasTarget
        {:HostedZoneId (import-regional "LoadBalancerCanonicalHostedZoneId")
         :DNSName (import-regional "LoadBalancerDNSName")}
-       :Name (import-regional "DatapubDomainName")
+       :Name (join "." ["www" (import-regional "DatapubDomainName")])
        :Type "A"}
       {:AliasTarget
        {:HostedZoneId (import-regional "LoadBalancerCanonicalHostedZoneId")
         :DNSName (import-regional "LoadBalancerDNSName")}
-       :Name (import-regional "DatapubDomainName")
+       :Name (join "." ["www" (import-regional "DatapubDomainName")])
        :Type "AAAA"}]}}
 
    :LoadBalancerTargetGroup
@@ -272,7 +272,7 @@
        :Type "forward"}]
      :Conditions
      [{:Field "host-header"
-       :HostHeaderConfig {:Values [(import-regional "DatapubDomainName")]}}]
+       :HostHeaderConfig {:Values [(join "." ["www" (import-regional "DatapubDomainName")])]}}]
      :ListenerArn (import-regional "LoadBalancerHTTPSListenerArn")
      :Priority 200}}
 

@@ -27,9 +27,13 @@
    :CodeBucket {:MaxLength 63
                 :MinLength 3
                 :Type "String"}
-   :DatapubDomainName {:Type "String"}
+   :DatapubZoneApex {:Description "The DNS zone apex for Datapub with no final period, e.g., \"datapub.dev\""
+                     :Type "String"}
    :DatapubHostedZoneId {:Type "AWS::Route53::HostedZone::Id"}
-   :NumberOfAZs {:Type "Number" :Default 3 :MinValue 2 :MaxValue 6}}
+   :NumberOfAZs {:Type "Number" :Default 3 :MinValue 2 :MaxValue 6}
+   :SysrevHostedZoneId {:Type "String"}
+   :SysrevZoneApex {:Description "The DNS zone apex for Sysrev with no final period, e.g., \"sysrev.com\""
+                    :Type "String"}}
 
   :Conditions
   {:3AZs
@@ -342,9 +346,9 @@
    :DatapubCertificate
    {:Type "AWS::CertificateManager::Certificate"
     :Properties
-    {:DomainName (ref :DatapubDomainName)
+    {:DomainName (join "." ["www" (ref :DatapubZoneApex)])
      :DomainValidationOptions
-     [{:DomainName (ref :DatapubDomainName)
+     [{:DomainName (join "." ["www" (ref :DatapubZoneApex)])
        :HostedZoneId (ref :DatapubHostedZoneId)}]
      :ValidationMethod "DNS"}}
 
@@ -375,8 +379,9 @@
     :CodeBucket [(ref :CodeBucket)]
     :CredentialsKeyId [(ref :CredentialsKey)]
     :CredentialsKeyUsePolicyArn [(ref :CredentialsKeyUsePolicy)]
-    :DatapubDomainName [(ref :DatapubDomainName)]
+    :DatapubDomainName [(join "." ["www" (ref :DatapubZoneApex)])]
     :DatapubHostedZoneId [(ref :DatapubHostedZoneId)]
+    :DatapubZoneApex [(ref :DatapubZoneApex)]
     :LoadBalancerArn [(ref :LoadBalancer)]
     :LoadBalancerCanonicalHostedZoneId [(get-att :LoadBalancer "CanonicalHostedZoneID")]
     :LoadBalancerDNSName [(get-att :LoadBalancer "DNSName")]
@@ -385,6 +390,8 @@
     :LoadBalancerSecurityGroupId [(ref :LoadBalancerSecurityGroup)]
     :LogsKeyArn [(arn :LogsKey)]
     :RDSSubnetGroupName [(ref :RDSSubnetGroup)]
+    :SysrevHostedZoneId [(ref :SysrevHostedZoneId)]
+    :SysrevZoneApex [(ref :SysrevZoneApex)]
     :VpcId [(ref :Vpc)]
     :VpcSubnetIds [(join "," subnets)]}))
 

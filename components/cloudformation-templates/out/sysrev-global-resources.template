@@ -66,6 +66,16 @@
         "Ref" : "DatapubHostedZone"
       }
     },
+    "DatapubZoneApex" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-DatapubZoneApex"
+        }
+      },
+      "Value" : {
+        "Ref" : "DatapubZoneApex"
+      }
+    },
     "DevelopersGroupArn" : {
       "Export" : {
         "Name" : {
@@ -95,6 +105,16 @@
       },
       "Value" : {
         "Ref" : "SysrevHostedZone"
+      }
+    },
+    "SysrevZoneApex" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-SysrevZoneApex"
+        }
+      },
+      "Value" : {
+        "Ref" : "SysrevZoneApex"
       }
     }
   },

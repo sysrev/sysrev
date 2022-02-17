@@ -17,7 +17,10 @@ jobs:
       cloudfront-oai: ${{ steps.deploy.outputs.CloudFrontOAI }}
       code-bucket: ${{ steps.deploy.outputs.CodeBucket }}
       datapub-hosted-zone-id: ${{ steps.deploy.outputs.DatapubHostedZoneId }}
+      datapub-zone-apex: ${{ steps.deploy.outputs.DatapubZoneApex }}
       service-role-arn: ${{ steps.deploy.outputs.AdminAccessCloudFormationServiceRoleArn }}
+      sysrev-hosted-zone-id: ${{ steps.deploy.outputs.SysrevHostedZoneId }}
+      sysrev-zone-apex: ${{ steps.deploy.outputs.SysrevZoneApex }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -40,12 +43,12 @@ jobs:
           aws-region: us-east-1
           mask-aws-account-id: no
 
-      - name: Set Sysrev-Global-Resources staging parameters
+      - name: Set staging parameters
         if: github.ref_name == 'staging'
         run: |
           echo "GLOBAL_PARAMS=DatapubZoneApex=datapubdev.net,Env=staging,InsilicaZoneApex=,SysrevZoneApex=sysrevdev.net" >> $GITHUB_ENV
 
-      - name: Set Sysrev-Global-Resources production parameters
+      - name: Set production parameters
         if: github.ref_name == 'production'
         run: |
           echo "GLOBAL_PARAMS=DatapubZoneApex=datapub.dev,Env=prod,InsilicaZoneApex=insilica.co,SysrevZoneApex=sysrev.com" >> $GITHUB_ENV
@@ -88,22 +91,11 @@ jobs:
           aws-region: us-east-1
           mask-aws-account-id: no
 
-      - name: Deploy Sysrev-Regional-Resources template to staging
-        if: github.ref_name == 'staging'
+      - name: Deploy Sysrev-Regional-Resources template
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
         with:
           name: Sysrev-Regional-Resources
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},CodeBucket=${{ needs.deploy-global-resources.outputs.code-bucket }},DatapubDomainName=www.datapubdev.net,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
-          role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
-          template: components/cloudformation-templates/out/sysrev-regional-resources.template
-
-      - name: Deploy Sysrev-Regional-Resources template to prod
-        if: github.ref_name == 'production'
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
-        with:
-          name: Sysrev-Regional-Resources
-          no-fail-on-empty-changeset: '1'
-          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},CodeBucket=${{ needs.deploy-global-resources.outputs.code-bucket }},DatapubDomainName=www.datapub.dev,DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6
+          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},CodeBucket=${{ needs.deploy-global-resources.outputs.code-bucket }},DatapubZoneApex=${{ needs.deploy-global-resources.outputs.datapub-zone-apex }},DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6,SysrevHostedZoneId=${{ needs.deploy-global-resources.outputs.sysrev-hosted-zone-id }},SysrevZoneApex=${{ needs.deploy-global-resources.outputs.sysrev-zone-apex }}
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template

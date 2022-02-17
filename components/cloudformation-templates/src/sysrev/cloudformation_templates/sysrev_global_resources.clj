@@ -434,9 +434,11 @@
     :CodeBucket [(ref :CodeBucket)]
     :DatapubBucket [(ref :DatapubBucket)]
     :DatapubHostedZoneId [(ref :DatapubHostedZone)]
+    :DatapubZoneApex [(ref :DatapubZoneApex)]
     :DevelopersGroupArn [(arn :DevelopersGroup)]
     :InsilicaHostedZoneId [(ref :InsilicaHostedZone) nil :HasInsilicaZone]
-    :SysrevHostedZoneId [(ref :SysrevHostedZone)]}))
+    :SysrevHostedZoneId [(ref :SysrevHostedZone)]
+    :SysrevZoneApex [(ref :SysrevZoneApex)]}))
 
 (comment
   (write-template "components/cloudformation-templates/out/sysrev-global-resources.template"
