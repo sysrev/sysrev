@@ -494,7 +494,7 @@
           "HostHeaderConfig" : {
             "Values" : [ {
               "Fn::Join" : [ ".", [ "www", {
-                "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubDomainName"
+                "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubZoneApex"
               } ] ]
             } ]
           }
@@ -634,7 +634,7 @@
           },
           "Name" : {
             "Fn::Join" : [ ".", [ "www", {
-              "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubDomainName"
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubZoneApex"
             } ] ]
           },
           "Type" : "A"
@@ -649,7 +649,7 @@
           },
           "Name" : {
             "Fn::Join" : [ ".", [ "www", {
-              "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubDomainName"
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-DatapubZoneApex"
             } ] ]
           },
           "Type" : "AAAA"
