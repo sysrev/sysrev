@@ -30,6 +30,7 @@ mkShell {
     jdk
     (leiningen.override { jdk = jdk; })
     lessc
+    nix
     nodePackages.npm # should come before nodejs for latest version
     nodejs
     polylith
