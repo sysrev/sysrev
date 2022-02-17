@@ -4,6 +4,7 @@ clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "1.4.0"} org.slf4j
         --directory=bases/* \
         --directory=components/* \
         --directory=projects/* \
+        --exclude=cachix/install-nix-action \
         --exclude=clojure-csv/clojure-csv \
         --exclude=com.google.api-client/google-api-client \
         --exclude=com.opentable.components/otj-pg-embedded \

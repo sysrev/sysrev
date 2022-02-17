@@ -66,13 +66,13 @@ jobs:
             **/node_modules
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v16
+        uses: cachix/install-nix-action@v14
 
       - name: Cache Nix store
         id: nix-cache
         uses: john-shaffer/cache@sudo-tar
         with:
-          key: nix-sysrev-${{ hashFiles('**.nix') }}
+          key: nix-sysrev2-${{ hashFiles('**.nix') }}
           restore-keys: |
             nix-sysrev-
             nix-
@@ -138,5 +138,5 @@ jobs:
 
       - run: |
           sudo `command -v nix-collect-garbage` -d
-          /run/current-system/sw/bin/nix-store --dump-db > ~/nix-db-dump
+          nix-store --dump-db > ~/nix-db-dump
         if: steps.nix-cache.outputs.cache-hit != 'true'
