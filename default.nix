@@ -18,6 +18,7 @@ let
 in with pkgs;
 mkShell {
   buildInputs = [
+    awscli
     chromedriver
     chromium
     clj-kondo
@@ -36,6 +37,7 @@ mkShell {
     python39Packages.cfn-lint
     rlwrap
     time
+    zip
   ];
   shellHook = ''
     export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"

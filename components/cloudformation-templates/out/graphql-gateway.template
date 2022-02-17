@@ -1,0 +1,85 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "This template creates a federated GraphQL gateway.",
+  "Parameters" : {
+    "LambdaKey" : {
+      "Type" : "String"
+    }
+  },
+  "Resources" : {
+    "ApiCertificate" : {
+      "Properties" : {
+        "DomainName" : {
+          "Fn::Join" : [ ".", [ "api", {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-SysrevZoneApex"
+          } ] ]
+        },
+        "DomainValidationOptions" : [ {
+          "DomainName" : {
+            "Fn::Join" : [ ".", [ "api", {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-SysrevZoneApex"
+            } ] ]
+          },
+          "HostedZoneId" : {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-SysrevHostedZoneId"
+          }
+        } ],
+        "ValidationMethod" : "DNS"
+      },
+      "Type" : "AWS::CertificateManager::Certificate"
+    },
+    "GatewayHandlerFunction" : {
+      "Properties" : {
+        "AutoPublishAlias" : "GraphQLGateway",
+        "CodeUri" : {
+          "Bucket" : {
+            "Fn::ImportValue" : "Sysrev-Regional-Resources-CodeBucket"
+          },
+          "Key" : {
+            "Ref" : "LambdaKey"
+          }
+        },
+        "Events" : {
+          "AnyRequest" : {
+            "Properties" : {
+              "ApiId" : {
+                "Ref" : "HttpApi"
+              },
+              "Method" : "ANY",
+              "Path" : "/graphql"
+            },
+            "Type" : "HttpApi"
+          }
+        },
+        "Handler" : "lambda.handler",
+        "MemorySize" : 128,
+        "PackageType" : "Zip",
+        "Runtime" : "nodejs14.x",
+        "Timeout" : 10
+      },
+      "Type" : "AWS::Serverless::Function"
+    },
+    "HttpApi" : {
+      "Properties" : {
+        "Domain" : {
+          "CertificateArn" : {
+            "Ref" : "ApiCertificate"
+          },
+          "DomainName" : {
+            "Fn::Join" : [ ".", [ "api", {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-SysrevZoneApex"
+            } ] ]
+          },
+          "IPV6" : true,
+          "Route53" : {
+            "HostedZoneId" : {
+              "Fn::ImportValue" : "Sysrev-Regional-Resources-SysrevHostedZoneId"
+            }
+          }
+        }
+      },
+      "Type" : "AWS::Serverless::HttpApi"
+    }
+  },
+  "Transform" : "AWS::Serverless-2016-10-31"
+}

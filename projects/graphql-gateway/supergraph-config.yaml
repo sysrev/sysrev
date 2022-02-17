@@ -1,0 +1,7 @@
+# https://www.apollographql.com/docs/rover/supergraphs/#configuration
+
+subgraphs:
+  datapub:
+    routing_url: https://www.datapub.dev/api
+    schema:
+      file: ../datapub/resources/datapub/schema.graphql

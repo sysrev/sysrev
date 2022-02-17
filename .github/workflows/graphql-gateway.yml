@@ -1,0 +1,142 @@
+name: "Deploy Federated GraphQL Gateway"
+concurrency: sysrev-graphql-gateway-${{ github.ref_name }}
+
+on:
+  push:
+    branches:
+      - staging
+      - production
+    paths:
+      - '.github/workflows/graphql-gateway.yml'
+      - 'components/cloudformation-templates/out/graphql-gateway.template'
+      - 'projects/graphql-gateway/**'
+      - '!**.md'
+
+jobs:
+  get-global-resources:
+    outputs:
+      code-bucket: ${{ steps.get-stack-outputs.outputs.CodeBucket }}
+      sysrev-zone-apex: ${{ steps.get-stack-outputs.outputs.SysrevZoneApex }}
+      service-role-arn: ${{ steps.get-stack-outputs.outputs.AdminAccessCloudFormationServiceRoleArn }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Configure AWS prod credentials
+        if: github.ref_name == 'production'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Get Sysrev-Global-Resources stack outputs
+        if: github.ref_name == 'staging' || github.ref_name == 'production'
+        id: get-stack-outputs
+        uses: john-shaffer/aws-cloudformation-github-deploy@skip-deploy
+        with:
+          name: Sysrev-Global-Resources
+          skip-deploy: '1'
+          template: 'unused'
+
+  graphql-gateway:
+    needs: get-global-resources
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v2
+        with:
+          key: npm-graphql-gateway-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-graphql-gateway
+          path: |
+            **/node_modules
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v16
+
+      - name: Cache Nix store
+        id: nix-cache
+        uses: john-shaffer/cache@sudo-tar
+        with:
+          key: nix-sysrev-${{ hashFiles('**.nix') }}
+          restore-keys: |
+            nix-sysrev-
+            nix-
+          path: |
+            ~/nix-db-dump
+            /nix/store
+            /nix/var/nix/profiles
+
+      - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+
+      - run: nix-build -A inputDerivation -o gcroots
+
+      - name: Install rover
+        run: |
+          curl -sSL https://rover.apollo.dev/nix/v0.4.3 | sh
+          echo "$HOME/.rover/bin" >> $GITHUB_PATH
+
+      - name: Compose the supergraph schema
+        run: rover supergraph compose --config ./supergraph-config.yaml > ./supergraph.graphql
+        working-directory: projects/graphql-gateway
+
+      - name: Build gateway lambda code
+        run: |
+          nix-shell ../../default.nix --run "npm ci"
+          nix-shell ../../default.nix --run "zip -qr lambda.zip *"
+        working-directory: projects/graphql-gateway
+
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Configure AWS prod credentials
+        if: github.ref_name == 'production'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Set lambda key
+        run: echo "LAMBDA_KEY=graphql-gateway/lambda-$GITHUB_SHA.zip" >> $GITHUB_ENV
+
+      - name: Upload lambda code to S3
+        run:
+          nix-shell --run "aws s3 cp projects/graphql-gateway/lambda.zip s3://${{ needs.get-global-resources.outputs.code-bucket }}/${{ env.LAMBDA_KEY }}"
+
+      - name: Deploy Sysrev-GraphQL-Gateway stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
+        with:
+          capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_IAM
+          name: Sysrev-GraphQL-Gateway
+          no-fail-on-empty-changeset: '1'
+          parameter-overrides: LambdaKey=${{ env.LAMBDA_KEY }}
+          role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
+          template: components/cloudformation-templates/out/graphql-gateway.template
+
+      - run: |
+          sudo `command -v nix-collect-garbage` -d
+          nix-store --dump-db > ~/nix-db-dump
+        if: steps.nix-cache.outputs.cache-hit != 'true'
