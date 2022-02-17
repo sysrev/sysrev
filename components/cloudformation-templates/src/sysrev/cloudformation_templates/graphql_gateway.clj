@@ -13,10 +13,19 @@
   :Transform "AWS::Serverless-2016-10-31"
 
   :Parameters
-  {:LambdaKey {:Type "String"}}
+  {:ApolloKey {:Default ""
+               :NoEcho true
+               :Type "String"}
+   :LambdaKey {:Type "String"}}
 
   :Resources
-  {:ApiCertificate
+  {:ApolloKeySecret
+   {:Type "AWS::SecretsManager::Secret"
+    :Properties
+    {:KmsKeyId (import-regional "CredentialsKeyId")
+     :SecretString (ref :ApolloKey)}}
+
+   :ApiCertificate
    {:Type "AWS::CertificateManager::Certificate"
     :Properties
     {:DomainName (join "." ["api" (import-regional :SysrevZoneApex)])
@@ -41,6 +50,10 @@
      :CodeUri
      {:Bucket (import-regional :CodeBucket)
       :Key (ref :LambdaKey)}
+     :Environment
+     {:Variables
+      {:APOLLO_GRAPH_REF "sysrev@current"
+       :APOLLO_KEY (sub "{{resolve:secretsmanager:${ApolloKeySecret}::}}")}}
      :Handler "lambda.handler"
      :MemorySize 128
      :PackageType "Zip"

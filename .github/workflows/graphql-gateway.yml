@@ -125,6 +125,10 @@ jobs:
           aws-region: us-east-1
           mask-aws-account-id: no
 
+      - name: Set APOLLO_KEY
+        if: github.ref_name == 'production'
+        run: echo "APOLLO_KEY=${{ secrets.APOLLO_KEY }}" >> $GITHUB_ENV
+
       - name: Set lambda key
         run: echo "LAMBDA_KEY=graphql-gateway/lambda-$GITHUB_SHA.zip" >> $GITHUB_ENV
 
@@ -138,7 +142,7 @@ jobs:
           capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_IAM
           name: Sysrev-GraphQL-Gateway
           no-fail-on-empty-changeset: '1'
-          parameter-overrides: LambdaKey=${{ env.LAMBDA_KEY }}
+          parameter-overrides: ApolloKey=${{ env.APOLLO_KEY }},LambdaKey=${{ env.LAMBDA_KEY }}
           role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/graphql-gateway.template
 

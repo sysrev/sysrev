@@ -2,6 +2,11 @@
   "AWSTemplateFormatVersion" : "2010-09-09",
   "Description" : "This template creates a federated GraphQL gateway.",
   "Parameters" : {
+    "ApolloKey" : {
+      "Default" : "",
+      "NoEcho" : true,
+      "Type" : "String"
+    },
     "LambdaKey" : {
       "Type" : "String"
     }
@@ -28,6 +33,17 @@
       },
       "Type" : "AWS::CertificateManager::Certificate"
     },
+    "ApolloKeySecret" : {
+      "Properties" : {
+        "KmsKeyId" : {
+          "Fn::ImportValue" : "Sysrev-Regional-Resources-CredentialsKeyId"
+        },
+        "SecretString" : {
+          "Ref" : "ApolloKey"
+        }
+      },
+      "Type" : "AWS::SecretsManager::Secret"
+    },
     "GatewayHandlerFunction" : {
       "Properties" : {
         "AutoPublishAlias" : "GraphQLGateway",
@@ -37,6 +53,14 @@
           },
           "Key" : {
             "Ref" : "LambdaKey"
+          }
+        },
+        "Environment" : {
+          "Variables" : {
+            "APOLLO_GRAPH_REF" : "sysrev@current",
+            "APOLLO_KEY" : {
+              "Fn::Sub" : "{{resolve:secretsmanager:${ApolloKeySecret}::}}"
+            }
           }
         },
         "Events" : {
