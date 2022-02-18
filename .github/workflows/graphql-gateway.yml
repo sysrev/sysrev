@@ -7,6 +7,7 @@ on:
       - '.github/workflows/graphql-gateway.yml'
       - 'components/cloudformation-templates/out/graphql-gateway.template'
       - 'projects/graphql-gateway/**'
+      - '**.graphql'
       - '!**.md'
 
 jobs:
