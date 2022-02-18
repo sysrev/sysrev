@@ -1,11 +1,8 @@
-name: "Deploy Federated GraphQL Gateway"
+name: "Build and Deploy Federated GraphQL Gateway"
 concurrency: sysrev-graphql-gateway-${{ github.ref_name }}
 
 on:
   push:
-    branches:
-      - staging
-      - production
     paths:
       - '.github/workflows/graphql-gateway.yml'
       - 'components/cloudformation-templates/out/graphql-gateway.template'
@@ -133,11 +130,13 @@ jobs:
         run: echo "LAMBDA_KEY=graphql-gateway/lambda-$GITHUB_SHA.zip" >> $GITHUB_ENV
 
       - name: Upload lambda code to S3
+        if: github.ref_name == 'staging' || github.ref_name == 'production'
         run:
           nix-shell --run "aws s3 cp projects/graphql-gateway/lambda.zip s3://${{ needs.get-global-resources.outputs.code-bucket }}/${{ env.LAMBDA_KEY }}"
 
       - name: Deploy Sysrev-GraphQL-Gateway stack
         uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
+        if: github.ref_name == 'staging' || github.ref_name == 'production'
         with:
           capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_IAM
           name: Sysrev-GraphQL-Gateway
