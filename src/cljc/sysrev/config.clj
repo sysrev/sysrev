@@ -23,10 +23,13 @@
 
 (defonce ^{:doc "A map of environment variables."
            :dynamic true}
-  env (let [{:keys [private-config] :as config} (read-config-file "config.edn")]
+  env (let [{:keys [private-config] :as config} (read-config-file "config.edn")
+            local-file-config (io/file "config.local.edn")]
         (deep-merge
          defaults
          config
          ;; Remove some large values that we don't need to aid debugging.
          (dissoc environ/env :java-class-path :ls-colors)
-         (some-> private-config read-config-file))))
+         (some-> private-config read-config-file)
+         (when (some-> local-file-config .exists)
+           (-> local-file-config io/reader PushbackReader. edn/read)))))
