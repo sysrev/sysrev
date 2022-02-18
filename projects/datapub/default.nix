@@ -1,8 +1,8 @@
 let
-  rev = "46725ae611741dd6d9a43c7e79d5d98ca9ce4328";
+  rev = "2128d0aa28edef51fd8fef38b132ffc0155595df";
   nixpkgs = fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-    sha256 = "11srp3zfac0ahb1mxzkw3czlpmxc1ls7y219ph1r4wx2ndany9s9";
+    sha256 = "1slxx8rc7kfm61826cjbz2wz18xc9sxhg1ki8b6254gizgh5gvw4";
   };
   pkgs = import nixpkgs {};
   inherit (pkgs) stdenv fetchurl;

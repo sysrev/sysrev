@@ -1,5 +1,5 @@
 {:paths ["src/clj" "src/cljc" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.0-beta1"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.0-rc1"}
 
 ;;; clojure.spec
         orchestra/orchestra {:mvn/version "2021.01.01-1"}
@@ -66,8 +66,8 @@
                                           com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                           com.taoensso/encore
                                           org.slf4j/slf4j-api]}
-        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.159"}
-        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.159"}
+        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.161"}
+        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.161"}
 
 ;;; More libraries
         buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication

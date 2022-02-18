@@ -1,5 +1,5 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.0-beta1"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.0-rc1"}
 
         poly/config {:local/root "../../components/config"}
         poly/flyway {:local/root "../../components/flyway"}
