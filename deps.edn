@@ -66,8 +66,8 @@
                                           com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                           com.taoensso/encore
                                           org.slf4j/slf4j-api]}
-        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.161"}
-        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.161"}
+        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.162"}
+        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.162"}
 
 ;;; More libraries
         buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication

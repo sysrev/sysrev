@@ -4,8 +4,8 @@
   "description": "FIXME: Write a one-line description of your library/project.",
   "main": "index.js",
   "dependencies": {
-    "fomantic-ui": "2.8.7",
-    "gulp": "^4.0.2"
+    "fomantic-ui": "2.8.8",
+    "gulp": "4.0.2"
   },
   "devDependencies": {},
   "scripts": {
