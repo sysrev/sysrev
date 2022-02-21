@@ -9,6 +9,28 @@
     :refer [execute-one! with-tx-context]]
    [sysrev.sysrev-api.user :as user]))
 
+(defn project-permissions-for-user [context ^Long project-id ^Long user-id]
+  (when user-id
+    (some-> (execute-one!
+             context
+             {:select :permissions
+              :from :project-member
+              :where [:and
+                      :enabled
+                      [:= :project-id project-id]
+                      [:= :user-id user-id]]})
+            :project-member/permissions .getArray set)))
+
+(defn project-admin? [perms]
+  (boolean
+   (when perms
+     (or (perms "admin") (perms "owner")))))
+
+(defn project-member? [perms]
+  (boolean
+   (when perms
+     (or (perms "member") (perms "admin") (perms "owner")))))
+
 (def project-cols
   {:created :date-created
    :id :project-id
@@ -22,23 +44,14 @@
     (with-tx-context [context context]
       (let [user-id (user/current-user-id context)
             ks (sl/current-selection-names context)
+            perms (project-permissions-for-user context int-id user-id)
             {:project/keys [settings] :as project}
             #__ (execute-one! context {:select (keep project-cols ks)
                                        :from :project
                                        :where [:and
                                                [:= :project-id int-id]
-                                               [:or
-                                                [:raw "cast(settings->>'public-access' as boolean) = true"]
-                                                [:in user-id {:select :user-id
-                                                              :from :project-member
-                                                              :where [:and
-                                                                      :enabled
-                                                                      [:= :project-id int-id]
-                                                                      [:= :user-id user-id]
-                                                                      [:or
-                                                                       [:= "owner" [:any :permissions]]
-                                                                       [:= "admin" [:any :permissions]]
-                                                                       [:= "member" [:any :permissions]]]]}]]]})]
+                                               (when-not (project-member? perms)
+                                                 [:raw "cast(settings->>'public-access' as boolean) = true"])]})]
         (some-> project
                 (->> (sl/remap-keys #(or (project-cols-inv %) %)))
                 (update :id str)
