@@ -6,8 +6,9 @@
             [sysrev.sysrev-api.project :as project]))
 
 (def resolvers
-  {:Query {:project #'project/resolve-project}
-   :Mutation {:createProject #'project/createProject!}})
+  {:CreateProjectPayload {:project #'project/resolve-create-project-payload#project}
+   :Query {:getProject #'project/get-project}
+   :Mutation {:createProject #'project/create-project!}})
 
 (def streamers
   {})

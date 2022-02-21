@@ -7,7 +7,7 @@
 
 (declare return->string)
 
-(defn m-create-project
+(defn create-project
   "Returns the string representation of a createProject mutation.
 
   The return arg is processed by `return->string`."
@@ -16,12 +16,30 @@
        (return->string return)
        "}}"))
 
-(defn q-project
-  "Returns the string representation of a project query.
+(defn create-project-label
+  "Returns the string representation of a createProjectLabel mutation.
 
   The return arg is processed by `return->string`."
   [return]
-  (str "query($id: ID!){project(id: $id){"
+  (str "mutation($input: CreateProjectLabelInput!){createProjectLabel(input: $input){"
+       (return->string return)
+       "}}"))
+
+(defn get-project
+  "Returns the string representation of a getProject query.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (str "query($id: ID!){getProject(id: $id){"
+       (return->string return)
+       "}}"))
+
+(defn get-project-label
+  "Returns the string representation of a getProjectLabel query.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (str "query($id: ID!){getProjectLabel(id: $id){"
        (return->string return)
        "}}"))
 

@@ -17,7 +17,7 @@
 
 (def project-cols-inv (-> project-cols (dissoc :public) core/inv-cols))
 
-(defn resolve-project [context {:keys [id]} _]
+(defn get-project [context {:keys [id]} _]
   (when-let [int-id (sl/parse-int-id id)]
     (with-tx-context [context context]
       (let [user-id (user/current-user-id context)
@@ -55,9 +55,10 @@
    :required true
    :value-type "boolean"})
 
-(defn createProject! [context {{:keys [name public]} :input} _]
+(defn create-project! [context args _]
   (with-tx-context [context context]
-    (let [user-id (user/current-user-id context)]
+    (let [user-id (user/current-user-id context)
+          {:keys [name public]} (get-in args [:input :create])]
       (cond
         (not user-id) (resolve/resolve-as nil {:message "Invalid API token"})
         (str/blank? name) (resolve/resolve-as nil {:message "Project name cannot be blank"
@@ -83,4 +84,4 @@
                          :values [{:permissions [:array ["owner" "admin" "member"]]
                                    :project-id project-id
                                    :user-id user-id}]})
-          (resolve-project context {:id (str project-id)} nil))))))
+          {:project (str project-id)})))))

@@ -28,6 +28,8 @@ type PageInfo {
   startCursor: String
 }
 
+## Project ##
+
 type Project {
   "The project's unique id."
   id: ID!
@@ -46,6 +48,22 @@ type Project {
 
   "Whether the project is publicly viewable."
   public: Boolean!
+}
+
+input ProjectInput {
+  "The project's name."
+  name: String
+
+  "Whether the project is publicly viewable."
+  public: Boolean
+}
+
+input CreateProjectInput {
+  create: ProjectInput!
+}
+
+type CreateProjectPayload {
+  project: Project
 }
 
 type ProjectLabel {
@@ -88,11 +106,11 @@ input CreateProjectInput {
 }
 
 type Query {
-  project(id: ID!): Project
+  getProject(id: ID!): Project
 }
 
 type Mutation {
-  createProject(input: CreateProjectInput!): Project
+  createProject(input: CreateProjectInput!): CreateProjectPayload
 }
 
 schema {
