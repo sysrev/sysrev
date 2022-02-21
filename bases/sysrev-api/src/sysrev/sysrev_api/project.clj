@@ -1,6 +1,7 @@
 (ns sysrev.sysrev-api.project
   (:require
    [clojure.string :as str]
+   [clojure.test.check.generators :as gen]
    [com.walmartlabs.lacinia.resolve :as resolve]
    [medley.core :as medley]
    [sysrev.lacinia.interface :as sl]
@@ -30,6 +31,29 @@
   (boolean
    (when perms
      (or (perms "member") (perms "admin") (perms "owner")))))
+
+(defn public-project? [context ^Long project-id]
+  (-> context
+      (execute-one!
+       {:select [[[:cast [(keyword "->>") :settings "public-access"] :boolean] :public]]
+        :from :project
+        :where [:= :project-id project-id]})
+      :public
+      boolean))
+
+(defn check-not-blank [s name]
+  (when (and (not (keyword? s)) (or (not s) (str/blank? s)))
+    (resolve/resolve-as nil {:message (str name " field cannot be blank")})))
+
+(defn token-check [user-id]
+  (when-not user-id
+    (resolve/resolve-as nil {:message "Invalid API token"})))
+
+(defn project-admin-check [context ^Long project-id ^Long user-id]
+  (when-not (and project-id
+                 (project-admin?
+                  (project-permissions-for-user context project-id user-id)))
+    (resolve/resolve-as nil {:message "Must be a project admin"})))
 
 (def project-cols
   {:created :date-created
@@ -97,4 +121,95 @@
                          :values [{:permissions [:array ["owner" "admin" "member"]]
                                    :project-id project-id
                                    :user-id user-id}]})
-          {:project (str project-id)})))))
+          {:id (str project-id)})))))
+
+(defn resolve-create-project-payload#project [context _ val]
+  (get-project context val nil))
+
+;; NOTE: name column is not Name. short-label is Name.
+(def project-label-cols
+  {:consensus :consensus
+   :id :label-id
+   :enabled :enabled
+   :name :short-label
+   :project :project-id
+   :question :question
+   :required :required
+   :type :value-type})
+
+(def project-label-cols-inv (-> project-label-cols core/inv-cols))
+
+(defn get-project-label [context {:keys [id]} _]
+  (when-let [uuid (and id (parse-uuid id))]
+    (with-tx-context [context context]
+      (let [user-id (user/current-user-id context)
+            ks (sl/current-selection-names context)
+            {:label/keys [project-id] :as project-label}
+            #__ (execute-one!
+                 context
+                 {:select (keep project-label-cols (conj ks :project))
+                  :from :label
+                  :where [:= :label-id uuid]})]
+        (when (or (public-project? context project-id)
+                  (project-member? (project-permissions-for-user context project-id user-id)))
+          (some-> project-label
+                  (->> (sl/remap-keys #(or (project-label-cols-inv %) %)))
+                  (assoc :id id)))))))
+
+(defn resolve-project-label#project [_ _ _]
+  nil)
+
+(defn random-id
+  "Generate a random string id from uppercase/lowercase letters"
+  ([len]
+   (let [length (or len 6)
+         char-gen (gen/fmap char (gen/one-of [(gen/choose 65 90)
+                                              (gen/choose 97 122)]))]
+     (apply str (gen/sample char-gen length))))
+  ([] (random-id 6)))
+
+(defn random-label-name
+  "For compatibility with sysrev code.
+
+  This is for the name column, not the name field, which is the short-label column."
+  [value-type]
+  (str (str/lower-case value-type) (random-id)))
+
+(defn create-project-label!
+  [context {{:keys [create projectId]} :input} _]
+  (with-tx-context [context context]
+    (let [user-id (user/current-user-id context)
+          {:keys [consensus enabled name question required type]
+           :or {consensus false
+                enabled true
+                required false}}
+          #__ create
+          project-id (parse-long projectId)]
+      (or
+       (check-not-blank name "name")
+       (check-not-blank question "question")
+       (check-not-blank type "type")
+       (token-check user-id)
+       (project-admin-check context project-id user-id)
+       (let [id (random-uuid)
+             value-type (#'name type)]
+         {:id (str id)}
+         (execute-one!
+          context
+          {:insert-into :label
+           :values [{:consensus consensus
+                     :enabled enabled
+                     :global-label-id id
+                     :label-id id
+                     :name (random-label-name value-type)
+                     :question question
+                     :project-id project-id
+                     :required required
+                     :short-label name
+                     :value-type value-type}]})
+         {:id (str id)})))))
+
+(defn resolve-create-project-label-payload#project-label [context _ val]
+  (get-project-label context val nil))
+
+(defn resolve-project#labels [_ _ _])

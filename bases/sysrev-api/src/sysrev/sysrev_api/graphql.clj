@@ -6,9 +6,14 @@
             [sysrev.sysrev-api.project :as project]))
 
 (def resolvers
-  {:CreateProjectPayload {:project #'project/resolve-create-project-payload#project}
-   :Query {:getProject #'project/get-project}
-   :Mutation {:createProject #'project/create-project!}})
+  {:CreateProjectLabelPayload {:projectLabel #'project/resolve-create-project-label-payload#project-label}
+   :CreateProjectPayload {:project #'project/resolve-create-project-payload#project}
+   :Project {:labels #'project/resolve-project#labels}
+   :ProjectLabel {:project #'project/resolve-project-label#project}
+   :Query {:getProject #'project/get-project
+           :getProjectLabel #'project/get-project-label}
+   :Mutation {:createProject #'project/create-project!
+              :createProjectLabel #'project/create-project-label!}})
 
 (def streamers
   {})

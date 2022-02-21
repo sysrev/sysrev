@@ -66,29 +66,6 @@ type CreateProjectPayload {
   project: Project
 }
 
-type ProjectLabel {
-  "The label's unique id."
-  id: ID!
-
-  "Whether answers checked for consensus among users. If true, articles are marked as conflicted if user answers are not identical."
-  consensus: Boolean!
-
-  "Whether the label is enabled."
-  enabled: Boolean!
-
-  "The label's name."
-  name: String!
-
-  "The question that the label asks."
-  question: String!
-
-  "Whether the label is required to be answered."
-  required: Boolean!
-
-  "The type of label (e.g., BOOLEAN, CATEGORICAL, STRING)."
-  type: ProjectLabelType!
-}
-
 type ProjectLabelsConnection {
   edges: [ProjectLabelsEdge]
   pageInfo: PageInfo!
@@ -100,17 +77,73 @@ type ProjectLabelsEdge {
   node: ProjectLabel
 }
 
-input CreateProjectInput {
+## ProjectLabel ##
+
+type ProjectLabel {
+  "The label's unique id."
+  id: ID!
+
+  "Whether answers are checked for consensus among users. If true, articles are marked as conflicted if user answers are not identical."
+  consensus: Boolean!
+
+  "Whether the label is enabled."
+  enabled: Boolean!
+
+  "The label's name."
   name: String!
-  public: Boolean!
+
+  "The project that the label belongs to."
+  project: Project
+
+  "The question that the label asks."
+  question: String!
+
+  "Whether the label is required to be answered."
+  required: Boolean!
+
+  "The type of label (e.g., BOOLEAN, CATEGORICAL, STRING)."
+  type: ProjectLabelType!
+}
+
+input ProjectLabelInput {
+  "Whether answers are checked for consensus among users. If true, articles are marked as conflicted if user answers are not identical."
+  consensus: Boolean
+
+  "Whether the label is enabled."
+  enabled: Boolean
+
+  "The label's name."
+  name: String
+
+  "The question that the label asks."
+  question: String
+
+  "Whether the label is required to be answered."
+  required: Boolean
+
+  "The type of label (e.g., BOOLEAN, CATEGORICAL, STRING)."
+  type: ProjectLabelType
+}
+
+input CreateProjectLabelInput {
+  create: ProjectLabelInput!
+
+  "The ID of the project that the label will belong to."
+  projectId: ID
+}
+
+type CreateProjectLabelPayload {
+  projectLabel: ProjectLabel
 }
 
 type Query {
   getProject(id: ID!): Project
+  getProjectLabel(id: ID!): ProjectLabel
 }
 
 type Mutation {
   createProject(input: CreateProjectInput!): CreateProjectPayload
+  createProjectLabel(input: CreateProjectLabelInput!): CreateProjectLabelPayload
 }
 
 schema {

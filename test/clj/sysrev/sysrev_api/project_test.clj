@@ -74,3 +74,124 @@
         (let [project-4-id (create-project! {:name "4" :public false} {:api-token api-token-2})]
           (is (= {:data {:getProject nil}}
                  (ex! (sacq/get-project "id name public") {:id project-4-id}))))))))
+
+(deftest ^:integration test-create-project-label!
+  (test/with-test-system [system {}]
+    (let [api-token (:api-token (test/create-test-user system))
+          ex! (fn [query variables & [opts]]
+                (ex! system query variables (merge {:api-token api-token} opts)))
+          create-project! (fn [project & [opts]]
+                            (-> (ex! (sacq/create-project "project {id}")
+                                     {:input {:create project}}
+                                     opts)
+                                :data :createProject :project :id))
+          project-1-id (create-project! {:name "a" :public true})
+          create-project-label! (fn [project-id label & [opts]]
+                                  (-> (ex! (sacq/create-project-label
+                                            "projectLabel {consensus id name question type}")
+                                           {:input {:create label
+                                                    :projectId project-id}}
+                                           opts)
+                                      :data :createProjectLabel :projectLabel))
+          label-1 (create-project-label! project-1-id
+                                         {:name "x" :question "??" :type "BOOLEAN"})
+          label-1-id (:id label-1)]
+      (testing "Users can create projectLabels and retrieve them afterward"
+        (is (= {:consensus false
+                :name "x"
+                :question "??"
+                :type "BOOLEAN"}
+               (dissoc label-1 :id)))
+        (is (string? label-1-id))
+        (is (= {:data {:getProjectLabel {:consensus false
+                                         :id label-1-id
+                                         :name "x"
+                                         :question "??"
+                                         :type "BOOLEAN"}}}
+               (ex! (sacq/get-project-label "consensus id name question type") {:id label-1-id}))))
+      (testing "Anonymous users cannot create projectLabels"
+        (is (= ["Invalid API token"]
+               (->> (api-test/execute! system (sacq/create-project-label "projectLabel {id}")
+                                       {:input {:create {:name "x" :question "??" :type "BOOLEAN"}
+                                                :projectId project-1-id}})
+                    :body :errors (map :message)))))
+      (testing "Made-up tokens cannot create projectLabels"
+        (is (= ["Invalid API token"]
+               (->> (api-test/execute! system (sacq/create-project-label "projectLabel {id}")
+                                       {:input {:create {:name "x" :question "??" :type "BOOLEAN"}
+                                                :projectId project-1-id}}
+                                       {:api-token (->> #(rand-nth "0123456789abcdef") (repeatedly 24) (apply str))})
+                    :body :errors (map :message)))))
+      (testing "Users must be project admins to create projectLabels"
+        (is (= ["Must be a project admin"]
+               (->> (api-test/execute! system (sacq/create-project-label "projectLabel {id}")
+                                       {:input {:create {:name "x" :question "??" :type "BOOLEAN"}
+                                                :projectId project-1-id}}
+                                       {:api-token (:api-token (test/create-test-user system))})
+                    :body :errors (map :message))))
+        ;; TODO: Test for a project member
+        )
+      (testing "ProjectLabels cannot be created with blank names, questions, or types"
+        (is (= ["name field cannot be blank"]
+               (->> (api-test/execute! system (sacq/create-project-label "projectLabel {id}")
+                                       {:input {:create {:question "?" :type "BOOLEAN"}
+                                                :projectId project-1-id}}
+                                       {:api-token (:api-token (test/create-test-user system))})
+                    :body :errors (map :message))))
+        (is (= ["question field cannot be blank"]
+               (->> (api-test/execute! system (sacq/create-project-label "projectLabel {id}")
+                                       {:input {:create {:name "?" :type "BOOLEAN"}
+                                                :projectId project-1-id}}
+                                       {:api-token (:api-token (test/create-test-user system))})
+                    :body :errors (map :message))))
+        (is (= ["type field cannot be blank"]
+               (->> (api-test/execute! system (sacq/create-project-label "projectLabel {id}")
+                                       {:input {:create {:name "?" :question "?"}
+                                                :projectId project-1-id}}
+                                       {:api-token (:api-token (test/create-test-user system))})
+                    :body :errors (map :message))))))))
+
+(deftest ^:integration test-project-label
+  (test/with-test-system [system {}]
+    (let [api-token (:api-token (test/create-test-user system))
+          api-token-2 (:api-token (test/create-test-user system))
+          ex! (fn [query variables & [opts]]
+                (ex! system query variables (merge {:api-token api-token} opts)))
+          create-project! (fn [project & [opts]]
+                            (-> (ex! (sacq/create-project "project {id}")
+                                     {:input {:create project}}
+                                     opts)
+                                :data :createProject :project :id))
+          project-1-id (create-project! {:name "a" :public true})
+          create-project-label! (fn [project-id label & [opts]]
+                                  (-> (ex! (sacq/create-project-label "projectLabel {id}")
+                                           {:input {:create label
+                                                    :projectId project-id}}
+                                           opts)
+                                      :data :createProjectLabel :projectLabel :id))
+          label-1-id (create-project-label! project-1-id
+                                            {:name "x" :question "??" :type "BOOLEAN"})]
+      (testing "Non-existent ids return nil"
+        (is (= {:data {:getProjectLabel nil}}
+               (ex! (sacq/get-project-label "id name") {:id "1"}))))
+      (testing "projectLabel query returns the expected fields"
+        (is (= {:data {:getProjectLabel {:id label-1-id :name "x"}}}
+               (ex! (sacq/get-project-label "id name") {:id label-1-id}))))
+      (testing "Users can see labels belonging to public projects"
+        (is (= {:data {:getProjectLabel {:id label-1-id :name "x"}}}
+               (ex! (sacq/get-project-label "id name")
+                    {:id label-1-id}
+                    {:api-token api-token-2}))))
+      (testing "Users can see labels belonging to their private projects"
+        (let [project-3-id (create-project! {:name "3" :public false})
+              label-3-id (create-project-label! project-3-id
+                                                {:name "z" :question "??" :type "BOOLEAN"})]
+          (is (= {:data {:getProjectLabel {:id label-3-id :name "z"}}}
+                 (ex! (sacq/get-project-label "id name") {:id label-3-id})))))
+      (testing "Users cannot see labels belonging to others' private projects"
+        (let [project-4-id (create-project! {:name "4" :public false} {:api-token api-token-2})
+              label-4-id (create-project-label! project-4-id
+                                                {:name "a" :question "??" :type "BOOLEAN"}
+                                                {:api-token api-token-2})]
+          (is (= {:data {:getProjectLabel nil}}
+                 (ex! (sacq/get-project-label "id name") {:id label-4-id}))))))))
