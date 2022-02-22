@@ -1,0 +1,1 @@
+ALTER TABLE label ALTER COLUMN short_label SET NOT NULL;
