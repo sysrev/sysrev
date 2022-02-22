@@ -57,7 +57,7 @@
   (with-transaction
     (let [project-id (q/get-article article-id :project-id)
           label-ids (or label-ids (project/project-consensus-label-ids project-id))
-          resolve-time (or resolve-time (db/sql-now))]
+          resolve-time (or resolve-time db/sql-now)]
       (q/create :article-resolve [{:article-id article-id
                                    :user-id user-id
                                    :resolve-time resolve-time
@@ -87,7 +87,7 @@
                                     :with [], :include-disabled true)
           project-labels (project/project-labels project-id)
           valid-values (filter-valid-label-values project-labels label-values)
-          now (db/sql-now)
+          now db/sql-now
           current-entries (when change?
                             (-> (q/select-article-by-id article-id [:al.*])
                                 (q/join-article-labels)

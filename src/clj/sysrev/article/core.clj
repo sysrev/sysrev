@@ -73,7 +73,7 @@
                     :user-id user-id
                     :project-note-id project-note-id
                     :content content
-                    :updated-time (db/sql-now)}]
+                    :updated-time db/sql-now}]
         (if (nil? anote)
           (q/create :article-note fields, :returning :*)
           (first (q/modify :article-note {:article-id article-id

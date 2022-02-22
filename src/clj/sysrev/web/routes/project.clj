@@ -181,7 +181,7 @@
   (let [entry (merge extra {:download-id (util/random-id 5)
                             :export-type export-type
                             :tempfile-path (str tempfile)
-                            :added-time (db/sql-now)})]
+                            :added-time db/sql-now})]
     (swap! project-export-refs update-in [project-id] #(conj % entry))
     entry))
 

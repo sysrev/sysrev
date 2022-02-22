@@ -13,7 +13,7 @@
     :as sqlh
     :refer [from join merge-join order-by select where]]
    [orchestra.core :refer [defn-spec]]
-   [sysrev.db.core :as db :refer [do-query sql-now with-transaction]]
+   [sysrev.db.core :as db :refer [do-query with-transaction]]
    [sysrev.db.queries :as q]
    [sysrev.payment.stripe :as stripe]
    [sysrev.project.core :as project]
@@ -275,7 +275,7 @@
 
 (defn update-member-access-time [user-id project-id]
   (q/modify :project-member {:user-id user-id :project-id project-id}
-            {:access-date (sql-now)}))
+            {:access-date db/sql-now}))
 
 (defn create-user-stripe [stripe-acct user-id]
   (q/create :user-stripe {:stripe-acct stripe-acct :user-id user-id}))
@@ -312,7 +312,7 @@
   [user-id email]
   (with-transaction
     ;; set principal to false on all emails for user
-    (q/modify :user-email {:user-id user-id} {:principal false :updated (sql-now)})
+    (q/modify :user-email {:user-id user-id} {:principal false :updated db/sql-now})
     ;; set principal to true for this email
     (q/modify :user-email {:user-id user-id :email email} {:principal true})
     ;; update the user's email status
@@ -321,7 +321,7 @@
 (defn verify-email! [email verify-code user-id]
   (q/modify :user-email (cond-> {:email email :user-id user-id}
                           verify-code (assoc :verify-code verify-code))
-            {:verified true :updated (sql-now)}))
+            {:verified true :updated db/sql-now}))
 
 (defn get-user-emails [user-id]
   (q/find :user-email {:user-id user-id :enabled true}))

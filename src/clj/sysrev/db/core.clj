@@ -292,11 +292,7 @@
            (binding [*conn* conn#]
              (do ~@body))))))
 
-(defn sql-now
-  "Query current time from database."
-  [& [conn]]
-  (-> (j/query (or conn *conn* @*active-db*) "SELECT LOCALTIMESTAMP AS TIMESTAMP")
-      first :timestamp))
+(def sql-now (sql/call :now))
 
 ;;
 ;; Add missing JSON write methods for some types.

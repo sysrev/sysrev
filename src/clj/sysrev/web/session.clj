@@ -24,11 +24,11 @@
         (if (nil? ss)
           (q/create :session {:skey key
                               :sdata (db/to-jsonb data)
-                              :update-time (db/sql-now)
+                              :update-time db/sql-now
                               :user-id (-> data :identity :user-id)})
           (q/modify :session {:skey key}
                     {:sdata (db/to-jsonb data)
-                     :update-time (db/sql-now)
+                     :update-time db/sql-now
                      :user-id (-> data :identity :user-id)}))
         key)))
   (delete-session [_ key]

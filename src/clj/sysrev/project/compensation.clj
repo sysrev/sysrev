@@ -111,7 +111,7 @@
                                    (mapv #(vector :and
                                                   [:>= :al.added-time (:period-begin %)]
                                                   [:<= :al.added-time
-                                                   (or (:period-end %) (db/sql-now))]))
+                                                   (or (:period-end %) db/sql-now)]))
                                    (cons :or)
                                    (into []))]
     ;; check that the there is really a compensation with a time period

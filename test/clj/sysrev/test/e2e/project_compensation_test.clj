@@ -23,7 +23,7 @@
                                :user-id user-id
                                :answer (db/to-jsonb true)
                                :imported false
-                               :confirm-time (db/sql-now)})))))
+                               :confirm-time db/sql-now})))))
 
 (deftest ^:optional test-project-compensation
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
