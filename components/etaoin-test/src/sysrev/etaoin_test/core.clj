@@ -30,14 +30,14 @@
   (doseq [query (cons q more-qs)]
     (if (util/mac?)
       (ea/fill driver query (keys/with-command \a) keys/backspace)
-      (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete))))
+      (ea/fill driver query (keys/with-ctrl \a) keys/backspace))))
 
 (defn clear-visible [driver q & more-qs]
   (doseq [query (cons q more-qs)]
     (ea/wait-visible driver query)
     (if (util/mac?)
       (ea/fill driver query (keys/with-command \a) keys/backspace)
-      (ea/fill driver query (keys/with-ctrl keys/home (keys/with-shift keys/end)) keys/delete))))
+      (ea/fill driver query (keys/with-ctrl \a) keys/backspace))))
 
 (s/fdef clear
   :args (s/cat :driver ::spec/driver :queries (s/+ ::spec/query))

@@ -6,7 +6,7 @@
 (defn clear
   "Clears one or more input elements.
 
-  Uses the Ctrl-Home, Ctrl-Shift-End, Delete key sequence to clear the
+  Uses a sequence of keypresses to clear the
   input in order to ensure that event handlers are fired. Use
   `etaoin.api/clear` if you need to clear an element without keypresses and
   don't care about event handlers.
