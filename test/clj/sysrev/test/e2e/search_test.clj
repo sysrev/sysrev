@@ -29,7 +29,7 @@
       (e/go test-resources "/search?q=test-user&p=1&type=users")
       (et/is-wait-visible driver {:fn/has-text "test-user-1"}))))
 
-(deftest ^:e2e test-search
+(deftest ^:optional test-search
   (e/with-test-resources [{:keys [driver] :as test-resources} {}]
     (let [strings (for [_ (range 13)] (str/lower-case (util/random-id)))
           [s1 s2 & _] strings
