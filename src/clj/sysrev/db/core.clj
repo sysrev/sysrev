@@ -18,6 +18,7 @@
             [next.jdbc.result-set :as result-set]
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
+            [sysrev.postgres.interface :as pg]
             [sysrev.util :as util :refer [map-values in?]])
   (:import (java.sql Connection PreparedStatement)
            (org.joda.time DateTime)
@@ -41,16 +42,6 @@
       (.setObject s i num))))
 
 ;; https://github.com/seancorfield/next-jdbc/blob/develop/doc/tips-and-tricks.md
-(defn ->pgobject
-  "Transforms Clojure data to a PGobject that contains the data as
-  JSON. PGObject type defaults to `jsonb` but can be changed via
-  metadata key `:pgtype`"
-  [x]
-  (let [pgtype (or (:pgtype (meta x)) "jsonb")]
-    (doto (PGobject.)
-      (.setType pgtype)
-      (.setValue (json/write-str x)))))
-
 (defn <-pgobject
   "Transform PGobject containing `json` or `jsonb` value to Clojure
   data."
@@ -70,11 +61,11 @@
 (extend-protocol prepare/SettableParameter
   clojure.lang.IPersistentMap
   (set-parameter [m ^PreparedStatement s i]
-    (.setObject s i (->pgobject m)))
+    (.setObject s i (pg/jsonb-pgobject m)))
 
   clojure.lang.IPersistentVector
   (set-parameter [v ^PreparedStatement s i]
-    (.setObject s i (->pgobject v))))
+    (.setObject s i (pg/jsonb-pgobject v))))
 
 ;; if a row contains a PGobject then we'll convert them to Clojure data
 ;; while reading (if column is either "json" or "jsonb" type):
