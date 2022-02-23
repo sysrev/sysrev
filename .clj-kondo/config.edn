@@ -20,6 +20,8 @@
                                 (compojure.core/DELETE nil)
                                 (compojure.core/context nil)
                                 (bouncer.validators/defvalidator nil)
+                                ;; ignore new clojure 1.11 symbols
+                                abs parse-double parse-long parse-uuid random-uuid
                                 ;; ignore unresolved symbols from setup-panel-state macro
                                 panel-get panel-set]}
            :unused-binding {:exclude-destructured-keys-in-fn-args true}
