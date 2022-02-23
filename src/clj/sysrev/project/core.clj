@@ -383,7 +383,7 @@
              "LEFT JOIN markdown md on md.markdown_id = pd.markdown_id "
              "WHERE p.enabled = true AND p.settings->>'public-access' = 'true' "
              "AND to_tsvector('english', coalesce(md.string,'') || ' ' || "
-             "                           (coalesce(p.name,''))) @@ plainto_tsquery(?) "
+             "                           (coalesce(p.name,''))) @@ plainto_tsquery('english', ?) "
              "LIMIT ? ")
         q limit]
        db/raw-query
