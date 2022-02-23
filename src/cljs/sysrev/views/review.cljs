@@ -153,8 +153,8 @@
             (subscribe [:review/active-labels article-id])])
          (fn [[labels-raw labels]]
            (->> labels-raw
-             (filter
-               (fn [[label-id label]]
+             (medley/filter-kv
+               (fn [label-id label]
                  (if (:labels label)
                    (some #(missing-group-answer? (:labels label) %)
                          (-> labels (get label-id) :labels vals))
@@ -218,15 +218,17 @@
             (subscribe [:review/identifier-validations])])
          (fn [[labels-raw labels identifier-validations]]
            (->> labels
-                (remove
-                  (fn [[label-id answer]]
-                    (let [label (get labels-raw label-id)]
-                      (if (:labels answer)
-                        (valid-group-answers? label answer identifier-validations)
-                        (and
-                          (valid-answer-id? (:definition label) "na" (:label-id label) identifier-validations)
-                          (valid-answer? (:value-type label) answer
-                                         (:definition label))))))))))
+                (medley/map-kv-vals
+                 (fn [label-id answer]
+                   (let [label (get labels-raw label-id)]
+                     (when-not (if (:labels answer)
+                                 (valid-group-answers? label answer identifier-validations)
+                                 (and
+                                  (valid-answer-id? (:definition label) "na" (:label-id label) identifier-validations)
+                                  (valid-answer? (:value-type label) answer
+                                                 (:definition label))))
+                       label))))
+                (medley/remove-vals nil?))))
 
 (reg-sub :review/identifier-validations
          (fn [db [_]]
@@ -645,9 +647,11 @@
                                 :padding "0.15em"
                                 :padding-left "1.25em"}}
                    (when (seq missing)
-                     [:li "Answer missing for a required label"])
+                     [:li "Answer missing for required label(s): "
+                      (->> missing vals (map :short-label) (str/join ", "))])
                    (when (seq invalid)
-                     [:li "Invalid label answer(s)"])]]}]
+                     [:li "Invalid label answer(s): "
+                      (->> invalid vals (map :short-label) (str/join ", "))])]]}]
       [button])))
 
 (defn SkipArticle [article-id & [small? fluid?]]
