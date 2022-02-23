@@ -29,7 +29,7 @@
       (e/go test-resources "/search?q=test-user&p=1&type=users")
       (et/is-wait-visible driver {:fn/has-text "test-user-1"}))))
 
-(deftest ^:optional test-search
+(deftest ^:e2e test-search
   (e/with-test-resources [{:keys [driver] :as test-resources} {}]
     (let [strings (for [_ (range 13)] (str/lower-case (util/random-id)))
           [s1 s2 & _] strings
@@ -59,7 +59,7 @@
                              :fn/text "10"})
         (et/is-wait-visible {:id :search-results-orgs-count
                              :fn/text "35"})
-        (et/clear :search-sysrev-bar)
+        (ea/clear :search-sysrev-bar)
         (fill-search s2)
         (et/is-click-visible [:search-sysrev-form {:tag :button}])
         (et/is-wait-visible {:id :search-results-projects-count
