@@ -115,6 +115,7 @@
                          :values [(assoc default-inclusion-label
                                          :global-label-id label-id
                                          :label-id label-id
+                                         :owner-project-id project-id
                                          :project-id project-id)]})
           (execute-one! context
                         {:insert-into :project-member
@@ -202,8 +203,9 @@
                      :global-label-id id
                      :label-id id
                      :name (random-label-name value-type)
-                     :question question
+                     :owner-project-id project-id
                      :project-id project-id
+                     :question question
                      :required required
                      :short-label name
                      :value-type value-type}]})
