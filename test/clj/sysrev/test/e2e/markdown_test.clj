@@ -12,6 +12,7 @@
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
           {:keys [project]} (api/create-project-for-user!
+                             (:web-server system)
                              "Markdown Test" user-id true)
           {:keys [project-id]} project
           description-first "#foo bar\n##baz qux"

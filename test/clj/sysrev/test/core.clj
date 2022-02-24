@@ -89,7 +89,8 @@
              (medley/deep-merge
               env
               {:datapub-embedded true
-               :server {:port (get-port/get-port)}})
+               :server {:port (get-port/get-port)}
+               :sysrev-api-config {:env :dev :pedestal {:port 0}}})
              :postgres-overrides
              {:create-if-not-exists? true
               :dbname (str test-dbname (rand-int Integer/MAX_VALUE))

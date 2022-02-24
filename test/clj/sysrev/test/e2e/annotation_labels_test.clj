@@ -17,6 +17,7 @@
           user (test/create-test-user system)
           project (:project
                    (api/create-project-for-user!
+                    (:web-server system)
                     "Browser Test (annotation labels)" (:user-id user) true))]
       (doto test-resources
         (account/log-in user)

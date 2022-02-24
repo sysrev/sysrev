@@ -1,5 +1,5 @@
 {:env :dev
- :pedestal {:port 0}
+ :pedestal {:port 4060}
  :postgres {:create-if-not-exists? true
             :embedded? true
             :dbname "sysrev"

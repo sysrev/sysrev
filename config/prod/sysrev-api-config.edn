@@ -1,2 +1,2 @@
-{:env :test
- :pedestal {:port 8888}}
+{:env :prod
+ :pedestal {:port 4040}}

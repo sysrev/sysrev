@@ -1,11 +1,11 @@
-(ns sysrev.sysrev-api.test
+(ns sysrev.api2
   (:require
    [io.pedestal.test]
    [sysrev.json.interface :as json]))
 
-(defn response-for [system verb url & options]
+(defn response-for [web-server verb url & options]
   (apply
-   io.pedestal.test/response-for (get-in system [:sysrev-api-pedestal :service :io.pedestal.http/service-fn])
+   io.pedestal.test/response-for (get-in web-server [:sysrev-api-pedestal :service :io.pedestal.http/service-fn])
    verb url options))
 
 (defn throw-errors [graphql-response]
@@ -14,8 +14,8 @@
                     {:response graphql-response}))
     graphql-response))
 
-(defn execute! [system query & [variables {:keys [api-token]}]]
-  (-> (response-for system
+(defn execute! [web-server query & [variables & {:keys [api-token]}]]
+  (-> (response-for web-server
                     :post "/api"
                     :headers (cond-> {"Content-Type" "application/json"}
                                api-token (assoc "Authorization" (str "Bearer " api-token)))
@@ -24,3 +24,4 @@
                             true json/write-str))
       (update :body json/read-str :key-fn keyword)))
 
+(def ex! (comp throw-errors execute!))

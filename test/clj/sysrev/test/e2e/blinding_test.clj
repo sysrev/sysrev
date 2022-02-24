@@ -27,6 +27,7 @@
     (let [user1 (test/create-test-user system)
           user2 (test/create-test-user system)
           {:keys [project]} (api/create-project-for-user!
+                             (:web-server system)
                              "Sysrev Browser Test (label blinding)"
                              (:user-id user1)
                              true)

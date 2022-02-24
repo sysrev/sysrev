@@ -39,11 +39,11 @@
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
                                  slp/error-logging-interceptor]
-        routes (into #{["/"
+        routes (into #{["/api"
                         :options
                         json-error-interceptors
                         :route-name ::graphql-api-cors-preflight]
-                       ["/"
+                       ["/api"
                         :post (into
                                (if get-tx
                                  [(get-tx-interceptor get-tx)]

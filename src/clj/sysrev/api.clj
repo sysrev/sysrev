@@ -15,6 +15,7 @@
    [ring.mock.request :as mock]
    [ring.util.response :as response]
    [sysrev.annotations :as ann]
+   [sysrev.api2 :as api2]
    [sysrev.article.core :as article]
    [sysrev.biosource.annotations :as api-ann]
    [sysrev.biosource.concordance :as concordance-api]
@@ -62,7 +63,8 @@
     :as
     util
     :refer
-    [in? index-by parse-integer req-un sum uuid-from-string]])
+    [in? index-by parse-integer req-un sum uuid-from-string]]
+   [sysrev.sysrev-api-client.interface.queries :as sacq])
   (:import
    (java.util.zip ZipEntry ZipOutputStream)))
 
@@ -130,16 +132,18 @@
 (defn-spec create-project-for-user! (req-un ::project)
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
-  [project-name string?, user-id int?, public-access boolean?]
-  (with-transaction
-    (let [{:keys [project-id] :as project} (project/create-project project-name)]
-      (label/add-label-overall-include project-id)
-      (project/add-project-note project-id {})
-      (member/add-project-member project-id user-id
-                                 :permissions ["member" "admin" "owner"])
-      (change-project-settings project-id [{:setting :public-access
-                                            :value public-access}])
-      {:project (select-keys project [:project-id :name])})))
+  [web-server map? project-name string?, user-id int?, public-access boolean?]
+  (let [{:keys [api-key]} (user/user-identity-info user-id)
+        {:keys [id name]}
+        #__ (-> (api2/ex!
+                 web-server
+                 (sacq/create-project "project{id name}")
+                 {:input {:create {:name project-name :public public-access}}}
+                 :api-token api-key)
+                :body :data :createProject :project)
+        project-id (parse-long id)]
+    (db/clear-project-cache project-id)
+    {:project {:name name :project-id project-id}}))
 
 (defn sync-project-owners!
   "Given a project-id and org-id, sync the permissions of each member with the project"

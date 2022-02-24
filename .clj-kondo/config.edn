@@ -53,6 +53,7 @@
                                         honeysql.helpers               sqlh
                                         medley.core                    medley
                                         me.raynes.fs                   fs
+                                        next.jdbc                      jdbc
                                         ring.mock.request              mock
                                         venia.core                     venia
 ;;; library namespaces [CLJS]
