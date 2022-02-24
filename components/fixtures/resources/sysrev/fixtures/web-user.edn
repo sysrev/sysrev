@@ -1,4 +1,5 @@
 [{:user-id 1000001
+  :api-token "bb5de5a2ea02b58077f1d7ce40dbd6e3"
   :email "test_user_1@insilica.co"
   :permissions [:array ["user"]]
   :pw-encrypted-buddy "bcrypt+sha512$a285b5d59be20a6640284b47ff8df1c9$12$3d0ce70dd56eaa0f56c95de40e13df6a91c54a13a3e09fff"
@@ -7,6 +8,7 @@
   :user-uuid #uuid "f05fb191-0a28-4d37-a324-db4566128d12"
   :verified true}
  {:user-id 1000002
+  :api-token "18bd472f8afee1991347e0f47625d9b0"
   :email "test_user_2@insilica.co"
   :permissions [:array ["user"]]
   :pw-encrypted-buddy "bcrypt+sha512$a285b5d59be20a6640284b47ff8df1c9$12$3d0ce70dd56eaa0f56c95de40e13df6a91c54a13a3e09fff"
