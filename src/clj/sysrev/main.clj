@@ -55,7 +55,9 @@
    :sente (component/using
            (sente/sente :receive-f sente/receive-sente-channel!)
            [:config :postgres])
-   :sysrev-api-config (sysrev.sysrev-api.main/get-config)
+   :sysrev-api-config (-> (or (:sysrev-api-config config)
+                              (sysrev.sysrev-api.main/get-config))
+                          (assoc :get-tx (fn [_] (:connection db/*conn*))))
    :sysrev-api-pedestal (component/using
                          (sysrev.sysrev-api.pedestal/pedestal)
                          {:config :sysrev-api-config
