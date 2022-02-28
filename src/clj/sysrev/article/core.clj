@@ -175,19 +175,15 @@
    (s/keys* :opt-un [:sysrev.article.core.get-article/items ::predict-run-id])]
   (let [article (ds-api/get-article-content article-id)
         get-item (fn [item-key f] (when (in? items item-key)
-                                    (constantly {item-key (f)})))
-        item-values
-        (when (not-empty article)
-          ;; For each key in `items` run function to get corresponding value,
-          ;; then merge all together into a single map.
-          ;; (load items in parallel using `pcalls`)
-          (->> [(get-item :locations #(article-locations-map article-id))
-                (get-item :score #(or (article-score article-id :predict-run-id predict-run-id)
-                                      0.0))
-                (get-item :flags #(article-flags-map article-id))
-                (get-item :sources #(article-sources-list article-id))]
-               (remove nil?) (apply pcalls) doall (apply merge {})))]
-    (some-> (not-empty article) (merge item-values))))
+                                    {item-key (f)}))]
+    (when (seq article)
+      (merge
+       article
+       (get-item :flags #(article-flags-map article-id))
+       (get-item :locations #(article-locations-map article-id))
+       (get-item :score #(or (article-score article-id :predict-run-id predict-run-id)
+                             0.0))
+       (get-item :sources #(article-sources-list article-id))))))
 
 ;; TODO: move this to cljc, client project duplicates this function
 (defn-spec article-location-urls (s/every string?)

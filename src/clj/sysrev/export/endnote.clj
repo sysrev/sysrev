@@ -78,7 +78,7 @@
      [:custom5 (-> article :article-uuid str)]]))
 
 (defn article-ids-to-endnote-xml [article-ids filename & {:keys [file]}]
-  (-> [:xml [:records (pmap #(article-to-endnote-xml % {:filename filename})
+  (-> [:xml [:records (map #(article-to-endnote-xml % {:filename filename})
                             article-ids)]]
       (dxml/sexp-as-element)
       (as-> element
