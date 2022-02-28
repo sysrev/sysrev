@@ -217,7 +217,7 @@
                              :fields [:id :pmid]})
                  (map #(-> % :pmid parse-integer))))]
     (->> (partition-all 1000 source-pmids)
-         (pmap do-search)
+         (map do-search)
          (apply concat))))
 
 (defn create-ris-file

@@ -98,7 +98,7 @@
   [reader]
   (some->> (dxml/parse reader)
            :content first :content
-           (pmap load-endnote-record)))
+           (map load-endnote-record)))
 
 (defn endnote-file->articles [reader]
   (->> (load-endnote-library-xml reader)

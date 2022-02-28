@@ -1538,11 +1538,11 @@
         responses (->> emails
                        (filter util/email?)
                        set ; remove duplicates
-                       (pmap (fn [email]
-                               (sendgrid/send-template-email
-                                email (str "You've been invited to " project-name " as a reviewer")
-                                (str "You've been invited to <b>" project-name
-                                     "</b> as a reviewer. You can view the invitation <a href='" invite-url "'>here</a>.")))))
+                       (map (fn [email]
+                              (sendgrid/send-template-email
+                               email (str "You've been invited to " project-name " as a reviewer")
+                               (str "You've been invited to <b>" project-name
+                                    "</b> as a reviewer. You can view the invitation <a href='" invite-url "'>here</a>.")))))
         response-count (count responses)
         failure-count (->> responses (filter (comp not :success)) count)
         success? (zero? failure-count)]

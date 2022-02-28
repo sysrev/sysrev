@@ -201,11 +201,11 @@
           (from :project-source)
           (where [:and [:= :project-id project-id] [:= :enabled true]])
           do-query
-          (->> (pmap (fn [{:keys [source-id]}]
-                       {source-id (->> (vals asources)
-                                       (filter #(and (= 1 (count %))
-                                                     (= source-id (:source-id (first %)))))
-                                       count)}))
+          (->> (map (fn [{:keys [source-id]}]
+                      {source-id (->> (vals asources)
+                                      (filter #(and (= 1 (count %))
+                                                    (= source-id (:source-id (first %)))))
+                                      count)}))
                (apply merge {}))))))
 
 (defn-spec project-source-overlap int?

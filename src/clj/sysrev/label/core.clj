@@ -429,7 +429,7 @@
     (let [articles (query-public-article-labels project-id)
           overall-id (project/project-overall-label-id project-id)]
       (->> articles
-           ((if (nil? db/*conn*) pmap map) ;; use pmap unless running inside db transaction
+           (map
             (fn [[article-id entry]]
               (let [labels (get-in entry [:labels overall-id])
                     group-status (article-consensus-status project-id article-id
