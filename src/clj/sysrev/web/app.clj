@@ -18,10 +18,10 @@
             [sysrev.util :as util :refer [in? parse-integer when-test]]))
 
 (defn current-user-id [request]
-  (or (-> request :session :identity :user-id)
-      (when-let [api-token (and (-> request :body map?)
+  (or (when-let [api-token (and (-> request :body map?)
                                 (-> request :body :api-token))]
-        (:user-id (user-by-api-token api-token)))))
+        (:user-id (user-by-api-token api-token)))
+      (-> request :session :identity :user-id)))
 
 (defn active-project [request]
   (if-let [api-token (and (-> request :body map?)
