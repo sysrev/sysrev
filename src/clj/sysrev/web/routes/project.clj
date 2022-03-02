@@ -33,6 +33,7 @@
             [sysrev.export.endnote :refer [project-to-endnote-xml]]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.predict.report :as predict-report]
+            [sysrev.project.plan :as pplan]
             [sysrev.shared.keywords :as keywords]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.encryption :as enc]
@@ -135,7 +136,7 @@
                            []))
                     (doc-file/list-project-documents project-id)
                     (project/get-project-owner project-id)
-                    (api/project-owner-plan project-id)
+                    (pplan/project-owner-plan project-id)
                     (api/subscription-lapsed? project-id)]
                    [(label/query-public-article-labels project-id)
                     (pvalues nil #_ (label/project-article-status-counts project-id)

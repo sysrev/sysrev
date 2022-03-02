@@ -5,12 +5,12 @@
    [compojure.response :refer [Renderable]]
    [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
    [ring.util.response :as r]
-   [sysrev.api :as api]
    [sysrev.config :refer [env]]
    [sysrev.db.core :as db]
    [sysrev.db.queries :as q]
    [sysrev.project.core :as project]
    [sysrev.project.member :refer [project-member]]
+   [sysrev.project.plan :as pplan]
    [sysrev.slack :as slack]
    [sysrev.stacktrace :refer [print-cause-trace-custom]]
    [sysrev.user.interface :as user :refer [user-by-api-token]]
@@ -316,7 +316,7 @@
           (not (or bypass-subscription-lapsed?
                    (not project-id)
                    public-project
-                   (and valid-project (api/project-unlimited-access? project-id))
+                   (and valid-project (pplan/project-unlimited-access? project-id))
                    @dev-user?))
           {:error {:status 402 :type :project
                    :message "This request requires an upgraded plan"}}

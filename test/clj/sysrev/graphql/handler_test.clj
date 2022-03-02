@@ -10,8 +10,10 @@
    [sysrev.datasource.api :refer [ds-auth-key]]
    [sysrev.db.core :as db]
    [sysrev.label.answer :as answer]
+   [sysrev.project.core :as project]
    [sysrev.project.member :as member]
    [sysrev.test.core :as test :refer [graphql-request]]
+   [sysrev.user.interface :as user]
    [venia.core :as venia]))
 
 (defn project-article-ids
@@ -78,10 +80,41 @@
                            x))
                  m))
 
+(deftest ^:integration test-paywall
+  (test/with-test-system [system {}]
+    (let [{:keys [api-token user-id]} (test/create-test-user system)
+          project-name "Graphql - Paywall Test"
+          {{:keys [project-id]} :project} (api/create-project-for-user!
+                                           (:web-server system)
+                                           "Graphql - Paywall Test"
+                                           user-id
+                                           false)]
+      (user/change-user-setting user-id :dev-account-enabled? true)
+      (is (= ["This request requires an upgraded plan"]
+             (->> (graphql-request
+                   system
+                   (venia/graphql-query
+                    {:venia/queries
+                     [[:project {:id project-id} [:name]]]})
+                   :api-key api-token)
+                  :errors
+                  (map :message)))
+          "Basic plan user can't access private projects")
+      (project/change-project-setting project-id :public-access true)
+      (is (= {:name project-name}
+             (->> (graphql-request
+                   system
+                   (venia/graphql-query
+                    {:venia/queries
+                     [[:project {:id project-id} [:name]]]})
+                   :api-key api-token)
+                  :data :project))
+          "Basic plan user can access public projects"))))
+
 (deftest ^:integration test-project-query
   (test/with-test-system [system {}]
     (let [{:keys [user-id]} (test/create-test-user system)
-          project-name  "Graphql - Project Query Test"
+          project-name "Graphql - Project Query Test"
           {{:keys [project-id]} :project} (api/create-project-for-user!
                                            (:web-server system)
                                            project-name user-id false)

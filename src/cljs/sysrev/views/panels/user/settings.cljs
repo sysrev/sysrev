@@ -5,7 +5,6 @@
             [sysrev.action.core :as action :refer [def-action]]
             [sysrev.views.semantic :as S :refer
              [Segment Header Grid Column Radio Message]]
-            [sysrev.shared.plans-info :as plans-info]
             [sysrev.views.components.core :as ui]
             [sysrev.util :as util :refer [parse-integer format]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
@@ -202,10 +201,7 @@
   (let [user-id @(subscribe [:self/user-id])
         email @(subscribe [:self/email])
         enabled @(subscribe [:user/dev-account-enabled?])
-        plan @(subscribe [:user/current-plan])
-        error-message (r/cursor state [:developer-enable-error])
-        form-disabled? (and (not (plans-info/pro? (:nickname plan)))
-                            (not @(subscribe [:user/dev?])))]
+        error-message (r/cursor state [:developer-enable-error])]
     [Segment
      [Header {:as "h4" :dividing true} "Enable Developer Account"]
      (when enabled
@@ -220,16 +216,11 @@
        [:p "A developer account allows full access to SysRev and Datasource, the underlying data backend."])
      [:p "In addition to the SysRev and Datasource GraphQL interface, we provide an "
       [:a {:href "https://github.com/sysrev/RSysrev" :target "_blank"} "R library"] "."]
-     (when (and (not (plans-info/pro? (:nickname plan)))
-                (not enabled))
-       [:p [:b "Developer Accounts can only be activated by paid subscribers."]])
      [Radio {:toggle true
              :id "enable-dev-account"
              :label "Developer Account"
              :checked enabled
-             :disabled form-disabled?
-             :on-click (when-not form-disabled?
-                         #(dispatch [:action [:user/developer-enable user-id (not enabled)]]))}]
+             :on-click #(dispatch [:action [:user/developer-enable user-id (not enabled)]])}]
      [ui/CursorMessage error-message {:negative true}]]))
 
 (defn- UserSettings [{:keys [user-id]}]

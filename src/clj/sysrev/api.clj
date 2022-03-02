@@ -1,8 +1,6 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
   (:require
-   [clj-time.coerce :as tc]
-   [clj-time.core :as t]
    [clojure.data.json :as json]
    [clojure.java.io :as io]
    [clojure.set :as set]
@@ -50,6 +48,7 @@
    [sysrev.project.funds :as funds]
    [sysrev.project.invitation :as invitation]
    [sysrev.project.member :as member]
+   [sysrev.project.plan :as pplan]
    [sysrev.sendgrid :as sendgrid]
    [sysrev.shared.notifications :refer [combine-notifications]]
    [sysrev.shared.spec.project :as sp]
@@ -57,14 +56,14 @@
    [sysrev.source.core :as source]
    [sysrev.source.import :as import]
    [sysrev.stacktrace :refer [print-cause-trace-custom]]
+   [sysrev.sysrev-api-client.interface.queries :as sacq]
    [sysrev.user.interface :as user :refer [user-by-email]]
    [sysrev.user.interface.spec :as su]
    [sysrev.util
     :as
     util
     :refer
-    [in? index-by parse-integer req-un sum uuid-from-string]]
-   [sysrev.sysrev-api-client.interface.queries :as sacq])
+    [in? index-by parse-integer req-un sum uuid-from-string]])
   (:import
    (java.util.zip ZipEntry ZipOutputStream)))
 
@@ -78,7 +77,6 @@
 (def conflict 409)
 ;; server settings
 (def minimum-support-level 100)
-(def paywall-grandfather-date "2019-06-09 23:56:00")
 
 (s/def ::success boolean?)
 
@@ -93,39 +91,15 @@
 
 (declare set-user-group!)
 
-(defn project-owner-plan
-  "Return the plan name for the project owner of project-id"
-  [project-id]
-  (with-transaction
-    (let [{:keys [user-id group-id]} (project/get-project-owner project-id)
-          owner-user-id (or user-id (and group-id (group/get-group-owner group-id)))]
-      (if owner-user-id
-        (let [plan (plans/user-current-plan owner-user-id)]
-          (if (or (nil? (:status plan)) ;legacy plan
-                  (= (:status plan) "active"))
-            (:product-name plan)
-            "Basic"))
-        "Basic"))))
-
-(defn- project-grandfathered? [project-id]
-  (let [{:keys [date-created]} (q/find-one :project {:project-id project-id})]
-    (t/before? (tc/from-sql-time date-created)
-               (util/parse-time-string paywall-grandfather-date))))
-
-(defn project-unlimited-access? [project-id]
-  (with-transaction
-    (or (project-grandfathered? project-id)
-        (contains? #{"Premium"} (project-owner-plan project-id)))))
-
 (defn change-project-settings [project-id changes]
   (with-transaction
     (doseq [{:keys [setting value]} changes]
       (cond (and (= setting :public-access)
-                 (project-unlimited-access? project-id))
+                 (pplan/project-unlimited-access? project-id))
             (project/change-project-setting project-id (keyword setting) value)
             (and (= setting :public-access)
                  (= value false)
-                 (= "Basic" (project-owner-plan project-id))) nil
+                 (= "Basic" (pplan/project-owner-plan project-id))) nil
             :else (project/change-project-setting project-id (keyword setting) value)))
     {:success true, :settings (project/project-settings project-id)}))
 
@@ -412,9 +386,9 @@
     <br><br>
     <b>Managed Reviews</b><br>
     SysRev can be hired to help set up, manage, and analyze your large projects.
-    Check out our mangiferin project ("(shared/make-link :mangiferin-part-one "blog post")") for an example managed review.
+    Check out our mangiferin project (" (shared/make-link :mangiferin-part-one "blog post") ") for an example managed review.
     To learn more about managed reviews, just reply to this message with questions, or submit a project description at "
-        (shared/make-link :managed-review-landing "sysrev.com/managed-review")"<br>
+        (shared/make-link :managed-review-landing "sysrev.com/managed-review") "<br>
     <br>
     Thank you for using SysRev, please email me at TJ@sysrev.com with any questions.<br>
     From,<br>
@@ -532,7 +506,6 @@
               (db/clear-project-cache project-id))
             {:stripe-body sub-resp :plan (plans/group-current-plan group-id)})))))
 
-
 (defn ^:unused support-project-monthly [user project-id amount]
   (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
     (cond
@@ -597,7 +570,7 @@
       {:error {:status precondition-failed
                :message (str "Capture status was not COMPLETED, but rather: " status)}}
       :else {:status internal-server-error
-             :message "An unknown error occurred, payment was not processed on SysRev"} )))
+             :message "An unknown error occurred, payment was not processed on SysRev"})))
 
 (defn user-project-support-level [user project-id]
   {:result (select-keys (plans/user-current-project-support user project-id)
@@ -1390,7 +1363,7 @@
     (with-transaction
       (let [{:keys [public-access]} (project/project-settings project-id)]
         (and (not public-access)
-             (not (project-unlimited-access? project-id)))))))
+             (not (pplan/project-unlimited-access? project-id)))))))
 
 (defn search-site
   "Search the site with query q at pagenumber p"
@@ -1551,7 +1524,6 @@
                 (str response-count " invitation(s) successfully sent!")
                 (str failure-count " out of " (count responses) " invitation(s) failed to be sent"))}))
 
-
 (defn create-project-member-gengroup [project-id gengroup-name gengroup-description]
   (cond (gengroup/read-project-member-gengroups project-id :gengroup-name gengroup-name)
         {:error {:status conflict
@@ -1566,22 +1538,14 @@
   (let [sysrev-user (clojure.set/rename-keys (user/user-by-id user-id)
                                              {:api-token :api-key})
         datasource-account (ds-api/read-account sysrev-user)]
-    (cond (not (stripe/user-has-pro? user-id))
-          (if (user/dev-user? user-id)
-            (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
-                {:error {:status forbidden
-                         :message "Datasource API access not enabled: Account does not have a Pro subscription."}})
-            {:error {:status forbidden
-                     :message "Your account does not have a Pro subscription. Upgrade to enable API access."}} )
-          (medley/find-first #(= (:message %) "Account Does Not Exist") (:errors datasource-account))
-          ;; the account does not exist
-          (let [{:keys [pw-encrypted-buddy email api-token]} (user/user-by-id user-id)]
-            (ds-api/create-account! {:email email :password pw-encrypted-buddy :api-key api-token})
-            (user/change-user-setting user-id :dev-account-enabled? enabled?)
-            (ds-api/toggle-account-enabled! sysrev-user enabled?))
-          :else
-          (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
-              (ds-api/toggle-account-enabled! sysrev-user enabled?)))))
+    (if (medley/find-first #(= (:message %) "Account Does Not Exist") (:errors datasource-account))
+      ;; the account does not exist
+      (let [{:keys [pw-encrypted-buddy email api-token]} (user/user-by-id user-id)]
+        (ds-api/create-account! {:email email :password pw-encrypted-buddy :api-key api-token})
+        (user/change-user-setting user-id :dev-account-enabled? enabled?)
+        (ds-api/toggle-account-enabled! sysrev-user enabled?))
+      (do (user/change-user-setting user-id :dev-account-enabled? enabled?)
+          (ds-api/toggle-account-enabled! sysrev-user enabled?)))))
 
 (defn datasource-account-enabled?
   [user-id]
