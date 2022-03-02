@@ -83,13 +83,26 @@
 (deftest ^:integration test-paywall
   (test/with-test-system [system {}]
     (let [{:keys [api-token user-id]} (test/create-test-user system)
+          test-user-2 (test/create-test-user system)
           project-name "Graphql - Paywall Test"
           {{:keys [project-id]} :project} (api/create-project-for-user!
                                            (:web-server system)
                                            "Graphql - Paywall Test"
                                            user-id
-                                           false)]
+                                           true)]
       (user/change-user-setting user-id :dev-account-enabled? true)
+      (user/change-user-setting (:user-id test-user-2) :dev-account-enabled? true)
+      (member/add-project-member project-id (:user-id test-user-2) :permissions ["admin" "member"])
+      (is (= {:name project-name}
+             (->> (graphql-request
+                   system
+                   (venia/graphql-query
+                    {:venia/queries
+                     [[:project {:id project-id} [:name]]]})
+                   :api-key api-token)
+                  :data :project))
+          "Basic plan user can access public projects")
+      (project/change-project-setting project-id :public-access false)
       (is (= ["This request requires an upgraded plan"]
              (->> (graphql-request
                    system
@@ -100,7 +113,7 @@
                   :errors
                   (map :message)))
           "Basic plan user can't access private projects")
-      (project/change-project-setting project-id :public-access true)
+      (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
       (is (= {:name project-name}
              (->> (graphql-request
                    system
@@ -109,7 +122,16 @@
                      [[:project {:id project-id} [:name]]]})
                    :api-key api-token)
                   :data :project))
-          "Basic plan user can access public projects"))))
+          "Pro plan user can access private projects")
+      (is (= {:name project-name}
+             (->> (graphql-request
+                   system
+                   (venia/graphql-query
+                    {:venia/queries
+                     [[:project {:id project-id} [:name]]]})
+                   :api-key (:api-token test-user-2))
+                  :data :project))
+          "Basic plan user can access private projects owned by a pro plan user"))))
 
 (deftest ^:integration test-project-query
   (test/with-test-system [system {}]
