@@ -314,16 +314,16 @@
            {:error {:status 403 :type :project
                     :message "Not authorized (project member)"}}
 
-           (and ((comp not nil?) authorize-fn)
-                (false? (authorize-fn request)))
-           {:error {:status 403 :type :project
-                    :message "Not authorized (authorize-fn)"}}
-
            (and (not bypass-subscription-lapsed?)
                 (api/subscription-lapsed? project-id)
                 (not dev-user?))
            {:error {:status 402 :type :project
-                    :message "This request requires an upgraded plan"}})))
+                    :message "This request requires an upgraded plan"}}
+
+           (and ((comp not nil?) authorize-fn)
+                (false? (authorize-fn request)))
+           {:error {:status 403 :type :project
+                    :message "Not authorized (authorize-fn)"}})))
 
 (defmacro with-authorize
   "Wrap request handler body to check if user is authorized to perform the
