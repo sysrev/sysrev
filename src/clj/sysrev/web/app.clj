@@ -314,9 +314,11 @@
            {:error {:status 403 :type :project
                     :message "Not authorized (project member)"}}
 
-           (and (not bypass-subscription-lapsed?)
-                (api/subscription-lapsed? project-id)
-                (not dev-user?))
+           (not (or dev-user?
+                    bypass-subscription-lapsed?
+                    (not project-id)
+                    public-project
+                    (and valid-project (api/project-unlimited-access? project-id))))
            {:error {:status 402 :type :project
                     :message "This request requires an upgraded plan"}}
 
