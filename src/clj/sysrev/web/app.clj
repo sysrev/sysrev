@@ -233,8 +233,8 @@
   (fn [request]
     (handler (assoc request :web-server web-server))))
 
-(defmacro with-authorize
-  "Wrap request handler body to check if user is authorized to perform the
+(defn authorization-error
+  "Checks if user is authorized to perform the
   request. If authorized then runs body and returns result; if not authorized,
   returns an error without running body.
 
@@ -266,78 +266,73 @@
          roles nil
          authorize-fn nil
          bypass-subscription-lapsed? false}
-    :as conditions}
-   & body]
-  (assert ((comp not empty?) body)
-          "with-authorize: missing body form")
+    :as conditions}]
   (assert (not (and (contains? conditions :allow-public)
                     (or (contains? conditions :logged-in)
                         (contains? conditions :roles))))
-          (str "with-authorize: `logged-in` and `roles` are not"
+          (str "authorized?: `logged-in` and `roles` are not"
                " allowed when `allow-public` is set"))
-  `(let [ ;; macro parameter gensyms
-         request# ~request
-         logged-in# ~logged-in
-         developer# ~developer
-         allow-public# ~allow-public
-         roles# ~roles
-         authorize-fn# ~authorize-fn
-         bypass-subscription-lapsed?# ~bypass-subscription-lapsed?
-         ;; set implied condition values
-         logged-in# (if (or (not-empty roles#) (true? developer#))
-                      true logged-in#)
-         roles# (if allow-public# ["member"] roles#)
+  (let [;; set implied condition values
+        logged-in (if (or (not-empty roles) (true? developer))
+                    true
+                    logged-in)
+        roles (if allow-public ["member"] roles)
 
-         user-id# (current-user-id request#)
-         project-id# (active-project request#)
-         valid-project# (some-> project-id# ((when-test integer?)) project/project-exists?)
-         public-project# (and valid-project# (-> (project/project-settings project-id#)
-                                                 ((comp true? :public-access))))
-         user# (some-> user-id# q/get-user)
-         member# (and user-id# valid-project# (project-member project-id# user-id#))
-         dev-user?# (in? (:permissions user#) "admin")
-         mperms# (:permissions member#)
-
-         body-fn# #(do ~@body)]
-     (cond (and project-id# (not valid-project#))
+        user-id (current-user-id request)
+        project-id (active-project request)
+        valid-project (some-> project-id ((when-test integer?)) project/project-exists?)
+        public-project (and valid-project (-> (project/project-settings project-id)
+                                              ((comp true? :public-access))))
+        user (some-> user-id q/get-user)
+        member (and user-id valid-project (project-member project-id user-id))
+        dev-user? (in? (:permissions user) "admin")
+        mperms (:permissions member)]
+     (cond (and project-id (not valid-project))
            {:error {:status 404 :type :not-found
-                    :message (format "Project (%s) not found" project-id#)}}
+                    :message (format "Project (%s) not found" project-id)}}
 
-           (and (not (integer? user-id#))
-                (or logged-in# (and allow-public# valid-project# (not public-project#))))
+           (and (not (integer? user-id))
+                (or logged-in (and allow-public valid-project (not public-project))))
            {:error {:status 401 :type :authentication
                     :message "Not logged in / Invalid API token"}}
 
-           (and developer# (not dev-user?#))
+           (and developer (not dev-user?))
            {:error {:status 403 :type :user
                     :message "Not authorized (developer function)"}}
 
            ;; route definition and project settings both allow public access
-           (and allow-public# valid-project# public-project#)
-           (body-fn#)
+           (and allow-public valid-project public-project)
+           nil
 
-           (and (not-empty roles#) (not (integer? project-id#)))
+           (and (not-empty roles) (not (integer? project-id)))
            {:error {:status 403 :type :project
                     :message "No project selected"}}
 
-           (and (not-empty roles#)  ; member role requirements are set
-                (not (some (in? mperms#) roles#)) ; member doesn't have any permitted role
-                (not dev-user?#)) ; allow dev users to ignore project role conditions
+           (and (not-empty roles)  ; member role requirements are set
+                (not (some (in? mperms) roles)) ; member doesn't have any permitted role
+                (not dev-user?)) ; allow dev users to ignore project role conditions
            {:error {:status 403 :type :project
                     :message "Not authorized (project member)"}}
 
-           (and ((comp not nil?) authorize-fn#)
-                (false? (authorize-fn# request#)))
+           (and ((comp not nil?) authorize-fn)
+                (false? (authorize-fn request)))
            {:error {:status 403 :type :project
                     :message "Not authorized (authorize-fn)"}}
 
-           (and (not bypass-subscription-lapsed?#)
-                (api/subscription-lapsed? project-id#)
-                (not dev-user?#))
+           (and (not bypass-subscription-lapsed?)
+                (api/subscription-lapsed? project-id)
+                (not dev-user?))
            {:error {:status 402 :type :project
-                    :message "This request requires an upgraded plan"}}
+                    :message "This request requires an upgraded plan"}})))
 
-           :else (body-fn#))))
+(defmacro with-authorize
+  "Wrap request handler body to check if user is authorized to perform the
+  request. `request` and `opts` are passed to `authorization-error`."
+  [request opts & body]
+  (assert ((comp not empty?) body)
+          "with-authorize: missing body form")
+  `(or (authorization-error ~request ~opts)
+       (do ~@body)))
 
 ;; Overriding this to allow route handler functions to return result as
 ;; map value with the value being placed in response :body here.
