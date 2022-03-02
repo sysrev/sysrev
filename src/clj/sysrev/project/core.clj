@@ -212,7 +212,8 @@
 (defn-spec project-settings ::sp/settings
   "Returns the current settings map for the project."
   [project-id int?]
-  (q/find-one :project {:project-id project-id} :settings))
+  (with-project-cache project-id [:settings]
+    (q/find-one :project {:project-id project-id} :settings)))
 
 (defn-spec project-user-ids (s/or :ids (s/nilable (s/coll-of int?))
                                   :query map?)
@@ -231,9 +232,10 @@
   [project-id int? &
    {:keys [include-disabled?] :or {include-disabled? true}}
    (opt-keys ::include-disabled?)]
-  (= project-id (q/find-one :project (cond-> {:project-id project-id}
-                                       (not include-disabled?) (assoc :enabled true))
-                            :project-id)))
+  (with-project-cache project-id [:exists?]
+    (= project-id (q/find-one :project (cond-> {:project-id project-id}
+                                         (not include-disabled?) (assoc :enabled true))
+                              :project-id))))
 
 (defn-spec project-has-labeled-articles? boolean?
   [project-id int?]
