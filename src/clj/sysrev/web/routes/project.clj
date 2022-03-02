@@ -338,7 +338,6 @@
                  article-id (-> request :params :article-id parse-integer)
                  {:keys [article] :as result} (article-info-full project-id article-id)]
              (when (= (:project-id article) project-id)
-               (record-user-project-interaction request)
                result)))))
 
 (dr (POST "/api/project-articles" request
@@ -360,7 +359,6 @@
                                              (not-empty filters) (merge {:filters filters})
                                              sort-by (merge {:sort-by sort-by})
                                              sort-dir (merge {:sort-dir sort-dir})))]
-              (record-user-project-interaction request)
               {:result (if lookup-count
                          (:total-count query-result)
                          (:entries query-result))}))))
@@ -476,7 +474,6 @@
 
 (dr (GET "/api/label-task" request
          (with-authorize request {:roles ["member"]}
-           (record-user-project-interaction request)
            (if-let [{:keys [article-id today-count]}
                     (assign/get-user-label-task (active-project request) (current-user-id request))]
              (do
@@ -492,7 +489,6 @@
                   project-id (active-project request)
                   {:keys [article-id label-values confirm? change? resolve?]
                    :as body} (-> request :body)]
-              (record-user-project-interaction request)
               (answer/set-labels {:project-id project-id
                                   :user-id user-id
                                   :article-id article-id

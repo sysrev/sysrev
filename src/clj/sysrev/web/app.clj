@@ -8,8 +8,7 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.user.interface :refer [user-by-api-token
-                                           update-member-access-time]]
+            [sysrev.user.interface :refer [user-by-api-token]]
             [sysrev.project.core :as project]
             [sysrev.project.member :refer [project-member]]
             [sysrev.web.build :as build]
@@ -299,14 +298,7 @@
          dev-user?# (in? (:permissions user#) "admin")
          mperms# (:permissions member#)
 
-         record-access# #(when (and project-id# user# member#)
-                           (future
-                             (db/with-transaction
-                               (try (update-member-access-time user-id# project-id#)
-                                    (catch Exception e#
-                                      (log/warn "Exception updating access time:"
-                                                {:user-id user-id#}))))))
-         body-fn# #(do (record-access#) ~@body)]
+         body-fn# #(do ~@body)]
      (cond (and project-id# (not valid-project#))
            {:error {:status 404 :type :not-found
                     :message (format "Project (%s) not found" project-id#)}}
