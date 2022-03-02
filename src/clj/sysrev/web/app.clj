@@ -1,21 +1,22 @@
 (ns sysrev.web.app
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [compojure.response :refer [Renderable]]
-            [ring.util.response :as r]
-            [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
-            [sysrev.api :as api]
-            [sysrev.config :refer [env]]
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
-            [sysrev.user.interface :refer [user-by-api-token]]
-            [sysrev.project.core :as project]
-            [sysrev.project.member :refer [project-member]]
-            [sysrev.web.build :as build]
-            [sysrev.web.index :as index]
-            [sysrev.slack :as slack]
-            [sysrev.stacktrace :refer [print-cause-trace-custom]]
-            [sysrev.util :as util :refer [in? parse-integer when-test]]))
+  (:require
+   [clojure.string :as str]
+   [clojure.tools.logging :as log]
+   [compojure.response :refer [Renderable]]
+   [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
+   [ring.util.response :as r]
+   [sysrev.api :as api]
+   [sysrev.config :refer [env]]
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]
+   [sysrev.project.core :as project]
+   [sysrev.project.member :refer [project-member]]
+   [sysrev.slack :as slack]
+   [sysrev.stacktrace :refer [print-cause-trace-custom]]
+   [sysrev.user.interface :as user :refer [user-by-api-token]]
+   [sysrev.util :as util :refer [in? parse-integer when-test]]
+   [sysrev.web.build :as build]
+   [sysrev.web.index :as index]))
 
 (defn current-user-id [request]
   (or (when-let [api-token (and (-> request :body map?)
@@ -42,8 +43,8 @@
       (assoc :status http-code)
       (update-in [:body :error] assoc :type etype :message emessage)
       (cond->
-          exception (assoc-in [:body :error :exception] (str exception))
-          (and exception (#{:dev :test} (:profile env))) (assoc-in [:body :error :stacktrace] (with-out-str (print-cause-trace-custom exception))))))
+       exception (assoc-in [:body :error :exception] (str exception))
+       (and exception (#{:dev :test} (:profile env))) (assoc-in [:body :error :stacktrace] (with-out-str (print-cause-trace-custom exception))))))
 
 (defn validation-failed-response [etype emessage spec explain-data]
   {:status 500
@@ -102,10 +103,10 @@
 
 (defn wrap-robot-noindex [handler]
   (fn [request]
-      (let [resp (handler request)
-            headers (:headers resp)]
-        (assoc resp :headers 
-               (assoc headers "X-Robots-Tag" "noindex, nofollow")))))
+    (let [resp (handler request)
+          headers (:headers resp)]
+      (assoc resp :headers
+             (assoc headers "X-Robots-Tag" "noindex, nofollow")))))
 
 (defn- merge-default-success-true
   "If response result is a map and has keyword key values, merge in
@@ -131,7 +132,7 @@
                      & {:keys [force-log]}]
   (when (or force-log (not= :test (:profile env)))
     (letfn [(create-event []
-              (let [ ;; avoid SQL exceptions from missing referenced entries
+              (let [;; avoid SQL exceptions from missing referenced entries
                     event (cond-> event
                             user-id (assoc :user-id
                                            (q/find-one :web-user {:user-id user-id} :user-id))
@@ -139,7 +140,7 @@
                                               (q/find-one :project {:project-id project-id}
                                                           :project-id)))]
                 (try (q/create :web-event event)
-                     (catch Throwable _e (log/warn "log-web-event failed" #_ (.getMessage _e))))))]
+                     (catch Throwable _e (log/warn "log-web-event failed" #_(.getMessage _e))))))]
       (if db/*conn*
         (create-event)
         (future (db/with-transaction (create-event)))))))
@@ -277,55 +278,53 @@
                     true
                     logged-in)
         roles (if allow-public ["member"] roles)
-
         user-id (current-user-id request)
         project-id (active-project request)
         valid-project (some-> project-id ((when-test integer?)) project/project-exists?)
         public-project (and valid-project (-> (project/project-settings project-id)
                                               ((comp true? :public-access))))
-        user (some-> user-id q/get-user)
         member (and user-id valid-project (project-member project-id user-id))
-        dev-user? (in? (:permissions user) "admin")
+        dev-user? (delay (user/dev-user? user-id))
         mperms (:permissions member)]
-     (cond (and project-id (not valid-project))
-           {:error {:status 404 :type :not-found
-                    :message (format "Project (%s) not found" project-id)}}
+    (cond (and project-id (not valid-project))
+          {:error {:status 404 :type :not-found
+                   :message (format "Project (%s) not found" project-id)}}
 
-           (and (not (integer? user-id))
-                (or logged-in (and allow-public valid-project (not public-project))))
-           {:error {:status 401 :type :authentication
-                    :message "Not logged in / Invalid API token"}}
+          (and (not (integer? user-id))
+               (or logged-in (and allow-public valid-project (not public-project))))
+          {:error {:status 401 :type :authentication
+                   :message "Not logged in / Invalid API token"}}
 
-           (and developer (not dev-user?))
-           {:error {:status 403 :type :user
-                    :message "Not authorized (developer function)"}}
+          (and developer (not @dev-user?))
+          {:error {:status 403 :type :user
+                   :message "Not authorized (developer function)"}}
 
            ;; route definition and project settings both allow public access
-           (and allow-public valid-project public-project)
-           nil
+          (and allow-public valid-project public-project)
+          nil
 
-           (and (not-empty roles) (not (integer? project-id)))
-           {:error {:status 403 :type :project
-                    :message "No project selected"}}
+          (and (not-empty roles) (not (integer? project-id)))
+          {:error {:status 403 :type :project
+                   :message "No project selected"}}
 
-           (and (not-empty roles)  ; member role requirements are set
-                (not (some (in? mperms) roles)) ; member doesn't have any permitted role
-                (not dev-user?)) ; allow dev users to ignore project role conditions
-           {:error {:status 403 :type :project
-                    :message "Not authorized (project member)"}}
+          (and (not-empty roles)  ; member role requirements are set
+               (not (some (in? mperms) roles)) ; member doesn't have any permitted role
+               (not @dev-user?)) ; allow dev users to ignore project role conditions
+          {:error {:status 403 :type :project
+                   :message "Not authorized (project member)"}}
 
-           (not (or dev-user?
-                    bypass-subscription-lapsed?
-                    (not project-id)
-                    public-project
-                    (and valid-project (api/project-unlimited-access? project-id))))
-           {:error {:status 402 :type :project
-                    :message "This request requires an upgraded plan"}}
+          (not (or bypass-subscription-lapsed?
+                   (not project-id)
+                   public-project
+                   (and valid-project (api/project-unlimited-access? project-id))
+                   @dev-user?))
+          {:error {:status 402 :type :project
+                   :message "This request requires an upgraded plan"}}
 
-           (and ((comp not nil?) authorize-fn)
-                (false? (authorize-fn request)))
-           {:error {:status 403 :type :project
-                    :message "Not authorized (authorize-fn)"}})))
+          (and ((comp not nil?) authorize-fn)
+               (false? (authorize-fn request)))
+          {:error {:status 403 :type :project
+                   :message "Not authorized (authorize-fn)"}})))
 
 (defmacro with-authorize
   "Wrap request handler body to check if user is authorized to perform the

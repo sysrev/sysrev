@@ -57,8 +57,10 @@
        (filter #(in? (:permissions %) "owner"))))
 
 (defn clear-user-cache
-  "Clears cache for projects that may be affected by a change to user-id."
+  "Clears the user cache and the caches for projects that may be affected by
+  a change to user-id."
   [user-id]
+  (db/clear-query-cache [:user user-id])
   (doseq [{:keys [project-id]} (user-projects user-id)]
     (db/clear-project-cache project-id)))
 
@@ -145,7 +147,11 @@
        (finally (clear-user-cache user-id))))
 
 (defn dev-user? [user-id]
-  (some-> (q/get-user user-id :permissions) (-> (in? "admin") boolean)))
+  (if-not user-id
+    false
+    (db/with-query-cache [:user user-id :dev-user?]
+      (boolean
+       (some-> (q/get-user user-id :permissions) (in? "admin"))))))
 
 (defn valid-password? [email password-attempt]
   (let [entry (user-by-email email)
