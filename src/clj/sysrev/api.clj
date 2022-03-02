@@ -1386,8 +1386,8 @@
 (defn subscription-lapsed?
   "Is the project private with a lapsed subscription?"
   [project-id]
-  (with-transaction
-    (when project-id
+  (when project-id
+    (with-transaction
       (let [{:keys [public-access]} (project/project-settings project-id)]
         (and (not public-access)
              (not (project-unlimited-access? project-id)))))))
