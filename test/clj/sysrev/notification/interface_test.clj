@@ -24,6 +24,8 @@
         (api/create-project-for-org! "test-role-change" owner-id group-id true)
         (api/set-user-group-permissions! member-id group-id ["admin"])
         (is (not (some #{:project-has-new-user :project-has-new-user-combined}
-                       (->> (api/user-notifications-new owner-id)
+                       (->> (api/user-notifications-new
+                             (select-keys system [:web-server])
+                             owner-id)
                             :notifications
                             (map (comp :type :content))))))))))

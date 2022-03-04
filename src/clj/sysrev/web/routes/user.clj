@@ -151,10 +151,10 @@
     (context "/notifications" []
              (GET "/new" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/user-notifications-new user-id (:params request))))
+                    (api/user-notifications-new request user-id (:params request))))
              (GET "/by-day" [:as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/user-notifications-by-day user-id (:params request))))
+                    (api/user-notifications-by-day request user-id (:params request))))
              (POST "/set-consumed" [:as request]
                    (with-authorize request {:authorize-fn (user-authd? user-id)}
                      (let [{:keys [notification-ids]} (:body request)]

@@ -1576,8 +1576,8 @@
   This avoids complications introduced by combining notifications. Since
   combination happens per day, we shouldn't have any surprises as long
   as we send all notifications for each day at the same time."
-  [user-id {:keys [created-after limit]}]
-  (with-transaction
+  [request user-id {:keys [created-after limit]}]
+  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
     (when-let [subscriber-id (notification/subscriber-for-user
                               user-id :returning :subscriber-id)]
       (let [ntfs (notification/notifications-for-subscriber
@@ -1599,7 +1599,7 @@
         {:notifications (dedupe (concat ntfs ntfs2))
          :start-of-day start-of-day}))))
 
-(defn user-notifications-by-day [user-id {:keys [created-after limit]}]
+(defn user-notifications-by-day [request user-id {:keys [created-after limit]}]
   (let [created-after (when created-after
                         (some-> created-after parse-long
                                 epoch-millis->LocalDateTime
@@ -1609,7 +1609,9 @@
                   (or 50) (min 50))
         {:keys [notifications start-of-day]}
         #__ (user-notifications-by-day*
-             user-id {:created-after created-after :limit limit})]
+             request
+             user-id
+             {:created-after created-after :limit limit})]
     {:success true
      :notifications (combine-notifications
                      (fn [{:keys [created]}]
@@ -1617,8 +1619,8 @@
                      notifications)
      :next-created-after start-of-day}))
 
-(defn user-notifications-new [user-id & [{:keys [limit]}]]
-  (with-transaction
+(defn user-notifications-new [request user-id & [{:keys [limit]}]]
+  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
     (let [subscriber-id (notification/subscriber-for-user
                          user-id :create? true :returning :subscriber-id)
           limit (-> (some-> limit parse-long)
