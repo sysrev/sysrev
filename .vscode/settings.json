@@ -1,0 +1,15 @@
+{
+  "calva.myCljAliases": [
+    "dev-embedded",
+    "dev",
+    "test",
+    "repl"
+  ],
+  "search.useParentIgnoreFiles": true,
+  "search.showLineNumbers": true,
+  "search.exclude": {
+    "**/client/resources/public/out*": true,
+    "**/resources/public/js": true
+  },
+  "calva.clojureLspPath": "/nix/store/zl7frbpdm7m64ydki0hw871mwib8l8rk-clojure-lsp-2021.11.02-15.24.47/bin/clojure-lsp"
+}

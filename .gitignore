@@ -9,10 +9,7 @@
 
 !.keep
 
-!/.clj-kondo
 !/.clj-kondo/config.edn
-!/.clj-kondo/version.txt
-/.clj-kondo/.cache
 
 !/.github
 
