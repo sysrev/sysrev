@@ -790,7 +790,7 @@
            (-> event .-target .-value)))
 
 #?(:cljs (defn event-checkbox-value
-           "Returns event.target.value from a DOM event."
+           "Returns event.target.checked from a DOM event."
            [event]
            (-> event .-target .-checked)))
 

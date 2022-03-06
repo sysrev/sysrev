@@ -119,10 +119,6 @@
                                        :article-uuid
                                        :name)
                                (update :answer #(if (nil? %) nil (to-jsonb %))))))))
-          note-id (-> (select :project-note-id)
-                      (from [:project-note :pn])
-                      (where [:= :project-id dest-project-id])
-                      do-query first :project-note-id)
           note-entries
           (-> (select :an.*)
               (from [:article-note :an])
@@ -134,8 +130,7 @@
                                    (convert-article-id (:article-id %)))))
                    (map (fn [{:keys [article-id] :as entry}]
                           (-> entry
-                              (assoc :article-id (convert-article-id article-id)
-                                     :project-note-id note-id)
+                              (assoc :article-id (convert-article-id article-id))
                               (dissoc :article-note-id))))))]
       (log/info (str "copying " (count note-entries) " article-note entries"))
       (doseq [entry-group (partition-all 500 note-entries)]
@@ -234,7 +229,6 @@
           (when articles
             (-> (q/select-project-articles src-id [:a.article-uuid])
                 (->> do-query (map :article-uuid))))]
-      (project/add-project-note dest-id {})
       (log/info (format "created project (#%d, '%s')"
                         dest-id project-name))
       (when articles

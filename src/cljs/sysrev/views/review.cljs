@@ -559,21 +559,17 @@
                 :class  "missing-label-answer"
                 :div (str "missing-label-answer " label-id)} "Required"])])))
 
-(defn- note-input-element [note-name]
-  (when @(subscribe [:project/notes nil note-name])
+(defn- NoteInputElement []
+  (when @(subscribe [:project/raw])
     (let [article-id @(subscribe [:review/editing-id])
-          note-description @(subscribe [:note/description note-name])
-          note-content @(subscribe [:review/active-note article-id note-name])]
+          note-content @(subscribe [:review/active-note article-id])]
       [:div.ui.segment.notes>div.ui.middle.aligned.form.notes>div.middle.aligned.field.notes
-       [:label.middle.aligned.notes
-        note-description [:i.large.middle.aligned.grey.write.icon]]
+       [:label.middle.aligned.notes "Notes" [:i.large.middle.aligned.grey.write.icon]]
        [:textarea {:type "text"
                    :rows 2
-                   :name note-name
                    :value (or note-content "")
-                   :on-change #(let [content (-> % .-target .-value)]
-                                 (dispatch-sync [:review/set-note-content
-                                                 article-id note-name content]))}]])))
+                   :on-change (util/on-event-value
+                               #(dispatch-sync [:review/set-note-content article-id %]))}]])))
 
 (defn- ActivityReport []
   (when-let [today-count @(subscribe [:review/today-count])]
@@ -801,7 +797,7 @@
                 [:div.right.aligned.column
                  [LabelDefinitionsButton]
                  [ViewAllLabelsButton]]])
-             [note-input-element "default"]
+             [NoteInputElement]
              (when-not (display-sidebar?)
                [label-editor-buttons-view article-id])]))))))
 

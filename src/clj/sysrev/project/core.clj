@@ -15,7 +15,6 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.notes :as snt]
             [sysrev.shared.spec.project :as sp]
             [sysrev.util
              :as
@@ -146,8 +145,8 @@
               :where (q/exists [:article :a] {:a.project-id project-id
                                               :a.article-id :alh.article-id}))
     (q/delete [:article-note :an] {:an.user-id user-id}
-              :where (q/exists [:project-note :pn] {:pn.project-id project-id
-                                                    :pn.project-note-id :an.project-note-id}))
+              :where (q/exists [:article :a] {:a.project-id project-id
+                                              :a.article-id :an.article-id}))
     nil))
 
 (defn-spec add-project-keyword map?
@@ -173,29 +172,6 @@
          (map #(assoc % :toks (->> (str/split (:value %) #" ")
                                    (mapv canonical-keyword))))
          (index-by :keyword-id))))
-
-(defn-spec add-project-note ::snt/project-note
-  "Defines an entry for a note type that can be saved by users on
-  articles in the project. The default `name` of \"default\" is used
-  for a generic free-text field shown alongside article labels during
-  editing."
-  [project-id int?,
-   {:keys [name description max-length ordering] :as fields}
-   (s/keys :opt-un [::snt/name ::snt/description ::snt/max-length ::snt/ordering])]
-  (db/with-clear-project-cache project-id
-    (q/create :project-note
-              (merge {:project-id project-id
-                      :max-length 1000 :name "default" :description "Notes"}
-                     fields)
-              :returning :*)))
-
-(defn-spec project-notes ::snt/project-notes-map
-  "Returns map of `project-note` entries for a project."
-  [project-id int?]
-  (with-project-cache project-id [:notes :all]
-    (->> (q/find [:project :p] {:p.project-id project-id} :pn.*
-                 :join [[:project-note :pn] :p.project-id])
-         (index-by :name))))
 
 (defn-spec project-settings ::sp/settings
   "Returns the current settings map for the project."
@@ -343,6 +319,13 @@
        db/raw-query
        (concat (search-projects-important-terms q :limit limit))
        distinct))
+
+(defn project-ids-where-labels-defined
+  "Returns ids of all projects with at least one user-defined label."
+  []
+  (q/find [:project :p] {} :p.project-id
+          :where [:< 1 (q/find-count [:label :l] {:l.project-id :p.project-id}
+                                     :return :query)]))
 
 (defn project-admin-or-owner?
   "Is user-id an owner or admin of project-id?"

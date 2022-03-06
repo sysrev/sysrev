@@ -164,7 +164,7 @@
           [:div.ui.basic.label
            (->> values (filter some?) (str/join ", "))]]))]))
 
-(defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
+(defn LabelValuesView [labels & {:keys [note user-name resolved?]}]
   (let [all-label-ids (->> @(subscribe [:project/label-ids])
                            (filter #(contains? labels %)))
         value-type #(deref (subscribe [:label/value-type "na" %]))
@@ -200,8 +200,7 @@
        [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])
      (when resolved?
        [:div.ui.basic.purple.label.labels-status "Resolved"])
-     (for [note-name (keys notes)] ^{:key [note-name]}
-       [NoteContentLabel note-name (get notes note-name)])]))
+     [NoteContentLabel (:content note)]]))
 
 (defn- ArticleLabelValuesView [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])
@@ -313,6 +312,6 @@
                     [UpdatedTimeLabel updated-time]]]]
                  [:div.labels
                   [ArticleLabelValuesView article-id user-id]]
-                 (let [note-content @(subscribe [:article/notes article-id user-id "default"])]
-                   (when (and (string? note-content) (not-empty (str/trim note-content)))
-                     [:div.notes [NoteContentLabel "default" note-content]]))]])))))))))
+                 (let [content @(subscribe [:article/notes article-id user-id])]
+                   (when (some-> content str/trim not-empty)
+                     [:div.notes [NoteContentLabel content]]))]])))))))))

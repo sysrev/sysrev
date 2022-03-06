@@ -72,12 +72,6 @@
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          #(:keywords %))
 
-(reg-sub :project/notes
-         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
-         (fn [project [_ _ note-name]]
-           (cond-> (:notes project)
-             note-name (get note-name))))
-
 (def-action :join-project
   :uri (fn [_] "/api/join-project")
   :content (fn [id] {:project-id id})
@@ -117,4 +111,3 @@
 (reg-sub :project/gengroups
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          #(:gengroups %))
-

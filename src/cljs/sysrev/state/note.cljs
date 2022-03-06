@@ -4,50 +4,26 @@
             [sysrev.state.identity :refer [current-user-id]]
             [sysrev.action.core :refer [def-action]]))
 
-(reg-sub ::note
-         (fn [[_ _ project-id]] (subscribe [:project/notes project-id]))
-         (fn [notes [_ note-name _]] (get notes note-name)))
-
-(reg-sub :note/name
-         (fn [[_ note-name project-id]] (subscribe [::note note-name project-id]))
-         (fn [note] (:name note)))
-
-(reg-sub :note/description
-         (fn [[_ note-name project-id]] (subscribe [::note note-name project-id]))
-         (fn [note] (:description note)))
-
 (reg-sub :article/notes
-         (fn [[_ article-id _ _]] (subscribe [:article/raw article-id]))
-         (fn [article [_ _ user-id note-name]]
+         (fn [[_ article-id _]] (subscribe [:article/raw article-id]))
+         (fn [article [_ _ user-id]]
            (cond-> (:notes article)
-             user-id (get user-id)
-             note-name (get note-name))))
+             user-id (get user-id))))
 
 (reg-sub ::ui-notes #(get-in % [:state :review :notes]))
 
 (reg-sub :review/ui-notes
-         :<- [::ui-notes]
-         (fn [ui-notes [_ article-id note-name]]
-           (cond-> (get ui-notes article-id)
-             note-name (get note-name))))
+         (fn [db [_ article-id]]
+           (get-in db [:state :review :notes article-id])))
 
 (reg-sub :review/active-note
-         (fn [[_ article-id note-name]]
+         (fn [[_ article-id]]
            [(subscribe [:self/user-id])
-            (subscribe [:review/ui-notes article-id note-name])
+            (subscribe [:review/ui-notes article-id])
             (subscribe [:article/notes article-id])])
-         (fn [[user-id ui-note article-notes] [_ _ note-name]]
-           (let [article-note (get-in article-notes [user-id note-name])]
+         (fn [[user-id ui-note article-notes] _]
+           (let [article-note (get article-notes user-id)]
              (or ui-note article-note))))
-
-(reg-sub :review/note-synced?
-         (fn [[_ article-id note-name]]
-           [(subscribe [:self/user-id])
-            (subscribe [:review/ui-notes article-id note-name])
-            (subscribe [:article/notes article-id])])
-         (fn [[user-id ui-note article-notes] [_ _ note-name]]
-           (let [article-note (get-in article-notes [user-id note-name])]
-             (or (nil? ui-note) (= ui-note article-note)))))
 
 (reg-sub :review/all-notes-synced?
          (fn [[_ article-id]]
@@ -63,44 +39,36 @@
                 (assoc-in db [:state :review :notes] {})))
 
 (reg-event-db :review/set-note-content [trim-v]
-              (fn [db [article-id note-name content]]
-                (assoc-in db [:state :review :notes article-id note-name] content)))
-
-(reg-event-db :article/set-note-content [trim-v]
-              (fn [db [article-id note-name content]]
-                (assoc-in db [:data :articles article-id :notes note-name] content)))
+              (fn [db [article-id content]]
+                (assoc-in db [:state :review :notes article-id] content)))
 
 (reg-event-fx :review/send-article-note [trim-v]
-              (fn [{:keys [db]} [article-id note-name content]]
+              (fn [{:keys [db]} [article-id content]]
                 {:dispatch [:action [:article/send-note (active-project-id db)
                                      {:article-id article-id
-                                      :name note-name
                                       :content content}]]}))
 
 (reg-event-fx :review/sync-article-notes [trim-v]
               (fn [_ [article-id ui-notes article-notes]]
-                (let [changed-keys (->> (keys ui-notes)
-                                        (filterv #(not= (get ui-notes %)
-                                                        (get article-notes %))))]
-                  {:dispatch-n
-                   (doall
-                    (for [note-name changed-keys]
-                      [:review/send-article-note article-id note-name (get ui-notes note-name)]))})))
+                (when (not= ui-notes article-notes)
+                  {:dispatch [:review/send-article-note article-id ui-notes]})))
 
 (defn sync-article-notes [article-id]
   (let [user-id @(subscribe [:self/user-id])
         ui-notes @(subscribe [:review/ui-notes article-id])
         article-notes @(subscribe [:article/notes article-id user-id])]
-    (dispatch [:review/sync-article-notes
-               article-id ui-notes article-notes])))
+    (dispatch [:review/sync-article-notes article-id ui-notes article-notes])))
+
+(reg-event-db ::load-article-note [trim-v]
+              (fn [db [article-id content]]
+                (let [self-id (current-user-id db)]
+                  (assoc-in db [:data :articles article-id :notes self-id] content))))
 
 (def-action :article/send-note
   :uri (constantly "/api/set-article-note")
-  :content (fn [project-id {:keys [article-id name content] :as note}]
+  :content (fn [project-id {:keys [article-id content] :as note}]
              (merge note {:project-id project-id}))
-  :process (fn [{:keys [db]}
-                [_project-id {:keys [article-id name content]}]
-                _result]
+  :process (fn [{:keys [db]} [_ {:keys [article-id content]}] _]
              (when (current-user-id db)
-               {:dispatch-n (list [:article/set-note-content article-id (keyword name) content]
-                                  [:review/set-note-content article-id (keyword name) nil])})))
+               {:dispatch-n (list [::load-article-note article-id content]
+                                  [:review/set-note-content article-id nil])})))

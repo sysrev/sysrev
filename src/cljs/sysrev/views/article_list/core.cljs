@@ -142,25 +142,22 @@
                  (not show-unconfirmed)
                  (filterv #(not (in? [0 nil] (:confirm-time %)))))
         users-labels (group-by :user-id labels)
-        users-notes (group-by :user-id notes)
+        users-notes (index-by :user-id notes)
         resolver-id @(subscribe [:article/resolve-user-id (:article-id article)])]
     [:div.ui.segment.article-labels
      (doall
       (for [user-id (->> [(keys users-labels)
                           (keys users-notes)]
                          (apply concat) distinct)]
-        (let [user-labels (if show-labels
-                            (index-by :label-id (get users-labels user-id))
-                            {})
-              user-note (when show-notes (first (get users-notes user-id)))
+        (let [user-labels (when show-labels (index-by :label-id (get users-labels user-id)))
+              user-note (when show-notes (get users-notes user-id))
               user-name @(subscribe [:user/username user-id])
               resolved? (= user-id resolver-id)]
-          (when (or user-note (not-empty user-labels))
+          (when (or user-note (seq user-labels))
             ^{:key [:user-labels user-id]}
-            [labels/LabelValuesView
-             user-labels
+            [labels/LabelValuesView user-labels
              :user-name user-name
-             :notes (when user-note {(:name user-note) (:content user-note)})
+             :note user-note
              :resolved? resolved?]))))]))
 
 (defn- ArticleListEntry [context article full-size?]

@@ -13,7 +13,6 @@
 (s/def ::user-id ::sql-id)
 (s/def ::label-id ::sql-id)
 (s/def ::keyword-id ::sql-id)
-(s/def ::project-note-id ::sql-id)
 (s/def ::article-note-id ::sql-id)
 (s/def ::group-id ::sql-id)
 (s/def ::invitation-id ::sql-id)

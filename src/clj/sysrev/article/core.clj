@@ -9,7 +9,8 @@
    [sysrev.project.core :refer [project-overall-label-id]]
    [sysrev.shared.spec.article :as sa]
    [sysrev.shared.spec.core :as sc]
-   [sysrev.util :as util :refer [in? index-by map-values]]))
+   [sysrev.util :as util :refer [in? index-by map-values]]
+   [medley.core :as medley]))
 
 (defn-spec article-to-sql map?
   "Converts some fields in an article map to values that can be passed
@@ -55,41 +56,27 @@
 (defn-spec set-user-article-note map?
   [article-id ::sa/article-id
    user-id ::sc/user-id
-   note-name string?
    content (s/nilable string?)]
-  (let [{:keys [project-id project-note-id] :as pnote}
-        (q/find-one [:article :a] {:a.article-id article-id :pn.name note-name}
-                    :pn.*, :join [[[:project :p]       :a.project-id]
-                                  [[:project-note :pn] :p.project-id]])
-        anote (q/find-one [:article :a] {:a.article-id article-id
-                                         :an.user-id user-id
-                                         :pn.name note-name}
-                          :an.*, :join [[[:article-note :an] :a.article-id]
-                                        [[:project-note :pn] :an.project-note-id]])]
-    (assert pnote "note type not defined in project")
-    (assert project-id "project-id not found")
-    (db/with-clear-project-cache project-id
-      (let [fields {:article-id article-id
-                    :user-id user-id
-                    :project-note-id project-note-id
-                    :content content
-                    :updated-time db/sql-now}]
-        (if (nil? anote)
-          (q/create :article-note fields, :returning :*)
-          (first (q/modify :article-note {:article-id article-id
-                                          :user-id user-id
-                                          :project-note-id project-note-id}
-                           fields, :returning :*)))))))
+  (let [project-id (q/get-article article-id :project-id)
+        anote (q/find-one [:article :a] {:a.article-id article-id :an.user-id user-id}
+                          :an.*, :join [[:article-note :an] :a.article-id])]
+    (when project-id
+      (db/with-clear-project-cache project-id
+        (let [fields {:article-id article-id
+                      :user-id user-id
+                      :content content
+                      :updated-time :%now}]
+          (if (nil? anote)
+            (q/create :article-note fields, :returning :*)
+            (first (q/modify :article-note {:article-id article-id :user-id user-id}
+                             fields, :returning :*))))))))
 
-(defn-spec article-user-notes-map (s/map-of int? any?)
-  [project-id ::sc/sql-serial-id
-   article-id ::sa/article-id]
-  (db/with-project-cache project-id [:article article-id :notes :user-notes-map]
-    (->> (q/find [:article :a] {:a.article-id article-id} [:an.* :pn.name]
-                 :join [[[:article-note :an] :a.article-id]
-                        [[:project-note :pn] :an.project-note-id]])
-         (group-by :user-id)
-         (map-values #(->> % (index-by :name) (map-values :content))))))
+(defn-spec article-user-notes-map (s/map-of int? string?)
+  [article-id ::sa/article-id]
+  (->> (q/find [:article :a] {:a.article-id article-id}
+               :an.*, :join [[:article-note :an] :a.article-id])
+       (index-by :user-id)
+       (map-values :content)))
 
 (defn-spec remove-article-flag nil?
   [article-id ::sa/article-id

@@ -148,7 +148,6 @@
   (with-transaction
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (label/add-label-overall-include project-id)
-      (project/add-project-note project-id {})
       (group/create-project-group! project-id group-id)
       (sync-project-owners! project-id group-id)
       (change-project-settings project-id [{:setting :public-access

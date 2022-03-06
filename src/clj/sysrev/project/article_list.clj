@@ -66,11 +66,9 @@
 (defn project-article-notes [project-id]
   (with-project-cache project-id [:article-list :notes]
     (->> (q/find-article {:a.project-id project-id}
-                         [:a.article-id :an.user-id :an.content :an.updated-time :pn.name]
-                         :with [:article-note :project-note])
-         (remove (fn [{:keys [content]}]
-                   (or (nil? content) (and (string? content)
-                                           (empty? (str/trim content))))))
+                         [:a.article-id :an.user-id :an.content :an.updated-time]
+                         :with [:article-note])
+         (filter #(some-> % :content str/trim not-empty))
          (map #(update % :updated-time tc/to-epoch))
          (group-by :article-id))))
 

@@ -92,7 +92,7 @@
          predictions]
         (pvalues (article/get-article article-id)
                  (label/article-user-labels-map article-id)
-                 (article/article-user-notes-map project-id article-id)
+                 (article/article-user-notes-map article-id)
                  (api/article-pdfs article-id)
                  (list (label/article-consensus-status project-id article-id)
                        (label/article-resolved-status project-id article-id)
@@ -118,7 +118,7 @@
 
 (defn project-info [project-id]
   (with-project-cache project-id [:project-info]
-    (let [[[fields users labels keywords notes members predict
+    (let [[[fields users labels keywords members predict
             url-ids files owner plan subscription-lapsed?]
            [_ [_status-counts progress]]
            [articles sources]
@@ -128,7 +128,6 @@
                     (member/project-users-info project-id)
                     (project/project-labels project-id true)
                     (project/project-keywords project-id)
-                    (project/project-notes project-id)
                     (label/project-members-info project-id)
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
@@ -157,7 +156,6 @@
                          :progress progress}
                  :labels labels
                  :keywords keywords
-                 :notes notes
                  :settings (:settings fields)
                  :files files
                  :sources sources
@@ -489,7 +487,6 @@
                                {:today-count today-count})})
              {:result :none}))))
 
-
 (dr (POST "/api/set-labels" request
           (with-authorize request {:roles ["member"]}
             (let [user-id (current-user-id request)
@@ -509,8 +506,8 @@
 (dr (POST "/api/set-article-note" request
           (with-authorize request {:roles ["member"]}
             (let [user-id (current-user-id request)
-                  {:keys [article-id name content]} (:body request)]
-              (article/set-user-article-note article-id user-id name content)
+                  {:keys [article-id content]} (:body request)]
+              (article/set-user-article-note article-id user-id content)
               {:result (:body request)}))))
 
 ;;;
@@ -785,8 +782,7 @@
                                   :annotations-csv  "Annotations"
                                   :group-label-csv  "GroupLabel"
                                   :uploaded-article-pdfs-zip "UPLOADED_PDFS"
-                                  :json             "JSON"
-                                  )
+                                  :json             "JSON")
                   filename-ext (case export-type
                                  (:user-answers
                                   :group-answers

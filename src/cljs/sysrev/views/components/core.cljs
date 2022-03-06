@@ -258,8 +258,8 @@
                               help-element)}
                   options)])
 
-(defn NoteContentLabel [_note-name content]
-  (when (and (string? content) (not-empty (str/trim content)))
+(defn NoteContentLabel [content]
+  (when (some-> content str/trim not-empty)
     [:div.ui.tiny.labeled.button.user-note
      [:div.ui.grey.button "Notes"]
      [:div.ui.basic.label content]]))

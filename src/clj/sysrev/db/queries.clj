@@ -594,8 +594,7 @@
    :join-default   []
    :join-specs     {:label           [[:label :l]            :p.project-id]
                     :project-member  [[:project-member :pm]  :p.project-id]
-                    :web-user        [[:web-user :u]         :pm.user-id]
-                    :project-note    [[:project-note :pn]    :p.project-id]}
+                    :web-user        [[:web-user :u]         :pm.user-id]}
    :match-by       (cond->> match-by
                      (not include-disabled) (merge {:p.enabled true}))}
   {:custom-opts [include-disabled]
@@ -631,7 +630,6 @@
                    :label           [[:label :l]            :al.label-id]
                    :web-user        [[:web-user :u]         :al.user-id]
                    :article-note    [[:article-note :an]    :a.article-id]
-                   :project-note    [[:project-note :pn]    :an.project-note-id]
                    :article-resolve [[:article-resolve :ar] :ar.article-id]
                    :predict-run     [[:predict-run :pr]     :p.project-id]}
    :match-by      (cond->> match-by
