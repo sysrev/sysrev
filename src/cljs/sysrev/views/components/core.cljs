@@ -638,8 +638,12 @@
        [:label label]
        [:div.ui.two.column.grid
         (for [[key label] options]
-          ^{:key (pr-str key)}
-          [:div.column [make-button key label]])]]]]))
+          (let [name (-> (str/replace label " " "_")
+                         (str/lower-case))]
+            ^{:key (pr-str key)}
+            [:div.column {:class (str "label_" name)}
+             [make-button key label]]))]]]]))
+
 
 (reg-sub ::alerts #(get-in % [:state :alerts]))
 
