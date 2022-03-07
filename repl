@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -eu
 
 source vars.sh
 
+./scripts/rebuild-changed-files
 ./projects/datapub/run-dev-containers.sh
 
 ENV=dev lein with-profile +dev,+repl,+local-repl repl

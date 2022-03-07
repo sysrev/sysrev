@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -eu
 
-source ../vars.sh
+cd ..
+
+source vars.sh
+./scripts/rebuild-changed-files
+
+cd client
 
 rm -rf .shadow-cljs/builds/dev || true
 

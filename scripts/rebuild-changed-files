@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -eu
+
+if [ ! -d "node_modules" ] || [ ! -z "$(find -L package-lock.json -cnewer node_modules)" ]; then
+    npm ci
+fi
+
+if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ]; then
+    ./scripts/build-all-css
+fi
+
+cd client
+
+if [ ! -d "node_modules" ] ||  [ ! -z "$(find -L package-lock.json -cnewer node_modules)" ]; then
+    npm ci
+fi
+
+input_paths="src node_modules semantic package.json package-lock.json shadow-cljs.edn"
+output_path="resources/public/out-production/sysrev.js"
+if [ ! -f "$output_path" ] || [ ! -z "$(find -L $input_paths -cnewer $output_path)" ] ; then
+    npx shadow-cljs release prod
+fi

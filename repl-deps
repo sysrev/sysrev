@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -eu
 
 source vars.sh
 
+./scripts/rebuild-changed-files
 ./projects/datapub/run-dev-containers.sh
 
 LOCAL_ONLY=t ENV=dev clj -M:dev:test:repl
