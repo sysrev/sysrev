@@ -5,7 +5,7 @@
         orchestra/orchestra {:mvn/version "2021.01.01-1"}
 
 ;;; Force versions of indirect dependencies
-        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.1"}
+        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.2"}
         commons-io/commons-io {:mvn/version "2.11.0"}
         commons-codec/commons-codec {:mvn/version "1.15"}
         org.apache.commons/commons-compress {:mvn/version "1.21"}
@@ -13,7 +13,7 @@
 
 ;;; Logging
         org.clojure/tools.logging {:mvn/version "1.2.4"}
-        ch.qos.logback/logback-classic {:mvn/version "1.2.10"}
+        ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
         org.slf4j/jul-to-slf4j {:mvn/version "1.7.36"}
 
 ;;; Libraries
@@ -58,7 +58,7 @@
         criterium/criterium {:mvn/version "0.4.6"}
 
 ;; amazonica
-        amazonica/amazonica {:mvn/version "0.3.159"
+        amazonica/amazonica {:mvn/version "0.3.160"
                              :exclusions [com.amazonaws/aws-java-sdk
                                           com.amazonaws/amazon-kinesis-client
                                           com.amazonaws/dynamodb-streams-kinesis-adapter
@@ -66,8 +66,8 @@
                                           com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                           com.taoensso/encore
                                           org.slf4j/slf4j-api]}
-        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.162"}
-        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.162"}
+        com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.172"}
+        com.amazonaws/aws-java-sdk-s3 {:mvn/version "1.12.172"}
 
 ;;; More libraries
         buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication
@@ -102,7 +102,7 @@
         poly/util-lite {:local/root "components/util-lite"}}
  :aliases
  {:build {:deps {io.github.seancorfield/build-clj
-                 {:git/tag "v0.6.7" :git/sha "22c2d09"}}
+                 {:git/tag "v0.8.0" :git/sha "9bd8b8a"}}
           :ns-default build}
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "df552797a198b6701fb2d92390fce7c59205ea77"}}
@@ -114,12 +114,12 @@
                      poly/fda-drugs {:local/root "components/fda-drugs"}
                      poly/sqlite {:local/root "components/sqlite"}}}
   :dev-embedded {:extra-paths ["config/dev-embedded"]}
-  :eastwood {:extra-deps {jonase/eastwood {:mvn/version "1.2.2"}}
+  :eastwood {:extra-deps {jonase/eastwood {:mvn/version "1.2.3"}}
              :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user"]}
   :poly {:extra-deps {polylith/clj-poly
                       {:deps/root "projects/poly"
                        :git/url "https://github.com/polyfy/polylith.git"
-                       :sha "20223297d6ed39ad3c3ed960410dea908c58b5ed"}}
+                       :sha "f54afe3e4e38f41eae8c29d4fe65616eba79c7a6"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}

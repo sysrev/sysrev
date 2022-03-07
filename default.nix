@@ -1,5 +1,5 @@
 let
-  rev = "2128d0aa28edef51fd8fef38b132ffc0155595df";
+  rev = "47cd6702934434dd02bc53a67dbce3e5493e33a2";
   nixpkgs = fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
     sha256 = "1slxx8rc7kfm61826cjbz2wz18xc9sxhg1ki8b6254gizgh5gvw4";

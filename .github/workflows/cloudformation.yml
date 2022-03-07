@@ -23,7 +23,7 @@ jobs:
       sysrev-zone-apex: ${{ steps.deploy.outputs.SysrevZoneApex }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Configure AWS staging credentials
         if: github.ref_name == 'staging'
@@ -71,7 +71,7 @@ jobs:
     needs: deploy-global-resources
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Configure AWS staging credentials
         if: github.ref_name == 'staging'

@@ -1,6 +1,6 @@
 {:paths ["src"]
- :deps {cider/cider-nrepl {:mvn/version "0.28.2"}
+ :deps {cider/cider-nrepl {:mvn/version "0.28.3"}
         nrepl/nrepl {:mvn/version "0.9.0"}
-        refactor-nrepl/refactor-nrepl {:mvn/version "3.3.2"}
+        refactor-nrepl/refactor-nrepl {:mvn/version "3.4.0"}
 
         poly/component {:local/root "../component"}}}
