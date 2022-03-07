@@ -13,6 +13,8 @@
 
 !/.github
 
+bin/code
+
 /local/
 
 target/
