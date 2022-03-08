@@ -49,12 +49,12 @@
   [bucket ::s3/bucket, filename ::filename,
    {:keys [file file-bytes created]} (s/keys :opt-un [::s3/file ::s3/file-bytes ::created])]
   (util/assert-single file file-bytes)
-  (db/with-transaction
-    (let [file-key (or (some-> file util/file->sha-1-hash)
-                       (some-> file-bytes util/byte-array->sha-1-hash))]
-      (when-not (s3-key-exists? file-key)
-        (cond file        (s3/save-file file bucket :file-key file-key)
-              file-bytes  (s3/save-byte-array file-bytes bucket :file-key file-key)))
+  (let [file-key (or (some-> file util/file->sha-1-hash)
+                     (some-> file-bytes util/byte-array->sha-1-hash))]
+    (when-not (s3-key-exists? file-key)
+      (cond file        (s3/save-file file bucket :file-key file-key)
+            file-bytes  (s3/save-byte-array file-bytes bucket :file-key file-key)))
+    (db/with-transaction
       (let [s3-id (create-s3store (cond-> {:key file-key :filename filename}
                                     created (merge {:created created})))]
         (q/find-one :s3store {:s3-id s3-id})))))

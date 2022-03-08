@@ -1,14 +1,9 @@
 (ns sysrev.file.article
   (:require [clojure.spec.alpha :as s]
             [orchestra.core :refer [defn-spec]]
-            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.file.core :as file]
             [sysrev.util :as util]))
-
-;; for clj-kondo
-(declare s3-id-from-article-key article-pdf-associated?
-         associate-article-pdf dissociate-article-pdf)
 
 (defn-spec s3-id-from-article-key (s/nilable ::file/s3-id)
   [article-id int?, file-key string?]
@@ -42,12 +37,11 @@
 
 (defn save-article-pdf [{:keys [article-id filename file file-bytes]}]
   (util/assert-single file file-bytes)
-  (db/with-transaction
-    (let [{:keys [key s3-id]}
-          (file/save-s3-file :pdf filename (or (some->> file (hash-map :file))
-                                               (some->> file-bytes (hash-map :file-bytes))))]
-      (associate-article-pdf s3-id article-id)
-      {:article-id article-id :filename filename :s3-id s3-id :key key})))
+  (let [{:keys [key s3-id]}
+        (file/save-s3-file :pdf filename (or (some->> file (hash-map :file))
+                                             (some->> file-bytes (hash-map :file-bytes))))]
+    (associate-article-pdf s3-id article-id)
+    {:article-id article-id :filename filename :s3-id s3-id :key key}))
 
 (defn pmcid->s3-id [pmcid]
   (q/find-one :pmcid-s3store {:pmcid pmcid} :s3-id))
