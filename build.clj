@@ -24,16 +24,6 @@
   (b/process {:command-args ["scripts/build-all-css"]})
   opts)
 
-(defn await-first-result [ids sleep-ms]
-  (when (seq ids)
-    (loop [[id & more] ids]
-      (if (realized? id)
-        [id (remove (partial = id) ids)]
-        (if more
-          (recur more)
-          (do (Thread/sleep sleep-ms)
-              (recur ids)))))))
-
 (defn find-invalid-tests [opts]
   (let [{:keys [exit]}
         #__ (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/find-invalid-tests-cli!"]})]
