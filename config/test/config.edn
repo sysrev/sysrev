@@ -1,8 +1,14 @@
-{:datapub-embedded "true"
+{:aws {:access-key-id "test"
+       :secret-access-key "test"
+       :endpoint-override {:protocol :http
+                           :hostname "localhost"
+                           :port 8566}
+       :region "us-east-1"}
+ :datapub-embedded "true"
  :filestore
- {:type :s3
-  :endpoint "us-east-1"
-  :bucket-name "test.sysrev.us"}
+ {:bucket-name "test.sysrev.us"
+  :create? true
+  :endpoint "us-east-1"}
  :server {:port 0}
  :sysrev-dev-key "***REMOVED***"
  :profile :test

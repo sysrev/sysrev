@@ -1,14 +1,13 @@
 (ns sysrev.file.s3
   "Interface to Amazon S3 for storing files"
-  (:require [clojure.spec.alpha :as s]
+  (:require [aws-api-failjure :as aaf]
+            [clojure.spec.alpha :as s]
+            [cognitect.aws.client.api :as aws]
+            [com.stuartsierra.component :as component]
             [orchestra.core :refer [defn-spec]]
-            [amazonica.aws.s3 :as s3]
+            [sysrev.aws-client.interface :as aws-client]
             [sysrev.config :refer [env]]
-            [sysrev.util :as util :refer [in? opt-keys]])
-  (:import (java.io ByteArrayInputStream)))
-
-;; for clj-kondo
-(declare s3-credentials lookup-bucket lookup-file)
+            [sysrev.util :as util :refer [in? opt-keys]]))
 
 (defonce ^:private byte-array-type (type (byte-array 1)))
 
@@ -31,56 +30,67 @@
   {:pdf       "sysrev.pdf"
    :import    "sysrev.imports"
    :image     "sysrev.image"
-   :document  #_ "sysrev.us" (-> env :filestore :bucket-name)})
+   :document  (-> env :filestore :bucket-name)})
+
+(defn create-s3-buckets! [s3-client]
+  (when (:create? (:filestore env))
+    (doseq [name (vals (sysrev-buckets))]
+      (aws-client/invoke!
+       s3-client
+       {:op :CreateBucket
+        :request {:Bucket name}})))
+  s3-client)
+
+(defn s3-client []
+  (component/start
+   (aws-client/aws-client
+    :client-opts (assoc (:aws env) :api :s3))))
 
 (defn-spec lookup-bucket (s/nilable string?)
   [bucket ::bucket]
   (or (get (sysrev-buckets) bucket)
       (throw (Exception. (str "invalid bucket specifier: " (pr-str bucket))))))
 
-(defn-spec s3-credentials ::credentials []
-  (-> (:filestore env)
-      (select-keys [:access-key :secret-key :endpoint])
-      (update :access-key #(or % (:aws-access-key-id env)))
-      (update :secret-key #(or % (:aws-secret-access-key env)))))
-
-(defn ^:repl create-bucket [name]
-  (s3/create-bucket (s3-credentials) name))
-
-(defn ^:repl list-bucket-files [bucket]
-  (:object-summaries (s3/list-objects (s3-credentials) (lookup-bucket bucket))))
-
-(defn-spec save-file ::file-key
-  [file any?, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
-  (let [file-key (or (some-> file-key str)
-                     (some-> file util/file->sha-1-hash))]
-    (s3/put-object (s3-credentials) :bucket-name (lookup-bucket bucket)
-                   :key file-key :file file)
-    file-key))
-
 (defn-spec save-byte-array ::file-key
   [file-bytes ::byte-array, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
   (let [file-key (or (some-> file-key str)
                      (some-> file-bytes util/byte-array->sha-1-hash))]
-    (s3/put-object (s3-credentials) :bucket-name (lookup-bucket bucket)
-                   :key file-key
-                   :input-stream (ByteArrayInputStream. file-bytes)
-                   :metadata {:content-length (count file-bytes)})
+    (aws-client/invoke!
+     (s3-client)
+     {:op :PutObject
+      :request {:Body file-bytes
+                :Bucket (lookup-bucket bucket)
+                :ContentLength (count file-bytes)
+                :Key file-key}})
     file-key))
+
+(defn-spec save-file ::file-key
+  [file any?, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
+  (save-byte-array
+   (util/file->byte-array file)
+   bucket
+   (when file-key
+     {:file-key file-key})))
 
 (defn-spec delete-file ::s3-response
   [file-key ::file-key, bucket ::bucket]
-  (s3/delete-object (s3-credentials) :bucket-name (lookup-bucket bucket)
-                    :key file-key))
+  (aws-client/invoke!
+   (s3-client)
+   {:op :DeleteObject
+    :request {:Bucket (lookup-bucket bucket)
+              :Key file-key}}))
 
 (defn-spec lookup-file ::s3-response
   [file-key ::file-key, bucket ::bucket]
-  (s3/get-object (s3-credentials) :bucket-name (lookup-bucket bucket)
-                 :key (some-> file-key str)))
+  (let [r (aws/invoke
+           (:client (s3-client))
+           {:op :GetObject
+            :request {:Bucket (lookup-bucket bucket)
+                      :Key (some-> file-key str)}})]
+    (if-let [anom (:cognitect.anomalies/category r)]
+      (when-not (= :cognitect.anomalies/not-found anom)
+        (throw (aaf/->ex-info r)))
+      r)))
 
 (defn get-file-stream [file-key bucket]
-  (:object-content (lookup-file file-key bucket)))
-
-(defn-spec get-file-bytes ::byte-array
-  [file-key ::file-key, bucket ::bucket]
-  (util/slurp-bytes (get-file-stream file-key bucket)))
+  (:Body (lookup-file file-key bucket)))

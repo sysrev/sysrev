@@ -3,10 +3,12 @@
   (:require
    [clojure.tools.logging :as log]
    [com.stuartsierra.component :as component]
+   [sysrev.aws-client.interface :as aws-client]
    [sysrev.config :refer [env]]
    [sysrev.db.core :as db]
    [sysrev.db.listeners :as listeners]
    [sysrev.db.migration :as migration]
+   [sysrev.file.s3 :as s3]
    [sysrev.nrepl.interface :as nrepl]
    [sysrev.postgres.core :as pg]
    [sysrev.scheduler.core :as scheduler]
@@ -47,6 +49,9 @@
    :postgres-listener (component/using
                        (listeners/listener)
                        [:postgres :sente])
+   :s3 (aws-client/aws-client
+        :after-start s3/create-s3-buckets!
+        :client-opts (assoc (:aws config) :api :s3))
    :scheduler (component/using
                (if (#{:test :remote-test} (:profile env))
                  (scheduler/mock-scheduler)

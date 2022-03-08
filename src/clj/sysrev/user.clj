@@ -88,8 +88,6 @@
             [cognitect.transit :as transit]
             [clojure-csv.core :as csv]
             [com.stuartsierra.component :refer (start stop)]
-            [amazonica.core :as aws]
-            [amazonica.aws.s3 :as s3]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
             [honeysql-postgres.format :refer :all]

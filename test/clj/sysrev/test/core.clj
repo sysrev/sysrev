@@ -11,7 +11,6 @@
    [medley.core :as medley]
    [next.jdbc :as jdbc]
    [orchestra.spec.test :as st]
-   [prestancedesign.get-port :as get-port]
    [ring.mock.request :as mock]
    [sysrev.config :refer [env]]
    [sysrev.datasource.api :refer [ds-auth-key]]
@@ -95,7 +94,7 @@
              (medley/deep-merge
               env
               {:datapub-embedded true
-               :server {:port (get-port/get-port)}
+               :server {:port 0}
                :sysrev-api-config {:env :dev :pedestal {:port 0}}})
              :postgres-overrides
              {:create-if-not-exists? true
