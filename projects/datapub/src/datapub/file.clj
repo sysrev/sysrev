@@ -3,7 +3,7 @@
    [aws-api-failjure :as aaf]
    [clojure.string :as str]
    [cognitect.aws.client.api :as aws]
-   [datapub.aws-client :as aws-client])
+   [sysrev.aws-client.interface :as aws-client])
   (:import
    (java.io InputStream)
    (java.nio.file Path)

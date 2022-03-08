@@ -48,6 +48,7 @@
 ;;; library namespaces [CLJ]
                                         clj-http.client                http
                                         clojure-csv.core               csv
+                                        cognitect.aws.client.api       aws
                                         cognitect.transit              transit
                                         honeysql.core                  sql
                                         honeysql.helpers               sqlh

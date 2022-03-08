@@ -1,4 +1,4 @@
-(ns datapub.aws-client
+(ns sysrev.aws-client.core
   (:require [aws-api-failjure :as aaf]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
@@ -26,8 +26,10 @@
       (aws/stop client))
     (assoc this :client nil)))
 
-(defn aws-client [{:as m :keys [after-start client-opts]}]
-  (map->AwsClient m))
+(defn aws-client [& {:keys [after-start client-opts]}]
+  (map->AwsClient
+   {:after-start after-start
+    :client-opts client-opts}))
 
 (defn invoke! [client op-map]
   (aaf/throwing-invoke (:client client client) op-map))

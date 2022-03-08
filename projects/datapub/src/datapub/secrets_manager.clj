@@ -1,6 +1,6 @@
 (ns datapub.secrets-manager
   (:require [cheshire.core :as json]
-            [datapub.aws-client :as aws-client]))
+            [sysrev.aws-client.interface :as aws-client]))
 
 (defn client []
   (aws-client/aws-client {:client-opts {:api :secretsmanager}}))
