@@ -2,6 +2,8 @@
 {:kaocha.plugin.capture-output/capture-output? true
  :kaocha.plugin.junit-xml/target-file "target/junit.xml"
  :kaocha.plugin.profiling/profiling? false
+ :parallel true
+ :parallel-threads 4
  :plugins [:kaocha.plugin/junit-xml
            :kaocha.plugin/print-invocations
            :kaocha.plugin/profiling]

@@ -29,7 +29,13 @@
 
 (def test-dbname "sysrev_auto_test")
 
-(defonce test-system (atom nil))
+(defonce test-systems (atom [nil []]))
+
+(defn stop-test-systems! []
+  (swap! test-systems
+         (fn [[_ stack]]
+           (doall (pmap component/stop stack))
+           [nil []])))
 
 (defn execute! [system sqlmap]
   (-> system :postgres :datasource
@@ -131,25 +137,28 @@
      (let [opts# ~opts
            config# (or (:config opts#) env)
            postgres# (:postgres config#)
-           system# (if (seq (:test-remote config#))
-                     {:config config#}
-                     (swap!
-                      test-system
-                      (fn [sys#]
-                        (or (when sys#
-                              (if (:isolate? opts#)
-                                (do (component/stop sys#) nil)
-                                (recreate-db! (component/start sys#))))
-                            (do (st/instrument)
-                                (start-test-system!))))))
+           remote?# (boolean (seq (:test-remote config#)))
+           [system#] (if remote?#
+                       {:config config#}
+                       (swap!
+                        test-systems
+                        (fn [[_# stack#]]
+                          (if (peek stack#)
+                            [(peek stack#) (pop stack#)]
+                            [nil stack#]))))
+           system# (if system#
+                     (recreate-db! system#)
+                     (do (st/instrument)
+                         (start-test-system!)))
            ~name-sym system#]
-       (try
-         (reset! db/*active-db* (:postgres system#))
-         (binding [env (merge config# (:config system#))]
-           (do ~@body))
-         (finally
-           (when (:isolate? opts#)
-             (swap! test-system (fn [sys#] (component/stop sys#) nil))))))))
+       (reset! db/*active-db* (:postgres system#))
+       (binding [env (merge config# (:config system#))]
+         (let [result# (do ~@body)]
+           (when-not remote?#
+             (swap! test-systems
+                    (fn [[_# stack#]]
+                      [nil (conj stack# system#)])))
+           result#)))))
 
 (defmacro completes? [form]
   `(do ~form true))
@@ -334,7 +343,7 @@
           (catch InterruptedException _
             (finish!)
             @exit-code))
-        (swap! test-system #(when % (component/stop %) nil))
+        (stop-test-systems!)
         (System/exit exit-code))
 
       :else
@@ -355,5 +364,5 @@
                   (junit/merge-files! junit-target (take (inc i) junit-files))
                   (System/exit 1)))))
         (junit/merge-files! junit-target junit-files)
-        (swap! test-system #(when % (component/stop %) nil))
+        (stop-test-systems!)
         (System/exit 0)))))

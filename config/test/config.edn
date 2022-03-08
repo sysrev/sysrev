@@ -3,8 +3,7 @@
  {:type :s3
   :endpoint "us-east-1"
   :bucket-name "test.sysrev.us"}
- :server
- {:port 4131}
+ :server {:port 0}
  :sysrev-dev-key "***REMOVED***"
  :profile :test
  :max-import-articles 100000
