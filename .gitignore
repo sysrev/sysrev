@@ -16,6 +16,7 @@
 bin/code
 
 /local/
+/local.nix
 
 target/
 
