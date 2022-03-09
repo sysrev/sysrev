@@ -16,7 +16,24 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 * [Database Restore](#markdown-header-db-restore)
 * [GraphQL API](#makedown-header-graphql-api)
 
-## Initial Setup
+## Installation
+
+- Install Nix: `sh <(curl -L https://nixos.org/nix/install)`
+  - See [macOS Installation](https://nixos.org/manual/nix/stable/installation/installing-binary.html?highlight=macos#macos-installation-a-namesect-macos-installation-change-store-prefixaa-namesect-macos-installation-encrypted-volumeaa-namesect-macos-installation-symlinkaa-namesect-macos-installation-recommended-notesa) in case of issues
+- Install Docker or podman
+- Get a copy of `vars.sh` from a developer and place it in the root of the repository
+
+## Usage
+
+- Run VSCode with `nix-shell --run "bin/code"`
+  - For emacs keybindings, first run `ln -s nix/vscode-emacs.nix local.nix`
+  - For IntelliJ keybindings, first run `ln -s nix/vscode-intellij.nix local.nix`. You may import an IntelliJ keymaps XML file from within VSCode
+
+- Run ClojureScript with `nix-shell --run "cd client && bash browser-repl"`
+
+- Run dev server with `nix-shell --run "bash repl-in-mem"`
+
+## Initial Setup without Nix
 
 1. Clone this repository
 
