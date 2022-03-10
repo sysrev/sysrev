@@ -1,12 +1,16 @@
 (ns sysrev.source.pubmed
-  (:require [sysrev.config :as config]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.source.core :as source :refer [make-source-meta re-import]]
-            [sysrev.source.interface :refer [import-source import-source-impl import-source-articles after-source-import]]
+  (:require [honeysql.helpers :as sqlh :refer [from join select where]]
+            [sysrev.config :as config]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db :refer [do-query]]
-            [honeysql.helpers :as sqlh :refer [select from where join]]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.source.core :as source :refer [re-import]]
+            [sysrev.source.interface :refer [after-source-import import-source
+                                             import-source-articles
+                                             import-source-impl]]
             [sysrev.util :as util :refer [parse-integer]]))
+
+(def ^:const source-name "PubMed search")
 
 (defn pubmed-get-articles [pmids]
   (->> (map parse-integer pmids)
@@ -27,12 +31,6 @@
        (filter #(= (get-in % [:meta :search-term]) search-term))
        not-empty))
 
-(defmethod make-source-meta :pubmed
-  [_ {:keys [search-term search-count]}]
-  {:source "PubMed search"
-   :search-term search-term
-   :search-count search-count})
-
 (defmethod import-source :pubmed
   [request _ project-id {:keys [search-term]} {:as options}]
   (assert (string? search-term))
@@ -47,9 +45,9 @@
                                 max-import-articles pmids-count)}}
 
       :else
-      (let [source-meta (source/make-source-meta
-                         :pubmed {:search-term search-term
-                                  :search-count pmids-count})]
+      (let [source-meta {:search-count pmids-count
+                         :search-term search-term
+                         :source source-name}]
         (import-source-impl
          request project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
@@ -73,15 +71,15 @@
     new-article-ids))
 
 
-(defmethod re-import "PubMed search" [request project-id {:keys [source-id] :as source}]
+(defmethod re-import source-name [request project-id {:keys [source-id] :as source}]
   (let [threads 4
         do-import (fn []
                     (->> (import-source-articles
-                           request project-id source-id
-                           {:types {:article-type "academic" :article-subtype "pubmed"}
-                            :article-refs (get-new-articles-available source)
-                            :get-articles pubmed-get-articles}
-                           threads)
+                          request project-id source-id
+                          {:types {:article-type "academic" :article-subtype "pubmed"}
+                           :article-refs (get-new-articles-available source)
+                           :get-articles pubmed-get-articles}
+                          threads)
                          (after-source-import request project-id source-id)))]
     (source/alter-source-meta source-id #(assoc % :importing-articles? true))
     (source/set-import-date source-id)

@@ -1,15 +1,12 @@
 (ns sysrev.source.ris
-  (:require [clojure.string :as str]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.source.core :as source :refer [make-source-meta]]
-            [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.slack :refer [log-slack-custom]]
+            [sysrev.source.core :as source]
+            [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util]))
-
-(defmethod make-source-meta :ris [_ {:keys [filename hash]}]
-  {:source "RIS file" :filename filename :hash hash})
 
 (defn ris-title [m]
   (let [{:keys [TI T1 BT CT]} m]
@@ -95,7 +92,7 @@
                                                        :response body}))]
                                 "RIS file import failed")
               {:error {:message error}})
-          (let [source-meta (source/make-source-meta :ris {:filename filename :hash hash})]
+          (let [source-meta {:source "RIS file" :filename filename :hash hash}]
             (import-source-impl
              request project-id source-meta
              {:types {:article-type "academic" :article-subtype "RIS"}

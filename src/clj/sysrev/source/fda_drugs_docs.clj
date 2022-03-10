@@ -8,9 +8,11 @@
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.db.core :as db]
             [sysrev.shared.fda-drugs-docs :as fda-drugs-docs]
-            [sysrev.source.core :as source :refer [make-source-meta re-import]]
+            [sysrev.source.core :as source :refer [re-import]]
             [sysrev.source.interface :refer [after-source-import import-source
                                              import-source-articles import-source-impl]]))
+
+(def ^:const source-name "Drugs@FDA Application Documents search")
 
 (defn capitalize-first [s]
   (if (empty? s)
@@ -50,13 +52,6 @@
         :primary-title (some-> metadata (json/parse-string keyword) title)}))
    ids))
 
-(defmethod make-source-meta :fda-drugs-docs
-  [_ {:keys [filters search-term results-count]}]
-  {:filters filters
-   :search-term search-term
-   :source "Drugs@FDA Application Documents search"
-   :results-count results-count})
-
 (defmethod import-source :fda-drugs-docs
   [request _ project-id {:keys [entity-ids query]} options]
   (assert (map? query))
@@ -66,7 +61,7 @@
     (cond (->> (source/project-sources project-id)
                (some
                 (fn [{{:keys [filters search-term source]} :meta}]
-                  (and (= "Drugs@FDA Application Documents search" source)
+                  (and (= source-name source)
                        (= query (fda-drugs-docs/canonicalize-query
                                  {:filters filters
                                   :search search-term}))))))
@@ -76,10 +71,10 @@
           {:error {:message (format "Too many entities (max %d; got %d)"
                                     max-import-articles (count entity-ids))}}
 
-          :else (let [source-meta (source/make-source-meta
-                                   :fda-drugs-docs {:filters filters
-                                                    :results-count (count entity-ids)
-                                                    :search-term search})]
+          :else (let [source-meta {:filters filters
+                       :search-term search
+                       :source source-name
+                       :results-count (count entity-ids)}]
                   (import-source-impl
                    request project-id source-meta
                    {:types {:article-type "pdf"
@@ -105,7 +100,7 @@
          (remove (comp prev-article-ids :groupingId))
          (map :id))))
 
-(defmethod re-import "Drugs@FDA Application Documents search"
+(defmethod re-import source-name
   [request project-id {:keys [source-id] :as source} {:keys [web-server]}]
   (let [do-import (fn []
                     (->> (import-source-articles

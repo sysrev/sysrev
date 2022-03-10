@@ -201,7 +201,7 @@
             (log/info "No articles in project")
             (let [source-id (source/create-source
                              project-id
-                             (source/make-source-meta :legacy {}))]
+                             {:source "legacy"})]
               (log/info "Creating" (count article-ids)
                         "article source entries for project" project-id)
               (doseq [ids-group (partition-all 200 article-ids)]

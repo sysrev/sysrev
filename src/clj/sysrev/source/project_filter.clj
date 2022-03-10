@@ -1,13 +1,13 @@
 (ns sysrev.source.project-filter
-  (:require [clojure.walk :as walk]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
+            [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [ring.util.codec :as ring-codec]
             [sysrev.db.queries :as q]
-            [sysrev.source.core :as source :refer [make-source-meta]]
-            [sysrev.source.interface :refer [import-source import-source-impl]]
-            [sysrev.project.article-list :refer [query-project-article-ids]]
             [sysrev.graphql.core :refer [fail]]
+            [sysrev.project.article-list :refer [query-project-article-ids]]
+            [sysrev.source.core :as source]
+            [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util]))
 
 (defn extract-filters-from-url
@@ -25,12 +25,6 @@
                                          (keyword x)
                                          x)) filters)]
     (vec (concat filters (when text-search [{:text-search text-search}])))))
-
-(defmethod make-source-meta :project-filter
-  [_ {:keys [source-project-id url-filter]}]
-  {:source "Project Filter"
-   :url-filter url-filter :source-project-id source-project-id
-   :filters (extract-filters-from-url url-filter)})
 
 (defmethod import-source :project-filter
   [request source-type project-id {:keys [source-project-id url-filter]} & {:as options}]
@@ -58,8 +52,10 @@
         (let [{:keys [article-type article-subtype]} (first types)]
           (import-source-impl
            request project-id
-           (source/make-source-meta source-type {:source-project-id source-project-id
-                                                 :url-filter url-filter})
+           {:filters (extract-filters-from-url url-filter)
+            :source "Project Filter"
+            :source-project-id source-project-id
+            :url-filter url-filter}
            {:types {:article-type article-type :article-subtype article-subtype}
             :get-article-refs (constantly articles)
             :get-articles identity}

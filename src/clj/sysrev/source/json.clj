@@ -1,25 +1,22 @@
 (ns sysrev.source.json
-  (:require [sysrev.source.core :as source :refer [make-source-meta]]
-            [sysrev.source.interface :refer [import-source import-source-impl]]
+  (:require [clojure.set :as set]
             [clojure.tools.logging :as log]
-            [clojure.set :as set]
+            [sysrev.source.core :as source]
+            [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util]))
 
 (defn- lookup-filename-sources [project-id filename]
   (->> (source/project-sources project-id)
        (filter #(= filename (get-in % [:meta :filename])))))
 
-(defmethod make-source-meta :json [_ {:keys [filename]}]
-  {:source "JSON file" :filename filename})
-
 (defn get-helper-text [{:keys [lvl1 lvl2 lvl3]}]
   (when (or lvl1 lvl2 lvl3)
     (str
-      "| Name | Value | \n"
-      "| --- | --- | \n"
-      "| lvl1 | " lvl1 " | \n"
-      "| lvl2 | " lvl2 " | \n"
-      "| lvl3 | " lvl3 " | \n")))
+     "| Name | Value | \n"
+     "| --- | --- | \n"
+     "| lvl1 | " lvl1 " | \n"
+     "| lvl2 | " lvl2 " | \n"
+     "| lvl3 | " lvl3 " | \n")))
 
 (defmethod import-source :json
   [request _ project-id {:keys [file filename]} {:as options}]
@@ -32,8 +29,8 @@
                           :articles
                           (map (fn [article]
                                  [(:ID article) article]))
-                          (into {})) 
-            source-meta (make-source-meta :json {:filename filename})
+                          (into {}))
+            source-meta {:source "JSON file" :filename filename}
             impl {:types {:article-type "file" :article-subtype "json"}
                   :get-article-refs #(->> articles vals (map :ID))
                   :get-articles #(map articles %)
@@ -46,5 +43,3 @@
                                         (assoc :helper-text (get-helper-text %)))}]
         (import-source-impl request project-id source-meta impl options
                             :filename filename :file file)))))
-
-;(import-source :json 102 {:file :filename "ul2.json"} {})

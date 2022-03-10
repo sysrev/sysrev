@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [sysrev.config :as config]
-            [sysrev.source.core :as source :refer [make-source-meta]]
+            [sysrev.source.core :as source]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.source.pubmed :refer [pubmed-get-articles]]))
 
@@ -25,12 +25,6 @@
        (filter #(= (get-in % [:meta :filename]) filename))
        not-empty))
 
-(defmethod make-source-meta :pmid-file [_ {:keys [filename]}]
-  {:source "PMID file" :filename filename})
-
-(defmethod make-source-meta :pmid-vector [_ {:keys []}]
-  {:source "PMID vector"})
-
 (defmethod import-source :pmid-file
   [request _ project-id {:keys [file filename]} {:as options}]
   (let [{:keys [max-import-articles]} config/env
@@ -47,8 +41,7 @@
                                 max-import-articles (count pmids))}}
 
       :else
-      (let [source-meta (source/make-source-meta
-                         :pmid-file {:filename filename})]
+      (let [source-meta {:source "PMID file" :filename filename}]
         (import-source-impl
          request project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
@@ -68,7 +61,7 @@
                                 max-import-articles (count pmids))}}
 
       :else
-      (let [source-meta (source/make-source-meta :pmid-vector {})]
+      (let [source-meta {:source "PMID vector"}]
         (import-source-impl
          request project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}

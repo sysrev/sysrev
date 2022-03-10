@@ -36,11 +36,6 @@
     (q/create :project-source {:project-id project-id :meta metadata :import-date :%now}
               :returning :source-id)))
 
-(defmulti make-source-meta (fn [source-type _values] source-type))
-
-(defmethod make-source-meta :default [_source-type _values]
-  (throw (Exception. "invalid source-type")))
-
 (defmulti re-import (fn [_request _ source & [_options]]
                       (-> source :meta :source)))
 

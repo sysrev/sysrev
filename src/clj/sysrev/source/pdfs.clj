@@ -2,17 +2,13 @@
   (:require [clojure.set :as set]
             [me.raynes.fs :as fs]
             [sysrev.file.article :as article-file]
-            [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util]))
-
-(defmethod make-source-meta :pdfs [_ {:keys [filenames]}]
-  {:source "PDF Files" :filenames filenames})
 
 (defmethod import-source :pdfs
   [request _ project-id files {:as options}]
   (let [filenames (map :filename files)
-        source-meta (make-source-meta :pdfs {:filenames filenames})
+        source-meta {:source "PDF Files" :filenames filenames}
         pdf-to-article (fn [{:keys [filename tempfile] :as _entry}]
                          {:filename (fs/base-name filename)
                           :file-byte-array (util/slurp-bytes tempfile)})

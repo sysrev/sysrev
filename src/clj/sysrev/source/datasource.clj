@@ -2,7 +2,7 @@
   (:require [clojure.tools.logging :as log]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [medley.core :as medley]
-            [sysrev.source.core :as source :refer [make-source-meta]]
+            [sysrev.source.core :as source]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.graphql.core :refer [fail with-datasource-proxy]]))
 
@@ -15,19 +15,15 @@
 ;;; datasource-query
 ;;;
 
-(defmethod make-source-meta :datasource-query
-  [_ {:keys [query]}]
-  {:source "Datasource Query" :query query})
-
 (defmethod import-source :datasource-query
-  [request stype project-id {:keys [query entities]} & {:as options}]
+  [request _ project-id {:keys [query entities]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :query]) query))))
-    (do (log/warnf "import-source %s - query %s already imported" stype (pr-str query))
+    (do (log/warnf "import-source %s - query %s already imported" :datasource-query (pr-str query))
         {:error {:message (format "Datasource query %s already imported" (pr-str query))}})
     (do (import-source-impl
          request project-id
-         (source/make-source-meta stype {:query query})
+         {:source "Datasource Query" :query query}
          {:types {:article-type "datasource" :article-subtype "entity"}
           :get-article-refs (constantly entities)
           :get-articles process-datasource-entities}
@@ -35,7 +31,7 @@
         {:result true})))
 
 (def import-ds-query
-  ^ResolverResult 
+  ^ResolverResult
   (fn [context {:keys [id query]} _]
     (let [project-id id
           api-token (:authorization context)]
@@ -58,21 +54,15 @@
 ;;; datasource
 ;;;
 
-(defmethod make-source-meta :datasource
-  [_ {:keys [datasource-id datasource-name]}]
-  {:source "Datasource" :datasource-id datasource-id :datasource-name datasource-name})
-
 (defmethod import-source :datasource
-  [request source-type project-id {:keys [datasource-id entities datasource-name]} & {:as options}]
+  [request _ project-id {:keys [datasource-id entities datasource-name]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :datasource-id]) datasource-id))))
-    (do (log/warnf "import-source %s - datasource-id %s already imported" source-type datasource-id)
+    (do (log/warnf "import-source %s - datasource-id %s already imported" :datasource datasource-id)
         {:error {:message (format "datasource-id %s already imported" datasource-id)}})
     (do (import-source-impl
          request project-id
-         (source/make-source-meta source-type
-                                  {:datasource-id datasource-id
-                                   :datasource-name datasource-name})
+         {:source "Datasource" :datasource-id datasource-id :datasource-name datasource-name}
          {:types {:article-type "datasource" :article-subtype "entity"}
           :get-article-refs (constantly entities)
           :get-articles process-datasource-entities}
@@ -105,19 +95,15 @@
 ;;; dataset
 ;;;
 
-(defmethod make-source-meta :dataset
-  [_ {:keys [dataset-id dataset-name]}]
-  {:source "Dataset" :dataset-id dataset-id :dataset-name dataset-name})
-
 (defmethod import-source :dataset
-  [request source-type project-id {:keys [dataset-id entities dataset-name]} & {:as options}]
+  [request _ project-id {:keys [dataset-id entities dataset-name]} & {:as options}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :dataset-id]) dataset-id))))
-    (do (log/warnf "import-source %s - dataset-id %s already imported" source-type dataset-id)
+    (do (log/warnf "import-source %s - dataset-id %s already imported" :dataset dataset-id)
         {:error {:message (format "dataset-id %s already imported" dataset-id)}})
     (do (import-source-impl
          request project-id
-         (source/make-source-meta source-type {:dataset-id dataset-id :dataset-name dataset-name})
+         {:source "Dataset" :dataset-id dataset-id :dataset-name dataset-name}
          {:types {:article-type "datasource" :article-subtype "entity"}
           :get-article-refs (constantly entities)
           :get-articles process-datasource-entities}
@@ -125,7 +111,7 @@
         {:result true})))
 
 (def import-dataset
-  ^ResolverResult 
+  ^ResolverResult
   (fn [context {:keys [id dataset]} _]
     (let [project-id id
           api-token (:authorization context)]

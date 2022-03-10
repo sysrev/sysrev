@@ -1,10 +1,10 @@
 (ns sysrev.source.pdf-zip
-  (:require [clojure.string :as str]
-            [clojure.set :as set]
+  (:require [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [me.raynes.fs :as fs]
             [sysrev.file.article :as article-file]
-            [sysrev.source.core :as source :refer [make-source-meta]]
+            [sysrev.source.core :as source]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util])
   (:import [org.apache.commons.compress.archivers.zip ZipArchiveEntry ZipFile ZipArchiveEntry]))
@@ -32,9 +32,6 @@
   (->> (source/project-sources project-id)
        (filter #(= filename (get-in % [:meta :filename])))))
 
-(defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]
-  {:source "PDF Zip file" :filename filename})
-
 ;; FIX: want this to return an error if no pdfs found - does it?
 (defmethod import-source :pdf-zip
   [request _ project-id {:keys [file filename]} {:as options}]
@@ -43,7 +40,7 @@
       (do (log/warn "import-source pdf-zip - non-empty filename-sources -" filename-sources)
           {:error {:message "File name already imported"}})
       (let [^ZipFile zip-file (-> file to-zip-file)
-            source-meta (make-source-meta :pdf-zip {:filename filename})
+            source-meta {:source "PDF Zip file" :filename filename}
             pdf-to-article (fn [^ZipArchiveEntry zip-entry]
                              {:filename (fs/base-name (.getName zip-entry))
                               :file-byte-array (-> (.getInputStream zip-file zip-entry)
