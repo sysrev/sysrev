@@ -1,10 +1,18 @@
 {
+  "calva.evalOnSave": true,
+  "calva.paredit.strictPreventUnmatchedClosingBracket": true,
+  "calva.testOnSave": true,
+  "calva.useTestExplorer": true,
   "calva.myCljAliases": [
     "dev-embedded",
     "dev",
     "test",
     "repl"
   ],
+  "editor.formatOnPaste": true,
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "magit.forge-enabled": true,
   "search.useParentIgnoreFiles": true,
   "search.showLineNumbers": true,
   "search.exclude": {
